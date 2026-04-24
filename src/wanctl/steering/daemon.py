@@ -836,8 +836,11 @@ class RouterOSController:
 
         if isinstance(parsed, list):
             for item in parsed:
-                if item.get("comment") == self.config.mangle_rule_comment:
-                    return item.get("disabled") != "true"
+                if (
+                    isinstance(item, dict)
+                    and item.get("comment") == self.config.mangle_rule_comment
+                ):
+                    return bool(item.get("disabled") != "true")
             self.logger.error(f"Could not find ADAPTIVE rule in output: {out[:200]}")
             return None
 
@@ -1752,14 +1755,14 @@ class SteeringDaemon:
     def measure_current_rtt(self) -> float | None:
         """Measure current RTT from autorate, falling back to fresh autorate IRTT."""
         live_rtt = self.baseline_loader.load_live_rtt()
-        if live_rtt is not None:
-            self._record_rtt_source_success("autorate_health", live_rtt)
-            return live_rtt
+        if isinstance(live_rtt, (int, float)):
+            self._record_rtt_source_success("autorate_health", float(live_rtt))
+            return float(live_rtt)
         live_irtt_rtt = self.baseline_loader.load_live_irtt_rtt()
-        if live_irtt_rtt is not None:
-            self._record_rtt_source_success("autorate_irtt", live_irtt_rtt)
+        if isinstance(live_irtt_rtt, (int, float)):
+            self._record_rtt_source_success("autorate_irtt", float(live_irtt_rtt))
             self.logger.debug("Using autorate IRTT RTT fallback for steering")
-            return live_irtt_rtt
+            return float(live_irtt_rtt)
         self._current_rtt_source = "unavailable"
         return None
 

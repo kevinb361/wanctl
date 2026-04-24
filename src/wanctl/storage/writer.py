@@ -9,6 +9,7 @@ import logging
 import sqlite3
 import threading
 import time
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,7 @@ from wanctl.metrics import record_storage_write_failure, record_storage_write_su
 from wanctl.storage.schema import create_tables
 
 logger = logging.getLogger(__name__)
+Labels = dict[str, Any] | str | None
 
 # Default database path
 DEFAULT_DB_PATH = Path("/var/lib/wanctl/metrics.db")
@@ -105,7 +107,7 @@ class MetricsWriter:
         """
         return self._get_connection()
 
-    def _resolve_process_role(self, labels: dict[str, Any] | None = None) -> str:
+    def _resolve_process_role(self, labels: Labels = None) -> str:
         """Resolve the process role for observability labels."""
         if isinstance(labels, dict):
             process_role = labels.get("process")
@@ -123,10 +125,12 @@ class MetricsWriter:
         lock_failure = isinstance(error, sqlite3.OperationalError) and "locked" in str(error).lower()
         record_storage_write_failure(process_role, lock_failure=lock_failure)
 
-    def _serialize_labels(self, labels: dict[str, Any] | None) -> str | None:
+    def _serialize_labels(self, labels: Labels) -> str | None:
         """Serialize labels with a small cache for reused content."""
         if not labels:
             return None
+        if isinstance(labels, str):
+            return labels
 
         cache_key = tuple(
             sorted((str(key), json.dumps(value, sort_keys=True)) for key, value in labels.items())
@@ -236,7 +240,7 @@ class MetricsWriter:
         wan_name: str,
         metric_name: str,
         value: float,
-        labels: dict[str, Any] | None = None,
+        labels: Labels = None,
         granularity: str = "raw",
     ) -> None:
         """Write a single metric to the database.
@@ -248,7 +252,7 @@ class MetricsWriter:
             wan_name: WAN identifier (e.g., "spectrum", "att")
             metric_name: Prometheus-compatible metric name
             value: Metric value as float
-            labels: Optional JSON-serializable labels dict
+            labels: Optional JSON-serializable labels dict or pre-serialized JSON string
             granularity: Data granularity (raw, 1m, 5m, 1h)
         """
         labels_json = self._serialize_labels(labels)
@@ -274,7 +278,7 @@ class MetricsWriter:
                 raise
 
     def write_metrics_batch(
-        self, metrics: list[tuple[int, str, str, float, dict[str, Any] | None, str]]
+        self, metrics: Sequence[tuple[int, str, str, float, Labels, str]]
     ) -> None:
         """Write multiple metrics in a single transaction.
 
@@ -283,7 +287,8 @@ class MetricsWriter:
 
         Args:
             metrics: List of tuples (timestamp, wan_name, metric_name, value, labels, granularity)
-                    labels can be None, granularity should be 'raw' for live data
+                    labels can be a dict, pre-serialized JSON string, or None;
+                    granularity should be 'raw' for live data
         """
         if not metrics:
             return

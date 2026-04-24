@@ -135,6 +135,11 @@ KNOWN_STEERING_PATHS: set[str] = {
     # Storage (from STORAGE_SCHEMA, shared)
     "storage",
     "storage.retention_days",
+    "storage.retention",
+    "storage.retention.raw_age_seconds",
+    "storage.retention.aggregate_1m_age_seconds",
+    "storage.retention.aggregate_5m_age_seconds",
+    "storage.retention.prometheus_compensated",
     "storage.db_path",
     # Alerting -- imperatively loaded in _load_alerting_config
     "alerting",
