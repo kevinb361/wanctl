@@ -50,7 +50,16 @@ was run, and no `phase196_rtt_blend_tcp12` or
 
 ## Spectrum B-Leg: cake-primary
 
-Status: pending
+Status: blocked - B-leg cannot run without valid A-leg
+
+Plan 196-03 Task 1 blocked before any `cake-primary` mode switch, soak
+capture, or flent run because the required A-leg artifact is absent:
+
+- `soak/rtt-blend/manifest.json` does not exist.
+- Plan 196-02 recorded `Status: blocked - preflight gate failed` and did not
+  produce a valid rtt-blend A-leg.
+- No `soak/cake-primary/manifest.json` was created, and no B-leg capture was
+  started.
 
 | Evidence | Status | Artifact |
 | --- | --- | --- |
