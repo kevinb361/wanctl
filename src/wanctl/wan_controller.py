@@ -83,6 +83,10 @@ FORCE_SAVE_INTERVAL_CYCLES = 1200  # Force state save every 60s (1200 * 50ms)
 STATE_ENCODING = {"GREEN": 0, "YELLOW": 1, "SOFT_RED": 2, "RED": 3}
 SLOW_ROUTER_APPLY_LOG_MS = 10.0
 ARBITRATION_PRIMARY_ENCODING = {"none": 0, "queue": 1, "rtt": 2}
+ARBITRATION_REASON_QUEUE_DISTRESS = "queue_distress"
+ARBITRATION_REASON_GREEN_STABLE = "green_stable"
+ARBITRATION_REASON_RTT_VETO = "rtt_veto"
+ARBITRATION_REASON_RTT_PRIMARY_NORMAL = "rtt_primary_operating_normally"
 RTT_CONFIDENCE_NULL_SENTINEL = math.nan
 
 
@@ -677,6 +681,8 @@ class WANController:
         self._ul_cake_signal = CakeSignalProcessor(config=config)
         self._dl_cake_snapshot: CakeSignalSnapshot | None = None
         self._ul_cake_snapshot: CakeSignalSnapshot | None = None
+        self._last_arbitration_primary: str = "rtt"
+        self._last_arbitration_reason: str = ARBITRATION_REASON_RTT_PRIMARY_NORMAL
 
         # Refractory period counters (Phase 160: DETECT-03)
         self._dl_refractory_remaining: int = 0
@@ -2613,6 +2619,55 @@ class WANController:
 
         ul_stats = adapter.ul_backend.get_queue_stats("")
         self._ul_cake_snapshot = self._ul_cake_signal.update(ul_stats)
+
+    def _select_dl_primary_scalar_ms(
+        self, dl_cake: "CakeSignalSnapshot | None"
+    ) -> tuple[str, float, str]:
+        """Phase 194 ARB-01 selector.
+
+        Returns (primary, load_for_classifier, control_decision_reason).
+        - primary in {"queue", "rtt"}
+        - load_for_classifier is the value to pass as `load_rtt` to adjust_4state
+        - control_decision_reason in {"queue_distress", "green_stable"}
+
+        Semantics of control_decision_reason (Phase 194):
+        - "queue_distress" = queue scalar exceeded green threshold this cycle
+          (input pressure, NOT classifier outcome - hysteresis/dwell may keep
+          the state machine in GREEN even when this reason fires).
+        - "green_stable" = queue scalar at or below green threshold this cycle.
+        - "rtt_veto" = (Phase 195) reserved for "RTT confidence overrode queue
+          primary"; never emitted by Phase 194 code.
+
+        SAFE-05 (behavioral identity): when primary == "rtt", load_for_classifier
+        is exactly self.load_rtt (no rounding, no recomputation) so adjust_4state
+        receives behaviorally-identical inputs to the v1.39 invocation. Textual
+        identity of the call expression is intentionally given up; the call
+        signature stays positional and identical.
+
+        Phase 194 never emits 'none' for active_primary_signal. The
+        ARBITRATION_PRIMARY_ENCODING map exposes 0=none for forward
+        compatibility with Phase 195's degraded-cycle paths, but the Phase 194
+        selector always returns either 'queue' or 'rtt' because (a) the
+        fallback path is reached even when load_rtt is 0 (the classifier
+        handles zero-RTT cycles deterministically), and (b) per RESEARCH.md
+        Common Pitfalls #5, no real runtime path requires a third 'no
+        classification ran' state in Phase 194. Phase 195 may revisit if RTT
+        confidence gating introduces a path with neither primary valid.
+        """
+        if (
+            self._cake_signal_supported
+            and dl_cake is not None
+            and not dl_cake.cold_start
+        ):
+            delta_ms = dl_cake.max_delay_delta_us / 1000.0
+            load_for_classifier = self.baseline_rtt + delta_ms
+            reason = (
+                ARBITRATION_REASON_QUEUE_DISTRESS
+                if delta_ms > self.green_threshold
+                else ARBITRATION_REASON_GREEN_STABLE
+            )
+            return "queue", load_for_classifier, reason
+        return "rtt", self.load_rtt, ARBITRATION_REASON_GREEN_STABLE
 
     def _run_congestion_assessment(
         self,
