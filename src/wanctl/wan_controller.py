@@ -8,6 +8,7 @@ adjustments for a single WAN interface.
 import concurrent.futures
 import json
 import logging
+import math
 import socket
 import statistics
 import threading
@@ -81,6 +82,8 @@ BACKGROUND_RTT_MIN_CADENCE_SECONDS = 0.25
 FORCE_SAVE_INTERVAL_CYCLES = 1200  # Force state save every 60s (1200 * 50ms)
 STATE_ENCODING = {"GREEN": 0, "YELLOW": 1, "SOFT_RED": 2, "RED": 3}
 SLOW_ROUTER_APPLY_LOG_MS = 10.0
+ARBITRATION_PRIMARY_ENCODING = {"none": 0, "queue": 1, "rtt": 2}
+RTT_CONFIDENCE_NULL_SENTINEL = math.nan
 
 
 # =============================================================================
@@ -2836,9 +2839,9 @@ class WANController:
             self._last_irtt_write_ts = irtt_result.timestamp
 
         # CAKE signal metrics (Phase 159, CAKE-04)
-        if self._dl_cake_snapshot is not None and self._dl_cake_signal.config.metrics_enabled:
+        if self._dl_cake_signal.config.metrics_enabled:
             snap = self._dl_cake_snapshot
-            if not snap.cold_start:
+            if snap is not None and not snap.cold_start:
                 metrics_batch.extend([
                     (ts, self.wan_name, "wanctl_cake_drop_rate", snap.drop_rate,
                      self._download_labels, "raw"),
@@ -2849,6 +2852,17 @@ class WANController:
                     (ts, self.wan_name, "wanctl_cake_peak_delay_us", float(snap.peak_delay_us),
                      self._download_labels, "raw"),
                 ])
+                av_delta_val = float(snap.max_delay_delta_us)
+            else:
+                av_delta_val = RTT_CONFIDENCE_NULL_SENTINEL
+            metrics_batch.extend([
+                (ts, self.wan_name, "wanctl_cake_avg_delay_delta_us", av_delta_val,
+                 self._download_labels, "raw"),
+                (ts, self.wan_name, "wanctl_arbitration_active_primary",
+                 float(ARBITRATION_PRIMARY_ENCODING["rtt"]), self._download_labels, "raw"),
+                (ts, self.wan_name, "wanctl_rtt_confidence",
+                 RTT_CONFIDENCE_NULL_SENTINEL, self._download_labels, "raw"),
+            ])
         if self._ul_cake_snapshot is not None and self._ul_cake_signal.config.metrics_enabled:
             snap = self._ul_cake_snapshot
             if not snap.cold_start:
