@@ -13,8 +13,8 @@
 ### Signal Arbitration (ARB)
 
 - [ ] **ARB-01**: When `cake_signal` is supported and the latest `cake_snapshot` provides a valid `avg_delay_us` and `base_delay_us`, DL distress classification consumes `queue_delay_delta_us = max(0, avg_delay_us - base_delay_us)` as its primary input instead of RTT delta. When `cake_signal` is unsupported, DL classification falls back to the v1.39 RTT-primary path byte-identically.
-- [ ] **ARB-02**: DL classification consumes RTT delta only through an `rtt_confidence` scalar in `[0.0, 1.0]` derived from ICMP/UDP agreement and direction agreement with the queue-delay signal. RTT cannot override a queue-GREEN reading unless `rtt_confidence >= 0.6` and queue and RTT agree in direction.
-- [ ] **ARB-03**: Fusion healer bypass enters only when queue-delay distress (`queue_delay_delta_us` over its distress threshold) AND RTT distress (`rtt_confidence >= 0.6` with RTT zone at least YELLOW) are both sustained in the same worsening-or-held direction for 6 consecutive cycles. Single-path flips never enter bypass. Magnitude ratios between µs (queue) and ms (RTT) are never used as the alignment metric.
+- [x] **ARB-02**: DL classification consumes RTT delta only through an `rtt_confidence` scalar in `[0.0, 1.0]` derived from ICMP/UDP agreement and direction agreement with the queue-delay signal. RTT cannot override a queue-GREEN reading unless `rtt_confidence >= 0.6` and queue and RTT agree in direction.
+- [x] **ARB-03**: Fusion healer bypass enters only when queue-delay distress (`queue_delay_delta_us` over its distress threshold) AND RTT distress (`rtt_confidence >= 0.6` with RTT zone at least YELLOW) are both sustained in the same worsening-or-held direction for 6 consecutive cycles. Single-path flips never enter bypass. Magnitude ratios between µs (queue) and ms (RTT) are never used as the alignment metric.
 - [ ] **ARB-04**: v1.40 arbitration changes are DL-only. UL distress classification, UL state machine, and UL rate compute remain byte-identical to v1.39.
 
 ### Measurement Accounting (MEAS)
@@ -113,8 +113,8 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | ARB-01      | Phase 194 | Pending |
-| ARB-02      | Phase 195 | Pending |
-| ARB-03      | Phase 195 | Pending |
+| ARB-02      | Phase 195 | Complete |
+| ARB-03      | Phase 195 | Complete |
 | ARB-04      | Phase 194 | Pending |
 | MEAS-07     | Phase 193 | Complete |
 | OBS-01      | Phase 193 | Pending |
