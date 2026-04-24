@@ -607,7 +607,7 @@ class TestPhase195Spectrum20260423Replay:
 
         assert spike_loads == [pytest.approx(integrated_controller.baseline_rtt + 0.5)] * 10
         assert integrated_controller.baseline_rtt + 40.0 not in spike_loads
-        assert min(spike_rates) > integrated_controller.download.floor_green
+        assert min(spike_rates) > integrated_controller.download.floor_green_bps
         assert integrated_controller._last_arbitration_primary == "queue"
 
 

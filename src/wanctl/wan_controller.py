@@ -2741,6 +2741,15 @@ class WANController:
             else "unknown"
         )
 
+        self._last_queue_direction = queue_direction
+        self._last_rtt_direction = rtt_direction
+        if raw_queue_delta_ms is None:
+            self._last_rtt_confidence = None
+        else:
+            self._last_rtt_confidence = self._derive_rtt_confidence(
+                queue_direction, rtt_direction
+            )
+
         primary, load_for_classifier, decision_reason = self._select_dl_primary_scalar_ms(dl_cake)
         dl_zone, dl_rate, dl_transition_reason = self.download.adjust_4state(
             self.baseline_rtt,
@@ -2752,14 +2761,6 @@ class WANController:
         )
         self._last_arbitration_primary = primary
         self._last_arbitration_reason = decision_reason
-        self._last_queue_direction = queue_direction
-        self._last_rtt_direction = rtt_direction
-        if raw_queue_delta_ms is None:
-            self._last_rtt_confidence = None
-        else:
-            self._last_rtt_confidence = self._derive_rtt_confidence(
-                queue_direction, rtt_direction
-            )
         # Advance direction history for next cycle (raw deltas, not selector output).
         self._prev_queue_delta_ms = raw_queue_delta_ms
         self._prev_rtt_delta_ms = raw_rtt_delta_ms
