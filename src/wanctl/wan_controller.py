@@ -15,7 +15,7 @@ import threading
 import time
 from collections import deque
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from wanctl.alert_engine import AlertEngine
 from wanctl.asymmetry_analyzer import DIRECTION_ENCODING, AsymmetryAnalyzer, AsymmetryResult
@@ -56,6 +56,9 @@ from wanctl.storage.deferred_writer import DeferredIOWorker
 from wanctl.tuning.models import TuningResult, TuningState
 from wanctl.wan_controller_state import WANControllerState
 
+if TYPE_CHECKING:
+    from wanctl.cake_signal import CakeSignalSnapshot
+
 # =============================================================================
 # CONSTANTS
 # =============================================================================
@@ -87,6 +90,7 @@ ARBITRATION_REASON_QUEUE_DISTRESS = "queue_distress"
 ARBITRATION_REASON_GREEN_STABLE = "green_stable"
 ARBITRATION_REASON_RTT_VETO = "rtt_veto"
 ARBITRATION_REASON_RTT_PRIMARY_NORMAL = "rtt_primary_operating_normally"
+ARBITRATION_REASON_HEALER_BYPASS = "healer_bypass"
 RTT_CONFIDENCE_NULL_SENTINEL = math.nan
 
 
@@ -683,6 +687,13 @@ class WANController:
         self._ul_cake_snapshot: CakeSignalSnapshot | None = None
         self._last_arbitration_primary: str = "rtt"
         self._last_arbitration_reason: str = ARBITRATION_REASON_RTT_PRIMARY_NORMAL
+        # Phase 195 arbitration state: rtt_confidence derivation + direction tracking
+        self._last_rtt_confidence: float | None = None
+        self._last_queue_direction: str = "unknown"
+        self._last_rtt_direction: str = "unknown"
+        self._prev_queue_delta_ms: float | None = None
+        self._prev_rtt_delta_ms: float | None = None
+        self._healer_aligned_streak: int = 0
 
         # Refractory period counters (Phase 160: DETECT-03)
         self._dl_refractory_remaining: int = 0
@@ -2621,6 +2632,48 @@ class WANController:
 
         ul_stats = adapter.ul_backend.get_queue_stats("")
         self._ul_cake_snapshot = self._ul_cake_signal.update(ul_stats)
+
+    def _classify_direction(self, previous: float | None, current: float) -> str:
+        """Categorical direction of a scalar delta sample vs its previous value.
+
+        Returns one of "worsening", "improving", "held", "unknown". No deadband,
+        no EWMA — SAFE-05 forbids threshold expansion. Strict `>` / `<` only.
+        """
+        if previous is None:
+            return "unknown"
+        if current > previous:
+            return "worsening"
+        if current < previous:
+            return "improving"
+        return "held"
+
+    def _derive_rtt_confidence(
+        self, queue_direction: str, rtt_direction: str
+    ) -> float:
+        """Derive rtt_confidence in [0.0, 1.0] from protocol + direction agreement.
+
+        Protocol confidence uses the existing _check_protocol_correlation bands
+        (0.67 <= ratio <= 1.5 -> 1.0, outside -> 0.0, None -> 0.5). Direction
+        confidence is categorical agreement between queue_direction and
+        rtt_direction. Final confidence is min(protocol, direction) so any
+        untrusted input can cap RTT authority. SAFE-05: no new tunables.
+        """
+        ratio = self._irtt_correlation
+        if ratio is None:
+            protocol_confidence = 0.5
+        elif 0.67 <= ratio <= 1.5:
+            protocol_confidence = 1.0
+        else:
+            protocol_confidence = 0.0
+
+        if "unknown" in (queue_direction, rtt_direction):
+            direction_confidence = 0.5
+        elif queue_direction == rtt_direction:
+            direction_confidence = 1.0
+        else:
+            direction_confidence = 0.0
+
+        return min(protocol_confidence, direction_confidence)
 
     def _select_dl_primary_scalar_ms(
         self, dl_cake: "CakeSignalSnapshot | None"
