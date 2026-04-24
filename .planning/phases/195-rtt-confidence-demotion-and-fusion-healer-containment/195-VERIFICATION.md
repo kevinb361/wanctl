@@ -1,27 +1,24 @@
 ---
 phase: 195-rtt-confidence-demotion-and-fusion-healer-containment
-verified: 2026-04-24T17:36:35Z
-status: human_needed
-score: 10/13 must-haves verified
+verified: 2026-04-24T18:47:14Z
+status: passed
+score: 13/13 must-haves verified
 overrides_applied: 0
-human_verification:
-  - test: "SC-1 production rtt_confidence observation"
-    expected: "On a cake_signal-supported WAN, /health signal_arbitration.rtt_confidence and SQLite wanctl_rtt_confidence show non-null floats in [0.0, 1.0] across a 1-hour production window and track ICMP/UDP plus queue-direction agreement."
-    why_human: "The repository verifies renderer and metric wiring, but no 1-hour production health/SQLite capture is present in this phase artifact."
-  - test: "SC-2 production low-confidence RTT spike trace"
-    expected: "During a queue-GREEN RTT spike with rtt_confidence < 0.6, control_decision_reason is not rtt_veto and DL zone transitions do not escalate from the RTT path."
-    why_human: "Automated unit and replay coverage prove the branch behavior, but no operator production trace for this scenario is present."
-  - test: "SC-3 production single-path flip trace"
-    expected: "During a single-path ICMP/IRTT flip with queue GREEN for at least 6 cycles, control_decision_reason never shows healer_bypass and fusion bypass remains inactive."
-    why_human: "Automated replay coverage proves the branch behavior, but no production trace for this scenario is present."
+production_verification:
+  window_start: 2026-04-24T17:45:49Z
+  window_end: 2026-04-24T18:45:44Z
+  health_samples_per_wan: 360
+  health_sample_errors: 0
+  raw_health_sample_path: /tmp/wanctl-phase195/phase195-health-samples.jsonl
+  canary: passed
 ---
 
 # Phase 195: RTT Confidence Demotion and Fusion-Healer Containment Verification Report
 
 **Phase Goal:** Introduce `rtt_confidence`, gate DL RTT override behind confidence plus direction agreement, contain fusion-healer bypass behind 6 aligned distress cycles, prevent single-path bypasses, and avoid magnitude-ratio/state-machine/timing/threshold/rate-compute changes.
-**Verified:** 2026-04-24T17:36:35Z
-**Status:** human_needed
-**Re-verification:** No - previous `195-VERIFICATION.md` existed, but had no structured `gaps:` section.
+**Verified:** 2026-04-24T18:47:14Z
+**Status:** passed
+**Re-verification:** Yes - production UAT completed after the initial `human_needed` result.
 
 ## Goal Achievement
 
@@ -29,9 +26,9 @@ human_verification:
 
 | # | Truth | Status | Evidence |
 |---|---|---|---|
-| 1 | SC-1 production `rtt_confidence` is observed in `/health` and SQLite over a 1-hour cake-signal window | ? HUMAN | Code and tests verify pass-through/gated metric wiring, but no 1-hour production artifact is present. |
-| 2 | SC-2 production low-confidence queue-GREEN RTT spike does not emit `rtt_veto` | ? HUMAN | Automated branch coverage passes; no operator production trace is present. |
-| 3 | SC-3 production single-path flip does not enter `healer_bypass` | ? HUMAN | Automated replay passes; no operator production trace is present. |
+| 1 | SC-1 production `rtt_confidence` is observed in `/health` and SQLite over a 1-hour cake-signal window | VERIFIED | cake-shaper health collection from `2026-04-24T17:45:49Z` to `2026-04-24T18:45:44Z`: 360 samples per WAN, zero errors, all healthy, health confidence range `0.0..1.0`; SQLite rows over the same window: spectrum 70,344 and ATT 70,387 `wanctl_rtt_confidence` rows, each min `0.0`, max `1.0`. |
+| 2 | SC-2 production low-confidence queue-GREEN RTT spike does not emit `rtt_veto` | VERIFIED | SQLite cycle reconstruction found queue-GREEN, low-confidence RTT spikes where `active_primary=1.0` queue: spectrum `2026-04-24T18:09:03Z` with confidence `0.0`, queue `2us`, RTT delta `210.74ms`; ATT `2026-04-24T18:39:33Z` with confidence `0.0`, queue `194us`, RTT delta `10.84ms`. |
+| 3 | SC-3 production single-path flip does not enter `healer_bypass` | VERIFIED | Journal recorded protocol-deprioritization events after restart, including spectrum ratio `0.62` and ATT ratio flips `0.23..1.52`; health samples showed `fusion_bypass_active=false` and reason `None` for all 720 samples; SQLite `wanctl_fusion_bypass_active` max was `0.0` for both WANs. |
 | 4 | SC-4 Spectrum 2026-04-23 replay avoids phantom RTT bloat and healer bypass | VERIFIED | `tests/test_phase_195_replay.py:537` and `:566`; replay lineage passed `48 passed, 6 skipped`. |
 | 5 | Controller derives `rtt_confidence` in `[0.0, 1.0]` from ICMP/UDP agreement and queue/RTT direction | VERIFIED | `_derive_rtt_confidence` at `src/wanctl/wan_controller.py:2642`; tests at `tests/test_wan_controller.py:3249`. |
 | 6 | `rtt_confidence` is `None` when no valid queue snapshot exists | VERIFIED | `_run_congestion_assessment` sets `None` at `src/wanctl/wan_controller.py:2747`; focused tests passed. |
@@ -43,7 +40,59 @@ human_verification:
 | 12 | No queue-us/RTT-ms magnitude ratio, and UL/state-machine/timing/threshold/rate-compute contracts hold | VERIFIED | Source guards found no `absolute_disagreement` or queue/RTT ratio; no diff in `queue_controller.py`, `cake_signal.py`, or `fusion_healer.py`; full slice passed. |
 | 13 | Post-review WR-01 stale fusion fallback expectation is fixed | VERIFIED | Commit `14b0343`; `tests/test_fusion_healer.py:831` asserts filtered RTT without bypass; `109 passed`. |
 
-**Score:** 10/13 truths verified; 3 require production human verification.
+**Score:** 13/13 truths verified.
+
+### Production UAT Evidence
+
+Phase 195 was deployed code-only to cake-shaper by syncing `src/wanctl/` to
+`/opt/wanctl`, preserving production YAML and systemd units. The deployed files
+contained Phase 195 markers (`ARBITRATION_REASON_HEALER_BYPASS`,
+`_derive_rtt_confidence`, `queue_rtt_aligned_distress`,
+`wanctl_rtt_confidence`). `wanctl@spectrum.service` and `wanctl@att.service`
+were restarted at 2026-04-24 12:44:27 CDT.
+
+Post-restart canary:
+
+```text
+spectrum autorate: pass
+att autorate: pass
+steering: pass
+```
+
+One-hour health collection:
+
+```text
+path: /tmp/wanctl-phase195/phase195-health-samples.jsonl
+window: 2026-04-24T17:45:49Z to 2026-04-24T18:45:44Z
+spectrum: 360 samples, 0 errors, all healthy
+att: 360 samples, 0 errors, all healthy
+```
+
+SQLite confidence rows over the same window:
+
+| WAN | Rows | Min | Max | Avg |
+|---|---:|---:|---:|---:|
+| spectrum | 70,344 | 0.0 | 1.0 | 0.0410 |
+| att | 70,387 | 0.0 | 1.0 | 0.0316 |
+
+Low-confidence RTT spike trace examples:
+
+| WAN | UTC Time | rtt_confidence | queue_delta_us | rtt_delta_ms | active_primary | fusion_active |
+|---|---|---:|---:|---:|---:|---:|
+| spectrum | 2026-04-24T18:09:03Z | 0.0 | 2.0 | 210.74 | 1.0 queue | 0.0 |
+| att | 2026-04-24T18:39:33Z | 0.0 | 194.0 | 10.84 | 1.0 queue | 0.0 |
+
+Single-path flip / bypass evidence:
+
+- Journal after restart contained protocol-deprioritization events, including
+  spectrum ICMP/UDP ratio `0.62` and ATT ratio flips from `0.23` to `1.52`.
+- Filtered journal had no `healer_bypass`, `queue_rtt_aligned`, or `rtt_veto`
+  entries.
+- Health samples reported `fusion_bypass_active=false`,
+  `fusion_bypass_reason=None` for all 720 samples.
+- SQLite `wanctl_fusion_bypass_active` max was `0.0` for both WANs.
+- `journalctl -p err` for both WAN services since the Phase 195 restart
+  returned 0 entries.
 
 ### Required Artifacts
 
@@ -92,8 +141,8 @@ human_verification:
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |---|---|---|---|---|
-| ARB-02 | `195-02`, `195-03` | RTT only overrides queue-GREEN through confidence and direction agreement | SATISFIED IN CODE | Selector gate and tests verify all branches; production trace remains human verification. |
-| ARB-03 | `195-02`, `195-03` | Healer bypass only after 6 aligned queue+RTT distress cycles; single-path flips never bypass; no magnitude ratio | SATISFIED IN CODE | Streak gate, no literal `absolute_disagreement`, no ratio matches, replay coverage. |
+| ARB-02 | `195-02`, `195-03` | RTT only overrides queue-GREEN through confidence and direction agreement | SATISFIED | Selector gate, automated tests, replay coverage, and production SQLite traces verify low-confidence RTT spikes stayed queue-primary. |
+| ARB-03 | `195-02`, `195-03` | Healer bypass only after 6 aligned queue+RTT distress cycles; single-path flips never bypass; no magnitude ratio | SATISFIED | Streak gate, no literal `absolute_disagreement`, no ratio matches, replay coverage, and production protocol-deprioritization traces with no bypass. |
 | SAFE-05 | `195-01`, `195-02`, `195-03` | No state-machine, EWMA, dwell, deadband, burst, threshold, or rate-compute changes | SATISFIED | Source guards clean; no changes in `queue_controller.py`, `cake_signal.py`, or `fusion_healer.py`; full tests pass. |
 
 ### Anti-Patterns Found
@@ -102,31 +151,31 @@ human_verification:
 |---|---|---|---|---|
 | `src/wanctl/wan_controller.py` | 3097 | `return {}` | Info | Existing fallback for unavailable Linux CAKE write timings; not a Phase 195 stub and not user-visible. |
 
-### Human Verification Required
+### Human Verification Completed
 
 ### 1. SC-1 Production Confidence Observation
 
 **Test:** Run a cake-signal-supported WAN for at least 1 hour and capture `/health` plus SQLite metric rows for `wanctl_rtt_confidence`.
 **Expected:** `rtt_confidence` is a non-null float in `[0.0, 1.0]` on valid queue-snapshot cycles and tracks protocol/direction agreement.
-**Why human:** Requires a production window and operator access to live health/SQLite data.
+**Result:** Passed. cake-shaper health collection produced 360 samples per WAN with zero errors; SQLite contained non-null `wanctl_rtt_confidence` rows for the same window with values in `[0.0, 1.0]`.
 
 ### 2. SC-2 Low-Confidence RTT Spike Trace
 
 **Test:** Capture or replay against production telemetry where queue remains GREEN while RTT spikes and `rtt_confidence < 0.6`.
 **Expected:** `control_decision_reason != "rtt_veto"` and DL zone transitions do not escalate due to RTT in that window.
-**Why human:** Automated tests prove the branch, but the roadmap asks for an operator-verifiable traced scenario.
+**Result:** Passed. Production SQLite traces show queue-GREEN, low-confidence RTT spikes on both WANs with `active_primary=1.0` queue.
 
 ### 3. SC-3 Single-Path Flip Trace
 
 **Test:** Capture a single-path ICMP/IRTT flip with queue GREEN for at least 6 cycles.
 **Expected:** `control_decision_reason` never shows `healer_bypass`; fusion bypass remains inactive.
-**Why human:** Automated replay proves the branch, but no production trace artifact is present.
+**Result:** Passed. Production journal recorded protocol-deprioritization events; health and SQLite evidence show fusion bypass stayed inactive.
 
 ### Gaps Summary
 
-No implementation gaps were found. The phase goal is achieved in the codebase and covered by automated tests, including the post-review `tests/test_fusion_healer.py` expectation update. Status is `human_needed` only because roadmap success criteria 1-3 require production/operator evidence that is not present in this phase directory.
+No implementation or production verification gaps remain. The phase goal is achieved in the codebase, covered by automated tests, and backed by the one-hour production evidence recorded in this report and `195-HUMAN-UAT.md`.
 
 ---
 
-_Verified: 2026-04-24T17:36:35Z_
+_Verified: 2026-04-24T18:47:14Z_
 _Verifier: Codex (gsd-verifier)_
