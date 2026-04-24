@@ -106,11 +106,25 @@ to pending/runnable after Phase 191 closure is recorded outside Phase 196 Plan
 
 skipped_gate_blocked
 
+Task 2 skipped: `att-canary-gate.md` does not contain
+`decision: run-att-canary`. No ATT capture, ATT mode switch, ATT flent load,
+`att-mode-proof.json`, or `att-canary-summary.json` was produced.
+
 | Gate | Status | Evidence |
 | --- | --- | --- |
 | Phase 191 closure | blocked | `STATE.md`, `196-PREFLIGHT.md`, `191-VERIFICATION.md`, `191.1-rerun-results.json`, and `192-PRECONDITION-WAIVER.md` record Phase 191 closure as blocked/open. |
 | ATT `cake-primary` canary | blocked | Not authorized while Phase 191 is blocked; no ATT flent load, mode switch, `att-canary-summary.json`, or `att-mode-proof.json` was produced. |
 | Gate artifact | recorded | `soak/att-canary/att-canary-gate.md` contains `phase_191_status: blocked` and `decision: blocked-do-not-run-att-canary`. |
+
+### Task 2 Verification
+
+```text
+$ test -f .planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/att-canary/att-canary-summary.json || grep -q "skipped_gate_blocked" .planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/196-VERIFICATION.md
+exit 0
+
+$ if test -f .planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/att-canary/att-canary-summary.json; then jq -e '.verdict == "pass" or .verdict == "fail"' .planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/att-canary/att-mode-proof.json; else true; fi
+exit 0
+```
 
 ## SAFE-05 Source Guard
 
