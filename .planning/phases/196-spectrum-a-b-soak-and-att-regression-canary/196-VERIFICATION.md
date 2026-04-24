@@ -1,6 +1,6 @@
 ---
 phase: 196-spectrum-a-b-soak-and-att-regression-canary
-status: in_progress
+status: blocked
 created: 2026-04-24
 requirements: [VALN-04, VALN-05, SAFE-05]
 ---
@@ -130,15 +130,15 @@ exit 0
 
 Status: pass
 
-A-leg SAFE-05 guard: no protected control-path diff.
+Final SAFE-05 guard: no protected control-path diff.
 
 ```text
 $ git diff --quiet -- src/wanctl/queue_controller.py src/wanctl/cake_signal.py src/wanctl/fusion_healer.py src/wanctl/wan_controller.py
-no protected control-path diff
+exit 0
 ```
 
-Preflight and local source guards passed: no Phase 196 diff exists in the
-protected control files.
+Preflight, A-leg, B-leg, and closeout source guards passed: no Phase 196 diff
+exists in the protected control files.
 
 Protected files:
 
@@ -157,10 +157,14 @@ Protected files:
 
 ## Requirements Coverage
 
-Status: pending
+Status: blocked - validation evidence is incomplete
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
-| VALN-04 | blocked | Spectrum A/B soak is blocked until a reversible mode gate is proven. |
-| VALN-05 | pending | Spectrum throughput and ATT canary evidence are not yet captured. |
-| SAFE-05 | pass | Plan 01 has not modified protected control files. |
+| VALN-04 | blocked - not satisfied | Spectrum A/B soak did not run because `196-PREFLIGHT.md` records no reversible operator mode gate. No A-leg, B-leg, or no-concurrent-experiment evidence exists. |
+| VALN-05 | blocked - not satisfied | Spectrum `tcp_12down >= 532 Mbps` evidence was not captured, and ATT canary blocked by Phase 191. No ATT throughput verdict exists. |
+| SAFE-05 | pass - satisfied | Protected-file diff remains clean for `src/wanctl/queue_controller.py`, `src/wanctl/cake_signal.py`, `src/wanctl/fusion_healer.py`, and `src/wanctl/wan_controller.py`. |
+
+Phase 196 is closed as blocked rather than passed. VALN-04 and VALN-05 remain
+blocked in milestone traceability; SAFE-05 remains satisfied by the clean
+protected-file diff.
