@@ -88,6 +88,13 @@ Plan 01.
 
 Status: pass
 
+A-leg SAFE-05 guard: no protected control-path diff.
+
+```text
+$ git diff --quiet -- src/wanctl/queue_controller.py src/wanctl/cake_signal.py src/wanctl/fusion_healer.py src/wanctl/wan_controller.py
+no protected control-path diff
+```
+
 Preflight and local source guards passed: no Phase 196 diff exists in the
 protected control files.
 
