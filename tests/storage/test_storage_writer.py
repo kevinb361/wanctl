@@ -156,6 +156,25 @@ class TestWriteMetric:
         assert labels["state"] == "GREEN"
         assert labels["reason"] == "stable"
 
+    def test_write_metric_with_pre_serialized_labels(self, reset_singleton, test_db_path):
+        """Already-serialized label JSON is stored without double encoding."""
+        writer = MetricsWriter(test_db_path)
+        labels_json = '{"state":"GREEN","reason":"stable"}'
+
+        writer.write_metric(
+            timestamp=1706200000,
+            wan_name="spectrum",
+            metric_name="wanctl_rtt_ms",
+            value=15.5,
+            labels=labels_json,
+        )
+
+        conn = writer._get_connection()
+        row = conn.execute("SELECT labels FROM metrics").fetchone()
+
+        assert row["labels"] == labels_json
+        assert json.loads(row["labels"]) == {"state": "GREEN", "reason": "stable"}
+
     def test_write_metric_with_granularity(self, reset_singleton, test_db_path):
         """Test writing a metric with custom granularity."""
         writer = MetricsWriter(test_db_path)
@@ -289,6 +308,23 @@ class TestWriteMetricsBatch:
         labels2 = json.loads(rows[1]["labels"])
         assert labels1["state"] == "GREEN"
         assert labels2["state"] == "YELLOW"
+
+    def test_write_batch_with_pre_serialized_labels(self, reset_singleton, test_db_path):
+        """Batch writes preserve pre-serialized label JSON strings."""
+        writer = MetricsWriter(test_db_path)
+        labels_json = '{"state":"GREEN"}'
+        metrics = [
+            (1706200000, "spectrum", "wanctl_state", 0.0, labels_json, "raw"),
+            (1706200001, "spectrum", "wanctl_state", 1.0, labels_json, "raw"),
+        ]
+
+        writer.write_metrics_batch(metrics)
+
+        conn = writer._get_connection()
+        rows = conn.execute("SELECT labels FROM metrics ORDER BY timestamp").fetchall()
+
+        assert [row["labels"] for row in rows] == [labels_json, labels_json]
+        assert len(writer._labels_json_cache) == 0
 
     def test_write_batch_reuses_cached_label_serialization(self, reset_singleton, test_db_path):
         """Equivalent label dicts should share one cached JSON serialization."""

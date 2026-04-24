@@ -4964,8 +4964,9 @@ class TestSteeringProfilingInstrumentation:
         # Setup for successful run_cycle:
         # update_baseline_rtt needs to succeed
         d.baseline_loader.load_baseline_rtt.return_value = (25.0, None)
-        # _measure_current_rtt_with_retry needs to return valid RTT
-        d.rtt_measurement.ping_host.return_value = 27.0
+        # Steering now consumes autorate health RTT directly, not a self-probe.
+        d.baseline_loader.load_live_rtt.return_value = 27.0
+        d.baseline_loader.load_live_irtt_rtt.return_value = None
         return d
 
     def test_run_cycle_records_rtt_measurement_timing(self, daemon):

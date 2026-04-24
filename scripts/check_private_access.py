@@ -131,6 +131,16 @@ def _is_inside_same_file_class(lineno: int, class_ranges: list[tuple[int, int]])
     return any(start <= lineno <= end for start, end in class_ranges)
 
 
+def _root_name(expr: ast.expr) -> str | None:
+    """Return the left-most variable name for a chained attribute expression."""
+    current = expr
+    while isinstance(current, ast.Attribute):
+        current = current.value
+    if isinstance(current, ast.Name):
+        return current.id
+    return None
+
+
 def check_file(filepath: Path) -> list[str]:
     """Find cross-module private attribute accesses in a Python file.
 
@@ -180,6 +190,11 @@ def check_file(filepath: Path) -> list[str]:
             continue
         # Skip class-level access on same-file classes (e.g., Class._instance)
         if isinstance(node.value, ast.Name) and node.value.id in class_names:
+            continue
+        # Skip chained accesses rooted in same-file instances/classes at module scope
+        # (e.g. wc.signal_processor._window inside helper functions in the same file).
+        root_name = _root_name(node.value)
+        if root_name is not None and (root_name in same_file_vars or root_name in class_names):
             continue
         # Skip chained expressions (self.obj._attr, expr._attr) inside
         # methods of classes defined in this file. These are within-module

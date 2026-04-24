@@ -324,6 +324,8 @@ class TestSteeringFailureCascade:
 
         mock_baseline_loader = MagicMock(spec=BaselineLoader)
         mock_baseline_loader.load_baseline_rtt.return_value = (25.0, None)
+        mock_baseline_loader.load_live_rtt.return_value = None
+        mock_baseline_loader.load_live_irtt_rtt.return_value = None
 
         mock_logger = MagicMock()
 
