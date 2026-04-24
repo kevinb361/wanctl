@@ -2447,6 +2447,138 @@ class TestPhase193MetricsBatch:
         assert str(metrics[("wanctl_cake_avg_delay_delta_us", dl_key)]).lower() == "nan"
 
 
+class TestPhase194DLSelector:
+    @pytest.fixture
+    def controller(self, mock_autorate_config):
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=router,
+                rtt_measurement=MagicMock(),
+                logger=MagicMock(),
+            )
+
+        controller._dl_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True, metrics_enabled=True)
+        )
+        controller._ul_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True, metrics_enabled=True)
+        )
+        controller.baseline_rtt = 25.0
+        controller.load_rtt = 42.0
+        controller.green_threshold = 15.0
+        return controller
+
+    @staticmethod
+    def _make_snapshot(*, cold_start: bool, max_delay_delta_us: int):
+        from wanctl.cake_signal import CakeSignalSnapshot
+
+        return CakeSignalSnapshot(
+            drop_rate=10.0,
+            total_drop_rate=12.0,
+            backlog_bytes=4096,
+            peak_delay_us=500,
+            tins=(),
+            cold_start=cold_start,
+            avg_delay_us=5000,
+            base_delay_us=200,
+            max_delay_delta_us=max_delay_delta_us,
+        )
+
+    def test_queue_primary_distress_returns_virtual_load_rtt(self, controller):
+        from wanctl.wan_controller import ARBITRATION_REASON_QUEUE_DISTRESS
+
+        controller._cake_signal_supported = True
+        snapshot = self._make_snapshot(cold_start=False, max_delay_delta_us=20000)
+
+        primary, load_for_classifier, reason = controller._select_dl_primary_scalar_ms(
+            snapshot
+        )
+
+        assert primary == "queue"
+        assert load_for_classifier == pytest.approx(45.0)
+        assert reason == ARBITRATION_REASON_QUEUE_DISTRESS
+
+    def test_queue_primary_green_stable_returns_virtual_load_rtt(self, controller):
+        from wanctl.wan_controller import ARBITRATION_REASON_GREEN_STABLE
+
+        controller._cake_signal_supported = True
+        snapshot = self._make_snapshot(cold_start=False, max_delay_delta_us=5000)
+
+        primary, load_for_classifier, reason = controller._select_dl_primary_scalar_ms(
+            snapshot
+        )
+
+        assert primary == "queue"
+        assert load_for_classifier == pytest.approx(30.0)
+        assert reason == ARBITRATION_REASON_GREEN_STABLE
+
+    def test_fallback_when_cake_signal_not_supported_preserves_load_rtt(
+        self, controller
+    ):
+        from wanctl.wan_controller import ARBITRATION_REASON_GREEN_STABLE
+
+        controller._cake_signal_supported = False
+        controller.load_rtt = 42.0
+        snapshot = self._make_snapshot(cold_start=False, max_delay_delta_us=20000)
+
+        primary, load_for_classifier, reason = controller._select_dl_primary_scalar_ms(
+            snapshot
+        )
+
+        assert primary == "rtt"
+        assert load_for_classifier == 42.0
+        assert reason == ARBITRATION_REASON_GREEN_STABLE
+
+    def test_fallback_when_snapshot_missing_preserves_load_rtt(self, controller):
+        from wanctl.wan_controller import ARBITRATION_REASON_GREEN_STABLE
+
+        controller._cake_signal_supported = True
+        controller.load_rtt = 33.5
+
+        primary, load_for_classifier, reason = controller._select_dl_primary_scalar_ms(
+            None
+        )
+
+        assert primary == "rtt"
+        assert load_for_classifier == 33.5
+        assert reason == ARBITRATION_REASON_GREEN_STABLE
+
+    def test_fallback_when_snapshot_is_cold_start_preserves_load_rtt(
+        self, controller
+    ):
+        from wanctl.wan_controller import ARBITRATION_REASON_GREEN_STABLE
+
+        controller._cake_signal_supported = True
+        controller.load_rtt = 37.25
+        snapshot = self._make_snapshot(cold_start=True, max_delay_delta_us=20000)
+
+        primary, load_for_classifier, reason = controller._select_dl_primary_scalar_ms(
+            snapshot
+        )
+
+        assert primary == "rtt"
+        assert load_for_classifier == 37.25
+        assert reason == ARBITRATION_REASON_GREEN_STABLE
+
+    def test_initial_arbitration_state_defaults_to_rtt_primary_normal(
+        self, controller
+    ):
+        from wanctl.wan_controller import ARBITRATION_REASON_RTT_PRIMARY_NORMAL
+
+        assert controller._last_arbitration_primary == "rtt"
+        assert controller._last_arbitration_reason == ARBITRATION_REASON_RTT_PRIMARY_NORMAL
+
+
 class TestMeasureRttMedianOfThree:
     """Tests for WANController.measure_rtt() median-of-three edge cases.
 
