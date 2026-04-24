@@ -2910,17 +2910,14 @@ class WANController:
                     (ts, self.wan_name, "wanctl_cake_peak_delay_us", float(snap.peak_delay_us),
                      self._download_labels, "raw"),
                 ])
-                av_delta_val = float(snap.max_delay_delta_us)
-            else:
-                av_delta_val = RTT_CONFIDENCE_NULL_SENTINEL
+                metrics_batch.append(
+                    (ts, self.wan_name, "wanctl_cake_avg_delay_delta_us",
+                     float(snap.max_delay_delta_us), self._download_labels, "raw")
+                )
             active_primary = getattr(self, "_last_arbitration_primary", "rtt")
             metrics_batch.extend([
-                (ts, self.wan_name, "wanctl_cake_avg_delay_delta_us", av_delta_val,
-                 self._download_labels, "raw"),
                 (ts, self.wan_name, "wanctl_arbitration_active_primary",
                  float(ARBITRATION_PRIMARY_ENCODING[active_primary]), self._download_labels, "raw"),
-                (ts, self.wan_name, "wanctl_rtt_confidence",
-                 RTT_CONFIDENCE_NULL_SENTINEL, self._download_labels, "raw"),
             ])
         if self._ul_cake_snapshot is not None and self._ul_cake_signal.config.metrics_enabled:
             snap = self._ul_cake_snapshot
