@@ -65,6 +65,11 @@ Task 2 skipped: no valid A-leg. No `phase196-soak-capture.sh`
 `cake-primary-start` or `cake-primary-finish` capture was run, and no 24-hour
 cake-primary soak was started.
 
+Task 3 skipped: no valid A-leg. No Spectrum cake-primary flent capture was
+run, no `phase196_cake_primary_tcp12` or `phase196_cake_primary_rrul_voip`
+manifest was produced, and no `soak/cake-primary/throughput-summary.json` was
+created.
+
 | Evidence | Status | Artifact |
 | --- | --- | --- |
 | Start capture | pending | `soak/cake-primary/` |
