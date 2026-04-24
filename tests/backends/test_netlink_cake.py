@@ -968,6 +968,19 @@ class TestGetQueueStats:
             assert set(tin.keys()) == expected_keys
 
     @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_avg_and_base_delay_round_trip_from_tca_attrs(self, MockIPRoute, backend):
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        mock_instance.tc.return_value = [_make_mock_cake_dump_msg()]
+        MockIPRoute.return_value = mock_instance
+
+        result = backend.get_queue_stats("q")
+
+        assert result is not None
+        assert result["tins"][0]["avg_delay_us"] == 2000
+        assert result["tins"][0]["base_delay_us"] == 500
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
     def test_ecn_marked_equals_sum_of_tin_ecn(self, MockIPRoute, backend):
         """ecn_marked is sum of ecn_marked_packets across all tins (1+3+0+0=4)."""
         mock_instance = MagicMock()

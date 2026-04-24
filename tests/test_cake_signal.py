@@ -31,11 +31,15 @@ def make_mock_stats(
     tin_drops: list[int] | None = None,
     tin_backlog: list[int] | None = None,
     tin_peak_delay: list[int] | None = None,
+    tin_avg_delay: list[int] | None = None,
+    tin_base_delay: list[int] | None = None,
 ) -> dict[str, Any]:
     """Build a mock get_queue_stats() return value."""
     tin_drops = tin_drops or [0, 0, 0, 0]
     tin_backlog = tin_backlog or [0, 0, 0, 0]
     tin_peak_delay = tin_peak_delay or [0, 0, 0, 0]
+    tin_avg_delay = tin_avg_delay or [0, 0, 0, 0]
+    tin_base_delay = tin_base_delay or [0, 0, 0, 0]
     return {
         "packets": 100000,
         "bytes": 150000000,
@@ -54,8 +58,8 @@ def make_mock_stats(
                 "ecn_marked_packets": 0,
                 "backlog_bytes": tin_backlog[i],
                 "peak_delay_us": tin_peak_delay[i],
-                "avg_delay_us": 0,
-                "base_delay_us": 0,
+                "avg_delay_us": tin_avg_delay[i],
+                "base_delay_us": tin_base_delay[i],
                 "sparse_flows": 0,
                 "bulk_flows": 0,
                 "unresponsive_flows": 0,
@@ -125,6 +129,9 @@ class TestCakeSignalSnapshot:
             peak_delay_us=500,
             tins=(),
             cold_start=False,
+            avg_delay_us=5000,
+            base_delay_us=200,
+            max_delay_delta_us=4800,
         )
         assert snap.drop_rate == 1.5
         assert snap.total_drop_rate == 2.0
@@ -132,6 +139,22 @@ class TestCakeSignalSnapshot:
         assert snap.peak_delay_us == 500
         assert snap.tins == ()
         assert snap.cold_start is False
+        assert snap.avg_delay_us == 5000
+        assert snap.base_delay_us == 200
+        assert snap.max_delay_delta_us == 4800
+
+    def test_new_delay_fields_default_zero(self) -> None:
+        snap = CakeSignalSnapshot(
+            drop_rate=0.0,
+            total_drop_rate=0.0,
+            backlog_bytes=0,
+            peak_delay_us=0,
+            tins=(),
+            cold_start=True,
+        )
+        assert snap.avg_delay_us == 0
+        assert snap.base_delay_us == 0
+        assert snap.max_delay_delta_us == 0
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +184,9 @@ class TestTinSnapshot:
             backlog_bytes=512,
             peak_delay_us=100,
             ecn_marked_packets=1,
+            avg_delay_us=5000,
+            base_delay_us=200,
+            delay_delta_us=4800,
         )
         assert tin.name == "Voice"
         assert tin.dropped_packets == 42
@@ -168,6 +194,22 @@ class TestTinSnapshot:
         assert tin.backlog_bytes == 512
         assert tin.peak_delay_us == 100
         assert tin.ecn_marked_packets == 1
+        assert tin.avg_delay_us == 5000
+        assert tin.base_delay_us == 200
+        assert tin.delay_delta_us == 4800
+
+    def test_new_delay_fields_default_zero(self) -> None:
+        tin = TinSnapshot(
+            name="Voice",
+            dropped_packets=42,
+            drop_delta=3,
+            backlog_bytes=512,
+            peak_delay_us=100,
+            ecn_marked_packets=1,
+        )
+        assert tin.avg_delay_us == 0
+        assert tin.base_delay_us == 0
+        assert tin.delay_delta_us == 0
 
 
 # ---------------------------------------------------------------------------
@@ -327,6 +369,61 @@ class TestCakeSignalProcessorTinSeparation:
         assert snap is not None
         # peak_delay_us = max of tins[1:] = max(100, 500, 200) = 500
         assert snap.peak_delay_us == 500
+
+    def test_cold_start_propagates_delay_fields(self) -> None:
+        cfg = CakeSignalConfig(enabled=True)
+        proc = CakeSignalProcessor(config=cfg)
+
+        snap = proc.update(
+            make_mock_stats(
+                tin_avg_delay=[0, 5000, 3000, 1000],
+                tin_base_delay=[0, 200, 150, 50],
+            )
+        )
+
+        assert snap is not None
+        assert snap.cold_start is True
+        assert [tin.delay_delta_us for tin in snap.tins[1:]] == [4800, 2850, 950]
+        assert snap.max_delay_delta_us == 4800
+        assert snap.avg_delay_us == 5000
+        assert snap.base_delay_us == 200
+        assert snap.tins[1].avg_delay_us == 5000
+        assert snap.tins[1].base_delay_us == 200
+
+    def test_steady_state_propagates_delay_fields(self) -> None:
+        cfg = CakeSignalConfig(enabled=True)
+        proc = CakeSignalProcessor(config=cfg)
+        stats = make_mock_stats(
+            tin_avg_delay=[0, 5000, 3000, 1000],
+            tin_base_delay=[0, 200, 150, 50],
+        )
+
+        proc.update(stats)
+        snap = proc.update(stats)
+
+        assert snap is not None
+        assert snap.cold_start is False
+        assert [tin.delay_delta_us for tin in snap.tins[1:]] == [4800, 2850, 950]
+        assert snap.max_delay_delta_us == 4800
+        assert snap.tins[2].avg_delay_us == 3000
+        assert snap.tins[2].base_delay_us == 150
+        assert snap.tins[2].delay_delta_us == 2850
+
+    def test_max_delay_delta_is_per_tin_faithful_not_independent_maxes(self) -> None:
+        cfg = CakeSignalConfig(enabled=True)
+        proc = CakeSignalProcessor(config=cfg)
+        stats = make_mock_stats(
+            tin_avg_delay=[0, 10000, 3000, 1000],
+            tin_base_delay=[0, 200, 2800, 500],
+        )
+
+        proc.update(stats)
+        snap = proc.update(stats)
+
+        assert snap is not None
+        assert snap.max_delay_delta_us == 9800
+        assert [tin.delay_delta_us for tin in snap.tins[1:]] == [9800, 200, 500]
+        assert snap.max_delay_delta_us != (snap.avg_delay_us - snap.base_delay_us)
 
 
 # ---------------------------------------------------------------------------
