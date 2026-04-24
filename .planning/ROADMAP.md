@@ -73,7 +73,7 @@ Plans:
 
 **Requirements addressed:** MEAS-05, MEAS-06, OPER-02, SAFE-03, VALN-02, VALN-03
 
-**Depends on:** Phase 191.1 (timing closeout and ATT validation path must be resolved before the scorer soak begins)
+**Depends on:** Phase 191.1, waived for Phase 192 only by `192-PRECONDITION-WAIVER.md` after repeated restored-config reruns narrowed the blocker to the old ATT RRUL comparator. Phase 191 remains open.
 
 **Scope:**
 - Modify `reflector_scorer.py` so per-host score-update paths consume the same zero-success blackout gate that `rtt_measurement.py` already uses
@@ -93,6 +93,13 @@ Plans:
 2. Spectrum reflector scores in `/health` over a 24-hour window no longer repeatedly sink to the 0.8 deprioritize threshold during blackout episodes, verified against baseline log evidence from 2026-04-20.
 3. Spectrum "Protocol deprioritization detected" log volume over 24 hours drops meaningfully vs the 2.5k/day baseline, with first-occurrence and state-transition events still recorded.
 4. 24-hour post-merge soak confirms no regression in dwell-bypass responsiveness, burst detection trigger count, or fusion state transitions — captured in VERIFICATION.md.
+
+**Plans:** 3/3 plans complete
+
+Plans:
+- [x] 192-01-PLAN.md — Caller-side blackout gate + scorer/seam tests (MEAS-05, MEAS-06, SAFE-03, VALN-02)
+- [x] 192-02-PLAN.md — Fusion-aware log cooldown for protocol-deprio INFO + tests (OPER-02, SAFE-03, VALN-02)
+- [x] 192-03-PLAN.md — /health additive field, soak-capture script, live soak verification, and v1.39.0 bump under waiver (MEAS-06, OPER-02, SAFE-03, VALN-02, VALN-03)
 
 ---
 
@@ -115,7 +122,7 @@ Phase 191 ships before Phase 192 because the timing change affects *both* WANs s
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
 | 193 | Queue Signal Contract and Arbitration Telemetry | 1/3 | In Progress|  |
-| 194 | Download Queue-Primary Distress Classification | Make DL distress classification consume `queue_delay_delta_us` as primary under load; fall back to v1.39 RTT-primary byte-identically when cake_signal is unavailable; UL untouched | ARB-01, ARB-04, SAFE-05 | 4 |
+| 194 | Download Queue-Primary Distress Classification | 2/2 | Complete    | 2026-04-24 |
 | 195 | RTT Confidence Demotion and Fusion-Healer Containment | Derive `rtt_confidence` from ICMP/UDP agreement and queue-direction agreement; require sustained queue+RTT 6-cycle direction alignment for healer bypass; single-path flips never bypass | ARB-02, ARB-03, SAFE-05 | 4 |
 | 196 | Spectrum A/B Soak and ATT Regression Canary | Sequential 24h rtt-blend then 24h cake-primary Spectrum soak; ATT canary after Phase 191 closure; Spectrum DL recovers to ≥90% of 591 Mbps CAKE-only static floor without RTT-distress regression | VALN-04, VALN-05, SAFE-05 | 4 |
 
@@ -186,7 +193,11 @@ Plans:
 3. `/health` shows `signal_arbitration.active_primary_signal == "queue"` on the Spectrum linux-cake deployment during a DL load event and `"rtt"` on the forced-fallback path, matching the metric `wanctl_arbitration_active_primary` value per cycle.
 4. UL `/health` (`upload.*`) and UL SQLite metrics are byte-identical between pre-Phase-194 and Phase-194 traces on the same recorded input, proving ARB-04.
 
-**Plans:** TBD (created by `/gsd-plan-phase 194`)
+**Plans:** 2/2 plans complete
+
+Plans:
+- [x] 194-01-PLAN.md — DL primary-signal selector + per-cycle stash + arbitration-aware /health and metrics rewiring (ARB-01, SAFE-05)
+- [x] 194-02-PLAN.md — SAFE-05 / ARB-04 / ARB-01 deterministic replay harness reusing Phase 193 scaffolding (ARB-04, SAFE-05, ARB-01)
 
 ---
 
