@@ -165,5 +165,6 @@ Resume file: None
 
 - Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), `2026-04-23` (`64.40 Mbps`), `2026-04-23c` (`61.47 Mbps`), and `2026-04-24` (`70.95 Mbps`) FAIL samples against the old ATT RRUL download comparator. The `2026-04-24` run narrowed the issue because ATT tcp_12down and VoIP looked healthy and Spectrum throughput was strong, but it still did not close Phase 191. Phase 192 is allowed to proceed only under the explicit operator waiver in `192-PRECONDITION-WAIVER.md`.
 - Phase 196 remains blocked after Plan 196-04 closeout: no Spectrum A/B validation evidence exists because the reversible `rtt-blend` / `cake-primary` mode gate is blocked, and ATT canary remains blocked by Phase 191 closure. VALN-04 and VALN-05 stay blocked; SAFE-05 remains satisfied.
+- Pending follow-up created: `.planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md` tracks the required ATT cake-primary canary rerun after Phase 191 closes.
 
 **Planned Phase:** 196 (spectrum-a-b-soak-and-att-regression-canary) — 4 plans — 2026-04-24T19:50:03Z
