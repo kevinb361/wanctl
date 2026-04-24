@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.39.0] - 2026-04-24
+
+### Added
+
+- Phase 192 additive `/health` surfacing for `download.hysteresis.dwell_bypassed_count`.
+- Portable `scripts/phase192-soak-capture.sh` helper for D-08 dwell, burst, fusion transition, and protocol-deprioritization evidence.
+- Phase 192 waiver and soak verification artifacts for proceeding despite the unresolved Phase 191 ATT RRUL comparator blocker.
+
+### Fixed
+
+- Guarded `WANController.measure_rtt()` so only real `RTTCycleStatus` objects enter the zero-success blackout path, preserving compatibility with existing background-thread test doubles.
+
 ## [1.26.0] - 2026-04-02
 
 **Tuning Validation** - Re-tested all tuning parameters on linux-cake transport after

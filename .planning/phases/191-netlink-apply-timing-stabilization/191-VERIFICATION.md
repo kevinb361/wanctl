@@ -349,43 +349,63 @@ Full `TIME-03` / `TIME-04` closure requires 24 hours of post-merge soak comparis
 ### Deploy metadata
 
 - `deploy_commit`: `d49b91469b019e4f7f7398811b902aa816a0514a`
-- `deploy_time_utc`: `2026-04-20T17:24:13Z`
+- `deploy_time_utc`: `2026-04-23T21:51:44Z` (fresh restart + rerun on the same deployed restored-config code; remote file hashes still match deploy commit `d49b91469b019e4f7f7398811b902aa816a0514a`)
 - `deployed_config_verified`: `true`
 - `fusion_mode_after_restart`: `enabled`
 - `irtt_server_after_restart`: `104.200.21.31:2112`
-- `reflector_reachability_passed`: `false`
-- `outcome_class`: `reflector_unreachable`
+- `reflector_reachability_passed`: `true`
+- `outcome_class`: `valid_result`
 
 The restored-config deployment returned ATT to the intended `v1.38` config posture by restoring `irtt.server` to `104.200.21.31` (replacing the drifted current value `zylone.org`) and re-enabling `fusion.enabled=true` under deploy commit `d49b91469b019e4f7f7398811b902aa816a0514a`.
 
+The initial `nc -zv` pre-flight used during Phase 191.1 checked TCP on `104.200.21.31:2112`. That was the wrong probe for IRTT, which uses UDP. A manual `irtt client` probe from `cake-shaper` to `104.200.21.31:2112` succeeded, so the rerun proceeded and the final outcome below is based on actual flent captures, not the earlier false TCP negative.
+
 ### Artifacts
 
-- ATT manifest: none recorded in `.planning/phases/191.1-att-config-drift-resolution-and-phase-191-closure/191.1-rerun-results.json` (`att_manifest: null`) because flent did not run after the reflector gate failed. Planned artifact root: `~/flent-results/phase191.1/p191_1_restored/att/`
-- Spectrum manifest: none recorded in `.planning/phases/191.1-att-config-drift-resolution-and-phase-191-closure/191.1-rerun-results.json` (`spectrum_manifest: null`) because flent did not run after the reflector gate failed. Planned artifact root: `~/flent-results/phase191.1/p191_1_restored/spectrum/`
+- ATT manifest: `/home/kevin/flent-results/phase191.1/p191_1_restored/p191_1_rerun_20260423c/att/20260423-165432/manifest.txt`
+- Spectrum manifest: `/home/kevin/flent-results/phase191.1/p191_1_restored/p191_1_rerun_20260423c/spectrum/20260423-165800/manifest.txt`
 - Structured rerun record: `.planning/phases/191.1-att-config-drift-resolution-and-phase-191-closure/191.1-rerun-results.json`
 
 ### ATT results
 
 | Test | Metric | `v1.38` baseline | Restored-config rerun | Delta | Regression? |
 | --- | --- | --- | --- | --- | --- |
-| RRUL | ping p99 (ms) | `74.42` | `not recorded (reflector_unreachable)` | `n/a` | `blocked` |
-| RRUL | download Mbps | `78.29` | `not recorded (reflector_unreachable)` | `n/a` | `blocked` |
-| RRUL | upload Mbps | `10.80` | `not recorded (reflector_unreachable)` | `n/a` | `blocked` |
-| tcp_12down | ping p99 (ms) | `98.33` | `not recorded (reflector_unreachable)` | `n/a` | `blocked` |
-| tcp_12down | download Mbps | `74.00` | `not recorded (reflector_unreachable)` | `n/a` | `blocked` |
-| VoIP | jitter p99 (ms) | `10.71` | `not recorded (reflector_unreachable)` | `n/a` | `blocked` |
-| VoIP | one-way delay p99 (ms) | `29.79` | `not recorded (reflector_unreachable)` | `n/a` | `blocked` |
-| VoIP | packet loss % | `0.0` | `not recorded (reflector_unreachable)` | `n/a` | `blocked` |
+| RRUL | ping p99 (ms) | `74.42` | `52.10` | `-22.32` | `no` |
+| RRUL | download Mbps | `78.29` | `61.47` | `-16.82` | `yes` |
+| RRUL | upload Mbps | `10.80` | `13.57` | `+2.77` | `no` |
+| tcp_12down | ping p99 (ms) | `98.33` | `47.96` | `-50.37` | `no` |
+| tcp_12down | download Mbps | `74.00` | `69.15` | `-4.85` | `yes` |
+| VoIP | jitter p99 (ms) | `10.71` | `2.10` | `-8.61` | `no` |
+| VoIP | one-way delay p99 (ms) | `29.79` | `25.35` | `-4.44` | `no` |
+| VoIP | packet loss % | `0.0` | `0.0` | `0.0` | `no` |
 
 ### Spectrum discriminator
 
 | Run | ping p99 (ms) | download Mbps |
 | --- | --- | --- |
-| restored-config discriminator | `not recorded (reflector_unreachable)` | `not recorded (reflector_unreachable)` |
+| restored-config discriminator | `1653.18` | `214.41` |
 
-VALN-02 verdict: BLOCKED (reflector_unreachable)
+VALN-02 verdict: FAIL
 
-The rerun stopped at the `reflector_unreachable` pre-flight gate after the restored ATT config deploy succeeded, so this is neither a PASS nor a throughput-regression FAIL. The rerun could not produce a valid throughput verdict, and Phase 191 remains blocked on reflector reachability as a different sub-cause until the restored reflector path is measurable.
+Phase 191.1 recorded VALN-02 verdict: FAIL against the restored ATT config (deploy commit `d49b91469b019e4f7f7398811b902aa816a0514a`). Per Phase 191.1 D-USER-02, Phase 191 STAYS BLOCKED and cannot close until the regression is resolved. Phase 192 cannot begin. This outcome is recorded honestly per D-11 and is NOT to be overridden by re-running until a favorable sample appears.
+
+**Operator note (2026-04-20):** The ATT rerun appears to have happened during severe rain on the live path. Treat this as weather-confounded evidence: keep the measured FAIL on record, but do not treat it as clean attribution against the restored ATT config until the same rerun is repeated in normal conditions.
+
+**Operator note (2026-04-21):** A second rerun was captured under label `p191_1_rerun_20260421`. ATT improved materially to `74.03 Mbps`, but still missed the `78.29 Mbps ±5%` closure bar by `0.44` percentage points (`-5.44%`). Spectrum simultaneously showed a bad discriminator sample (`283.40 Mbps`, `733.67 ms` ping p99), so this run is also treated as environment-confounded rather than a clean closure sample.
+
+**Operator note (2026-04-21b):** A third rerun was captured under label `p191_1_rerun_20260421b`. ATT fell back to `67.83 Mbps` with `83.91 ms` ping p99, while Spectrum remained degraded at `309.04 Mbps` and `375.64 ms` ping p99. This reinforces that the rerun environment was still unstable; the sample remains useful as context but not as clean closure evidence.
+
+**Operator note (2026-04-23):** A fourth rerun was captured under label `p191_1_rerun_20260423_attclean` after restoring the dev-host source-IP policy so `10.10.110.233` again exited as ATT (`99.126.115.47`) while `10.10.110.226` exited as Spectrum (`70.123.224.169`). This produced the first clean post-policy ATT sample: ATT RRUL `64.40 Mbps` down / `14.45 Mbps` up / `70.57 ms` ping p99, ATT `tcp_12down` `73.30 Mbps` / `97.16 ms` ping p99, and ATT VoIP `27.84 ms` one-way delay p99 with `6.12 ms` jitter p99. However, the matching Spectrum discriminator was still bad at `286.42 Mbps` down with `812.33 ms` ping p99, so this run remains environment-confounded overall even though the ATT source path was verified clean.
+
+**Operator note (2026-04-23c):** A fifth rerun was captured under label `p191_1_rerun_20260423c` after a fresh `wanctl@att` restart on the same restored-config deploy commit `d49b91469b019e4f7f7398811b902aa816a0514a`. The dev-host source-IP policy remained correct (`10.10.110.233` => `99.126.115.47`, `10.10.110.226` => `70.123.224.169`), and UDP `irtt client 104.200.21.31:2112` succeeded immediately before flent. Even in that cleaner setup, ATT RRUL still came back at only `61.47 Mbps` down / `13.57 Mbps` up / `52.10 ms` ping p99, and the matching Spectrum discriminator was catastrophically degraded at `214.41 Mbps` down with `1653.18 ms` ping p99. This strengthens the conclusion that the window was still globally confounded rather than being a clean ATT-only signal.
+
+**Operator note (2026-04-24):** A sixth rerun was captured under label `p191_1_rerun_20260424`. ATT RRUL improved to `70.95 Mbps` down / `14.40 Mbps` up / `48.62 ms` ping p99 but still missed the old `78.29 Mbps ±5%` closure lower bound of `74.38 Mbps`. ATT `tcp_12down` was within tolerance at `72.95 Mbps` versus `74.00 Mbps`, and ATT VoIP one-way p99 improved to `28.02 ms` versus `29.79 ms`. The Spectrum discriminator showed strong throughput (`343.83 Mbps`) but poor latency (`653.68 ms` ping p99). This is still not a clean Phase 191 closure sample, but it narrows the observed problem to the old ATT RRUL download comparator rather than a broad ATT service regression.
+
+## Phase 192 Operator Waiver
+
+Phase 191 remains open and `VALN-02 verdict: FAIL` remains the recorded Phase 191 closure verdict. The operator explicitly authorizes Phase 192 to proceed under the waiver recorded in `.planning/phases/192-reflector-scorer-blackout-awareness-and-log-hygiene/192-PRECONDITION-WAIVER.md`.
+
+This waiver is narrow: it allows Phase 192 additive observability/log-hygiene work and its guarded canary/soak path to continue despite the unresolved Phase 191 closure artifact. It does not close Phase 191, does not change the Phase 191 comparator, and does not permit threshold/timing/state-machine changes.
 
 ## Remaining Work
 
@@ -395,7 +415,8 @@ The rerun stopped at the `reflector_unreachable` pre-flight gate after the resto
    - decide whether `irtt.server=zylone.org` and/or `fusion.enabled=false` should remain
    - rerun ATT validation after choosing the intended ATT production config
    - keep Phase 191 evidence scoped: the root-cause probe above suggests the red ATT result is not primarily caused by Phase 191 code
-4. Post-merge only: run the 24-hour soak and compare against the pre-soak snapshot above for `TIME-03` / `TIME-04`.
+4. Repeat Plan `191.1-02` under a visibly clean network window before treating any of the `2026-04-20`, `2026-04-21`, `2026-04-21b`, `2026-04-23`, or `2026-04-23c` samples as stable config/runtime evidence.
+5. Post-merge only: run the 24-hour soak and compare against the pre-soak snapshot above for `TIME-03` / `TIME-04`.
 
 ## Manual Checkpoint Outcome
 
@@ -408,4 +429,4 @@ Phase 191 should not be marked complete from this verification artifact as it st
 
 ### Phase 191.1 update
 
-Phase 191.1 deployed the restored ATT config under commit `d49b91469b019e4f7f7398811b902aa816a0514a` and recorded `VALN-02 verdict: BLOCKED (reflector_unreachable)`. Phase 191 therefore stays blocked on the reflector-reachability sub-cause; restored-config closure evidence is incomplete until the ATT reflector path can be measured under the phase-local SAFE-03 comparator rule.
+Phase 191.1 deployed the restored ATT config under commit `d49b91469b019e4f7f7398811b902aa816a0514a` and recorded `VALN-02 verdict: FAIL`. Phase 191 therefore stays blocked. Six post-restore reruns now exist: `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), `2026-04-23` (`64.40 Mbps`), `2026-04-23c` (`61.47 Mbps`), and `2026-04-24` (`70.95 Mbps`). The latest `2026-04-24` sample improved ATT RRUL, kept ATT tcp_12down and VoIP effectively healthy, and showed strong Spectrum throughput with poor Spectrum latency. Phase 191 still does not close, but Phase 192 may proceed under the explicit operator waiver in `192-PRECONDITION-WAIVER.md`.

@@ -98,7 +98,7 @@ Root-cause probe outcome:
 
 ## Phase 191.1 Restored-Config Rerun
 
-Phase 191.1 restored the two ATT config keys identified in the live probe by returning `irtt.server=104.200.21.31` and `fusion.enabled=true` under deploy commit `d49b91469b019e4f7f7398811b902aa816a0514a`. The follow-up rerun stopped before ATT or Spectrum flent capture because the restored reflector path at `104.200.21.31:2112` was unreachable, so no new ATT RRUL download measurement was produced against the `78.29 Mbps` v1.38 baseline and no Spectrum discriminator measurement was recorded. `VALN-02 verdict: BLOCKED (reflector_unreachable)` remains the authoritative outcome, and the closure path now depends on the phase-local SAFE-03 comparator per Phase 191.1 `D-05` while preserving the milestone-wide comparator as contextual debt per `D-06`.
+Phase 191.1 restored the two ATT config keys identified in the live probe by returning `irtt.server=104.200.21.31` and `fusion.enabled=true` under deploy commit `d49b91469b019e4f7f7398811b902aa816a0514a`. The initial TCP `nc` pre-flight to `104.200.21.31:2112` was a false negative because IRTT uses UDP; a manual `irtt client` probe from `cake-shaper` succeeded, so the rerun proceeded and produced fresh ATT and Spectrum captures. The restored-config samples now show ATT RRUL at `63.83 Mbps` (`2026-04-20`), `74.03 Mbps` (`2026-04-21`), `67.83 Mbps` (`2026-04-21b`), `64.40 Mbps` (`2026-04-23`), `61.47 Mbps` (`2026-04-23c`), and `70.95 Mbps` (`2026-04-24`). The `2026-04-24` run is the most useful recent sample: ATT `tcp_12down` stayed within tolerance at `72.95 Mbps`, ATT VoIP one-way p99 improved to `28.02 ms`, and Spectrum RRUL throughput was strong at `343.83 Mbps`, but ATT RRUL download still missed the old `78.29 Mbps ±5%` closure bar and Spectrum RRUL latency was poor at `653.68 ms` p99. `VALN-02 verdict: FAIL` therefore remains the authoritative recorded Phase 191 outcome. The operator has separately waived the Phase 191 closure precondition for Phase 192 only, recorded in `.planning/phases/192-reflector-scorer-blackout-awareness-and-log-hygiene/192-PRECONDITION-WAIVER.md`; that waiver does not close Phase 191.
 
 ## SAFE / Soak Evidence
 
@@ -124,7 +124,7 @@ Phase 191.1 restored the two ATT config keys identified in the live probe by ret
 
 - `SAFE-04` evidence is ready.
 - `TIME-03` / `TIME-04` pre-soak evidence is ready for a later 24-hour comparison.
-- Phase 191.1 rerun could not produce a valid throughput verdict (outcome_class: `reflector_unreachable`). Phase 191 remains blocked on this sub-cause. See `191-VERIFICATION.md` Phase 191.1 Restored-Config Rerun section for details.
+- Phase 191.1 rerun history now has six restored-config FAIL samples (`2026-04-20`, `2026-04-21`, `2026-04-21b`, `2026-04-23`, `2026-04-23c`, and `2026-04-24`). Phase 191 remains blocked. Phase 192 may proceed only under the explicit operator waiver in `192-PRECONDITION-WAIVER.md`, with no implication that Phase 191 has closed.
 
 ---
 *Phase: 191-netlink-apply-timing-stabilization*  
