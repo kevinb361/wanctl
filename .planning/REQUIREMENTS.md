@@ -19,7 +19,7 @@
 
 ### Measurement Accounting (MEAS)
 
-- [ ] **MEAS-07**: `queue_delay_delta_us` is computed from the CAKE-provided `base_delay_us` field. No Python-side learned idle baseline, no baseline-freeze state machine, no healthy-idle gate is introduced for the queue-delay path.
+- [x] **MEAS-07**: `queue_delay_delta_us` is computed from the CAKE-provided `base_delay_us` field. No Python-side learned idle baseline, no baseline-freeze state machine, no healthy-idle gate is introduced for the queue-delay path.
 
 ### Observability (OBS)
 
@@ -28,7 +28,7 @@
 
 ### Control Safety (SAFE)
 
-- [ ] **SAFE-05**: No state-machine rule, EWMA alpha, dwell-cycle count, deadband value, burst detection parameter, or zone threshold is modified during v1.40. Arbitration changes the signal input to classification; classification rules and hysteresis logic remain untouched. Any PR touching state-machine code, EWMA alphas, or hysteresis constants is rejected.
+- [x] **SAFE-05**: No state-machine rule, EWMA alpha, dwell-cycle count, deadband value, burst detection parameter, or zone threshold is modified during v1.40. Arbitration changes the signal input to classification; classification rules and hysteresis logic remain untouched. Any PR touching state-machine code, EWMA alphas, or hysteresis constants is rejected.
 
 ### Verification (VALN)
 
@@ -116,10 +116,10 @@
 | ARB-02      | Phase 195 | Pending |
 | ARB-03      | Phase 195 | Pending |
 | ARB-04      | Phase 194 | Pending |
-| MEAS-07     | Phase 193 | Pending |
+| MEAS-07     | Phase 193 | Complete |
 | OBS-01      | Phase 193 | Pending |
 | OBS-02      | Phase 193 | Pending |
-| SAFE-05     | Phase 193 + Phase 194 + Phase 195 + Phase 196 (enforced throughout) | Pending |
+| SAFE-05     | Phase 193 + Phase 194 + Phase 195 + Phase 196 (enforced throughout) | Complete |
 | VALN-04     | Phase 196 | Pending |
 | VALN-05     | Phase 196 | Pending |
 
