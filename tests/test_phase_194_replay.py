@@ -522,16 +522,31 @@ class TestPhase194ReasonVocabulary:
         green_threshold: float,
         load_rtt: float,
     ) -> None:
-        integrated_controller._cake_signal_supported = cake_supported
-        integrated_controller.baseline_rtt = baseline_rtt
-        integrated_controller.green_threshold = green_threshold
-        integrated_controller.load_rtt = load_rtt
+        """SUPERSEDED by Phase 195.
 
-        _primary, _load_rtt, reason = integrated_controller._select_dl_primary_scalar_ms(snapshot)
+        Phase 194 locked `_select_dl_primary_scalar_ms` to never emit
+        `rtt_veto` or `healer_bypass`. Phase 195 introduces both reasons
+        under the ARB-02 / ARB-03 gates, so this negative assertion is no
+        longer meaningful. The Phase 195 superseding coverage lives in
+        tests/test_phase_195_replay.py::TestPhase195RttVetoGate and
+        tests/test_phase_195_replay.py::TestPhase195HealerBypassStreak.
 
-        assert reason in {
-            ARBITRATION_REASON_QUEUE_DISTRESS,
-            ARBITRATION_REASON_GREEN_STABLE,
-        }
-        assert reason != ARBITRATION_REASON_RTT_VETO
-        assert reason != "healer_bypass"
+        We keep the parametrize table as a historical artifact of the
+        Phase 194 vocabulary and convert the test body to a no-op so
+        pytest -k 'test_phase_194_never_emits_rtt_veto' still runs.
+        """
+        _ = (
+            integrated_controller,
+            cake_supported,
+            snapshot,
+            baseline_rtt,
+            green_threshold,
+            load_rtt,
+            ARBITRATION_REASON_RTT_VETO,
+        )
+        # SUPERSEDED by Phase 195 -- see tests/test_phase_195_replay.py.
+        pytest.skip(
+            "Phase 194 negative assertion superseded by Phase 195 positive "
+            "vocabulary. See tests/test_phase_195_replay.py::"
+            "TestPhase195RttVetoGate and TestPhase195HealerBypassStreak."
+        )
