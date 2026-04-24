@@ -2688,7 +2688,7 @@ class WANController:
             and dl_cake is not None
             and not dl_cake.cold_start
         ):
-            delta_ms = dl_cake.max_delay_delta_us / 1000.0
+            delta_ms = dl_cake.max_delay_delta_us * 0.001
             load_for_classifier = self.baseline_rtt + delta_ms
             if delta_ms > self.green_threshold:
                 return "queue", load_for_classifier, ARBITRATION_REASON_QUEUE_DISTRESS
@@ -2726,7 +2726,7 @@ class WANController:
         # Phase 195: capture raw direction inputs BEFORE arbitration selector mutates them.
         raw_rtt_delta_ms = self.load_rtt - self.baseline_rtt
         if dl_cake is not None and not dl_cake.cold_start:
-            raw_queue_delta_ms = dl_cake.max_delay_delta_us / 1000.0
+            raw_queue_delta_ms = dl_cake.max_delay_delta_us * 0.001
         else:
             raw_queue_delta_ms = None
 
