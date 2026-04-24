@@ -762,10 +762,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         Phase 193 introduced this block as observability-only with hardcoded
         ``active_primary_signal == "rtt"``. Phase 194 sources active_primary_signal
         and control_decision_reason from controller-owned arbitration state set by
-        WANController._run_congestion_assessment. ``rtt_confidence`` remains null
-        until Phase 195. This renderer keeps a legacy fallback for callers that
-        construct health_data without controller-owned arbitration state (e.g.,
-        legacy tests, MagicMock controllers).
+        WANController._run_congestion_assessment. ``rtt_confidence`` is sourced live from
+        ``WANController._last_rtt_confidence`` (Phase 195); it is ``None`` when
+        the controller has no valid queue snapshot for the cycle.
+        This renderer keeps a legacy fallback for callers that construct
+        health_data without controller-owned arbitration state (e.g., legacy
+        tests, MagicMock controllers).
         """
         arb = health_data.get("signal_arbitration") or {}
         cake_data = health_data.get("cake_signal") or {}

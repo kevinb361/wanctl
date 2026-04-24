@@ -2739,6 +2739,24 @@ class WANController:
             ul_cake = None
             self._ul_refractory_remaining -= 1
 
+        # Phase 195: capture raw direction inputs BEFORE arbitration selector mutates them.
+        raw_rtt_delta_ms = self.load_rtt - self.baseline_rtt
+        if dl_cake is not None and not dl_cake.cold_start:
+            raw_queue_delta_ms = dl_cake.max_delay_delta_us / 1000.0
+        else:
+            raw_queue_delta_ms = None
+
+        queue_direction = (
+            self._classify_direction(self._prev_queue_delta_ms, raw_queue_delta_ms)
+            if raw_queue_delta_ms is not None
+            else "unknown"
+        )
+        rtt_direction = (
+            self._classify_direction(self._prev_rtt_delta_ms, raw_rtt_delta_ms)
+            if raw_queue_delta_ms is not None
+            else "unknown"
+        )
+
         primary, load_for_classifier, decision_reason = self._select_dl_primary_scalar_ms(dl_cake)
         dl_zone, dl_rate, dl_transition_reason = self.download.adjust_4state(
             self.baseline_rtt,
@@ -2750,6 +2768,17 @@ class WANController:
         )
         self._last_arbitration_primary = primary
         self._last_arbitration_reason = decision_reason
+        self._last_queue_direction = queue_direction
+        self._last_rtt_direction = rtt_direction
+        if raw_queue_delta_ms is None:
+            self._last_rtt_confidence = None
+        else:
+            self._last_rtt_confidence = self._derive_rtt_confidence(
+                queue_direction, rtt_direction
+            )
+        # Advance direction history for next cycle (raw deltas, not selector output).
+        self._prev_queue_delta_ms = raw_queue_delta_ms
+        self._prev_rtt_delta_ms = raw_rtt_delta_ms
         if self._dl_burst_pending and dl_zone in ("GREEN", "YELLOW"):
             dl_zone = "SOFT_RED"
             dl_rate = self.download.apply_burst_clamp()
@@ -2974,6 +3003,7 @@ class WANController:
                 (ts, self.wan_name, "wanctl_arbitration_active_primary",
                  float(ARBITRATION_PRIMARY_ENCODING[active_primary]), self._download_labels, "raw"),
             ])
+            self._append_rtt_confidence_metric(metrics_batch, ts)
         if self._ul_cake_snapshot is not None and self._ul_cake_signal.config.metrics_enabled:
             snap = self._ul_cake_snapshot
             if not snap.cold_start:
@@ -3023,6 +3053,19 @@ class WANController:
                     labels={"direction": "upload", "reason": ul_transition_reason},
                     granularity="raw",
                 )
+
+    def _append_rtt_confidence_metric(self, metrics_batch: list, ts: int) -> None:
+        if self._last_rtt_confidence is not None:
+            metrics_batch.append(
+                (
+                    ts,
+                    self.wan_name,
+                    "wanctl_rtt_confidence",
+                    float(self._last_rtt_confidence),
+                    self._download_labels,
+                    "raw",
+                )
+            )
 
     def _consume_router_write_timings(self) -> dict[str, float]:
         """Return one-cycle write breakdown from Linux CAKE adapter when available."""
@@ -4087,7 +4130,7 @@ class WANController:
             },
             "signal_arbitration": {
                 "active_primary_signal": getattr(self, "_last_arbitration_primary", "rtt"),
-                "rtt_confidence": None,
+                "rtt_confidence": getattr(self, "_last_rtt_confidence", None),
                 "control_decision_reason": getattr(
                     self,
                     "_last_arbitration_reason",

@@ -2528,6 +2528,19 @@ class TestPhase193MetricsBatch:
             )
 
         batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
+        confidence_rows = [
+            row for row in batch if row[2] == "wanctl_rtt_confidence"
+        ]
+        assert confidence_rows == [
+            (
+                1234,
+                "TestWAN",
+                "wanctl_rtt_confidence",
+                0.85,
+                controller._download_labels,
+                "raw",
+            )
+        ]
         metrics = self._metrics_by_name(batch)
         dl_key = (("direction", "download"),)
         assert metrics[("wanctl_rtt_confidence", dl_key)] == pytest.approx(0.85)
