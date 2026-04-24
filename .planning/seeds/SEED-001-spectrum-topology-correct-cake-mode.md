@@ -3,7 +3,7 @@ id: SEED-001
 status: dormant
 planted: 2026-04-24
 planted_during: v1.40 Queue-Primary Signal Arbitration (Phase 195 planning)
-trigger_when: before v1.40 milestone planning OR when cake_signal.py / EXCLUDED_PARAMS / CAKE mode is touched
+trigger_when: during v1.41 milestone planning OR when cake_signal.py / EXCLUDED_PARAMS / CAKE mode is touched (v1.40 is already in flight with Phase 196 committed to A/B soak — defer migration)
 scope: Medium
 ---
 
@@ -34,18 +34,18 @@ This seed should be presented during `/gsd-new-milestone` when the milestone sco
 
 ## Scope Estimate
 
-**Medium** — A phase or two, needs planning. Likely a dedicated Phase 196 with:
+**Medium** — A phase or two, needs planning. v1.40 is already in flight (Phase 196 is the A/B soak closer, unrelated work). Land as the first phase of v1.41 (or equivalent), scoped to:
 
 1. **`cake_signal.py` tin-agnostic refactor** — currently aggregates over `tins[1:]` (Bulk/BestEffort/Video/Voice) at `cake_signal.py:13, :173, :306`. Surgical change: iterate over whatever tins exist (`len()`-aware), handle single-tin besteffort cleanly, preserve multi-tin diffserv4 behavior for ATT.
 2. **Remove `wash` from `EXCLUDED_PARAMS`** behind a config gate — don't flip the D-08 transparent-bridge rule globally. Add a per-WAN config flag `cake_params.allow_wash: bool = false` that, when true, permits `wash` in the qdisc args. Default stays false so ATT and any future bridge deployments remain protected.
 3. **Spectrum-only deployment** with A/B soak and rollback criteria. ATT stays `diffserv4 nowash` until separately validated (different carrier, different DSCP behavior).
-4. **Replay harness** — a Phase 196 replay that captures before/after latency, throughput, jitter against the out-of-band finding. Use the existing replay pattern from Phase 193/194.
+4. **Replay harness** — a v1.41 phase replay that captures before/after latency, throughput, jitter against the out-of-band finding. Use the existing replay pattern from Phase 193/194/195.
 
 **Blocking dependencies:** Phase 195 must ship first (RTT confidence + healer containment). Changing CAKE mode under Phase 195 would create a three-way confound (RTT logic × signal simplification × CAKE mode) — impossible to bisect. Codex recommendation 2026-04-24 confirmed this ordering.
 
 ## Breadcrumbs
 
-### Code that must change in Phase 196
+### Code that must change in the migration phase (v1.41)
 
 - `src/wanctl/cake_signal.py:13, :173, :306` — aggregates `tins[1:]`, assumes Bulk/BestEffort/Video/Voice
 - `src/wanctl/cake_params.py:60` — `EXCLUDED_PARAMS = {"nat", "wash", "autorate-ingress"}`
