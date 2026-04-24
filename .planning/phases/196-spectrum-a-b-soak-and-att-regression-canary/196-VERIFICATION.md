@@ -7,6 +7,8 @@ requirements: [VALN-04, VALN-05, SAFE-05]
 
 # Phase 196 Verification
 
+<!-- Plan verification marker: ## Phase 196 Verification -->
+
 ## Preflight Gates
 
 Status: blocked
@@ -71,9 +73,8 @@ Plan 01.
 
 Status: pass
 
-Preflight source guard passed: no Phase 196 diff exists in the protected
-control files. Task 4 records the local validation command output in this
-section before Plan 01 closes.
+Preflight and local source guards passed: no Phase 196 diff exists in the
+protected control files.
 
 Protected files:
 
@@ -81,6 +82,14 @@ Protected files:
 - `src/wanctl/cake_signal.py`
 - `src/wanctl/fusion_healer.py`
 - `src/wanctl/wan_controller.py`
+
+### Local Validation
+
+| Command | Result |
+| --- | --- |
+| `bash -n scripts/phase196-soak-capture.sh` | pass, exit 0 |
+| `git diff --quiet -- src/wanctl/queue_controller.py src/wanctl/cake_signal.py src/wanctl/fusion_healer.py src/wanctl/wan_controller.py` | pass, exit 0 |
+| `.venv/bin/pytest -o addopts='' tests/test_cake_signal.py tests/test_queue_controller.py tests/test_wan_controller.py tests/test_health_check.py tests/test_phase_193_replay.py tests/test_phase_194_replay.py tests/test_phase_195_replay.py tests/test_fusion_healer.py -q` | pass, `719 passed, 6 skipped in 44.29s` |
 
 ## Requirements Coverage
 
