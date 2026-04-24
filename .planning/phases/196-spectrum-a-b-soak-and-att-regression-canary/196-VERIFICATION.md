@@ -80,7 +80,11 @@ created.
 
 ## A/B Comparison
 
-Status: pending
+Status: blocked - B-leg cannot run without valid A-leg
+
+Task 4 skipped: no valid A-leg. No A/B operational comparison was run, no
+`soak/cake-primary/ab-comparison.json` was created, and no
+`comparison_verdict` was recorded.
 
 | Comparison | Status | Evidence |
 | --- | --- | --- |
