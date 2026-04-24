@@ -485,6 +485,20 @@ class TestGetQueueStats:
         assert set(stats["tins"][0].keys()) == expected_fields
 
     @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_avg_and_base_delay_round_trip_from_sample_json(self, mock_run, backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=SAMPLE_CAKE_JSON, stderr=""
+        )
+
+        stats = backend.get_queue_stats("q")
+
+        assert stats is not None
+        assert stats["tins"][0]["avg_delay_us"] == 2000
+        assert stats["tins"][0]["base_delay_us"] == 500
+        assert stats["tins"][1]["avg_delay_us"] == 1000
+        assert stats["tins"][1]["base_delay_us"] == 200
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
     def test_get_queue_stats_failure(self, mock_run, backend):
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=1, stdout="", stderr="err"
