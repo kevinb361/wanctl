@@ -104,6 +104,36 @@ remote_sqlite_query() {
         "command -v sqlite3 >/dev/null && sudo -n sqlite3 -readonly -header -separator '|' $remote_db" \
         >"$output_file" <<SQL
 SELECT
+  datetime(timestamp, 'unixepoch') AS sampled_utc,
+  timestamp,
+  wan_name,
+  metric_name,
+  value
+FROM metrics
+WHERE wan_name = '${wan_name}'
+  AND metric_name IN (
+    'wanctl_arbitration_active_primary',
+    'wanctl_rtt_confidence',
+    'wanctl_cake_avg_delay_delta_us',
+    'wanctl_fusion_bypass_active'
+  )
+  AND timestamp >= strftime('%s', 'now', '-24 hours')
+ORDER BY timestamp, metric_name;
+SQL
+}
+
+remote_sqlite_aggregate_query() {
+    local ssh_host="$1"
+    local metrics_db="$2"
+    local wan_name="$3"
+    local output_file="$4"
+    local remote_db
+
+    printf -v remote_db "%q" "$metrics_db"
+    ssh -o BatchMode=yes "$ssh_host" \
+        "command -v sqlite3 >/dev/null && sudo -n sqlite3 -readonly -header -separator '|' $remote_db" \
+        >"$output_file" <<SQL
+SELECT
   metric_name,
   COUNT(*) AS samples,
   MIN(value) AS min_value,
@@ -172,12 +202,14 @@ RAW_HEALTH="${RAW_DIR}/${PREFIX}-health.json"
 RAW_JOURNAL="${RAW_DIR}/${PREFIX}-journal.log"
 RAW_FUSION="${RAW_DIR}/${PREFIX}-fusion-transitions.log"
 SQLITE_OUT="${RAW_DIR}/${PREFIX}-sqlite-metrics.psv"
+SQLITE_AGGREGATE_OUT="${RAW_DIR}/${PREFIX}-sqlite-metrics-aggregate.psv"
 SUMMARY_JSON="${OUT_DIR}/${PREFIX}-summary.json"
 
 curl --fail --silent --show-error --max-time 10 "$HEALTH_URL" >"$RAW_HEALTH"
 capture_journal_excerpt "$SSH_HOST" "$WAN_NAME" "$RAW_JOURNAL"
 grep -E 'Fusion healer.*->' "$RAW_JOURNAL" >"$RAW_FUSION" || true
 remote_sqlite_query "$SSH_HOST" "$METRICS_DB" "$WAN_NAME" "$SQLITE_OUT"
+remote_sqlite_aggregate_query "$SSH_HOST" "$METRICS_DB" "$WAN_NAME" "$SQLITE_AGGREGATE_OUT"
 
 active_primary_signal="$(jq -r '(.wans[0] // .).signal_arbitration.active_primary_signal // null' "$RAW_HEALTH")"
 rtt_confidence="$(jq -r '(.wans[0] // .).signal_arbitration.rtt_confidence // null' "$RAW_HEALTH")"
@@ -188,6 +220,7 @@ download_burst_trigger_count="$(jq -r '(.wans[0] // .).download.burst.trigger_co
 upload_burst_trigger_count="$(jq -r '(.wans[0] // .).upload.burst.trigger_count // 0 | floor' "$RAW_HEALTH")"
 fusion_transition_count_24h="$(wc -l <"$RAW_FUSION" | tr -d ' ')"
 sqlite_metric_rows="$(tail -n +2 "$SQLITE_OUT" | wc -l | tr -d ' ')"
+sqlite_metric_aggregate_rows="$(tail -n +2 "$SQLITE_AGGREGATE_OUT" | wc -l | tr -d ' ')"
 journal_excerpt_lines="$(wc -l <"$RAW_JOURNAL" | tr -d ' ')"
 
 jq -n \
@@ -199,6 +232,7 @@ jq -n \
     --arg journal_excerpt "$RAW_JOURNAL" \
     --arg fusion_transitions "$RAW_FUSION" \
     --arg sqlite_metrics "$SQLITE_OUT" \
+    --arg sqlite_metrics_aggregate "$SQLITE_AGGREGATE_OUT" \
     --arg active_primary_signal "$active_primary_signal" \
     --arg control_decision_reason "$control_decision_reason" \
     --argjson rtt_confidence "$(json_number_or_null "$rtt_confidence")" \
@@ -208,6 +242,7 @@ jq -n \
     --argjson upload_burst_trigger_count "$upload_burst_trigger_count" \
     --argjson fusion_transition_count_24h "$fusion_transition_count_24h" \
     --argjson sqlite_metric_rows "$sqlite_metric_rows" \
+    --argjson sqlite_metric_aggregate_rows "$sqlite_metric_aggregate_rows" \
     --argjson journal_excerpt_lines "$journal_excerpt_lines" \
     '{
       mode: $mode,
@@ -218,7 +253,8 @@ jq -n \
         health_json: $health_json,
         journal_excerpt: $journal_excerpt,
         fusion_transitions: $fusion_transitions,
-        sqlite_metrics: $sqlite_metrics
+        sqlite_metrics: $sqlite_metrics,
+        sqlite_metrics_aggregate: $sqlite_metrics_aggregate
       },
       signal_arbitration: {
         active_primary_signal: $active_primary_signal,
@@ -232,6 +268,7 @@ jq -n \
         upload_burst_trigger_count: $upload_burst_trigger_count,
         fusion_transition_count_24h: $fusion_transition_count_24h,
         sqlite_metric_rows: $sqlite_metric_rows,
+        sqlite_metric_aggregate_rows: $sqlite_metric_aggregate_rows,
         journal_excerpt_lines: $journal_excerpt_lines
       }
     }' >"$SUMMARY_JSON"
