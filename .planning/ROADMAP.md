@@ -230,7 +230,12 @@ Plans:
 3. A traced single-path flip (e.g., ICMP-only anti-correlation event with queue GREEN for 6 cycles) does NOT enter healer bypass — `control_decision_reason` never shows `healer_bypass` in that window, matching the direction-alignment gate.
 4. A replay of the 2026-04-23 Spectrum production event (ICMP/UDP ratio flipping 1.96→0.54, fusion.healer suspending, wanctl clamping on phantom bloat in v1.39) through the Phase 195 build produces queue-primary distress only where the kernel queue-delta actually grew — not on RTT-only phantom bloat — and healer bypass does not trip on the single-path flip.
 
-**Plans:** TBD (created by `/gsd-plan-phase 195`)
+**Plans:** 3 plans
+
+Plans:
+- [ ] 195-01-PLAN.md — Confidence derivation + observability (SAFE-05)
+- [ ] 195-02-PLAN.md — RTT veto + 6-cycle healer bypass containment (ARB-02, ARB-03, SAFE-05)
+- [ ] 195-03-PLAN.md — Replay harness + 2026-04-23 Spectrum event + 195-VERIFICATION.md (ARB-02, ARB-03, SAFE-05)
 
 ---
 
