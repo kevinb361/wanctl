@@ -4484,6 +4484,28 @@ class TestBuildSignalArbitrationSection:
         assert result["control_decision_reason"] == "green_stable"
         assert result["cake_av_delay_delta_us"] is None
 
+    @pytest.mark.parametrize("rtt_confidence", [0.0, 0.5, 1.0, None])
+    def test_phase195_renderer_passes_rtt_confidence_through(
+        self, rtt_confidence
+    ) -> None:
+        handler = self._make_handler()
+
+        result = handler._build_signal_arbitration_section(
+            {
+                "signal_arbitration": {
+                    "active_primary_signal": "queue",
+                    "rtt_confidence": rtt_confidence,
+                    "control_decision_reason": "queue_distress",
+                    "cake_av_delay_delta_us": 4800,
+                },
+                "cake_signal": {
+                    "download": self._make_snapshot(max_delay_delta_us=1234),
+                },
+            }
+        )
+
+        assert result["rtt_confidence"] is rtt_confidence
+
     def test_renderer_legacy_fallback_when_no_controller_payload(self) -> None:
         handler = self._make_handler()
 

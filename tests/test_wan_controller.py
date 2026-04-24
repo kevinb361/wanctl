@@ -2506,6 +2506,94 @@ class TestPhase193MetricsBatch:
             float(ARBITRATION_PRIMARY_ENCODING["rtt"])
         )
 
+    def test_phase195_metrics_emit_rtt_confidence_when_available(self, controller):
+        controller._dl_cake_snapshot = self._make_snapshot(
+            cold_start=False, max_delay_delta_us=20000
+        )
+        controller._ul_cake_snapshot = None
+        controller._last_rtt_confidence = 0.85
+
+        with patch("wanctl.wan_controller.time.time", return_value=1234):
+            controller._run_logging_metrics(
+                measured_rtt=25.0,
+                fused_rtt=25.0,
+                dl_zone="GREEN",
+                ul_zone="GREEN",
+                dl_rate=100_000_000,
+                ul_rate=20_000_000,
+                delta=5.0,
+                dl_transition_reason=None,
+                ul_transition_reason=None,
+                irtt_result=None,
+            )
+
+        batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
+        metrics = self._metrics_by_name(batch)
+        dl_key = (("direction", "download"),)
+        assert metrics[("wanctl_rtt_confidence", dl_key)] == pytest.approx(0.85)
+
+    def test_phase195_metrics_skip_rtt_confidence_when_none(self, controller):
+        controller._dl_cake_snapshot = self._make_snapshot(
+            cold_start=False, max_delay_delta_us=20000
+        )
+        controller._ul_cake_snapshot = None
+        controller._last_rtt_confidence = None
+
+        with patch("wanctl.wan_controller.time.time", return_value=1234):
+            controller._run_logging_metrics(
+                measured_rtt=25.0,
+                fused_rtt=25.0,
+                dl_zone="GREEN",
+                ul_zone="GREEN",
+                dl_rate=100_000_000,
+                ul_rate=20_000_000,
+                delta=5.0,
+                dl_transition_reason=None,
+                ul_transition_reason=None,
+                irtt_result=None,
+            )
+
+        batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
+        metrics = self._metrics_by_name(batch)
+        dl_key = (("direction", "download"),)
+        assert ("wanctl_rtt_confidence", dl_key) not in metrics
+
+    def test_phase195_ul_cake_metric_order_is_unchanged(self, controller):
+        controller._dl_cake_snapshot = self._make_snapshot(
+            cold_start=False, max_delay_delta_us=20000
+        )
+        controller._ul_cake_snapshot = self._make_snapshot(
+            cold_start=False, max_delay_delta_us=3000
+        )
+        controller._last_rtt_confidence = 0.85
+
+        with patch("wanctl.wan_controller.time.time", return_value=1234):
+            controller._run_logging_metrics(
+                measured_rtt=25.0,
+                fused_rtt=25.0,
+                dl_zone="GREEN",
+                ul_zone="GREEN",
+                dl_rate=100_000_000,
+                ul_rate=20_000_000,
+                delta=5.0,
+                dl_transition_reason=None,
+                ul_transition_reason=None,
+                irtt_result=None,
+            )
+
+        batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
+        upload_metric_names = [
+            metric_name
+            for _, _, metric_name, _, labels, _ in batch
+            if labels == {"direction": "upload"}
+        ]
+        assert upload_metric_names == [
+            "wanctl_cake_drop_rate",
+            "wanctl_cake_total_drop_rate",
+            "wanctl_cake_backlog_bytes",
+            "wanctl_cake_peak_delay_us",
+        ]
+
     def test_ul_metrics_block_textually_unchanged_label_anchored(self):
         import re
         import subprocess
@@ -2734,6 +2822,33 @@ class TestPhase195Confidence:
         controller.warn_delta = 45.0
         return controller
 
+    @staticmethod
+    def _make_snapshot(*, cold_start: bool = False, max_delay_delta_us: int = 0):
+        from wanctl.cake_signal import CakeSignalSnapshot
+
+        return CakeSignalSnapshot(
+            drop_rate=10.0,
+            total_drop_rate=12.0,
+            backlog_bytes=4096,
+            peak_delay_us=500,
+            tins=(),
+            cold_start=cold_start,
+            avg_delay_us=max_delay_delta_us,
+            base_delay_us=0,
+            max_delay_delta_us=max_delay_delta_us,
+        )
+
+    @staticmethod
+    def _stub_assessment_io(controller):
+        controller._cake_signal_supported = True
+        controller._dl_refractory_remaining = 0
+        controller._ul_refractory_remaining = 0
+        controller._dl_burst_pending = False
+        controller.download.adjust_4state = MagicMock(
+            return_value=("GREEN", 800_000_000, None)
+        )
+        controller.upload.adjust = MagicMock(return_value=("GREEN", 40_000_000, None))
+
     def test_healer_bypass_constant(self):
         from wanctl.wan_controller import ARBITRATION_REASON_HEALER_BYPASS
 
@@ -2807,6 +2922,212 @@ class TestPhase195Confidence:
             "_healer_aligned_streak": controller._healer_aligned_streak,
         }
         assert after == before
+
+    def test_phase195_cold_start_cycle_leaves_confidence_none(self, controller):
+        self._stub_assessment_io(controller)
+        controller._dl_cake_snapshot = None
+        controller._ul_cake_snapshot = None
+
+        controller._run_congestion_assessment()
+
+        assert controller._last_rtt_confidence is None
+        assert controller._last_queue_direction == "unknown"
+        assert controller._last_rtt_direction == "unknown"
+
+        controller._dl_cake_snapshot = self._make_snapshot(
+            cold_start=True, max_delay_delta_us=5000
+        )
+        controller._run_congestion_assessment()
+
+        assert controller._last_rtt_confidence is None
+        assert controller._last_queue_direction == "unknown"
+        assert controller._last_rtt_direction == "unknown"
+
+    def test_phase195_first_valid_snapshot_has_warmup_confidence(
+        self, controller
+    ):
+        self._stub_assessment_io(controller)
+        controller._irtt_correlation = 1.0
+        controller._dl_cake_snapshot = self._make_snapshot(max_delay_delta_us=1000)
+        controller.load_rtt = 30.0
+
+        controller._run_congestion_assessment()
+
+        assert controller._last_queue_direction == "unknown"
+        assert controller._last_rtt_direction == "unknown"
+        assert controller._last_rtt_confidence == pytest.approx(0.5)
+
+    def test_phase195_derives_high_confidence_when_queue_and_rtt_worsen(
+        self, controller
+    ):
+        self._stub_assessment_io(controller)
+        controller._irtt_correlation = 1.0
+
+        controller._dl_cake_snapshot = self._make_snapshot(max_delay_delta_us=1000)
+        controller.load_rtt = 30.0
+        controller._run_congestion_assessment()
+
+        controller._dl_cake_snapshot = self._make_snapshot(max_delay_delta_us=5000)
+        controller.load_rtt = 45.0
+        controller._run_congestion_assessment()
+
+        assert controller._last_queue_direction == "worsening"
+        assert controller._last_rtt_direction == "worsening"
+        assert controller._last_rtt_confidence == pytest.approx(1.0)
+
+    def test_phase195_protocol_disagreement_caps_cycle_confidence(
+        self, controller
+    ):
+        self._stub_assessment_io(controller)
+
+        controller._irtt_correlation = 1.0
+        controller._dl_cake_snapshot = self._make_snapshot(max_delay_delta_us=1000)
+        controller.load_rtt = 30.0
+        controller._run_congestion_assessment()
+
+        controller._irtt_correlation = 0.3
+        controller._dl_cake_snapshot = self._make_snapshot(max_delay_delta_us=5000)
+        controller.load_rtt = 45.0
+        controller._run_congestion_assessment()
+
+        assert controller._last_queue_direction == "worsening"
+        assert controller._last_rtt_direction == "worsening"
+        assert controller._last_rtt_confidence == pytest.approx(0.0)
+
+    def test_phase195_prev_rtt_delta_uses_raw_load_not_selector_output(
+        self, controller
+    ):
+        self._stub_assessment_io(controller)
+        controller._irtt_correlation = 1.0
+        controller._prev_queue_delta_ms = 10.0
+        controller._prev_rtt_delta_ms = 7.0
+        controller._dl_cake_snapshot = self._make_snapshot(max_delay_delta_us=5000)
+        controller.load_rtt = 45.0
+
+        controller._run_congestion_assessment()
+
+        assert controller._prev_queue_delta_ms == pytest.approx(5.0)
+        assert controller._prev_rtt_delta_ms == pytest.approx(20.0)
+
+        controller._dl_cake_snapshot = self._make_snapshot(max_delay_delta_us=6000)
+        controller.load_rtt = 40.0
+        controller._run_congestion_assessment()
+
+        assert controller._last_rtt_direction == "improving"
+
+    def test_phase195_health_reports_live_confidence_float(self, controller):
+        self._stub_assessment_io(controller)
+        controller._irtt_correlation = 1.0
+
+        controller._dl_cake_snapshot = self._make_snapshot(max_delay_delta_us=1000)
+        controller.load_rtt = 30.0
+        controller._run_congestion_assessment()
+        controller._dl_cake_snapshot = self._make_snapshot(max_delay_delta_us=5000)
+        controller.load_rtt = 45.0
+        controller._run_congestion_assessment()
+
+        arb = controller.get_health_data()["signal_arbitration"]
+        assert isinstance(arb["rtt_confidence"], float)
+        assert arb["rtt_confidence"] == pytest.approx(controller._last_rtt_confidence)
+
+    def test_phase195_health_reports_none_before_cycle(self, controller):
+        assert controller.get_health_data()["signal_arbitration"]["rtt_confidence"] is None
+
+    def test_phase195_dl_classifier_inputs_stay_phase194_compatible(
+        self, controller
+    ):
+        self._stub_assessment_io(controller)
+        captured: list[tuple[str, int, str, str]] = []
+
+        def fake_adjust(
+            baseline_rtt,
+            load_for_classifier,
+            green_threshold,
+            soft_red_threshold,
+            hard_red_threshold,
+            *,
+            cake_snapshot,
+        ):
+            delta = load_for_classifier - baseline_rtt
+            zone = "YELLOW" if delta > green_threshold else "GREEN"
+            rate = int(load_for_classifier * 1_000_000)
+            return zone, rate, None
+
+        controller.download.adjust_4state = MagicMock(side_effect=fake_adjust)
+
+        for delta_us in [
+            0,
+            1000,
+            5000,
+            10000,
+            16000,
+            20000,
+            25000,
+            30000,
+            45000,
+            60000,
+            30000,
+            15000,
+            5000,
+            0,
+            2500,
+            7500,
+            12500,
+            17500,
+            22500,
+            27500,
+        ]:
+            controller._dl_cake_snapshot = self._make_snapshot(
+                max_delay_delta_us=delta_us
+            )
+            controller.load_rtt = 25.0 + delta_us / 2000.0
+            dl_zone, dl_rate, *_ = controller._run_congestion_assessment()
+            captured.append(
+                (
+                    dl_zone,
+                    dl_rate,
+                    controller._last_arbitration_primary,
+                    controller._last_arbitration_reason,
+                )
+            )
+
+        expected = []
+        for delta_us in [
+            0,
+            1000,
+            5000,
+            10000,
+            16000,
+            20000,
+            25000,
+            30000,
+            45000,
+            60000,
+            30000,
+            15000,
+            5000,
+            0,
+            2500,
+            7500,
+            12500,
+            17500,
+            22500,
+            27500,
+        ]:
+            classifier_load = 25.0 + delta_us / 1000.0
+            delta = classifier_load - 25.0
+            expected.append(
+                (
+                    "YELLOW" if delta > controller.green_threshold else "GREEN",
+                    int(classifier_load * 1_000_000),
+                    "queue",
+                    "queue_distress"
+                    if delta > controller.green_threshold
+                    else "green_stable",
+                )
+            )
+
+        assert captured == expected
 
 
 class TestMeasureRttMedianOfThree:
