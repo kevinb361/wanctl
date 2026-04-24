@@ -2678,36 +2678,18 @@ class WANController:
     def _select_dl_primary_scalar_ms(
         self, dl_cake: "CakeSignalSnapshot | None"
     ) -> tuple[str, float, str]:
-        """Phase 194 ARB-01 selector.
+        """Select DL classifier input and decision reason for this cycle.
 
-        Returns (primary, load_for_classifier, control_decision_reason).
-        - primary in {"queue", "rtt"}
-        - load_for_classifier is the value to pass as `load_rtt` to adjust_4state
-        - control_decision_reason in {"queue_distress", "green_stable"}
-
-        Semantics of control_decision_reason (Phase 194):
-        - "queue_distress" = queue scalar exceeded green threshold this cycle
-          (input pressure, NOT classifier outcome - hysteresis/dwell may keep
-          the state machine in GREEN even when this reason fires).
-        - "green_stable" = queue scalar at or below green threshold this cycle.
-        - "rtt_veto" = (Phase 195) reserved for "RTT confidence overrode queue
-          primary"; never emitted by Phase 194 code.
-
-        SAFE-05 (behavioral identity): when primary == "rtt", load_for_classifier
-        is exactly self.load_rtt (no rounding, no recomputation) so adjust_4state
-        receives behaviorally-identical inputs to the v1.39 invocation. Textual
-        identity of the call expression is intentionally given up; the call
-        signature stays positional and identical.
-
-        Phase 194 never emits 'none' for active_primary_signal. The
-        ARBITRATION_PRIMARY_ENCODING map exposes 0=none for forward
-        compatibility with Phase 195's degraded-cycle paths, but the Phase 194
-        selector always returns either 'queue' or 'rtt' because (a) the
-        fallback path is reached even when load_rtt is 0 (the classifier
-        handles zero-RTT cycles deterministically), and (b) per RESEARCH.md
-        Common Pitfalls #5, no real runtime path requires a third 'no
-        classification ran' state in Phase 194. Phase 195 may revisit if RTT
-        confidence gating introduces a path with neither primary valid.
+        Phase 194: queue-primary when cake_signal supports a valid snapshot.
+        Phase 195: adds an RTT-veto escalation branch per ARB-02. RTT can
+        override a queue-GREEN reading only when all four conditions hold:
+          (1) _last_rtt_confidence is not None and >= 0.6
+          (2) Queue direction and RTT direction agree (same non-"unknown" label).
+          (3) Raw RTT delta (self.load_rtt - self.baseline_rtt) would classify
+              at least YELLOW on its own (>= self.green_threshold).
+          (4) Queue path would otherwise return "green_stable" (not already
+              distressed) - queue distress stays authoritative.
+        Queue distress is NEVER demoted by RTT (Pattern 4).
         """
         if (
             self._cake_signal_supported
@@ -2716,12 +2698,22 @@ class WANController:
         ):
             delta_ms = dl_cake.max_delay_delta_us / 1000.0
             load_for_classifier = self.baseline_rtt + delta_ms
-            reason = (
-                ARBITRATION_REASON_QUEUE_DISTRESS
-                if delta_ms > self.green_threshold
-                else ARBITRATION_REASON_GREEN_STABLE
-            )
-            return "queue", load_for_classifier, reason
+            if delta_ms > self.green_threshold:
+                return "queue", load_for_classifier, ARBITRATION_REASON_QUEUE_DISTRESS
+
+            rtt_delta_ms = self.load_rtt - self.baseline_rtt
+            confidence = self._last_rtt_confidence
+            queue_dir = self._last_queue_direction
+            rtt_dir = self._last_rtt_direction
+            directions_agree = queue_dir == rtt_dir and queue_dir != "unknown"
+            if (
+                confidence is not None
+                and confidence >= 0.6
+                and directions_agree
+                and rtt_delta_ms >= self.green_threshold
+            ):
+                return "rtt", self.load_rtt, ARBITRATION_REASON_RTT_VETO
+            return "queue", load_for_classifier, ARBITRATION_REASON_GREEN_STABLE
         return "rtt", self.load_rtt, ARBITRATION_REASON_GREEN_STABLE
 
     def _run_congestion_assessment(
