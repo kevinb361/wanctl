@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Queue-Primary Signal Arbitration
 status: blocked
-stopped_at: Completed 193-01-PLAN.md
-last_updated: "2026-04-24T21:01:58Z"
+stopped_at: Completed 196-04-PLAN.md (blocked closeout; ATT canary blocked by Phase 191)
+last_updated: "2026-04-24T21:08:38.521Z"
 last_activity: 2026-04-24
 progress:
   total_phases: 7
@@ -98,7 +98,7 @@ Progress: [███████───] 75% (3/4 phases complete, 12/12 v1.40
 
 ## Session Continuity
 
-Stopped at: Completed 193-01-PLAN.md
+Stopped at: Completed 196-04-PLAN.md (blocked closeout; ATT canary blocked by Phase 191)
 Resume file: None
 
 ## Decisions
@@ -141,9 +141,11 @@ Resume file: None
 - [Phase 193]: Phase 193-01 keeps queue-delay plumbing additive and observability-only; classifier and control-path behavior remain untouched.
 - [Phase 193]: Phase 193-01 exposes max_delay_delta_us as the authoritative queue-delay scalar computed per tin before aggregation.
 - [Phase 196]: Final closeout records Phase 196 as blocked, not passed: Spectrum A/B evidence is absent because the reversible mode gate is blocked, and ATT canary blocked by Phase 191.
+- [Phase 196]: Phase 196 Plan 04 closed as blocked: ATT canary skipped because Phase 191 remains open; VALN-04 and VALN-05 stay blocked while SAFE-05 remains satisfied.
 
 ## Performance Metrics
 
+- 2026-04-24: Phase 196 Plan 04 completed in 9 min across 4 tasks and 7 planning files; closeout blocked VALN-04/VALN-05 and created the ATT canary follow-up todo.
 - 2026-04-23: v1.40 roadmap written in single pass — 4 phases, 10/10 REQ-IDs mapped, appended to ROADMAP.md without disturbing v1.39 content.
 - 2026-04-20: Phase 191.1 Plan 03 completed in 15 min across 2 tasks and 3 files.
 - 2026-04-20: Phase 191.1 Plan 02 completed in 22 min across deploy verification, ATT rrul/tcp_12down/voip rerun, and Spectrum RRUL discriminator capture.
