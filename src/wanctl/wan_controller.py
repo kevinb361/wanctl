@@ -2684,14 +2684,17 @@ class WANController:
             ul_cake = None
             self._ul_refractory_remaining -= 1
 
+        primary, load_for_classifier, decision_reason = self._select_dl_primary_scalar_ms(dl_cake)
         dl_zone, dl_rate, dl_transition_reason = self.download.adjust_4state(
             self.baseline_rtt,
-            self.load_rtt,
+            load_for_classifier,
             self.green_threshold,
             self.soft_red_threshold,
             self.hard_red_threshold,
             cake_snapshot=dl_cake,
         )
+        self._last_arbitration_primary = primary
+        self._last_arbitration_reason = decision_reason
         if self._dl_burst_pending and dl_zone in ("GREEN", "YELLOW"):
             dl_zone = "SOFT_RED"
             dl_rate = self.download.apply_burst_clamp()
@@ -2910,11 +2913,12 @@ class WANController:
                 av_delta_val = float(snap.max_delay_delta_us)
             else:
                 av_delta_val = RTT_CONFIDENCE_NULL_SENTINEL
+            active_primary = getattr(self, "_last_arbitration_primary", "rtt")
             metrics_batch.extend([
                 (ts, self.wan_name, "wanctl_cake_avg_delay_delta_us", av_delta_val,
                  self._download_labels, "raw"),
                 (ts, self.wan_name, "wanctl_arbitration_active_primary",
-                 float(ARBITRATION_PRIMARY_ENCODING["rtt"]), self._download_labels, "raw"),
+                 float(ARBITRATION_PRIMARY_ENCODING[active_primary]), self._download_labels, "raw"),
                 (ts, self.wan_name, "wanctl_rtt_confidence",
                  RTT_CONFIDENCE_NULL_SENTINEL, self._download_labels, "raw"),
             ])
@@ -4028,6 +4032,21 @@ class WANController:
                         else None
                     ),
                 },
+            },
+            "signal_arbitration": {
+                "active_primary_signal": getattr(self, "_last_arbitration_primary", "rtt"),
+                "rtt_confidence": None,
+                "control_decision_reason": getattr(
+                    self,
+                    "_last_arbitration_reason",
+                    ARBITRATION_REASON_RTT_PRIMARY_NORMAL,
+                ),
+                "cake_av_delay_delta_us": (
+                    int(self._dl_cake_snapshot.max_delay_delta_us)
+                    if self._dl_cake_snapshot is not None
+                    and not self._dl_cake_snapshot.cold_start
+                    else None
+                ),
             },
             "runtime": {
                 "process": "autorate",
