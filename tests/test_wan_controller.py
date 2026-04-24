@@ -2395,9 +2395,9 @@ class TestPhase193MetricsBatch:
         assert metrics[("wanctl_arbitration_active_primary", dl_key)] == pytest.approx(
             float(ARBITRATION_PRIMARY_ENCODING["rtt"])
         )
-        assert str(metrics[("wanctl_rtt_confidence", dl_key)]).lower() == "nan"
+        assert ("wanctl_rtt_confidence", dl_key) not in metrics
 
-    def test_dl_metrics_batch_uses_nan_sentinels_when_snapshot_missing(self, controller):
+    def test_dl_metrics_batch_skips_nullable_values_when_snapshot_missing(self, controller):
         controller._dl_cake_snapshot = None
         controller._ul_cake_snapshot = None
 
@@ -2418,10 +2418,13 @@ class TestPhase193MetricsBatch:
         batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
         metrics = self._metrics_by_name(batch)
         dl_key = (("direction", "download"),)
-        assert str(metrics[("wanctl_cake_avg_delay_delta_us", dl_key)]).lower() == "nan"
-        assert str(metrics[("wanctl_rtt_confidence", dl_key)]).lower() == "nan"
+        assert ("wanctl_cake_avg_delay_delta_us", dl_key) not in metrics
+        assert ("wanctl_rtt_confidence", dl_key) not in metrics
+        assert metrics[("wanctl_arbitration_active_primary", dl_key)] == pytest.approx(
+            float(ARBITRATION_PRIMARY_ENCODING["rtt"])
+        )
 
-    def test_dl_metrics_batch_uses_nan_delta_when_snapshot_is_cold_start(self, controller):
+    def test_dl_metrics_batch_skips_nullable_delta_when_snapshot_is_cold_start(self, controller):
         controller._dl_cake_snapshot = self._make_snapshot(
             cold_start=True, max_delay_delta_us=9999
         )
@@ -2444,7 +2447,7 @@ class TestPhase193MetricsBatch:
         batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
         metrics = self._metrics_by_name(batch)
         dl_key = (("direction", "download"),)
-        assert str(metrics[("wanctl_cake_avg_delay_delta_us", dl_key)]).lower() == "nan"
+        assert ("wanctl_cake_avg_delay_delta_us", dl_key) not in metrics
 
     def test_dl_metrics_emit_queue_primary_when_selector_active(self, controller):
         controller._dl_cake_snapshot = self._make_snapshot(
