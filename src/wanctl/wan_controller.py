@@ -693,7 +693,8 @@ class WANController:
         self._last_rtt_direction: str = "unknown"
         self._prev_queue_delta_ms: float | None = None
         self._prev_rtt_delta_ms: float | None = None
-        self._healer_aligned_streak: int = 0
+        self._healer_aligned_streak: int
+        self._healer_aligned_streak = 0
 
         # Refractory period counters (Phase 160: DETECT-03)
         self._dl_refractory_remaining: int = 0
@@ -1693,9 +1694,6 @@ class WANController:
         """
         self._last_icmp_filtered_rtt = filtered_rtt
         self._last_fused_rtt = None
-        self._fusion_bypass_active = False
-        self._fusion_bypass_reason = None
-        self._fusion_bypass_offset_ms = None
 
         if not self._fusion_enabled:
             return filtered_rtt
@@ -1717,15 +1715,9 @@ class WANController:
             return filtered_rtt
         offset_ms = abs(irtt_rtt - filtered_rtt)
         if offset_ms > self.green_threshold:
-            self._fusion_bypass_active = True
-            self._fusion_bypass_reason = "absolute_disagreement"
+            # Phase 195: fusion math no longer trips bypass. The decision is made
+            # in _run_congestion_assessment via a 6-cycle aligned distress streak.
             self._fusion_bypass_offset_ms = offset_ms
-            self._fusion_bypass_count += 1
-            self.logger.debug(
-                f"{self.wan_name}: fusion bypassed due to ICMP/IRTT offset "
-                f"(icmp={filtered_rtt:.1f}ms, irtt={irtt_rtt:.1f}ms, "
-                f"threshold={self.green_threshold:.1f}ms)"
-            )
             return filtered_rtt
 
         fused = (
@@ -2771,6 +2763,43 @@ class WANController:
         # Advance direction history for next cycle (raw deltas, not selector output).
         self._prev_queue_delta_ms = raw_queue_delta_ms
         self._prev_rtt_delta_ms = raw_rtt_delta_ms
+
+        # Phase 195 ARB-03: 6-cycle aligned queue+RTT distress healer bypass gate.
+        # Alignment is categorical direction agreement over consecutive cycles.
+        # Magnitude ratios between queue microseconds and RTT milliseconds are never used.
+        queue_distressed_now = (
+            raw_queue_delta_ms is not None
+            and raw_queue_delta_ms > self.green_threshold
+        )
+        rtt_distress_delta_ms = raw_rtt_delta_ms
+        rtt_distressed_now = rtt_distress_delta_ms >= self.green_threshold
+        rtt_conf_score = self._last_rtt_confidence
+        confidence_high = rtt_conf_score is not None and rtt_conf_score >= 0.6
+        directions_aligned = (
+            queue_direction == rtt_direction
+            and queue_direction in ("worsening", "held")
+        )
+        if (
+            queue_distressed_now
+            and rtt_distressed_now
+            and confidence_high
+            and directions_aligned
+        ):
+            self._healer_aligned_streak += 1
+        else:
+            self._healer_aligned_streak = 0
+
+        if self._healer_aligned_streak >= 6:
+            if not self._fusion_bypass_active:
+                self._fusion_bypass_count += 1
+            self._fusion_bypass_active = True
+            self._fusion_bypass_reason = "queue_rtt_aligned_distress"
+            self._fusion_bypass_offset_ms = raw_rtt_delta_ms
+            self._last_arbitration_reason = ARBITRATION_REASON_HEALER_BYPASS
+        else:
+            self._fusion_bypass_active = False
+            self._fusion_bypass_reason = None
+
         if self._dl_burst_pending and dl_zone in ("GREEN", "YELLOW"):
             dl_zone = "SOFT_RED"
             dl_rate = self.download.apply_burst_clamp()
