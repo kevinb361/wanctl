@@ -4441,6 +4441,101 @@ class TestBuildSignalArbitrationSection:
 
         assert result["cake_av_delay_delta_us"] == 0
 
+    def test_renderer_relays_controller_queue_primary(self) -> None:
+        handler = self._make_handler()
+
+        result = handler._build_signal_arbitration_section(
+            {
+                "signal_arbitration": {
+                    "active_primary_signal": "queue",
+                    "rtt_confidence": None,
+                    "control_decision_reason": "queue_distress",
+                    "cake_av_delay_delta_us": 4800,
+                },
+                "cake_signal": {
+                    "download": self._make_snapshot(max_delay_delta_us=1234),
+                },
+            }
+        )
+
+        assert result["active_primary_signal"] == "queue"
+        assert result["rtt_confidence"] is None
+        assert result["control_decision_reason"] == "queue_distress"
+        assert result["cake_av_delay_delta_us"] == 4800
+
+    def test_renderer_relays_controller_rtt_primary(self) -> None:
+        handler = self._make_handler()
+
+        result = handler._build_signal_arbitration_section(
+            {
+                "signal_arbitration": {
+                    "active_primary_signal": "rtt",
+                    "rtt_confidence": None,
+                    "control_decision_reason": "green_stable",
+                    "cake_av_delay_delta_us": None,
+                },
+                "cake_signal": {
+                    "download": self._make_snapshot(max_delay_delta_us=1234),
+                },
+            }
+        )
+
+        assert result["active_primary_signal"] == "rtt"
+        assert result["control_decision_reason"] == "green_stable"
+        assert result["cake_av_delay_delta_us"] is None
+
+    def test_renderer_legacy_fallback_when_no_controller_payload(self) -> None:
+        handler = self._make_handler()
+
+        result = handler._build_signal_arbitration_section(
+            {
+                "cake_signal": {
+                    "download": self._make_snapshot(max_delay_delta_us=4800),
+                }
+            }
+        )
+
+        assert result["active_primary_signal"] == "rtt"
+        assert result["rtt_confidence"] is None
+        assert result["cake_av_delay_delta_us"] == 4800
+        assert result["control_decision_reason"] == "rtt_primary_operating_normally"
+
+    def test_renderer_legacy_fallback_cold_start_av_delta_is_none(self) -> None:
+        handler = self._make_handler()
+
+        result = handler._build_signal_arbitration_section(
+            {
+                "cake_signal": {
+                    "download": self._make_snapshot(
+                        cold_start=True, max_delay_delta_us=4800
+                    ),
+                }
+            }
+        )
+
+        assert result["cake_av_delay_delta_us"] is None
+
+    def test_renderer_does_not_emit_rtt_veto_in_phase_194(self) -> None:
+        handler = self._make_handler()
+
+        for reason in ("queue_distress", "green_stable"):
+            result = handler._build_signal_arbitration_section(
+                {
+                    "signal_arbitration": {
+                        "active_primary_signal": "queue",
+                        "rtt_confidence": None,
+                        "control_decision_reason": reason,
+                        "cake_av_delay_delta_us": 4800,
+                    },
+                    "cake_signal": {
+                        "download": self._make_snapshot(max_delay_delta_us=1234),
+                    },
+                }
+            )
+
+            assert result["control_decision_reason"] == reason
+            assert result["control_decision_reason"] != "rtt_veto"
+
     def test_signal_arbitration_is_sibling_of_cake_signal_in_wan_health(self) -> None:
         handler = self._make_handler()
         wan_controller = MagicMock()
