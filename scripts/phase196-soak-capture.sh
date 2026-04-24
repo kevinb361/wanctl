@@ -101,7 +101,7 @@ remote_sqlite_query() {
 
     printf -v remote_db "%q" "$metrics_db"
     ssh -o BatchMode=yes "$ssh_host" \
-        "command -v sqlite3 >/dev/null && sudo -n sqlite3 -readonly -header -separator '|' $remote_db" \
+        "command -v sqlite3 >/dev/null || { echo 'ERROR: sqlite3 missing on remote host' >&2; exit 1; }; sudo -n sqlite3 -readonly -header -separator '|' $remote_db" \
         >"$output_file" <<SQL
 SELECT
   datetime(timestamp, 'unixepoch') AS sampled_utc,
@@ -131,7 +131,7 @@ remote_sqlite_aggregate_query() {
 
     printf -v remote_db "%q" "$metrics_db"
     ssh -o BatchMode=yes "$ssh_host" \
-        "command -v sqlite3 >/dev/null && sudo -n sqlite3 -readonly -header -separator '|' $remote_db" \
+        "command -v sqlite3 >/dev/null || { echo 'ERROR: sqlite3 missing on remote host' >&2; exit 1; }; sudo -n sqlite3 -readonly -header -separator '|' $remote_db" \
         >"$output_file" <<SQL
 SELECT
   metric_name,
@@ -178,7 +178,6 @@ resolve_mode "$MODE"
 
 require_command curl
 require_command jq
-require_command sqlite3
 require_command ssh
 
 require_var PHASE196_OUT_DIR "root output directory for Phase 196 evidence"
