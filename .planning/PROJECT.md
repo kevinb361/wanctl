@@ -36,6 +36,8 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - Parallel milestone: v1.39 remains open. Phase 191 closure pending ATT weather-rerun. Phase 192 (reflector scorer blackout-awareness + log hygiene) still planned and required by MEAS-06/VALN-03 24h soak.
 - Priority: stability > safety > clarity > elegance. No state-machine, threshold, EWMA, dwell, deadband, or burst-detection changes. Arbitration changes input to classification, not classification rules themselves.
 
+**Phase status:** v1.40 Phases 193-195 are executed. Phase 195 validated RTT confidence demotion and fusion-healer containment with local regression/replay coverage plus one-hour production UAT on Spectrum and ATT. Phase 196 remains the Spectrum A/B soak and ATT regression canary.
+
 ## In Progress: v1.39 Control-Path Timing & Measurement Accounting
 
 **Status:** Pending closure. Runs in parallel with v1.40 implementation; Spectrum soak calendar is serialized (no concurrent soaks).
@@ -332,6 +334,11 @@ thresholds or steering behavior.
 - ✓ WireGuard TX errors root-caused (ZeroTier binding to wireguard1), 43K/day→0 — v1.28
 - ✓ Bridge download DSCP classification via nftables (Voice/Bulk/BestEffort tin separation on both WANs) — v1.28
 - ✓ CAKE ceiling sweep validated (ul32/dl940 confirmed optimal, daytime vs nighttime analysis) — v1.28
+
+**v1.40 Queue-Primary Signal Arbitration (Phase 195 validated: 2026-04-24):**
+
+- ✓ RTT delta is demoted behind `rtt_confidence`, with RTT unable to override queue-GREEN unless confidence and queue direction agree — Phase 195
+- ✓ Fusion healer bypass requires sustained queue distress and confident RTT distress in the same worsening-or-held direction for 6 cycles; single-path flips do not bypass — Phase 195
 
 ### Active
 
@@ -673,4 +680,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-23 — v1.40 Queue-Primary Signal Arbitration milestone started; v1.39 remains open in parallel pending Phase 191 closure and Phase 192 execution_
+_Last updated: 2026-04-24 — Phase 195 completed with production UAT; v1.40 Phase 196 soak remains pending alongside v1.39 Phase 191/192 closure work_
