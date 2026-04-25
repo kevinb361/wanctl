@@ -100,6 +100,15 @@ Status: pass
 
 The protected control files have no diff: `src/wanctl/queue_controller.py`, `src/wanctl/cake_signal.py`, `src/wanctl/fusion_healer.py`, and `src/wanctl/wan_controller.py`.
 
+Phase 196-05 SAFE-05: pass
+
+Local guard results after the mode proof:
+
+- `bash -n scripts/phase196-soak-capture.sh` exited 0.
+- `git diff --quiet -- src/wanctl/queue_controller.py src/wanctl/cake_signal.py src/wanctl/fusion_healer.py src/wanctl/wan_controller.py` exited 0.
+- `git diff -- .planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/196-MODE-GATE.md .planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/196-PREFLIGHT.md .planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/196-VERIFICATION.md` exited 0 before this SAFE-05 annotation.
+- Mode proof path: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/preflight/mode-gate-proof.json`
+
 ## Goal Achievement
 
 Phase 196 did not achieve the production-validation goal. It did achieve the safety goal of stopping before invalid production validation:
