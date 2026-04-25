@@ -72,9 +72,14 @@ The proof records `rtt-blend` with `cake_signal_enabled=false`, `active_primary_
 
 ## Spectrum A-Leg: rtt-blend
 
-Status: ready - preflight gate passed; A-leg evidence not yet collected
+Status: running - rtt-blend A-leg started; waiting for the 24-hour window before Task 2
 
-No 24h A-leg soak capture, primary-signal audit, or flent baseline has run yet after the mode gate was proven.
+A-leg start UTC: `2026-04-25T04:54:14Z`
+Expected earliest finish UTC: `2026-04-26T04:54:14Z`
+Manifest: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/manifest.json`
+Start capture summary: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/rtt-blend-start-20260425T045414Z-summary.json`
+Same deployment token: `cake-shaper:wanctl@spectrum.service:/etc/wanctl/spectrum.yaml`
+Operator no-concurrent-Spectrum-experiment check: pass
 
 ## Spectrum B-Leg: cake-primary
 

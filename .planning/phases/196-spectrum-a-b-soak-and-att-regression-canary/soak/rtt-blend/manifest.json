@@ -1,0 +1,13 @@
+{
+  "leg": "rtt-blend",
+  "mode_gate": "spectrum-cake-signal-enabled-toggle",
+  "start_utc": "2026-04-25T04:54:14Z",
+  "expected_end_utc": "2026-04-26T04:54:14Z",
+  "same_deployment_token": "cake-shaper:wanctl@spectrum.service:/etc/wanctl/spectrum.yaml",
+  "service": "wanctl@spectrum.service",
+  "active_config_path": "/etc/wanctl/spectrum.yaml",
+  "expected_active_primary_signal": "rtt",
+  "expected_wanctl_arbitration_active_primary": 2,
+  "operator_no_concurrent_spectrum_experiments": true,
+  "start_capture_summary_path": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/rtt-blend-start-20260425T045414Z-summary.json"
+}

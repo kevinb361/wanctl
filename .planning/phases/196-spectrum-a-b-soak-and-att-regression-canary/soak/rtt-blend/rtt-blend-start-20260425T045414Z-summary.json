@@ -1,0 +1,28 @@
+{
+  "mode": "rtt-blend-start",
+  "capture_group": "rtt-blend",
+  "wan_name": "spectrum",
+  "captured_at_iso": "2026-04-25T04:54:14Z",
+  "artifacts": {
+    "health_json": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/raw/rtt-blend-start-20260425T045414Z-health.json",
+    "journal_excerpt": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/raw/rtt-blend-start-20260425T045414Z-journal.log",
+    "fusion_transitions": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/raw/rtt-blend-start-20260425T045414Z-fusion-transitions.log",
+    "sqlite_metrics": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/raw/rtt-blend-start-20260425T045414Z-sqlite-metrics.psv",
+    "sqlite_metrics_aggregate": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/raw/rtt-blend-start-20260425T045414Z-sqlite-metrics-aggregate.psv"
+  },
+  "signal_arbitration": {
+    "active_primary_signal": "rtt",
+    "rtt_confidence": null,
+    "cake_av_delay_delta_us": null,
+    "control_decision_reason": "green_stable"
+  },
+  "counters": {
+    "dwell_bypassed_count": 0,
+    "download_burst_trigger_count": 0,
+    "upload_burst_trigger_count": 0,
+    "fusion_transition_count_24h": 0,
+    "sqlite_metric_rows": 285589,
+    "sqlite_metric_aggregate_rows": 4,
+    "journal_excerpt_lines": 5967
+  }
+}
