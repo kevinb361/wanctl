@@ -1,0 +1,20 @@
+{
+  "gate_name": "spectrum-cake-signal-enabled-toggle",
+  "backup_path": "/etc/wanctl/spectrum.yaml.phase196-20260425T044035Z.bak",
+  "restart_window_acceptable": true,
+  "rtt_blend": {
+    "cake_signal_enabled": false,
+    "active_primary_signal": "rtt",
+    "wanctl_arbitration_active_primary": 2,
+    "capture_summary_path": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/preflight/preflight-20260425T044040Z-summary.json"
+  },
+  "cake_primary": {
+    "cake_signal_enabled": true,
+    "active_primary_signal": "queue",
+    "wanctl_arbitration_active_primary": 1,
+    "capture_summary_path": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/preflight/preflight-20260425T044045Z-summary.json"
+  },
+  "restored_mode": "cake-primary",
+  "mode_gate_verdict": "pass",
+  "operator_no_concurrent_spectrum_experiments": true
+}
