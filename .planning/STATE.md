@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Queue-Primary Signal Arbitration
-status: blocked
-stopped_at: Completed 196-04-PLAN.md (blocked closeout; ATT canary blocked by Phase 191)
-last_updated: "2026-04-24T21:08:38.521Z"
-last_activity: 2026-04-24
+status: executing
+stopped_at: Completed 196-06-PLAN.md
+last_updated: "2026-04-26T09:15:07.558Z"
+last_activity: 2026-04-26
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 23
-  completed_plans: 22
+  total_plans: 28
+  completed_plans: 27
   percent: 96
 ---
 
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Milestone:** v1.40 Queue-Primary Signal Arbitration
 **Phase:** 196
-**Plan:** 196-04
-**Status:** Phase 196 blocked after closeout; VALN-04/VALN-05 evidence is incomplete
-**Last activity:** 2026-04-24
+**Plan:** 196-07
+**Status:** Phase 196 in progress; Spectrum rtt-blend A-leg passed, B-leg pending
+**Last activity:** 2026-04-26
 
-Progress: [███████───] 75% (3/4 phases complete, 12/12 v1.40 plans executed; Phase 196 blocked)
+Progress: [█████████─] 96% (6/8 Phase 196 plans executed; B-leg and ATT canary remain)
 
 ## Parallel Milestone
 
@@ -98,7 +98,7 @@ Progress: [███████───] 75% (3/4 phases complete, 12/12 v1.40
 
 ## Session Continuity
 
-Stopped at: Completed 196-04-PLAN.md (blocked closeout; ATT canary blocked by Phase 191)
+Stopped at: Completed 196-06-PLAN.md
 Resume file: None
 
 ## Decisions
@@ -142,9 +142,12 @@ Resume file: None
 - [Phase 193]: Phase 193-01 exposes max_delay_delta_us as the authoritative queue-delay scalar computed per tin before aggregation.
 - [Phase 196]: Final closeout records Phase 196 as blocked, not passed: Spectrum A/B evidence is absent because the reversible mode gate is blocked, and ATT canary blocked by Phase 191.
 - [Phase 196]: Phase 196 Plan 04 closed as blocked: ATT canary skipped because Phase 191 remains open; VALN-04 and VALN-05 stay blocked while SAFE-05 remains satisfied.
+- [Phase 196-06]: Spectrum rtt-blend A-leg passed after 28.2311h with zero non-RTT arbitration samples; Plan 196-07 must reuse same_deployment_token cake-shaper:wanctl@spectrum.service:/etc/wanctl/spectrum.yaml.
+- [Phase 196-06]: VALN-04 remains partial until the cake-primary B-leg and A/B comparison pass; SAFE-05 remains satisfied.
 
 ## Performance Metrics
 
+- 2026-04-26: Phase 196 Plan 06 completed in 9 min active continuation time across 3 tasks and 11 planning/evidence files; Spectrum rtt-blend A-leg passed after 28.2311h with zero non-RTT arbitration samples and flent baseline evidence.
 - 2026-04-24: Phase 196 Plan 04 completed in 9 min across 4 tasks and 7 planning files; closeout blocked VALN-04/VALN-05 and created the ATT canary follow-up todo.
 - 2026-04-23: v1.40 roadmap written in single pass — 4 phases, 10/10 REQ-IDs mapped, appended to ROADMAP.md without disturbing v1.39 content.
 - 2026-04-20: Phase 191.1 Plan 03 completed in 15 min across 2 tasks and 3 files.
@@ -166,7 +169,7 @@ Resume file: None
 ## Blockers
 
 - Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), `2026-04-23` (`64.40 Mbps`), `2026-04-23c` (`61.47 Mbps`), and `2026-04-24` (`70.95 Mbps`) FAIL samples against the old ATT RRUL download comparator. The `2026-04-24` run narrowed the issue because ATT tcp_12down and VoIP looked healthy and Spectrum throughput was strong, but it still did not close Phase 191. Phase 192 is allowed to proceed only under the explicit operator waiver in `192-PRECONDITION-WAIVER.md`.
-- Phase 196 remains blocked after Plan 196-04 closeout: no Spectrum A/B validation evidence exists because the reversible `rtt-blend` / `cake-primary` mode gate is blocked, and ATT canary remains blocked by Phase 191 closure. VALN-04 and VALN-05 stay blocked; SAFE-05 remains satisfied.
+- Phase 196 remains partially blocked after Plan 196-06: Spectrum rtt-blend A-leg evidence passed, but cake-primary B-leg/A-B comparison and ATT canary remain pending. VALN-04 is partial, VALN-05 remains blocked, and SAFE-05 remains satisfied.
 - Pending follow-up created: `.planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md` tracks the required ATT cake-primary canary rerun after Phase 191 closes.
 
-**Planned Phase:** 196 (spectrum-a-b-soak-and-att-regression-canary) — 4 plans — 2026-04-24T19:50:03Z
+**Planned Phase:** 196 (spectrum-a-b-soak-and-att-regression-canary) — 8 plans — 2026-04-24T19:50:03Z
