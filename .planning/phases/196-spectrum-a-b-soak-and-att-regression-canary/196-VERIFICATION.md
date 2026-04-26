@@ -72,14 +72,20 @@ The proof records `rtt-blend` with `cake_signal_enabled=false`, `active_primary_
 
 ## Spectrum A-Leg: rtt-blend
 
-Status: running - rtt-blend A-leg started; waiting for the 24-hour window before Task 2
+Status: passed
 
 A-leg start UTC: `2026-04-25T04:54:14Z`
+A-leg finish UTC: `2026-04-26T09:08:06Z`
+A-leg duration hours: `28.2311`
 Expected earliest finish UTC: `2026-04-26T04:54:14Z`
 Manifest: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/manifest.json`
 Start capture summary: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/rtt-blend-start-20260425T045414Z-summary.json`
+Finish capture summary: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/rtt-blend-finish-20260426T090806Z-summary.json`
+Primary-signal audit: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/primary-signal-audit.json` (`verdict: pass`, `metric_non_rtt_samples: 0`)
+Flent baseline summary: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/flent-summary.json` (`verdict: pass`)
 Same deployment token: `cake-shaper:wanctl@spectrum.service:/etc/wanctl/spectrum.yaml`
 Operator no-concurrent-Spectrum-experiment check: pass
+Plan 196-07 B-leg gate: authorized after A-leg audit and flent baseline pass.
 
 ## Spectrum B-Leg: cake-primary
 

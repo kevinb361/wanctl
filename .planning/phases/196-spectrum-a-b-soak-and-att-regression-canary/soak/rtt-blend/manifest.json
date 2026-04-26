@@ -9,5 +9,8 @@
   "expected_active_primary_signal": "rtt",
   "expected_wanctl_arbitration_active_primary": 2,
   "operator_no_concurrent_spectrum_experiments": true,
-  "start_capture_summary_path": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/rtt-blend-start-20260425T045414Z-summary.json"
+  "start_capture_summary_path": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/rtt-blend-start-20260425T045414Z-summary.json",
+  "end_utc": "2026-04-26T09:08:06Z",
+  "finish_capture_summary_path": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/rtt-blend-finish-20260426T090806Z-summary.json",
+  "primary_signal_audit_path": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/primary-signal-audit.json"
 }
