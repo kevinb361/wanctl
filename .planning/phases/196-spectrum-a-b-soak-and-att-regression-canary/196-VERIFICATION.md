@@ -113,6 +113,8 @@ The protected control files have no diff: `src/wanctl/queue_controller.py`, `src
 
 Phase 196-05 SAFE-05: pass
 
+Phase 196-06 SAFE-05: pass
+
 Local guard results after the mode proof:
 
 - `bash -n scripts/phase196-soak-capture.sh` exited 0.
