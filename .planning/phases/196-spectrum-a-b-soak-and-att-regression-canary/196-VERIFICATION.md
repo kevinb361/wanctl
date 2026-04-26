@@ -89,9 +89,17 @@ Plan 196-07 B-leg gate: authorized after A-leg audit and flent baseline pass.
 
 ## Spectrum B-Leg: cake-primary
 
-Status: blocked - B-leg cannot run without valid A-leg
+Status: running - cake-primary B-leg started, awaiting 24h finish capture
 
-No B-leg mode switch, 24h soak capture, cake-primary flent run, throughput summary, or B-leg manifest exists because the A-leg did not run.
+B-leg start UTC: `2026-04-26T09:20:26Z`
+Expected earliest finish UTC: `2026-04-27T09:20:26Z`
+Manifest: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/manifest.json`
+Start capture summary: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/cake-primary-start-20260426T092026Z-summary.json`
+Start mode proof: `active_primary_signal=queue`; latest `wanctl_arbitration_active_primary=1` verified before capture.
+Same deployment token: `cake-shaper:wanctl@spectrum.service:/etc/wanctl/spectrum.yaml`
+Operator no-concurrent-Spectrum-experiment check: pass
+
+The 24-hour B-leg is in progress. Do not run finish capture, throughput, or A/B comparison before `2026-04-27T09:20:26Z`.
 
 ## A/B Comparison
 
