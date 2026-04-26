@@ -1,0 +1,14 @@
+{
+  "leg": "rtt-blend",
+  "start_utc": "2026-04-25T04:54:14Z",
+  "end_utc": "2026-04-26T09:08:06Z",
+  "duration_hours": 28.2311,
+  "health_total_samples": 2,
+  "health_rtt_samples": 2,
+  "health_non_rtt_samples": 0,
+  "metric_total_samples": 88373,
+  "metric_rtt_samples": 88373,
+  "metric_non_rtt_samples": 0,
+  "exception_timestamps": [],
+  "verdict": "pass"
+}

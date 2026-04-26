@@ -1,0 +1,8 @@
+{
+  "tcp12_manifest_path": "/home/kevin/flent-results/phase196/phase196_rtt_blend_tcp12/spectrum/20260426-040821/manifest.txt",
+  "rrul_voip_manifest_path": "/home/kevin/flent-results/phase196/phase196_rtt_blend_rrul_voip/spectrum/20260426-040905/manifest.txt",
+  "tcp12_raw_path": "/home/kevin/flent-results/phase196/phase196_rtt_blend_tcp12/spectrum/20260426-040821/tcp_12down-2026-04-26T040821.751745.phase196_rtt_blend_tcp12-spectrum-tcp_12down.flent.gz",
+  "rrul_raw_path": "/home/kevin/flent-results/phase196/phase196_rtt_blend_rrul_voip/spectrum/20260426-040905/rrul-2026-04-26T040905.548810.phase196_rtt_blend_rrul_voip-spectrum-rrul.flent.gz",
+  "voip_raw_path": "/home/kevin/flent-results/phase196/phase196_rtt_blend_rrul_voip/spectrum/20260426-040905/voip-2026-04-26T041017.535074.phase196_rtt_blend_rrul_voip-spectrum-voip.flent.gz",
+  "verdict": "pass"
+}

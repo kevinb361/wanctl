@@ -1,0 +1,3 @@
+metric_name|samples|min_value|max_value|avg_value|latest_utc
+wanctl_arbitration_active_primary|88385|2.0|2.0|2.0|2026-04-26 09:08:07
+wanctl_fusion_bypass_active|88385|0.0|0.0|0.0|2026-04-26 09:08:07
