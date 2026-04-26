@@ -124,9 +124,10 @@ Local guard results after the mode proof:
 
 ## Goal Achievement
 
-Phase 196 did not achieve the production-validation goal. It did achieve the safety goal of stopping before invalid production validation:
+Phase 196 has now completed the Spectrum `rtt-blend` A-leg baseline while remaining blocked on the later B-leg and ATT canary gates:
 
-- Spectrum A/B validation is still incomplete because the preflight mode proof only reopens the Spectrum A-leg; 24h A-leg/B-leg evidence has not run yet.
+- Spectrum A/B validation is still incomplete because the 24h `cake-primary` B-leg and A/B comparison have not run yet.
+- Spectrum A-leg validation is complete: the `rtt-blend` window ran for 28.2311 hours, the primary-signal audit passed with zero non-RTT health or metric samples, and flent baseline artifacts exist for `tcp_12down`, RRUL, and VoIP.
 - ATT canary is blocked because Phase 191 remains open, and `att-canary-gate.md` records `phase_191_status: blocked` and `decision: blocked-do-not-run-att-canary`.
 - SAFE-05 is satisfied for Phase 196 because the protected controller files have a clean diff and local regression evidence is recorded.
 
@@ -136,13 +137,13 @@ Phase 196 did not achieve the production-validation goal. It did achieve the saf
 | --- | --- | --- | --- |
 | 1 | Preflight records Phase 192 status, Phase 191 ATT closure status, Spectrum mode-gate status, SAFE-05 status, and a go/no-go decision before any soak starts. | VERIFIED | `196-PREFLIGHT.md` has `phase_192_soak_status: pass`, `phase_191_att_closure_status: blocked`, `mode_gate_status: pass`, `safe_05_status: pass`, and `decision: ready-for-spectrum-a-leg`. |
 | 2 | Spectrum soaks do not start unless the preflight mode gate passes. | VERIFIED | `soak/preflight/mode-gate-proof.json` records `mode_gate_verdict: pass`; no 24h rtt-blend or cake-primary soak artifacts existed before that proof. |
-| 3 | Spectrum 24h rtt-blend A-leg evidence exists and proves RTT primary across the window. | BLOCKED | Missing `soak/rtt-blend/manifest.json`, `summary.json`, and `primary-signal-audit.json` because the A-leg has not run yet after the mode proof. |
-| 4 | Spectrum 24h cake-primary B-leg evidence exists, serialized after the A-leg, and proves queue primary under load. | BLOCKED | Missing `soak/cake-primary/manifest.json`; B-leg could not run without a valid A-leg. |
+| 3 | Spectrum 24h rtt-blend A-leg evidence exists and proves RTT primary across the window. | VERIFIED | `soak/rtt-blend/primary-signal-audit.json` records `duration_hours: 28.2311`, `verdict: pass`, `health_non_rtt_samples: 0`, and `metric_non_rtt_samples: 0`; `flent-summary.json` records pass paths for tcp_12down, RRUL, and VoIP. |
+| 4 | Spectrum 24h cake-primary B-leg evidence exists, serialized after the A-leg, and proves queue primary under load. | BLOCKED | Missing `soak/cake-primary/manifest.json`; B-leg now depends on the valid A-leg token and audit verdict from `soak/rtt-blend/manifest.json` and `primary-signal-audit.json`. |
 | 5 | Spectrum cake-primary throughput and A/B operational counters pass VALN-05 and VALN-04 acceptance. | BLOCKED | Missing `throughput-summary.json` and `ab-comparison.json`; no `phase196_cake_primary_tcp12` evidence exists. |
 | 6 | ATT cake-primary canary does not run until Phase 191 is closed, and blocked ATT state is explicit. | VERIFIED | `att-canary-gate.md` records `phase_191_status: blocked` and `decision: blocked-do-not-run-att-canary`; no ATT mode proof or throughput summary exists. |
 | 7 | SAFE-05 protected control files remain clean. | VERIFIED | `git diff --quiet -- src/wanctl/queue_controller.py src/wanctl/cake_signal.py src/wanctl/fusion_healer.py src/wanctl/wan_controller.py` exited 0; `git status --short` for the same files was empty. |
 
-**Score:** 4/7 truths verified. The remaining 3 truths are blocked by missing soak/canary evidence, not satisfied.
+**Score:** 5/7 truths verified. The remaining 2 truths are blocked by missing B-leg/canary evidence, not satisfied.
 
 ## Required Artifacts
 
@@ -152,9 +153,10 @@ Phase 196 did not achieve the production-validation goal. It did achieve the saf
 | `scripts/phase196-soak-capture.env.example` | Operator env template | VERIFIED | Exists, 27 lines, Spectrum and ATT variables present with empty active defaults. |
 | `196-PREFLIGHT.md` | Go/no-go preflight record | VERIFIED | Exists and records mode gate pass plus `decision: ready-for-spectrum-a-leg`. |
 | `soak/preflight/mode-gate-proof.json` | Reversible Spectrum mode proof | VERIFIED | Exists and records `mode_gate_verdict: pass`, rtt-blend RTT primary metric `2`, cake-primary queue primary metric `1`, and restored `cake-primary`. |
-| `soak/rtt-blend/manifest.json` | A-leg start proof | MISSING | Absent because the A-leg has not run yet after the preflight gate reopened. |
-| `soak/rtt-blend/primary-signal-audit.json` | A-leg full-window RTT-primary audit | MISSING | No rtt-blend soak has run yet. |
-| `soak/cake-primary/manifest.json` | B-leg start proof | MISSING | No valid A-leg exists yet. |
+| `soak/rtt-blend/manifest.json` | A-leg start/end proof | VERIFIED | Exists with `leg: rtt-blend`, start/end timestamps, `same_deployment_token`, and expected RTT-primary mode. |
+| `soak/rtt-blend/primary-signal-audit.json` | A-leg full-window RTT-primary audit | VERIFIED | Exists with `verdict: pass`, `duration_hours >= 24`, and zero non-RTT health/metric samples. |
+| `soak/rtt-blend/flent-summary.json` | A-leg flent baseline proof | VERIFIED | Exists with `verdict: pass` and non-empty tcp_12down, RRUL, and VoIP raw artifact paths. |
+| `soak/cake-primary/manifest.json` | B-leg start proof | MISSING | B-leg has not run yet; it is now authorized to consume the valid A-leg token after Plan 196-06. |
 | `soak/cake-primary/throughput-summary.json` | Spectrum tcp_12down acceptance | MISSING | No cake-primary flent run exists. |
 | `soak/cake-primary/ab-comparison.json` | A/B operational verdict | MISSING | No A/B comparison possible. |
 | `soak/att-canary/att-canary-gate.md` | ATT Phase 191 closure gate | VERIFIED | Exists and blocks ATT canary. |
@@ -166,7 +168,7 @@ Phase 196 did not achieve the production-validation goal. It did achieve the saf
 | From | To | Via | Status | Details |
 | --- | --- | --- | --- | --- |
 | `196-PREFLIGHT.md` | Spectrum A-leg start | Top-level `mode_gate_status` and `decision` | VERIFIED READY | `mode_gate_status: pass` and `decision: ready-for-spectrum-a-leg` authorize the A-leg after operator scheduling. |
-| `soak/rtt-blend/manifest.json` | `soak/cake-primary/manifest.json` | `same_deployment_token` | BLOCKED | Source artifact missing because A-leg did not run. |
+| `soak/rtt-blend/manifest.json` | `soak/cake-primary/manifest.json` | `same_deployment_token` | VERIFIED READY | Source artifact exists with `same_deployment_token: cake-shaper:wanctl@spectrum.service:/etc/wanctl/spectrum.yaml`; Plan 196-07 must reuse it. |
 | `soak/cake-primary/throughput-summary.json` | VALN-05 Spectrum requirement | `tcp_12down_median_mbps >= 532` | BLOCKED | Throughput summary missing. |
 | `soak/cake-primary/ab-comparison.json` | VALN-04 A/B requirement | `comparison_verdict` | BLOCKED | Comparison artifact missing. |
 | `att-canary-gate.md` | ATT canary execution | `decision: run-att-canary` required | VERIFIED BLOCK | Gate says `blocked-do-not-run-att-canary`; no ATT canary artifacts should exist. |
@@ -176,9 +178,9 @@ Phase 196 did not achieve the production-validation goal. It did achieve the saf
 
 | Artifact | Data Variable | Source | Produces Real Data | Status |
 | --- | --- | --- | --- | --- |
-| `scripts/phase196-soak-capture.sh` | Health fields and SQLite metrics | Operator-provided `/health`, SSH journal, remote SQLite DB | Exercised for the preflight mode proof; 24h soak legs have not run | PARTIAL |
+| `scripts/phase196-soak-capture.sh` | Health fields and SQLite metrics | Operator-provided `/health`, SSH journal, remote SQLite DB | Exercised for preflight and the completed rtt-blend A-leg; B-leg has not run | PARTIAL |
 | `soak/preflight/*` | Mode-gate health/metric samples | Orchestrator-recorded Spectrum production proof | Yes | VERIFIED |
-| `soak/rtt-blend/*` | A-leg health/metric/journal samples | `phase196-soak-capture.sh rtt-blend-*` | No | BLOCKED |
+| `soak/rtt-blend/*` | A-leg health/metric/journal samples | `phase196-soak-capture.sh rtt-blend-*` | Yes | VERIFIED |
 | `soak/cake-primary/*` | B-leg health/metric/journal/flent samples | `phase196-soak-capture.sh cake-primary-*` and flent | No | BLOCKED |
 | `soak/att-canary/*` | ATT mode proof and throughput samples | ATT gate plus capture/flent | No | BLOCKED |
 
@@ -187,7 +189,7 @@ Phase 196 did not achieve the production-validation goal. It did achieve the saf
 | Behavior | Command | Result | Status |
 | --- | --- | --- | --- |
 | Preflight gate state is explicit | `grep -nE '^(phase_192_soak_status|phase_191_att_closure_status|mode_gate_status|safe_05_status|decision):' 196-PREFLIGHT.md` | Found pass/blocked/pass/pass/ready-for-spectrum-a-leg fields | PASS |
-| Blocked 24h/canary artifacts remain absent | `find .../soak -maxdepth 3 -type f -print` | Preflight proof exists; rtt-blend, cake-primary, and ATT canary proof/summary artifacts are still absent | PASS |
+| A-leg audit and flent verdicts pass | `jq -e` against `primary-signal-audit.json` and `flent-summary.json` | A-leg primary-signal audit verdict is `pass`; flent summary verdict is `pass` with tcp_12down, RRUL, and VoIP raw paths | PASS |
 | Capture helper parses as shell | `bash -n scripts/phase196-soak-capture.sh` | Exit 0 | PASS |
 | Capture helper has no forbidden mutation commands | Forbidden-command grep against `scripts/phase196-soak-capture.sh` | Exit 0, no matches | PASS |
 | SAFE-05 protected files clean | `git diff --quiet -- src/wanctl/queue_controller.py src/wanctl/cake_signal.py src/wanctl/fusion_healer.py src/wanctl/wan_controller.py` | Exit 0 | PASS |
@@ -199,7 +201,7 @@ Phase 196 did not achieve the production-validation goal. It did achieve the saf
 
 | Requirement | Source Plan | Description | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| VALN-04 | 196-01, 196-02, 196-03 | Sequential Spectrum 24h rtt-blend then 24h cake-primary on the same deployment, no concurrent Spectrum experiments, Phase 192 soak first. | BLOCKED - not satisfied | Phase 192 dependency is recorded as pass and the reversible mode gate is proven, but no A-leg/B-leg 24h evidence artifacts exist yet. |
+| VALN-04 | 196-01, 196-02, 196-03 | Sequential Spectrum 24h rtt-blend then 24h cake-primary on the same deployment, no concurrent Spectrum experiments, Phase 192 soak first. | PARTIAL - A-leg satisfied, B-leg pending | Phase 192 dependency is recorded as pass, the reversible mode gate is proven, and the 28.2311-hour rtt-blend A-leg audit/flent baseline passed. VALN-04 remains blocked until the cake-primary B-leg and comparison pass. |
 | VALN-05 | 196-01, 196-03, 196-04 | Spectrum cake-primary tcp_12down >= 532 Mbps and ATT cake-primary canary after Phase 191 closure with <=5% regression. | BLOCKED - not satisfied | No Spectrum throughput artifact exists. ATT gate is blocked by Phase 191, so no ATT mode proof or throughput verdict exists. |
 | SAFE-05 | 196-01, 196-02, 196-03, 196-04 | No state-machine, threshold, EWMA, dwell, deadband, burst-detection, or control-path protected-file change. | SATISFIED | Protected-file diff is clean; `REQUIREMENTS.md` keeps SAFE-05 complete. |
 
@@ -221,7 +223,7 @@ None for the current blocked closeout. Future unblocked validation will require 
 
 Phase 196 is blocked, not passed.
 
-The root Spectrum mode-gate gap is closed for preflight: `mode-gate-proof.json` proves the reversible documented operator mode gate for `rtt-blend` and `cake-primary`. VALN-04 and the Spectrum half of VALN-05 remain unsatisfied until the 24h A-leg/B-leg evidence and comparison artifacts exist.
+The root Spectrum mode-gate gap is closed for preflight, and the rtt-blend A-leg gap is closed by `manifest.json`, `primary-signal-audit.json`, and `flent-summary.json`. VALN-04 and the Spectrum half of VALN-05 remain unsatisfied until the 24h cake-primary B-leg and comparison artifacts exist.
 
 The root ATT gap is Phase 191 closure. `att-canary-gate.md` correctly blocks ATT canary execution, and the pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md` records the follow-up path.
 
