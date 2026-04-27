@@ -308,11 +308,11 @@ remains complete.
 **Goal:** Split the consumer-side routing of the CAKE snapshot inside `_run_congestion_assessment` into `dl_cake_for_detection` (preserves Phase 160 cascade safety — masked during the 40-cycle refractory window so QueueController detection cannot re-cascade on a single congestion event) and `dl_cake_for_arbitration` (live snapshot during refractory so the Phase 194 DL primary-signal selector returns queue-primary rather than cratering to RTT). Add the refractory-active per-cycle decision stash, suppress RTT-veto and the Phase 195 healer-bypass alignment-streak update during refractory, expose two new arbitration reason constants (`queue_during_refractory`, `rtt_fallback_during_refractory`) and a new `signal_arbitration.refractory_active` boolean across /health and metrics, and update the Phase 196 cake-primary B-leg audit predicate so the same deployment-token rerun classifies refractory-driven samples as queue-primary or regime-aware-RTT-fallback rather than verdict failures. Outside refractory, controller behavior is byte-identical to Phase 195 (proven by a new replay test). Resolves the Phase 196 Spectrum throughput regression (corrected DL `tcp_12down` median 307.9 Mbps vs 532 Mbps threshold) traced to refractory masking forcing RTT fallback during legitimate queue-primary load.
 **Requirements**: TBD (no roadmap-mandated REQ-IDs; phase carries the three ROADMAP-mandated tests and the Phase 160 + Phase 194 invariants as implicit gates)
 **Depends on:** Phase 196
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 197-01-PLAN.md — Controller wiring (split locals, refractory-active stash, RTT-veto suppression during refractory) + health renderer + replay scaffold proving outside-refractory byte-identity, refractory queue-arbitration, RTT-fallback-during-refractory, and Phase 160 no-cascade invariant
-- [ ] 197-02-PLAN.md — Observability metric `wanctl_arbitration_refractory_active` + Phase 195 ↔ Phase 197 healer-bypass interaction (refractory-entry streak reset, refractory-window streak guard) + D-12 interaction tests + Phase 196 capture-script extension and audit-predicate document for the Spectrum cake-primary B-leg rerun on the same deployment token
+- [x] 197-02-PLAN.md — Observability metric `wanctl_arbitration_refractory_active` + Phase 195 ↔ Phase 197 healer-bypass interaction (refractory-entry streak reset, refractory-window streak guard) + D-12 interaction tests + Phase 196 capture-script extension and audit-predicate document for the Spectrum cake-primary B-leg rerun on the same deployment token (completed 2026-04-27)
 
 ---
 

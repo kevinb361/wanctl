@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Queue-Primary Signal Arbitration
-status: executing
-stopped_at: Completed 197-01-PLAN.md
-last_updated: "2026-04-27T11:22:56.095Z"
+status: completed
+stopped_at: Completed 197-02-PLAN.md
+last_updated: "2026-04-27T11:30:44.977Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 21
-  completed_plans: 20
-  percent: 95
+  completed_phases: 5
+  total_plans: 19
+  completed_plans: 19
+  percent: 100
 ---
 
 # Session State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 **Milestone:** v1.40 Queue-Primary Signal Arbitration
 **Phase:** 197
 **Plan:** 197-02
-**Status:** Phase 197 Plan 01 complete; Plan 02 next
+**Status:** Phase 197 complete; Plan 02 complete
 **Last activity:** 2026-04-27
 
-Progress: [█████████░] 95%
+Progress: [██████████] 100%
 
 ## Parallel Milestone
 
@@ -99,7 +99,7 @@ Progress: [█████████░] 95%
 
 ## Session Continuity
 
-Stopped at: Completed 197-01-PLAN.md
+Stopped at: Completed 197-02-PLAN.md
 Resume file: None
 
 ## Decisions
@@ -151,10 +151,14 @@ Resume file: None
 - [Phase 196-10]: Spectrum cake-primary tcp_12down throughput failed at 73.92243773827883 Mbps against the 532 Mbps threshold, so no A/B comparison was created.
 - [Phase 197-01]: Split DL CAKE detection/arbitration routing so Phase 160 cascade masking remains on `adjust_4state` while refractory arbitration can stay queue-primary from the live snapshot.
 - [Phase 197-01]: Selector uses the pre-decrement refractory-active stash for the final 1->0 drain cycle, keeping `/health` and arbitration reasons aligned for the cycle that was actually refractory.
+- [Phase 197-02]: Kept `wanctl_arbitration_refractory_active` DL-only and did not add UL placeholder rows.
+- [Phase 197-02]: Treat `rtt_fallback_during_refractory` plus `refractory_active=true` as a documented exception audit bucket, not steady-state RTT.
+- [Phase 197-02]: Guard Phase 195 healer alignment-streak updates during DL refractory windows so one congestion event cannot both enter cooldown and arm healer bypass.
 
 ## Performance Metrics
 
 - 2026-04-27: Phase 197 Plan 01 completed in 6 min across 3 tasks and 5 source/test files; hot-path slice passed with 569 tests and replay battery passed with 32 tests plus 6 skips.
+- 2026-04-27: Phase 197 Plan 02 completed in 5 min across 3 tasks and 5 source/test/planning files; hot-path slice passed with 572 tests and replay battery passed with 35 tests plus 6 skips.
 - 2026-04-27: Phase 196 Plan 07 completed in ~16 min active execution over a 24h B-leg window across 3 task outcomes and 17 planning/evidence files; Spectrum cake-primary audit failed with 153 non-queue metric samples, blocking throughput and A/B comparison.
 - 2026-04-27: Phase 196 documented-exception continuation completed in 6 min across acceptance, two flent captures, and 5 planning/evidence files; Spectrum cake-primary throughput failed at 73.92243773827883 Mbps vs 532 Mbps, blocking A/B comparison.
 - 2026-04-26: Phase 196 Plan 06 completed in 9 min active continuation time across 3 tasks and 11 planning/evidence files; Spectrum rtt-blend A-leg passed after 28.2311h with zero non-RTT arbitration samples and flent baseline evidence.
