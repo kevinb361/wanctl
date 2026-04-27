@@ -2820,26 +2820,37 @@ class WANController:
             queue_direction == rtt_direction
             and queue_direction in ("worsening", "held")
         )
-        if (
-            queue_distressed_now
-            and rtt_distressed_now
-            and confidence_high
-            and directions_aligned
-        ):
-            self._healer_aligned_streak += 1
-        else:
+        if self._dl_refractory_remaining > 0:
+            # Phase 197 (D-05): refractory window is detection-only. Streak stays
+            # 0 and bypass stays inactive even with aligned distress. raw_queue_delta_ms
+            # is already None during refractory (dl_cake_for_detection masked) so
+            # queue_distressed_now is False — but this guard is belt-and-suspenders
+            # against future regressions where someone wires queue distress to
+            # the arbitration variant by mistake.
             self._healer_aligned_streak = 0
-
-        if self._healer_aligned_streak >= 6:
-            if not self._fusion_bypass_active:
-                self._fusion_bypass_count += 1
-            self._fusion_bypass_active = True
-            self._fusion_bypass_reason = "queue_rtt_aligned_distress"
-            self._fusion_bypass_offset_ms = raw_rtt_delta_ms
-            self._last_arbitration_reason = ARBITRATION_REASON_HEALER_BYPASS
-        else:
             self._fusion_bypass_active = False
             self._fusion_bypass_reason = None
+        else:
+            if (
+                queue_distressed_now
+                and rtt_distressed_now
+                and confidence_high
+                and directions_aligned
+            ):
+                self._healer_aligned_streak += 1
+            else:
+                self._healer_aligned_streak = 0
+
+            if self._healer_aligned_streak >= 6:
+                if not self._fusion_bypass_active:
+                    self._fusion_bypass_count += 1
+                self._fusion_bypass_active = True
+                self._fusion_bypass_reason = "queue_rtt_aligned_distress"
+                self._fusion_bypass_offset_ms = raw_rtt_delta_ms
+                self._last_arbitration_reason = ARBITRATION_REASON_HEALER_BYPASS
+            else:
+                self._fusion_bypass_active = False
+                self._fusion_bypass_reason = None
 
         if self._dl_burst_pending and dl_zone in ("GREEN", "YELLOW"):
             dl_zone = "SOFT_RED"
@@ -2859,6 +2870,13 @@ class WANController:
         ul_detection = self.upload.get_health_data().get("cake_detection", {})
         if dl_detection.get("dwell_bypassed_this_cycle"):
             self._dl_refractory_remaining = self._refractory_cycles
+            # Phase 197 (D-05): refractory entry resets the Phase 195 healer-bypass
+            # alignment streak so a single congestion event cannot simultaneously
+            # trigger Phase 160 cooldown AND open the healer bypass. Streak is free
+            # to re-arm cleanly after the refractory window clears.
+            self._healer_aligned_streak = 0
+            self._fusion_bypass_active = False
+            self._fusion_bypass_reason = None
         if ul_detection.get("dwell_bypassed_this_cycle"):
             self._ul_refractory_remaining = self._refractory_cycles
 
