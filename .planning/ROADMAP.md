@@ -316,8 +316,65 @@ Plans:
 
 ---
 
-## Ordering Rationale
+### Phase 198: Spectrum cake-primary B-leg rerun on Phase 197 build (GAP CLOSURE)
 
-Phase 193 ships first because it is observability-only and carries zero control-behavior risk — it lets Phase 194's classification change land on a proven data contract. Phase 194 precedes Phase 195 because DL queue-primary classification is a prerequisite for RTT demotion to have meaning: `rtt_confidence` is only useful if queue-primary is already driving distress. Phase 195 depends on v1.39 Phase 192 because the corrected blackout-aware reflector scorer is an input to the ICMP agreement side of `rtt_confidence` — without Phase 192, `rtt_confidence` would read falsely low during carrier blackouts and the new healer bypass gate would be calibrated on a polluted signal. Phase 196 runs last and is serialized against v1.39 Phase 192's 24h Spectrum soak (VALN-04: no concurrent Spectrum experiments) and against v1.39 Phase 191 closure (ATT canary only). Spectrum A/B ordering (rtt-blend then cake-primary) lets the same deployment provide the baseline and the comparison leg, and separating ATT behind Phase 191 closure keeps ATT weather-confounded reruns from contaminating v1.40 attribution.
+**Goal:** Close v1.40 milestone by re-running the Spectrum `cake-primary` B-leg on the Phase 197 build to satisfy VALN-04 and VALN-05a, which Phase 196 left blocked. Phase 197 split `dl_cake_for_detection` (masked during 40-cycle refractory) from `dl_cake_for_arbitration` (live during refractory) — addressing the root cause of the corrected Spectrum throughput regression (307.92 Mbps measured vs 532 Mbps required). Phase 198 reruns the B-leg on the same Spectrum deployment token used for the accepted Phase 196 rtt-blend A-leg, captures fresh `flent tcp_12down` throughput on the corrected source bind `10.10.110.226`, and produces the `ab-comparison.json` artifact that Phase 196 never created. Reuses Phase 196 A-leg control evidence (28.23h, primary-signal-audit 88373/88373) but does NOT reuse the A-leg flent throughput numbers (wrong source bind per `196-12-SUMMARY.md`).
+
+**Requirements addressed:** VALN-04, VALN-05a, SAFE-05
+
+**Depends on:** Phase 197
+
+**Scope:**
+- Preflight: confirm Phase 197 code deployed; `cake-primary` enabled; source bind `10.10.110.226` proven Spectrum egress; no concurrent Spectrum experiment scheduled; SAFE-05 enforced (no config/threshold/EWMA/dwell/deadband/burst/state-machine change during run).
+- Run a clean ≥24h Spectrum `cake-primary` B-leg on the same deployment token used for the accepted Phase 196 rtt-blend A-leg. Capture `/health`, journal, raw SQLite over the full window. Verdict consumes raw rows, not 1-minute aggregates.
+- Capture three corrected source-bound (`10.10.110.226`) Spectrum `flent tcp_12down` 30s runs during the loaded portion of the soak window.
+- Run the Phase 197 audit predicate over the captured raw rows (accept-list includes `queue_during_refractory`, `rtt_fallback_during_refractory`, `refractory_active`).
+- Produce `ab-comparison.json` against the accepted Phase 196 A-leg control evidence (excluding invalid A-leg flent throughput). Compute deltas on: RTT-distress event counts, burst trigger counts, dwell-bypass responsiveness, fusion state transitions, queue-primary coverage, refractory fallback rate.
+- Update `196-VERIFICATION.md` and `198-VERIFICATION.md` to reflect closure of VALN-04 and VALN-05a.
+
+**Out of scope (locked):**
+- ATT cake-primary canary (VALN-05b — deferred to Phase 196-08 after v1.39 Phase 191 closure).
+- Any state-machine, EWMA, dwell, deadband, threshold, or burst-detection change (SAFE-05).
+- Re-enabling fusion on Spectrum or ATT.
+- Reusing Phase 196 A-leg flent throughput numbers as Spectrum baseline (wrong source bind).
+- Tech debt cleanup (`scripts/phase196-soak-capture.sh` WR-01/WR-02; missing `195-VALIDATION.md`; `194-VALIDATION.md` nyquist=false). Backlog.
+
+**Success Criteria:**
+1. **Queue-primary invariant.** During each `tcp_12down` loaded window, ≥95% of loaded-window samples show `signal_arbitration.active_primary_signal == "queue"` (or equivalently `wanctl_arbitration_active_primary == 1`). Require ≥100 health samples or ≥500 raw SQLite active-primary rows per 30s run for the percentage to be statistically meaningful. Any `refractory_active=true` loaded-window sample paired with `rtt_fallback_during_refractory` (an unexplained refractory fallback) fails the criterion — this is exactly the failure mode Phase 197 was inserted to prevent.
+2. **Throughput acceptance (VALN-05a).** Three corrected source-bound (`10.10.110.226`) Spectrum `flent tcp_12down` 30s runs. Pass requires **2-of-3 individual medians ≥532 Mbps AND median-of-medians ≥532 Mbps**. One-pass acceptance is rejected as too weak given the two prior ~307 Mbps failures (307.92, 302.90). Three-of-three is rejected as too brittle for production link variance.
+3. **A/B comparison artifact (VALN-04).** `ab-comparison.json` produced against the accepted Phase 196 rtt-blend A-leg control evidence (NOT against the A-leg flent throughput numbers). Burst detection trigger count, dwell-bypass responsiveness, and fusion state transitions on the cake-primary leg are at least as healthy as on the rtt-blend leg. RTT-distress event counts on cake-primary do not grow beyond the rtt-blend leg.
+4. **SAFE-05 invariant.** No state-machine, EWMA, dwell, deadband, threshold, or burst-detection value changes between Phase 197 ship and Phase 198 acceptance. Verified by source-tree diff in `198-VERIFICATION.md`.
+
+---
+
+### Phase 199: OBS-02 spec/impl reconciliation (GAP CLOSURE — DOCS-ONLY)
+
+**Goal:** Close the OBS-02 spec/impl drift identified in the v1.40 audit by formally specifying absent-row semantics in REQUIREMENTS.md and propagating the wording to operator-facing documentation. The implementation behavior is intentional and test-pinned (`_select_dl_primary_scalar_ms()` reads `_last_rtt_confidence` directly in-process at `wan_controller.py:2785`; SQLite emission gate at `wan_controller.py:3142`; absent-row behavior locked by `test_wan_controller.py:2629`). The audit predicate keys on always-emitted `wanctl_arbitration_active_primary`, so no Phase 196/198 verdict depends on per-cycle `wanctl_rtt_confidence` row coverage. A sentinel emission (NaN, -1) would violate the metric's documented `[0.0, 1.0]` contract and skew downstream Prometheus-style aggregates. Phase 199 is therefore docs-only.
+
+**Requirements addressed:** OBS-02 (caveat resolution)
+
+**Depends on:** —
+
+**Scope:**
+- REQUIREMENTS.md OBS-02 wording amendment (already pre-staged in this gap-closure commit; Phase 199 verifies and adds VERIFICATION.md artifact).
+- Update `/health` documentation in `docs/CONFIGURATION.md` (or wherever per-WAN `signal_arbitration` is documented) to state that `rtt_confidence` and `cake_av_delay_delta_us` are nullable and that absent SQLite rows for `wanctl_rtt_confidence` and `wanctl_cake_avg_delay_delta_us` represent cold-start or invalid-snapshot cycles.
+- Add a short operator-query note: `wanctl_arbitration_active_primary` is the reliable per-cycle denominator for coverage queries against the SQLite store.
+
+**Out of scope (locked):**
+- Any Python behavior change. No sentinel emission. No code path modification.
+- Adding new metrics or fields.
+- Changing the `signal_arbitration` schema.
+
+**Success Criteria:**
+1. REQUIREMENTS.md OBS-02 reflects the amended wording with absent-row semantics formally specified.
+2. Operator-facing docs (`docs/CONFIGURATION.md` or equivalent) describe absent-row behavior and name `wanctl_arbitration_active_primary` as the per-cycle coverage denominator.
+3. `199-VERIFICATION.md` confirms no Python source files changed under `src/wanctl/` for this phase (docs-only invariant).
+
+---
+
+## v1.40 Ordering Rationale
+
+Phase 193 ships first because it is observability-only and carries zero control-behavior risk — it lets Phase 194's classification change land on a proven data contract. Phase 194 precedes Phase 195 because DL queue-primary classification is a prerequisite for RTT demotion to have meaning: `rtt_confidence` is only useful if queue-primary is already driving distress. Phase 195 depends on v1.39 Phase 192 because the corrected blackout-aware reflector scorer is an input to the ICMP agreement side of `rtt_confidence` — without Phase 192, `rtt_confidence` would read falsely low during carrier blackouts and the new healer bypass gate would be calibrated on a polluted signal. Phase 196 runs after the arbitration code and is serialized against v1.39 Phase 192's 24h Spectrum soak (VALN-04: no concurrent Spectrum experiments) and against v1.39 Phase 191 closure (ATT canary only). Spectrum A/B ordering (rtt-blend then cake-primary) lets the same deployment provide the baseline and the comparison leg, and separating ATT behind Phase 191 closure keeps ATT weather-confounded reruns from contaminating v1.40 attribution. Phase 197 was inserted between Phase 196 cake-primary B-leg execution and milestone closure because the corrected B-leg failed throughput acceptance, root-caused to refractory masking forcing RTT fallback during legitimate queue-primary load. Phase 198 closes the gap by re-running the cake-primary B-leg on the Phase 197 build with the same deployment token and Phase 197 audit predicate, producing the `ab-comparison.json` artifact Phase 196 never created. Phase 199 closes the OBS-02 spec drift caveat as docs-only; it carries no production risk and can run in parallel with Phase 198.
 
 *v1.40 roadmap created: 2026-04-23*
+*v1.40 gap closure phases (198, 199) added: 2026-04-27*
