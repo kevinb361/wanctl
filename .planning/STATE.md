@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Queue-Primary Signal Arbitration
 status: executing
-stopped_at: Phase 197 context gathered
-last_updated: "2026-04-27T10:35:16.028Z"
+stopped_at: Completed 197-01-PLAN.md
+last_updated: "2026-04-27T11:22:56.095Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 17
-  completed_plans: 19
-  percent: 100
+  total_plans: 21
+  completed_plans: 20
+  percent: 95
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 196 — spectrum-a-b-soak-and-att-regression-canary
+**Current focus:** Phase 197 — queue-primary-refractory-semantics-split-dl-cake-for-detecti
 
 ## Position
 
 **Milestone:** v1.40 Queue-Primary Signal Arbitration
-**Phase:** 196
-**Plan:** 196-07
-**Status:** Phase 196 in progress; Spectrum cake-primary B-leg documented exceptions accepted, but throughput failed and A/B comparison remains blocked
+**Phase:** 197
+**Plan:** 197-02
+**Status:** Phase 197 Plan 01 complete; Plan 02 next
 **Last activity:** 2026-04-27
 
-Progress: [█████████░] 94% (Spectrum A/B remains blocked by throughput failure; ATT canary remains gated by Phase 191)
+Progress: [█████████░] 95%
 
 ## Parallel Milestone
 
@@ -99,8 +99,8 @@ Progress: [█████████░] 94% (Spectrum A/B remains blocked by 
 
 ## Session Continuity
 
-Stopped at: Phase 197 context gathered
-Resume file: .planning/phases/197-queue-primary-refractory-semantics-split-dl-cake-for-detecti/197-CONTEXT.md
+Stopped at: Completed 197-01-PLAN.md
+Resume file: None
 
 ## Decisions
 
@@ -149,9 +149,12 @@ Resume file: .planning/phases/197-queue-primary-refractory-semantics-split-dl-ca
 - [Phase 196-07]: VALN-04 and VALN-05 remain blocked after the failed Spectrum B-leg audit; SAFE-05 remains satisfied because no protected controller source changed.
 - [Phase 196-10]: Operator accepted the raw-only cake-primary B-leg documented exceptions for continuation while preserving the original fail-closed audit.
 - [Phase 196-10]: Spectrum cake-primary tcp_12down throughput failed at 73.92243773827883 Mbps against the 532 Mbps threshold, so no A/B comparison was created.
+- [Phase 197-01]: Split DL CAKE detection/arbitration routing so Phase 160 cascade masking remains on `adjust_4state` while refractory arbitration can stay queue-primary from the live snapshot.
+- [Phase 197-01]: Selector uses the pre-decrement refractory-active stash for the final 1->0 drain cycle, keeping `/health` and arbitration reasons aligned for the cycle that was actually refractory.
 
 ## Performance Metrics
 
+- 2026-04-27: Phase 197 Plan 01 completed in 6 min across 3 tasks and 5 source/test files; hot-path slice passed with 569 tests and replay battery passed with 32 tests plus 6 skips.
 - 2026-04-27: Phase 196 Plan 07 completed in ~16 min active execution over a 24h B-leg window across 3 task outcomes and 17 planning/evidence files; Spectrum cake-primary audit failed with 153 non-queue metric samples, blocking throughput and A/B comparison.
 - 2026-04-27: Phase 196 documented-exception continuation completed in 6 min across acceptance, two flent captures, and 5 planning/evidence files; Spectrum cake-primary throughput failed at 73.92243773827883 Mbps vs 532 Mbps, blocking A/B comparison.
 - 2026-04-26: Phase 196 Plan 06 completed in 9 min active continuation time across 3 tasks and 11 planning/evidence files; Spectrum rtt-blend A-leg passed after 28.2311h with zero non-RTT arbitration samples and flent baseline evidence.
@@ -180,4 +183,4 @@ Resume file: .planning/phases/197-queue-primary-refractory-semantics-split-dl-ca
 - Phase 196 Spectrum continuation remains blocked after human acceptance of the raw-only B-leg documented exceptions: throughput ran and failed at 73.92243773827883 Mbps against 532 Mbps, so no A/B comparison was created and VALN-04/VALN-05 remain blocked.
 - Pending follow-up created: `.planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md` tracks the required ATT cake-primary canary rerun after Phase 191 closes.
 
-**Planned Phase:** 196 (spectrum-a-b-soak-and-att-regression-canary) — 8 plans — 2026-04-24T19:50:03Z
+**Planned Phase:** 197 (queue-primary-refractory-semantics-split-dl-cake-for-detecti) — 2 plans — 2026-04-27T11:22:07Z
