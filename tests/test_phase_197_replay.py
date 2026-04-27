@@ -287,3 +287,75 @@ class TestPhase197NoCascadeOnDetection:
             assert call.kwargs.get("cake_snapshot") is None, (
                 "Phase 160 cascade safety violated: detection saw live snapshot during refractory"
             )
+
+
+# ---------------------------------------------------------------------------
+# D-12 + D-05 Phase 195 ↔ Phase 197 healer-bypass interaction
+# ---------------------------------------------------------------------------
+
+
+class TestPhase197HealerBypassInteractions:
+    """Refractory entry resets streak; refractory window suppresses streak + RTT-veto.
+
+    D-12.1: Healer-bypass alignment streak resets on refractory entry.
+    D-12.2: Streak does not increment while _dl_refractory_remaining > 0.
+    D-12.3: RTT-veto branch unreachable while _dl_refractory_remaining > 0.
+    """
+
+    def test_streak_resets_on_refractory_entry(self, integrated_controller) -> None:
+        ctrl = integrated_controller
+        _prepare_queue_primary_controller(ctrl)
+        ctrl._healer_aligned_streak = 5  # nearly armed for bypass
+        ctrl._dl_refractory_remaining = 0  # not yet in refractory
+        ctrl._irtt_correlation = 1.0
+        ctrl._prev_queue_delta_ms = 10.0
+        ctrl._prev_rtt_delta_ms = 10.0
+        ctrl.load_rtt = ctrl.baseline_rtt + 25.0
+        ctrl.download.get_health_data = MagicMock(
+            return_value={"cake_detection": {"dwell_bypassed_this_cycle": True}}
+        )
+        ctrl.upload.get_health_data = MagicMock(
+            return_value={"cake_detection": {"dwell_bypassed_this_cycle": False}}
+        )
+        ctrl._dl_cake_snapshot = _queue_snapshot(25_000)
+        ctrl._run_congestion_assessment()
+        assert ctrl._dl_refractory_remaining == ctrl._refractory_cycles
+        assert ctrl._healer_aligned_streak == 0
+        assert ctrl._fusion_bypass_active is False
+
+    def test_streak_does_not_increment_during_refractory(
+        self, integrated_controller
+    ) -> None:
+        """Even with aligned distress preconditions, streak stays 0 during refractory."""
+        ctrl = integrated_controller
+        _prepare_queue_primary_controller(ctrl)
+        ctrl._dl_refractory_remaining = 40
+        ctrl.load_rtt = ctrl.baseline_rtt + 25.0
+        ctrl._last_rtt_confidence = 0.8
+        ctrl._last_queue_direction = "worsening"
+        ctrl._last_rtt_direction = "worsening"
+        ctrl.download.get_health_data = MagicMock(
+            return_value={"cake_detection": {"dwell_bypassed_this_cycle": False}}
+        )
+        ctrl.upload.get_health_data = MagicMock(
+            return_value={"cake_detection": {"dwell_bypassed_this_cycle": False}}
+        )
+        for cycle_idx in range(10):
+            ctrl._dl_cake_snapshot = _queue_snapshot(25_000)
+            ctrl._run_congestion_assessment()
+            assert ctrl._healer_aligned_streak == 0, f"cycle {cycle_idx}: streak leaked"
+            assert ctrl._fusion_bypass_active is False
+
+    def test_rtt_veto_unreachable_during_refractory(self, integrated_controller) -> None:
+        """D-12.3: forced setup that would emit rtt_veto outside refractory must not."""
+        ctrl = integrated_controller
+        _prepare_queue_primary_controller(ctrl)
+        ctrl._dl_refractory_remaining = 40
+        ctrl.load_rtt = ctrl.baseline_rtt + 25.0
+        ctrl._last_rtt_confidence = 0.9
+        ctrl._last_queue_direction = "worsening"
+        ctrl._last_rtt_direction = "worsening"
+        sub_threshold_snap = _queue_snapshot(2_000)
+        primary, _load, reason = ctrl._select_dl_primary_scalar_ms(sub_threshold_snap)
+        assert primary == "queue"
+        assert reason == "queue_during_refractory"
