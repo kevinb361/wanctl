@@ -2693,6 +2693,9 @@ class WANController:
         # Phase 197 (D-06): RTT-veto is suppressed during refractory.
         # Read AFTER seam decrement; cycle that decrements 1->0 is no longer refractory.
         in_refractory = self._dl_refractory_remaining > 0
+        in_refractory = in_refractory or bool(
+            getattr(self, "_dl_arbitration_used_refractory_snapshot", False)
+        )
 
         if (
             self._cake_signal_supported
