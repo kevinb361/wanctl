@@ -12,10 +12,10 @@
 
 ### Signal Arbitration (ARB)
 
-- [ ] **ARB-01**: When `cake_signal` is supported and the latest `cake_snapshot` provides a valid `avg_delay_us` and `base_delay_us`, DL distress classification consumes `queue_delay_delta_us = max(0, avg_delay_us - base_delay_us)` as its primary input instead of RTT delta. When `cake_signal` is unsupported, DL classification falls back to the v1.39 RTT-primary path byte-identically.
+- [x] **ARB-01**: When `cake_signal` is supported and the latest `cake_snapshot` provides a valid `avg_delay_us` and `base_delay_us`, DL distress classification consumes `queue_delay_delta_us = max(0, avg_delay_us - base_delay_us)` as its primary input instead of RTT delta. When `cake_signal` is unsupported, DL classification falls back to the v1.39 RTT-primary path byte-identically.
 - [x] **ARB-02**: DL classification consumes RTT delta only through an `rtt_confidence` scalar in `[0.0, 1.0]` derived from ICMP/UDP agreement and direction agreement with the queue-delay signal. RTT cannot override a queue-GREEN reading unless `rtt_confidence >= 0.6` and queue and RTT agree in direction.
 - [x] **ARB-03**: Fusion healer bypass enters only when queue-delay distress (`queue_delay_delta_us` over its distress threshold) AND RTT distress (`rtt_confidence >= 0.6` with RTT zone at least YELLOW) are both sustained in the same worsening-or-held direction for 6 consecutive cycles. Single-path flips never enter bypass. Magnitude ratios between µs (queue) and ms (RTT) are never used as the alignment metric.
-- [ ] **ARB-04**: v1.40 arbitration changes are DL-only. UL distress classification, UL state machine, and UL rate compute remain byte-identical to v1.39.
+- [x] **ARB-04**: v1.40 arbitration changes are DL-only. UL distress classification, UL state machine, and UL rate compute remain byte-identical to v1.39.
 
 ### Measurement Accounting (MEAS)
 
@@ -23,8 +23,8 @@
 
 ### Observability (OBS)
 
-- [ ] **OBS-01**: `/health` per-WAN response contains a `signal_arbitration` block with fields `active_primary_signal` (one of `"queue"`, `"rtt"`, `"none"`), `rtt_confidence` (float 0.0–1.0 or null), `cake_av_delay_delta_us` (int or null), and `control_decision_reason` (short stable-vocabulary string such as `queue_distress`, `rtt_veto`, `healer_bypass`, `green_stable`). The existing `download.state`, `download.state_reason`, `download.hysteresis`, and `upload.*` fields remain byte-compatible with v1.39 consumers; new fields are additive under `signal_arbitration`, not nested under `hysteresis`.
-- [ ] **OBS-02**: Per-cycle numeric metrics `wanctl_cake_avg_delay_delta_us`, `wanctl_rtt_confidence`, and `wanctl_arbitration_active_primary` (0=none, 1=queue, 2=rtt) are written to the per-WAN metrics SQLite store at each control cycle. No string labels; all values are numeric and compatible with the existing Prometheus-style exporter schema.
+- [x] **OBS-01**: `/health` per-WAN response contains a `signal_arbitration` block with fields `active_primary_signal` (one of `"queue"`, `"rtt"`, `"none"`), `rtt_confidence` (float 0.0–1.0 or null), `cake_av_delay_delta_us` (int or null), and `control_decision_reason` (short stable-vocabulary string such as `queue_distress`, `rtt_veto`, `healer_bypass`, `green_stable`). The existing `download.state`, `download.state_reason`, `download.hysteresis`, and `upload.*` fields remain byte-compatible with v1.39 consumers; new fields are additive under `signal_arbitration`, not nested under `hysteresis`.
+- [x] **OBS-02**: Per-cycle numeric metrics are written to the per-WAN metrics SQLite store when defined for that cycle. `wanctl_arbitration_active_primary` (0=none, 1=queue, 2=rtt) is emitted for each CAKE-metrics-enabled cycle and serves as the reliable per-cycle denominator for coverage queries. `wanctl_rtt_confidence` and `wanctl_cake_avg_delay_delta_us` are emitted only when valid; cold-start and invalid-snapshot cycles produce absent SQLite rows and `/health` nulls — no NaN, -1, or sentinel emission. All emitted values are numeric and compatible with the existing Prometheus-style exporter schema. *Wording amended in Phase 199 to formally specify absent-row semantics.*
 
 ### Control Safety (SAFE)
 
@@ -32,8 +32,9 @@
 
 ### Verification (VALN)
 
-- [ ] **VALN-04**: v1.40 Phase 196 soak runs sequentially on the same Spectrum deployment: 24h `rtt-blend` (v1.39 behavior, queue-primary disabled) followed by 24h `cake-primary` (v1.40 behavior, queue-primary enabled). No concurrent Spectrum soaks; v1.39 Phase 192 soak must complete before Phase 196 starts.
-- [ ] **VALN-05**: Spectrum DL `flent tcp_12down` 30s throughput measured under `cake-primary` behavior recovers to within 90% of the 591 Mbps CAKE-only-static floor established in the 2026-04-23 measurement, verified at least once before Phase 196 shipping. ATT regression canary under `cake-primary` is run only after Phase 191 closure and requires ATT DL `tcp_12down` to not regress more than 5% vs last passing run.
+- [ ] **VALN-04**: Spectrum cake-primary B-leg validation runs on the same deployment token used for the accepted Phase 196 rtt-blend A-leg, under the Phase 197 refractory split semantics. A/B comparison artifact (`ab-comparison.json`) is produced against the accepted A-leg control evidence (excluding the invalid A-leg flent throughput captured under wrong source bind) and computes pass/fail deltas on RTT-distress event counts, burst trigger counts, dwell-bypass responsiveness, fusion state transitions, queue-primary coverage, and refractory fallback rate. Closed by Phase 198.
+- [ ] **VALN-05a**: Spectrum DL `flent tcp_12down` 30s throughput under `cake-primary` recovers to ≥90% of the 591 Mbps CAKE-only-static floor (2026-04-23 measurement). Acceptance: 2-of-3 corrected source-bound (`10.10.110.226`) runs with individual medians ≥532 Mbps and median-of-medians ≥532 Mbps. Closed by Phase 198.
+- [ ] **VALN-05b** (deferred — ATT canary): After v1.39 Phase 191 closure, run ATT `flent tcp_12down` under `cake-primary`. Acceptance: ATT DL throughput ≥95% of last passing ATT baseline. Failure keeps ATT on `rtt-blend` and requires a follow-up phase before ATT `cake-primary` enablement. Tracks Phase 196-08.
 
 ### v1.40 Out of Scope
 
@@ -112,16 +113,17 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ARB-01      | Phase 194 | Pending |
+| ARB-01      | Phase 194 | Complete |
 | ARB-02      | Phase 195 | Complete |
 | ARB-03      | Phase 195 | Complete |
-| ARB-04      | Phase 194 | Pending |
+| ARB-04      | Phase 194 | Complete |
 | MEAS-07     | Phase 193 | Complete |
-| OBS-01      | Phase 193 | Pending |
-| OBS-02      | Phase 193 | Pending |
-| SAFE-05     | Phase 193 + Phase 194 + Phase 195 + Phase 196 (enforced throughout) | Complete |
-| VALN-04     | Phase 196 | Blocked |
-| VALN-05     | Phase 196 | Blocked |
+| OBS-01      | Phase 193 | Complete |
+| OBS-02      | Phase 193 + Phase 199 (wording amendment) | Complete (caveat resolved by Phase 199) |
+| SAFE-05     | Phase 193 + Phase 194 + Phase 195 + Phase 196 + Phase 197 + Phase 198 (enforced throughout) | Complete |
+| VALN-04     | Phase 198 (gap closure — Phase 196 blocked) | Pending |
+| VALN-05a    | Phase 198 (gap closure — Phase 196 blocked) | Pending |
+| VALN-05b    | Phase 196-08 (deferred — gated on v1.39 Phase 191 closure) | Deferred |
 
 ---
 *v1.39 requirements defined: 2026-04-20*
