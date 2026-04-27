@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Queue-Primary Signal Arbitration
-status: executing
-stopped_at: Completed 198-01-PLAN.md
-last_updated: "2026-04-27T14:46:43.373Z"
+status: checkpoint
+stopped_at: Checkpoint 198-02 Task 2 — await >=24h finish capture and duration gate
+last_updated: "2026-04-27T18:25:25Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 7
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 **Milestone:** v1.40 Queue-Primary Signal Arbitration
 **Phase:** 198
 **Plan:** 198-02
-**Status:** Phase 198 Plan 01 complete; ready for 24h cake-primary B-leg soak
+**Status:** Phase 198 Plan 02 Task 1 accepted existing start capture; waiting for scheduled finish capture after the 24h wall-clock gate
 **Last activity:** 2026-04-27
 
 Progress: [██████████] 96%
@@ -99,7 +99,7 @@ Progress: [██████████] 96%
 
 ## Session Continuity
 
-Stopped at: Completed 198-01-PLAN.md
+Stopped at: Checkpoint 198-02 Task 2 — await operator finish capture after 2026-04-28T15:27:14Z
 Resume file: None
 
 ## Decisions
@@ -156,6 +156,7 @@ Resume file: None
 - [Phase 197-02]: Guard Phase 195 healer alignment-streak updates during DL refractory windows so one congestion event cannot both enter cooldown and arm healer bypass.
 - [Phase 198-01]: Accepted rsync deployment proof for `/opt/wanctl` instead of remote git metadata: Phase 197-only `/health` field, new metric rows, restart timestamp, and operator-approved deploy/restart commands bind the running process to the Phase 197 ship SHA.
 - [Phase 198-01]: Treated cake-primary mode as proven by remote sudo YAML read plus `active_primary_signal=queue` because `/health` exposes the live cake_signal snapshot but not a `cake_signal.enabled` boolean.
+- [Phase 198-02]: Accepted existing Task 1 soak evidence without restarting the run: start capture `cake-primary-start-20260427T145714Z-summary.json`, `soak_start_utc=2026-04-27T14:57:14Z`, and finish scheduled by `systemd-run --user --on-active=24h30m` for `2026-04-28T15:27:14Z`.
 
 ## Performance Metrics
 
