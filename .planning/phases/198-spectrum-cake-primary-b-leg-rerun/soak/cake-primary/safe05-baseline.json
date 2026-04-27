@@ -1,0 +1,15 @@
+{
+  "phase": 198,
+  "captured_at_utc": "2026-04-27T14:24:32Z",
+  "phase_197_ship_sha": "068b804",
+  "phase_197_ship_subject": "docs(197-02): update audit predicate for refractory reasons",
+  "head_sha_at_baseline": "11fb9b4",
+  "protected_files": {
+    "src/wanctl/queue_controller.py": "8fb6b208e410abe3b46ee94813a2e95840a0d108",
+    "src/wanctl/cake_signal.py": "313120cc638f7a4bef0d413714f3ed19e5bf6472",
+    "src/wanctl/fusion_healer.py": "5de7036f740f5296fdec18f438378e30d68e650c",
+    "src/wanctl/wan_controller.py": "3dc8de525026adff43740985716672049d40c2ce",
+    "src/wanctl/health_check.py": "43f13035e6f039212312f1b0d60e75c94864c864"
+  },
+  "working_tree_diff_empty": true
+}
