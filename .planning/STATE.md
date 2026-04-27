@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Queue-Primary Signal Arbitration
-status: completed
-stopped_at: Completed 197-02-PLAN.md
-last_updated: "2026-04-27T11:30:44.977Z"
+status: executing
+stopped_at: Completed 198-01-PLAN.md
+last_updated: "2026-04-27T14:46:43.373Z"
 last_activity: 2026-04-27
 progress:
-  total_phases: 5
+  total_phases: 7
   completed_phases: 5
-  total_plans: 19
-  completed_plans: 19
-  percent: 100
+  total_plans: 23
+  completed_plans: 22
+  percent: 96
 ---
 
 # Session State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 197 — queue-primary-refractory-semantics-split-dl-cake-for-detecti
+**Current focus:** Phase 198 — Spectrum cake-primary B-leg rerun on Phase 197 build
 
 ## Position
 
 **Milestone:** v1.40 Queue-Primary Signal Arbitration
-**Phase:** 197
-**Plan:** 197-02
-**Status:** Phase 197 complete; Plan 02 complete
+**Phase:** 198
+**Plan:** 198-02
+**Status:** Phase 198 Plan 01 complete; ready for 24h cake-primary B-leg soak
 **Last activity:** 2026-04-27
 
-Progress: [██████████] 100%
+Progress: [██████████] 96%
 
 ## Parallel Milestone
 
@@ -99,7 +99,7 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Stopped at: Completed 197-02-PLAN.md
+Stopped at: Completed 198-01-PLAN.md
 Resume file: None
 
 ## Decisions
@@ -154,9 +154,12 @@ Resume file: None
 - [Phase 197-02]: Kept `wanctl_arbitration_refractory_active` DL-only and did not add UL placeholder rows.
 - [Phase 197-02]: Treat `rtt_fallback_during_refractory` plus `refractory_active=true` as a documented exception audit bucket, not steady-state RTT.
 - [Phase 197-02]: Guard Phase 195 healer alignment-streak updates during DL refractory windows so one congestion event cannot both enter cooldown and arm healer bypass.
+- [Phase 198-01]: Accepted rsync deployment proof for `/opt/wanctl` instead of remote git metadata: Phase 197-only `/health` field, new metric rows, restart timestamp, and operator-approved deploy/restart commands bind the running process to the Phase 197 ship SHA.
+- [Phase 198-01]: Treated cake-primary mode as proven by remote sudo YAML read plus `active_primary_signal=queue` because `/health` exposes the live cake_signal snapshot but not a `cake_signal.enabled` boolean.
 
 ## Performance Metrics
 
+- 2026-04-27: Phase 198 Plan 01 completed in 3 min continuation time across SAFE-05 baseline verification, post-restart preflight capture, and 9 evidence files; hot-path slice passed with 572 tests.
 - 2026-04-27: Phase 197 Plan 01 completed in 6 min across 3 tasks and 5 source/test files; hot-path slice passed with 569 tests and replay battery passed with 32 tests plus 6 skips.
 - 2026-04-27: Phase 197 Plan 02 completed in 5 min across 3 tasks and 5 source/test/planning files; hot-path slice passed with 572 tests and replay battery passed with 35 tests plus 6 skips.
 - 2026-04-27: Phase 196 Plan 07 completed in ~16 min active execution over a 24h B-leg window across 3 task outcomes and 17 planning/evidence files; Spectrum cake-primary audit failed with 153 non-queue metric samples, blocking throughput and A/B comparison.
