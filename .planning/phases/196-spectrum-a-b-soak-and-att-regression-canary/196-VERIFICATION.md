@@ -105,6 +105,7 @@ Operator no-concurrent-Spectrum-experiment check: pass
 
 VALN-04 Spectrum: blocked - B-leg primary-signal audit verdict failed
 Task 2 blocked: no passing cake-primary B-leg audit
+Task 3 blocked: no passing B-leg primary-signal audit for comparison
 
 ## A/B Comparison
 
