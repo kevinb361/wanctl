@@ -113,6 +113,7 @@ FROM metrics
 WHERE wan_name = '${wan_name}'
   AND metric_name IN (
     'wanctl_arbitration_active_primary',
+    'wanctl_arbitration_refractory_active',
     'wanctl_rtt_confidence',
     'wanctl_cake_avg_delay_delta_us',
     'wanctl_fusion_bypass_active'
@@ -144,6 +145,7 @@ FROM metrics
 WHERE wan_name = '${wan_name}'
   AND metric_name IN (
     'wanctl_arbitration_active_primary',
+    'wanctl_arbitration_refractory_active',
     'wanctl_rtt_confidence',
     'wanctl_cake_avg_delay_delta_us',
     'wanctl_fusion_bypass_active'
@@ -214,6 +216,7 @@ active_primary_signal="$(jq -r '(.wans[0] // .).signal_arbitration.active_primar
 rtt_confidence="$(jq -r '(.wans[0] // .).signal_arbitration.rtt_confidence // null' "$RAW_HEALTH")"
 cake_av_delay_delta_us="$(jq -r '(.wans[0] // .).signal_arbitration.cake_av_delay_delta_us // null' "$RAW_HEALTH")"
 control_decision_reason="$(jq -r '(.wans[0] // .).signal_arbitration.control_decision_reason // null' "$RAW_HEALTH")"
+refractory_active="$(jq -r '(.wans[0] // .).signal_arbitration.refractory_active // false' "$RAW_HEALTH")"
 dwell_bypassed_count="$(jq -r '(.wans[0] // .).download.hysteresis.dwell_bypassed_count // 0 | floor' "$RAW_HEALTH")"
 download_burst_trigger_count="$(jq -r '(.wans[0] // .).download.burst.trigger_count // 0 | floor' "$RAW_HEALTH")"
 upload_burst_trigger_count="$(jq -r '(.wans[0] // .).upload.burst.trigger_count // 0 | floor' "$RAW_HEALTH")"
@@ -234,6 +237,7 @@ jq -n \
     --arg sqlite_metrics_aggregate "$SQLITE_AGGREGATE_OUT" \
     --arg active_primary_signal "$active_primary_signal" \
     --arg control_decision_reason "$control_decision_reason" \
+    --argjson refractory_active "$refractory_active" \
     --argjson rtt_confidence "$(json_number_or_null "$rtt_confidence")" \
     --argjson cake_av_delay_delta_us "$(json_number_or_null "$cake_av_delay_delta_us")" \
     --argjson dwell_bypassed_count "$dwell_bypassed_count" \
@@ -259,7 +263,8 @@ jq -n \
         active_primary_signal: $active_primary_signal,
         rtt_confidence: $rtt_confidence,
         cake_av_delay_delta_us: $cake_av_delay_delta_us,
-        control_decision_reason: $control_decision_reason
+        control_decision_reason: $control_decision_reason,
+        refractory_active: $refractory_active
       },
       counters: {
         dwell_bypassed_count: $dwell_bypassed_count,
