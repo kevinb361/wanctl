@@ -89,23 +89,27 @@ Plan 196-07 B-leg gate: authorized after A-leg audit and flent baseline pass.
 
 ## Spectrum B-Leg: cake-primary
 
-Status: running - cake-primary B-leg started, awaiting 24h finish capture
+Status: failed - B-leg primary-signal audit verdict failed
 
 B-leg start UTC: `2026-04-26T09:20:26Z`
+B-leg finish UTC: `2026-04-27T09:21:54Z`
+B-leg duration hours: `24.0244`
 Expected earliest finish UTC: `2026-04-27T09:20:26Z`
 Manifest: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/manifest.json`
 Start capture summary: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/cake-primary-start-20260426T092026Z-summary.json`
-Start mode proof: `active_primary_signal=queue`; latest `wanctl_arbitration_active_primary=1` verified before capture.
+Finish capture summary: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/cake-primary-finish-20260427T092154Z-summary.json`
+Primary-signal audit: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/primary-signal-audit.json` (`verdict: fail`, `metric_queue_samples: 75493`, `metric_non_queue_samples: 153`)
+Start/finish health proof: `active_primary_signal=queue` at both captured health samples.
 Same deployment token: `cake-shaper:wanctl@spectrum.service:/etc/wanctl/spectrum.yaml`
 Operator no-concurrent-Spectrum-experiment check: pass
 
-The 24-hour B-leg is in progress. Do not run finish capture, throughput, or A/B comparison before `2026-04-27T09:20:26Z`.
+VALN-04 Spectrum: blocked - B-leg primary-signal audit verdict failed
 
 ## A/B Comparison
 
-Status: blocked - no valid A-leg or B-leg
+Status: blocked - B-leg primary-signal audit failed
 
-No `ab-comparison.json` or `comparison_verdict` exists because neither Spectrum soak leg produced evidence.
+No `ab-comparison.json` or `comparison_verdict` exists because the cake-primary B-leg primary-signal audit failed.
 
 ## ATT Canary Gate
 
@@ -132,9 +136,9 @@ Local guard results after the mode proof:
 
 ## Goal Achievement
 
-Phase 196 has now completed the Spectrum `rtt-blend` A-leg baseline while remaining blocked on the later B-leg and ATT canary gates:
+Phase 196 has now completed the Spectrum `rtt-blend` A-leg baseline and the 24h `cake-primary` B-leg evidence capture, but remains blocked because the B-leg primary-signal audit failed and ATT canary is still gated by Phase 191:
 
-- Spectrum A/B validation is still incomplete because the 24h `cake-primary` B-leg and A/B comparison have not run yet.
+- Spectrum A/B validation is blocked because the 24h `cake-primary` B-leg audit failed: 153 metric samples were not exactly queue-primary.
 - Spectrum A-leg validation is complete: the `rtt-blend` window ran for 28.2311 hours, the primary-signal audit passed with zero non-RTT health or metric samples, and flent baseline artifacts exist for `tcp_12down`, RRUL, and VoIP.
 - ATT canary is blocked because Phase 191 remains open, and `att-canary-gate.md` records `phase_191_status: blocked` and `decision: blocked-do-not-run-att-canary`.
 - SAFE-05 is satisfied for Phase 196 because the protected controller files have a clean diff and local regression evidence is recorded.
@@ -146,12 +150,12 @@ Phase 196 has now completed the Spectrum `rtt-blend` A-leg baseline while remain
 | 1 | Preflight records Phase 192 status, Phase 191 ATT closure status, Spectrum mode-gate status, SAFE-05 status, and a go/no-go decision before any soak starts. | VERIFIED | `196-PREFLIGHT.md` has `phase_192_soak_status: pass`, `phase_191_att_closure_status: blocked`, `mode_gate_status: pass`, `safe_05_status: pass`, and `decision: ready-for-spectrum-a-leg`. |
 | 2 | Spectrum soaks do not start unless the preflight mode gate passes. | VERIFIED | `soak/preflight/mode-gate-proof.json` records `mode_gate_verdict: pass`; no 24h rtt-blend or cake-primary soak artifacts existed before that proof. |
 | 3 | Spectrum 24h rtt-blend A-leg evidence exists and proves RTT primary across the window. | VERIFIED | `soak/rtt-blend/primary-signal-audit.json` records `duration_hours: 28.2311`, `verdict: pass`, `health_non_rtt_samples: 0`, and `metric_non_rtt_samples: 0`; `flent-summary.json` records pass paths for tcp_12down, RRUL, and VoIP. |
-| 4 | Spectrum 24h cake-primary B-leg evidence exists, serialized after the A-leg, and proves queue primary under load. | BLOCKED | Missing `soak/cake-primary/manifest.json`; B-leg now depends on the valid A-leg token and audit verdict from `soak/rtt-blend/manifest.json` and `primary-signal-audit.json`. |
-| 5 | Spectrum cake-primary throughput and A/B operational counters pass VALN-05 and VALN-04 acceptance. | BLOCKED | Missing `throughput-summary.json` and `ab-comparison.json`; no `phase196_cake_primary_tcp12` evidence exists. |
+| 4 | Spectrum 24h cake-primary B-leg evidence exists, serialized after the A-leg, and proves queue primary under load. | FAILED | B-leg evidence exists and duration is 24.0244h, but `soak/cake-primary/primary-signal-audit.json` has `verdict: fail` with 153 non-queue metric samples. |
+| 5 | Spectrum cake-primary throughput and A/B operational counters pass VALN-05 and VALN-04 acceptance. | BLOCKED | Throughput and A/B comparison were not run because the B-leg primary-signal audit failed. |
 | 6 | ATT cake-primary canary does not run until Phase 191 is closed, and blocked ATT state is explicit. | VERIFIED | `att-canary-gate.md` records `phase_191_status: blocked` and `decision: blocked-do-not-run-att-canary`; no ATT mode proof or throughput summary exists. |
 | 7 | SAFE-05 protected control files remain clean. | VERIFIED | `git diff --quiet -- src/wanctl/queue_controller.py src/wanctl/cake_signal.py src/wanctl/fusion_healer.py src/wanctl/wan_controller.py` exited 0; `git status --short` for the same files was empty. |
 
-**Score:** 5/7 truths verified. The remaining 2 truths are blocked by missing B-leg/canary evidence, not satisfied.
+**Score:** 5/7 truths verified. One truth failed on B-leg primary-signal audit evidence; the remaining throughput/A-B truth is blocked by that failed audit.
 
 ## Required Artifacts
 
@@ -164,9 +168,10 @@ Phase 196 has now completed the Spectrum `rtt-blend` A-leg baseline while remain
 | `soak/rtt-blend/manifest.json` | A-leg start/end proof | VERIFIED | Exists with `leg: rtt-blend`, start/end timestamps, `same_deployment_token`, and expected RTT-primary mode. |
 | `soak/rtt-blend/primary-signal-audit.json` | A-leg full-window RTT-primary audit | VERIFIED | Exists with `verdict: pass`, `duration_hours >= 24`, and zero non-RTT health/metric samples. |
 | `soak/rtt-blend/flent-summary.json` | A-leg flent baseline proof | VERIFIED | Exists with `verdict: pass` and non-empty tcp_12down, RRUL, and VoIP raw artifact paths. |
-| `soak/cake-primary/manifest.json` | B-leg start proof | MISSING | B-leg has not run yet; it is now authorized to consume the valid A-leg token after Plan 196-06. |
-| `soak/cake-primary/throughput-summary.json` | Spectrum tcp_12down acceptance | MISSING | No cake-primary flent run exists. |
-| `soak/cake-primary/ab-comparison.json` | A/B operational verdict | MISSING | No A/B comparison possible. |
+| `soak/cake-primary/manifest.json` | B-leg start/end proof | VERIFIED | Exists with matching deployment token, start/end timestamps, queue-primary expected mode, and no-concurrent-experiment assertion. |
+| `soak/cake-primary/primary-signal-audit.json` | B-leg full-window queue-primary audit | FAILED | Exists with `duration_hours: 24.0244`, but `verdict: fail` because `metric_non_queue_samples: 153`. |
+| `soak/cake-primary/throughput-summary.json` | Spectrum tcp_12down acceptance | NOT CREATED | Correctly absent because the B-leg primary-signal audit failed. |
+| `soak/cake-primary/ab-comparison.json` | A/B operational verdict | NOT CREATED | Correctly absent because the B-leg primary-signal audit failed. |
 | `soak/att-canary/att-canary-gate.md` | ATT Phase 191 closure gate | VERIFIED | Exists and blocks ATT canary. |
 | `soak/att-canary/att-mode-proof.json` | ATT queue-primary mode proof | MISSING | Correctly absent while Phase 191 is blocked. |
 | `soak/att-canary/att-canary-summary.json` | ATT canary throughput verdict | MISSING | Correctly absent while Phase 191 is blocked. |
@@ -177,8 +182,9 @@ Phase 196 has now completed the Spectrum `rtt-blend` A-leg baseline while remain
 | --- | --- | --- | --- | --- |
 | `196-PREFLIGHT.md` | Spectrum A-leg start | Top-level `mode_gate_status` and `decision` | VERIFIED READY | `mode_gate_status: pass` and `decision: ready-for-spectrum-a-leg` authorize the A-leg after operator scheduling. |
 | `soak/rtt-blend/manifest.json` | `soak/cake-primary/manifest.json` | `same_deployment_token` | VERIFIED READY | Source artifact exists with `same_deployment_token: cake-shaper:wanctl@spectrum.service:/etc/wanctl/spectrum.yaml`; Plan 196-07 must reuse it. |
-| `soak/cake-primary/throughput-summary.json` | VALN-05 Spectrum requirement | `tcp_12down_median_mbps >= 532` | BLOCKED | Throughput summary missing. |
-| `soak/cake-primary/ab-comparison.json` | VALN-04 A/B requirement | `comparison_verdict` | BLOCKED | Comparison artifact missing. |
+| `soak/cake-primary/primary-signal-audit.json` | VALN-04 B-leg gate | `verdict` | FAILED | Audit verdict is `fail`; downstream throughput and A/B comparison are blocked. |
+| `soak/cake-primary/throughput-summary.json` | VALN-05 Spectrum requirement | `tcp_12down_median_mbps >= 532` | BLOCKED | Throughput summary not created because B-leg audit failed. |
+| `soak/cake-primary/ab-comparison.json` | VALN-04 A/B requirement | `comparison_verdict` | BLOCKED | Comparison artifact not created because B-leg audit failed. |
 | `att-canary-gate.md` | ATT canary execution | `decision: run-att-canary` required | VERIFIED BLOCK | Gate says `blocked-do-not-run-att-canary`; no ATT canary artifacts should exist. |
 | Protected files | SAFE-05 | Clean git diff | VERIFIED | Protected control-path diff is clean. |
 
@@ -189,7 +195,7 @@ Phase 196 has now completed the Spectrum `rtt-blend` A-leg baseline while remain
 | `scripts/phase196-soak-capture.sh` | Health fields and SQLite metrics | Operator-provided `/health`, SSH journal, remote SQLite DB | Exercised for preflight and the completed rtt-blend A-leg; B-leg has not run | PARTIAL |
 | `soak/preflight/*` | Mode-gate health/metric samples | Orchestrator-recorded Spectrum production proof | Yes | VERIFIED |
 | `soak/rtt-blend/*` | A-leg health/metric/journal samples | `phase196-soak-capture.sh rtt-blend-*` | Yes | VERIFIED |
-| `soak/cake-primary/*` | B-leg health/metric/journal/flent samples | `phase196-soak-capture.sh cake-primary-*` and flent | No | BLOCKED |
+| `soak/cake-primary/*` | B-leg health/metric/journal samples | `phase196-soak-capture.sh cake-primary-*` | Yes for soak evidence; no throughput/A-B due failed audit | FAILED |
 | `soak/att-canary/*` | ATT mode proof and throughput samples | ATT gate plus capture/flent | No | BLOCKED |
 
 ## Behavioral Spot-Checks
@@ -209,8 +215,8 @@ Phase 196 has now completed the Spectrum `rtt-blend` A-leg baseline while remain
 
 | Requirement | Source Plan | Description | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| VALN-04 | 196-01, 196-02, 196-03 | Sequential Spectrum 24h rtt-blend then 24h cake-primary on the same deployment, no concurrent Spectrum experiments, Phase 192 soak first. | PARTIAL - A-leg satisfied, B-leg pending | Phase 192 dependency is recorded as pass, the reversible mode gate is proven, and the 28.2311-hour rtt-blend A-leg audit/flent baseline passed. VALN-04 remains blocked until the cake-primary B-leg and comparison pass. |
-| VALN-05 | 196-01, 196-03, 196-04 | Spectrum cake-primary tcp_12down >= 532 Mbps and ATT cake-primary canary after Phase 191 closure with <=5% regression. | BLOCKED - not satisfied | No Spectrum throughput artifact exists. ATT gate is blocked by Phase 191, so no ATT mode proof or throughput verdict exists. |
+| VALN-04 | 196-01, 196-02, 196-03 | Sequential Spectrum 24h rtt-blend then 24h cake-primary on the same deployment, no concurrent Spectrum experiments, Phase 192 soak first. | BLOCKED - B-leg audit failed | Phase 192 dependency is recorded as pass, the reversible mode gate is proven, and both 24h legs exist, but the cake-primary B-leg audit failed with 153 non-queue metric samples, so no A/B comparison can satisfy VALN-04. |
+| VALN-05 | 196-01, 196-03, 196-04 | Spectrum cake-primary tcp_12down >= 532 Mbps and ATT cake-primary canary after Phase 191 closure with <=5% regression. | BLOCKED - not satisfied | Spectrum throughput was not run because the B-leg primary-signal audit failed. ATT gate is blocked by Phase 191, so no ATT mode proof or throughput verdict exists. |
 | SAFE-05 | 196-01, 196-02, 196-03, 196-04 | No state-machine, threshold, EWMA, dwell, deadband, burst-detection, or control-path protected-file change. | SATISFIED | Protected-file diff is clean; `REQUIREMENTS.md` keeps SAFE-05 complete. |
 
 No orphaned Phase 196 requirement IDs were found beyond VALN-04, VALN-05, and SAFE-05.
