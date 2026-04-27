@@ -1,0 +1,20 @@
+{
+  "leg": "cake-primary",
+  "accepted_verdict": "pass_with_documented_exceptions",
+  "source_raw_only_audit_path": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/raw-only-primary-signal-audit.json",
+  "preserved_fail_closed_audit_path": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/primary-signal-audit.json",
+  "human_acceptance_recorded_utc": "2026-04-27T09:36:17Z",
+  "accepted_by": "operator via execution prompt",
+  "accepted_exception_summary": {
+    "raw_metric_total_samples": 74697,
+    "raw_metric_queue_samples": 74691,
+    "raw_metric_non_queue_samples": 6,
+    "aggregate_metric_non_exact_queue_samples": 147
+  },
+  "decision": "accepted-for-throughput-and-ab-continuation",
+  "notes": [
+    "The original primary-signal-audit.json remains preserved with verdict fail and 153 non-exact metric rows.",
+    "The accepted continuation gate is based on raw-only-primary-signal-audit.json, which separates 147 aggregate-average rows from 6 real raw RTT-primary rows.",
+    "Acceptance authorizes Plan 196-07 Task 2 throughput execution but does not by itself satisfy VALN-04 or VALN-05."
+  ]
+}

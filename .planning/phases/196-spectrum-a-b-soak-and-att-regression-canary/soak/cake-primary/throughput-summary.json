@@ -1,0 +1,9 @@
+{
+  "label": "phase196_cake_primary_tcp12",
+  "tcp_12down_median_mbps": 73.92243773827883,
+  "acceptance_mbps": 532,
+  "verdict": "fail",
+  "raw_flent_path": "/home/kevin/flent-results/phase196/phase196_cake_primary_tcp12/spectrum/20260427-043626/tcp_12down-2026-04-27T043627.091070.phase196_cake_primary_tcp12-spectrum-tcp_12down.flent.gz",
+  "summary_path": "/home/kevin/flent-results/phase196/phase196_cake_primary_tcp12/spectrum/20260427-043626/phase196_cake_primary_tcp12-spectrum-tcp_12down.summary.txt",
+  "manifest_path": "/home/kevin/flent-results/phase196/phase196_cake_primary_tcp12/spectrum/20260427-043626/manifest.txt"
+}
