@@ -1,0 +1,527 @@
+{
+  "status": "healthy",
+  "uptime_seconds": 86620.8,
+  "version": "1.39.0",
+  "consecutive_failures": 0,
+  "wan_count": 1,
+  "wans": [
+    {
+      "name": "spectrum",
+      "baseline_rtt_ms": 21.75,
+      "load_rtt_ms": 21.61,
+      "download": {
+        "current_rate_mbps": 940.0,
+        "state": "GREEN",
+        "state_reason": "green_stable",
+        "hysteresis": {
+          "dwell_counter": 0,
+          "dwell_cycles": 5,
+          "deadband_ms": 3.0,
+          "transitions_suppressed": 1264,
+          "suppressions_per_min": 2,
+          "window_start_epoch": 1777281659.7787192,
+          "alert_threshold_per_min": 180,
+          "green_streak": 669,
+          "green_required": 5,
+          "last_zone": "GREEN",
+          "dwell_bypassed_count": 10
+        }
+      },
+      "upload": {
+        "current_rate_mbps": 32.0,
+        "state": "GREEN",
+        "state_reason": "green_stable",
+        "hysteresis": {
+          "dwell_counter": 0,
+          "dwell_cycles": 5,
+          "deadband_ms": 3.0,
+          "transitions_suppressed": 28674,
+          "suppressions_per_min": 13,
+          "window_start_epoch": 1777281659.77872,
+          "alert_threshold_per_min": 180,
+          "green_streak": 48,
+          "green_required": 3,
+          "last_zone": "GREEN"
+        }
+      },
+      "router_connectivity": {
+        "is_reachable": true,
+        "consecutive_failures": 0,
+        "last_failure_type": null,
+        "last_failure_time": null,
+        "outage_duration_seconds": null
+      },
+      "cycle_budget": {
+        "cycle_time_ms": {
+          "avg": 0.7,
+          "p95": 0.9,
+          "p99": 2.1
+        },
+        "utilization_pct": 1.5,
+        "overrun_count": 30,
+        "status": "ok",
+        "warning_threshold_pct": 80.0,
+        "subsystems": {
+          "rtt_measurement": {
+            "avg": 0.0,
+            "p95": 0.1,
+            "p99": 0.1
+          },
+          "signal_processing": {
+            "avg": 0.1,
+            "p95": 0.2,
+            "p99": 0.2
+          },
+          "ewma_spike": {
+            "avg": 0.0,
+            "p95": 0.0,
+            "p99": 0.0
+          },
+          "cake_stats": {
+            "avg": 0.1,
+            "p95": 0.2,
+            "p99": 0.2
+          },
+          "congestion_assess": {
+            "avg": 0.1,
+            "p95": 0.1,
+            "p99": 0.1
+          },
+          "irtt_observation": {
+            "avg": 0.1,
+            "p95": 0.1,
+            "p99": 0.1
+          },
+          "logging_metrics": {
+            "avg": 0.1,
+            "p95": 0.1,
+            "p99": 0.1
+          },
+          "router_communication": {
+            "avg": 0.0,
+            "p95": 0.0,
+            "p99": 1.4
+          },
+          "post_cycle": {
+            "avg": 0.1,
+            "p95": 0.0,
+            "p99": 2.3
+          }
+        }
+      },
+      "signal_quality": {
+        "jitter_ms": 1.346,
+        "variance_ms2": 55.073,
+        "confidence": 0.896,
+        "outlier_rate": 0.2,
+        "total_outliers": 428767,
+        "warming_up": false
+      },
+      "measurement": {
+        "available": true,
+        "raw_rtt_ms": 20.78,
+        "staleness_sec": 0.122,
+        "active_reflector_hosts": [
+          "1.1.1.1",
+          "208.67.222.222",
+          "151.101.1.57"
+        ],
+        "successful_reflector_hosts": [
+          "1.1.1.1",
+          "208.67.222.222",
+          "151.101.1.57"
+        ],
+        "state": "healthy",
+        "successful_count": 3,
+        "stale": false
+      },
+      "background_workers": {
+        "rtt": {
+          "cadence_sec": 0.25,
+          "staleness_sec": 0.122,
+          "available": true,
+          "cycle_time_ms": {
+            "avg": 27.7,
+            "p95": 40.6,
+            "p99": 59.3,
+            "max": 550.0
+          },
+          "utilization_pct": 11.1
+        },
+        "cake_stats": {
+          "cadence_sec": 0.05,
+          "staleness_sec": 0.044,
+          "available": true,
+          "cycle_time_ms": {
+            "avg": 4.6,
+            "p95": 8.2,
+            "p99": 11.7,
+            "max": 43.9
+          },
+          "utilization_pct": 9.3,
+          "overlap": {
+            "active_now": false,
+            "last_dump_started_monotonic": 320214.45,
+            "last_dump_finished_monotonic": 320214.452,
+            "last_apply_started_monotonic": 320180.157,
+            "last_apply_finished_monotonic": 320180.158,
+            "last_overlap_monotonic": 320178.602,
+            "last_dump_elapsed_ms": 4.273,
+            "last_overlap_ms": 1.652,
+            "max_overlap_ms": 36.626,
+            "episodes": 1496,
+            "slow_apply_with_overlap_count": 86
+          }
+        },
+        "irtt": {
+          "cadence_sec": 10.0,
+          "staleness_sec": 2.138,
+          "available": true,
+          "cycle_time_ms": {
+            "avg": 1041.6,
+            "p95": 1098.5,
+            "p99": 1193.0,
+            "max": 5315.1
+          },
+          "utilization_pct": 10.4
+        }
+      },
+      "irtt": {
+        "available": true,
+        "rtt_mean_ms": 26.29,
+        "ipdv_ms": 10.26,
+        "loss_up_pct": 0,
+        "loss_down_pct": 0,
+        "server": "104.200.21.31:2112",
+        "staleness_sec": 2.1,
+        "protocol_correlation": 0.82,
+        "asymmetry_direction": "downstream",
+        "asymmetry_ratio": 3.39
+      },
+      "reflector_quality": {
+        "available": true,
+        "hosts": {
+          "1.1.1.1": {
+            "score": 1.0,
+            "status": "active",
+            "measurements": 50
+          },
+          "208.67.222.222": {
+            "score": 1.0,
+            "status": "active",
+            "measurements": 50
+          },
+          "151.101.1.57": {
+            "score": 1.0,
+            "status": "active",
+            "measurements": 50
+          }
+        }
+      },
+      "fusion": {
+        "enabled": false,
+        "reason": "disabled",
+        "heal_state": "no_healer",
+        "heal_grace_active": false,
+        "bypass_active": false,
+        "bypass_reason": null,
+        "bypass_offset_ms": null,
+        "bypass_count": 0
+      },
+      "asymmetry_gate": {
+        "enabled": false,
+        "active": false,
+        "downstream_streak": 0,
+        "damping_factor": 0.5,
+        "last_result_age_sec": 0.0
+      },
+      "cake_signal": {
+        "download": {
+          "drop_rate": 0.0,
+          "total_drop_rate": 0.0,
+          "backlog_bytes": 0,
+          "peak_delay_us": 164,
+          "cold_start": false,
+          "tins": [
+            {
+              "name": "Bulk",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 78
+            },
+            {
+              "name": "BestEffort",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 64
+            },
+            {
+              "name": "Video",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 164
+            },
+            {
+              "name": "Voice",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 11
+            }
+          ]
+        },
+        "upload": {
+          "drop_rate": 0.0,
+          "total_drop_rate": 0.0,
+          "backlog_bytes": 0,
+          "peak_delay_us": 865,
+          "cold_start": false,
+          "tins": [
+            {
+              "name": "Bulk",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 69
+            },
+            {
+              "name": "BestEffort",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 155
+            },
+            {
+              "name": "Video",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 865
+            },
+            {
+              "name": "Voice",
+              "drop_delta": 0,
+              "backlog_bytes": 0,
+              "peak_delay_us": 111
+            }
+          ]
+        },
+        "detection": {
+          "dl_refractory_remaining": 0,
+          "ul_refractory_remaining": 0,
+          "refractory_cycles": 40,
+          "dl_dwell_bypassed_count": 10,
+          "ul_dwell_bypassed_count": 22,
+          "dl_backlog_suppressed_count": 2480,
+          "ul_backlog_suppressed_count": 653,
+          "dl_recovery_probe": {
+            "probe_multiplier": 1.0,
+            "probe_multiplier_factor": 1.0,
+            "probe_ceiling_pct": 0.95,
+            "probe_step_count": 781,
+            "above_ceiling_pct": true
+          },
+          "ul_recovery_probe": {
+            "probe_multiplier": 1.0,
+            "probe_multiplier_factor": 1.0,
+            "probe_ceiling_pct": 0.95,
+            "probe_step_count": 9579,
+            "above_ceiling_pct": true
+          }
+        },
+        "burst": {
+          "active": false,
+          "trigger_count": 17,
+          "last_reason": "Burst confirmed from RTT acceleration 15.6ms after 3 consecutive spikes",
+          "last_accel_ms": 15.6,
+          "last_delta_ms": 111.6,
+          "last_trigger_ago_sec": 15415.5
+        }
+      },
+      "signal_arbitration": {
+        "active_primary_signal": "queue",
+        "rtt_confidence": 0.0,
+        "cake_av_delay_delta_us": 89,
+        "control_decision_reason": "green_stable"
+      },
+      "tuning": {
+        "enabled": true,
+        "last_run_ago_sec": 220.1,
+        "parameters": {
+          "baseline_rtt_min": {
+            "current_value": 19.4,
+            "bounds": {
+              "min": 5.0,
+              "max": 30.0
+            }
+          },
+          "baseline_rtt_max": {
+            "current_value": 25.5,
+            "bounds": {
+              "min": 25.0,
+              "max": 100.0
+            }
+          },
+          "hampel_window_size": {
+            "current_value": 15.0,
+            "bounds": {
+              "min": 5.0,
+              "max": 15.0
+            }
+          }
+        },
+        "recent_adjustments": [
+          {
+            "parameter": "baseline_rtt_min",
+            "old_value": 19.5,
+            "new_value": 19.4,
+            "confidence": 0.328,
+            "rationale": "Restored from SQLite (ts=1777161237)"
+          },
+          {
+            "parameter": "baseline_rtt_max",
+            "old_value": 25.4,
+            "new_value": 25.5,
+            "confidence": 0.472,
+            "rationale": "Restored from SQLite (ts=1777125237)"
+          },
+          {
+            "parameter": "hampel_window_size",
+            "old_value": 14.0,
+            "new_value": 15.0,
+            "confidence": 0.537,
+            "rationale": "Restored from SQLite (ts=1776297666)"
+          },
+          {
+            "parameter": "baseline_rtt_max",
+            "old_value": 25.5,
+            "new_value": 25.9,
+            "confidence": 0.36,
+            "rationale": "p95=23.6ms * 1.1 = 25.9ms (554 samples)"
+          },
+          {
+            "parameter": "baseline_rtt_max",
+            "old_value": 25.9,
+            "new_value": 25.5,
+            "confidence": 0.598,
+            "rationale": "p95=23.2ms * 1.1 = 25.5ms (913 samples)"
+          }
+        ],
+        "safety": {
+          "revert_count": 0,
+          "locked_parameters": [],
+          "pending_observation": false
+        }
+      },
+      "storage": {
+        "pending_writes": 1,
+        "queue": {
+          "drained_total": 44277393,
+          "error_total": 1456
+        },
+        "writes": {
+          "success_total": 1709383,
+          "failure_total": 12,
+          "lock_failure_total": 0,
+          "volume_total": 44277394,
+          "last_duration_ms": 5.059749004431069,
+          "max_duration_ms": 4441.062047029845
+        },
+        "checkpoint": {
+          "busy": 0,
+          "wal_pages": 0,
+          "checkpointed_pages": 0,
+          "maintenance_lock_skipped_total": 0
+        },
+        "files": {
+          "db_bytes": 389935104,
+          "wal_bytes": 4614432,
+          "shm_bytes": 131072,
+          "total_bytes": 394680608,
+          "db_exists": true,
+          "wal_exists": true,
+          "shm_exists": true
+        },
+        "status": "ok"
+      },
+      "runtime": {
+        "process": "autorate",
+        "rss_bytes": 96526336,
+        "swap_bytes": 0,
+        "memory_status": "ok",
+        "swap_status": "ok",
+        "cycle_status": "ok",
+        "status": "ok"
+      }
+    }
+  ],
+  "storage": {
+    "pending_writes": 1,
+    "queue": {
+      "drained_total": 44277393,
+      "error_total": 1456
+    },
+    "writes": {
+      "success_total": 1709383,
+      "failure_total": 12,
+      "lock_failure_total": 0,
+      "volume_total": 44277394,
+      "last_duration_ms": 5.059749004431069,
+      "max_duration_ms": 4441.062047029845
+    },
+    "checkpoint": {
+      "busy": 0,
+      "wal_pages": 0,
+      "checkpointed_pages": 0,
+      "maintenance_lock_skipped_total": 0
+    },
+    "files": {
+      "db_bytes": 389935104,
+      "wal_bytes": 4614432,
+      "shm_bytes": 131072,
+      "total_bytes": 394680608,
+      "db_exists": true,
+      "wal_exists": true,
+      "shm_exists": true
+    },
+    "status": "ok"
+  },
+  "alerting": {
+    "enabled": false,
+    "fire_count": 0,
+    "active_cooldowns": []
+  },
+  "router_reachable": true,
+  "disk_space": {
+    "path": "/var/lib/wanctl",
+    "free_bytes": 24278519808,
+    "total_bytes": 30878322688,
+    "free_pct": 78.6,
+    "status": "ok"
+  },
+  "summary": {
+    "service": "autorate",
+    "status": "healthy",
+    "wan_count": 1,
+    "router_reachable": true,
+    "alerts": {
+      "enabled": false,
+      "fire_count": 0,
+      "active_cooldowns": 0,
+      "status": "disabled"
+    },
+    "rows": [
+      {
+        "name": "spectrum",
+        "status": "ok",
+        "router_reachable": true,
+        "download_state": "GREEN",
+        "upload_state": "GREEN",
+        "download_rate_mbps": 940.0,
+        "upload_rate_mbps": 32.0,
+        "storage_status": "ok",
+        "runtime_status": "ok",
+        "burst_active": false,
+        "burst_trigger_count": 17
+      }
+    ],
+    "degraded_wans": [],
+    "warning_wans": []
+  }
+}

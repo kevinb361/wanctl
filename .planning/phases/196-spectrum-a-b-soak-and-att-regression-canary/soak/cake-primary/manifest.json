@@ -10,5 +10,8 @@
   "expected_wanctl_arbitration_active_primary": 1,
   "acceptance_tcp12_median_mbps": 532,
   "operator_no_concurrent_spectrum_experiments": true,
-  "start_capture_summary_path": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/cake-primary-start-20260426T092026Z-summary.json"
+  "start_capture_summary_path": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/cake-primary-start-20260426T092026Z-summary.json",
+  "end_utc": "2026-04-27T09:21:54Z",
+  "finish_capture_summary_path": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/cake-primary-finish-20260427T092154Z-summary.json",
+  "primary_signal_audit_path": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/primary-signal-audit.json"
 }
