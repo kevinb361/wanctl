@@ -1,0 +1,38 @@
+{
+  "phase": 198,
+  "captured_at_utc": "2026-04-27T14:43:31Z",
+  "mode_already_set": true,
+  "deployment_proof": {
+    "phase_197_ship_sha": "068b804",
+    "deployed_sha_on_cake_shaper": "068b804",
+    "sha_match": true,
+    "service_active_enter_timestamp_utc": "2026-04-27T14:42:31Z",
+    "service_active_enter_timestamp_raw": "Mon 2026-04-27 09:42:31 CDT",
+    "health_has_refractory_active_field": true,
+    "metric_wanctl_arbitration_refractory_active_recent_count": 1166,
+    "cake_signal_enabled": true,
+    "cake_signal_enabled_source": "sudo-read /etc/wanctl/spectrum.yaml; /health has active_primary_signal=queue and live cake_signal snapshot but no enabled boolean",
+    "active_primary_signal": "queue",
+    "control_decision_reason": "green_stable",
+    "health_version": "1.39.0",
+    "remote_git_sha": "UNKNOWN",
+    "deployment_proof_method": "rsync deployment: operator approved ./scripts/deploy.sh spectrum cake-shaper followed by sudo systemctl restart wanctl@spectrum.service; /opt/wanctl is not a git checkout, so proof binds the approved Phase 197 ship SHA to post-restart Phase 197-only health field and metric emission evidence",
+    "deploy_command_evidence": [
+      "./scripts/deploy.sh spectrum cake-shaper",
+      "ssh cake-shaper 'sudo systemctl restart wanctl@spectrum.service'"
+    ],
+    "restart_after_deploy": true
+  },
+  "source_bind_preflight": {
+    "local_bind": "10.10.110.226",
+    "public_ip": "70.123.224.169",
+    "hostname": "syn-070-123-224-169.res.spectrum.com",
+    "org": "AS11427 Charter Communications Inc",
+    "egress_ip_matches": true,
+    "source_bind_verified": true
+  },
+  "operator_no_concurrent_spectrum_experiments": true,
+  "preflight_capture_summary_path": ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/preflight/preflight-20260427T144331Z-summary.json",
+  "deployed_commit": "068b804",
+  "verdict": "pass"
+}
