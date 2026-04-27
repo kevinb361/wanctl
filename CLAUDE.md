@@ -18,6 +18,15 @@ It measures RTT and queue signals, adjusts shaping rates in real time, and runs 
 - Prefer targeted fixes over broad cleanup in the control path.
 - **Priority:** stability > safety > clarity > elegance
 
+## Knowledge Map
+
+Pre-computed knowledge for this project:
+
+- `.planning/graphs/GRAPH_REPORT.md` — graphify god nodes, community clusters, surprising connections
+- `.planning/intel/arch.md` — architecture overview
+- `.planning/intel/{files,apis,stack,arch-decisions}.json` — file roles, public surfaces, tech stack, ADRs
+- All of the above are indexed by the local RAG MCP server: `query_rag(query, project="wanctl")` for cross-cutting search.
+
 ## Portable Controller Architecture
 
 **NON-NEGOTIABLE:** The controller is link-agnostic. The same code must run across cable, DSL, fiber, and other deployments. Deployment-specific behavior belongs in YAML config, not Python branching.
