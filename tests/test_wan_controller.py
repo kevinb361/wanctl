@@ -2801,6 +2801,52 @@ class TestPhase194DLSelector:
         assert controller._last_arbitration_primary == "rtt"
         assert controller._last_arbitration_reason == ARBITRATION_REASON_RTT_PRIMARY_NORMAL
 
+    def test_select_dl_primary_returns_queue_during_refractory_with_valid_snapshot(
+        self, controller
+    ) -> None:
+        """Phase 197 D-01 + D-06: refractory + valid snapshot -> queue_during_refractory."""
+        controller._cake_signal_supported = True
+        controller._dl_refractory_remaining = 5  # > 0
+        snapshot = self._make_snapshot(cold_start=False, max_delay_delta_us=20_000)
+        primary, load, reason = controller._select_dl_primary_scalar_ms(snapshot)
+        assert primary == "queue"
+        assert reason == "queue_during_refractory"
+        assert load == pytest.approx(controller.baseline_rtt + 20.0)
+
+    def test_select_dl_primary_returns_rtt_fallback_during_refractory_when_none(
+        self, controller
+    ) -> None:
+        """Phase 197 D-04: refractory + None -> rtt_fallback_during_refractory."""
+        controller._cake_signal_supported = True
+        controller._dl_refractory_remaining = 5
+        primary, load, reason = controller._select_dl_primary_scalar_ms(None)
+        assert primary == "rtt"
+        assert reason == "rtt_fallback_during_refractory"
+        assert load == controller.load_rtt
+
+    def test_select_dl_primary_returns_rtt_fallback_during_refractory_when_cold_start(
+        self, controller
+    ) -> None:
+        """Phase 197 D-04: refractory + cold_start -> rtt_fallback_during_refractory."""
+        controller._cake_signal_supported = True
+        controller._dl_refractory_remaining = 5
+        snapshot = self._make_snapshot(cold_start=True, max_delay_delta_us=20_000)
+        primary, load, reason = controller._select_dl_primary_scalar_ms(snapshot)
+        assert primary == "rtt"
+        assert reason == "rtt_fallback_during_refractory"
+        assert load == controller.load_rtt
+
+    def test_select_dl_primary_outside_refractory_byte_identical_to_phase_195(
+        self, controller
+    ) -> None:
+        """Phase 197 byte-identity: outside refractory, delta_ms=20.0 -> queue_distress."""
+        controller._cake_signal_supported = True
+        controller._dl_refractory_remaining = 0
+        snapshot = self._make_snapshot(cold_start=False, max_delay_delta_us=20_000)
+        primary, _, reason = controller._select_dl_primary_scalar_ms(snapshot)
+        assert primary == "queue"
+        assert reason == "queue_distress"
+
 
 class TestPhase195Arbitration:
     @pytest.fixture

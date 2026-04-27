@@ -4558,6 +4558,57 @@ class TestBuildSignalArbitrationSection:
             assert result["control_decision_reason"] == reason
             assert result["control_decision_reason"] != "rtt_veto"
 
+    def test_refractory_active_relayed_when_controller_sets_true(self) -> None:
+        """Phase 197 D-07: renderer relays refractory_active from controller dict."""
+        handler = self._make_handler()
+        health_data = {
+            "signal_arbitration": {
+                "active_primary_signal": "queue",
+                "rtt_confidence": 0.85,
+                "cake_av_delay_delta_us": 12000,
+                "control_decision_reason": "queue_during_refractory",
+                "refractory_active": True,
+            },
+            "cake_signal": {"download": None, "upload": None},
+        }
+        result = handler._build_signal_arbitration_section(health_data)
+        assert result["refractory_active"] is True
+        assert result["control_decision_reason"] == "queue_during_refractory"
+
+    def test_refractory_active_defaults_false_when_controller_omits(self) -> None:
+        """Phase 197 D-07: refractory_active defaults False (not None) when absent."""
+        handler = self._make_handler()
+        health_data = {
+            "signal_arbitration": {
+                "active_primary_signal": "rtt",
+                "rtt_confidence": None,
+                "cake_av_delay_delta_us": None,
+                "control_decision_reason": "rtt_primary_operating_normally",
+                # refractory_active deliberately omitted
+            },
+            "cake_signal": {"download": None, "upload": None},
+        }
+        result = handler._build_signal_arbitration_section(health_data)
+        assert result["refractory_active"] is False
+        assert result["refractory_active"] is not None
+
+    def test_rtt_fallback_during_refractory_reason_relayed_verbatim(self) -> None:
+        """Phase 197 D-07: renderer passes new reason strings through verbatim."""
+        handler = self._make_handler()
+        health_data = {
+            "signal_arbitration": {
+                "active_primary_signal": "rtt",
+                "rtt_confidence": None,
+                "cake_av_delay_delta_us": None,
+                "control_decision_reason": "rtt_fallback_during_refractory",
+                "refractory_active": True,
+            },
+            "cake_signal": {"download": None, "upload": None},
+        }
+        result = handler._build_signal_arbitration_section(health_data)
+        assert result["control_decision_reason"] == "rtt_fallback_during_refractory"
+        assert result["refractory_active"] is True
+
     def test_signal_arbitration_is_sibling_of_cake_signal_in_wan_health(self) -> None:
         handler = self._make_handler()
         wan_controller = MagicMock()
