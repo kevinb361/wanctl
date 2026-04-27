@@ -36,7 +36,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - Parallel milestone: v1.39 remains open. Phase 191 closure pending ATT weather-rerun. Phase 192 (reflector scorer blackout-awareness + log hygiene) still planned and required by MEAS-06/VALN-03 24h soak.
 - Priority: stability > safety > clarity > elegance. No state-machine, threshold, EWMA, dwell, deadband, or burst-detection changes. Arbitration changes input to classification, not classification rules themselves.
 
-**Phase status:** v1.40 Phases 193-195 are executed. Phase 195 validated RTT confidence demotion and fusion-healer containment with local regression/replay coverage plus one-hour production UAT on Spectrum and ATT. Phase 196 remains the Spectrum A/B soak and ATT regression canary.
+**Phase status:** v1.40 Phases 193-195 are executed. Phase 196 remains blocked on Spectrum A/B throughput and ATT canary gates. Phase 197 completed the queue-primary refractory semantics split so DL refractory detection remains cascade-safe while arbitration can still use valid CAKE queue snapshots.
 
 ## In Progress: v1.39 Control-Path Timing & Measurement Accounting
 
@@ -680,4 +680,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-24 — Phase 195 completed with production UAT; v1.40 Phase 196 soak remains pending alongside v1.39 Phase 191/192 closure work_
+_Last updated: 2026-04-27 — Phase 197 completed queue-primary refractory semantics; v1.40 Phase 196 soak remains blocked alongside v1.39 Phase 191 closure work_
