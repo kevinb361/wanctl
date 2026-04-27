@@ -1,0 +1,6 @@
+metric_name|samples|min_value|max_value|avg_value|latest_utc
+wanctl_arbitration_active_primary|88961|1.0|2.0|1.00123422871057|2026-04-27 14:57:16
+wanctl_arbitration_refractory_active|17510|0.0|0.0|0.0|2026-04-27 14:57:16
+wanctl_cake_avg_delay_delta_us|88960|2.0|7272.0|95.3610441819828|2026-04-27 14:57:16
+wanctl_fusion_bypass_active|88961|0.0|0.0|0.0|2026-04-27 14:57:16
+wanctl_rtt_confidence|88960|0.0|1.0|0.062040978946127|2026-04-27 14:57:16
