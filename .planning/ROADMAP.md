@@ -270,7 +270,7 @@ Plans:
 3. Spectrum DL `tcp_12down` 30s median throughput under cake-primary is ≥ 532 Mbps (90% of 591 Mbps floor from 2026-04-23), captured at least once before Phase 196 ships. Burst detection trigger count, dwell-bypass responsiveness, and fusion state transitions on the cake-primary leg are at least as healthy as on the rtt-blend leg.
 4. After v1.39 Phase 191 closure, the ATT `tcp_12down` canary under cake-primary runs and either (a) passes at ≥95% of last passing ATT baseline, clearing ATT for cake-primary enablement, or (b) fails and ATT is rolled back to rtt-blend with a recorded follow-up phase — no silent ATT regression reaches production.
 
-**Plans:** 7/8 plans executed
+**Plans:** 9/10 phase work items executed
 
 Plans:
 - [x] 196-01-PLAN.md — Preflight, mode-gate validation, capture tooling, and verification scaffold (VALN-04, VALN-05, SAFE-05)
@@ -280,14 +280,21 @@ Plans:
 - [x] 196-05-PLAN.md — Spectrum reversible mode gate proof and preflight reopen (VALN-04, SAFE-05)
 - [x] 196-06-PLAN.md — Spectrum `rtt-blend` A-leg finish audit and flent baseline (VALN-04 partial, SAFE-05)
 - [x] 196-07-PLAN.md — Spectrum `cake-primary` B-leg and A/B comparison (VALN-04, VALN-05, SAFE-05)
+- [x] 196-09-PLAN.md — Raw-only Spectrum B-leg audit semantics and reclassification gate (VALN-04, VALN-05, SAFE-05)
+- [x] 196-10-SUMMARY.md — Human acceptance of B-leg documented exceptions and Spectrum throughput continuation (VALN-04, VALN-05, SAFE-05)
 - [ ] 196-08-PLAN.md — ATT canary closeout after Phase 191 closure (VALN-05, SAFE-05)
 
 Closeout status: Phase 196 is in progress. Spectrum `rtt-blend` A-leg evidence
 passes after 28.2311h, and the Spectrum `cake-primary` B-leg ran for 24.0244h
-on the same deployment token, but its primary-signal audit failed with 153
-non-queue metric samples. Throughput and A/B comparison were skipped by the
-Plan 196-07 gate. VALN-04 and VALN-05 remain blocked, ATT canary remains gated
-by Phase 191 closure, and SAFE-05 remains complete.
+on the same deployment token. Plan 196-07 failed closed on 153 non-exact
+primary-signal rows; Plan 196-09 re-audited the evidence and found 147 were
+1-minute aggregate averages while 6 were real raw RTT-primary rows out of
+74697 raw samples. The operator accepted those documented exceptions for
+continuation, preserving the original fail-closed evidence. Spectrum
+`tcp_12down` throughput then ran and failed at `73.92243773827883 Mbps` against
+the `532 Mbps` threshold, so no A/B comparison artifact was created. VALN-04
+and VALN-05 remain blocked, ATT canary remains gated by Phase 191 closure, and
+SAFE-05 remains complete.
 
 ---
 
