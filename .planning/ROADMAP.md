@@ -270,7 +270,7 @@ Plans:
 3. Spectrum DL `tcp_12down` 30s median throughput under cake-primary is ≥ 532 Mbps (90% of 591 Mbps floor from 2026-04-23), captured at least once before Phase 196 ships. Burst detection trigger count, dwell-bypass responsiveness, and fusion state transitions on the cake-primary leg are at least as healthy as on the rtt-blend leg.
 4. After v1.39 Phase 191 closure, the ATT `tcp_12down` canary under cake-primary runs and either (a) passes at ≥95% of last passing ATT baseline, clearing ATT for cake-primary enablement, or (b) fails and ATT is rolled back to rtt-blend with a recorded follow-up phase — no silent ATT regression reaches production.
 
-**Plans:** 9/10 phase work items executed
+**Plans:** 11/12 phase work items executed
 
 Plans:
 - [x] 196-01-PLAN.md — Preflight, mode-gate validation, capture tooling, and verification scaffold (VALN-04, VALN-05, SAFE-05)
@@ -281,7 +281,9 @@ Plans:
 - [x] 196-06-PLAN.md — Spectrum `rtt-blend` A-leg finish audit and flent baseline (VALN-04 partial, SAFE-05)
 - [x] 196-07-PLAN.md — Spectrum `cake-primary` B-leg and A/B comparison (VALN-04, VALN-05, SAFE-05)
 - [x] 196-09-PLAN.md — Raw-only Spectrum B-leg audit semantics and reclassification gate (VALN-04, VALN-05, SAFE-05)
-- [x] 196-10-SUMMARY.md — Human acceptance of B-leg documented exceptions and Spectrum throughput continuation (VALN-04, VALN-05, SAFE-05)
+- [x] 196-10-SUMMARY.md — Human acceptance of B-leg documented exceptions and initial throughput continuation, later superseded for source attribution (VALN-04, VALN-05, SAFE-05)
+- [x] 196-11-SUMMARY.md — Source-bind egress proof and corrected Spectrum throughput rerun (VALN-04, VALN-05, SAFE-05)
+- [x] 196-12-SUMMARY.md — Corrected Spectrum throughput root-cause investigation (VALN-04, VALN-05, SAFE-05)
 - [ ] 196-08-PLAN.md — ATT canary closeout after Phase 191 closure (VALN-05, SAFE-05)
 
 Closeout status: Phase 196 is in progress. Spectrum `rtt-blend` A-leg evidence
@@ -290,11 +292,27 @@ on the same deployment token. Plan 196-07 failed closed on 153 non-exact
 primary-signal rows; Plan 196-09 re-audited the evidence and found 147 were
 1-minute aggregate averages while 6 were real raw RTT-primary rows out of
 74697 raw samples. The operator accepted those documented exceptions for
-continuation, preserving the original fail-closed evidence. Spectrum
-`tcp_12down` throughput then ran and failed at `73.92243773827883 Mbps` against
-the `532 Mbps` threshold, so no A/B comparison artifact was created. VALN-04
-and VALN-05 remain blocked, ATT canary remains gated by Phase 191 closure, and
-SAFE-05 remains complete.
+continuation, preserving the original fail-closed evidence. Source-bind proof
+then showed `10.10.110.233` exits AT&T while `10.10.110.226` exits Spectrum, so
+the first two labeled Spectrum throughput captures are invalid for Spectrum
+acceptance. Corrected Spectrum `tcp_12down` with `10.10.110.226` failed at
+`307.9225832916394 Mbps` against the `532 Mbps` threshold. A diagnostic rerun
+reproduced `302.8955957721772 Mbps` and identified CAKE refractory masking of
+the queue-primary snapshot as the likely limiter, forcing RTT fallback during the
+loaded window. No A/B comparison artifact was created. VALN-04 and VALN-05
+remain blocked, ATT canary remains gated by Phase 191 closure, and SAFE-05
+remains complete.
+
+### Phase 197: Queue-Primary Refractory Semantics — split dl_cake_for_detection (masked during 40-cycle refractory to preserve Phase 160 cascade safety) from dl_cake_for_arbitration (queue-delay scalar remains live during refractory so primary classifier sees valid CAKE signal). Resolves Phase 196 Spectrum throughput regression where corrected Spectrum DL median was 307.9 Mbps vs 532 Mbps threshold, root-caused to refractory masking forcing RTT fallback during legitimate queue-primary load. Must preserve Phase 160 invariant (no cascading CAKE drop/backlog reductions) and Phase 194 invariant (selector runs after refractory masking). Required tests: (1) no repeated CAKE detection cascade during refractory, (2) RTT fallback still works when queue snapshot genuinely unavailable, (3) active_primary_signal=queue during refractory when valid queue snapshot exists. Context thread: phase-196-queue-primary-refractory-semantics-investigation.
+
+**Goal:** Split the consumer-side routing of the CAKE snapshot inside `_run_congestion_assessment` into `dl_cake_for_detection` (preserves Phase 160 cascade safety — masked during the 40-cycle refractory window so QueueController detection cannot re-cascade on a single congestion event) and `dl_cake_for_arbitration` (live snapshot during refractory so the Phase 194 DL primary-signal selector returns queue-primary rather than cratering to RTT). Add the refractory-active per-cycle decision stash, suppress RTT-veto and the Phase 195 healer-bypass alignment-streak update during refractory, expose two new arbitration reason constants (`queue_during_refractory`, `rtt_fallback_during_refractory`) and a new `signal_arbitration.refractory_active` boolean across /health and metrics, and update the Phase 196 cake-primary B-leg audit predicate so the same deployment-token rerun classifies refractory-driven samples as queue-primary or regime-aware-RTT-fallback rather than verdict failures. Outside refractory, controller behavior is byte-identical to Phase 195 (proven by a new replay test). Resolves the Phase 196 Spectrum throughput regression (corrected DL `tcp_12down` median 307.9 Mbps vs 532 Mbps threshold) traced to refractory masking forcing RTT fallback during legitimate queue-primary load.
+**Requirements**: TBD (no roadmap-mandated REQ-IDs; phase carries the three ROADMAP-mandated tests and the Phase 160 + Phase 194 invariants as implicit gates)
+**Depends on:** Phase 196
+**Plans:** 2 plans
+
+Plans:
+- [ ] 197-01-PLAN.md — Controller wiring (split locals, refractory-active stash, RTT-veto suppression during refractory) + health renderer + replay scaffold proving outside-refractory byte-identity, refractory queue-arbitration, RTT-fallback-during-refractory, and Phase 160 no-cascade invariant
+- [ ] 197-02-PLAN.md — Observability metric `wanctl_arbitration_refractory_active` + Phase 195 ↔ Phase 197 healer-bypass interaction (refractory-entry streak reset, refractory-window streak guard) + D-12 interaction tests + Phase 196 capture-script extension and audit-predicate document for the Spectrum cake-primary B-leg rerun on the same deployment token
 
 ---
 
