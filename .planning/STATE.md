@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Queue-Primary Signal Arbitration
 status: executing
-stopped_at: Completed Phase 196 documented-exception acceptance and throughput continuation with blocked Spectrum throughput outcome
-last_updated: "2026-04-27T09:24:35.278Z"
+stopped_at: Phase 197 context gathered
+last_updated: "2026-04-27T10:35:16.028Z"
 last_activity: 2026-04-27
 progress:
-  total_phases: 4
-  completed_phases: 3
-  total_plans: 16
-  completed_plans: 15
-  percent: 94
+  total_phases: 5
+  completed_phases: 4
+  total_plans: 17
+  completed_plans: 19
+  percent: 100
 ---
 
 # Session State
@@ -51,6 +51,7 @@ Progress: [█████████░] 94% (Spectrum A/B remains blocked by 
 - 2026-04-23: Joint Claude + Codex architectural decision — Spectrum DOCSIS ~280 Mbps under wanctl vs 591 Mbps CAKE-only static floor is a measurement-architecture problem, not a tuning problem. Primary signal changes from RTT delta to kernel-provided `avg_delay_us - base_delay_us` under load. RTT becomes confidence-gated secondary. Scope is DL-only; UL stays RTT-led because UL is healthy.
 - 2026-04-23: Codex pushback retained in plan — use kernel `base_delay_us`, not Python-learned baseline; `avg_delay_us` not `peak_delay_us` as primary (peak too spike-prone, stays as burst corroborator); healer bypass gate is categorical direction-alignment over 6 cycles, never a µs/ms magnitude ratio; new `signal_arbitration` /health block is additive, not nested under `download.hysteresis`.
 - 2026-04-23: Implementation order agreed — v1.40 Phase 193 (obs-only) → Phase 194 (DL classification) → v1.39 Phase 192 (scorer + 24h soak) → v1.40 Phase 195 (RTT demotion on corrected scorer) → v1.40 Phase 196 (2×24h Spectrum A/B + ATT canary after 191 closes).
+- 2026-04-27: Phase 197 added — Queue-Primary Refractory Semantics: split dl_cake_for_detection (masked during 40-cycle refractory) from dl_cake_for_arbitration (queue-delay scalar live during refractory) to resolve Phase 196 Spectrum throughput regression where corrected DL median was 307.9 Mbps vs 532 Mbps threshold. Must preserve Phase 160 cascade-safety invariant and Phase 194 selector-after-mask invariant. Linked to thread phase-196-queue-primary-refractory-semantics-investigation.
 
 - Phase 191.1 inserted after Phase 191: ATT config drift resolution and Phase 191 closure (URGENT)
 - Phase 191 ATT validation isolated the blocker to post-`v1.38` ATT config/runtime drift rather than the narrow Phase 191 timing changes; current code plus `v1.38` ATT config restored RRUL baseline throughput
@@ -98,8 +99,8 @@ Progress: [█████████░] 94% (Spectrum A/B remains blocked by 
 
 ## Session Continuity
 
-Stopped at: Completed 196-06-PLAN.md
-Resume file: None
+Stopped at: Phase 197 context gathered
+Resume file: .planning/phases/197-queue-primary-refractory-semantics-split-dl-cake-for-detecti/197-CONTEXT.md
 
 ## Decisions
 
