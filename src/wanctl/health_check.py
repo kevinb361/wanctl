@@ -783,6 +783,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "cake_av_delay_delta_us", av_delta_fallback
             ),
             "control_decision_reason": arb.get("control_decision_reason", "rtt_primary_operating_normally"),
+            "refractory_active": arb.get("refractory_active", False),  # Phase 197 D-07
         }
 
     def _build_tuning_section(
