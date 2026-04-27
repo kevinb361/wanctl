@@ -104,6 +104,7 @@ Same deployment token: `cake-shaper:wanctl@spectrum.service:/etc/wanctl/spectrum
 Operator no-concurrent-Spectrum-experiment check: pass
 
 VALN-04 Spectrum: blocked - B-leg primary-signal audit verdict failed
+Task 2 blocked: no passing cake-primary B-leg audit
 
 ## A/B Comparison
 
