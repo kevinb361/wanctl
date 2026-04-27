@@ -2506,6 +2506,87 @@ class TestPhase193MetricsBatch:
             float(ARBITRATION_PRIMARY_ENCODING["rtt"])
         )
 
+    def test_dl_metrics_emit_refractory_active_one_when_stash_true(self, controller):
+        """Phase 197 D-07: wanctl_arbitration_refractory_active = 1.0 during refractory."""
+        controller._dl_cake_snapshot = self._make_snapshot(
+            cold_start=False, max_delay_delta_us=4800
+        )
+        controller._ul_cake_snapshot = None
+        controller._dl_arbitration_used_refractory_snapshot = True
+        with patch("wanctl.wan_controller.time.time", return_value=1234):
+            controller._run_logging_metrics(
+                measured_rtt=25.0,
+                fused_rtt=25.0,
+                dl_zone="GREEN",
+                ul_zone="GREEN",
+                dl_rate=100_000_000,
+                ul_rate=20_000_000,
+                delta=5.0,
+                dl_transition_reason=None,
+                ul_transition_reason=None,
+                irtt_result=None,
+            )
+        batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
+        metrics = self._metrics_by_name(batch)
+        dl_key = (("direction", "download"),)
+        assert metrics[("wanctl_arbitration_refractory_active", dl_key)] == pytest.approx(1.0)
+
+    def test_dl_metrics_emit_refractory_active_zero_when_stash_false(self, controller):
+        """Phase 197 D-07: wanctl_arbitration_refractory_active = 0.0 outside refractory."""
+        controller._dl_cake_snapshot = self._make_snapshot(
+            cold_start=False, max_delay_delta_us=4800
+        )
+        controller._ul_cake_snapshot = None
+        controller._dl_arbitration_used_refractory_snapshot = False
+        with patch("wanctl.wan_controller.time.time", return_value=1234):
+            controller._run_logging_metrics(
+                measured_rtt=25.0,
+                fused_rtt=25.0,
+                dl_zone="GREEN",
+                ul_zone="GREEN",
+                dl_rate=100_000_000,
+                ul_rate=20_000_000,
+                delta=5.0,
+                dl_transition_reason=None,
+                ul_transition_reason=None,
+                irtt_result=None,
+            )
+        batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
+        metrics = self._metrics_by_name(batch)
+        dl_key = (("direction", "download"),)
+        assert metrics[("wanctl_arbitration_refractory_active", dl_key)] == pytest.approx(0.0)
+
+    def test_ul_metrics_byte_identical_after_phase_197_metric_addition(self, controller):
+        """Phase 197 SAFE-05: UL metric tuples must NOT include refractory_active."""
+        controller._dl_cake_snapshot = self._make_snapshot(
+            cold_start=False, max_delay_delta_us=4800
+        )
+        controller._ul_cake_snapshot = self._make_snapshot(
+            cold_start=False, max_delay_delta_us=4800
+        )
+        controller._dl_arbitration_used_refractory_snapshot = True
+        with patch("wanctl.wan_controller.time.time", return_value=1234):
+            controller._run_logging_metrics(
+                measured_rtt=25.0,
+                fused_rtt=25.0,
+                dl_zone="GREEN",
+                ul_zone="GREEN",
+                dl_rate=100_000_000,
+                ul_rate=20_000_000,
+                delta=5.0,
+                dl_transition_reason=None,
+                ul_transition_reason=None,
+                irtt_result=None,
+            )
+        batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
+        ul_key = (("direction", "upload"),)
+        ul_metric_names = {
+            metric_name
+            for _, _, metric_name, _, labels, _ in batch
+            if tuple(sorted((labels or {}).items())) == ul_key
+        }
+        assert "wanctl_arbitration_refractory_active" not in ul_metric_names
+
     def test_phase195_metrics_emit_rtt_confidence_when_available(self, controller):
         controller._dl_cake_snapshot = self._make_snapshot(
             cold_start=False, max_delay_delta_us=20000
