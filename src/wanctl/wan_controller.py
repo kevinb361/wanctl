@@ -3061,9 +3061,14 @@ class WANController:
                      float(snap.max_delay_delta_us), self._download_labels, "raw")
                 )
             active_primary = getattr(self, "_last_arbitration_primary", "rtt")
+            refractory_active = getattr(
+                self, "_dl_arbitration_used_refractory_snapshot", False
+            )
             metrics_batch.extend([
                 (ts, self.wan_name, "wanctl_arbitration_active_primary",
                  float(ARBITRATION_PRIMARY_ENCODING[active_primary]), self._download_labels, "raw"),
+                (ts, self.wan_name, "wanctl_arbitration_refractory_active",
+                 1.0 if refractory_active else 0.0, self._download_labels, "raw"),
             ])
             self._append_rtt_confidence_metric(metrics_batch, ts)
         if self._ul_cake_snapshot is not None and self._ul_cake_signal.config.metrics_enabled:
