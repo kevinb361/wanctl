@@ -1,0 +1,14 @@
+{
+  "phase": 198,
+  "purpose": "Verify which WAN each local source address uses; Plan 03 appends per-flent-run probes.",
+  "preflight_probe": {
+    "captured_at_utc": "2026-04-27T14:43:31Z",
+    "local_bind": "10.10.110.226",
+    "public_ip": "70.123.224.169",
+    "hostname": "syn-070-123-224-169.res.spectrum.com",
+    "org": "AS11427 Charter Communications Inc",
+    "conclusion": "spectrum-egress",
+    "egress_ip_matches": true
+  },
+  "pre_run_probes": []
+}
