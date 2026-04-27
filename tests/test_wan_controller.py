@@ -2635,8 +2635,10 @@ class TestPhase193MetricsBatch:
             "rtt_confidence",
             "control_decision_reason",
             "cake_av_delay_delta_us",
+            "refractory_active",
         }
         assert arb["rtt_confidence"] is None
+        assert arb["refractory_active"] is False
 
     def test_get_health_data_signal_arbitration_cold_start_av_delta_is_none(
         self, controller

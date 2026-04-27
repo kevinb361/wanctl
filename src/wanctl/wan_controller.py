@@ -91,6 +91,8 @@ ARBITRATION_REASON_GREEN_STABLE = "green_stable"
 ARBITRATION_REASON_RTT_VETO = "rtt_veto"
 ARBITRATION_REASON_RTT_PRIMARY_NORMAL = "rtt_primary_operating_normally"
 ARBITRATION_REASON_HEALER_BYPASS = "healer_bypass"
+ARBITRATION_REASON_QUEUE_DURING_REFRACTORY = "queue_during_refractory"
+ARBITRATION_REASON_RTT_FALLBACK_DURING_REFRACTORY = "rtt_fallback_during_refractory"
 RTT_CONFIDENCE_NULL_SENTINEL = math.nan
 
 
@@ -687,6 +689,11 @@ class WANController:
         self._ul_cake_snapshot: CakeSignalSnapshot | None = None
         self._last_arbitration_primary: str = "rtt"
         self._last_arbitration_reason: str = ARBITRATION_REASON_RTT_PRIMARY_NORMAL
+        # Phase 197 (D-02): refractory-active flag stashed per cycle for /health
+        # and metrics. True when this cycle's arbitration consumed a snapshot
+        # under the refractory window (covers both queue_during_refractory and
+        # rtt_fallback_during_refractory branches).
+        self._dl_arbitration_used_refractory_snapshot: bool = False
         # Phase 195 arbitration state: rtt_confidence derivation + direction tracking
         self._last_rtt_confidence: float | None = None
         self._last_queue_direction: str = "unknown"
@@ -2683,6 +2690,10 @@ class WANController:
               distressed) - queue distress stays authoritative.
         Queue distress is NEVER demoted by RTT (Pattern 4).
         """
+        # Phase 197 (D-06): RTT-veto is suppressed during refractory.
+        # Read AFTER seam decrement; cycle that decrements 1->0 is no longer refractory.
+        in_refractory = self._dl_refractory_remaining > 0
+
         if (
             self._cake_signal_supported
             and dl_cake is not None
@@ -2690,6 +2701,13 @@ class WANController:
         ):
             delta_ms = dl_cake.max_delay_delta_us * 0.001
             load_for_classifier = self.baseline_rtt + delta_ms
+            if in_refractory:
+                return (
+                    "queue",
+                    load_for_classifier,
+                    ARBITRATION_REASON_QUEUE_DURING_REFRACTORY,
+                )
+
             if delta_ms > self.green_threshold:
                 return "queue", load_for_classifier, ARBITRATION_REASON_QUEUE_DISTRESS
 
@@ -2706,16 +2724,33 @@ class WANController:
             ):
                 return "rtt", self.load_rtt, ARBITRATION_REASON_RTT_VETO
             return "queue", load_for_classifier, ARBITRATION_REASON_GREEN_STABLE
+
+        # Phase 197 (D-04): refractory + invalid snapshot -> RTT fallback with
+        # distinct reason so audits can distinguish from steady-state RTT fallback.
+        if in_refractory:
+            return (
+                "rtt",
+                self.load_rtt,
+                ARBITRATION_REASON_RTT_FALLBACK_DURING_REFRACTORY,
+            )
         return "rtt", self.load_rtt, ARBITRATION_REASON_GREEN_STABLE
 
     def _run_congestion_assessment(
         self,
     ) -> tuple[str, int, str | None, str, int, str | None, float]:
         """Congestion assessment: zone classification, alerts, drift, flapping."""
-        # Phase 160: Apply refractory masking BEFORE passing to QueueController
-        dl_cake = self._dl_cake_snapshot
+        # Phase 160 + Phase 197 (D-01, D-02): split detection-side masking from
+        # arbitration-side routing. Detection stays masked to None during the
+        # 40-cycle refractory window (Phase 160 cascade-safety invariant).
+        # Arbitration consumes the live snapshot so _select_dl_primary_scalar_ms
+        # can return queue-primary during refractory instead of cratering to RTT.
+        dl_cake_for_detection = self._dl_cake_snapshot
+        dl_cake_for_arbitration = self._dl_cake_snapshot
+        # Stash refractory-active flag BEFORE decrement so this cycle's
+        # arbitration regime is reported truthfully even when remaining decrements 1->0.
+        self._dl_arbitration_used_refractory_snapshot = self._dl_refractory_remaining > 0
         if self._dl_refractory_remaining > 0:
-            dl_cake = None  # Mask CAKE signals during refractory
+            dl_cake_for_detection = None  # Phase 160: mask detection only.
             self._dl_refractory_remaining -= 1
 
         ul_cake = self._ul_cake_snapshot
@@ -2725,8 +2760,8 @@ class WANController:
 
         # Phase 195: capture raw direction inputs BEFORE arbitration selector mutates them.
         raw_rtt_delta_ms = self.load_rtt - self.baseline_rtt
-        if dl_cake is not None and not dl_cake.cold_start:
-            raw_queue_delta_ms = dl_cake.max_delay_delta_us * 0.001
+        if dl_cake_for_detection is not None and not dl_cake_for_detection.cold_start:
+            raw_queue_delta_ms = dl_cake_for_detection.max_delay_delta_us * 0.001
         else:
             raw_queue_delta_ms = None
 
@@ -2750,14 +2785,16 @@ class WANController:
                 queue_direction, rtt_direction
             )
 
-        primary, load_for_classifier, decision_reason = self._select_dl_primary_scalar_ms(dl_cake)
+        primary, load_for_classifier, decision_reason = self._select_dl_primary_scalar_ms(
+            dl_cake_for_arbitration
+        )
         dl_zone, dl_rate, dl_transition_reason = self.download.adjust_4state(
             self.baseline_rtt,
             load_for_classifier,
             self.green_threshold,
             self.soft_red_threshold,
             self.hard_red_threshold,
-            cake_snapshot=dl_cake,
+            cake_snapshot=dl_cake_for_detection,
         )
         self._last_arbitration_primary = primary
         self._last_arbitration_reason = decision_reason
@@ -4163,6 +4200,9 @@ class WANController:
                     if self._dl_cake_snapshot is not None
                     and not self._dl_cake_snapshot.cold_start
                     else None
+                ),
+                "refractory_active": getattr(
+                    self, "_dl_arbitration_used_refractory_snapshot", False
                 ),
             },
             "runtime": {
