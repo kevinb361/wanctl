@@ -345,6 +345,14 @@ Plans:
 3. **A/B comparison artifact (VALN-04).** `ab-comparison.json` produced against the accepted Phase 196 rtt-blend A-leg control evidence (NOT against the A-leg flent throughput numbers). Burst detection trigger count, dwell-bypass responsiveness, and fusion state transitions on the cake-primary leg are at least as healthy as on the rtt-blend leg. RTT-distress event counts on cake-primary do not grow beyond the rtt-blend leg.
 4. **SAFE-05 invariant.** No state-machine, EWMA, dwell, deadband, threshold, or burst-detection value changes between Phase 197 ship and Phase 198 acceptance. Verified by source-tree diff in `198-VERIFICATION.md`.
 
+**Plans:** 4 plans
+
+Plans:
+- [ ] 198-01-PLAN.md — Preflight + Phase 197 deployment proof + initial source-bind egress probe + SAFE-05 baseline (SAFE-05)
+- [ ] 198-02-PLAN.md — 24h Spectrum cake-primary B-leg soak + Phase 197 audit predicate over raw rows (VALN-04)
+- [ ] 198-03-PLAN.md — Three corrected source-bound (10.10.110.226) flent tcp_12down 30s runs + 2-of-3 + median-of-medians throughput verdict (VALN-05a)
+- [ ] 198-04-PLAN.md — ab-comparison.json (six deltas + throughput) + SAFE-05 source-tree diff + 198-VERIFICATION.md + 196-VERIFICATION.md update (VALN-04, VALN-05a, SAFE-05)
+
 ---
 
 ### Phase 199: OBS-02 spec/impl reconciliation (GAP CLOSURE — DOCS-ONLY)
