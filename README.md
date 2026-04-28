@@ -223,6 +223,7 @@ Additional references:
 - [SUBSYSTEMS.md](docs/SUBSYSTEMS.md) - storage, dashboard, backend, health, alerting, and measurement-quality internals
 - [PERFORMANCE.md](docs/PERFORMANCE.md) - production timing, cycle-budget, and profiling guidance
 - [TESTING.md](docs/TESTING.md) - current test commands and integration-test invocation
+- [SILICOM-BYPASS.md](docs/SILICOM-BYPASS.md) - Silicom bypass NIC operations, powered fail-open watchdogs, and Spectrum migration validation notes
 
 ## Directory Structure
 

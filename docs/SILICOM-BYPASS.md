@@ -272,6 +272,7 @@ Persistent VM config now points Spectrum at the Silicom pair:
 /etc/systemd/network/20-spec-router.network: Name=spec-router
 /etc/wanctl/spectrum.yaml: upload_interface="spec-modem"
 /etc/wanctl/spectrum.yaml: download_interface="spec-router"
+/etc/wanctl/spectrum.yaml: cake_params.ack_filter=false
 ```
 
 Backups from the migration are timestamped with `20260428150434` and
@@ -292,6 +293,97 @@ spec-modem  UP, LOWER_UP, 1Gbps
 spec-router UP, LOWER_UP, 1Gbps
 br-spectrum UP, carrier
 ```
+
+## Spectrum Migration Validation And Pitfalls
+
+Additional Spectrum migration diagnostics on 2026-04-28 isolated two separate
+classes of symptoms:
+
+- A severe download cap around `10-17 Mbps` was caused by reversed physical port
+  roles relative to `spectrum.yaml`. The 32 Mbps upload CAKE qdisc was placed on
+  the download egress path, so downloads were shaped as uploads.
+- A later upload shortfall was not caused by the Silicom bridge path. After the
+  raw bridge path was allowed to stabilize, Spectrum upload to the Dallas test
+  host reached `38.9 Mbit/s` with CAKE and `wanctl@spectrum` removed from the
+  path.
+
+Use live byte counters to verify direction before assuming a hardware problem:
+
+```bash
+ip -s link show dev spec-modem
+ip -s link show dev spec-router
+tc -s qdisc show dev spec-modem
+tc -s qdisc show dev spec-router
+```
+
+Expected direction in the current Silicom topology:
+
+```text
+Download: modem -> spec-modem RX -> br-spectrum -> spec-router TX -> RouterOS ether1-WAN-Spectrum
+Upload:   RouterOS ether1-WAN-Spectrum -> spec-router RX -> br-spectrum -> spec-modem TX -> modem
+
+CAKE download qdisc: spec-router
+CAKE upload qdisc:   spec-modem
+```
+
+If the high-volume download test increments the upload qdisc, the cables or
+`spectrum.yaml` interface roles are reversed. Fix the mapping before changing
+rates, thresholds, or hardware.
+
+### Stabilized Raw Bridge Test Procedure
+
+Stopping `wanctl@spectrum.service` while `silicom-bypass-watchdog@spectrum` is
+active intentionally lets the hardware watchdog expire into powered bypass. That
+invalidates CAKE/raw bridge tests because traffic may skip the VM qdiscs.
+
+For a valid raw bridge isolation test:
+
+```bash
+sudo systemctl stop silicom-bypass-watchdog@spectrum.service
+cd /opt/bpctl-silicom
+sudo ./bpctl_util spec-modem set_bypass_wd 0
+sudo ./bpctl_util spec-modem set_bypass off
+sudo systemctl stop wanctl@spectrum.service
+sudo ./bpctl_util spec-modem set_bypass off
+sudo tc qdisc del dev spec-router root 2>/dev/null || true
+sudo tc qdisc del dev spec-modem root 2>/dev/null || true
+```
+
+Then wait for the path to stabilize before measuring. Verify all of the following:
+
+```bash
+cd /opt/bpctl-silicom
+sudo ./bpctl_util spec-modem get_bypass      # non-Bypass
+sudo ./bpctl_util spec-modem get_bypass_wd   # disabled for the test
+ip -br link show spec-modem spec-router br-spectrum
+tc qdisc show dev spec-router
+tc qdisc show dev spec-modem
+curl -4 --interface 10.10.110.223 https://ifconfig.me
+```
+
+Validated 2026-04-28 result after stabilization:
+
+```text
+iperf3 -4 -c 104.200.21.31 -p 5201 -B 10.10.110.223 -P 4 -t 20
+SUM receiver: 38.9 Mbit/s
+qdisc drops: 0
+Silicom path: inline, non-bypass, WDT disabled only for the test
+```
+
+Restore powered fail-open after testing:
+
+```bash
+cd /opt/bpctl-silicom
+sudo ./bpctl_util spec-modem set_bypass off
+sudo systemctl restart wanctl@spectrum.service
+sleep 3
+sudo systemctl restart silicom-bypass-watchdog@spectrum.service
+sudo ./bpctl_util spec-modem get_bypass_wd
+```
+
+As of this validation, the Silicom/riser/bridge path is capable of full Spectrum
+upload. Remaining Spectrum upload loss under normal operation is a CAKE/controller
+tuning issue, not a bypass-card or PCIe-riser finding.
 
 ## ATT Recovery Sequence
 

@@ -428,8 +428,13 @@ Linux CAKE qdisc configuration for bridge/VM deployments. `linux-cake` uses `tc`
 | `mpu`                | string | no       | Minimum packet unit passed through to CAKE (for example `"64"`)       |
 | `memlimit`           | string | no       | CAKE memory limit (e.g., `"32mb"`)                                    |
 | `rtt`                | string | no       | CAKE RTT target (e.g., `"100ms"` or `"40ms"`)                         |
+| `ack_filter`         | bool   | no       | Upload ACK filtering override. Defaults to enabled on upload only; set `false` to force `no-ack-filter`. |
 
 Additional CAKE keys are passed through to `tc` after known underscore-to-hyphen mapping for aliases such as `split_gso`, `ack_filter`, and `autorate_ingress`. The transparent bridge deployment excludes `nat`, `wash`, and `autorate-ingress`. Common optional keys include `diffserv`, `split_gso`, `ack_filter`, `ingress`, `ecn`, `memlimit`, and `rtt`.
+
+`ack_filter: false` is an operator override for links where CAKE ACK filtering
+hurts throughput or loss behavior. It maps to the absence of the `ack-filter`
+token in the generated upload qdisc, which `tc` reports as `no-ack-filter`.
 
 ```yaml
 router:
@@ -442,6 +447,7 @@ cake_params:
   overhead: "docsis"
   mpu: "64"
   rtt: "40ms"
+  ack_filter: false
 ```
 
 ### `cake_optimization` (optional)
