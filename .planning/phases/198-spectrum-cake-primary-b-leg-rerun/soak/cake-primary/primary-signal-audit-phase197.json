@@ -1,0 +1,1287 @@
+{
+  "phase": 198,
+  "leg": "cake-primary",
+  "audit_predicate_path": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/primary-signal-audit-phase197.md",
+  "raw_metrics_path": ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/raw/cake-primary-finish-20260428T152750Z-sqlite-metrics.psv",
+  "aggregate_metrics_path": ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/raw/cake-primary-finish-20260428T152750Z-sqlite-metrics-aggregate.psv",
+  "granularity_filter_form": "sql_only",
+  "source_window": {
+    "start_utc": "2026-04-27T14:57:14Z",
+    "end_utc": "2026-04-28T15:27:50Z",
+    "start_timestamp": 1777301834,
+    "end_timestamp": 1777390070
+  },
+  "raw_metric_total_samples": 71801,
+  "raw_metric_queue_samples": 71621,
+  "raw_metric_queue_samples_via_refractory_rtt_fallback": 0,
+  "raw_metric_non_queue_samples": 180,
+  "raw_metric_non_queue_timestamps": [
+    {
+      "sampled_utc": "2026-04-27T15:39:00Z",
+      "timestamp": 1777304340,
+      "value": 1.00167644593462,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00167644593462; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T15:47:00Z",
+      "timestamp": 1777304820,
+      "value": 1.00503355704698,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00503355704698; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T15:48:00Z",
+      "timestamp": 1777304880,
+      "value": 1.05892255892256,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.05892255892256; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T15:49:00Z",
+      "timestamp": 1777304940,
+      "value": 1.01091519731318,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.01091519731318; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T15:50:00Z",
+      "timestamp": 1777305000,
+      "value": 1.00336134453782,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00336134453782; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T15:51:00Z",
+      "timestamp": 1777305060,
+      "value": 1.00335570469799,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00335570469799; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T16:15:00Z",
+      "timestamp": 1777306500,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T16:18:00Z",
+      "timestamp": 1777306680,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T16:24:00Z",
+      "timestamp": 1777307040,
+      "value": 1.00336134453782,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00336134453782; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T16:40:00Z",
+      "timestamp": 1777308000,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T17:18:00Z",
+      "timestamp": 1777310280,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T17:32:00Z",
+      "timestamp": 1777311120,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T17:33:00Z",
+      "timestamp": 1777311180,
+      "value": 1.00251677852349,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251677852349; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T17:34:00Z",
+      "timestamp": 1777311240,
+      "value": 1.00671140939597,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00671140939597; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T17:41:00Z",
+      "timestamp": 1777311660,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T17:52:00Z",
+      "timestamp": 1777312320,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:07:00Z",
+      "timestamp": 1777313220,
+      "value": 1.02514668901928,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.02514668901928; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:08:00Z",
+      "timestamp": 1777313280,
+      "value": 1.0159529806885,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0159529806885; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:09:00Z",
+      "timestamp": 1777313340,
+      "value": 1.00419815281276,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00419815281276; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:10:00Z",
+      "timestamp": 1777313400,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:30:00Z",
+      "timestamp": 1777314600,
+      "value": 1.00335570469799,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00335570469799; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:31:00Z",
+      "timestamp": 1777314660,
+      "value": 1.00251677852349,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251677852349; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:32:00Z",
+      "timestamp": 1777314720,
+      "value": 1.00167785234899,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00167785234899; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:33:00Z",
+      "timestamp": 1777314780,
+      "value": 1.00838926174497,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00838926174497; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:34:00Z",
+      "timestamp": 1777314840,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:35:00Z",
+      "timestamp": 1777314900,
+      "value": 1.01007556675063,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.01007556675063; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:37:00Z",
+      "timestamp": 1777315020,
+      "value": 1.00923593618808,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00923593618808; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:38:00Z",
+      "timestamp": 1777315080,
+      "value": 1.01258389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.01258389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:39:00Z",
+      "timestamp": 1777315140,
+      "value": 1.01175482787573,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.01175482787573; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:41:00Z",
+      "timestamp": 1777315260,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:44:00Z",
+      "timestamp": 1777315440,
+      "value": 1.00168776371308,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00168776371308; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:45:00Z",
+      "timestamp": 1777315500,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:47:00Z",
+      "timestamp": 1777315620,
+      "value": 1.00168067226891,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00168067226891; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:48:00Z",
+      "timestamp": 1777315680,
+      "value": 1.00335852225021,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00335852225021; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:49:00Z",
+      "timestamp": 1777315740,
+      "value": 1.01343408900084,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.01343408900084; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:50:00Z",
+      "timestamp": 1777315800,
+      "value": 1.00167785234899,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00167785234899; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:52:00Z",
+      "timestamp": 1777315920,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:54:00Z",
+      "timestamp": 1777316040,
+      "value": 1.00671140939597,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00671140939597; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:56:00Z",
+      "timestamp": 1777316160,
+      "value": 1.00167785234899,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00167785234899; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T18:59:00Z",
+      "timestamp": 1777316340,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T19:00:00Z",
+      "timestamp": 1777316400,
+      "value": 1.00419463087248,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00419463087248; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T19:01:00Z",
+      "timestamp": 1777316460,
+      "value": 1.00838926174497,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00838926174497; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T19:05:00Z",
+      "timestamp": 1777316700,
+      "value": 1.00168067226891,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00168067226891; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T19:07:00Z",
+      "timestamp": 1777316820,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T19:16:00Z",
+      "timestamp": 1777317360,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T19:30:00Z",
+      "timestamp": 1777318200,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T19:36:00Z",
+      "timestamp": 1777318560,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T19:39:00Z",
+      "timestamp": 1777318740,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T19:40:00Z",
+      "timestamp": 1777318800,
+      "value": 1.04026845637584,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.04026845637584; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T19:48:00Z",
+      "timestamp": 1777319280,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T19:50:00Z",
+      "timestamp": 1777319400,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T20:14:00Z",
+      "timestamp": 1777320840,
+      "value": 1.00084175084175,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00084175084175; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T20:15:00Z",
+      "timestamp": 1777320900,
+      "value": 1.00167644593462,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00167644593462; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T20:17:00Z",
+      "timestamp": 1777321020,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T20:18:00Z",
+      "timestamp": 1777321080,
+      "value": 1.00167785234899,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00167785234899; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T20:19:00Z",
+      "timestamp": 1777321140,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T20:23:00Z",
+      "timestamp": 1777321380,
+      "value": 1.00335570469799,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00335570469799; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T20:24:00Z",
+      "timestamp": 1777321440,
+      "value": 1.00251889168766,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251889168766; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T20:25:00Z",
+      "timestamp": 1777321500,
+      "value": 1.00503778337531,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00503778337531; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T20:26:00Z",
+      "timestamp": 1777321560,
+      "value": 1.00251889168766,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251889168766; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T20:35:00Z",
+      "timestamp": 1777322100,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T20:38:00Z",
+      "timestamp": 1777322280,
+      "value": 1.00419111483655,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00419111483655; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T20:41:00Z",
+      "timestamp": 1777322460,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T20:44:00Z",
+      "timestamp": 1777322640,
+      "value": 1.00084388185654,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00084388185654; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T20:48:00Z",
+      "timestamp": 1777322880,
+      "value": 1.00084033613445,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00084033613445; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T21:21:00Z",
+      "timestamp": 1777324860,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T21:24:00Z",
+      "timestamp": 1777325040,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T21:25:00Z",
+      "timestamp": 1777325100,
+      "value": 1.00251889168766,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251889168766; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T21:32:00Z",
+      "timestamp": 1777325520,
+      "value": 1.00335570469799,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00335570469799; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T21:45:00Z",
+      "timestamp": 1777326300,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T21:46:00Z",
+      "timestamp": 1777326360,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T21:47:00Z",
+      "timestamp": 1777326420,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T21:50:00Z",
+      "timestamp": 1777326600,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T21:51:00Z",
+      "timestamp": 1777326660,
+      "value": 1.00167785234899,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00167785234899; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T21:58:00Z",
+      "timestamp": 1777327080,
+      "value": 1.00285714285714,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00285714285714; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T22:00:00Z",
+      "timestamp": 1777327200,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T22:03:00Z",
+      "timestamp": 1777327380,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T22:05:00Z",
+      "timestamp": 1777327500,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T22:10:00Z",
+      "timestamp": 1777327800,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T22:32:00Z",
+      "timestamp": 1777329120,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T22:36:00Z",
+      "timestamp": 1777329360,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T22:50:00Z",
+      "timestamp": 1777330200,
+      "value": 1.00168067226891,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00168067226891; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T22:53:00Z",
+      "timestamp": 1777330380,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T22:54:00Z",
+      "timestamp": 1777330440,
+      "value": 1.00251677852349,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251677852349; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T22:58:00Z",
+      "timestamp": 1777330680,
+      "value": 1.00092764378479,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00092764378479; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T23:00:00Z",
+      "timestamp": 1777330800,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T23:03:00Z",
+      "timestamp": 1777330980,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T23:05:00Z",
+      "timestamp": 1777331100,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T23:06:00Z",
+      "timestamp": 1777331160,
+      "value": 1.00335570469799,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00335570469799; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T23:07:00Z",
+      "timestamp": 1777331220,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T23:08:00Z",
+      "timestamp": 1777331280,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T23:09:00Z",
+      "timestamp": 1777331340,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T23:11:00Z",
+      "timestamp": 1777331460,
+      "value": 1.00336134453782,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00336134453782; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T23:15:00Z",
+      "timestamp": 1777331700,
+      "value": 1.00167785234899,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00167785234899; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T23:20:00Z",
+      "timestamp": 1777332000,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-27T23:45:00Z",
+      "timestamp": 1777333500,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T00:16:00Z",
+      "timestamp": 1777335360,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T00:20:00Z",
+      "timestamp": 1777335600,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T00:26:00Z",
+      "timestamp": 1777335960,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T00:34:00Z",
+      "timestamp": 1777336440,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T00:43:00Z",
+      "timestamp": 1777336980,
+      "value": 1.00157232704403,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00157232704403; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T00:44:00Z",
+      "timestamp": 1777337040,
+      "value": 1.0016835016835,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016835016835; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T00:45:00Z",
+      "timestamp": 1777337100,
+      "value": 1.00503355704698,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00503355704698; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T00:46:00Z",
+      "timestamp": 1777337160,
+      "value": 1.00084033613445,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00084033613445; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T00:47:00Z",
+      "timestamp": 1777337220,
+      "value": 1.00084033613445,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00084033613445; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T00:48:00Z",
+      "timestamp": 1777337280,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T00:49:00Z",
+      "timestamp": 1777337340,
+      "value": 1.00922818791946,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00922818791946; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T00:50:00Z",
+      "timestamp": 1777337400,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T00:51:00Z",
+      "timestamp": 1777337460,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T00:52:00Z",
+      "timestamp": 1777337520,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T01:29:00Z",
+      "timestamp": 1777339740,
+      "value": 1.0018315018315,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0018315018315; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T01:30:00Z",
+      "timestamp": 1777339800,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T01:38:00Z",
+      "timestamp": 1777340280,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T01:40:00Z",
+      "timestamp": 1777340400,
+      "value": 1.00251677852349,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251677852349; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T01:41:00Z",
+      "timestamp": 1777340460,
+      "value": 1.00335852225021,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00335852225021; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T01:44:00Z",
+      "timestamp": 1777340640,
+      "value": 1.00473484848485,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00473484848485; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T01:45:00Z",
+      "timestamp": 1777340700,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T02:38:00Z",
+      "timestamp": 1777343880,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T03:34:00Z",
+      "timestamp": 1777347240,
+      "value": 1.00084033613445,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00084033613445; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T03:35:00Z",
+      "timestamp": 1777347300,
+      "value": 1.00336134453782,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00336134453782; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T03:36:00Z",
+      "timestamp": 1777347360,
+      "value": 1.00503355704698,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00503355704698; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T03:38:00Z",
+      "timestamp": 1777347480,
+      "value": 1.00084033613445,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00084033613445; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T03:40:00Z",
+      "timestamp": 1777347600,
+      "value": 1.00755667506297,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00755667506297; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T03:44:00Z",
+      "timestamp": 1777347840,
+      "value": 1.00339847068819,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00339847068819; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T03:45:00Z",
+      "timestamp": 1777347900,
+      "value": 1.00251889168766,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251889168766; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T04:06:00Z",
+      "timestamp": 1777349160,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T04:08:00Z",
+      "timestamp": 1777349280,
+      "value": 1.00251889168766,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251889168766; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T04:14:00Z",
+      "timestamp": 1777349640,
+      "value": 1.00336417157275,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00336417157275; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T04:15:00Z",
+      "timestamp": 1777349700,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T04:16:00Z",
+      "timestamp": 1777349760,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T04:17:00Z",
+      "timestamp": 1777349820,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T04:23:00Z",
+      "timestamp": 1777350180,
+      "value": 1.00167644593462,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00167644593462; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T04:25:00Z",
+      "timestamp": 1777350300,
+      "value": 1.00168067226891,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00168067226891; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T04:26:00Z",
+      "timestamp": 1777350360,
+      "value": 1.00251677852349,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251677852349; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T04:29:00Z",
+      "timestamp": 1777350540,
+      "value": 1.00252525252525,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00252525252525; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T04:41:00Z",
+      "timestamp": 1777351260,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T05:04:00Z",
+      "timestamp": 1777352640,
+      "value": 1.00251889168766,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251889168766; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T05:09:00Z",
+      "timestamp": 1777352940,
+      "value": 1.00251677852349,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251677852349; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T05:31:00Z",
+      "timestamp": 1777354260,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T05:32:00Z",
+      "timestamp": 1777354320,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T05:37:00Z",
+      "timestamp": 1777354620,
+      "value": 1.00251889168766,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251889168766; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T05:44:00Z",
+      "timestamp": 1777355040,
+      "value": 1.00084245998315,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00084245998315; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T05:48:00Z",
+      "timestamp": 1777355280,
+      "value": 1.00923593618808,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00923593618808; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T05:49:00Z",
+      "timestamp": 1777355340,
+      "value": 1.01091519731318,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.01091519731318; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T05:50:00Z",
+      "timestamp": 1777355400,
+      "value": 1.03025210084034,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.03025210084034; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T07:05:00Z",
+      "timestamp": 1777359900,
+      "value": 1.00084033613445,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00084033613445; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T10:06:00Z",
+      "timestamp": 1777370760,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T11:18:00Z",
+      "timestamp": 1777375080,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T11:24:00Z",
+      "timestamp": 1777375440,
+      "value": 1.00587248322148,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00587248322148; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T11:25:00Z",
+      "timestamp": 1777375500,
+      "value": 1.0016792611251,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0016792611251; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T11:26:00Z",
+      "timestamp": 1777375560,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T11:43:00Z",
+      "timestamp": 1777376580,
+      "value": 1.00287356321839,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00287356321839; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T11:44:00Z",
+      "timestamp": 1777376640,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T12:47:00Z",
+      "timestamp": 1777380420,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T12:48:00Z",
+      "timestamp": 1777380480,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T12:51:00Z",
+      "timestamp": 1777380660,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T12:55:00Z",
+      "timestamp": 1777380900,
+      "value": 1.00251889168766,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251889168766; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:00:00Z",
+      "timestamp": 1777381200,
+      "value": 1.00085106382979,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00085106382979; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:01:00Z",
+      "timestamp": 1777381260,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:02:00Z",
+      "timestamp": 1777381320,
+      "value": 1.00084033613445,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00084033613445; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:03:00Z",
+      "timestamp": 1777381380,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:06:00Z",
+      "timestamp": 1777381560,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:07:00Z",
+      "timestamp": 1777381620,
+      "value": 1.00251677852349,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251677852349; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:08:00Z",
+      "timestamp": 1777381680,
+      "value": 1.00251889168766,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251889168766; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:09:00Z",
+      "timestamp": 1777381740,
+      "value": 1.00420168067227,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00420168067227; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:10:00Z",
+      "timestamp": 1777381800,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:11:00Z",
+      "timestamp": 1777381860,
+      "value": 1.00251677852349,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00251677852349; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:30:00Z",
+      "timestamp": 1777383000,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:33:00Z",
+      "timestamp": 1777383180,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:36:00Z",
+      "timestamp": 1777383360,
+      "value": 1.00335570469799,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00335570469799; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:40:00Z",
+      "timestamp": 1777383600,
+      "value": 1.00587248322148,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00587248322148; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:41:00Z",
+      "timestamp": 1777383660,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:46:00Z",
+      "timestamp": 1777383960,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:47:00Z",
+      "timestamp": 1777384020,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:49:00Z",
+      "timestamp": 1777384140,
+      "value": 1.0008389261745,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.0008389261745; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T13:50:00Z",
+      "timestamp": 1777384200,
+      "value": 1.00083963056255,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00083963056255; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T14:04:00Z",
+      "timestamp": 1777385040,
+      "value": 1.00084033613445,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=1.00084033613445; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T15:05:14Z",
+      "timestamp": 1777388714,
+      "value": 2.0,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=2.0; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T15:24:49Z",
+      "timestamp": 1777389889,
+      "value": 2.0,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=2.0; not paired with refractory_active=true at this second"
+    },
+    {
+      "sampled_utc": "2026-04-28T15:27:45Z",
+      "timestamp": 1777390065,
+      "value": 2.0,
+      "rows_at_value": 1,
+      "context": "raw rows: 1 sample(s) active_primary=2.0; not paired with refractory_active=true at this second"
+    }
+  ],
+  "aggregate_metric_total_samples": 5,
+  "aggregate_metric_note": "1-minute aggregate rows are averages over raw categorical values; excluded from verdict per Phase 197 audit predicate.",
+  "queue_primary_coverage_pct": 99.7493071127143,
+  "accept_list_pass": false,
+  "rtt_fallback_during_refractory_count": 0,
+  "verdict": "pass_with_documented_exceptions",
+  "decision": "Coverage 99.74931%; 180 non-queue raw samples; accept with documented exceptions."
+}
