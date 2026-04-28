@@ -310,16 +310,18 @@ Optional offline check:
 scripts/canary-check.sh --input /tmp/<wan_name>-health.json
 ```
 
+Note: `scripts/canary-check.sh` contains deployment-specific default autorate and steering targets. For non-production installs, either run it with `--input` against captured health JSON or adjust the target arrays before relying on default local/SSH checks.
+
 ## Operator Tools Reference
 
 | Tool | Purpose | Example |
 | --- | --- | --- |
 | `wanctl-operator-summary` | Render compact summary rows from health JSON | `wanctl-operator-summary http://<host>:9101/health http://<host>:9102/health` |
 | `scripts/canary-check.sh` | Post-deploy pass/warn/fail validation | `scripts/canary-check.sh --ssh <host>` |
-| `scripts/soak-monitor.sh` | Multi-service soak health and journal summary for Spectrum, ATT, and steering | `scripts/soak-monitor.sh` |
+| `scripts/soak-monitor.sh` | Environment-specific soak health and journal summary for the current Spectrum/ATT deployment | `scripts/soak-monitor.sh` |
 | `wanctl-check-config` | Validate WAN or steering YAML before restart | `wanctl-check-config /etc/wanctl/<wan_name>.yaml` |
 | `wanctl-check-cake` | Audit live CAKE config on the router | `wanctl-check-cake /etc/wanctl/<wan_name>.yaml` |
-| `wanctl-benchmark` | Run benchmark workflow for performance validation | `wanctl-benchmark /etc/wanctl/<wan_name>.yaml` |
+| `wanctl-benchmark` | Run benchmark workflow for performance validation | `wanctl-benchmark --wan <wan_name> --label post-deploy` |
 | `wanctl-history --alerts` | Inspect persisted alert history | `wanctl-history --alerts` |
 | `curl .../health` | Inspect full JSON instead of summary view | `ssh <host> 'curl -s http://127.0.0.1:9101/health | python3 -m json.tool'` |
 
@@ -367,16 +369,20 @@ compact them explicitly during a controlled restart window:
 
 ```bash
 ./scripts/compact-metrics-dbs.sh --ssh <host>
-./scripts/canary-check.sh --ssh <host> --expect-version 1.37.0 --json
+./scripts/canary-check.sh --ssh <host> --expect-version <deployed-version> --json
 ```
 
 If only ATT remains above the expected footprint while Spectrum is already below baseline, use the ATT-only path:
 
 ```bash
 ./scripts/compact-metrics-dbs.sh --ssh <host> --wan att
-./scripts/canary-check.sh --ssh <host> --expect-version 1.37.0 --json
+./scripts/canary-check.sh --ssh <host> --expect-version <deployed-version> --json
 ./scripts/soak-monitor.sh --json
 ```
+
+`scripts/compact-metrics-dbs.sh` stops the selected `wanctl@<wan>.service`, prunes old aggregate rows, checkpoints/truncates WAL, vacuums the SQLite DB, and restarts the service. Use it only during a controlled maintenance window; use `--dry-run` first when validating a new target.
+
+`scripts/migrate-storage.sh` is a one-shot migration for older shared `/var/lib/wanctl/metrics.db` layouts. It stops WAN services, prunes legacy data, vacuums the DB, and archives it as `/var/lib/wanctl/metrics.db.pre-v135-archive`. Run it only when the archive marker is missing.
 
 For 24h soak closeout, the err-level review should cover all claimed services, not only the WAN daemons:
 

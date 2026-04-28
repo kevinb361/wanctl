@@ -83,6 +83,13 @@ Options:
     --non-interactive       Skip interactive prompts
 ```
 
+The direct Python/module entry point also accepts queue-name overrides used in the generated YAML:
+
+```bash
+python3 -m wanctl.calibrate --wan-name wan1 --router 192.168.1.1 \
+  --download-queue WAN-Download --upload-queue WAN-Upload
+```
+
 ## Examples
 
 ### Basic Calibration
@@ -199,8 +206,8 @@ continuous_monitoring:
     target_bloat_ms: 12
     warn_bloat_ms: 36
     hard_red_bloat_ms: 72
-    alpha_baseline: 0.02
-    alpha_load: 0.20
+    baseline_time_constant_sec: 2.5
+    load_time_constant_sec: 0.25
 ```
 
 **IMPORTANT:** Review and customize the generated config:

@@ -408,4 +408,4 @@ The only tradeoff is password-based authentication vs SSH keys, which is accepta
 ---
 
 _Document generated: 2026-01-08_
-_wanctl version: 1.4.0 (REST API transport)_
+_wanctl version: historical REST API transport benchmark; validate exact timings against the currently deployed release._
