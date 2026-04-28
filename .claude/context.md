@@ -87,6 +87,14 @@ Use these as the primary current docs:
 - `docs/DEPLOYMENT.md`
 - `docs/TESTING.md`
 - `docs/STEERING.md`
+- `docs/SILICOM-BYPASS.md`
+
+## Current Hardware Mapping
+
+- `cake-shaper` uses the Silicom `PE2G4BPI35A-SD REV:1.1` passthrough NIC for both inline WAN pairs.
+- ATT uses `att-modem` / `att-router`.
+- Spectrum uses `spec-modem` / `spec-router`; these names now refer to the Silicom ports, while the old Supermicro ports are `old-spec-modem` / `old-spec-router`.
+- The Silicom card supports powered bypass, but verified unpowered fail-open does not work on `odin`; do not rely on it for chassis-power-loss continuity.
 
 ## Current Validation Note
 
