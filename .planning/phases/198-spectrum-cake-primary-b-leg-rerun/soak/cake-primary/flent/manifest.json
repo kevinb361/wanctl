@@ -1,0 +1,56 @@
+{
+  "duration_seconds": 30,
+  "label_prefix": "phase198_cake_primary_tcp12",
+  "leg": "cake-primary",
+  "local_bind": "10.10.110.226",
+  "phase": 198,
+  "ref_sha": "5ecd1d4",
+  "runs": [
+    {
+      "egress_ip": "70.123.224.169",
+      "egress_org": "AS11427 Charter Communications Inc",
+      "max_mbps": 878.522989,
+      "mean_mbps": 466.372516,
+      "median_mbps": 450.468331,
+      "min_mbps": 110.74273,
+      "raw_path": "run1.flent.gz",
+      "raw_path_external": "/home/kevin/flent-results/phase198/phase198_cake_primary_tcp12_run1/spectrum/20260428-103511/tcp_12down-2026-04-28T103512.070667.phase198_cake_primary_tcp12_run1-spectrum-tcp_12down.flent.gz",
+      "raw_path_repo": ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/flent/run1.flent.gz",
+      "run": 1,
+      "sample_count": 151,
+      "series_key": "TCP download sum",
+      "summary_path_external": "/home/kevin/flent-results/phase198/phase198_cake_primary_tcp12_run1/spectrum/20260428-103511/phase198_cake_primary_tcp12_run1-spectrum-tcp_12down.summary.txt"
+    },
+    {
+      "egress_ip": "70.123.224.169",
+      "egress_org": "AS11427 Charter Communications Inc",
+      "max_mbps": 971.660482,
+      "mean_mbps": 662.184345,
+      "median_mbps": 681.802267,
+      "min_mbps": 128.158877,
+      "raw_path": "run2.flent.gz",
+      "raw_path_external": "/home/kevin/flent-results/phase198/phase198_cake_primary_tcp12_run2/spectrum/20260428-103557/tcp_12down-2026-04-28T103558.147980.phase198_cake_primary_tcp12_run2-spectrum-tcp_12down.flent.gz",
+      "raw_path_repo": ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/flent/run2.flent.gz",
+      "run": 2,
+      "sample_count": 151,
+      "series_key": "TCP download sum",
+      "summary_path_external": "/home/kevin/flent-results/phase198/phase198_cake_primary_tcp12_run2/spectrum/20260428-103557/phase198_cake_primary_tcp12_run2-spectrum-tcp_12down.summary.txt"
+    },
+    {
+      "egress_ip": "70.123.224.169",
+      "egress_org": "AS11427 Charter Communications Inc",
+      "max_mbps": 919.913173,
+      "mean_mbps": 505.515237,
+      "median_mbps": 494.83422,
+      "min_mbps": 66.36,
+      "raw_path": "run3.flent.gz",
+      "raw_path_external": "/home/kevin/flent-results/phase198/phase198_cake_primary_tcp12_run3/spectrum/20260428-103643/tcp_12down-2026-04-28T103644.170771.phase198_cake_primary_tcp12_run3-spectrum-tcp_12down.flent.gz",
+      "raw_path_repo": ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/flent/run3.flent.gz",
+      "run": 3,
+      "sample_count": 151,
+      "series_key": "TCP download sum",
+      "summary_path_external": "/home/kevin/flent-results/phase198/phase198_cake_primary_tcp12_run3/spectrum/20260428-103643/phase198_cake_primary_tcp12_run3-spectrum-tcp_12down.summary.txt"
+    }
+  ],
+  "tests": "tcp_12down"
+}

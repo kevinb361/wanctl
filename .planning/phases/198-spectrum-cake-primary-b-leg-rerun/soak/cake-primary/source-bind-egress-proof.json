@@ -1,14 +1,42 @@
 {
   "phase": 198,
-  "purpose": "Verify which WAN each local source address uses; Plan 03 appends per-flent-run probes.",
+  "pre_run_probes": [
+    {
+      "captured_at_utc": "2026-04-28T15:35:11Z",
+      "egress_ip_matches": true,
+      "hostname": "syn-070-123-224-169.res.spectrum.com",
+      "local_bind": "10.10.110.226",
+      "org": "AS11427 Charter Communications Inc",
+      "public_ip": "70.123.224.169",
+      "run": 1
+    },
+    {
+      "captured_at_utc": "2026-04-28T15:35:57Z",
+      "egress_ip_matches": true,
+      "hostname": "syn-070-123-224-169.res.spectrum.com",
+      "local_bind": "10.10.110.226",
+      "org": "AS11427 Charter Communications Inc",
+      "public_ip": "70.123.224.169",
+      "run": 2
+    },
+    {
+      "captured_at_utc": "2026-04-28T15:36:43Z",
+      "egress_ip_matches": true,
+      "hostname": "syn-070-123-224-169.res.spectrum.com",
+      "local_bind": "10.10.110.226",
+      "org": "AS11427 Charter Communications Inc",
+      "public_ip": "70.123.224.169",
+      "run": 3
+    }
+  ],
   "preflight_probe": {
     "captured_at_utc": "2026-04-27T14:43:31Z",
-    "local_bind": "10.10.110.226",
-    "public_ip": "70.123.224.169",
-    "hostname": "syn-070-123-224-169.res.spectrum.com",
-    "org": "AS11427 Charter Communications Inc",
     "conclusion": "spectrum-egress",
-    "egress_ip_matches": true
+    "egress_ip_matches": true,
+    "hostname": "syn-070-123-224-169.res.spectrum.com",
+    "local_bind": "10.10.110.226",
+    "org": "AS11427 Charter Communications Inc",
+    "public_ip": "70.123.224.169"
   },
-  "pre_run_probes": []
+  "purpose": "Verify which WAN each local source address uses; preflight probe plus per-flent-run probes for corrected Spectrum throughput captures."
 }
