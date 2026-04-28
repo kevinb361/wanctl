@@ -1,0 +1,29 @@
+{
+  "mode": "cake-primary-finish",
+  "capture_group": "cake-primary",
+  "wan_name": "spectrum",
+  "captured_at_iso": "2026-04-28T15:27:50Z",
+  "artifacts": {
+    "health_json": ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/raw/cake-primary-finish-20260428T152750Z-health.json",
+    "journal_excerpt": ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/raw/cake-primary-finish-20260428T152750Z-journal.log",
+    "fusion_transitions": ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/raw/cake-primary-finish-20260428T152750Z-fusion-transitions.log",
+    "sqlite_metrics": ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/raw/cake-primary-finish-20260428T152750Z-sqlite-metrics.psv",
+    "sqlite_metrics_aggregate": ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/raw/cake-primary-finish-20260428T152750Z-sqlite-metrics-aggregate.psv"
+  },
+  "signal_arbitration": {
+    "active_primary_signal": "queue",
+    "rtt_confidence": 0.0,
+    "cake_av_delay_delta_us": 43,
+    "control_decision_reason": "green_stable",
+    "refractory_active": false
+  },
+  "counters": {
+    "dwell_bypassed_count": 18,
+    "download_burst_trigger_count": 0,
+    "upload_burst_trigger_count": 0,
+    "fusion_transition_count_24h": 0,
+    "sqlite_metric_rows": 359005,
+    "sqlite_metric_aggregate_rows": 5,
+    "journal_excerpt_lines": 1143
+  }
+}
