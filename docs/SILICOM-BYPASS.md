@@ -9,6 +9,7 @@ Operational notes for the Silicom `PE2G4BPI35A-SD REV:1.1` bypass NIC in the
 - Driver/tool location on `cake-shaper`: `/opt/bpctl-silicom/`
 - Utility: `/opt/bpctl-silicom/bpctl_util`
 - Module: `/opt/bpctl-silicom/bpctl_mod.ko`
+- DKMS module: `bpctl_mod/5.2.0.46`
 - Device node: `/dev/bpctl0`
 - Boot service: `bpctl-silicom.service`
 
@@ -22,9 +23,11 @@ systemd unit:
 /usr/local/sbin/wanctl-bpctl-init
 ```
 
-The init script loads `/opt/bpctl-silicom/bpctl_mod.ko`, waits for `bpctl` to
-register in `/proc/devices`, recreates `/dev/bpctl0` with the registered major
-number when needed, and verifies `bpctl_util info` succeeds.
+The init script first loads `bpctl_mod` with `modprobe`, which uses the DKMS-built
+module under `/lib/modules/.../updates/dkms/`. If no module-tree copy is
+available, it falls back to `/opt/bpctl-silicom/bpctl_mod.ko`. It then waits for
+`bpctl` to register in `/proc/devices`, recreates `/dev/bpctl0` with the
+registered major number when needed, and verifies `bpctl_util info` succeeds.
 
 The unit is enabled and ordered before the WAN controller services:
 
@@ -46,6 +49,67 @@ sudo ./bpctl_util spec-modem get_bypass_slave
 This was validated on 2026-04-28 by forcing both ATT and Spectrum into powered
 bypass, rebooting the `cake-shaper` VM, confirming `bpctl-silicom.service`
 recreated `/dev/bpctl0`, then restoring both pairs to non-bypass inline mode.
+
+## Kernel Upgrades And DKMS
+
+`bpctl_mod` is an out-of-tree kernel module. It is registered with DKMS on
+`cake-shaper` so kernel upgrades can rebuild it automatically when matching
+headers are installed.
+
+Current source and helper paths:
+
+```text
+/root/bpctl-src/bpctl-silicom
+/usr/src/bpctl_mod-5.2.0.46
+/usr/local/sbin/wanctl-bpctl-dkms-install
+```
+
+Repo source for the helper:
+
+```text
+scripts/wanctl-bpctl-dkms-install
+```
+
+Before rebooting into a newly installed kernel, verify DKMS built the module for
+that kernel:
+
+```bash
+dkms status bpctl_mod
+modinfo bpctl_mod | grep -E '^(filename|vermagic|name):'
+```
+
+If DKMS did not build it automatically, install the matching headers and rebuild:
+
+```bash
+sudo apt install dkms "linux-headers-$(uname -r)"
+sudo /usr/local/sbin/wanctl-bpctl-dkms-install
+```
+
+After booting the new kernel, verify the control path before depending on
+powered fail-open automation:
+
+```bash
+systemctl status bpctl-silicom.service --no-pager -l
+systemctl status silicom-bypass-watchdog@att.service --no-pager -l
+systemctl status silicom-bypass-watchdog@spectrum.service --no-pager -l
+dkms status bpctl_mod
+ls -l /dev/bpctl0
+cd /opt/bpctl-silicom
+sudo ./bpctl_util att-modem get_bypass_wd
+sudo ./bpctl_util spec-modem get_bypass_wd
+```
+
+If `bpctl-silicom.service` fails after a kernel upgrade, assume the DKMS rebuild
+failed or matching headers are missing. Until fixed, the WAN bridges may still
+come up inline, but `bpctl` control and Silicom watchdog fail-open automation are
+not available.
+
+The source used here is from the public GitHub repository
+`https://github.com/ddos-mitigator/bpctl-silicom`. It is not known to be an
+official Silicom upstream, but the source contains BSD/GPL licensing notices and
+the GitHub project accepts normal fork/pull-request workflows. Future
+kernel-compatibility fixes should be proposed there first unless Silicom provides
+an official public repository.
 
 ## Per-WAN Watchdog Fail-Open
 
@@ -74,6 +138,7 @@ deploy/systemd/silicom-bypass-watchdog@.service
 deploy/scripts/bpctl-watchdog-att.env.example
 deploy/scripts/bpctl-watchdog-spectrum.env.example
 scripts/wanctl-bpctl-init
+scripts/wanctl-bpctl-dkms-install
 scripts/wanctl-bpctl-watchdog-petter
 scripts/wanctl-bpctl-watchdog-bypass
 ```

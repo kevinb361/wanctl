@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+
+SRC_DIR=${SRC_DIR:-/root/bpctl-src/bpctl-silicom}
+
+if [ ! -d "$SRC_DIR" ]; then
+  echo "missing bpctl source directory: $SRC_DIR" >&2
+  exit 1
+fi
+
+if [ ! -x /usr/sbin/dkms ]; then
+  echo "missing dkms; install the dkms package first" >&2
+  exit 1
+fi
+
+cd "$SRC_DIR"
+
+mod_name=bpctl_mod
+mod_version=$(/usr/bin/awk -F '=' '/^MOD_VER=/{print $2}' Makefile)
+if [ -z "$mod_version" ]; then
+  echo "could not determine bpctl module version from $SRC_DIR/Makefile" >&2
+  exit 1
+fi
+dst_dir="/usr/src/${mod_name}-${mod_version}"
+
+/usr/bin/install -o root -g root -m 0755 -d "$dst_dir"
+/bin/cp -t "$dst_dir/" "$SRC_DIR"/*
+/usr/bin/sed -i "s/@MOD_NAME@/${mod_name}/g" "$dst_dir/dkms.conf"
+/usr/bin/sed -i "s/@MOD_VERSION@/${mod_version}/g" "$dst_dir/dkms.conf"
+
+if ! /usr/sbin/dkms status -m "$mod_name" -v "$mod_version" >/dev/null 2>&1; then
+  /usr/sbin/dkms add -m "$mod_name" -v "$mod_version"
+fi
+
+/usr/sbin/dkms build -m "$mod_name" -v "$mod_version"
+/usr/sbin/dkms install -m "$mod_name" -v "$mod_version"
+/sbin/depmod -a
+/usr/sbin/dkms status "$mod_name"
