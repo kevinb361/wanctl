@@ -1,0 +1,126 @@
+{
+  "phase": 198,
+  "captured_at_utc": "2026-04-28T15:46:09Z",
+  "comparator": {
+    "a_leg": {
+      "leg": "rtt-blend",
+      "phase": 196,
+      "manifest": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/manifest.json",
+      "primary_signal_audit": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/primary-signal-audit.json",
+      "duration_hours": 28.2311,
+      "metric_total_samples": 88373,
+      "metric_rtt_samples": 88373,
+      "metric_non_rtt_samples": 0
+    },
+    "b_leg": {
+      "leg": "cake-primary",
+      "phase": 198,
+      "manifest": ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/flent/manifest.json",
+      "primary_signal_audit": ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/primary-signal-audit-phase197.json",
+      "duration_hours": 24.51,
+      "metric_total_samples": 71801,
+      "metric_queue_samples": 71621,
+      "metric_queue_samples_via_refractory_rtt_fallback": 0,
+      "metric_non_queue_samples": 180
+    }
+  },
+  "deltas": {
+    "rtt_distress_event_counts": {
+      "a_leg": 0,
+      "b_leg": 0,
+      "delta": 0,
+      "verdict": "pass",
+      "rule": "b_leg <= a_leg",
+      "source": "journal grep control_decision_reason containing rtt_veto or healer_bypass"
+    },
+    "burst_trigger_counts": {
+      "a_leg": 0,
+      "b_leg": 0,
+      "delta": 0,
+      "verdict": "pass",
+      "rule": "b_leg <= a_leg * 1.10"
+    },
+    "dwell_bypass_responsiveness": {
+      "a_leg_count": 0,
+      "b_leg_count": 18,
+      "delta": 18,
+      "verdict": "fail",
+      "rule": "b_leg <= a_leg * 1.10"
+    },
+    "fusion_state_transitions": {
+      "a_leg": 0,
+      "b_leg": 0,
+      "delta": 0,
+      "verdict": "pass",
+      "rule": "b_leg <= a_leg"
+    },
+    "queue_primary_coverage_pct": {
+      "a_leg_pct": 0.0,
+      "b_leg_pct": 99.7493071127143,
+      "verdict": "fail",
+      "rule": "b_leg_pct >= 99.9"
+    },
+    "refractory_fallback_rate": {
+      "b_leg_count": 0,
+      "b_leg_total": 71801,
+      "rate": 0.0,
+      "verdict": "documented",
+      "rule": "not gated"
+    }
+  },
+  "throughput": {
+    "acceptance_mbps": 532,
+    "captured_at_utc": "2026-04-28T15:38:46Z",
+    "decision": "VALN-05a throughput acceptance failed; do not proceed to Plan 04 closeout without operator decision.",
+    "label": "phase198_cake_primary_tcp12_3run",
+    "leg": "cake-primary",
+    "local_bind": "10.10.110.226",
+    "median_of_medians_at_or_above_532_mbps": false,
+    "median_of_medians_mbps": 494.83422,
+    "medians_above_532": 1,
+    "phase": 198,
+    "rule": "VALN-05a: medians_above_532 >= 2 AND median_of_medians_mbps >= 532",
+    "runs": [
+      {
+        "egress_ip": "70.123.224.169",
+        "egress_org": "AS11427 Charter Communications Inc",
+        "median_mbps": 450.468331,
+        "raw_path": "soak/cake-primary/flent/run1.flent.gz",
+        "raw_path_external": "/home/kevin/flent-results/phase198/phase198_cake_primary_tcp12_run1/spectrum/20260428-103511/tcp_12down-2026-04-28T103512.070667.phase198_cake_primary_tcp12_run1-spectrum-tcp_12down.flent.gz",
+        "run": 1,
+        "sample_count": 151,
+        "series_key": "TCP download sum"
+      },
+      {
+        "egress_ip": "70.123.224.169",
+        "egress_org": "AS11427 Charter Communications Inc",
+        "median_mbps": 681.802267,
+        "raw_path": "soak/cake-primary/flent/run2.flent.gz",
+        "raw_path_external": "/home/kevin/flent-results/phase198/phase198_cake_primary_tcp12_run2/spectrum/20260428-103557/tcp_12down-2026-04-28T103558.147980.phase198_cake_primary_tcp12_run2-spectrum-tcp_12down.flent.gz",
+        "run": 2,
+        "sample_count": 151,
+        "series_key": "TCP download sum"
+      },
+      {
+        "egress_ip": "70.123.224.169",
+        "egress_org": "AS11427 Charter Communications Inc",
+        "median_mbps": 494.83422,
+        "raw_path": "soak/cake-primary/flent/run3.flent.gz",
+        "raw_path_external": "/home/kevin/flent-results/phase198/phase198_cake_primary_tcp12_run3/spectrum/20260428-103643/tcp_12down-2026-04-28T103644.170771.phase198_cake_primary_tcp12_run3-spectrum-tcp_12down.flent.gz",
+        "run": 3,
+        "sample_count": 151,
+        "series_key": "TCP download sum"
+      }
+    ],
+    "two_of_three_at_or_above_532_mbps": false,
+    "verdict": "FAIL"
+  },
+  "comparison_verdict": "fail",
+  "comparison_rule": "All operational counter deltas pass (excluding refractory_fallback_rate which is documented) AND throughput verdict is pass.",
+  "notes": [
+    "rtt_distress_event_counts derived from journal grep because no summary counter exposed.",
+    "fusion_state_transitions used finish.counters.fusion_transition_count_24h; journal grep fallback was available.",
+    "burst and dwell rules apply 10% slack from the plan.",
+    "comparison_verdict is fail because throughput.verdict is FAIL and queue_primary_coverage_pct missed the 99.9% closeout gate."
+  ]
+}
