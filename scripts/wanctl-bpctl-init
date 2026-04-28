@@ -1,0 +1,45 @@
+#!/bin/sh
+set -eu
+
+MODULE=${MODULE:-/opt/bpctl-silicom/bpctl_mod.ko}
+DEV=${DEV:-/dev/bpctl0}
+
+if [ ! -r "$MODULE" ]; then
+  echo "missing bpctl module: $MODULE" >&2
+  exit 1
+fi
+
+if ! /usr/sbin/lsmod | /usr/bin/awk '{print $1}' | /bin/grep -qx bpctl_mod; then
+  /sbin/insmod "$MODULE"
+fi
+
+major=""
+i=0
+while [ "$i" -lt 50 ]; do
+  major=$(/usr/bin/awk '$2 == "bpctl" {print $1}' /proc/devices)
+  [ -n "$major" ] && break
+  i=$((i + 1))
+  sleep 0.1
+done
+
+if [ -z "$major" ]; then
+  echo "bpctl char device major not registered" >&2
+  exit 1
+fi
+
+if [ -e "$DEV" ]; then
+  current=$(/usr/bin/stat -c '%t:%T' "$DEV" 2>/dev/null || true)
+  expected=$(/usr/bin/printf '%x:0' "$major")
+  if [ "$current" != "$expected" ]; then
+    /bin/rm -f "$DEV"
+  fi
+fi
+
+if [ ! -e "$DEV" ]; then
+  /bin/mknod "$DEV" c "$major" 0
+fi
+
+/bin/chown root:root "$DEV"
+/bin/chmod 600 "$DEV"
+
+/opt/bpctl-silicom/bpctl_util info >/dev/null

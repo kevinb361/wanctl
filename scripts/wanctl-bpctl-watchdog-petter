@@ -1,0 +1,44 @@
+#!/bin/sh
+set -eu
+
+: "${IFACE:?missing IFACE}"
+: "${WANCTL_UNIT:?missing WANCTL_UNIT}"
+: "${BPCTL_UTIL:=/opt/bpctl-silicom/bpctl_util}"
+: "${TIMEOUT_MS:=5000}"
+: "${HEARTBEAT_SECONDS:=1}"
+
+util() {
+  "$BPCTL_UTIL" "$IFACE" "$@"
+}
+
+log() {
+  printf '%s\n' "$*"
+}
+
+util set_wd_exp_mode bypass
+util set_wd_autoreset 0
+util set_dis_bypass off
+util set_disc off
+util set_bypass_wd "$TIMEOUT_MS"
+
+last_state=unknown
+log "armed bpctl watchdog for $IFACE: timeout=${TIMEOUT_MS}ms heartbeat=${HEARTBEAT_SECONDS}s watched_unit=$WANCTL_UNIT"
+
+while :; do
+  if /bin/systemctl is-active --quiet "$WANCTL_UNIT"; then
+    if [ "$last_state" != active ]; then
+      util set_disc off
+      util set_bypass off
+      log "$WANCTL_UNIT active; restored $IFACE to inline mode"
+    fi
+    util reset_bypass_wd >/dev/null
+    last_state=active
+  else
+    if [ "$last_state" != inactive ]; then
+      log "$WANCTL_UNIT is not active; putting $IFACE into bypass and withholding watchdog reset"
+      util set_bypass on
+    fi
+    last_state=inactive
+  fi
+  sleep "$HEARTBEAT_SECONDS"
+done

@@ -66,6 +66,18 @@ The services use these local files on `cake-shaper`:
 /etc/wanctl/bpctl-watchdog/spectrum.env
 ```
 
+Repo source files:
+
+```text
+deploy/systemd/bpctl-silicom.service
+deploy/systemd/silicom-bypass-watchdog@.service
+deploy/scripts/bpctl-watchdog-att.env.example
+deploy/scripts/bpctl-watchdog-spectrum.env.example
+scripts/wanctl-bpctl-init
+scripts/wanctl-bpctl-watchdog-petter
+scripts/wanctl-bpctl-watchdog-bypass
+```
+
 Current mapping:
 
 ```text
