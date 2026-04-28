@@ -114,6 +114,11 @@ Restarting wanctl@att.service restored ATT to inline mode.
 
 Stopping wanctl@spectrum.service put only Spectrum into bypass; ATT stayed inline.
 Restarting wanctl@spectrum.service restored Spectrum to inline mode.
+
+Gracefully warm-rebooting odin stopped both watchdog services, put both pairs
+into powered bypass, autostarted cake-shaper after host boot, and restored both
+pairs to inline mode. A continuous external ping to 1.1.1.1 from the LAN did not
+drop during the host reboot.
 ```
 
 This is powered fail-open protection. It covers controller/service failure while
