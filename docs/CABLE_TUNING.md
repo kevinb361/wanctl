@@ -62,6 +62,54 @@ continuous_monitoring:
     load_time_constant_sec: 0.25 # Smooths DOCSIS scheduling noise (5 cycles at 50ms)
 ```
 
+## Spectrum Silicom Migration Findings (2026-04-28)
+
+The 2026-04-28 Spectrum move onto the Silicom bypass NIC produced an important
+diagnostic sequence that should guide future cable/DOCSIS tuning work.
+
+What was ruled out:
+
+- Direct Spectrum modem-to-router testing reached about `692 Mbps` down and
+  `35 Mbps` up, so the ISP service, modem, RouterOS WAN port, and LAN/client path
+  were capable.
+- Corrected Silicom raw bridge testing reached `38.9 Mbit/s` upload to the
+  Dallas test host after the path was allowed to stabilize, so the Silicom card,
+  PCIe riser, and bridge path were not the remaining upload bottleneck.
+- MBP Wi-Fi was not the primary cause; source-bound `iperf3` from `cake-shaper`
+  reproduced the managed upload shortfall.
+
+What caused the initial severe download symptom:
+
+- The old-port fallback test had Spectrum physical roles reversed relative to
+  `spectrum.yaml`.
+- That placed the `32Mbit` upload qdisc on the download egress path and produced
+  download speeds around `10-17 Mbps`.
+- Direction must be confirmed with `ip -s link` and `tc -s qdisc`, not inferred
+  from interface names after cable moves.
+
+What remains unresolved:
+
+- Managed `wanctl@spectrum` operation can clamp upload aggressively during Dallas
+  upload tests. Logs showed upload being driven as low as `8Mbit` while raw bridge
+  and direct-router tests showed the path can carry the expected upstream rate.
+- Static CAKE at `32Mbit` with `ack_filter: false` improved upload compared with
+  managed mode but did not match raw bridge performance in the first static run.
+- The current temporary mitigation is `cake_params.ack_filter: false` on Spectrum;
+  this avoids ACK-filter-specific loss but is not a complete controller tuning fix.
+
+Do not treat this finding as permission to change thresholds or floors casually.
+The next tuning step should be a controlled A/B run that waits for link/path
+stabilization and compares:
+
+- raw bridge, no CAKE
+- static CAKE `32Mbit no-ack-filter`
+- static CAKE with current `diffserv4` classification
+- managed `wanctl@spectrum`
+
+Capture `tc -s qdisc`, `ip -s link`, and controller logs immediately after each
+run. If upload loss only appears in managed mode, tune controller response; if it
+appears in static CAKE but not raw bridge, tune CAKE parameters/classification.
+
 ### Note on factor_down_yellow
 
 On the production Spectrum link, A/B testing (2026-04-02) via back-to-back 5-minute RRUL
