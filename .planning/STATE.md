@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Queue-Primary Signal Arbitration
-status: executing
-stopped_at: Completed 198-02-PLAN.md
-last_updated: "2026-04-28T15:32:30Z"
+status: blocked
+stopped_at: Completed 198-03-PLAN.md; throughput verdict FAIL blocks Plan 04 without operator decision
+last_updated: "2026-04-28T15:41:32.964Z"
 last_activity: 2026-04-28
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 23
-  completed_plans: 23
+  completed_plans: 24
   percent: 100
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 **Milestone:** v1.40 Queue-Primary Signal Arbitration
 **Phase:** 198
 **Plan:** 198-03
-**Status:** Phase 198 Plan 02 complete; ready for three corrected source-bound Spectrum flent runs and throughput verdict
+**Status:** Phase 198 Plan 03 complete; VALN-05a throughput verdict is FAIL, so Plan 04 is blocked pending operator decision
 **Last activity:** 2026-04-28
 
 Progress: [██████████] 100%
@@ -99,7 +99,7 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Stopped at: Completed 198-02-PLAN.md
+Stopped at: Completed 198-03-PLAN.md; throughput verdict FAIL blocks Plan 04 without operator decision
 Resume file: None
 
 ## Decisions
@@ -159,9 +159,12 @@ Resume file: None
 - [Phase 198-02]: Accepted existing Task 1 soak evidence without restarting the run: start capture `cake-primary-start-20260427T145714Z-summary.json`, `soak_start_utc=2026-04-27T14:57:14Z`, and finish scheduled by `systemd-run --user --on-active=24h30m` for `2026-04-28T15:27:14Z`.
 - [Phase 198-02]: Recorded `granularity_filter_form=sql_only` for the Phase 197 raw-row audit because the capture PSV has no `granularity` header; aggregate PSV rows remain excluded from the verdict.
 - [Phase 198-02]: Cake-primary B-leg duration gate passed at 88,236 seconds and the primary-signal audit returned `pass_with_documented_exceptions` with 71,801 raw samples, 99.7493% queue-primary coverage, and 180 documented non-queue rows.
+- [Phase 198]: Used TCP download sum, not per-stream TCP download avg, as the aggregate tcp_12down median series for VALN-05a.
+- [Phase 198]: VALN-05a failed with medians 450.468331, 681.802267, and 494.834220 Mbps; only one run met 532 Mbps and median-of-medians was 494.834220 Mbps.
 
 ## Performance Metrics
 
+- 2026-04-28: Phase 198 Plan 03 completed in ~7 min across 2 tasks and 6 evidence files; three corrected Spectrum-bound tcp_12down flent runs were captured, source-bind probes all confirmed Charter/AS11427 egress, 572-test regression slice passed, and VALN-05a failed with medians 450.468331/681.802267/494.834220 Mbps.
 - 2026-04-28: Phase 198 Plan 02 completed across a 24h30m36s Spectrum cake-primary B-leg and ~5 min active continuation; duration gate passed, primary-signal audit passed with documented exceptions at 99.7493% queue-primary coverage, and 584-test regression slice passed.
 - 2026-04-27: Phase 198 Plan 01 completed in 3 min continuation time across SAFE-05 baseline verification, post-restart preflight capture, and 9 evidence files; hot-path slice passed with 572 tests.
 - 2026-04-27: Phase 197 Plan 01 completed in 6 min across 3 tasks and 5 source/test files; hot-path slice passed with 569 tests and replay battery passed with 32 tests plus 6 skips.
@@ -195,3 +198,5 @@ Resume file: None
 - Pending follow-up created: `.planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md` tracks the required ATT cake-primary canary rerun after Phase 191 closes.
 
 **Planned Phase:** 197 (queue-primary-refractory-semantics-split-dl-cake-for-detecti) — 2 plans — 2026-04-27T11:22:07Z
+
+- Phase 198 Plan 04 is blocked pending operator decision because Plan 03 VALN-05a throughput verdict is FAIL (medians_above_532=1, median_of_medians_mbps=494.834220).

@@ -328,6 +328,7 @@ Plans:
 - Preflight: confirm Phase 197 code deployed; `cake-primary` enabled; source bind `10.10.110.226` proven Spectrum egress; no concurrent Spectrum experiment scheduled; SAFE-05 enforced (no config/threshold/EWMA/dwell/deadband/burst/state-machine change during run).
 - Run a clean ≥24h Spectrum `cake-primary` B-leg on the same deployment token used for the accepted Phase 196 rtt-blend A-leg. Capture `/health`, journal, raw SQLite over the full window. Verdict consumes raw rows, not 1-minute aggregates.
 - Capture three corrected source-bound (`10.10.110.226`) Spectrum `flent tcp_12down` 30s runs during the loaded portion of the soak window.
+- **Plan 198-03 outcome:** captures completed and egress proof passed, but VALN-05a throughput acceptance failed (`medians_above_532=1`, `median_of_medians_mbps=494.834220`). Plan 198-04 is blocked pending operator decision.
 - Run the Phase 197 audit predicate over the captured raw rows (accept-list includes `queue_during_refractory`, `rtt_fallback_during_refractory`, `refractory_active`).
 - Produce `ab-comparison.json` against the accepted Phase 196 A-leg control evidence (excluding invalid A-leg flent throughput). Compute deltas on: RTT-distress event counts, burst trigger counts, dwell-bypass responsiveness, fusion state transitions, queue-primary coverage, refractory fallback rate.
 - Update `196-VERIFICATION.md` and `198-VERIFICATION.md` to reflect closure of VALN-04 and VALN-05a.
@@ -345,13 +346,13 @@ Plans:
 3. **A/B comparison artifact (VALN-04).** `ab-comparison.json` produced against the accepted Phase 196 rtt-blend A-leg control evidence (NOT against the A-leg flent throughput numbers). Burst detection trigger count, dwell-bypass responsiveness, and fusion state transitions on the cake-primary leg are at least as healthy as on the rtt-blend leg. RTT-distress event counts on cake-primary do not grow beyond the rtt-blend leg.
 4. **SAFE-05 invariant.** No state-machine, EWMA, dwell, deadband, threshold, or burst-detection value changes between Phase 197 ship and Phase 198 acceptance. Verified by source-tree diff in `198-VERIFICATION.md`.
 
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [x] 198-01-PLAN.md — Preflight + Phase 197 deployment proof + initial source-bind egress probe + SAFE-05 baseline (SAFE-05)
 - [x] 198-02-PLAN.md — 24h Spectrum cake-primary B-leg soak + Phase 197 audit predicate over raw rows (VALN-04)
-- [ ] 198-03-PLAN.md — Three corrected source-bound (10.10.110.226) flent tcp_12down 30s runs + 2-of-3 + median-of-medians throughput verdict (VALN-05a)
-- [ ] 198-04-PLAN.md — ab-comparison.json (six deltas + throughput) + SAFE-05 source-tree diff + 198-VERIFICATION.md + 196-VERIFICATION.md update (VALN-04, VALN-05a, SAFE-05)
+- [x] 198-03-PLAN.md — Three corrected source-bound (10.10.110.226) flent tcp_12down 30s runs + 2-of-3 + median-of-medians throughput verdict (VALN-05a outcome: FAIL; medians 450.468331/681.802267/494.834220 Mbps)
+- [ ] 198-04-PLAN.md — BLOCKED pending operator decision because VALN-05a failed; original scope was ab-comparison.json (six deltas + throughput) + SAFE-05 source-tree diff + 198-VERIFICATION.md + 196-VERIFICATION.md update (VALN-04, VALN-05a, SAFE-05)
 
 ---
 
