@@ -10,6 +10,42 @@ Operational notes for the Silicom `PE2G4BPI35A-SD REV:1.1` bypass NIC in the
 - Utility: `/opt/bpctl-silicom/bpctl_util`
 - Module: `/opt/bpctl-silicom/bpctl_mod.ko`
 - Device node: `/dev/bpctl0`
+- Boot service: `bpctl-silicom.service`
+
+## Boot Persistence
+
+`cake-shaper` loads the Silicom control module at boot with a local oneshot
+systemd unit:
+
+```text
+/etc/systemd/system/bpctl-silicom.service
+/usr/local/sbin/wanctl-bpctl-init
+```
+
+The init script loads `/opt/bpctl-silicom/bpctl_mod.ko`, waits for `bpctl` to
+register in `/proc/devices`, recreates `/dev/bpctl0` with the registered major
+number when needed, and verifies `bpctl_util info` succeeds.
+
+The unit is enabled and ordered before the WAN controller services:
+
+```text
+Before=wanctl@att.service wanctl@spectrum.service
+```
+
+Verify after a VM reboot:
+
+```bash
+systemctl status bpctl-silicom.service --no-pager -l
+ls -l /dev/bpctl0
+lsmod | grep bpctl
+cd /opt/bpctl-silicom
+sudo ./bpctl_util att-modem get_bypass_slave
+sudo ./bpctl_util spec-modem get_bypass_slave
+```
+
+This was validated on 2026-04-28 by forcing both ATT and Spectrum into powered
+bypass, rebooting the `cake-shaper` VM, confirming `bpctl-silicom.service`
+recreated `/dev/bpctl0`, then restoring both pairs to non-bypass inline mode.
 
 If `/dev/bpctl0` is missing but the module is loaded and `/proc/devices` shows
 `bpctl`, recreate it with the registered major number:
