@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Queue-Primary Signal Arbitration
-status: checkpoint
-stopped_at: Checkpoint 198-02 Task 2 — await >=24h finish capture and duration gate
-last_updated: "2026-04-27T18:25:25Z"
-last_activity: 2026-04-27
+status: executing
+stopped_at: Completed 198-02-PLAN.md
+last_updated: "2026-04-28T15:32:30Z"
+last_activity: 2026-04-28
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 23
-  completed_plans: 22
-  percent: 96
+  completed_plans: 23
+  percent: 100
 ---
 
 # Session State
@@ -27,11 +27,11 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Milestone:** v1.40 Queue-Primary Signal Arbitration
 **Phase:** 198
-**Plan:** 198-02
-**Status:** Phase 198 Plan 02 Task 1 accepted existing start capture; waiting for scheduled finish capture after the 24h wall-clock gate
-**Last activity:** 2026-04-27
+**Plan:** 198-03
+**Status:** Phase 198 Plan 02 complete; ready for three corrected source-bound Spectrum flent runs and throughput verdict
+**Last activity:** 2026-04-28
 
-Progress: [██████████] 96%
+Progress: [██████████] 100%
 
 ## Parallel Milestone
 
@@ -99,7 +99,7 @@ Progress: [██████████] 96%
 
 ## Session Continuity
 
-Stopped at: Checkpoint 198-02 Task 2 — await operator finish capture after 2026-04-28T15:27:14Z
+Stopped at: Completed 198-02-PLAN.md
 Resume file: None
 
 ## Decisions
@@ -157,9 +157,12 @@ Resume file: None
 - [Phase 198-01]: Accepted rsync deployment proof for `/opt/wanctl` instead of remote git metadata: Phase 197-only `/health` field, new metric rows, restart timestamp, and operator-approved deploy/restart commands bind the running process to the Phase 197 ship SHA.
 - [Phase 198-01]: Treated cake-primary mode as proven by remote sudo YAML read plus `active_primary_signal=queue` because `/health` exposes the live cake_signal snapshot but not a `cake_signal.enabled` boolean.
 - [Phase 198-02]: Accepted existing Task 1 soak evidence without restarting the run: start capture `cake-primary-start-20260427T145714Z-summary.json`, `soak_start_utc=2026-04-27T14:57:14Z`, and finish scheduled by `systemd-run --user --on-active=24h30m` for `2026-04-28T15:27:14Z`.
+- [Phase 198-02]: Recorded `granularity_filter_form=sql_only` for the Phase 197 raw-row audit because the capture PSV has no `granularity` header; aggregate PSV rows remain excluded from the verdict.
+- [Phase 198-02]: Cake-primary B-leg duration gate passed at 88,236 seconds and the primary-signal audit returned `pass_with_documented_exceptions` with 71,801 raw samples, 99.7493% queue-primary coverage, and 180 documented non-queue rows.
 
 ## Performance Metrics
 
+- 2026-04-28: Phase 198 Plan 02 completed across a 24h30m36s Spectrum cake-primary B-leg and ~5 min active continuation; duration gate passed, primary-signal audit passed with documented exceptions at 99.7493% queue-primary coverage, and 584-test regression slice passed.
 - 2026-04-27: Phase 198 Plan 01 completed in 3 min continuation time across SAFE-05 baseline verification, post-restart preflight capture, and 9 evidence files; hot-path slice passed with 572 tests.
 - 2026-04-27: Phase 197 Plan 01 completed in 6 min across 3 tasks and 5 source/test files; hot-path slice passed with 569 tests and replay battery passed with 32 tests plus 6 skips.
 - 2026-04-27: Phase 197 Plan 02 completed in 5 min across 3 tasks and 5 source/test/planning files; hot-path slice passed with 572 tests and replay battery passed with 35 tests plus 6 skips.
