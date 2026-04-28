@@ -1,0 +1,44 @@
+{
+  "phase": 198,
+  "captured_at_utc": "2026-04-28T15:46:19Z",
+  "phase_197_ship_sha": "068b804",
+  "head_sha": "d7ff77e",
+  "protected_files": [
+    "src/wanctl/queue_controller.py",
+    "src/wanctl/cake_signal.py",
+    "src/wanctl/fusion_healer.py",
+    "src/wanctl/wan_controller.py",
+    "src/wanctl/health_check.py"
+  ],
+  "diff_summary": {
+    "src/wanctl/queue_controller.py": {
+      "lines_added": 0,
+      "lines_removed": 0,
+      "diff_excerpt": ""
+    },
+    "src/wanctl/cake_signal.py": {
+      "lines_added": 0,
+      "lines_removed": 0,
+      "diff_excerpt": ""
+    },
+    "src/wanctl/fusion_healer.py": {
+      "lines_added": 0,
+      "lines_removed": 0,
+      "diff_excerpt": ""
+    },
+    "src/wanctl/wan_controller.py": {
+      "lines_added": 0,
+      "lines_removed": 0,
+      "diff_excerpt": ""
+    },
+    "src/wanctl/health_check.py": {
+      "lines_added": 0,
+      "lines_removed": 0,
+      "diff_excerpt": ""
+    }
+  },
+  "protected_path_diffs": 0,
+  "diff_empty": true,
+  "diff_exit": 0,
+  "verdict": "pass"
+}
