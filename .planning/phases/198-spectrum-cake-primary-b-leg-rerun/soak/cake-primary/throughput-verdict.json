@@ -1,0 +1,47 @@
+{
+  "acceptance_mbps": 532,
+  "captured_at_utc": "2026-04-28T15:38:46Z",
+  "decision": "VALN-05a throughput acceptance failed; do not proceed to Plan 04 closeout without operator decision.",
+  "label": "phase198_cake_primary_tcp12_3run",
+  "leg": "cake-primary",
+  "local_bind": "10.10.110.226",
+  "median_of_medians_at_or_above_532_mbps": false,
+  "median_of_medians_mbps": 494.83422,
+  "medians_above_532": 1,
+  "phase": 198,
+  "rule": "VALN-05a: medians_above_532 >= 2 AND median_of_medians_mbps >= 532",
+  "runs": [
+    {
+      "egress_ip": "70.123.224.169",
+      "egress_org": "AS11427 Charter Communications Inc",
+      "median_mbps": 450.468331,
+      "raw_path": "soak/cake-primary/flent/run1.flent.gz",
+      "raw_path_external": "/home/kevin/flent-results/phase198/phase198_cake_primary_tcp12_run1/spectrum/20260428-103511/tcp_12down-2026-04-28T103512.070667.phase198_cake_primary_tcp12_run1-spectrum-tcp_12down.flent.gz",
+      "run": 1,
+      "sample_count": 151,
+      "series_key": "TCP download sum"
+    },
+    {
+      "egress_ip": "70.123.224.169",
+      "egress_org": "AS11427 Charter Communications Inc",
+      "median_mbps": 681.802267,
+      "raw_path": "soak/cake-primary/flent/run2.flent.gz",
+      "raw_path_external": "/home/kevin/flent-results/phase198/phase198_cake_primary_tcp12_run2/spectrum/20260428-103557/tcp_12down-2026-04-28T103558.147980.phase198_cake_primary_tcp12_run2-spectrum-tcp_12down.flent.gz",
+      "run": 2,
+      "sample_count": 151,
+      "series_key": "TCP download sum"
+    },
+    {
+      "egress_ip": "70.123.224.169",
+      "egress_org": "AS11427 Charter Communications Inc",
+      "median_mbps": 494.83422,
+      "raw_path": "soak/cake-primary/flent/run3.flent.gz",
+      "raw_path_external": "/home/kevin/flent-results/phase198/phase198_cake_primary_tcp12_run3/spectrum/20260428-103643/tcp_12down-2026-04-28T103644.170771.phase198_cake_primary_tcp12_run3-spectrum-tcp_12down.flent.gz",
+      "run": 3,
+      "sample_count": 151,
+      "series_key": "TCP download sum"
+    }
+  ],
+  "two_of_three_at_or_above_532_mbps": false,
+  "verdict": "FAIL"
+}
