@@ -59,7 +59,7 @@ To collect profiling data in production:
    ```ini
    [Service]
    ExecStart=
-   ExecStart=/opt/wanctl/.venv/bin/python -m wanctl.autorate_continuous --profile /etc/wanctl/spectrum.yaml
+   ExecStart=/opt/wanctl/.venv/bin/python -m wanctl.autorate_continuous --config /etc/wanctl/spectrum.yaml --profile
    ```
 
 2. **Restart the daemon:**

@@ -1,7 +1,7 @@
 # Portable Controller Architecture
 
-**Status:** ✅ Production (v1.4.0)
-**Last Updated:** 2025-12-17
+**Status:** Production (v1.39.0)
+**Last Updated:** 2026-04-28
 
 ---
 
@@ -113,7 +113,7 @@ This is purely **config-driven** — no code branching.
 - Same EWMA smoothing (α values configurable)
 - Same floor/ceiling enforcement
 - Same RTT measurement methodology
-- Same RouterOS SSH interface
+- Same backend abstraction for RouterOS REST/SSH and Linux CAKE transports
 
 ### ❌ Not Portable (Forbidden)
 

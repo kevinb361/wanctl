@@ -40,21 +40,22 @@ wan_name: "wan1"
 
 Router connection settings.
 
-| Field        | Type    | Required | Default      | Description                                          |
-| ------------ | ------- | -------- | ------------ | ---------------------------------------------------- |
-| `type`       | string  | no       | `"routeros"` | Router platform (only `"routeros"` supported)        |
-| `host`       | string  | yes      | -            | RouterOS IP address                                  |
-| `user`       | string  | yes      | -            | SSH username                                         |
-| `ssh_key`    | string  | yes      | -            | Path to SSH private key                              |
-| `transport`  | string  | no       | `"rest"`     | Transport type: `"rest"`, `"ssh"`, or `"linux-cake"` |
-| `password`   | string  | no       | -            | REST API password (for `transport: rest`)            |
-| `verify_ssl` | boolean | no       | `true`       | Verify SSL certificates for REST transport           |
+| Field        | Type    | Required | Default      | Description                                                             |
+| ------------ | ------- | -------- | ------------ | ----------------------------------------------------------------------- |
+| `type`       | string  | no       | `"routeros"` | Router platform marker                                                  |
+| `host`       | string  | yes      | -            | RouterOS IP address or control-plane host                               |
+| `user`       | string  | yes      | -            | RouterOS username                                                       |
+| `ssh_key`    | string  | yes      | -            | Path to SSH private key. Current base validation still requires this key |
+| `transport`  | string  | no       | `"rest"`     | Transport: `"rest"`, `"ssh"`, `"linux-cake"`, or `"linux-cake-netlink"` |
+| `password`   | string  | no       | -            | REST API password (for `transport: rest`)                               |
+| `verify_ssl` | boolean | no       | `true`       | Verify SSL certificates for REST transport                              |
 
 **Transport options:**
 
-- `rest` (default): Uses RouterOS REST API (faster, requires password instead of ssh_key)
+- `rest` (default): Uses RouterOS REST API (faster, uses `password`; keep `ssh_key` present until base validation is relaxed)
 - `ssh`: Uses SSH/Paramiko for RouterOS communication
-- `linux-cake`: Uses local `tc` commands for Linux CAKE qdiscs (v1.21+, VM deployment). Requires `cake_params` section. See [CAKE Parameters](#cake-parameters-linux-cake-transport) below.
+- `linux-cake`: Uses local `tc` commands for Linux CAKE qdiscs. Requires `cake_params` section. See [CAKE Parameters](#cake-parameters-linux-cake-transport) below.
+- `linux-cake-netlink`: Uses pyroute2/netlink for local CAKE writes, with automatic fallback to `tc` subprocess control when netlink is unavailable or fails.
 
 **SSL verification (REST transport):**
 
@@ -68,6 +69,18 @@ SSL certificate verification is enabled by default (`verify_ssl: true`). MikroTi
 2. **Install the router's CA certificate** on the wanctl host for proper verification.
 
 Disabling SSL verification is appropriate when the connection is on a trusted local network with no untrusted hops between wanctl and the router.
+
+#### `router.rate_limiter` (optional)
+
+Optional RouterOS write-rate guard. Invalid values warn and are ignored. Linux CAKE transports do not need RouterOS flash/API write protection for CAKE rate writes.
+
+```yaml
+router:
+  rate_limiter:
+    enabled: true        # default backend behavior
+    max_changes: 5       # maximum API changes per window
+    window_seconds: 10   # sliding window size
+```
 
 ```yaml
 # REST transport (default)
@@ -178,6 +191,29 @@ continuous_monitoring:
     factor_down: 0.90
 ```
 
+#### `continuous_monitoring.upload.asymmetry_gate` (optional)
+
+Upload-only delta attenuation gate for asymmetric one-way delay observations. Disabled by default. When enabled, it requires repeated asymmetric readings before damping upload delta input.
+
+| Field              | Type    | Default | Description                                                |
+| ------------------ | ------- | ------- | ---------------------------------------------------------- |
+| `enabled`          | boolean | `false` | Enable upload asymmetry gating                             |
+| `damping_factor`   | float   | `0.5`   | Multiplier applied to gated upload delta (`0.0`-`1.0`)     |
+| `min_ratio`        | float   | `3.0`   | Minimum one-way delay ratio before gate confirmation       |
+| `confirm_readings` | int     | `3`     | Consecutive readings required before attenuation (`1`-`10`) |
+| `staleness_sec`    | float   | `30.0`  | Ignore asymmetry observations older than this (`5`-`120`)  |
+
+```yaml
+continuous_monitoring:
+  upload:
+    asymmetry_gate:
+      enabled: false
+      damping_factor: 0.5
+      min_ratio: 3.0
+      confirm_readings: 3
+      staleness_sec: 30.0
+```
+
 #### `continuous_monitoring.thresholds`
 
 RTT threshold configuration for state transitions.
@@ -190,6 +226,7 @@ RTT threshold configuration for state transitions.
 | `baseline_time_constant_sec`   | number | seconds | Baseline EWMA time constant (higher = slower) |
 | `load_time_constant_sec`       | number | seconds | Load RTT EWMA time constant (lower = faster)  |
 | `baseline_update_threshold_ms` | number | ms      | Max delta for baseline updates (default: 3.0) |
+| `suppression_alert_threshold`  | int    | count   | Hysteresis suppressions per minute before warning (default: 20) |
 
 ```yaml
 continuous_monitoring:
@@ -199,6 +236,19 @@ continuous_monitoring:
     hard_red_bloat_ms: 80
     baseline_time_constant_sec: 2.5
     load_time_constant_sec: 0.25
+    suppression_alert_threshold: 20
+```
+
+#### `continuous_monitoring.warning_threshold_pct` (optional)
+
+- **Type:** number (`1.0`-`200.0`)
+- **Default:** `80.0`
+- **Hot reload:** yes
+- **Description:** Cycle-budget utilization percentage that triggers warning-level observability. This is an operator warning threshold, not a control-loop timing knob.
+
+```yaml
+continuous_monitoring:
+  warning_threshold_pct: 80.0
 ```
 
 #### `continuous_monitoring.ping_hosts`
@@ -295,10 +345,11 @@ logging:
 
 Operation timeout configuration.
 
-| Field         | Type   | Unit    | Description         |
-| ------------- | ------ | ------- | ------------------- |
-| `ssh_command` | number | seconds | SSH command timeout |
-| `ping`        | number | seconds | Per-ping timeout    |
+| Field         | Type   | Unit    | Default | Description                                                              |
+| ------------- | ------ | ------- | ------- | ------------------------------------------------------------------------ |
+| `ssh_command` | number | seconds | -       | SSH command timeout                                                      |
+| `tc_command`  | number | seconds | `5.0`   | Local `tc` operation timeout for `linux-cake` and `linux-cake-netlink`    |
+| `ping`        | number | seconds | -       | Per-ping timeout                                                         |
 
 ### `state_file`
 
@@ -330,16 +381,18 @@ Per-granularity data retention thresholds. Controls how long metrics data is kep
 
 | Field                      | Type | Default  | Description                                                               |
 | -------------------------- | ---- | -------- | ------------------------------------------------------------------------- |
-| `raw_age_seconds`          | int  | `3600`   | Raw samples kept for this many seconds (1 hour)                           |
+| `raw_age_seconds`          | int  | `900`    | Raw samples kept for this many seconds by code default                     |
 | `aggregate_1m_age_seconds` | int  | `86400`  | 1-minute aggregates kept for this many seconds (24h)                      |
 | `aggregate_5m_age_seconds` | int  | `604800` | 5-minute aggregates kept for this many seconds (7d)                       |
 | `prometheus_compensated`   | bool | `false`  | When true, uses shorter retention (Prometheus scrapes metrics externally) |
 
 When `prometheus_compensated` is `true`, `aggregate_5m_age_seconds` defaults to `172800` (48h) instead of `604800` (7d), since Prometheus retains its own long-term history.
 
+Storage uses SQLite in WAL mode. Hot-path metric writes are queued through a deferred background worker so controller timing is not blocked by disk I/O. Startup and periodic maintenance perform bounded downsampling, per-granularity cleanup, WAL checkpointing, and incremental vacuum. Per-WAN autorate deployments normally use files such as `/var/lib/wanctl/metrics-spectrum.db`; the history CLI can auto-discover `metrics-*.db` files and falls back to legacy `metrics.db` when needed.
+
 Current shipped production note:
 
-- `configs/spectrum.yaml` and `configs/att.yaml` currently ship the bounded profile
+- `configs/spectrum.yaml` and `configs/att.yaml` currently override the code default with the bounded profile
   `raw_age_seconds: 3600`, `aggregate_1m_age_seconds: 86400`,
   `aggregate_5m_age_seconds: 604800`, and `maintenance_interval_seconds: 900`.
 - That profile is a production choice for the active WAN configs, not a universal requirement
@@ -361,30 +414,34 @@ storage:
 
 ---
 
-## CAKE Parameters (linux-cake transport)
+## CAKE Parameters (Linux CAKE transports)
 
-### `cake_params` (required when `router.transport: "linux-cake"`)
+### `cake_params` (required when `router.transport` is `"linux-cake"` or `"linux-cake-netlink"`)
 
-Linux CAKE qdisc configuration for VM deployments (v1.21+). Only used when `router.transport` is `"linux-cake"`. The controller uses `tc` commands directly instead of RouterOS API.
+Linux CAKE qdisc configuration for bridge/VM deployments. `linux-cake` uses `tc` subprocess calls. `linux-cake-netlink` uses pyroute2/netlink for rate writes and falls back to `tc` subprocess control when needed.
 
 | Field                | Type   | Required | Description                                                           |
 | -------------------- | ------ | -------- | --------------------------------------------------------------------- |
 | `upload_interface`   | string | yes      | Network interface for upload CAKE qdisc (e.g., `"enp3s0"`)            |
 | `download_interface` | string | yes      | Network interface for download CAKE qdisc (e.g., `"enp4s0"`)          |
 | `overhead`           | string | no       | CAKE overhead keyword (e.g., `"docsis"`, `"ethernet"`, `"pppoe-ptm"`) |
+| `mpu`                | string | no       | Minimum packet unit passed through to CAKE (for example `"64"`)       |
 | `memlimit`           | string | no       | CAKE memory limit (e.g., `"32mb"`)                                    |
-| `rtt`                | string | no       | CAKE RTT target (e.g., `"100ms"`)                                     |
+| `rtt`                | string | no       | CAKE RTT target (e.g., `"100ms"` or `"40ms"`)                         |
+
+Additional CAKE keys are passed through to `tc` after known underscore-to-hyphen mapping for aliases such as `split_gso`, `ack_filter`, and `autorate_ingress`. The transparent bridge deployment excludes `nat`, `wash`, and `autorate-ingress`. Common optional keys include `diffserv`, `split_gso`, `ack_filter`, `ingress`, `ecn`, `memlimit`, and `rtt`.
 
 ```yaml
 router:
-  transport: "linux-cake"
+  transport: "linux-cake-netlink"
   host: "10.10.99.1" # Still used for steering mangle rules
 
 cake_params:
   upload_interface: "enp3s0"
   download_interface: "enp4s0"
   overhead: "docsis"
-  rtt: "100ms"
+  mpu: "64"
+  rtt: "40ms"
 ```
 
 ### `cake_optimization` (optional)
@@ -615,13 +672,56 @@ signal_processing:
 
 ---
 
+## CAKE Signal Detection
+
+### `cake_signal` (optional)
+
+Optional CAKE-derived congestion signal configuration. These settings are hot-reloadable and control how drop rate, backlog, and peak delay observations contribute to controller state and health payloads. Disabled sections are ignored.
+
+| Field                                 | Type    | Default | Description                                                       |
+| ------------------------------------- | ------- | ------- | ----------------------------------------------------------------- |
+| `enabled`                             | boolean | `false` | Enable CAKE signal processing                                     |
+| `drop_rate.enabled`                   | boolean | `false` | Enable drop-rate signal                                           |
+| `drop_rate.time_constant_sec`         | float   | `1.0`   | Drop-rate EWMA time constant, clamped `0.1`-`30.0`                |
+| `drop_rate.threshold_drops_per_sec`   | float   | `10.0`  | Drop-rate congestion threshold, clamped `1.0`-`1000.0`            |
+| `backlog.enabled`                     | boolean | `false` | Enable backlog signal                                             |
+| `backlog.threshold_bytes`             | int     | `10000` | Backlog threshold, clamped `100`-`10000000`                       |
+| `peak_delay.enabled`                  | boolean | `false` | Enable peak-delay signal                                          |
+| `metrics.enabled`                     | boolean | `false` | Record CAKE signal metrics                                        |
+| `detection.refractory_cycles`         | int     | `40`    | Minimum cycles between repeated detections, clamped `1`-`200`     |
+| `recovery.probe_multiplier`           | float   | `1.0`   | Recovery probe multiplier                                         |
+| `recovery.probe_ceiling_pct`          | float   | `0.95`  | Recovery probe ceiling as a fraction of configured ceiling        |
+
+```yaml
+cake_signal:
+  enabled: false
+  drop_rate:
+    enabled: false
+    time_constant_sec: 1.0
+    threshold_drops_per_sec: 10.0
+  backlog:
+    enabled: false
+    threshold_bytes: 10000
+  peak_delay:
+    enabled: false
+  metrics:
+    enabled: false
+  detection:
+    refractory_cycles: 40
+  recovery:
+    probe_multiplier: 1.0
+    probe_ceiling_pct: 0.95
+```
+
+---
+
 ## IRTT Measurement
 
 ### `irtt` (optional)
 
 IRTT (Isochronous Round-Trip Tester) UDP measurement configuration. Provides supplemental RTT, IPDV, and directional packet loss data independent of ICMP. Disabled by default.
 
-When enabled, IRTT runs short measurement bursts against a configured IRTT server. Results are available for observation and metrics but do not influence congestion control decisions (observation mode).
+When enabled, IRTT runs short measurement bursts against a configured IRTT server. Results are observation-only unless `fusion.enabled: true`; when fusion is enabled and IRTT data is fresh, IRTT can contribute to the congestion-control RTT input.
 
 | Field          | Type  | Default | Description                                                         |
 | -------------- | ----- | ------- | ------------------------------------------------------------------- |
@@ -639,6 +739,8 @@ When enabled, IRTT runs short measurement bursts against a configured IRTT serve
 **Graceful fallback:** When IRTT is unavailable (binary missing, server unreachable, timeout), the controller continues operating normally using ICMP measurements only. No errors, no degradation.
 
 **Multi-WAN production note:** On a shared host, do not point multiple WAN daemons at the same IRTT server unless you intentionally accept serialized same-target measurements. Prefer one IRTT server per WAN, or disable IRTT on the secondary WAN until a separate target is available.
+
+Same-target IRTT bursts are serialized with an advisory lock under `/run/wanctl` to avoid multiple WAN daemons probing one server at the same time. Any binary, server, timeout, parse, or lock failure returns no sample and falls back to ICMP-only operation for that cycle.
 
 ```yaml
 # Example: enable IRTT measurement
@@ -670,6 +772,7 @@ Rolling quality scoring for ICMP ping reflectors. When present, low-scoring refl
 | Field                | Type  | Default | Description                                                        |
 | -------------------- | ----- | ------- | ------------------------------------------------------------------ |
 | `min_score`          | float | `0.8`   | Score threshold below which reflectors are deprioritized (0.0-1.0) |
+| `window_size`        | int   | `50`    | Rolling sample window for scoring; minimum `10`                    |
 | `probe_interval_sec` | int   | `30`    | Seconds between recovery probes for deprioritized reflectors       |
 | `recovery_count`     | int   | `3`     | Consecutive successful probes required to restore a reflector      |
 
@@ -684,9 +787,12 @@ Graceful degradation when reflectors fail:
 # Example: custom reflector quality settings
 reflector_quality:
   min_score: 0.8 # Deprioritize below 80% success rate
+  window_size: 50 # Rolling scoring samples
   probe_interval_sec: 30 # Check deprioritized hosts every 30s
   recovery_count: 3 # 3 good probes to restore
 ```
+
+Deprioritization and recovery transitions are persisted to SQLite as reflector events for history and operator review.
 
 ---
 
@@ -732,6 +838,15 @@ Automatic fusion suspension and recovery based on ICMP-IRTT correlation quality.
 | `suspend_window_sec` | float | `60.0`   | Seconds to evaluate suspend condition (minimum 10.0)             |
 | `recover_window_sec` | float | `300.0`  | Seconds to evaluate recovery condition (minimum 30.0)            |
 | `grace_period_sec`   | float | `1800.0` | Cooldown after suspension before re-evaluation (0 = no cooldown) |
+| `min_signal_variance`| float | `0.1`    | Minimum variance before correlation-based healing decisions count |
+
+Fusion healer states:
+
+- `active`: fusion may operate when IRTT is fresh.
+- `suspended`: fusion is disabled because ICMP/IRTT delta correlation is poor.
+- `recovering`: correlation improved but must remain good before full recovery.
+
+During `suspended` and `recovering`, adaptive tuning of `fusion_icmp_weight` is locked so tuning cannot re-enable a bad signal path.
 
 **Runtime toggle:** Send `SIGUSR1` to the daemon process to enable/disable fusion without restart:
 
@@ -750,6 +865,7 @@ fusion:
     suspend_window_sec: 60.0
     recover_window_sec: 300.0
     grace_period_sec: 1800.0
+    min_signal_variance: 0.1
 
 # Example: disabled (default -- no section needed)
 # fusion:
@@ -785,7 +901,9 @@ Per-alert-type configuration overrides. Each key is an alert type name, value is
 | `enabled`      | bool   | no       | Override enabled state for this type             |
 | `cooldown_sec` | int    | no       | Override cooldown for this alert type            |
 
-**Built-in alert types:** `congestion_sustained`, `congestion_recovered`, `rate_floor_hit`, `rate_ceiling_hit`, `steering_activated`, `steering_deactivated`, `irtt_loss_upstream`, `irtt_loss_downstream`, `irtt_loss_recovered`
+Each fired alert passes through master enable, per-rule enable, per `(alert_type, wan)` cooldown, SQLite persistence, and optional asynchronous Discord webhook delivery. Webhook failures do not block the controller loop; delivery status is written back to alert history.
+
+**Built-in alert types:** `congestion_sustained_dl`, `congestion_sustained_ul`, `congestion_recovered_dl`, `congestion_recovered_ul`, `latency_regression`, `burst_churn_dl`, `baseline_drift`, `congestion_flapping`, `rate_floor_hit`, `rate_ceiling_hit`, `steering_activated`, `steering_deactivated`, `irtt_loss_upstream`, `irtt_loss_downstream`, `irtt_loss_recovered`, `fusion_suspended`, `fusion_recovering`, `fusion_recovered`
 
 ```yaml
 # Example: enable alerting with Discord webhook
@@ -795,7 +913,7 @@ alerting:
   default_cooldown_sec: 300
   default_sustained_sec: 60
   rules:
-    congestion_sustained:
+    congestion_sustained_dl:
       severity: "warning"
       cooldown_sec: 600
     rate_floor_hit:
@@ -830,6 +948,7 @@ The tuning engine runs a 4-layer round-robin rotation (one layer per tuning cycl
 | `cadence_sec`    | int   | `3600`  | Seconds between tuning cycles (minimum 600)           |
 | `lookback_hours` | int   | `24`    | Hours of metrics history to analyze (1-168)           |
 | `warmup_hours`   | int   | `1`     | Minimum hours of data before first tuning run (1-24)  |
+| `min_confidence` | float | `0.3`   | Skip candidate changes below this analyzer confidence (`0.0`-`1.0`) |
 | `max_step_pct`   | float | `10`    | Maximum percentage change per tuning cycle (1.0-50.0) |
 | `exclude_params` | list  | `[]`    | Parameter names to skip during autotuning             |
 | `bounds`         | map   | `{}`    | Per-parameter safety bounds (see below)               |
@@ -840,18 +959,24 @@ Per-parameter safety bounds. Each key is a parameter name, value is `{min: N, ma
 
 Supported parameters:
 
-| Parameter                | Unit    | Description                          | Typical Bounds            |
-| ------------------------ | ------- | ------------------------------------ | ------------------------- |
-| `target_bloat_ms`        | ms      | GREEN to YELLOW threshold            | `{min: 3, max: 30}`       |
-| `warn_bloat_ms`          | ms      | YELLOW to SOFT_RED threshold         | `{min: 10, max: 100}`     |
-| `hard_red_bloat_ms`      | ms      | SOFT_RED to RED threshold            | `{min: 30, max: 200}`     |
-| `load_time_constant_sec` | seconds | Load EWMA time constant              | `{min: 0.05, max: 5.0}`   |
-| `hampel_sigma`           | -       | Hampel filter sigma threshold        | `{min: 1.5, max: 5.0}`    |
-| `hampel_window`          | -       | Hampel filter window size            | `{min: 3, max: 21}`       |
-| `fusion_weight`          | 0-1     | ICMP weight in fusion blend          | `{min: 0.3, max: 0.95}`   |
-| `reflector_min_score`    | 0-1     | Reflector deprioritization threshold | `{min: 0.5, max: 0.95}`   |
-| `baseline_bounds_min`    | ms      | Minimum valid baseline RTT           | `{min: 1.0, max: 50.0}`   |
-| `baseline_bounds_max`    | ms      | Maximum valid baseline RTT           | `{min: 10.0, max: 200.0}` |
+| Parameter                 | Unit    | Description                          | Typical Bounds            |
+| ------------------------- | ------- | ------------------------------------ | ------------------------- |
+| `target_bloat_ms`         | ms      | GREEN to YELLOW threshold            | `{min: 3, max: 30}`       |
+| `warn_bloat_ms`           | ms      | YELLOW to SOFT_RED threshold         | `{min: 10, max: 100}`     |
+| `hard_red_bloat_ms`       | ms      | SOFT_RED to RED threshold            | `{min: 30, max: 200}`     |
+| `load_time_constant_sec`  | seconds | Load EWMA time constant              | `{min: 0.05, max: 5.0}`   |
+| `hampel_sigma_threshold`  | -       | Hampel filter sigma threshold        | `{min: 1.5, max: 5.0}`    |
+| `hampel_window_size`      | samples | Hampel filter window size            | `{min: 3, max: 21}`       |
+| `fusion_icmp_weight`      | 0-1     | ICMP weight in fusion blend          | `{min: 0.3, max: 0.95}`   |
+| `reflector_min_score`     | 0-1     | Reflector deprioritization threshold | `{min: 0.5, max: 0.95}`   |
+| `baseline_rtt_min`        | ms      | Minimum valid baseline RTT           | `{min: 1.0, max: 50.0}`   |
+| `baseline_rtt_max`        | ms      | Maximum valid baseline RTT           | `{min: 10.0, max: 200.0}` |
+| `dl_step_up_mbps`         | Mbps    | Download recovery step size          | deployment-specific       |
+| `ul_step_up_mbps`         | Mbps    | Upload recovery step size            | deployment-specific       |
+| `dl_factor_down`          | 0-1     | Download backoff factor              | deployment-specific       |
+| `ul_factor_down`          | 0-1     | Upload backoff factor                | deployment-specific       |
+| `dl_green_required`       | cycles  | Download sustained-green requirement | `{min: 1, max: 10}`       |
+| `ul_green_required`       | cycles  | Upload sustained-green requirement   | `{min: 1, max: 10}`       |
 
 **Safety features:**
 
@@ -867,6 +992,7 @@ tuning:
   cadence_sec: 3600 # Analyze every hour
   lookback_hours: 24 # Query last 24h of metrics
   warmup_hours: 1 # Wait 1h before first tuning
+  min_confidence: 0.3 # Skip low-confidence analyzer results
   max_step_pct: 10 # Max 10% change per cycle
   exclude_params: # Optional: skip autotuning for these params
     - target_bloat_ms # Recommended for DOCSIS cable links
@@ -878,7 +1004,7 @@ tuning:
     load_time_constant_sec: { min: 0.05, max: 5.0 }
 
 # View tuning history via CLI:
-# wanctl-history --db /var/lib/wanctl/wan1.db --tuning --duration 24h
+# wanctl-history --tuning --last 24h
 ```
 
 ---
@@ -938,7 +1064,7 @@ continuous_monitoring:
   enabled: true
   baseline_rtt_initial: 25
   download:
-    floor_red_mbps: 50
+    floor_mbps: 50
     ceiling_mbps: 500
     step_up_mbps: 5
     factor_down: 0.85
@@ -949,6 +1075,7 @@ continuous_monitoring:
     factor_down: 0.90
   thresholds:
     target_bloat_ms: 15
+    warn_bloat_ms: 45
     hard_red_bloat_ms: 80
     baseline_time_constant_sec: 2.5
     load_time_constant_sec: 0.25

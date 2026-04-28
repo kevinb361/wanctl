@@ -129,7 +129,7 @@ Deploy from your development machine to a target host:
 
 ## How It Works
 
-Every 50ms (configurable):
+Every 50ms by default:
 
 1. **Measure RTT** to reference hosts (1.1.1.1, 8.8.8.8, 9.9.9.9)
 2. **Track baseline** RTT via slow EWMA (only updates when idle)
@@ -171,7 +171,7 @@ wanctl has been optimized for extremely fast congestion response while maintaini
 
 - 40x faster than original 2-second baseline
 - Sub-second congestion detection (50-100ms response time)
-- Configurable via `CYCLE_INTERVAL_SECONDS` in source
+- Controlled by the `CYCLE_INTERVAL_SECONDS` source constant, not by YAML config
 
 **Router Efficiency:**
 
@@ -199,7 +199,7 @@ wanctl has been optimized for extremely fast congestion response while maintaini
 - ATT (DSL): ±1ms timing consistency
 - Spectrum (cable): ±10ms variance (acceptable for cable networks)
 
-The 50ms interval provides maximum responsiveness without sacrificing stability. For conservative deployments, 100ms or 250ms intervals can be configured while still providing 4-10x speed improvements over the original baseline.
+The 50ms interval provides maximum responsiveness without sacrificing stability. Conservative intervals such as 100ms or 250ms have historical validation context, but the active deployment standard is 50ms and the interval is not a YAML setting.
 
 ## Configuration
 
@@ -215,6 +215,12 @@ Example configs are provided for common connection types:
 | `steering.yaml.example` | Multi-WAN traffic steering       |
 
 Copy to `/etc/wanctl/` and customize for your setup. See [CONFIG_SCHEMA.md](docs/CONFIG_SCHEMA.md) for the complete configuration reference including alerting, fusion, IRTT, and adaptive tuning options.
+
+Additional references:
+
+- [SUBSYSTEMS.md](docs/SUBSYSTEMS.md) - storage, dashboard, backend, health, alerting, and measurement-quality internals
+- [TESTING.md](docs/TESTING.md) - current test commands and integration-test invocation
+- [DOCUMENTATION_AUDIT.md](docs/DOCUMENTATION_AUDIT.md) - documentation gaps found during the latest audit
 
 ## Directory Structure
 
@@ -277,7 +283,7 @@ curl http://127.0.0.1:9101/health
 {
   "status": "healthy",
   "uptime_seconds": 3600.5,
-  "version": "1.24.0",
+  "version": "<installed wanctl version>",
   "consecutive_failures": 0,
   "wan_count": 1,
   "wans": [
@@ -324,7 +330,15 @@ Prometheus-compatible metrics endpoint (disabled by default):
 curl http://127.0.0.1:9100/metrics
 ```
 
-**Metrics:** `wanctl_bandwidth_mbps`, `wanctl_rtt_delta_ms`, `wanctl_state`, `wanctl_cycles_total`
+Common metrics include `wanctl_bandwidth_mbps`, `wanctl_rtt_delta_ms`, `wanctl_state`, `wanctl_cycles_total`, storage pressure gauges, runtime pressure gauges, checkpoint/WAL counters, router update counters, ping failure counters, and steering counters.
+
+Stored SQLite history is also available through the autorate health server:
+
+```bash
+curl 'http://127.0.0.1:9101/metrics/history?range=1h&limit=20'
+```
+
+The history response includes `metadata.source` so operators can tell whether the data came from the endpoint-local daemon DB or merged DB discovery fallback.
 
 Enable in config:
 
@@ -361,24 +375,33 @@ This validates all sections including alerting, tuning, signal_processing, IRTT,
 
 ## CLI Tools
 
-wanctl ships with several CLI utilities for diagnostics and validation:
+wanctl ships with several CLI utilities for diagnostics, operations, and validation:
 
-| Tool                  | Purpose                                                        |
-| --------------------- | -------------------------------------------------------------- |
-| `wanctl-history`      | Query metrics, alerts, and tuning history from SQLite database |
-| `wanctl-check-config` | Validate config files offline (catches errors before deploy)   |
-| `wanctl-check-cake`   | Audit CAKE queue configuration on router against wanctl config |
-| `wanctl-benchmark`    | Run RRUL bufferbloat test and grade results                    |
+| Tool | Purpose | Example |
+| --- | --- | --- |
+| `wanctl` | Run the autorate daemon or one-shot validation modes | `wanctl --config /etc/wanctl/wan1.yaml` |
+| `wanctl-calibrate` | Measure baseline/throughput and generate a starter WAN config | `wanctl-calibrate --wan-name wan1 --router 192.168.1.1` |
+| `wanctl-steering` | Run the optional multi-WAN steering daemon | `wanctl-steering --config /etc/wanctl/steering.yaml` |
+| `wanctl-dashboard` | Open the terminal monitoring dashboard | `wanctl-dashboard --autorate-url http://127.0.0.1:9101` |
+| `wanctl-operator-summary` | Render compact health summaries from health JSON URLs/files | `wanctl-operator-summary http://host:9101/health` |
+| `wanctl-history` | Query metrics, alerts, tuning, and per-tin history from SQLite | `wanctl-history --last 1h --metrics wanctl_rtt_ms --json` |
+| `wanctl-check-config` | Validate config files offline before deploy | `wanctl-check-config /etc/wanctl/wan1.yaml` |
+| `wanctl-check-cake` | Audit live CAKE queue config; `--fix` mutates router state | `wanctl-check-cake /etc/wanctl/wan1.yaml` |
+| `wanctl-benchmark` | Run RRUL benchmark, store results, compare/list past runs | `wanctl-benchmark --quick --label before-change` |
+| `wanctl-analyze-baseline` | Summarize CAKE signal baselines and state transitions | `wanctl-analyze-baseline --hours 24 --wan spectrum` |
 
 ```bash
 # Query recent metrics history
-wanctl-history --db /var/lib/wanctl/wan1.db --duration 1h
+wanctl-history --last 1h --metrics wanctl_rtt_ms
 
 # View alert history
-wanctl-history --db /var/lib/wanctl/wan1.db --alerts --duration 24h
+wanctl-history --alerts --last 24h
 
 # View tuning adjustment history
-wanctl-history --db /var/lib/wanctl/wan1.db --tuning --duration 24h
+wanctl-history --tuning --last 24h
+
+# View CAKE tin history as JSON
+wanctl-history --tins --last 1h --json
 
 # Validate config before deploying
 wanctl-check-config /etc/wanctl/wan1.yaml
@@ -387,8 +410,11 @@ wanctl-check-config /etc/wanctl/wan1.yaml
 wanctl-check-cake /etc/wanctl/wan1.yaml
 
 # Run RRUL benchmark
-wanctl-benchmark --config /etc/wanctl/wan1.yaml --server netperf-server
+wanctl-benchmark --server netperf-server --wan wan1 --label post-deploy
+wanctl-benchmark history --last 24h --wan wan1
 ```
+
+By default, `wanctl-history` auto-discovers active per-WAN metrics DBs under `/var/lib/wanctl`. Use `--db PATH` only when inspecting a specific database file.
 
 ## Real-World Test: Congestion Response
 
@@ -422,7 +448,7 @@ The entire event was handled automatically in under 90 seconds with no user inte
 
 ## Adding Router Backend Support
 
-wanctl is designed to support multiple router platforms. Currently only RouterOS is implemented, but the architecture allows adding others.
+wanctl is designed to support multiple shaping backends. Current backends include RouterOS REST/SSH and local Linux CAKE control via `tc` or optional pyroute2/netlink.
 
 To add a new backend (e.g., OpenWrt, pfSense):
 

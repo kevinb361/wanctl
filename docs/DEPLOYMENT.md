@@ -118,14 +118,14 @@ time to run, compact them explicitly during a controlled restart window:
 
 ```bash
 ./scripts/compact-metrics-dbs.sh --ssh <target_host>
-./scripts/canary-check.sh --ssh <target_host> --expect-version 1.37.0
+./scripts/canary-check.sh --ssh <target_host> --expect-version <deployed-version>
 ```
 
 If only ATT remains above the expected footprint while Spectrum is already below baseline, use:
 
 ```bash
 ./scripts/compact-metrics-dbs.sh --ssh <target_host> --wan att
-./scripts/canary-check.sh --ssh <target_host> --expect-version 1.37.0 --json
+./scripts/canary-check.sh --ssh <target_host> --expect-version <deployed-version> --json
 ./scripts/soak-monitor.sh --json
 ```
 

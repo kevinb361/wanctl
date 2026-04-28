@@ -22,10 +22,10 @@ wan_name: "wan1"
 
 # Router connection settings
 router:
-  transport: "ssh" # Transport: "ssh" (default) or "rest"
+  transport: "rest" # Default; use "ssh" for Paramiko/RouterOS SSH
   host: "192.168.1.1" # Router IP or hostname
   user: "admin" # SSH username
-  ssh_key: "/etc/wanctl/ssh/router.key" # Path to SSH private key (for ssh transport)
+  ssh_key: "/etc/wanctl/ssh/router.key" # Currently required by validation, even for REST configs
   # password: "${ROUTER_PASSWORD}"       # REST API password (for rest transport)
   port: 443
   verify_ssl: false
@@ -92,6 +92,7 @@ lock_timeout: 300 # seconds
 # Timeouts
 timeouts:
   ssh_command: 15 # SSH command timeout (seconds)
+  tc_command: 5 # Local tc command timeout for linux-cake transports
   ping: 1 # Per-ping timeout (seconds)
 
 # State file location
@@ -225,3 +226,16 @@ The config loader validates:
 - Thresholds are logically ordered
 
 Invalid configs will fail with descriptive error messages.
+
+## Additional Production Sections
+
+The representative schema above covers the core autorate path. Production configs may also include:
+
+- `cake_signal`: optional CAKE drop/backlog/peak-delay signals used by the controller and health payload.
+- `storage`: SQLite metrics, alert, benchmark, reflector event, and tuning history retention settings.
+- `irtt`, `reflector_quality`, `owd_asymmetry`, and `fusion`: supplemental measurement-quality stack.
+- `alerting`: Discord webhook alert delivery and per-alert cooldowns.
+- `tuning`: adaptive runtime parameter tuning with safety bounds.
+- `cake_params`: required for `linux-cake` and `linux-cake-netlink` transports.
+
+See [CONFIG_SCHEMA.md](CONFIG_SCHEMA.md) for the exhaustive key reference and [SUBSYSTEMS.md](SUBSYSTEMS.md) for operational details.

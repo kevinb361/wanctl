@@ -16,11 +16,13 @@ If you manage the virtualenv manually, create `.venv` and install the dev depend
 
 [`pyproject.toml`](/home/kevin/projects/wanctl/pyproject.toml) configures pytest with:
 
-- `-n auto` for parallel execution
-- `--timeout=2`
+- `--cov-config=pyproject.toml`
+- `--timeout=30`
+- `-m 'not integration'`
+- `timeout_method = "thread"`
 - coverage settings under `[tool.coverage.*]`
 
-That means plain `pytest` runs already inherit xdist and per-test timeouts unless you override them.
+Plain `pytest` and Makefile pytest targets therefore exclude tests marked `integration` unless you explicitly override `addopts`.
 
 ## Fast Test Commands
 
@@ -37,12 +39,12 @@ make ci
 
 What each target does:
 
-- `make test`: `pytest tests/ -v`
-- `make coverage`: runs pytest with terminal and HTML coverage output
-- `make coverage-check`: enforces the 90% coverage threshold
-- `make lint`: `ruff check src/ tests/`
-- `make type`: `mypy src/wanctl/`
-- `make ci`: lint, type, coverage enforcement, dead-code checks, dependency checks, boundary checks, and brittleness checks
+- `make test`: `.venv/bin/pytest tests/ -v`
+- `make coverage`: `.venv/bin/pytest tests/ --cov=src --cov=tests --cov-report=term-missing --cov-report=html`
+- `make coverage-check`: `.venv/bin/pytest tests/ --cov=src --cov-report=term-missing --cov-fail-under=90 -p no:randomly`
+- `make lint`: `.venv/bin/ruff check src/ tests/`
+- `make type`: `.venv/bin/mypy src/wanctl/`
+- `make ci`: `lint`, `type`, `coverage-check`, `dead-code`, `check-deps`, `check-boundaries`, and `check-brittleness`
 
 ## Running Specific Test Areas
 
@@ -61,17 +63,24 @@ pytest tests/backends/ -v
 
 Top-level tests cover the core controller and utility modules under `src/wanctl/`. Subdirectories under `tests/` cover larger feature areas such as steering, adaptive tuning, dashboard UI, storage, backends, and integration validation.
 
+`tests/backends/` covers router backend contracts and Linux CAKE implementations, including RouterOS-compatible APIs, `tc`-based CAKE control, netlink CAKE control, queue stats, validation, and fallback behavior.
+
+`tests/dashboard/` covers the Textual dashboard app, widgets, layout switching, history browser/state classification, endpoint polling/backoff, config loading, and dashboard entry point wiring.
+
 ## Integration Tests
 
-Integration coverage lives in [`tests/integration/test_latency_control.py`](/home/kevin/projects/wanctl/tests/integration/test_latency_control.py).
+Integration coverage lives in [`tests/integration/test_latency_control.py`](/home/kevin/projects/wanctl/tests/integration/test_latency_control.py) and [`tests/integration/test_flapping_integration.py`](/home/kevin/projects/wanctl/tests/integration/test_flapping_integration.py).
+
+Integration tests are excluded by default by `pyproject.toml` via `-m 'not integration'`. Run them by clearing pytest addopts:
 
 Common entry points:
 
 ```bash
-pytest tests/integration/test_latency_control.py -k quick -v
-pytest tests/integration/test_latency_control.py -k standard -v
-pytest tests/integration/test_latency_control.py -k standard --with-controller -v
-WANCTL_TEST_HOST=192.168.1.100 pytest tests/integration/test_latency_control.py -v
+pytest -o addopts='' tests/integration/test_latency_control.py -k quick -v
+pytest -o addopts='' tests/integration/test_latency_control.py -k standard -v
+pytest -o addopts='' tests/integration/test_latency_control.py -k standard --with-controller -v
+WANCTL_TEST_HOST=192.168.1.100 pytest -o addopts='' tests/integration/test_latency_control.py -v
+pytest -o addopts='' tests/integration/test_flapping_integration.py -v
 ```
 
 Requirements checked by [`tests/integration/conftest.py`](/home/kevin/projects/wanctl/tests/integration/conftest.py):
