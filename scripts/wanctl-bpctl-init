@@ -4,13 +4,14 @@ set -eu
 MODULE=${MODULE:-/opt/bpctl-silicom/bpctl_mod.ko}
 DEV=${DEV:-/dev/bpctl0}
 
-if [ ! -r "$MODULE" ]; then
-  echo "missing bpctl module: $MODULE" >&2
-  exit 1
-fi
-
 if ! /usr/sbin/lsmod | /usr/bin/awk '{print $1}' | /bin/grep -qx bpctl_mod; then
-  /sbin/insmod "$MODULE"
+  if ! /sbin/modprobe bpctl_mod 2>/dev/null; then
+    if [ ! -r "$MODULE" ]; then
+      echo "missing bpctl module: $MODULE" >&2
+      exit 1
+    fi
+    /sbin/insmod "$MODULE"
+  fi
 fi
 
 major=""
