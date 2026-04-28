@@ -1,11 +1,11 @@
 # wanctl
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
-[![Coverage](https://img.shields.io/badge/coverage-91%25_threshold-brightgreen)](coverage-report/index.html)
+[![Coverage Gate](https://img.shields.io/badge/coverage_gate-90%25-brightgreen)](pyproject.toml)
 
-**Adaptive CAKE bandwidth control for Mikrotik RouterOS.**
+**Adaptive CAKE bandwidth control for MikroTik RouterOS and Linux CAKE backends.**
 
-Reduces bufferbloat by continuously monitoring RTT and adjusting queue limits in real-time. Supports multi-WAN with optional intelligent traffic steering.
+Reduces bufferbloat by continuously monitoring RTT and adjusting CAKE bandwidth limits in real time. Supports multi-WAN RouterOS deployments with optional intelligent traffic steering.
 
 ## Features
 
@@ -24,7 +24,7 @@ Reduces bufferbloat by continuously monitoring RTT and adjusting queue limits in
 - **IRTT measurement** - Isochronous UDP RTT with directional loss detection and OWD asymmetry analysis
 - **Reflector quality scoring** - Rolling quality scores with automatic deprioritization and recovery
 - **Adaptive tuning** - Self-optimizing controller learns optimal parameters from production metrics
-- **Alerting** - Discord webhook notifications for congestion, rate changes, IRTT loss events
+- **Alerting** - Discord webhook notifications for congestion, hard-red, connectivity, IRTT loss, fusion healing, and cycle-budget events
 - **TUI dashboard** - Real-time terminal dashboard with sparklines and history browser
 - **CLI tools** - Config validation, CAKE queue audit, RRUL benchmarking, metrics/alert/tuning history
 
@@ -32,9 +32,9 @@ Reduces bufferbloat by continuously monitoring RTT and adjusting queue limits in
 
 ### Prerequisites
 
-- Mikrotik router running RouterOS 7.x with CAKE queues configured
+- MikroTik router running RouterOS 7.x with CAKE queues configured, or Linux CAKE qdiscs for `linux-cake` transports
 - Linux host (LXC container, VM, or bare metal) with Python 3.11+
-- REST API enabled on router (recommended) or SSH key authentication
+- For RouterOS control: REST API enabled on the router (recommended) or SSH key authentication
 
 ### Installation
 
@@ -92,12 +92,13 @@ router:
   transport: "rest"
   host: "192.168.1.1"
   user: "admin"
+  ssh_key: "/etc/wanctl/ssh/router.key" # Currently required by base validation
   password: "${ROUTER_PASSWORD}" # Expanded from /etc/wanctl/secrets
   port: 443
   verify_ssl: false
 ```
 
-The password is never stored in the config file - systemd loads `/etc/wanctl/secrets` via `EnvironmentFile` and the `${VAR}` syntax is expanded at runtime.
+The plaintext password is not stored in the config file - systemd loads `/etc/wanctl/secrets` via `EnvironmentFile` and the `${VAR}` syntax is expanded at runtime.
 
 **SSH (alternative):**
 
@@ -135,7 +136,7 @@ Every 50ms by default:
 2. **Track baseline** RTT via slow EWMA (only updates when idle)
 3. **Calculate delta** = loaded_rtt - baseline_rtt
 4. **Determine state** based on delta thresholds
-5. **Adjust bandwidth** limits on RouterOS CAKE queues
+5. **Adjust bandwidth** limits on the configured CAKE backend
 6. **Apply floors** based on current state (policy enforcement)
 
 ### State Machine
@@ -182,7 +183,7 @@ wanctl has been optimized for extremely fast congestion response while maintaini
 **Time-Constant Preservation:**
 
 - EWMA alpha values automatically scale with interval changes
-- Steering thresholds maintain wall-clock behavior (16s activation, 30s recovery)
+- Steering hysteresis uses configured sample counts to maintain stable activation and recovery timing
 - Same congestion response characteristics regardless of polling rate
 
 **Validation:**
@@ -462,7 +463,7 @@ See `src/wanctl/backends/base.py` for the interface definition.
 
 ### Dave Täht (1965-2025) - In Memoriam
 
-This project stands on the shoulders of **Dave Täht**, pioneer of the bufferbloat movement and lead developer of CAKE. Dave personally helped configure CAKE on Mikrotik in the early days:
+This project stands on the shoulders of **Dave Täht**, pioneer of the bufferbloat movement and lead developer of CAKE. Dave personally helped configure CAKE on MikroTik in the early days:
 
 - [Forum thread: Some quick comments on configuring CAKE](https://forum.mikrotik.com/t/some-quick-comments-on-configuring-cake/) (October-November 2021)
 
@@ -473,7 +474,7 @@ His work on CAKE, fq_codel, and the bufferbloat project benefits millions of int
 - **CAKE team** - Jonathan Morton, Toke Høiland-Jørgensen, and contributors
 - **LibreQoS** - Robert McMahon and team for enterprise-grade CAKE orchestration
 - **sqm-autorate** - Lynx and the OpenWrt community for automatic SQM tuning
-- **Mikrotik** - For implementing CAKE in RouterOS
+- **MikroTik** - For implementing CAKE in RouterOS
 
 ### AI Transparency
 
@@ -483,7 +484,7 @@ This project was developed with assistance from **Claude** (Anthropic). The arch
 
 **This is a power-user tool, not enterprise software.**
 
-Built by a sysadmin for personal use, now shared with the community. Not competing with LibreQoS - just a well-engineered solution for Mikrotik users who want adaptive CAKE tuning.
+Built by a sysadmin for personal use, now shared with the community. Not competing with LibreQoS - just a well-engineered solution for MikroTik users who want adaptive CAKE tuning.
 
 **Target audience:** Power users, sysadmins, and homelabbers who can read configs and adapt.
 

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- v1.40 queue-primary signal arbitration work from Phases 193-197: additive `/health.signal_arbitration` surfacing, queue-delay arbitration metrics, DL queue-primary distress classification, RTT-confidence demotion, and fusion-healer containment.
+- Phase 197 refractory arbitration observability, including `queue_during_refractory` and `rtt_fallback_during_refractory` reason values plus the `wanctl_arbitration_refractory_active` metric.
+- Phase 198 Spectrum cake-primary B-leg rerun evidence workflow started against the Phase 197 build.
+
+### Changed
+
+- DL CAKE handling now separates refractory-masked detection input from live arbitration input so Phase 160 cascade safety can coexist with queue-primary arbitration during refractory windows.
+
+### Known Gaps
+
+- v1.40 remains unreleased: `.planning/v1.40-MILESTONE-AUDIT.md` records `VALN-04` and `VALN-05` as unsatisfied, with Phase 196 blocked by Spectrum throughput failure and ATT canary gating on Phase 191 closure.
+- `wanctl_rtt_confidence` metric emission is still gated on non-`None` confidence, which differs from the v1.40 OBS-02 wording that described per-cycle emission.
+
 ## [1.39.0] - 2026-04-24
 
 ### Added
@@ -19,7 +34,154 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Guarded `WANController.measure_rtt()` so only real `RTTCycleStatus` objects enter the zero-success blackout path, preserving compatibility with existing background-thread test doubles.
 
-## [1.26.0] - 2026-04-02
+## [1.38.0] - 2026-04-15
+
+### Added
+
+- Explicit measurement-health contract for degraded RTT conditions, including machine-readable reflector quorum and stale/current cycle status on the health surface.
+- Replayable operator verification and traceability artifacts for correlating measurement degradation with controller behavior.
+
+### Fixed
+
+- Zero-success cached-RTT honesty gap: current-cycle RTT status now reflects degraded measurement without overwriting cached RTT or changing the existing stale-cache fallback cutoff.
+
+### Verified
+
+- `.planning/v1.38-MILESTONE-AUDIT.md` records 8/8 requirements, 5/5 phases, 5/5 integration checks, and 4/4 flows complete, with only non-blocking validation-document debt.
+
+## [1.37.0] - 2026-04-14
+
+### Added
+
+- Dashboard History tab source framing for endpoint-local HTTP history, translated `metadata.source` detail, and an immutable merged-CLI handoff.
+- Regression coverage for success, fetch-error, source-missing, mode-missing, and db-paths-missing history states.
+
+### Changed
+
+- Deployment, runbook, and getting-started docs now use the same endpoint-local HTTP versus authoritative merged CLI history wording.
+
+### Verified
+
+- `.planning/v1.37-MILESTONE-AUDIT.md` records 5/5 requirements, 3/3 phases, 4/4 integration checks, and 4/4 flows passed with no tech debt.
+
+## [1.36.0] - 2026-04-14
+
+### Added
+
+- Repeatable operator proof path for DB inventory, `storage.status`, and merged CLI history checks.
+- Explicit documentation of CLI merged history versus endpoint-local `/metrics/history` reader roles.
+
+### Changed
+
+- Per-WAN retention and storage-maintenance flow aligned with the actual production DB topology without changing controller semantics.
+
+### Fixed
+
+- Startup/watchdog regression caused by heavy pre-health storage work during footprint-reduction rollout.
+- ATT per-WAN footprint reduced from about `5.08 GB` to about `202 MB`, satisfying `STOR-06` after the ATT-only compaction run.
+
+### Verified
+
+- `.planning/v1.36-MILESTONE-AUDIT.md` records 5/5 requirements, 6/6 phases, 5/5 integration checks, and 5/5 flows complete, with dashboard history source surfacing carried as non-blocking debt.
+
+## [1.35.0] - 2026-04-13
+
+### Added
+
+- Storage, deploy, canary, operator-summary, and soak-flow evidence coverage for Spectrum, ATT, and `steering.service`.
+- Deployment and soak documentation aligned to the active service-based production flow.
+
+### Fixed
+
+- Per-WAN metrics storage handling, periodic SQLite maintenance, and production `analyze_baseline` deploy path issues from the v1.34 storage fallout.
+
+### Verified
+
+- Clean production deploy through the active service flow, passing canary coverage, healthy operator surfaces, and 24-hour soak closeout with no critical requirement or end-to-end flow gaps.
+- `.planning/v1.35-MILESTONE-AUDIT.md` records 6/6 requirements, 5/5 phases, 4/4 integration checks, and 3/3 flows complete, with only non-blocking Nyquist/documentation debt.
+
+## [1.34.0] - 2026-04-12
+
+### Added
+
+- Bounded latency-regression, burst-churn, storage-pressure, and runtime-pressure visibility on existing autorate/operator surfaces.
+- Compact operator summary surfaces and a post-deploy canary script with offline fixture coverage.
+- Operator threshold runbook for alert interpretation, health summaries, canary exit codes, and escalation guidance.
+
+### Fixed
+
+- Storage-status false positive found during live canary validation.
+
+## [1.33.0] - 2026-04-11
+
+### Added
+
+- Production threshold sweep based on a 24-hour idle baseline instead of anecdotal load behavior.
+- Storage-contention observability for autorate and steering while preserving the shared SQLite topology.
+
+### Changed
+
+- Five CAKE detection and recovery parameters were A/B tested under RRUL and deployed together after a 24-hour production soak.
+- Burst-aware clamp behavior and health/Prometheus observability were retuned to bring `tcp_12down` p99 out of the multi-second range without regressing `rrul_be`.
+
+## [1.32.0] - 2026-04-10
+
+### Added
+
+- CAKE-aware zone classification with dwell bypass on elevated drop rate and green-streak suppression on elevated backlog.
+- Refractory-period anti-oscillation with CAKE snapshot wiring, YAML threshold parsing, and health endpoint detection state.
+- Exponential rate recovery probing with CAKE signal guards.
+
+### Fixed
+
+- MagicMock JSON serialization leak identified in the milestone accomplishments.
+
+## [1.29.0] - 2026-04-08
+
+### Added
+
+- Dead-code, dependency-import, config-key, AST boundary, parallel-test, and brittleness gates across CI/developer workflows.
+- Runtime-checkable protocol definitions and public facade APIs for controller/module boundaries.
+
+### Changed
+
+- Decomposed the autorate monolith into focused controller/config/router modules, extracted `WANController`, split CLI tool modules, and reduced major lifecycle/health functions into smaller helpers.
+- Moved storage, tuning, steering, backend, and dashboard tests into mirrored package structures with shared fixtures.
+
+### Fixed
+
+- Ruff, mypy, MagicMock, router config, and private-boundary violations surfaced by the v1.29 cleanup work.
+
+## [1.28.0] - 2026-04-05
+
+### Added
+
+- Bridge QoS with nftables DSCP classification into CAKE diffserv4 Voice, Bulk, and BestEffort tins on Spectrum and ATT bridges.
+- Infrastructure IRQ, netdev, SFP+, and ZeroTier binding optimizations for the cake-shaper VM.
+
+### Changed
+
+- Spectrum bridge IRQ load split across CPU0 and CPU2, switch IRQ load rebalanced, and netdev budget doubled.
+
+### Fixed
+
+- ZeroTier wireguard binding issue that caused sustained TX errors; restricting binding to WAN/LAN interfaces reduced the error rate to zero.
+
+## [1.27.0] - 2026-04-03
+
+### Added
+
+- `run_cycle` sub-timers and health endpoint subsystem breakdown for cycle-budget diagnosis.
+- Background RTT measurement thread with persistent `ThreadPoolExecutor` and atomic latest-sample handoff.
+- Cycle-budget health status and Discord alerting for sustained overruns.
+- Per-tin CAKE packet validation for DSCP mark survival.
+- Windowed suppression counter and alerting during congestion.
+
+### Changed
+
+- RTT measurement moved out of the hot control loop, eliminating the measured 42ms blocking I/O source from the 50ms cycle path.
+
+## [1.26.0] - 2026-04-03
 
 **Tuning Validation** - Re-tested all tuning parameters on linux-cake transport after
 REST-to-linux-cake backend switch. 49 RRUL flent runs across 5 phases. Confirmation pass
