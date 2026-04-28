@@ -144,16 +144,17 @@ Do not reintroduce timer-era guidance into active docs or scripts.
 **Startup Maintenance:** watchdog-safe, time-budgeted cleanup/downsampling
 **Periodic Maintenance:** background cleanup and retention work must remain bounded
 
-See `docs/PRODUCTION_INTERVAL.md` for deeper background.
+See `docs/PERFORMANCE.md` for deeper background.
 
 ## Documentation
 
 Primary references:
 
 - `README.md`
+- `docs/README.md`
 - `docs/GETTING-STARTED.md`
 - `docs/CONFIGURATION.md`
 - `docs/TESTING.md`
 - `docs/DEPLOYMENT.md`
 - `docs/STEERING.md`
-- `docs/TRANSPORT_COMPARISON.md`
+- `docs/PERFORMANCE.md`

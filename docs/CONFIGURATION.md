@@ -238,4 +238,4 @@ The representative schema above covers the core autorate path. Production config
 - `tuning`: adaptive runtime parameter tuning with safety bounds.
 - `cake_params`: required for `linux-cake` and `linux-cake-netlink` transports.
 
-See [CONFIG_SCHEMA.md](CONFIG_SCHEMA.md) for the exhaustive key reference and [SUBSYSTEMS.md](SUBSYSTEMS.md) for operational details.
+See [CONFIG_SCHEMA.md](CONFIG_SCHEMA.md) for the exhaustive key reference, [SUBSYSTEMS.md](SUBSYSTEMS.md) for operational internals, and [PERFORMANCE.md](PERFORMANCE.md) for timing and cycle-budget guidance.

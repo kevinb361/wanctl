@@ -38,7 +38,7 @@ cp configs/examples/wan1.yaml.example /tmp/wan1.yaml
 
 ## 3. Install on the Target Host
 
-The supported installer is [`scripts/install.sh`](/home/kevin/projects/wanctl/scripts/install.sh). It creates the service user, FHS-style directories, secrets file, and systemd integration.
+The supported installer is [`scripts/install.sh`](../scripts/install.sh). It creates the service user, FHS-style directories, secrets file, and systemd integration.
 
 Interactive install:
 
@@ -117,8 +117,8 @@ If validation cannot infer the config type, pass `--type autorate` or `--type st
 ## 6. Start the Controller
 
 `wanctl` currently runs as a long-lived systemd service. Both
-[`scripts/install.sh`](/home/kevin/projects/wanctl/scripts/install.sh) and
-[`scripts/install-systemd.sh`](/home/kevin/projects/wanctl/scripts/install-systemd.sh)
+[`scripts/install.sh`](../scripts/install.sh) and
+[`scripts/install-systemd.sh`](../scripts/install-systemd.sh)
 prepare or enable the same `wanctl@<wan>.service` unit.
 
 Start and verify it with:
@@ -138,11 +138,11 @@ sudo systemctl disable --now steering.timer 2>/dev/null || true
 ```
 
 The checked-in unit template is
-[`deploy/systemd/wanctl@.service`](/home/kevin/projects/wanctl/deploy/systemd/wanctl@.service).
+[`deploy/systemd/wanctl@.service`](../deploy/systemd/wanctl@.service).
 
 ## 7. Optional Remote Deployment
 
-If you are deploying from a workstation to a target host over SSH, use [`scripts/deploy.sh`](/home/kevin/projects/wanctl/scripts/deploy.sh):
+If you are deploying from a workstation to a target host over SSH, use [`scripts/deploy.sh`](../scripts/deploy.sh):
 
 ```bash
 ./scripts/deploy.sh wan1 target-host
@@ -234,7 +234,8 @@ Then test access manually with the same identity you configured in the YAML.
 
 ## Related Docs
 
-- [`README.md`](/home/kevin/projects/wanctl/README.md)
-- [`docs/CONFIGURATION.md`](/home/kevin/projects/wanctl/docs/CONFIGURATION.md)
-- [`DEVELOPMENT.md`](/home/kevin/projects/wanctl/DEVELOPMENT.md)
-- [`docs/TESTING.md`](/home/kevin/projects/wanctl/docs/TESTING.md)
+- [`docs/README.md`](README.md)
+- [`../README.md`](../README.md)
+- [`CONFIGURATION.md`](CONFIGURATION.md)
+- [`../DEVELOPMENT.md`](../DEVELOPMENT.md)
+- [`TESTING.md`](TESTING.md)

@@ -4,7 +4,7 @@ This project has a large pytest suite plus Makefile targets for coverage, static
 
 ## Environment Setup
 
-The development toolchain is defined in [`pyproject.toml`](/home/kevin/projects/wanctl/pyproject.toml). The simplest setup is:
+The development toolchain is defined in [`pyproject.toml`](../pyproject.toml). The simplest setup is:
 
 ```bash
 uv sync --group dev
@@ -14,7 +14,7 @@ If you manage the virtualenv manually, create `.venv` and install the dev depend
 
 ## Default Pytest Behavior
 
-[`pyproject.toml`](/home/kevin/projects/wanctl/pyproject.toml) configures pytest with:
+[`pyproject.toml`](../pyproject.toml) configures pytest with:
 
 - `--cov-config=pyproject.toml`
 - `--timeout=30`
@@ -26,7 +26,7 @@ Plain `pytest` and Makefile pytest targets therefore exclude tests marked `integ
 
 ## Fast Test Commands
 
-Use the targets in [`Makefile`](/home/kevin/projects/wanctl/Makefile):
+Use the targets in [`Makefile`](../Makefile):
 
 ```bash
 make test
@@ -69,7 +69,7 @@ Top-level tests cover the core controller and utility modules under `src/wanctl/
 
 ## Integration Tests
 
-Integration coverage lives in [`tests/integration/test_latency_control.py`](/home/kevin/projects/wanctl/tests/integration/test_latency_control.py) and [`tests/integration/test_flapping_integration.py`](/home/kevin/projects/wanctl/tests/integration/test_flapping_integration.py).
+Integration coverage lives in [`tests/integration/test_latency_control.py`](../tests/integration/test_latency_control.py) and [`tests/integration/test_flapping_integration.py`](../tests/integration/test_flapping_integration.py).
 
 Integration tests are excluded by default by `pyproject.toml` via `-m 'not integration'`. Run them by clearing pytest addopts:
 
@@ -83,7 +83,7 @@ WANCTL_TEST_HOST=192.168.1.100 pytest -o addopts='' tests/integration/test_laten
 pytest -o addopts='' tests/integration/test_flapping_integration.py -v
 ```
 
-Requirements checked by [`tests/integration/conftest.py`](/home/kevin/projects/wanctl/tests/integration/conftest.py):
+Requirements checked by [`tests/integration/conftest.py`](../tests/integration/conftest.py):
 
 - `flent` or `netperf`
 - `fping` or `ping`
@@ -100,7 +100,7 @@ pytest -m "not slow"
 ## Live Router Communication Smoke Test
 
 For a real router communication check against production-style config, use
-[`wanctl-check-cake`](/home/kevin/projects/wanctl/src/wanctl/check_cake.py). This is the
+[`wanctl-check-cake`](../src/wanctl/check_cake.py). This is the
 lowest-risk live integration smoke path because it exercises transport,
 authentication, and basic RouterOS reads without changing shaping state unless
 you explicitly pass `--fix`.
@@ -179,6 +179,6 @@ xdg-open coverage-report/index.html
 
 ## Related Docs
 
-- [`DEVELOPMENT.md`](/home/kevin/projects/wanctl/DEVELOPMENT.md)
-- [`docs/GETTING-STARTED.md`](/home/kevin/projects/wanctl/docs/GETTING-STARTED.md)
-- [`docs/CONFIGURATION.md`](/home/kevin/projects/wanctl/docs/CONFIGURATION.md)
+- [`DEVELOPMENT.md`](../DEVELOPMENT.md)
+- [`GETTING-STARTED.md`](GETTING-STARTED.md)
+- [`CONFIGURATION.md`](CONFIGURATION.md)

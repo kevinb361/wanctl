@@ -1,7 +1,7 @@
 # Deployment
 
 This guide covers the current `wanctl` deployment flow built around the service units in
-[`deploy/systemd/`](/home/kevin/projects/wanctl/deploy/systemd).
+[`deploy/systemd/`](../deploy/systemd/).
 
 ## Automated Remote Deployment
 
@@ -137,7 +137,7 @@ To prepare a host without copying code yet:
 ./scripts/deploy.sh --install-only <target_host>
 ```
 
-That runs [`scripts/install.sh`](/home/kevin/projects/wanctl/scripts/install.sh) remotely to create the
+That runs [`scripts/install.sh`](../scripts/install.sh) remotely to create the
 service user, directories, and base systemd integration.
 
 ## Manual Deployment
@@ -146,8 +146,8 @@ If you are not using `deploy.sh`, copy these current assets to the target host:
 
 - `/opt/wanctl/` from `src/wanctl/`
 - `/etc/wanctl/<wan_name>.yaml`
-- [`deploy/systemd/wanctl@.service`](/home/kevin/projects/wanctl/deploy/systemd/wanctl@.service)
-- optionally [`deploy/systemd/steering.service`](/home/kevin/projects/wanctl/deploy/systemd/steering.service)
+- [`deploy/systemd/wanctl@.service`](../deploy/systemd/wanctl@.service)
+- optionally [`deploy/systemd/steering.service`](../deploy/systemd/steering.service)
 
 Then on the target host:
 
