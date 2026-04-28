@@ -32,8 +32,8 @@
 
 ### Verification (VALN)
 
-- [ ] **VALN-04**: Spectrum cake-primary B-leg validation runs on the same deployment token used for the accepted Phase 196 rtt-blend A-leg, under the Phase 197 refractory split semantics. A/B comparison artifact (`ab-comparison.json`) is produced against the accepted A-leg control evidence (excluding the invalid A-leg flent throughput captured under wrong source bind) and computes pass/fail deltas on RTT-distress event counts, burst trigger counts, dwell-bypass responsiveness, fusion state transitions, queue-primary coverage, and refractory fallback rate. Closed by Phase 198.
-- [ ] **VALN-05a**: Spectrum DL `flent tcp_12down` 30s throughput under `cake-primary` recovers to ≥90% of the 591 Mbps CAKE-only-static floor (2026-04-23 measurement). Acceptance: 2-of-3 corrected source-bound (`10.10.110.226`) runs with individual medians ≥532 Mbps and median-of-medians ≥532 Mbps. Closed by Phase 198.
+- [ ] **VALN-04**: Spectrum cake-primary B-leg validation runs on the same deployment token used for the accepted Phase 196 rtt-blend A-leg, under the Phase 197 refractory split semantics. A/B comparison artifact (`ab-comparison.json`) is produced against the accepted A-leg control evidence (excluding the invalid A-leg flent throughput captured under wrong source bind) and computes pass/fail deltas on RTT-distress event counts, burst trigger counts, dwell-bypass responsiveness, fusion state transitions, queue-primary coverage, and refractory fallback rate. Phase 198 produced the artifact but did **not** close this requirement because `comparison_verdict` is `fail`.
+- [ ] **VALN-05a**: Spectrum DL `flent tcp_12down` 30s throughput under `cake-primary` recovers to ≥90% of the 591 Mbps CAKE-only-static floor (2026-04-23 measurement). Acceptance: 2-of-3 corrected source-bound (`10.10.110.226`) runs with individual medians ≥532 Mbps and median-of-medians ≥532 Mbps. Phase 198 failed this requirement (`medians_above_532=1`, `median_of_medians_mbps=494.834220`).
 - [ ] **VALN-05b** (deferred — ATT canary): After v1.39 Phase 191 closure, run ATT `flent tcp_12down` under `cake-primary`. Acceptance: ATT DL throughput ≥95% of last passing ATT baseline. Failure keeps ATT on `rtt-blend` and requires a follow-up phase before ATT `cake-primary` enablement. Tracks Phase 196-08.
 
 ### v1.40 Out of Scope
@@ -121,8 +121,8 @@
 | OBS-01      | Phase 193 | Complete |
 | OBS-02      | Phase 193 + Phase 199 (wording amendment) | Complete (caveat resolved by Phase 199) |
 | SAFE-05     | Phase 193 + Phase 194 + Phase 195 + Phase 196 + Phase 197 + Phase 198 (enforced throughout) | Complete |
-| VALN-04     | Phase 198 (gap closure — Phase 196 blocked) | Pending |
-| VALN-05a    | Phase 198 (gap closure — Phase 196 blocked) | Pending |
+| VALN-04     | Phase 198 (blocked closeout — comparison_verdict fail) | Blocked |
+| VALN-05a    | Phase 198 (blocked closeout — throughput verdict FAIL) | Failed |
 | VALN-05b    | Phase 196-08 (deferred — gated on v1.39 Phase 191 closure) | Deferred |
 
 ---
