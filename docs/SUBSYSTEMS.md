@@ -91,6 +91,33 @@ Install optional netlink support with:
 pip install 'wanctl[netlink]'
 ```
 
+## Bridge QoS And Priority Protection
+
+Implementation map:
+
+- `deploy/nftables/bridge-qos.nft`: bridge-level DSCP classification rules.
+- `deploy/systemd/wanctl-bridge-qos.service`: loads the bridge QoS ruleset.
+
+Bridge QoS classifies download traffic into CAKE `diffserv4` tins before packets reach the Linux CAKE egress qdisc. It exists because inbound ISP traffic often arrives as `CS0`, so endpoint DSCP markings alone are not enough for useful download tin separation.
+
+The bridge classifier can:
+
+- trust existing non-zero DSCP when endpoints already mark traffic.
+- restore DSCP from conntrack marks for established flows.
+- classify selected latency-sensitive reply traffic into `EF`.
+- classify selected media or QUIC reply traffic into `AF41`.
+- demote large unclassified transfers into lower-priority tins.
+
+Operational checks:
+
+```bash
+sudo nft list table bridge qos
+curl -s http://127.0.0.1:9101/health | python3 -m json.tool
+PYTHONPATH=/opt python3 -m wanctl.history --db /var/lib/wanctl/metrics-spectrum.db --last 1h --tins --json
+```
+
+Priority traffic is protected by not listing EF/priority queues in the wanctl queue config. wanctl adjusts only the configured CAKE queues; fixed EF queues remain outside the adaptive rate controller and rely on CAKE tin scheduling plus router/bridge classification.
+
 ## Health And Metrics
 
 Implementation map:

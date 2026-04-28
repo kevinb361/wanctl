@@ -31,7 +31,7 @@ python3 -m wanctl.calibrate --wan-name wan1 --router 192.168.1.1
 
 ## Prerequisites
 
-- **SSH access** to your Mikrotik router
+- **SSH access** to your MikroTik router
 - **netperf** installed (`apt install netperf`)
 - **CAKE queues** configured on RouterOS
 

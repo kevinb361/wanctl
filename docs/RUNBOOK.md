@@ -1,6 +1,6 @@
 # wanctl Observability Runbook
 
-Use this runbook after deploys and during incident response. For YAML tuning details, see [CONFIGURATION.md](/home/kevin/projects/wanctl/docs/CONFIGURATION.md). For deploy flow, service units, and remote rollout steps, see [DEPLOYMENT.md](/home/kevin/projects/wanctl/docs/DEPLOYMENT.md).
+Use this runbook after deploys and during incident response. For YAML tuning details, see [CONFIGURATION.md](CONFIGURATION.md). For deploy flow, service units, and remote rollout steps, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Quick Reference
 
@@ -28,7 +28,7 @@ Congestion zones are per-cycle classifications. The controller reevaluates them 
 | Download | `delta <= target_bloat_ms` **(config)** | `target_bloat_ms < delta <= warn_bloat_ms` **(config)** | `warn_bloat_ms < delta <= hard_red_bloat_ms` **(config)** | `delta > hard_red_bloat_ms` **(config)** |
 | Upload | `delta <= target_bloat_ms` **(config)** | `target_bloat_ms < delta <= warn_bloat_ms` **(config)** | n/a | `delta > warn_bloat_ms` **(config)** |
 
-`delta` is `load_rtt - baseline_rtt`, not absolute RTT. Default example values in [CONFIGURATION.md](/home/kevin/projects/wanctl/docs/CONFIGURATION.md) are `target_bloat_ms: 15`, `warn_bloat_ms: 45`, `hard_red_bloat_ms: 80`, but operators should treat YAML as authoritative for a given deployment.
+`delta` is `load_rtt - baseline_rtt`, not absolute RTT. Default example values in [CONFIGURATION.md](CONFIGURATION.md) are `target_bloat_ms: 15`, `warn_bloat_ms: 45`, `hard_red_bloat_ms: 80`, but operators should treat YAML as authoritative for a given deployment.
 
 Watch:
 - Single-WAN `YELLOW`
@@ -52,7 +52,7 @@ Example autorate `/health` excerpt:
 }
 ```
 
-Tune thresholds in YAML, not in Python. See [CONFIGURATION.md](/home/kevin/projects/wanctl/docs/CONFIGURATION.md).
+Tune thresholds in YAML, not in Python. See [CONFIGURATION.md](CONFIGURATION.md).
 
 ### Alert Types
 
@@ -282,7 +282,7 @@ Production note from `cake-shaper`:
 > handling, controller thresholds, and steering policy are unchanged by the
 > measurement-resilience milestone.
 > This section is inspection-only and must not be read as a tuning instruction.
-> Follow the post-deploy flow in [DEPLOYMENT.md](/home/kevin/projects/wanctl/docs/DEPLOYMENT.md)
+> Follow the post-deploy flow in [DEPLOYMENT.md](DEPLOYMENT.md)
 > and escalate through [Escalation Flow](#escalation-flow) when the rubric
 > shows degraded measurement.
 
@@ -419,4 +419,4 @@ Action: investigate immediately, confirm router reachability, inspect `/health`,
 - Canary exit `1` continues after service restart
 - Operator cannot reconcile summary rows with detailed health sections
 
-Action: escalate with the latest `/health` payloads from ports `9101` and `9102`, recent canary output, and the relevant deploy timestamp from [DEPLOYMENT.md](/home/kevin/projects/wanctl/docs/DEPLOYMENT.md).
+Action: escalate with the latest `/health` payloads from ports `9101` and `9102`, recent canary output, and the relevant deploy timestamp from [DEPLOYMENT.md](DEPLOYMENT.md).

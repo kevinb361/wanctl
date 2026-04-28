@@ -219,9 +219,10 @@ Copy to `/etc/wanctl/` and customize for your setup. See [CONFIG_SCHEMA.md](docs
 
 Additional references:
 
+- [Documentation Index](docs/README.md) - canonical map of current docs versus archived historical notes
 - [SUBSYSTEMS.md](docs/SUBSYSTEMS.md) - storage, dashboard, backend, health, alerting, and measurement-quality internals
+- [PERFORMANCE.md](docs/PERFORMANCE.md) - production timing, cycle-budget, and profiling guidance
 - [TESTING.md](docs/TESTING.md) - current test commands and integration-test invocation
-- [DOCUMENTATION_AUDIT.md](docs/DOCUMENTATION_AUDIT.md) - documentation gaps found during the latest audit
 
 ## Directory Structure
 
