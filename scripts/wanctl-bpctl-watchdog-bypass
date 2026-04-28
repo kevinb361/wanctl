@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+
+: "${IFACE:?missing IFACE}"
+: "${BPCTL_UTIL:=/opt/bpctl-silicom/bpctl_util}"
+
+"$BPCTL_UTIL" "$IFACE" set_wd_exp_mode bypass
+"$BPCTL_UTIL" "$IFACE" set_dis_bypass off
+"$BPCTL_UTIL" "$IFACE" set_bypass on

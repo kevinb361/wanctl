@@ -1,0 +1,19 @@
+[Unit]
+Description=Silicom fail-open bypass watchdog for %i
+Requires=bpctl-silicom.service
+After=bpctl-silicom.service wanctl@%i.service
+Wants=wanctl@%i.service
+
+[Service]
+Type=simple
+Environment=BPCTL_UTIL=/opt/bpctl-silicom/bpctl_util
+Environment=TIMEOUT_MS=5000
+Environment=HEARTBEAT_SECONDS=1
+EnvironmentFile=/etc/wanctl/bpctl-watchdog/%i.env
+ExecStart=/usr/local/sbin/wanctl-bpctl-watchdog-petter
+ExecStop=/usr/local/sbin/wanctl-bpctl-watchdog-bypass
+TimeoutStopSec=10
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
