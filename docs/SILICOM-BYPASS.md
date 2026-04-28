@@ -47,6 +47,68 @@ This was validated on 2026-04-28 by forcing both ATT and Spectrum into powered
 bypass, rebooting the `cake-shaper` VM, confirming `bpctl-silicom.service`
 recreated `/dev/bpctl0`, then restoring both pairs to non-bypass inline mode.
 
+## Per-WAN Watchdog Fail-Open
+
+Each WAN pair has an independent Silicom watchdog service:
+
+```text
+silicom-bypass-watchdog@att.service
+silicom-bypass-watchdog@spectrum.service
+```
+
+The services use these local files on `cake-shaper`:
+
+```text
+/etc/systemd/system/silicom-bypass-watchdog@.service
+/usr/local/sbin/wanctl-bpctl-watchdog-petter
+/usr/local/sbin/wanctl-bpctl-watchdog-bypass
+/etc/wanctl/bpctl-watchdog/att.env
+/etc/wanctl/bpctl-watchdog/spectrum.env
+```
+
+Current mapping:
+
+```text
+att.env: IFACE=att-modem, WANCTL_UNIT=wanctl@att.service
+spectrum.env: IFACE=spec-modem, WANCTL_UNIT=wanctl@spectrum.service
+```
+
+The petter arms the hardware watchdog for bypass expiry, disables watchdog
+autoreset, and resets the watchdog every second only while the paired
+`wanctl@...` service is active. The requested timeout is 5000ms; the card rounds
+this to a 6400ms hardware timeout because its watchdog uses fixed timer steps.
+
+If a paired `wanctl@...` service stops, only that WAN pair is put into powered
+bypass. When the `wanctl@...` service comes back, the petter restores that pair
+to non-bypass inline mode and resumes watchdog resets.
+
+Verify watchdog state:
+
+```bash
+systemctl status silicom-bypass-watchdog@att.service --no-pager -l
+systemctl status silicom-bypass-watchdog@spectrum.service --no-pager -l
+cd /opt/bpctl-silicom
+sudo ./bpctl_util att-modem get_bypass_wd
+sudo ./bpctl_util att-modem get_wd_exp_mode
+sudo ./bpctl_util spec-modem get_bypass_wd
+sudo ./bpctl_util spec-modem get_wd_exp_mode
+```
+
+Validated on 2026-04-28:
+
+```text
+Stopping wanctl@att.service put only ATT into bypass; Spectrum stayed inline.
+Restarting wanctl@att.service restored ATT to inline mode.
+
+Stopping wanctl@spectrum.service put only Spectrum into bypass; ATT stayed inline.
+Restarting wanctl@spectrum.service restored Spectrum to inline mode.
+```
+
+This is powered fail-open protection. It covers controller/service failure while
+the VM, Proxmox host, and Silicom PCIe card remain powered. It does not change
+the physical power-loss conclusion below: full `odin` power loss still drops the
+card and cannot be solved by the internal watchdog.
+
 If `/dev/bpctl0` is missing but the module is loaded and `/proc/devices` shows
 `bpctl`, recreate it with the registered major number:
 
