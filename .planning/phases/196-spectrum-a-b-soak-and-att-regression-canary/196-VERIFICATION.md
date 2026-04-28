@@ -8,7 +8,7 @@ requirements: [VALN-04, VALN-05, SAFE-05]
 gaps:
   - truth: "Spectrum sequential 24h rtt-blend/cake-primary A/B soak evidence exists and passes"
     status: blocked
-    reason: "Spectrum A-leg and B-leg evidence exists on the same deployment. The B-leg raw-only documented exceptions were accepted by the operator for continuation, but A/B comparison remains blocked because corrected Spectrum throughput failed."
+    reason: "Spectrum A-leg and B-leg evidence exists on the same deployment. The B-leg raw-only documented exceptions were accepted by the operator for continuation. Phase 198 later produced the missing A/B comparison artifact against the accepted A-leg control evidence, but it failed and therefore does not close VALN-04."
     artifacts:
       - path: ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/rtt-blend/manifest.json"
         issue: "Present and passed."
@@ -18,11 +18,13 @@ gaps:
         issue: "Present on the same deployment token."
       - path: ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/ab-comparison.json"
         issue: "Not created because throughput-spectrum-corrected-summary.json verdict is fail."
+      - path: ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/ab-comparison.json"
+        issue: "Created by Phase 198 after the Phase 197 rerun, but comparison_verdict is fail; this is blocked evidence, not closure."
     missing:
-      - "A/B comparison verdict from actual A-leg and B-leg counters."
+      - "Passing A/B comparison verdict from actual A-leg and B-leg counters."
   - truth: "Spectrum cake-primary throughput acceptance evidence exists"
     status: blocked
-    reason: "Corrected Spectrum cake-primary tcp_12down throughput ran after source-bind proof showed 10.10.110.226 exits Spectrum, but median throughput failed the 532 Mbps acceptance threshold."
+    reason: "Corrected Spectrum cake-primary tcp_12down throughput ran after source-bind proof showed 10.10.110.226 exits Spectrum. Phase 198 repeated the corrected source-bound test with the locked 3-run rule, but VALN-05a failed: only one run was >=532 Mbps and median-of-medians was 494.834220 Mbps."
     artifacts:
       - path: ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/throughput-summary.json"
         issue: "Present but invalid for Spectrum acceptance because source-bind proof shows local_bind 10.10.110.233 exits AT&T."
@@ -32,8 +34,10 @@ gaps:
         issue: "Present with verdict fail; corrected Spectrum tcp_12down median 307.9225832916394 Mbps < 532 Mbps."
       - path: ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/throughput-root-cause-investigation.json"
         issue: "Present and identifies CAKE refractory masking of queue-primary as the likely reason corrected throughput holds near the YELLOW floor."
+      - path: ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/throughput-verdict.json"
+        issue: "Present with verdict FAIL under the locked VALN-05a rule: medians 450.468331/681.802267/494.834220 Mbps, medians_above_532=1, median_of_medians_mbps=494.834220."
     missing:
-      - "Passing Spectrum tcp_12down 30s median throughput under cake-primary >= 532 Mbps."
+      - "Passing Spectrum tcp_12down 30s throughput under cake-primary using the locked VALN-05a 2-of-3 plus median-of-medians rule."
   - truth: "ATT cake-primary canary evidence exists after Phase 191 closure"
     status: blocked
     reason: "Phase 191 closure remains blocked, so att-canary-gate.md correctly records blocked-do-not-run-att-canary and no ATT canary ran."
@@ -119,9 +123,9 @@ Task 3 blocked: corrected Spectrum throughput verdict failed, so no A/B comparis
 
 ## A/B Comparison
 
-Status: blocked - corrected Spectrum throughput verdict failed
+Status: blocked - Phase 198 produced comparison evidence, but the verdict failed
 
-No `ab-comparison.json` or `comparison_verdict` exists because the corrected Spectrum `throughput-spectrum-corrected-summary.json` records `verdict: fail` (`307.9225832916394 Mbps` against `532 Mbps`).
+Phase 196 itself created no `ab-comparison.json` because the corrected Spectrum `throughput-spectrum-corrected-summary.json` records `verdict: fail` (`307.9225832916394 Mbps` against `532 Mbps`). Phase 198 later produced `.planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/ab-comparison.json` against the accepted Phase 196 rtt-blend A-leg evidence, but its `comparison_verdict` is `fail`; this is blocked/failed evidence and does not close VALN-04.
 
 Invalid AT&T-bound throughput summary: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/throughput-summary.json`
 Invalid AT&T-bound throughput rerun summary: `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/throughput-rerun-summary.json`
@@ -140,6 +144,9 @@ Parsed invalid AT&T-bound tcp_12down rerun median Mbps: `74.61825032641858`
 Parsed corrected Spectrum tcp_12down median Mbps: `307.9225832916394`
 Parsed diagnostic corrected Spectrum tcp_12down median Mbps: `302.8955957721772`
 Throughput verdict: `fail`
+
+Phase 198 rerun comparison artifact: `.planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/ab-comparison.json` (`comparison_verdict: fail`)
+Phase 198 rerun throughput verdict: `.planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/throughput-verdict.json` (`verdict: FAIL`, `medians_above_532: 1`, `median_of_medians_mbps: 494.834220`)
 
 ## ATT Canary Gate
 
@@ -257,8 +264,8 @@ Phase 196 has now completed the Spectrum `rtt-blend` A-leg baseline, the 24h `ca
 
 | Requirement | Source Plan | Description | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| VALN-04 | 196-01, 196-02, 196-03 | Sequential Spectrum 24h rtt-blend then 24h cake-primary on the same deployment, no concurrent Spectrum experiments, Phase 192 soak first. | BLOCKED - no A/B comparison after corrected throughput failure | Phase 192 dependency is recorded as pass, the reversible mode gate is proven, both 24h legs exist, and the raw-only B-leg audit was human-accepted with documented exceptions, but no A/B comparison was created because corrected Spectrum throughput failed. |
-| VALN-05 | 196-01, 196-03, 196-04 | Spectrum cake-primary tcp_12down >= 532 Mbps and ATT cake-primary canary after Phase 191 closure with <=5% regression. | BLOCKED - corrected Spectrum throughput failed | Source-bind proof invalidated the first two AT&T-bound captures for Spectrum acceptance. Corrected Spectrum throughput ran and failed: `307.9225832916394 Mbps` versus `532 Mbps`. Diagnostic evidence reproduces the miss and identifies queue-primary refractory fallback as the likely limiter. ATT gate is blocked by Phase 191, so no ATT mode proof or throughput verdict exists. |
+| VALN-04 | 196-01, 196-02, 196-03, Phase 198 rerun | Sequential Spectrum 24h rtt-blend then 24h cake-primary on the same deployment, no concurrent Spectrum experiments, Phase 192 soak first, plus A/B comparison. | BLOCKED / FAILED - Phase 198 A/B comparison verdict failed | Phase 192 dependency is recorded as pass, the reversible mode gate is proven, both Phase 196 legs exist, and Phase 198 produced `ab-comparison.json` against the accepted A-leg control evidence. The Phase 198 artifact records `comparison_verdict: fail`, so VALN-04 is not closed. |
+| VALN-05 / VALN-05a | 196-01, 196-03, 196-04, Phase 198 rerun | Spectrum cake-primary tcp_12down >= 532 Mbps and ATT cake-primary canary after Phase 191 closure with <=5% regression. | BLOCKED / FAILED - Phase 198 corrected Spectrum throughput failed | Source-bind proof invalidated Phase 196's first two AT&T-bound captures for Spectrum acceptance. Phase 196 corrected Spectrum throughput failed at `307.9225832916394 Mbps`; Phase 198 repeated the corrected source-bound test and failed the locked VALN-05a rule with medians `450.468331`, `681.802267`, `494.834220` Mbps, `medians_above_532=1`, and `median_of_medians_mbps=494.834220`. ATT gate is blocked by Phase 191, so no ATT mode proof or throughput verdict exists. |
 | SAFE-05 | 196-01, 196-02, 196-03, 196-04 | No state-machine, threshold, EWMA, dwell, deadband, burst-detection, or control-path protected-file change. | SATISFIED | Protected-file diff is clean; `REQUIREMENTS.md` keeps SAFE-05 complete. |
 
 No orphaned Phase 196 requirement IDs were found beyond VALN-04, VALN-05, and SAFE-05.
@@ -277,7 +284,7 @@ None for the current blocked closeout. Future unblocked validation will require 
 
 ## Gaps Summary
 
-Phase 196 is blocked, not passed.
+Phase 196 is blocked, not passed. Phase 198 adds more evidence, but it does not close VALN-04 or VALN-05a because its comparison and throughput verdicts failed.
 
 The root Spectrum mode-gate gap is closed for preflight, and the rtt-blend A-leg gap is closed by `manifest.json`, `primary-signal-audit.json`, and `flent-summary.json`. VALN-04 and the Spectrum half of VALN-05 remain unsatisfied. The 24h cake-primary B-leg exists and its documented raw-only exceptions are human-accepted for continuation, but source-bind proof invalidated the first two AT&T-bound throughput captures for Spectrum acceptance, corrected Spectrum throughput failed at `307.9225832916394 Mbps`, diagnostics point to CAKE refractory masking of queue-primary as the likely limiter, and no A/B comparison artifact was created.
 
