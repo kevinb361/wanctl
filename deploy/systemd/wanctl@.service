@@ -61,7 +61,7 @@ UMask=0027
 
 # Process visibility
 ProtectProc=invisible
-ProcSubset=pid
+# Keep /proc/net visible: tc reads /proc/net/psched for HTB timing/burst accounting.
 
 # Device ACL -- empty (no device access needed)
 DeviceAllow=

@@ -25,7 +25,7 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
-from wanctl.backends.linux_cake import LinuxCakeBackend
+from wanctl.backends.linux_cake import LinuxCakeBackend, LinuxHtbFqCodelBackend
 from wanctl.cake_params import build_cake_params, build_expected_readback
 
 if TYPE_CHECKING:
@@ -34,6 +34,15 @@ if TYPE_CHECKING:
 
 def _make_backend(config: BaseConfig, direction: str) -> LinuxCakeBackend:
     """Create the appropriate backend based on transport config."""
+    cake_params = config.data.get("cake_params", {})
+    qdisc_mode = str(cake_params.get(f"{direction}_qdisc", "cake"))
+    if qdisc_mode == "htb_fq_codel":
+        return LinuxHtbFqCodelBackend.from_config(config, direction=direction)
+    if qdisc_mode != "cake":
+        raise ValueError(
+            f"Unsupported cake_params.{direction}_qdisc: {qdisc_mode!r} "
+            "(expected 'cake' or 'htb_fq_codel')"
+        )
     if config.router_transport == "linux-cake-netlink":
         from wanctl.backends.netlink_cake import NetlinkCakeBackend
         return NetlinkCakeBackend.from_config(config, direction=direction)

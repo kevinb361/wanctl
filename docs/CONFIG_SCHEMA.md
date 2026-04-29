@@ -422,8 +422,10 @@ Linux CAKE qdisc configuration for bridge/VM deployments. `linux-cake` uses `tc`
 
 | Field                | Type   | Required | Description                                                           |
 | -------------------- | ------ | -------- | --------------------------------------------------------------------- |
-| `upload_interface`   | string | yes      | Network interface for upload CAKE qdisc (e.g., `"enp3s0"`)            |
-| `download_interface` | string | yes      | Network interface for download CAKE qdisc (e.g., `"enp4s0"`)          |
+| `upload_interface`   | string | yes      | Network interface for upload qdisc (e.g., `"enp3s0"`)                 |
+| `download_interface` | string | yes      | Network interface for download qdisc (e.g., `"enp4s0"`)               |
+| `upload_qdisc`       | string | no       | Upload shaper mode: `"cake"` (default) or `"htb_fq_codel"`            |
+| `download_qdisc`     | string | no       | Download shaper mode: `"cake"` (default) or `"htb_fq_codel"`          |
 | `overhead`           | string | no       | CAKE overhead keyword (e.g., `"docsis"`, `"ethernet"`, `"pppoe-ptm"`) |
 | `mpu`                | string | no       | Minimum packet unit passed through to CAKE (for example `"64"`)       |
 | `memlimit`           | string | no       | CAKE memory limit (e.g., `"32mb"`)                                    |
@@ -436,6 +438,13 @@ Additional CAKE keys are passed through to `tc` after known underscore-to-hyphen
 hurts throughput or loss behavior. It maps to the absence of the `ack-filter`
 token in the generated upload qdisc, which `tc` reports as `no-ack-filter`.
 
+`upload_qdisc: "htb_fq_codel"` uses an HTB rate class with an `fq_codel` leaf for
+upload instead of CAKE. This is a deployment-specific escape hatch for paths
+where static CAKE tests underperform a simpler Linux shaper. CAKE-specific queue
+signal metrics are unavailable for that direction. If the service is sandboxed,
+keep `/proc/net/psched` visible to `tc`; `ProcSubset=pid` breaks HTB burst
+accounting and can collapse the effective class burst during rate changes.
+
 ```yaml
 router:
   transport: "linux-cake-netlink"
@@ -444,6 +453,7 @@ router:
 cake_params:
   upload_interface: "enp3s0"
   download_interface: "enp4s0"
+  upload_qdisc: "cake"
   overhead: "docsis"
   mpu: "64"
   rtt: "40ms"
