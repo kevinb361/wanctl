@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from wanctl.backends.base import RouterBackend
-from wanctl.backends.linux_cake import LinuxCakeBackend
+from wanctl.backends.linux_cake import LinuxCakeBackend, LinuxHtbFqCodelBackend
 
 # =============================================================================
 # Test data: realistic tc -j -s qdisc show output
@@ -253,6 +253,39 @@ class TestLinuxCakeBackendInit:
         b = LinuxCakeBackend.from_config(config)
         assert b.tc_timeout == 5.0
 
+    def test_adapter_selects_htb_fq_codel_for_upload_qdisc(self):
+        from wanctl.backends.linux_cake_adapter import _make_backend
+
+        config = MagicMock()
+        config.router_transport = "linux-cake-netlink"
+        config.data = {
+            "cake_params": {
+                "upload_interface": "enp8s0",
+                "download_interface": "enp9s0",
+                "upload_qdisc": "htb_fq_codel",
+            }
+        }
+
+        b = _make_backend(config, direction="upload")
+
+        assert isinstance(b, LinuxHtbFqCodelBackend)
+        assert b.interface == "enp8s0"
+
+    def test_adapter_rejects_unknown_direction_qdisc(self):
+        from wanctl.backends.linux_cake_adapter import _make_backend
+
+        config = MagicMock()
+        config.router_transport = "linux-cake"
+        config.data = {
+            "cake_params": {
+                "upload_interface": "enp8s0",
+                "upload_qdisc": "sfq",
+            }
+        }
+
+        with pytest.raises(ValueError, match="Unsupported cake_params.upload_qdisc"):
+            _make_backend(config, direction="upload")
+
 
 # =============================================================================
 # TestRunTc
@@ -303,7 +336,9 @@ class TestRunTc:
         backend._run_tc(["qdisc", "show", "dev", "eth0"])
         mock_run.assert_called_once()
         call_args = mock_run.call_args
-        assert call_args[0][0] == ["tc", "qdisc", "show", "dev", "eth0"]
+        cmd = call_args[0][0]
+        assert cmd[0].endswith("tc")
+        assert cmd[1:] == ["qdisc", "show", "dev", "eth0"]
 
 
 # =============================================================================
@@ -844,6 +879,176 @@ class TestCakeParamsIntegration:
         assert readback["diffserv"] == "diffserv4"
         assert readback["rtt"] == 100_000
         assert readback["memlimit"] == 33_554_432
+
+
+class TestLinuxHtbFqCodelBackend:
+    """HTB + fq_codel backend command generation tests."""
+
+    @pytest.fixture
+    def htb_backend(self, mock_logger):
+        return LinuxHtbFqCodelBackend(interface="eth1", logger=mock_logger)
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_initialize_sets_htb_root_class_and_fq_codel(self, mock_run, htb_backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+
+        assert htb_backend.initialize_cake({"bandwidth": "28000kbit"}) is True
+
+        calls = [call.args[0] for call in mock_run.call_args_list]
+        assert calls[0][0].endswith("tc")
+        assert calls[0][1:] == ["qdisc", "del", "dev", "eth1", "root"]
+        assert calls[1][0].endswith("tc")
+        assert calls[1][1:] == [
+            "qdisc",
+            "replace",
+            "dev",
+            "eth1",
+            "root",
+            "handle",
+            "1:",
+            "htb",
+            "default",
+            "10",
+        ]
+        assert calls[2][0].endswith("tc")
+        assert calls[2][1:] == [
+            "class",
+            "replace",
+            "dev",
+            "eth1",
+            "parent",
+            "1:",
+            "classid",
+            "1:10",
+            "htb",
+            "rate",
+            "28000kbit",
+            "ceil",
+            "28000kbit",
+            "burst",
+            "256k",
+            "cburst",
+            "256k",
+        ]
+        assert calls[3][0].endswith("tc")
+        assert calls[3][1:] == [
+            "qdisc",
+            "replace",
+            "dev",
+            "eth1",
+            "parent",
+            "1:10",
+            "handle",
+            "10:",
+            "fq_codel",
+            "target",
+            "5ms",
+            "interval",
+            "100ms",
+        ]
+        assert calls[4][0].endswith("tc")
+        assert calls[4][1:] == [
+            "class",
+            "change",
+            "dev",
+            "eth1",
+            "parent",
+            "1:",
+            "classid",
+            "1:10",
+            "htb",
+            "rate",
+            "28000kbit",
+            "ceil",
+            "28000kbit",
+            "burst",
+            "256k",
+            "cburst",
+            "256k",
+        ]
+        assert htb_backend._last_bandwidth_bps == 28_000_000
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_set_bandwidth_changes_htb_class(self, mock_run, htb_backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+
+        assert htb_backend.set_bandwidth("", 24_000_000) is True
+
+        cmd = mock_run.call_args.args[0]
+        assert cmd[0].endswith("tc")
+        assert cmd[1:] == [
+            "class",
+            "change",
+            "dev",
+            "eth1",
+            "parent",
+            "1:",
+            "classid",
+            "1:10",
+            "htb",
+            "rate",
+            "24000kbit",
+            "ceil",
+            "24000kbit",
+            "burst",
+            "256k",
+            "cburst",
+            "256k",
+        ]
+        assert htb_backend._last_bandwidth_bps == 24_000_000
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_set_bandwidth_preserves_configured_htb_burst(self, mock_run, htb_backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+        assert htb_backend.initialize_cake(
+            {"bandwidth": "28000kbit", "htb_burst": "512k"}
+        ) is True
+        mock_run.reset_mock()
+
+        assert htb_backend.set_bandwidth("", 26_000_000) is True
+
+        cmd = mock_run.call_args.args[0]
+        assert "burst" in cmd
+        assert "cburst" in cmd
+        assert cmd[cmd.index("burst") + 1] == "512k"
+        assert cmd[cmd.index("cburst") + 1] == "512k"
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_get_queue_stats_returns_base_fields_without_tins(self, mock_run, htb_backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=json.dumps(
+                [
+                    {
+                        "kind": "fq_codel",
+                        "bytes": 1234,
+                        "packets": 12,
+                        "drops": 1,
+                        "backlog": 64,
+                        "qlen": 2,
+                    }
+                ]
+            ),
+            stderr="",
+        )
+
+        stats = htb_backend.get_queue_stats("")
+
+        assert stats == {
+            "packets": 12,
+            "bytes": 1234,
+            "dropped": 1,
+            "queued_packets": 2,
+            "queued_bytes": 64,
+            "tins": [],
+        }
 
 
 # =============================================================================

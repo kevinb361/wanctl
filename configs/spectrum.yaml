@@ -38,7 +38,7 @@ cake_params:
   overhead: "docsis" # sweep validated 2026-04-04 (=18 bytes, matches MikroTik)
   mpu: 64 # sweep validated 2026-04-04 (matches MikroTik)
   memlimit: "64mb" # Raised from 32mb — DL qdisc was at 86.6% (27.7/32MB)
-  rtt: "1s" # Provisional Silicom mitigation; retest before treating as final DOCSIS value
+  rtt: "100ms" # Conservative DOCSIS interval; 1s was diagnostic only, not an operating tune
   ack_filter: false # Silicom validation 2026-04-28; preserve no-ack-filter on upload
   ingress: false # Silicom validation 2026-04-28; ingress on spec-router hurt upload tests
 
@@ -91,11 +91,11 @@ continuous_monitoring:
     #   min: 10  # Reject baseline below 10ms (probably LAN, not internet)
     #   max: 60  # Reject baseline above 60ms (probably corrupted state)
 
-  # Ping configuration (median-of-three for Spectrum's reflector variation)
+  # Ping configuration (median-of-three for Spectrum's WAN reflector variation)
   # 4.2.2.2 (Level3) dropped -- 35% ICMP timeout rate at 20Hz from rate limiting
   # 8.8.8.8 (Google) dropped -- 0% timeout but +13ms RTT skews median vs 1.1.1.1/9.9.9.9
   # 208.67.222.222 (OpenDNS) -- 0% timeout, ~21ms RTT matches cluster, path diversity
-  ping_hosts: ["10.10.110.1"] # Operational mitigation; public ICMP reintroduction needs A/B retest
+  ping_hosts: ["1.1.1.1", "9.9.9.9", "208.67.222.222"] # WAN-path reflectors; gateway-only masks congestion
   use_median_of_three: true # Handle reflector variation
 
   # Fallback connectivity checks (handle ISP ICMP filtering/rate-limiting)

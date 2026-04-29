@@ -79,6 +79,7 @@ class LinuxCakeBackend(RouterBackend):
         super().__init__(logger)
         self.interface = interface
         self.tc_timeout = tc_timeout
+        self._tc_binary = shutil.which("tc") or "/usr/sbin/tc"
         self._last_bandwidth_bps: int | None = None
         self._last_write_elapsed_ms: float = 0.0
         self._last_write_skipped: bool = False
@@ -101,7 +102,7 @@ class LinuxCakeBackend(RouterBackend):
             Returns (-1, "", "timeout") on timeout.
             Returns (-1, "", "tc not found") if tc binary is missing.
         """
-        cmd = ["tc"] + args
+        cmd = [self._tc_binary] + args
         try:
             result = subprocess.run(  # noqa: S603 -- hardcoded tc invocation, no user input
                 cmd,
@@ -479,3 +480,208 @@ class LinuxCakeBackend(RouterBackend):
             raise ValueError(f"cake_params.{interface_key} required for linux-cake transport")
         tc_timeout = config.data.get("timeouts", {}).get("tc_command", 5.0)
         return cls(interface=interface, tc_timeout=tc_timeout)
+
+
+class LinuxHtbFqCodelBackend(LinuxCakeBackend):
+    """Linux HTB + fq_codel qdisc backend with the LinuxCakeBackend interface.
+
+    This is intentionally narrow: it exists for deployments where CAKE is a bad
+    fit on one direction but the daemon still needs RouterBackend-compatible
+    bandwidth updates. Statistics do not expose CAKE tins, so CAKE-signal logic
+    naturally treats this direction as unavailable.
+    """
+
+    def __init__(
+        self,
+        interface: str,
+        logger: logging.Logger | None = None,
+        tc_timeout: float = 5.0,
+    ):
+        super().__init__(interface=interface, logger=logger, tc_timeout=tc_timeout)
+        self._htb_burst = "256k"
+
+    def set_bandwidth(self, queue: str, rate_bps: int) -> bool:
+        """Set HTB class bandwidth via tc class change."""
+        start = time.perf_counter()
+        rate_kbit = rate_bps // 1000
+        applied_rate_bps = rate_kbit * 1000
+        if applied_rate_bps == self._last_bandwidth_bps:
+            self._last_write_elapsed_ms = (time.perf_counter() - start) * 1000.0
+            self._last_write_skipped = True
+            self._last_write_used_fallback = False
+            self.logger.debug(
+                "Skipping no-op HTB bandwidth update on %s: %sbps",
+                self.interface,
+                applied_rate_bps,
+            )
+            return True
+
+        rc, _, err = self._run_tc(
+            [
+                "class",
+                "change",
+                "dev",
+                self.interface,
+                "parent",
+                "1:",
+                "classid",
+                "1:10",
+                "htb",
+                "rate",
+                f"{rate_kbit}kbit",
+                "ceil",
+                f"{rate_kbit}kbit",
+                "burst",
+                self._htb_burst,
+                "cburst",
+                self._htb_burst,
+            ],
+            timeout=self.tc_timeout,
+        )
+        self._last_write_elapsed_ms = (time.perf_counter() - start) * 1000.0
+        self._last_write_skipped = False
+        self._last_write_used_fallback = False
+        if rc == 0:
+            self._last_bandwidth_bps = applied_rate_bps
+            self.logger.debug("Set %s HTB bandwidth to %skbit", self.interface, rate_kbit)
+            return True
+        self.logger.warning("tc class change failed on %s: %s", self.interface, err)
+        return False
+
+    def get_queue_stats(self, queue: str) -> dict | None:
+        """Return base fq_codel stats without CAKE tin data."""
+        rc, out, err = self._run_tc(
+            ["-j", "-s", "qdisc", "show", "dev", self.interface],
+            timeout=self.tc_timeout,
+        )
+        if rc != 0:
+            self.logger.warning("tc qdisc show -s failed on %s: %s", self.interface, err)
+            return None
+
+        try:
+            data = json.loads(out)
+        except json.JSONDecodeError as e:
+            self.logger.error("Failed to parse tc JSON: %s", e)
+            return None
+
+        entry = next(
+            (item for item in data if isinstance(item, dict) and item.get("kind") == "fq_codel"),
+            None,
+        )
+        if entry is None:
+            return {
+                "packets": 0,
+                "bytes": 0,
+                "dropped": 0,
+                "queued_packets": 0,
+                "queued_bytes": 0,
+                "tins": [],
+            }
+
+        return {
+            "packets": entry.get("packets", 0),
+            "bytes": entry.get("bytes", 0),
+            "dropped": entry.get("drops", 0),
+            "queued_packets": entry.get("qlen", 0),
+            "queued_bytes": entry.get("backlog", 0),
+            "tins": [],
+        }
+
+    def initialize_cake(self, params: dict[str, Any]) -> bool:
+        """Initialize HTB root, one shaped class, and fq_codel leaf qdisc."""
+        bandwidth = str(params.get("bandwidth", "100000kbit"))
+        burst = str(params.get("htb_burst", "256k"))
+        self._htb_burst = burst
+        fq_target = str(params.get("fq_codel_target", "5ms"))
+        fq_interval = str(params.get("fq_codel_interval", "100ms"))
+
+        # Replacing an existing HTB root can fail with "Change operation not
+        # supported by specified qdisc". Deleting first matches operational test
+        # setup and gives systemd restarts a deterministic qdisc tree.
+        self._run_tc(
+            ["qdisc", "del", "dev", self.interface, "root"],
+            timeout=10.0,
+        )
+
+        commands = [
+            [
+                "qdisc",
+                "replace",
+                "dev",
+                self.interface,
+                "root",
+                "handle",
+                "1:",
+                "htb",
+                "default",
+                "10",
+            ],
+            [
+                "class",
+                "replace",
+                "dev",
+                self.interface,
+                "parent",
+                "1:",
+                "classid",
+                "1:10",
+                "htb",
+                "rate",
+                bandwidth,
+                "ceil",
+                bandwidth,
+                "burst",
+                burst,
+                "cburst",
+                burst,
+            ],
+            [
+                "qdisc",
+                "replace",
+                "dev",
+                self.interface,
+                "parent",
+                "1:10",
+                "handle",
+                "10:",
+                "fq_codel",
+                "target",
+                fq_target,
+                "interval",
+                fq_interval,
+            ],
+            [
+                "class",
+                "change",
+                "dev",
+                self.interface,
+                "parent",
+                "1:",
+                "classid",
+                "1:10",
+                "htb",
+                "rate",
+                bandwidth,
+                "ceil",
+                bandwidth,
+                "burst",
+                burst,
+                "cburst",
+                burst,
+            ],
+        ]
+
+        for cmd_args in commands:
+            rc, _, err = self._run_tc(cmd_args, timeout=10.0)
+            if rc != 0:
+                self.logger.error("Failed to initialize HTB/fq_codel on %s: %s", self.interface, err)
+                return False
+
+        if bandwidth.endswith("kbit"):
+            self._last_bandwidth_bps = int(bandwidth[:-4]) * 1000
+        self.logger.info("Initialized HTB/fq_codel on %s: bandwidth=%s", self.interface, bandwidth)
+        return True
+
+    def validate_cake(self, expected: dict[str, Any]) -> bool:
+        """HTB/fq_codel has no CAKE readback fields; initialization success is authoritative."""
+        return True

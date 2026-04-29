@@ -99,3 +99,6 @@ Use these as the primary current docs:
 ## Current Validation Note
 
 - Phase 196 Spectrum cake-primary documented B-leg exceptions were accepted for continuation, but the follow-up tcp_12down throughput check failed at 73.92243773827883 Mbps versus the 532 Mbps acceptance threshold; the A/B comparison remains blocked until passing throughput evidence exists.
+- Spectrum Silicom remains on CAKE for normal operation: `spec-modem` upload at 28Mbit, `spec-router` download at 940Mbit, `rtt: "100ms"`, WAN-path reflectors, IRTT disabled provisionally. Gateway-only RTT and `rtt: "1s"` are diagnostic controls only.
+- `deploy/systemd/wanctl@.service` must keep `/proc/net` visible because `tc` reads `/proc/net/psched` for HTB timing and burst accounting; do not reintroduce `ProcSubset=pid` while Linux shapers may use HTB.
+- `upload_qdisc: "htb_fq_codel"` is an experimental escape hatch. Static tests looked promising, but managed Spectrum testing preserved `256Kb` burst yet still underperformed and drove upload to the 8Mbit floor, so HTB/fq_codel is not the live Spectrum mode.

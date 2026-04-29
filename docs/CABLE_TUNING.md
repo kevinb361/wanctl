@@ -93,20 +93,23 @@ What changed upload behavior during the investigation:
   `spec-router` changed CAKE `max_len` from GSO-sized packets back to MTU-sized
   packets and eliminated the severe ping-loss mode seen during shaped upload.
 - Static CAKE with the old `rtt 25ms` setting underperformed badly. Increasing
-  CAKE `rtt` improved upload in static tests, with `rtt 1s` producing the best
-  observed static result in this session. This is evidence, not a final doctrine:
-  the value needs a cleaner A/B run before being treated as globally correct.
+  CAKE `rtt` changed upload behavior, with `rtt 1s` producing one high static
+  result in this session. That value is not acceptable as an operating tune;
+  treat it as a diagnostic artifact that masked another issue. Spectrum should
+  use a sane WAN interval such as `100ms` unless a controlled A/B run proves a
+  different bounded value.
 - `cake_params.ack_filter: false` is still required for the current Spectrum
   Silicom deployment. A backend bug also had to be fixed so explicit false values
   actually produce `no-ack-filter` or netlink `ack_filter=False`.
 - Download-side CAKE with the `ingress` keyword on `spec-router` collapsed upload
   tests, apparently by disturbing the return-ACK path. Removing `ingress` restored
   upload behavior in static isolation.
-- Managed `wanctl@spectrum` still underperformed until WAN-path measurement probe
-  traffic was isolated. Disabling IRTT helped, but was not sufficient by itself:
-  a single WAN ICMP reflector (`1.1.1.1`) still reproduced the upload collapse.
-  Gateway-only probing (`10.10.110.1`) plus IRTT disabled produced the best managed
-  validation result in this session.
+- Managed `wanctl@spectrum` still underperformed after isolating WAN-path
+  measurement probe traffic. Disabling IRTT helped, but was not sufficient by
+  itself: a single WAN ICMP reflector (`1.1.1.1`) still reproduced the upload
+  collapse. Gateway-only probing (`10.10.110.1`) was useful only as a diagnostic
+  control because it masks WAN congestion and does not give autorate a usable
+  WAN-path RTT signal.
 
 Current operational mitigation, not final tuning doctrine:
 
@@ -114,7 +117,7 @@ Current operational mitigation, not final tuning doctrine:
 cake_params:
   download_interface: "spec-router"
   upload_interface: "spec-modem"
-  rtt: "1s"
+  rtt: "100ms"
   ack_filter: false
   ingress: false
 
@@ -122,7 +125,7 @@ continuous_monitoring:
   cake_stats_cadence_sec: 1.0
   upload:
     ceiling_mbps: 28
-  ping_hosts: ["10.10.110.1"]
+  ping_hosts: ["1.1.1.1", "9.9.9.9", "208.67.222.222"]
 
 irtt:
   enabled: false
@@ -132,16 +135,27 @@ Validated observations from 2026-04-28:
 
 - Raw bridge capability was repeatedly observed around `34-39 Mbit/s` upload when
   public `iperf3` targets were behaving.
-- Static upload CAKE at `28Mbit`, `rtt 1s`, `no-ack-filter`, and no download
-  `ingress` produced about `24-25 Mbit/s` receiver throughput with low qdisc drop
-  counts in the cleanest runs.
+- Static upload CAKE at `28Mbit`, diagnostic `rtt 1s`, `no-ack-filter`, and no
+  download `ingress` produced about `24-25 Mbit/s` receiver throughput with low
+  qdisc drop counts in the cleanest runs. Do not carry the `1s` interval forward
+  into normal operation.
 - Managed `wanctl@spectrum` with gateway-only probing and IRTT disabled produced
-  about `25.3 Mbit/s` receiver throughput with no ping loss in the best valid run.
+  about `25.3 Mbit/s` receiver throughput with no ping loss in the best valid run,
+  but this is not acceptable as an operating mode because it removes WAN-path RTT
+  visibility from autorate.
 - Managed `wanctl@spectrum` with IRTT enabled or WAN ICMP probing produced repeated
   upload collapse during public `iperf3` tests. This may be caused by probe traffic
   interacting with the inline bridge, CAKE classification, DOCSIS upstream request
   scheduling, or the specific test methodology; it is not yet proven that public
   ICMP must be disabled permanently.
+- Static shaper isolation on 2026-04-28 showed upload-only `htb+fq_codel` at
+  `28Mbit` outperforming upload-only CAKE in the same window (`22.48 Mbit/s` vs
+  `6.70 Mbit/s` in speedtest upload-only). Follow-up found one systemd-specific
+  HTB bug: `ProcSubset=pid` hides `/proc/net/psched`, causing tiny HTB burst
+  readback during rate writes. Removing `ProcSubset=pid` preserved the intended
+  `256Kb` burst, but managed HTB/fq_codel still only produced `12.32 Mbit/s` in
+  an upload-only speedtest and triggered autorate down to the `8Mbit` floor before
+  recovering. HTB/fq_codel is therefore not the operational Spectrum mode.
 - Public `iperf3` targets became unreliable late in the investigation, including
   broken pipes and `0.00 Bytes` receiver reports even in raw bridge mode. Treat
   late-run public `iperf3` failures as inconclusive unless immediately bracketed by
@@ -153,11 +167,11 @@ Validated observations from 2026-04-28:
 
 Open questions before declaring a final Spectrum/Silicom tune:
 
-- Is `rtt 1s` actually the right CAKE interval, or did it merely mask another
-  interaction in the test setup? Re-test `100ms`, `200ms`, `500ms`, and `1s` with
-  identical raw/static/managed controls.
-- Can WAN-path public ICMP be reintroduced at a lower cadence, with fewer hosts, or
-  with a different measurement source without collapsing upload?
+- Is `100ms` the right CAKE interval for this Spectrum/Silicom path, or should a
+  nearby bounded value such as `200ms` be used? Do not reintroduce `1s` except as
+  an explicit diagnostic control.
+- Which WAN-path reflector set and cadence gives autorate usable RTT visibility
+  without reproducing the managed upload collapse?
 - Is IRTT itself harmful, or only its current cadence/duration/packet pattern on
   this inline bridge and DOCSIS upstream?
 - Should the download ceiling be lowered from `940Mbit` toward measured goodput
@@ -173,8 +187,8 @@ stabilization and compares:
 - raw bridge, no CAKE
 - static upload CAKE only
 - static upload and download CAKE without `ingress`
-- managed `wanctl@spectrum` with gateway-only probes
-- managed `wanctl@spectrum` with one public ICMP reflector at reduced cadence
+- managed `wanctl@spectrum` with the WAN reflector set restored
+- managed `wanctl@spectrum` with one WAN reflector at reduced cadence
 - managed `wanctl@spectrum` with IRTT reintroduced at reduced cadence or duration
 
 Capture `tc -s qdisc`, `ip -s link`, `/health`, controller logs, and external

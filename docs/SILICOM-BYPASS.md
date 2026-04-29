@@ -401,16 +401,25 @@ Evidence-supported pieces:
   during the migration tests.
 - Download CAKE with `ingress` on `spec-router` collapsed upload tests; the current
   Spectrum config disables that flag.
+- Upload shaping has an experimental `upload_qdisc: "htb_fq_codel"` escape hatch.
+  Static isolation showed HTB/fq_codel outperforming CAKE for upload on this
+  hardware path. Managed testing exposed and fixed a systemd sandbox interaction:
+  `ProcSubset=pid` hides `/proc/net/psched`, which `tc` uses for HTB timing and
+  burst accounting. With that fixed, HTB preserved `256Kb` burst during rate
+  changes, but managed upload still underperformed, so it remains disabled for
+  normal Spectrum operation.
 
 Provisional pieces that need retesting:
 
-- `cake_params.rtt: "1s"` improved static CAKE upload in this session, but it is not
-  proven as the generally correct DOCSIS/Silicom value. It should be re-tested
-  against `100ms`, `200ms`, and `500ms` with raw/static/managed controls.
-- `ping_hosts: ["10.10.110.1"]` and `irtt.enabled: false` are an operational
-  mitigation for upload collapse during testing. They reduce WAN-path autorate
-  sensitivity and should not be treated as a final architecture decision without
-  follow-up measurement work.
+- `cake_params.rtt: "1s"` was a diagnostic artifact from static CAKE testing, not
+  a valid operating value. Keep Spectrum on a sane WAN interval such as `100ms`;
+  only compare `200ms` or similar bounded values under controlled A/B tests.
+- Gateway-only `ping_hosts: ["10.10.110.1"]` was a diagnostic control for upload
+  collapse during testing, not a valid operating mode. It masks WAN congestion and
+  prevents autorate from seeing WAN-path RTT. Keep Spectrum on WAN-path reflectors
+  unless deliberately running an isolation test.
+- `irtt.enabled: false` remains a provisional mitigation until IRTT cadence,
+  duration, and packet pattern are re-tested with raw/static/managed controls.
 
 Observed managed-mode behavior:
 
@@ -418,11 +427,16 @@ Observed managed-mode behavior:
   did not fully solve it.
 - A single public ICMP reflector (`1.1.1.1`) still reproduced the collapse in a
   managed test.
-- Gateway-only ICMP plus IRTT disabled produced the best valid managed upload run:
-  about `25.3 Mbit/s` receiver throughput with no ping loss.
+- Gateway-only ICMP plus IRTT disabled produced the best managed upload run in the
+  original session, about `25.3 Mbit/s` receiver throughput with no ping loss, but
+  it is unsuitable for normal operation because it removes WAN-path RTT signal.
 - A later browser bufferbloat test under the mitigation reported grade `B`,
   `735.2 Mbps` down, `25.4 Mbps` up, download active latency `+47 ms`, and upload
   active latency `+42 ms`. This is usable, but not fully tuned.
+- Managed HTB/fq_codel upload with the `/proc/net/psched` fix preserved `256Kb`
+  burst and recovered from rate reductions, but upload-only speedtest still only
+  reached `12.32 Mbit/s` and drove autorate down to the `8Mbit` floor during the
+  test. Keep Spectrum on CAKE unless a later controlled sweep proves otherwise.
 
 Public `iperf3` caution:
 
