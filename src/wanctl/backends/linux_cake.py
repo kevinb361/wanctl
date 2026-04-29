@@ -388,12 +388,15 @@ class LinuxCakeBackend(RouterBackend):
         if "rtt" in params:
             cmd_args.extend(["rtt", str(params["rtt"])])
 
-        # Boolean flags -- append literal string if present and truthy
+        # Boolean flags -- explicit False must emit the corresponding negation
+        # where tc supports one, otherwise operator overrides can be ignored.
         # Note: "ecn" is excluded -- not supported by iproute2-6.15.0's tc,
         # and CAKE enables ECN by default on all tins anyway.
         for flag in ("split-gso", "ack-filter", "ingress"):
             if params.get(flag):
                 cmd_args.append(flag)
+            elif flag == "ack-filter" and flag in params:
+                cmd_args.append("no-ack-filter")
 
         rc, _, err = self._run_tc(cmd_args, timeout=10.0)
         if rc == 0:

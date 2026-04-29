@@ -176,6 +176,10 @@ class TestBuildCakeParamsConfigOverride:
         params = build_cake_params("download", {"ecn": False})
         assert params["ecn"] is False
 
+    def test_false_disables_ingress_on_download(self) -> None:
+        params = build_cake_params("download", {"ingress": False})
+        assert params["ingress"] is False
+
 
 # =============================================================================
 # EXCLUDED PARAMS (D-08)
@@ -281,6 +285,10 @@ class TestBuildExpectedReadback:
         expected = build_expected_readback({"rtt": "50ms"})
         assert expected["rtt"] == 50000
 
+    def test_rtt_1s_to_microseconds(self) -> None:
+        expected = build_expected_readback({"rtt": "1s"})
+        assert expected["rtt"] == 1_000_000
+
     def test_memlimit_32mb_to_bytes(self) -> None:
         expected = build_expected_readback({"memlimit": "32mb"})
         assert expected["memlimit"] == 33554432
@@ -361,6 +369,7 @@ class TestCakeParamsConstants:
         assert OVERHEAD_READBACK["bridged-ptm"] == {"overhead": 22}
 
     def test_rtt_to_microseconds(self) -> None:
+        assert RTT_TO_MICROSECONDS["1s"] == 1_000_000
         assert RTT_TO_MICROSECONDS["100ms"] == 100_000
         assert RTT_TO_MICROSECONDS["50ms"] == 50_000
 

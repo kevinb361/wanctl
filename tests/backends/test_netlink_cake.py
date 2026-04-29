@@ -508,6 +508,17 @@ class TestInitializeCake:
         assert call_kwargs.get("ingress") is True
 
     @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_initialize_cake_maps_false_boolean_flags(self, MockIPRoute, backend):
+        """Explicit false flags map to pyroute2 kwargs so overrides are applied."""
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        MockIPRoute.return_value = mock_instance
+
+        backend.initialize_cake({"ack-filter": False})
+        call_kwargs = mock_instance.tc.call_args[1]
+        assert call_kwargs.get("ack_filter") is False
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
     def test_initialize_cake_maps_numeric_overhead(self, MockIPRoute, backend):
         mock_instance = MagicMock()
         mock_instance.link_lookup.return_value = [42]

@@ -63,6 +63,7 @@ EXCLUDED_PARAMS: set[str] = {"nat", "wash", "autorate-ingress"}
 YAML_TO_TC_KEY: dict[str, str] = {
     "split_gso": "split-gso",
     "ack_filter": "ack-filter",
+    "ingress": "ingress",
     "autorate_ingress": "autorate-ingress",
 }
 
@@ -94,6 +95,7 @@ OVERHEAD_READBACK: dict[str, dict[str, int]] = {
 
 # Human-readable rtt string -> tc JSON microseconds integer
 RTT_TO_MICROSECONDS: dict[str, int] = {
+    "1s": 1_000_000,
     "100ms": 100_000,
     "50ms": 50_000,
     "30ms": 30_000,
@@ -201,8 +203,13 @@ def build_expected_readback(params: dict[str, Any]) -> dict[str, Any]:
         if rtt_str in RTT_TO_MICROSECONDS:
             expected["rtt"] = RTT_TO_MICROSECONDS[rtt_str]
         else:
-            # Parse unknown rtt strings: strip "ms" suffix, multiply by 1000
-            expected["rtt"] = int(rtt_str.rstrip("ms")) * 1000
+            # Parse unknown rtt strings into microseconds.
+            for suffix, multiplier in (("us", 1), ("ms", 1_000), ("s", 1_000_000)):
+                if rtt_str.endswith(suffix):
+                    expected["rtt"] = int(rtt_str[: -len(suffix)]) * multiplier
+                    break
+            else:
+                expected["rtt"] = int(rtt_str)
 
     if "memlimit" in params:
         ml_str = str(params["memlimit"])

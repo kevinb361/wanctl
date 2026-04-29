@@ -1,5 +1,5 @@
 [Unit]
-Description=wanctl NIC tuning (ring buffers + GRO forwarding + IRQ affinity + sysctl)
+Description=wanctl NIC tuning (ring buffers + offloads + IRQ affinity + sysctl)
 Documentation=https://github.com/kevinb361/wanctl
 After=systemd-networkd-wait-online.service
 Before=wanctl@spectrum.service wanctl@att.service steering.service wanctl-bridge-qos.service

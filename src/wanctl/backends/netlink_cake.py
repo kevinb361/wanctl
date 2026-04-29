@@ -416,14 +416,15 @@ class NetlinkCakeBackend(LinuxCakeBackend):
                     except ValueError:
                         kwargs["rtt"] = rtt_raw
 
-            # Boolean flags
+            # Boolean flags. Explicit False matters for operator overrides such as
+            # ack_filter=false; omitting the netlink attribute can preserve/default on.
             for tc_flag, pyroute2_kwarg in [
                 ("split-gso", "split_gso"),
                 ("ack-filter", "ack_filter"),
                 ("ingress", "ingress"),
             ]:
-                if params.get(tc_flag):
-                    kwargs[pyroute2_kwarg] = True
+                if tc_flag in params:
+                    kwargs[pyroute2_kwarg] = bool(params[tc_flag])
 
             ipr.tc("replace", kind="cake", index=self._ifindex, **kwargs)
             bandwidth = params.get("bandwidth")
