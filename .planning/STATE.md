@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Queue-Primary Signal Arbitration
-status: blocked
-stopped_at: Completed 198-04-PLAN.md as blocked closeout; VALN-05a throughput verdict FAIL and VALN-04 comparison_verdict FAIL remain open
-last_updated: "2026-04-28T15:49:15.460Z"
-last_activity: 2026-04-28
+status: executing
+stopped_at: Completed 198-05-PLAN.md; off-peak rerun harness and per-run audit/verdict tooling ready for operator-scheduled Plan 198-06
+last_updated: "2026-04-29T12:12:00.000Z"
+last_activity: 2026-04-29
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 25
-  completed_plans: 25
+  total_plans: 26
+  completed_plans: 26
   percent: 100
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 198 — Spectrum cake-primary B-leg rerun on Phase 197 build
+**Current focus:** Phase 198 — spectrum-cake-primary-b-leg-rerun
 
 ## Position
 
 **Milestone:** v1.40 Queue-Primary Signal Arbitration
 **Phase:** 198
-**Plan:** 198-04
-**Status:** Phase 198 Plan 04 complete as a blocked closeout; operator selected blocked closeout after VALN-05a failed, and VALN-04/VALN-05a remain unsatisfied
-**Last activity:** 2026-04-28
+**Plan:** 198-05
+**Status:** Executing Phase 198 — Plan 198-05 complete; ready for off-peak rerun execution in Plan 198-06
+**Last activity:** 2026-04-29
 
 Progress: [██████████] 100%
 
@@ -99,7 +99,7 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Stopped at: Completed 198-04-PLAN.md as blocked closeout; VALN-05a FAIL and A/B comparison FAIL remain open
+Stopped at: Completed 198-05-PLAN.md; off-peak rerun harness and per-run audit/verdict tooling ready for operator-scheduled Plan 198-06
 Resume file: None
 
 ## Decisions
@@ -162,9 +162,12 @@ Resume file: None
 - [Phase 198]: Used TCP download sum, not per-stream TCP download avg, as the aggregate tcp_12down median series for VALN-05a.
 - [Phase 198]: VALN-05a failed with medians 450.468331, 681.802267, and 494.834220 Mbps; only one run met 532 Mbps and median-of-medians was 494.834220 Mbps.
 - [Phase 198-04]: Operator selected blocked closeout after VALN-05a failed; `198-VERIFICATION.md` is status blocked, `ab-comparison.json` has `comparison_verdict: fail`, VALN-04/VALN-05a remain unsatisfied, and SAFE-05 is satisfied by `safe05-diff.json` with zero protected-path diffs.
+- [Phase 198-05]: Use /health 1Hz NDJSON as the primary per-run loaded-window evidence source because persisted SQLite raw rows are too sparse for a 500-row 30s gate.
+- [Phase 198-05]: Treat throughput/audit FAIL verdicts as completed attempt facts rather than harness crashes so Plan 198-06/07 can make operator decisions from contracted summaries.
 
 ## Performance Metrics
 
+- 2026-04-29: Phase 198 Plan 05 completed in ~16 min across 2 tasks and 3 new scripts; off-peak harness, loaded-window audit, and throughput verdict tooling passed syntax/content checks, SAFE-05 protected diff remained clean, and the hot-path slice passed with 572 tests.
 - 2026-04-28: Phase 198 Plan 04 completed in ~10 min across 3 tasks and 4 closeout files; ab-comparison.json was produced with comparison_verdict fail, safe05-diff.json passed with zero protected-path diffs, 198-VERIFICATION.md records blocked status, and 196-VERIFICATION.md now cites Phase 198 evidence as failed/blocked rather than closed.
 - 2026-04-28: Phase 198 Plan 03 completed in ~7 min across 2 tasks and 6 evidence files; three corrected Spectrum-bound tcp_12down flent runs were captured, source-bind probes all confirmed Charter/AS11427 egress, 572-test regression slice passed, and VALN-05a failed with medians 450.468331/681.802267/494.834220 Mbps.
 - 2026-04-28: Phase 198 Plan 02 completed across a 24h30m36s Spectrum cake-primary B-leg and ~5 min active continuation; duration gate passed, primary-signal audit passed with documented exceptions at 99.7493% queue-primary coverage, and 584-test regression slice passed.
