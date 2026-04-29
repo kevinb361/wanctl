@@ -1,13 +1,13 @@
 #!/bin/bash
-# wanctl NIC tuning -- ring buffers, GRO forwarding, 3-core IRQ affinity, sysctl
+# wanctl NIC tuning -- ring buffers, offloads, IRQ affinity, sysctl
 #
 # Deployed to: /usr/local/bin/wanctl-nic-tuning.sh
 # Called by:   wanctl-nic-tuning.service (systemd oneshot, runs before wanctl)
 #
 # IRQ affinity distribution (3-core):
-#   CPU0: ens16 (Spectrum DL) -- heaviest single-NIC IRQ load
-#   CPU1: ens27+ens28 (ATT bridge pair) -- light traffic
-#   CPU2: ens17 (Spectrum UL) -- moved from CPU0 to balance Spectrum load
+#   CPU0: spec-router (Spectrum DL) -- heaviest single-NIC IRQ load
+#   CPU1: att-modem+att-router (ATT bridge pair) -- light traffic
+#   CPU2: spec-modem (Spectrum UL) -- balances Spectrum load
 #
 # Idempotent: safe to re-run at any time. Already-applied settings are
 # re-applied without error. Missing NICs are warned and skipped.
@@ -21,19 +21,19 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 TAG="wanctl-nic-tuning"
 
-# Spectrum bridge pair (Intel i210)
-SPECTRUM_NICS=(ens16 ens17)
-# ATT bridge pair (Intel i350)
-ATT_NICS=(ens27 ens28)
+# Spectrum Silicom bridge pair (Intel i350)
+SPECTRUM_NICS=(spec-router spec-modem)
+# ATT Silicom bridge pair (Intel i350)
+ATT_NICS=(att-modem att-router)
 # Combined list
 ALL_NICS=("${SPECTRUM_NICS[@]}" "${ATT_NICS[@]}")
 
 # IRQ affinity targets (3-core distribution per D-01)
-# Spectrum DL NIC (ens16) -- heaviest single-NIC IRQ load
+# Spectrum DL NIC -- heaviest single-NIC IRQ load
 SPECTRUM_DL_CPU=0
-# Spectrum UL NIC (ens17) -- MOVED from CPU0 to CPU2 (eliminates 4.3x imbalance)
+# Spectrum UL NIC -- moved away from CPU0 to balance Spectrum load
 SPECTRUM_UL_CPU=2
-# ATT bridge pair (ens27+ens28) -- light traffic, single core sufficient
+# ATT bridge pair -- light traffic, single core sufficient
 ATT_CPU=1
 
 # Ring buffer sizes (max for both i210 and i350)
@@ -59,12 +59,20 @@ tune_nic() {
         logger -t "$TAG" "WARNING: ring buffer set failed for $nic (may already be at max)"
     fi
 
-    # rx-udp-gro-forwarding
-    if ! ethtool -K "$nic" rx-udp-gro-forwarding on 2>&1; then
-        logger -t "$TAG" "WARNING: rx-udp-gro-forwarding failed for $nic"
+    if [[ " ${SPECTRUM_NICS[*]} " == *" $nic "* ]]; then
+        # Software shaping on the Silicom Spectrum pair loses packets when GRO/GSO/TSO
+        # and hardware TC offload are enabled. Keep frames visible to qdisc at MTU size.
+        if ! ethtool -K "$nic" gro off gso off tso off hw-tc-offload off 2>&1; then
+            logger -t "$TAG" "WARNING: offload disable failed for $nic"
+        fi
+        logger -t "$TAG" "$nic: ring buffers rx=$RING_RX tx=$RING_TX, gro/gso/tso/hw-tc-offload=off"
+    else
+        # rx-udp-gro-forwarding remains useful on non-Spectrum paths.
+        if ! ethtool -K "$nic" rx-udp-gro-forwarding on 2>&1; then
+            logger -t "$TAG" "WARNING: rx-udp-gro-forwarding failed for $nic"
+        fi
+        logger -t "$TAG" "$nic: ring buffers rx=$RING_RX tx=$RING_TX, rx-udp-gro-forwarding=on"
     fi
-
-    logger -t "$TAG" "$nic: ring buffers rx=$RING_RX tx=$RING_TX, rx-udp-gro-forwarding=on"
     return 0
 }
 
@@ -100,20 +108,20 @@ logger -t "$TAG" "Starting NIC tuning..."
 
 errors=0
 
-# Apply ring buffers and GRO forwarding to all NICs
+# Apply ring buffers and per-link offload policy to all NICs
 for nic in "${ALL_NICS[@]}"; do
     if ! tune_nic "$nic"; then
         errors=$((errors + 1))
     fi
 done
 
-# Pin IRQ affinity -- Spectrum DL (ens16) to CPU 0
-if ! set_irq_affinity "ens16" "$SPECTRUM_DL_CPU"; then
+# Pin IRQ affinity -- Spectrum DL to CPU 0
+if ! set_irq_affinity "spec-router" "$SPECTRUM_DL_CPU"; then
     errors=$((errors + 1))
 fi
 
-# Pin IRQ affinity -- Spectrum UL (ens17) to CPU 2 (MOVED from CPU0)
-if ! set_irq_affinity "ens17" "$SPECTRUM_UL_CPU"; then
+# Pin IRQ affinity -- Spectrum UL to CPU 2
+if ! set_irq_affinity "spec-modem" "$SPECTRUM_UL_CPU"; then
     errors=$((errors + 1))
 fi
 

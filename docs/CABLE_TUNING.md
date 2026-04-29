@@ -87,28 +87,99 @@ What caused the initial severe download symptom:
 - Direction must be confirmed with `ip -s link` and `tc -s qdisc`, not inferred
   from interface names after cable moves.
 
-What remains unresolved:
+What changed upload behavior during the investigation:
 
-- Managed `wanctl@spectrum` operation can clamp upload aggressively during Dallas
-  upload tests. Logs showed upload being driven as low as `8Mbit` while raw bridge
-  and direct-router tests showed the path can carry the expected upstream rate.
-- Static CAKE at `32Mbit` with `ack_filter: false` improved upload compared with
-  managed mode but did not match raw bridge performance in the first static run.
-- The current temporary mitigation is `cake_params.ack_filter: false` on Spectrum;
-  this avoids ACK-filter-specific loss but is not a complete controller tuning fix.
+- Disabling `gro`, `gso`, `tso`, and `hw-tc-offload` on `spec-modem` and
+  `spec-router` changed CAKE `max_len` from GSO-sized packets back to MTU-sized
+  packets and eliminated the severe ping-loss mode seen during shaped upload.
+- Static CAKE with the old `rtt 25ms` setting underperformed badly. Increasing
+  CAKE `rtt` improved upload in static tests, with `rtt 1s` producing the best
+  observed static result in this session. This is evidence, not a final doctrine:
+  the value needs a cleaner A/B run before being treated as globally correct.
+- `cake_params.ack_filter: false` is still required for the current Spectrum
+  Silicom deployment. A backend bug also had to be fixed so explicit false values
+  actually produce `no-ack-filter` or netlink `ack_filter=False`.
+- Download-side CAKE with the `ingress` keyword on `spec-router` collapsed upload
+  tests, apparently by disturbing the return-ACK path. Removing `ingress` restored
+  upload behavior in static isolation.
+- Managed `wanctl@spectrum` still underperformed until WAN-path measurement probe
+  traffic was isolated. Disabling IRTT helped, but was not sufficient by itself:
+  a single WAN ICMP reflector (`1.1.1.1`) still reproduced the upload collapse.
+  Gateway-only probing (`10.10.110.1`) plus IRTT disabled produced the best managed
+  validation result in this session.
+
+Current operational mitigation, not final tuning doctrine:
+
+```yaml
+cake_params:
+  download_interface: "spec-router"
+  upload_interface: "spec-modem"
+  rtt: "1s"
+  ack_filter: false
+  ingress: false
+
+continuous_monitoring:
+  cake_stats_cadence_sec: 1.0
+  upload:
+    ceiling_mbps: 28
+  ping_hosts: ["10.10.110.1"]
+
+irtt:
+  enabled: false
+```
+
+Validated observations from 2026-04-28:
+
+- Raw bridge capability was repeatedly observed around `34-39 Mbit/s` upload when
+  public `iperf3` targets were behaving.
+- Static upload CAKE at `28Mbit`, `rtt 1s`, `no-ack-filter`, and no download
+  `ingress` produced about `24-25 Mbit/s` receiver throughput with low qdisc drop
+  counts in the cleanest runs.
+- Managed `wanctl@spectrum` with gateway-only probing and IRTT disabled produced
+  about `25.3 Mbit/s` receiver throughput with no ping loss in the best valid run.
+- Managed `wanctl@spectrum` with IRTT enabled or WAN ICMP probing produced repeated
+  upload collapse during public `iperf3` tests. This may be caused by probe traffic
+  interacting with the inline bridge, CAKE classification, DOCSIS upstream request
+  scheduling, or the specific test methodology; it is not yet proven that public
+  ICMP must be disabled permanently.
+- Public `iperf3` targets became unreliable late in the investigation, including
+  broken pipes and `0.00 Bytes` receiver reports even in raw bridge mode. Treat
+  late-run public `iperf3` failures as inconclusive unless immediately bracketed by
+  a healthy raw bridge control.
+- A browser bufferbloat test after mitigation reported grade `B`, download
+  `735.2 Mbps`, upload `25.4 Mbps`, unloaded latency `31 ms`, download active
+  `+47 ms`, and upload active `+42 ms`. This shows the mitigation restored usable
+  upload throughput but did not fully solve loaded latency.
+
+Open questions before declaring a final Spectrum/Silicom tune:
+
+- Is `rtt 1s` actually the right CAKE interval, or did it merely mask another
+  interaction in the test setup? Re-test `100ms`, `200ms`, `500ms`, and `1s` with
+  identical raw/static/managed controls.
+- Can WAN-path public ICMP be reintroduced at a lower cadence, with fewer hosts, or
+  with a different measurement source without collapsing upload?
+- Is IRTT itself harmful, or only its current cadence/duration/packet pattern on
+  this inline bridge and DOCSIS upstream?
+- Should the download ceiling be lowered from `940Mbit` toward measured goodput
+  (`735 Mbps` in the browser test) to improve the remaining `+47 ms` download
+  active latency?
+- Should upload ceiling be tested around `24-28Mbit` to trade a few Mbps for lower
+  `+42 ms` upload active latency?
 
 Do not treat this finding as permission to change thresholds or floors casually.
 The next tuning step should be a controlled A/B run that waits for link/path
 stabilization and compares:
 
 - raw bridge, no CAKE
-- static CAKE `32Mbit no-ack-filter`
-- static CAKE with current `diffserv4` classification
-- managed `wanctl@spectrum`
+- static upload CAKE only
+- static upload and download CAKE without `ingress`
+- managed `wanctl@spectrum` with gateway-only probes
+- managed `wanctl@spectrum` with one public ICMP reflector at reduced cadence
+- managed `wanctl@spectrum` with IRTT reintroduced at reduced cadence or duration
 
-Capture `tc -s qdisc`, `ip -s link`, and controller logs immediately after each
-run. If upload loss only appears in managed mode, tune controller response; if it
-appears in static CAKE but not raw bridge, tune CAKE parameters/classification.
+Capture `tc -s qdisc`, `ip -s link`, `/health`, controller logs, and external
+bufferbloat results immediately after each run. Public `iperf3` runs must be
+bracketed by raw bridge controls when they produce low throughput or broken pipes.
 
 ### Note on factor_down_yellow
 

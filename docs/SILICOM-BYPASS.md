@@ -273,6 +273,8 @@ Persistent VM config now points Spectrum at the Silicom pair:
 /etc/wanctl/spectrum.yaml: upload_interface="spec-modem"
 /etc/wanctl/spectrum.yaml: download_interface="spec-router"
 /etc/wanctl/spectrum.yaml: cake_params.ack_filter=false
+/etc/wanctl/spectrum.yaml: cake_params.ingress=false
+/etc/wanctl/spectrum.yaml: cake_params.rtt="1s"  # provisional mitigation
 ```
 
 Backups from the migration are timestamped with `20260428150434` and
@@ -384,6 +386,76 @@ sudo ./bpctl_util spec-modem get_bypass_wd
 As of this validation, the Silicom/riser/bridge path is capable of full Spectrum
 upload. Remaining Spectrum upload loss under normal operation is a CAKE/controller
 tuning issue, not a bypass-card or PCIe-riser finding.
+
+### Managed Spectrum Mitigation Notes
+
+The 2026-04-28 validation produced an operational mitigation, not a settled final
+tuning answer. Keep the distinction explicit when changing Spectrum settings.
+
+Evidence-supported pieces:
+
+- The Spectrum Silicom ports need `gro`, `gso`, `tso`, and `hw-tc-offload` disabled
+  before `wanctl@spectrum` starts. This is handled by `wanctl-nic-tuning.service`.
+- Upload shaping belongs on `spec-modem`; download shaping belongs on `spec-router`.
+- Upload CAKE with `no-ack-filter` avoids the ACK-filter-specific loss mode seen
+  during the migration tests.
+- Download CAKE with `ingress` on `spec-router` collapsed upload tests; the current
+  Spectrum config disables that flag.
+
+Provisional pieces that need retesting:
+
+- `cake_params.rtt: "1s"` improved static CAKE upload in this session, but it is not
+  proven as the generally correct DOCSIS/Silicom value. It should be re-tested
+  against `100ms`, `200ms`, and `500ms` with raw/static/managed controls.
+- `ping_hosts: ["10.10.110.1"]` and `irtt.enabled: false` are an operational
+  mitigation for upload collapse during testing. They reduce WAN-path autorate
+  sensitivity and should not be treated as a final architecture decision without
+  follow-up measurement work.
+
+Observed managed-mode behavior:
+
+- IRTT probe traffic contributed to the upload collapse, but disabling IRTT alone
+  did not fully solve it.
+- A single public ICMP reflector (`1.1.1.1`) still reproduced the collapse in a
+  managed test.
+- Gateway-only ICMP plus IRTT disabled produced the best valid managed upload run:
+  about `25.3 Mbit/s` receiver throughput with no ping loss.
+- A later browser bufferbloat test under the mitigation reported grade `B`,
+  `735.2 Mbps` down, `25.4 Mbps` up, download active latency `+47 ms`, and upload
+  active latency `+42 ms`. This is usable, but not fully tuned.
+
+Public `iperf3` caution:
+
+- Late in the test session, Dallas and Novoserve public `iperf3` targets produced
+  broken pipes, busy-server errors, and `0.00 Bytes` receiver output even in raw
+  bridge mode. Treat those runs as test-target failures unless bracketed by a
+  healthy raw bridge control.
+
+Restore checklist after any Spectrum isolation test:
+
+```bash
+sudo systemctl restart wanctl-nic-tuning.service
+sudo systemctl restart wanctl@spectrum.service
+sleep 3
+sudo systemctl restart silicom-bypass-watchdog@spectrum.service
+systemctl is-active wanctl@spectrum.service silicom-bypass-watchdog@spectrum.service bpctl-silicom.service
+tc qdisc show dev spec-modem
+tc qdisc show dev spec-router
+cd /opt/bpctl-silicom
+sudo ./bpctl_util spec-modem get_bypass
+sudo ./bpctl_util spec-modem get_bypass_wd
+```
+
+Expected restored state:
+
+```text
+wanctl@spectrum.service: active
+silicom-bypass-watchdog@spectrum.service: active
+bpctl-silicom.service: active
+spec-modem: CAKE upload qdisc, non-bypass
+spec-router: CAKE download qdisc, no ingress keyword
+WDT: enabled with 6400 ms timeout value
+```
 
 ## ATT Recovery Sequence
 

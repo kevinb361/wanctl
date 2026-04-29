@@ -33,17 +33,19 @@ queues:
 
 # CAKE qdisc parameters for LinuxCakeBackend
 cake_params:
-  download_interface: "ens17" # Spectrum router-side NIC (download egress with ingress keyword)
-  upload_interface: "ens16" # Spectrum modem-side NIC (upload egress with ack-filter)
+  download_interface: "spec-router" # Spectrum router-side NIC (download egress)
+  upload_interface: "spec-modem" # Spectrum modem-side NIC (upload egress)
   overhead: "docsis" # sweep validated 2026-04-04 (=18 bytes, matches MikroTik)
   mpu: 64 # sweep validated 2026-04-04 (matches MikroTik)
   memlimit: "64mb" # Raised from 32mb — DL qdisc was at 86.6% (27.7/32MB)
-  rtt: "25ms" # sweep validated 2026-04-04 (10-run winner, matches MikroTik)
+  rtt: "1s" # Provisional Silicom mitigation; retest before treating as final DOCSIS value
+  ack_filter: false # Silicom validation 2026-04-28; preserve no-ack-filter on upload
+  ingress: false # Silicom validation 2026-04-28; ingress on spec-router hurt upload tests
 
 # Continuous monitoring - Expert-tuned for Spectrum Cable
 continuous_monitoring:
   enabled: true
-  # cake_stats_cadence_sec: 0.05  # Background tc("dump") polling cadence, seconds.
+  cake_stats_cadence_sec: 1.0 # Provisional Silicom mitigation; retest 0.05s/0.25s/1.0s
   # Default 0.05 preserves v1.38.0 50ms behavior. Values above 10.0 are capped.
   # Tune only with flent + /health overlap A/B evidence; see docs/CONFIG_SCHEMA.md.
 
@@ -65,7 +67,7 @@ continuous_monitoring:
   # Upload parameters (Phase 2A: unchanged, 3-state)
   upload:
     floor_mbps: 8 # Keeps upstream from going too conservative
-    ceiling_mbps: 32 # 80% of 40Mbps plan — headroom prevents ISP buffer bloat (was 38, validated 2026-04-03)
+    ceiling_mbps: 28 # Silicom Spectrum validation 2026-04-28; 32Mbps caused loaded-latency spikes
     step_up_mbps: 5 # Phase 135 validated 2026-04-03 (was 1, +17.6% UL throughput)
     factor_down: 0.90 # Phase 135 validated 2026-04-03 (was 0.85, gentler decay wins on UL)
     green_required: 3 # linux-cake confirmed 2026-04-02 (unchanged from REST)
@@ -93,7 +95,7 @@ continuous_monitoring:
   # 4.2.2.2 (Level3) dropped -- 35% ICMP timeout rate at 20Hz from rate limiting
   # 8.8.8.8 (Google) dropped -- 0% timeout but +13ms RTT skews median vs 1.1.1.1/9.9.9.9
   # 208.67.222.222 (OpenDNS) -- 0% timeout, ~21ms RTT matches cluster, path diversity
-  ping_hosts: ["1.1.1.1", "208.67.222.222", "151.101.1.57"]
+  ping_hosts: ["10.10.110.1"] # Operational mitigation; public ICMP reintroduction needs A/B retest
   use_median_of_three: true # Handle reflector variation
 
   # Fallback connectivity checks (handle ISP ICMP filtering/rate-limiting)
@@ -133,7 +135,7 @@ signal_processing:
 
 # IRTT UDP RTT measurement (v1.18+)
 irtt:
-  enabled: true
+  enabled: false # Operational mitigation; IRTT reintroduction needs cadence/duration A/B retest
   server: "104.200.21.31"
   port: 2112
   duration_ms: 1000

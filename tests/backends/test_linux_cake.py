@@ -808,6 +808,7 @@ class TestSetBandwidthCaching:
         assert "ecn" not in cmd
         # Upload-only flag NOT in cmd
         assert "ack-filter" not in cmd
+        assert "no-ack-filter" in cmd
 
 
 # =============================================================================
