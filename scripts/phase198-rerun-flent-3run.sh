@@ -17,7 +17,7 @@ Options:
   --output-root <dir>        Flent helper output root (default: ~/flent-results/phase198-rerun)
   --evidence-root <dir>      Evidence root (default: .planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary)
   --remote-host <host>       SSH host for metrics DB (default: ${PHASE196_REMOTE_HOST:-cake-shaper})
-  --remote-user <user>       SSH user (default: ${PHASE196_REMOTE_USER:-root})
+  --remote-user <user>       SSH user override (default: empty — defer to ~/.ssh/config; remote sqlite3 runs under sudo -n regardless)
   --remote-db <path>         Remote SQLite DB (default: ${PHASE196_REMOTE_DB:-/var/lib/wanctl/wanctl-spectrum.db})
   --health-url <url>         Health URL (default: http://127.0.0.1:9101/health)
   --local-bind <ip>          Required Spectrum source bind (default: 10.10.110.226)
@@ -33,7 +33,7 @@ EOF
 OUTPUT_ROOT="${HOME}/flent-results/phase198-rerun"
 EVIDENCE_ROOT=".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary"
 REMOTE_HOST="${PHASE196_REMOTE_HOST:-cake-shaper}"
-REMOTE_USER="${PHASE196_REMOTE_USER:-root}"
+REMOTE_USER="${PHASE196_REMOTE_USER:-}"
 REMOTE_DB="${PHASE196_REMOTE_DB:-/var/lib/wanctl/wanctl-spectrum.db}"
 HEALTH_URL="http://127.0.0.1:9101/health"
 LOCAL_BIND="10.10.110.226"
@@ -123,6 +123,7 @@ if [[ "${DRY_RUN}" == "1" && -n "${TEST_HOUR}" ]]; then
 else
     LOCAL_HOUR="$(date +%H)"
 fi
+ATTEMPTED_AT_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 ATTEMPT_DIR_PREFIX="${EVIDENCE_ROOT}/rerun-attempt-"
 N=1
@@ -193,10 +194,14 @@ write_partial_summary() {
             --argjson cr "${COMPLETED_RUNS}" \
             --arg window "${WINDOW_USED:-pre-gates}" \
             --arg head "${REF:-unknown}" \
+            --arg attempted_at_utc "${ATTEMPTED_AT_UTC:-}" \
+            --argjson local_hour "$((10#${LOCAL_HOUR:-0}))" \
             '{phase: 198, attempt_number: $n, failed: true,
               harness_exit_code: $ec, failure_stage: $stage,
               completed_runs: $cr, off_peak_window_used: $window,
               head_sha: $head, phase_197_ship_sha: "068b804",
+              attempted_at_utc: $attempted_at_utc,
+              local_hour_at_start: $local_hour,
               decision: null}' \
             >"${ATTEMPT_DIR}/attempt-summary.json" 2>/dev/null || true
     fi
@@ -299,7 +304,7 @@ for i in 1 2 3; do
 
     ATTEMPT_FAILED_STAGE="sqlite"
     PSV_FILE="${ATTEMPT_DIR}/loaded-window-run${i}.psv"
-    ssh -o BatchMode=yes "${REMOTE_USER}@${REMOTE_HOST}" \
+    ssh -o BatchMode=yes ${REMOTE_USER:+"${REMOTE_USER}@"}"${REMOTE_HOST}" \
         "command -v sqlite3 >/dev/null && sudo -n sqlite3 -readonly -header -separator '|' '${REMOTE_DB}'" \
         >"${PSV_FILE}" <<SQL
 SELECT
@@ -387,7 +392,7 @@ ALL_AUDITS_PASS="$(jq -n --argjson v "${AUDIT_VERDICTS}" '$v | all(. == "pass")'
 
 jq -n \
     --argjson n "${N}" \
-    --arg attempted_at_utc "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --arg attempted_at_utc "${ATTEMPTED_AT_UTC}" \
     --argjson local_hour "$((10#${LOCAL_HOUR}))" \
     --arg window "${WINDOW_USED}" \
     --arg head "${REF}" \
