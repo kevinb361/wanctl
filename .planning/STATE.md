@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Queue-Primary Signal Arbitration
 status: executing
-stopped_at: Completed 198-05-PLAN.md; off-peak rerun harness and per-run audit/verdict tooling ready for operator-scheduled Plan 198-06
-last_updated: "2026-04-29T12:12:00.000Z"
+stopped_at: Plan 198-06 checkpoint reached; awaiting operator off-peak rerun harness execution and attempt decision
+last_updated: "2026-04-29T14:43:23.034Z"
 last_activity: 2026-04-29
 progress:
   total_phases: 7
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Milestone:** v1.40 Queue-Primary Signal Arbitration
 **Phase:** 198
-**Plan:** 198-05
-**Status:** Executing Phase 198 — Plan 198-05 complete; ready for off-peak rerun execution in Plan 198-06
+**Plan:** 198-06
+**Status:** Checkpoint — awaiting operator off-peak rerun harness execution and attempt decision for Plan 198-06
 **Last activity:** 2026-04-29
 
 Progress: [██████████] 100%
@@ -99,7 +99,7 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Stopped at: Completed 198-05-PLAN.md; off-peak rerun harness and per-run audit/verdict tooling ready for operator-scheduled Plan 198-06
+Stopped at: Plan 198-06 checkpoint reached; awaiting operator off-peak rerun harness execution and attempt decision
 Resume file: None
 
 ## Decisions
