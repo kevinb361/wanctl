@@ -12,7 +12,7 @@ Locked rules (do not edit):
 - Per-run audit pass: `health_sample_count >= 25 AND queue_primary_health_pct >= 95 AND health_non_queue == 0`
 - Off-peak window: 02:00-04:59 local (extended 01:00-05:59 with `--allow-extended-window`)
 
-continuation_justification: Operator requested one additional retry after three failed/forced attempts; attempt 4 is scheduled for the standard off-peak window and will not use --force-window.
+continuation_justification: Operator response on 2026-05-01 was retry after attempt 9 failed at the SQLite evidence-pull stage with completed_runs=0. Continue to attempt 10 because the latest off-peak batch did not produce any completed flent throughput or per-run loaded-window audit evidence for the locked promotion gate; the next retry remains standard off-peak and will not use --force-window.
 
 ---
 ## Attempt 1
@@ -184,10 +184,11 @@ continuation_justification: Operator requested one additional retry after three 
 - **Throughput verdict:** n/a
 - **Per-run loaded-window audit verdicts:** n/a
 - **All per-run audits pass:** false
-- **Operator decision:** pending
+- **Operator decision:** retry
+- **Operator note:** Operator response on 2026-05-01: retry. Continue because attempts 7-9 failed at the SQLite evidence-pull stage before any completed flent run, so the latest off-peak batch did not produce throughput or per-run audit evidence for the locked promotion gate. Schedule one additional standard off-peak retry batch for attempt 10.
 - **Evidence dir:** `.planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/rerun-attempt-9`
 - **Harness log:** `/home/kevin/projects/wanctl/.planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/scheduled-attempt-20260501T074130Z-run3.log`
 
 ---
 
-WARNING: hard-abort threshold reached (3 accumulated abort/retry/failed attempts). Further attempts require a 'continuation_justification:' line in this file. The harness will refuse attempt 4 without it.
+WARNING: hard-abort threshold reached (3 accumulated abort/retry/failed attempts). Further attempts require a 'continuation_justification:' line in this file. The harness will refuse attempt 10 without it.

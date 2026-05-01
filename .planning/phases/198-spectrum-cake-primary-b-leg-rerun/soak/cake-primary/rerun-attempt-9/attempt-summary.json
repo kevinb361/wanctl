@@ -10,5 +10,6 @@
   "phase_197_ship_sha": "068b804",
   "attempted_at_utc": "2026-05-01T07:41:30Z",
   "local_hour_at_start": 2,
-  "decision": null
+  "decision": "retry",
+  "operator_note": "Operator response on 2026-05-01: retry. Continue because attempts 7-9 failed at the SQLite evidence-pull stage before any completed flent run, so the latest off-peak batch did not produce throughput or per-run audit evidence for the locked promotion gate. Schedule one additional standard off-peak retry batch for attempt 10."
 }
