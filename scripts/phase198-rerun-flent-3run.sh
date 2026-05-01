@@ -175,10 +175,18 @@ if ! git diff --quiet "${PHASE_197_SHIP_SHA}..HEAD" -- \
     exit 4
 fi
 
+if [[ "${DRY_RUN}" == "1" ]]; then
+    echo "DRY_RUN: gates passed (window=${WINDOW_USED}, bind=10.10.110.226, SAFE-05=clean, hard-abort=ok, next_attempt=${N}). Exiting 0 without running flent."
+    exit 0
+fi
+
 # Pre-flight: confirm HEALTH_URL is reachable and serves the spectrum WAN.
 # Without this, the per-second curl loop fails silently (curl ... | jq ... || true),
 # producing a 0-byte ndjson. The audit step then reports "samples_in_window: 0"
 # with no clear link back to the unreachable endpoint — burning an off-peak window.
+# Placed AFTER the dry-run exit to honor the documented dry-run contract
+# ("do not create evidence or run flent/SSH/health"); dry-run does not touch
+# the network.
 ATTEMPT_FAILED_STAGE="health_preflight"
 HEALTH_PROBE="$(curl -fsS -m 2 "${HEALTH_URL}" 2>&1)" || {
     echo "REFUSED: HEALTH_URL unreachable: ${HEALTH_URL}" >&2
@@ -188,11 +196,6 @@ HEALTH_PROBE="$(curl -fsS -m 2 "${HEALTH_URL}" 2>&1)" || {
 if ! printf '%s' "${HEALTH_PROBE}" | jq -e '.wans[]? | select(.name == "spectrum")' >/dev/null 2>&1; then
     echo "REFUSED: HEALTH_URL did not return a spectrum WAN entry: ${HEALTH_URL}" >&2
     exit 5
-fi
-
-if [[ "${DRY_RUN}" == "1" ]]; then
-    echo "DRY_RUN: gates passed (window=${WINDOW_USED}, bind=10.10.110.226, SAFE-05=clean, hard-abort=ok, health=ok, next_attempt=${N}). Exiting 0 without running flent."
-    exit 0
 fi
 
 REF="$(git rev-parse --short HEAD)"
