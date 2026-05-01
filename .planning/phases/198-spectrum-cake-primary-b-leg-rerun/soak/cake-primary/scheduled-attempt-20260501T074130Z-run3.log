@@ -1,0 +1,12 @@
+Capture directory: /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt9_run1/spectrum/20260501-024130
+Manifest: /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt9_run1/spectrum/20260501-024130/manifest.txt
+
+=== Running tcp_12down (phase198_rerun_attempt9_run1-spectrum-tcp_12down) ===
+Starting Flent 2.1.1 using Python 3.12.3.
+Starting tcp_12down test. Expected run time: 40 seconds.
+Data file written to /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt9_run1/spectrum/20260501-024130/tcp_12down-2026-05-01T024131.328946.phase198_rerun_attempt9_run1-spectrum-tcp_12down.flent.gz
+Saved raw data: /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt9_run1/spectrum/20260501-024130/tcp_12down-2026-05-01T024131.328946.phase198_rerun_attempt9_run1-spectrum-tcp_12down.flent.gz
+
+Capture complete.
+Artifacts recorded in /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt9_run1/spectrum/20260501-024130/manifest.txt
+Error: unable to open database "/var/lib/wanctl/wanctl-spectrum.db": unable to open database file

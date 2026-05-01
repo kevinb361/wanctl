@@ -1,0 +1,17 @@
+{
+  "ip": "70.123.224.169",
+  "hostname": "syn-070-123-224-169.res.spectrum.com",
+  "city": "Live Oak",
+  "region": "Texas",
+  "country": "US",
+  "loc": "29.5652,-98.3364",
+  "org": "AS11427 Charter Communications Inc",
+  "postal": "78233",
+  "timezone": "America/Chicago",
+  "readme": "https://ipinfo.io/missingauth",
+  "run": 1,
+  "captured_at_utc": "2026-05-01T07:35:49Z",
+  "public_ip": "70.123.224.169",
+  "egress_ip_matches": true,
+  "egress_org_matches": true
+}

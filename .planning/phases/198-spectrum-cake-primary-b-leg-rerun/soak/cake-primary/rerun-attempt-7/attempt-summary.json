@@ -1,0 +1,14 @@
+{
+  "attempt_number": 7,
+  "attempted_at_utc": "2026-05-01T07:30:07Z",
+  "completed_runs": 0,
+  "decision": "retry",
+  "failed": true,
+  "failure_stage": "sqlite",
+  "harness_exit_code": 1,
+  "head_sha": "ff6673a",
+  "local_hour_at_start": 2,
+  "off_peak_window_used": "standard:02-04",
+  "phase": 198,
+  "phase_197_ship_sha": "068b804"
+}
