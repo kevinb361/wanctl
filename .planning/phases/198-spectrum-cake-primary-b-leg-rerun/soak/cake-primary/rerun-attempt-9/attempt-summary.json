@@ -1,0 +1,14 @@
+{
+  "phase": 198,
+  "attempt_number": 9,
+  "failed": true,
+  "harness_exit_code": 1,
+  "failure_stage": "sqlite",
+  "completed_runs": 0,
+  "off_peak_window_used": "standard:02-04",
+  "head_sha": "ff6673a",
+  "phase_197_ship_sha": "068b804",
+  "attempted_at_utc": "2026-05-01T07:41:30Z",
+  "local_hour_at_start": 2,
+  "decision": null
+}
