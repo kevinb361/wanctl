@@ -49,7 +49,9 @@ def _truthy(value: Any) -> bool:
     return False
 
 
-def _resolve_bool(sample: dict[str, Any], paths: list[tuple[str, str]]) -> tuple[bool, str]:
+def _resolve_bool(
+    sample: dict[str, Any], paths: list[tuple[str, str]]
+) -> tuple[bool, str]:
     for path, kind in paths:
         value = _nested_get(sample, path) if "." in path else sample.get(path)
         if value is None:
@@ -60,7 +62,26 @@ def _resolve_bool(sample: dict[str, Any], paths: list[tuple[str, str]]) -> tuple
     return False, "unresolved:false"
 
 
-def _read_health(path: Path, start: int, end: int) -> tuple[list[dict[str, Any]], dict[str, str]]:
+def _spectrum_health_sample(sample: dict[str, Any]) -> dict[str, Any]:
+    """Select the Spectrum WAN sub-payload from a /health top-level sample.
+
+    Production /health nests per-WAN state under `wans[]`; legacy fixtures
+    placed `signal_arbitration` etc. at the root. Return the spectrum entry
+    when present, fall back to wans[0], then to the sample itself.
+    """
+    wans = sample.get("wans")
+    if isinstance(wans, list) and wans:
+        for wan in wans:
+            if isinstance(wan, dict) and wan.get("name") == "spectrum":
+                return wan
+        if isinstance(wans[0], dict):
+            return wans[0]
+    return sample
+
+
+def _read_health(
+    path: Path, start: int, end: int
+) -> tuple[list[dict[str, Any]], dict[str, str]]:
     rows: list[dict[str, Any]] = []
     resolution = {
         "queue_primary_active": "unresolved:false",
@@ -103,12 +124,15 @@ def _read_health(path: Path, start: int, end: int) -> tuple[list[dict[str, Any]]
             try:
                 sampled_utc = float(sample["sampled_utc"])
             except (KeyError, TypeError, ValueError) as exc:
-                raise ValueError(f"{path}:{line_no}: missing numeric sampled_utc") from exc
+                raise ValueError(
+                    f"{path}:{line_no}: missing numeric sampled_utc"
+                ) from exc
             if not (start <= sampled_utc <= end):
                 continue
-            queue, queue_path = _resolve_bool(sample, queue_paths)
-            refractory, refractory_path = _resolve_bool(sample, refractory_paths)
-            dwell, dwell_path = _resolve_bool(sample, dwell_paths)
+            health_sample = _spectrum_health_sample(sample)
+            queue, queue_path = _resolve_bool(health_sample, queue_paths)
+            refractory, refractory_path = _resolve_bool(health_sample, refractory_paths)
+            dwell, dwell_path = _resolve_bool(health_sample, dwell_paths)
             if resolution["queue_primary_active"] == "unresolved:false":
                 resolution["queue_primary_active"] = queue_path
             if resolution["refractory_active"] == "unresolved:false":
@@ -131,7 +155,9 @@ def _read_psv(path: Path, start: int, end: int) -> dict[int, dict[str, float]]:
         reader = csv.DictReader(fh, delimiter="|")
         expected = ["sampled_utc", "timestamp", "wan_name", "metric_name", "value"]
         if reader.fieldnames != expected:
-            raise ValueError(f"{path}: expected PSV header {'|'.join(expected)}, got {reader.fieldnames}")
+            raise ValueError(
+                f"{path}: expected PSV header {'|'.join(expected)}, got {reader.fieldnames}"
+            )
         for row in reader:
             if row.get("wan_name") != "spectrum":
                 continue
@@ -149,7 +175,9 @@ def audit(args: argparse.Namespace) -> dict[str, Any]:
     health_rows, resolution = _read_health(
         Path(args.health_ndjson), args.flent_window_start, args.flent_window_end
     )
-    grouped_psv = _read_psv(Path(args.psv), args.flent_window_start, args.flent_window_end)
+    grouped_psv = _read_psv(
+        Path(args.psv), args.flent_window_start, args.flent_window_end
+    )
 
     health_sample_count = len(health_rows)
     health_queue_primary_samples = sum(r["queue_primary_active"] for r in health_rows)
@@ -158,7 +186,9 @@ def audit(args: argparse.Namespace) -> dict[str, Any]:
     health_non_queue = sum(
         (not r["queue_primary_active"]) and r["refractory_active"] for r in health_rows
     )
-    queue_primary_health_pct = 100.0 * health_queue_primary_samples / max(health_sample_count, 1)
+    queue_primary_health_pct = (
+        100.0 * health_queue_primary_samples / max(health_sample_count, 1)
+    )
 
     sqlite_queue_samples = 0
     sqlite_queue_via_refractory = 0
@@ -174,13 +204,19 @@ def audit(args: argparse.Namespace) -> dict[str, Any]:
             sqlite_non_queue += 1
     sqlite_sample_count = len(grouped_psv)
     queue_primary_sqlite_pct = (
-        100.0 * (sqlite_queue_samples + sqlite_queue_via_refractory) / max(sqlite_sample_count, 1)
+        100.0
+        * (sqlite_queue_samples + sqlite_queue_via_refractory)
+        / max(sqlite_sample_count, 1)
     )
 
     health_count_ok = health_sample_count >= args.min_health_samples
     coverage_ok = queue_primary_health_pct >= args.min_coverage_pct
     no_unexplained_fallback = health_non_queue == 0
-    verdict = "pass" if health_count_ok and coverage_ok and no_unexplained_fallback else "fail"
+    verdict = (
+        "pass"
+        if health_count_ok and coverage_ok and no_unexplained_fallback
+        else "fail"
+    )
 
     return {
         "phase": 198,
@@ -240,7 +276,9 @@ def main() -> int:
     result = audit(args)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output.write_text(
+        json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     print(
         "Phase 198 loaded-window audit run "
         f"{args.run}: {result['verdict']} "

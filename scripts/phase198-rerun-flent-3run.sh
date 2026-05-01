@@ -18,7 +18,7 @@ Options:
   --evidence-root <dir>      Evidence root (default: .planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary)
   --remote-host <host>       SSH host for metrics DB (default: ${PHASE196_REMOTE_HOST:-cake-shaper})
   --remote-user <user>       SSH user override (default: empty — defer to ~/.ssh/config; remote sqlite3 runs under sudo -n regardless)
-  --remote-db <path>         Remote SQLite DB (default: ${PHASE196_REMOTE_DB:-/var/lib/wanctl/wanctl-spectrum.db})
+  --remote-db <path>         Remote SQLite DB (default: ${PHASE196_REMOTE_DB:-/var/lib/wanctl/metrics-spectrum.db})
   --health-url <url>         Health URL (default: http://127.0.0.1:9101/health)
   --local-bind <ip>          Required Spectrum source bind (default: 10.10.110.226)
   --duration <sec>           Flent duration seconds (default: 30)
@@ -34,7 +34,7 @@ OUTPUT_ROOT="${HOME}/flent-results/phase198-rerun"
 EVIDENCE_ROOT=".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary"
 REMOTE_HOST="${PHASE196_REMOTE_HOST:-cake-shaper}"
 REMOTE_USER="${PHASE196_REMOTE_USER:-}"
-REMOTE_DB="${PHASE196_REMOTE_DB:-/var/lib/wanctl/wanctl-spectrum.db}"
+REMOTE_DB="${PHASE196_REMOTE_DB:-/var/lib/wanctl/metrics-spectrum.db}"
 HEALTH_URL="http://127.0.0.1:9101/health"
 LOCAL_BIND="10.10.110.226"
 DURATION="30"
