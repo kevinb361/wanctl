@@ -346,7 +346,7 @@ Plans:
 3. **A/B comparison artifact (VALN-04).** `ab-comparison.json` produced against the accepted Phase 196 rtt-blend A-leg control evidence (NOT against the A-leg flent throughput numbers). Burst detection trigger count, dwell-bypass responsiveness, and fusion state transitions on the cake-primary leg are at least as healthy as on the rtt-blend leg. RTT-distress event counts on cake-primary do not grow beyond the rtt-blend leg.
 4. **SAFE-05 invariant.** No state-machine, EWMA, dwell, deadband, threshold, or burst-detection value changes between Phase 197 ship and Phase 198 acceptance. Verified by source-tree diff in `198-VERIFICATION.md`.
 
-**Plans:** 6/7 plans executed
+**Plans:** 7/7 plans complete
 
 Plans:
 - [x] 198-01-PLAN.md — Preflight + Phase 197 deployment proof + initial source-bind egress probe + SAFE-05 baseline (SAFE-05)
@@ -355,7 +355,7 @@ Plans:
 - [x] 198-04-PLAN.md — Blocked closeout recorded after operator decision; produced ab-comparison.json (comparison_verdict fail), safe05-diff.json (SAFE-05 pass), 198-VERIFICATION.md (status blocked), and an accurate 196-VERIFICATION.md update that does not close VALN-04/VALN-05a
 - [x] 198-05-PLAN.md — GAP CLOSURE: off-peak rerun harness (scripts/phase198-rerun-flent-3run.sh + per-run loaded-window audit + throughput verdict scripts) — no source changes (SAFE-05, VALN-04, VALN-05a tooling)
 - [x] 198-06-PLAN.md — GAP CLOSURE: operator-scheduled off-peak (02:00-05:00 local) 3-run flent attempts with per-run loaded-window queue-primary capture; one attempt per plan invocation; explicit accept/retry/abort decision; multi-attempt history logged in 198-06-ATTEMPT-LOG.md (VALN-04, VALN-05a, SAFE-05)
-- [ ] 198-07-PLAN.md — GAP CLOSURE: branch on latest attempt-summary.json decision; PROMOTE canonicalizes passing rerun evidence and flips 198-VERIFICATION.md to passed; ABORT preserves blocked closeout with full rerun_history; always regenerates safe05-diff.json (VALN-04, VALN-05a, SAFE-05)
+- [x] 198-07-PLAN.md — GAP CLOSURE: branch on latest attempt-summary.json decision; PROMOTE canonicalizes passing rerun evidence and flips 198-VERIFICATION.md to passed; ABORT preserves blocked closeout with full rerun_history; always regenerates safe05-diff.json (VALN-04, VALN-05a, SAFE-05)
 
 Closeout status: Phase 198 Plan 06 produced a passing off-peak promotion candidate after the earlier Plan 04 blocked closeout. Attempt 11 ran in the standard 02-04 off-peak window, passed VALN-05a under the locked rule (`medians_above_532=3`, `median_of_medians_mbps=674.156379`), and all three per-run loaded-window audits passed with 30 `/health` samples, 100% queue-primary coverage, and `health_non_queue=0`. SAFE-05 remains clean. Plan 198-07 remains pending to canonicalize attempt 11 and update final verification artifacts.
 
