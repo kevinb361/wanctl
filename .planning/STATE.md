@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Queue-Primary Signal Arbitration
-status: executing
-stopped_at: Completed 198-06-PLAN.md; ready for 198-07 canonicalization
-last_updated: "2026-05-02T10:12:28.941Z"
+status: completed_phase
+stopped_at: Completed 198-07-PLAN.md
+last_updated: "2026-05-02T10:31:30.478Z"
 last_activity: 2026-05-02
 progress:
   total_phases: 7
-  completed_phases: 5
-  total_plans: 27
-  completed_plans: 27
+  completed_phases: 6
+  total_plans: 26
+  completed_plans: 26
   percent: 100
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 **Milestone:** v1.40 Queue-Primary Signal Arbitration
 **Phase:** 198
 **Plan:** 198-07
-**Status:** Executing Phase 198
+**Status:** Phase 198 complete
 **Last activity:** 2026-05-02
 
 Progress: [██████████] 100%
@@ -99,7 +99,7 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Stopped at: Completed 198-06-PLAN.md; ready for 198-07 canonicalization
+Stopped at: Completed 198-07-PLAN.md
 Resume file: None
 
 ## Decisions
@@ -166,9 +166,12 @@ Resume file: None
 - [Phase 198-05]: Treat throughput/audit FAIL verdicts as completed attempt facts rather than harness crashes so Plan 198-06/07 can make operator decisions from contracted summaries.
 - [Phase 198-06]: Operator selected promote for attempt 11 after locked throughput PASS and all three per-run loaded-window audits passed.
 - [Phase 198-06]: Attempt 10 remains recorded as retry because throughput failed despite all per-run loaded-window audits passing.
+- [Phase 198]: Promoted attempt 11 after source-of-truth recomputation confirmed throughput PASS, all three loaded-window audits pass, regenerated A/B comparison pass, and SAFE-05 clean.
+- [Phase 198]: Closed HIGH-3 cascade via fresh per-run dwell-bypass evidence from Plan 198-06 rather than the failing 24h-soak counter.
 
 ## Performance Metrics
 
+- 2026-05-02: Phase 198 Plan 07 completed in 12min across 3 tasks and 12 evidence/verification files; attempt 11 was canonically promoted, VALN-04 and VALN-05a closed, SAFE-05 regenerated with diff_exit=0, and the hot-path slice passed with 573 tests.
 - 2026-05-02: Phase 198 Plan 06 completed after checkpointed off-peak reruns; attempt 11 passed VALN-05a with medians 685.992066/674.156379/560.381543 Mbps, all three per-run loaded-window audits passed, SAFE-05 remained clean, and the hot-path slice passed with 573 tests.
 - 2026-04-29: Phase 198 Plan 05 completed in ~16 min across 2 tasks and 3 new scripts; off-peak harness, loaded-window audit, and throughput verdict tooling passed syntax/content checks, SAFE-05 protected diff remained clean, and the hot-path slice passed with 572 tests.
 - 2026-04-28: Phase 198 Plan 04 completed in ~10 min across 3 tasks and 4 closeout files; ab-comparison.json was produced with comparison_verdict fail, safe05-diff.json passed with zero protected-path diffs, 198-VERIFICATION.md records blocked status, and 196-VERIFICATION.md now cites Phase 198 evidence as failed/blocked rather than closed.
@@ -201,10 +204,5 @@ Resume file: None
 ## Blockers
 
 - Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), `2026-04-23` (`64.40 Mbps`), `2026-04-23c` (`61.47 Mbps`), and `2026-04-24` (`70.95 Mbps`) FAIL samples against the old ATT RRUL download comparator. The `2026-04-24` run narrowed the issue because ATT tcp_12down and VoIP looked healthy and Spectrum throughput was strong, but it still did not close Phase 191. Phase 192 is allowed to proceed only under the explicit operator waiver in `192-PRECONDITION-WAIVER.md`.
-- Phase 196 remains blocked after Plan 196-07: Spectrum rtt-blend A-leg passed and cake-primary B-leg duration evidence exists, but the B-leg primary-signal audit failed with 153 non-queue metric samples. Throughput/A-B comparison were skipped, VALN-04/VALN-05 remain blocked, ATT canary remains gated by Phase 191, and SAFE-05 remains satisfied.
-- Phase 196 Spectrum continuation remains blocked after human acceptance of the raw-only B-leg documented exceptions: throughput ran and failed at 73.92243773827883 Mbps against 532 Mbps, so no A/B comparison was created and VALN-04/VALN-05 remain blocked.
+- Phase 196 remains blocked only for the deferred ATT canary because Phase 191 closure is still open; Spectrum VALN-04 and VALN-05a were closed by Phase 198 Plan 07 attempt 11 canonical promotion.
 - Pending follow-up created: `.planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md` tracks the required ATT cake-primary canary rerun after Phase 191 closes.
-
-**Planned Phase:** 197 (queue-primary-refractory-semantics-split-dl-cake-for-detecti) — 2 plans — 2026-04-27T11:22:07Z
-
-- Phase 198 Plan 06 completed with attempt 11 selected for promotion: VALN-05a rerun evidence now passes the locked throughput rule and all three per-run loaded-window audits pass; Plan 198-07 must canonicalize this attempt and update verification closeout.
