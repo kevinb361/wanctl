@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Queue-Primary Signal Arbitration
-status: completed_phase
+status: ready_to_plan
 stopped_at: Completed 198-07-PLAN.md
 last_updated: "2026-05-02T10:31:30.478Z"
 last_activity: 2026-05-02
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 26
   completed_plans: 26
   percent: 100
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 ## Position
 
 **Milestone:** v1.40 Queue-Primary Signal Arbitration
-**Phase:** 198
-**Plan:** 198-07
-**Status:** Phase 198 complete
+**Phase:** 199
+**Plan:** Not started
+**Status:** Ready to plan
 **Last activity:** 2026-05-02
 
 Progress: [██████████] 100%
