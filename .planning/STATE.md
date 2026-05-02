@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Queue-Primary Signal Arbitration
 status: executing
-stopped_at: Plan 198-06 checkpoint reached; awaiting scheduled off-peak attempt 10 verdict
-last_updated: "2026-05-01T10:16:17.663Z"
-last_activity: 2026-05-01
+stopped_at: Completed 198-06-PLAN.md; ready for 198-07 canonicalization
+last_updated: "2026-05-02T10:12:28.941Z"
+last_activity: 2026-05-02
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 26
-  completed_plans: 26
+  total_plans: 27
+  completed_plans: 27
   percent: 100
 ---
 
@@ -27,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Milestone:** v1.40 Queue-Primary Signal Arbitration
 **Phase:** 198
-**Plan:** 198-06
-**Status:** Checkpoint — awaiting scheduled off-peak attempt 10 verdict for Plan 198-06
-**Last activity:** 2026-05-01
+**Plan:** 198-07
+**Status:** Executing Phase 198
+**Last activity:** 2026-05-02
 
 Progress: [██████████] 100%
 
@@ -99,7 +99,7 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Stopped at: Plan 198-06 checkpoint reached; awaiting operator off-peak rerun harness execution and attempt decision
+Stopped at: Completed 198-06-PLAN.md; ready for 198-07 canonicalization
 Resume file: None
 
 ## Decisions
@@ -164,9 +164,12 @@ Resume file: None
 - [Phase 198-04]: Operator selected blocked closeout after VALN-05a failed; `198-VERIFICATION.md` is status blocked, `ab-comparison.json` has `comparison_verdict: fail`, VALN-04/VALN-05a remain unsatisfied, and SAFE-05 is satisfied by `safe05-diff.json` with zero protected-path diffs.
 - [Phase 198-05]: Use /health 1Hz NDJSON as the primary per-run loaded-window evidence source because persisted SQLite raw rows are too sparse for a 500-row 30s gate.
 - [Phase 198-05]: Treat throughput/audit FAIL verdicts as completed attempt facts rather than harness crashes so Plan 198-06/07 can make operator decisions from contracted summaries.
+- [Phase 198-06]: Operator selected promote for attempt 11 after locked throughput PASS and all three per-run loaded-window audits passed.
+- [Phase 198-06]: Attempt 10 remains recorded as retry because throughput failed despite all per-run loaded-window audits passing.
 
 ## Performance Metrics
 
+- 2026-05-02: Phase 198 Plan 06 completed after checkpointed off-peak reruns; attempt 11 passed VALN-05a with medians 685.992066/674.156379/560.381543 Mbps, all three per-run loaded-window audits passed, SAFE-05 remained clean, and the hot-path slice passed with 573 tests.
 - 2026-04-29: Phase 198 Plan 05 completed in ~16 min across 2 tasks and 3 new scripts; off-peak harness, loaded-window audit, and throughput verdict tooling passed syntax/content checks, SAFE-05 protected diff remained clean, and the hot-path slice passed with 572 tests.
 - 2026-04-28: Phase 198 Plan 04 completed in ~10 min across 3 tasks and 4 closeout files; ab-comparison.json was produced with comparison_verdict fail, safe05-diff.json passed with zero protected-path diffs, 198-VERIFICATION.md records blocked status, and 196-VERIFICATION.md now cites Phase 198 evidence as failed/blocked rather than closed.
 - 2026-04-28: Phase 198 Plan 03 completed in ~7 min across 2 tasks and 6 evidence files; three corrected Spectrum-bound tcp_12down flent runs were captured, source-bind probes all confirmed Charter/AS11427 egress, 572-test regression slice passed, and VALN-05a failed with medians 450.468331/681.802267/494.834220 Mbps.
@@ -204,4 +207,4 @@ Resume file: None
 
 **Planned Phase:** 197 (queue-primary-refractory-semantics-split-dl-cake-for-detecti) — 2 plans — 2026-04-27T11:22:07Z
 
-- Phase 198 completed Plan 04 as a blocked closeout after operator decision: VALN-05a throughput verdict remains FAIL (medians_above_532=1, median_of_medians_mbps=494.834220), `ab-comparison.json` comparison_verdict is fail, and VALN-04/VALN-05a are not closed.
+- Phase 198 Plan 06 completed with attempt 11 selected for promotion: VALN-05a rerun evidence now passes the locked throughput rule and all three per-run loaded-window audits pass; Plan 198-07 must canonicalize this attempt and update verification closeout.
