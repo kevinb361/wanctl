@@ -1,0 +1,43 @@
+Capture directory: /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run1/spectrum/20260502-023007
+Manifest: /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run1/spectrum/20260502-023007/manifest.txt
+
+=== Running tcp_12down (phase198_rerun_attempt10_run1-spectrum-tcp_12down) ===
+Starting Flent 2.1.1 using Python 3.12.3.
+Starting tcp_12down test. Expected run time: 40 seconds.
+Data file written to /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run1/spectrum/20260502-023007/tcp_12down-2026-05-02T023008.385560.phase198_rerun_attempt10_run1-spectrum-tcp_12down.flent.gz
+Saved raw data: /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run1/spectrum/20260502-023007/tcp_12down-2026-05-02T023008.385560.phase198_rerun_attempt10_run1-spectrum-tcp_12down.flent.gz
+
+Capture complete.
+Artifacts recorded in /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run1/spectrum/20260502-023007/manifest.txt
+Capture directory: /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run2/spectrum/20260502-023054
+Manifest: /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run2/spectrum/20260502-023054/manifest.txt
+
+=== Running tcp_12down (phase198_rerun_attempt10_run2-spectrum-tcp_12down) ===
+Starting Flent 2.1.1 using Python 3.12.3.
+Starting tcp_12down test. Expected run time: 40 seconds.
+Data file written to /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run2/spectrum/20260502-023054/tcp_12down-2026-05-02T023055.037208.phase198_rerun_attempt10_run2-spectrum-tcp_12down.flent.gz
+Saved raw data: /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run2/spectrum/20260502-023054/tcp_12down-2026-05-02T023055.037208.phase198_rerun_attempt10_run2-spectrum-tcp_12down.flent.gz
+
+Capture complete.
+Artifacts recorded in /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run2/spectrum/20260502-023054/manifest.txt
+Capture directory: /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run3/spectrum/20260502-023140
+Manifest: /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run3/spectrum/20260502-023140/manifest.txt
+
+=== Running tcp_12down (phase198_rerun_attempt10_run3-spectrum-tcp_12down) ===
+Starting Flent 2.1.1 using Python 3.12.3.
+Starting tcp_12down test. Expected run time: 40 seconds.
+Data file written to /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run3/spectrum/20260502-023140/tcp_12down-2026-05-02T023141.062601.phase198_rerun_attempt10_run3-spectrum-tcp_12down.flent.gz
+Saved raw data: /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run3/spectrum/20260502-023140/tcp_12down-2026-05-02T023141.062601.phase198_rerun_attempt10_run3-spectrum-tcp_12down.flent.gz
+
+Capture complete.
+Artifacts recorded in /home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run3/spectrum/20260502-023140/manifest.txt
+Phase 198 loaded-window audit run 1: pass (health_samples=30, queue_primary_health_pct=100.00, non_queue_samples=0)
+Phase 198 loaded-window audit run 2: pass (health_samples=30, queue_primary_health_pct=100.00, non_queue_samples=0)
+Phase 198 loaded-window audit run 3: pass (health_samples=30, queue_primary_health_pct=100.00, non_queue_samples=0)
+Phase 198 throughput verdict: FAIL (medians=517.281773/519.736152/612.567050, MoM=519.736152, medians_above_532=1)
+Phase 198 rerun attempt 10 complete.
+  Window used:               standard:02-04
+  Throughput:                FAIL (medians: 517.281773/519.736152/612.567050, MoM: 519.736152)
+  Per-run loaded-window:     pass / pass / pass
+  Evidence:                  .planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/rerun-attempt-10
+  Next step:                 see attempt-summary.json; if throughput PASS and all per-run audits pass, run /gsd-execute-phase 198-07 to promote and close.

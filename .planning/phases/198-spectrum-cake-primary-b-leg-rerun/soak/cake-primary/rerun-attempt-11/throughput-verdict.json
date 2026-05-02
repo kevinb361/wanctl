@@ -1,0 +1,36 @@
+{
+  "acceptance_mbps": 532.0,
+  "label": "phase198_rerun_3run",
+  "leg": "cake-primary",
+  "local_bind": "10.10.110.226",
+  "median_of_medians_at_or_above_532_mbps": true,
+  "median_of_medians_mbps": 674.156379,
+  "medians_above_532": 3,
+  "phase": 198,
+  "rule": "VALN-05a: medians_above_532 >= 2 AND median_of_medians_mbps >= 532",
+  "runs": [
+    {
+      "egress_ip": "70.123.224.169",
+      "egress_org": "AS11427 Charter Communications Inc",
+      "median_mbps": 685.992066,
+      "raw_path": "flent/run1.flent.gz",
+      "run": 1
+    },
+    {
+      "egress_ip": "70.123.224.169",
+      "egress_org": "AS11427 Charter Communications Inc",
+      "median_mbps": 674.156379,
+      "raw_path": "flent/run2.flent.gz",
+      "run": 2
+    },
+    {
+      "egress_ip": "70.123.224.169",
+      "egress_org": "AS11427 Charter Communications Inc",
+      "median_mbps": 560.381543,
+      "raw_path": "flent/run3.flent.gz",
+      "run": 3
+    }
+  ],
+  "two_of_three_at_or_above_532_mbps": true,
+  "verdict": "PASS"
+}
