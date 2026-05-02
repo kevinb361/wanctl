@@ -175,35 +175,11 @@ if ! git diff --quiet "${PHASE_197_SHIP_SHA}..HEAD" -- \
     exit 4
 fi
 
-if [[ "${DRY_RUN}" == "1" ]]; then
-    echo "DRY_RUN: gates passed (window=${WINDOW_USED}, bind=10.10.110.226, SAFE-05=clean, hard-abort=ok, next_attempt=${N}). Exiting 0 without running flent."
-    exit 0
-fi
-
-# Pre-flight: confirm HEALTH_URL is reachable and serves the spectrum WAN.
-# Without this, the per-second curl loop fails silently (curl ... | jq ... || true),
-# producing a 0-byte ndjson. The audit step then reports "samples_in_window: 0"
-# with no clear link back to the unreachable endpoint — burning an off-peak window.
-# Placed AFTER the dry-run exit to honor the documented dry-run contract
-# ("do not create evidence or run flent/SSH/health"); dry-run does not touch
-# the network.
-ATTEMPT_FAILED_STAGE="health_preflight"
-HEALTH_PROBE="$(curl -fsS -m 2 "${HEALTH_URL}" 2>&1)" || {
-    echo "REFUSED: HEALTH_URL unreachable: ${HEALTH_URL}" >&2
-    echo "  curl error: ${HEALTH_PROBE}" >&2
-    exit 5
-}
-if ! printf '%s' "${HEALTH_PROBE}" | jq -e '.wans[]? | select(.name == "spectrum")' >/dev/null 2>&1; then
-    echo "REFUSED: HEALTH_URL did not return a spectrum WAN entry: ${HEALTH_URL}" >&2
-    exit 5
-fi
-
 REF="$(git rev-parse --short HEAD)"
 ATTEMPT_DIR="${ATTEMPT_DIR_PREFIX}${N}"
-mkdir -p "${ATTEMPT_DIR}/flent" "${OUTPUT_ROOT}"
 
 write_partial_summary() {
-    local exit_code=$?
+    local exit_code=${1:-$?}
     if [[ -n "${ATTEMPT_DIR:-}" && -d "${ATTEMPT_DIR}" ]]; then
         jq -n \
             --argjson n "${N:-0}" \
@@ -224,7 +200,36 @@ write_partial_summary() {
             >"${ATTEMPT_DIR}/attempt-summary.json" 2>/dev/null || true
     fi
 }
+
+if [[ "${DRY_RUN}" == "1" ]]; then
+    echo "DRY_RUN: gates passed (window=${WINDOW_USED}, bind=10.10.110.226, SAFE-05=clean, hard-abort=ok, next_attempt=${N}). Exiting 0 without running flent."
+    exit 0
+fi
+
+mkdir -p "${ATTEMPT_DIR}/flent" "${OUTPUT_ROOT}"
 trap 'write_partial_summary' ERR
+
+# Pre-flight: confirm HEALTH_URL is reachable and serves the spectrum WAN.
+# Without this, the per-second curl loop fails silently (curl ... | jq ... || true),
+# producing a 0-byte ndjson. The audit step then reports "samples_in_window: 0"
+# with no clear link back to the unreachable endpoint — burning an off-peak window.
+# Placed AFTER the dry-run exit to honor the documented dry-run contract
+# ("do not create evidence or run flent/SSH/health"); dry-run does not touch
+# the network.
+ATTEMPT_FAILED_STAGE="health_preflight"
+HEALTH_PROBE="$(curl -fsS -m 2 "${HEALTH_URL}" 2>&1)" || {
+    echo "REFUSED: HEALTH_URL unreachable: ${HEALTH_URL}" >&2
+    echo "  curl error: ${HEALTH_PROBE}" >&2
+    write_partial_summary 5
+    trap - ERR
+    exit 5
+}
+if ! printf '%s' "${HEALTH_PROBE}" | jq -e '.wans[]? | select(.name == "spectrum")' >/dev/null 2>&1; then
+    echo "REFUSED: HEALTH_URL did not return a spectrum WAN entry: ${HEALTH_URL}" >&2
+    write_partial_summary 5
+    trap - ERR
+    exit 5
+fi
 
 declare -a PROBE_FILES=()
 declare -a FLENT_STARTS=()
@@ -322,8 +327,13 @@ for i in 1 2 3; do
 
     ATTEMPT_FAILED_STAGE="sqlite"
     PSV_FILE="${ATTEMPT_DIR}/loaded-window-run${i}.psv"
-    ssh -o BatchMode=yes ${REMOTE_USER:+"${REMOTE_USER}@"}"${REMOTE_HOST}" \
-        "command -v sqlite3 >/dev/null && sudo -n sqlite3 -readonly -header -separator '|' '${REMOTE_DB}'" \
+    REMOTE_TARGET="${REMOTE_HOST}"
+    if [[ -n "${REMOTE_USER}" ]]; then
+        REMOTE_TARGET="${REMOTE_USER}@${REMOTE_HOST}"
+    fi
+    REMOTE_DB_Q="$(printf '%q' "${REMOTE_DB}")"
+    ssh -o BatchMode=yes "${REMOTE_TARGET}" \
+        "command -v sqlite3 >/dev/null && sudo -n sqlite3 -readonly -header -separator '|' ${REMOTE_DB_Q}" \
         >"${PSV_FILE}" <<SQL
 SELECT
   datetime(timestamp, 'unixepoch') AS sampled_utc,

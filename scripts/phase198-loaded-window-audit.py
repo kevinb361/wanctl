@@ -183,7 +183,8 @@ def audit(args: argparse.Namespace) -> dict[str, Any]:
     health_queue_primary_samples = sum(r["queue_primary_active"] for r in health_rows)
     health_refractory_samples = sum(r["refractory_active"] for r in health_rows)
     health_dwell_bypass_samples = sum(r["dwell_bypass_active"] for r in health_rows)
-    health_non_queue = sum(
+    health_non_queue = sum(not r["queue_primary_active"] for r in health_rows)
+    health_non_queue_during_refractory = sum(
         (not r["queue_primary_active"]) and r["refractory_active"] for r in health_rows
     )
     queue_primary_health_pct = (
@@ -237,6 +238,7 @@ def audit(args: argparse.Namespace) -> dict[str, Any]:
         "health_refractory_samples": health_refractory_samples,
         "health_dwell_bypass_samples": health_dwell_bypass_samples,
         "health_non_queue": health_non_queue,
+        "health_non_queue_during_refractory": health_non_queue_during_refractory,
         "non_queue_samples": health_non_queue,
         "queue_primary_health_pct": queue_primary_health_pct,
         "sqlite_sample_count": sqlite_sample_count,
