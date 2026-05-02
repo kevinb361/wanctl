@@ -1,8 +1,8 @@
 {
   "phase": 198,
-  "captured_at_utc": "2026-04-28T15:46:19Z",
+  "captured_at_utc": "2026-05-02T10:20:41Z",
   "phase_197_ship_sha": "068b804",
-  "head_sha": "d7ff77e",
+  "head_sha": "4933a2b",
   "protected_files": [
     "src/wanctl/queue_controller.py",
     "src/wanctl/cake_signal.py",
@@ -40,5 +40,6 @@
   "protected_path_diffs": 0,
   "diff_empty": true,
   "diff_exit": 0,
-  "verdict": "pass"
+  "verdict": "pass",
+  "regenerated_in_plan": "198-07"
 }
