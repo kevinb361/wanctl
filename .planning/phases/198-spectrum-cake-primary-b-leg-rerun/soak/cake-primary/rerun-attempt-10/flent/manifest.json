@@ -1,0 +1,41 @@
+{
+  "phase": 198,
+  "leg": "cake-primary",
+  "attempt_number": 10,
+  "ref_sha": "b2540ad",
+  "local_bind": "10.10.110.226",
+  "tests": "tcp_12down",
+  "duration_seconds": 30,
+  "runs": [
+    {
+      "run": 1,
+      "raw_path": "flent/run1.flent.gz",
+      "raw_path_external": "/home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run1/spectrum/20260502-023007/tcp_12down-2026-05-02T023008.385560.phase198_rerun_attempt10_run1-spectrum-tcp_12down.flent.gz",
+      "egress_ip": "70.123.224.169",
+      "egress_org": "AS11427 Charter Communications Inc",
+      "median_mbps": 517.281773,
+      "flent_start_utc": 1777707007,
+      "flent_end_utc": 1777707048
+    },
+    {
+      "run": 2,
+      "raw_path": "flent/run2.flent.gz",
+      "raw_path_external": "/home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run2/spectrum/20260502-023054/tcp_12down-2026-05-02T023055.037208.phase198_rerun_attempt10_run2-spectrum-tcp_12down.flent.gz",
+      "egress_ip": "70.123.224.169",
+      "egress_org": "AS11427 Charter Communications Inc",
+      "median_mbps": 519.736152,
+      "flent_start_utc": 1777707054,
+      "flent_end_utc": 1777707095
+    },
+    {
+      "run": 3,
+      "raw_path": "flent/run3.flent.gz",
+      "raw_path_external": "/home/kevin/flent-results/phase198-rerun/phase198_rerun_attempt10_run3/spectrum/20260502-023140/tcp_12down-2026-05-02T023141.062601.phase198_rerun_attempt10_run3-spectrum-tcp_12down.flent.gz",
+      "egress_ip": "70.123.224.169",
+      "egress_org": "AS11427 Charter Communications Inc",
+      "median_mbps": 612.567050,
+      "flent_start_utc": 1777707100,
+      "flent_end_utc": 1777707141
+    }
+  ]
+}

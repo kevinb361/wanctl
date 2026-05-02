@@ -1,0 +1,38 @@
+{
+  "audit_predicate_path": ".planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/soak/cake-primary/primary-signal-audit-phase197.md",
+  "coverage_ok": true,
+  "decision": "Health primary evidence supports loaded-window queue-primary closure.",
+  "flent_window": {
+    "duration_seconds": 41,
+    "end_epoch": 1777707141,
+    "start_epoch": 1777707100
+  },
+  "health_count_ok": true,
+  "health_dwell_bypass_samples": 0,
+  "health_field_resolution": {
+    "dwell_bypass_active": "unresolved:false",
+    "queue_primary_active": "signal_arbitration.active_primary_signal",
+    "refractory_active": "signal_arbitration.refractory_active"
+  },
+  "health_ndjson_path": ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/rerun-attempt-10/health-window-run3.ndjson",
+  "health_non_queue": 0,
+  "health_queue_primary_samples": 30,
+  "health_refractory_samples": 0,
+  "health_sample_count": 30,
+  "min_coverage_pct_threshold": 95.0,
+  "min_health_samples_threshold": 25,
+  "no_unexplained_fallback": true,
+  "non_queue_samples": 0,
+  "phase": 198,
+  "primary_evidence_kind": "health_ndjson_1hz",
+  "psv_path": ".planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/rerun-attempt-10/loaded-window-run3.psv",
+  "queue_primary_health_pct": 100.0,
+  "queue_primary_sqlite_pct": 100.0,
+  "run": 3,
+  "secondary_evidence_kind": "sqlite_psv_persisted_raw",
+  "sqlite_non_queue": 0,
+  "sqlite_queue_samples": 42,
+  "sqlite_queue_via_refractory": 0,
+  "sqlite_sample_count": 42,
+  "verdict": "pass"
+}

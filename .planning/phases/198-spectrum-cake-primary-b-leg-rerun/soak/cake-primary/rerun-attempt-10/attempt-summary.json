@@ -1,0 +1,26 @@
+{
+  "all_per_run_audits_pass": true,
+  "attempt_number": 10,
+  "attempted_at_utc": "2026-05-02T07:30:07Z",
+  "completed_runs": 3,
+  "decision": "retry",
+  "failed": false,
+  "head_sha": "b2540ad",
+  "local_hour_at_start": 2,
+  "off_peak_window_used": "standard:02-04",
+  "per_run_audit_verdicts": [
+    "pass",
+    "pass",
+    "pass"
+  ],
+  "phase": 198,
+  "phase_197_ship_sha": "068b804",
+  "safe05_protected_diff_empty": true,
+  "throughput_median_of_medians_mbps": 519.736152,
+  "throughput_medians_mbps": [
+    517.281773,
+    519.736152,
+    612.56705
+  ],
+  "throughput_verdict": "FAIL"
+}
