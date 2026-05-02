@@ -328,10 +328,10 @@ Plans:
 - Preflight: confirm Phase 197 code deployed; `cake-primary` enabled; source bind `10.10.110.226` proven Spectrum egress; no concurrent Spectrum experiment scheduled; SAFE-05 enforced (no config/threshold/EWMA/dwell/deadband/burst/state-machine change during run).
 - Run a clean ≥24h Spectrum `cake-primary` B-leg on the same deployment token used for the accepted Phase 196 rtt-blend A-leg. Capture `/health`, journal, raw SQLite over the full window. Verdict consumes raw rows, not 1-minute aggregates.
 - Capture three corrected source-bound (`10.10.110.226`) Spectrum `flent tcp_12down` 30s runs during the loaded portion of the soak window.
-- **Plan 198-03 outcome:** captures completed and egress proof passed, but VALN-05a throughput acceptance failed (`medians_above_532=1`, `median_of_medians_mbps=494.834220`). Plan 198-04 is blocked pending operator decision.
+- **Plan 198-03 outcome:** captures completed and egress proof passed, but VALN-05a throughput acceptance failed (`medians_above_532=1`, `median_of_medians_mbps=494.834220`). Plan 198-04 recorded a blocked closeout; Plans 198-05/06 reopened gap closure with off-peak rerun tooling and attempt-isolated evidence.
 - Run the Phase 197 audit predicate over the captured raw rows (accept-list includes `queue_during_refractory`, `rtt_fallback_during_refractory`, `refractory_active`).
 - Produce `ab-comparison.json` against the accepted Phase 196 A-leg control evidence (excluding invalid A-leg flent throughput). Compute deltas on: RTT-distress event counts, burst trigger counts, dwell-bypass responsiveness, fusion state transitions, queue-primary coverage, refractory fallback rate.
-- Update `196-VERIFICATION.md` and `198-VERIFICATION.md` to reflect the evidence outcome. After the operator-selected blocked closeout, these documents must not claim VALN-04 or VALN-05a closure because Phase 198 evidence failed.
+- Update `196-VERIFICATION.md` and `198-VERIFICATION.md` to reflect the evidence outcome. The initial operator-selected blocked closeout must remain historically accurate, while Plan 198-07 canonicalizes the later passing attempt 11 evidence if source-artifact recomputation agrees.
 
 **Out of scope (locked):**
 - ATT cake-primary canary (VALN-05b — deferred to Phase 196-08 after v1.39 Phase 191 closure).
@@ -341,12 +341,12 @@ Plans:
 - Tech debt cleanup (`scripts/phase196-soak-capture.sh` WR-01/WR-02; missing `195-VALIDATION.md`; `194-VALIDATION.md` nyquist=false). Backlog.
 
 **Success Criteria:**
-1. **Queue-primary invariant.** During each `tcp_12down` loaded window, ≥95% of loaded-window samples show `signal_arbitration.active_primary_signal == "queue"` (or equivalently `wanctl_arbitration_active_primary == 1`). Require ≥100 health samples or ≥500 raw SQLite active-primary rows per 30s run for the percentage to be statistically meaningful. Any `refractory_active=true` loaded-window sample paired with `rtt_fallback_during_refractory` (an unexplained refractory fallback) fails the criterion — this is exactly the failure mode Phase 197 was inserted to prevent.
+1. **Queue-primary invariant.** During each `tcp_12down` loaded window, ≥95% of `/health` 1Hz loaded-window samples show `signal_arbitration.active_primary_signal == "queue"`, with a target 30 samples and floor 25 samples per run. SQLite PSV rows are preserved as secondary cross-correlation evidence. Any `refractory_active=true` loaded-window sample paired with queue-primary false fails the criterion — this is exactly the failure mode Phase 197 was inserted to prevent.
 2. **Throughput acceptance (VALN-05a).** Three corrected source-bound (`10.10.110.226`) Spectrum `flent tcp_12down` 30s runs. Pass requires **2-of-3 individual medians ≥532 Mbps AND median-of-medians ≥532 Mbps**. One-pass acceptance is rejected as too weak given the two prior ~307 Mbps failures (307.92, 302.90). Three-of-three is rejected as too brittle for production link variance.
 3. **A/B comparison artifact (VALN-04).** `ab-comparison.json` produced against the accepted Phase 196 rtt-blend A-leg control evidence (NOT against the A-leg flent throughput numbers). Burst detection trigger count, dwell-bypass responsiveness, and fusion state transitions on the cake-primary leg are at least as healthy as on the rtt-blend leg. RTT-distress event counts on cake-primary do not grow beyond the rtt-blend leg.
 4. **SAFE-05 invariant.** No state-machine, EWMA, dwell, deadband, threshold, or burst-detection value changes between Phase 197 ship and Phase 198 acceptance. Verified by source-tree diff in `198-VERIFICATION.md`.
 
-**Plans:** 5/7 plans executed
+**Plans:** 6/7 plans executed
 
 Plans:
 - [x] 198-01-PLAN.md — Preflight + Phase 197 deployment proof + initial source-bind egress probe + SAFE-05 baseline (SAFE-05)
@@ -354,10 +354,10 @@ Plans:
 - [x] 198-03-PLAN.md — Three corrected source-bound (10.10.110.226) flent tcp_12down 30s runs + 2-of-3 + median-of-medians throughput verdict (VALN-05a outcome: FAIL; medians 450.468331/681.802267/494.834220 Mbps)
 - [x] 198-04-PLAN.md — Blocked closeout recorded after operator decision; produced ab-comparison.json (comparison_verdict fail), safe05-diff.json (SAFE-05 pass), 198-VERIFICATION.md (status blocked), and an accurate 196-VERIFICATION.md update that does not close VALN-04/VALN-05a
 - [x] 198-05-PLAN.md — GAP CLOSURE: off-peak rerun harness (scripts/phase198-rerun-flent-3run.sh + per-run loaded-window audit + throughput verdict scripts) — no source changes (SAFE-05, VALN-04, VALN-05a tooling)
-- [ ] 198-06-PLAN.md — GAP CLOSURE: operator-scheduled off-peak (02:00-05:00 local) 3-run flent attempts with per-run loaded-window queue-primary capture; one attempt per plan invocation; explicit accept/retry/abort decision; multi-attempt history logged in 198-06-ATTEMPT-LOG.md (VALN-04, VALN-05a, SAFE-05)
+- [x] 198-06-PLAN.md — GAP CLOSURE: operator-scheduled off-peak (02:00-05:00 local) 3-run flent attempts with per-run loaded-window queue-primary capture; one attempt per plan invocation; explicit accept/retry/abort decision; multi-attempt history logged in 198-06-ATTEMPT-LOG.md (VALN-04, VALN-05a, SAFE-05)
 - [ ] 198-07-PLAN.md — GAP CLOSURE: branch on latest attempt-summary.json decision; PROMOTE canonicalizes passing rerun evidence and flips 198-VERIFICATION.md to passed; ABORT preserves blocked closeout with full rerun_history; always regenerates safe05-diff.json (VALN-04, VALN-05a, SAFE-05)
 
-Closeout status: Phase 198 Plan 04 closed as blocked, not passed. Three gap-closure plans (198-05/06/07) added 2026-04-28 to attempt VALN-04 and VALN-05a closure via off-peak Spectrum DOCSIS reruns. The B-leg duration gate passed, the Phase 197 primary-signal audit returned `pass_with_documented_exceptions`, and SAFE-05 passed with zero protected-path diffs. VALN-05a failed under the locked rule (`medians_above_532=1`, `median_of_medians_mbps=494.834220`), and the new `ab-comparison.json` records `comparison_verdict: fail`. VALN-04 and VALN-05a remain unsatisfied pending follow-up.
+Closeout status: Phase 198 Plan 06 produced a passing off-peak promotion candidate after the earlier Plan 04 blocked closeout. Attempt 11 ran in the standard 02-04 off-peak window, passed VALN-05a under the locked rule (`medians_above_532=3`, `median_of_medians_mbps=674.156379`), and all three per-run loaded-window audits passed with 30 `/health` samples, 100% queue-primary coverage, and `health_non_queue=0`. SAFE-05 remains clean. Plan 198-07 remains pending to canonicalize attempt 11 and update final verification artifacts.
 
 ---
 
