@@ -384,14 +384,14 @@ Closeout status: Phase 198 passed after Plan 198-07 canonicalized attempt 11. At
 2. Operator-facing docs (`docs/CONFIGURATION.md` or equivalent) describe absent-row behavior and name `wanctl_arbitration_active_primary` as the per-cycle coverage denominator.
 3. `199-VERIFICATION.md` confirms no Python source files changed under `src/wanctl/` for this phase (docs-only invariant).
 
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 **Wave 1**
-- [ ] 199-01-PLAN.md — Verify REQUIREMENTS.md OBS-02 wording, add signal_arbitration field-shape note to docs/SUBSYSTEMS.md, add per-cycle denominator note to docs/RUNBOOK.md, prove docs-only invariant (OBS-02)
+- [x] 199-01-PLAN.md — Verify REQUIREMENTS.md OBS-02 wording, add signal_arbitration field-shape note to docs/SUBSYSTEMS.md, add per-cycle denominator note to docs/RUNBOOK.md, prove docs-only invariant (OBS-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 199-02-PLAN.md — Write 199-VERIFICATION.md mirroring 198-VERIFICATION.md frontmatter with phase_scope: docs-only and files_touched, re-run all five mechanizable checks against the final tree (OBS-02)
+- [x] 199-02-PLAN.md — Write 199-VERIFICATION.md mirroring 198-VERIFICATION.md frontmatter with phase_scope: docs-only and files_touched, re-run all five mechanizable checks against the final tree (OBS-02)
 
 ---
 
