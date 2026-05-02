@@ -130,6 +130,7 @@ Implementation map:
 Major response sections:
 
 - `wans[]`: per-WAN rate, state, hysteresis, RTT, connectivity, measurement, IRTT, reflector, fusion, CAKE, tuning, storage, and runtime status.
+  - `signal_arbitration` (per OBS-01): `active_primary_signal`, `rtt_confidence` (float 0.0–1.0 or `null`), `cake_av_delay_delta_us` (int or `null`), `control_decision_reason`. Per REQUIREMENTS.md OBS-02: cold-start and invalid-snapshot cycles produce absent SQLite rows and `/health` nulls — no NaN, -1, or sentinel emission. See RUNBOOK.md `/metrics/history` for the operator-side denominator note.
 - `alerting`: alert engine enabled state, fired count, and active cooldowns.
 - `disk_space`: free/total bytes and warning state for `/var/lib/wanctl`.
 - `summary`: compact operator-facing status rows.
