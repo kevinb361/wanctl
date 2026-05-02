@@ -1,42 +1,60 @@
 {
   "phase": 198,
+  "purpose": "Per-run source-bind egress proof; joint IP+org assertion before each flent run.",
+  "required_ip": "70.123.224.169",
+  "required_org_regex": "Charter|AS11427",
   "pre_run_probes": [
     {
-      "captured_at_utc": "2026-04-28T15:35:11Z",
-      "egress_ip_matches": true,
+      "ip": "70.123.224.169",
       "hostname": "syn-070-123-224-169.res.spectrum.com",
-      "local_bind": "10.10.110.226",
+      "city": "Live Oak",
+      "region": "Texas",
+      "country": "US",
+      "loc": "29.5652,-98.3364",
       "org": "AS11427 Charter Communications Inc",
+      "postal": "78233",
+      "timezone": "America/Chicago",
+      "readme": "https://ipinfo.io/missingauth",
+      "run": 1,
+      "captured_at_utc": "2026-05-02T07:37:22Z",
       "public_ip": "70.123.224.169",
-      "run": 1
+      "egress_ip_matches": true,
+      "egress_org_matches": true
     },
     {
-      "captured_at_utc": "2026-04-28T15:35:57Z",
-      "egress_ip_matches": true,
+      "ip": "70.123.224.169",
       "hostname": "syn-070-123-224-169.res.spectrum.com",
-      "local_bind": "10.10.110.226",
+      "city": "Live Oak",
+      "region": "Texas",
+      "country": "US",
+      "loc": "29.5652,-98.3364",
       "org": "AS11427 Charter Communications Inc",
+      "postal": "78233",
+      "timezone": "America/Chicago",
+      "readme": "https://ipinfo.io/missingauth",
+      "run": 2,
+      "captured_at_utc": "2026-05-02T07:38:08Z",
       "public_ip": "70.123.224.169",
-      "run": 2
+      "egress_ip_matches": true,
+      "egress_org_matches": true
     },
     {
-      "captured_at_utc": "2026-04-28T15:36:43Z",
-      "egress_ip_matches": true,
+      "ip": "70.123.224.169",
       "hostname": "syn-070-123-224-169.res.spectrum.com",
-      "local_bind": "10.10.110.226",
+      "city": "Live Oak",
+      "region": "Texas",
+      "country": "US",
+      "loc": "29.5652,-98.3364",
       "org": "AS11427 Charter Communications Inc",
+      "postal": "78233",
+      "timezone": "America/Chicago",
+      "readme": "https://ipinfo.io/missingauth",
+      "run": 3,
+      "captured_at_utc": "2026-05-02T07:38:54Z",
       "public_ip": "70.123.224.169",
-      "run": 3
+      "egress_ip_matches": true,
+      "egress_org_matches": true
     }
   ],
-  "preflight_probe": {
-    "captured_at_utc": "2026-04-27T14:43:31Z",
-    "conclusion": "spectrum-egress",
-    "egress_ip_matches": true,
-    "hostname": "syn-070-123-224-169.res.spectrum.com",
-    "local_bind": "10.10.110.226",
-    "org": "AS11427 Charter Communications Inc",
-    "public_ip": "70.123.224.169"
-  },
-  "purpose": "Verify which WAN each local source address uses; preflight probe plus per-flent-run probes for corrected Spectrum throughput captures."
+  "promoted_from_attempt": 11
 }
