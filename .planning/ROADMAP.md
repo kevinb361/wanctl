@@ -357,7 +357,7 @@ Plans:
 - [x] 198-06-PLAN.md — GAP CLOSURE: operator-scheduled off-peak (02:00-05:00 local) 3-run flent attempts with per-run loaded-window queue-primary capture; one attempt per plan invocation; explicit accept/retry/abort decision; multi-attempt history logged in 198-06-ATTEMPT-LOG.md (VALN-04, VALN-05a, SAFE-05)
 - [x] 198-07-PLAN.md — GAP CLOSURE: branch on latest attempt-summary.json decision; PROMOTE canonicalizes passing rerun evidence and flips 198-VERIFICATION.md to passed; ABORT preserves blocked closeout with full rerun_history; always regenerates safe05-diff.json (VALN-04, VALN-05a, SAFE-05)
 
-Closeout status: Phase 198 Plan 06 produced a passing off-peak promotion candidate after the earlier Plan 04 blocked closeout. Attempt 11 ran in the standard 02-04 off-peak window, passed VALN-05a under the locked rule (`medians_above_532=3`, `median_of_medians_mbps=674.156379`), and all three per-run loaded-window audits passed with 30 `/health` samples, 100% queue-primary coverage, and `health_non_queue=0`. SAFE-05 remains clean. Plan 198-07 remains pending to canonicalize attempt 11 and update final verification artifacts.
+Closeout status: Phase 198 passed after Plan 198-07 canonicalized attempt 11. Attempt 11 ran in the standard 02-04 off-peak window, passed VALN-05a under the locked rule (`medians_above_532=3`, `median_of_medians_mbps=674.156379`), all three per-run loaded-window audits passed with 30 `/health` samples, 100% queue-primary coverage, and `health_non_queue=0`, `ab-comparison.json` now has `comparison_verdict: pass`, and SAFE-05 remains clean.
 
 ---
 

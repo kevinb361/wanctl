@@ -32,7 +32,7 @@
 
 ### Verification (VALN)
 
-- [x] **VALN-04**: Spectrum cake-primary B-leg validation runs on the same deployment token used for the accepted Phase 196 rtt-blend A-leg, under the Phase 197 refractory split semantics. A/B comparison artifact (`ab-comparison.json`) is produced against the accepted A-leg control evidence (excluding the invalid A-leg flent throughput captured under wrong source bind) and computes pass/fail deltas on RTT-distress event counts, burst trigger counts, dwell-bypass responsiveness, fusion state transitions, queue-primary coverage, and refractory fallback rate. Phase 198 Plan 06 produced passing per-run loaded-window queue-primary evidence for attempt 11; Plan 198-07 must canonicalize the attempt and update final verification closeout.
+- [x] **VALN-04**: Spectrum cake-primary B-leg validation runs on the same deployment token used for the accepted Phase 196 rtt-blend A-leg, under the Phase 197 refractory split semantics. A/B comparison artifact (`ab-comparison.json`) is produced against the accepted A-leg control evidence (excluding the invalid A-leg flent throughput captured under wrong source bind) and computes pass/fail deltas on RTT-distress event counts, burst trigger counts, dwell-bypass responsiveness, fusion state transitions, queue-primary coverage, and refractory fallback rate. Phase 198 Plan 07 canonicalized attempt 11 and regenerated the final A/B comparison with `comparison_verdict: pass`.
 - [x] **VALN-05a**: Spectrum DL `flent tcp_12down` 30s throughput under `cake-primary` recovers to ≥90% of the 591 Mbps CAKE-only-static floor (2026-04-23 measurement). Acceptance: 2-of-3 corrected source-bound (`10.10.110.226`) runs with individual medians ≥532 Mbps and median-of-medians ≥532 Mbps. Phase 198 Plan 06 attempt 11 passed this requirement (`medians_above_532=3`, `median_of_medians_mbps=674.156379`).
 - [ ] **VALN-05b** (deferred — ATT canary): After v1.39 Phase 191 closure, run ATT `flent tcp_12down` under `cake-primary`. Acceptance: ATT DL throughput ≥95% of last passing ATT baseline. Failure keeps ATT on `rtt-blend` and requires a follow-up phase before ATT `cake-primary` enablement. Tracks Phase 196-08.
 
@@ -121,7 +121,7 @@
 | OBS-01      | Phase 193 | Complete |
 | OBS-02      | Phase 193 + Phase 199 (wording amendment) | Complete (caveat resolved by Phase 199) |
 | SAFE-05     | Phase 193 + Phase 194 + Phase 195 + Phase 196 + Phase 197 + Phase 198 (enforced throughout) | Complete |
-| VALN-04     | Phase 198 Plan 06 passing attempt 11; Plan 198-07 canonicalization pending | Complete (pending canonicalization) |
+| VALN-04     | Phase 198 Plan 07 canonicalized passing attempt 11 and regenerated `ab-comparison.json` | Complete |
 | VALN-05a    | Phase 198 Plan 06 attempt 11 (`medians_above_532=3`, MoM `674.156379`) | Complete |
 | VALN-05b    | Phase 196-08 (deferred — gated on v1.39 Phase 191 closure) | Deferred |
 
