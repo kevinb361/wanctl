@@ -191,4 +191,53 @@ continuation_justification: Operator response on 2026-05-01 was retry after atte
 
 ---
 
+## Attempt 10
+<!-- attempt-key: rerun-attempt-10 -->
+
+- **Attempted at (UTC):** 2026-05-02T07:30:07Z
+- **Local hour at start:** 2
+- **Off-peak window used:** standard:02-04
+- **HEAD SHA at attempt:** b2540ad
+- **Failed:** false
+- **Harness exit code:** unknown
+- **Failure stage:** none
+- **Completed runs:** 3
+- **Throughput verdict:** FAIL
+  - run1: 517.281773 Mbps
+  - run2: 519.736152 Mbps
+  - run3: 612.56705 Mbps
+  - median-of-medians: 519.736152 Mbps
+- **Per-run loaded-window audit verdicts:** pass / pass / pass
+- **All per-run audits pass:** true
+- **Operator decision:** retry
+- **Evidence dir:** `.planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/rerun-attempt-10`
+- **Harness log:** `/home/kevin/projects/wanctl/.planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/scheduled-attempt-20260502T073007Z-run1.log`
+
+---
+
+## Attempt 11
+<!-- attempt-key: rerun-attempt-11 -->
+
+- **Attempted at (UTC):** 2026-05-02T07:37:21Z
+- **Local hour at start:** 2
+- **Off-peak window used:** standard:02-04
+- **HEAD SHA at attempt:** b2540ad
+- **Failed:** false
+- **Harness exit code:** unknown
+- **Failure stage:** none
+- **Completed runs:** 3
+- **Throughput verdict:** PASS
+  - run1: 685.992066 Mbps
+  - run2: 674.156379 Mbps
+  - run3: 560.381543 Mbps
+  - median-of-medians: 674.156379 Mbps
+- **Per-run loaded-window audit verdicts:** pass / pass / pass
+- **All per-run audits pass:** true
+- **Operator decision:** promote
+- **Operator note:** Operator accepted attempt 11 on 2026-05-02. Locked-rule PASS (medians_above_532=3, median_of_medians=674.156379 Mbps) with all three per-run loaded-window audits pass. SAFE-05 protected-diff check empty against Phase 197 ship SHA 068b804. Closing Plan 198-06; advance to Plan 198-07.
+- **Evidence dir:** `.planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/rerun-attempt-11`
+- **Harness log:** `/home/kevin/projects/wanctl/.planning/phases/198-spectrum-cake-primary-b-leg-rerun/soak/cake-primary/scheduled-attempt-20260502T073721Z-run2.log`
+
+---
+
 WARNING: hard-abort threshold reached (3 accumulated abort/retry/failed attempts). Further attempts require a 'continuation_justification:' line in this file. The harness will refuse attempt 10 without it.
