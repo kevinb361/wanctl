@@ -26,16 +26,20 @@
 - **Pre-deploy snapshot tarball + D-10 rollback protocol:** rolled back twice in ~30 seconds each time; both rollbacks restored production cleanly with `is-active=active` and `/health upload state=GREEN` verified.
 - **Operator-driven gating at Tasks 1 & 2:** keeping production deploy commands under human control (per CLAUDE.md "stability > safety > clarity > elegance") meant Claude never issued a destructive command without explicit approval. Plan integrity preserved across two attempts.
 - **Codex pre-review catch on D-03:** the value-derived `_upload_thresholds_explicit` flag would have shipped a real bug; Codex caught it before plan 01 closed. Per-key presence-based flag is the correct design.
+- **Codex stop-time review catch on canary env drift:** after the `dd67493` env-var fix landed and the canary FAIL closeout was committed, Codex stop-time review caught that env-var-driven floor without a deployed-YAML cross-check is open to false-PASS via stale env values. Fixed at `43838f4` with an SSH-based YAML probe in preflight. Two-AI review found a regression that single-AI review and operator review both missed.
 
-## What Was Inefficient (Three Plan 0X Verification-Surface Bugs)
+## What Was Inefficient (Four Plan 0X Verification-Surface Bugs)
 
-All three were caught **only** when Plan 06 made real production contact. None were caught by upstream Plan 0X smoke checks. Common pattern: smoke checks ran against JSON/YAML fixtures or invoked `--help`, never against a live `/health` endpoint or a running daemon's journal.
+All four were caught **only** by real production contact or post-fact second-AI review — none by upstream Plan 0X smoke checks. Common pattern: smoke checks ran against JSON/YAML fixtures or invoked `--help`, never against a live `/health` endpoint, a running daemon's journal, or the actual deployed YAML.
 
 | # | Plan | File | Bug | Fixed at |
 |---|---|---|---|---|
 | 1 | Plan 01 Task 2 | `src/wanctl/wan_controller.py:440` | Used `logging.getLogger(__name__)` (module logger, no handlers in production); D-06 verification grep silently dropped. | `417e2b9` |
 | 2 | Plan 05 | `scripts/phase200-saturation-canary.sh:217-219, 257` | Asserted `/health.wans[].upload.{floor_mbps, ceiling_mbps}` — fields that do not exist; `/health` carries runtime state only, not config. | `dd67493` |
 | 3 | Plan 05 | `scripts/phase200-saturation-canary.sh::summarize_baseline` | Looks for `.wans[0].rtt.baseline_rtt_ms` but `/health` exposes it at `.wans[0].baseline_rtt_ms` (no `.rtt` wrapper). Verdict unaffected (RTT was advisory) but RTT baseline evidence was lost. | (not yet fixed; tracked) |
+| 4 | Plan 05 / `dd67493` regression | `scripts/phase200-saturation-canary.sh` env-var-driven floor source | Env vars are not fail-closed against operator drift: stale `PHASE200_UL_FLOOR_MBPS` would silently produce false-PASS verdicts because the floor-collapse selector compared `current_rate_mbps` against the wrong number. Today's run was unaffected (env=8 matched YAML=8 by manual check), but the gate was open to drift. | `43838f4` |
+
+Bug 4 is structurally interesting: the `dd67493` fix for bug 2 (replace nonexistent `/health` fields with operator env vars) created a new false-PASS path. The real fix is "env vars as declared expectation + cross-check against deployed YAML" — preserving operator clarity AND making the gate fail-closed. The remediation added a required `PHASE200_REMOTE_YAML_SSH` env var and an SSH-based YAML probe in preflight that ABORTs on any mismatch.
 
 ## Patterns Established (carry into future phases)
 
@@ -43,6 +47,7 @@ All three were caught **only** when Plan 06 made real production contact. None w
 - **Module-scope `logging.getLogger(__name__)` is unsafe for production INFO/WARNING in this project**. Production wires only the per-WAN named logger (`cake_continuous_<wan>`); all other loggers drop records. Future code that needs journal visibility should use `self.logger` (the per-WAN logger passed in via constructor) or be explicitly wired in `setup_logging`.
 - **`/health.wans[].{download,upload}` carries runtime state only**, not config. Floor / ceiling / threshold values must come from a different source (env var, YAML reader, or operator-supplied parameter). Adding config fields to `/health` requires a payload-shape change that CLAUDE.md flags as risky.
 - **Bimodal sample distribution under controller load is a stronger signal than any single metric**: 53% ceiling / 14% floor / 33% transitional reveals oscillation, which a mean or median would average away. Future canary-style gates should always report distribution, not just verdict.
+- **Operator-supplied parameters that gate verdicts must be cross-checked against the deployed system at preflight**, not trusted on declaration. "Trust the operator's env file" is not fail-closed. For control-system gates, the canonical pattern is: operator declares expectation as env var → preflight reads the deployed YAML / `/health` / journal and ABORTs on mismatch. Captured in `dd67493` → `43838f4` regression cycle.
 
 ## Key Lessons
 
