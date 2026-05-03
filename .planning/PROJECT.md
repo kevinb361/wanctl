@@ -10,15 +10,25 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.38 (Measurement Resilience Under Load) — shipped 2026-04-15
-**Tests:** Replayable v1.38 verification slices green; all 8/8 milestone requirements satisfied; milestone audit `tech_debt`
-**LOC:** ~37,900 Python (src/)
-**Milestones:** 39 shipped (v1.0-v1.38), 190 phases, 395 plans
+**Version:** v1.40 (Ordering Rationale — Queue-Primary Signal Arbitration) — shipped 2026-05-03
+**Tests:** v1.40 audit `tech_debt`; 9/9 actionable requirements satisfied; VALN-05b deferred-by-design pending v1.39 Phase 191 closure
+**LOC:** ~37,900+ Python (src/)
+**Milestones:** 40 shipped (v1.0-v1.40), 197 phases, ~423 plans
+**Active parallel milestone:** v1.39 Control-Path Timing & Measurement Accounting (Phase 191 still open)
 
-**Latest:** v1.38 Measurement Resilience Under Load — measurement degradation is now surfaced explicitly via machine-readable health signals, bounded stale-cache safety, operator guidance, and closed milestone traceability
-**Previous:** v1.37 Dashboard History Source Clarity — dashboard history now distinguishes endpoint-local HTTP history from merged CLI proof, surfaces source metadata context, and keeps tests/docs aligned without changing backend semantics
+**Latest:** v1.40 Ordering Rationale — DL distress classification now consumes kernel-local CAKE queue delay (`avg_delay_us - base_delay_us`) as the primary signal under load; RTT demoted to confidence-gated secondary; fusion healer bypass requires sustained queue + RTT distress for 6 cycles; Spectrum cake-primary recovers DOCSIS throughput (Phase 198 attempt 11: MoM 674 Mbps vs 532 acceptance); UL byte-identical to v1.39 (SAFE-05). OBS-02 spec/impl/doc lockstep closed in Phase 199.
+**Previous:** v1.38 Measurement Resilience Under Load — measurement degradation surfaced via machine-readable health signals, bounded stale-cache safety, operator guidance, and closed milestone traceability.
 
-## Current Milestone: v1.40 Queue-Primary Signal Arbitration
+## Next Milestone: v1.41 (to be opened)
+
+**Headline phase queued:** Phase 200 — Per-Direction RTT Bloat Thresholds (Spectrum UL Saturation Containment). Working-tree diff ready: 7 files, +125/-6 lines, all `make ci` clean except a known SAFE-05 pin update that will be part of Phase 200's `D-13` task. Codex pre-review surfaced one bug to fix in-phase (`_upload_thresholds_explicit` should be per-key presence-based, not value-derived).
+
+Open via `/gsd-new-milestone` to formalize v1.41 theme and scope.
+
+<details>
+<summary>Archived v1.40 milestone goals (collapsed for brevity)</summary>
+
+### v1.40 Queue-Primary Signal Arbitration (shipped 2026-05-03)
 
 **Goal:** Replace RTT-primary DL congestion classification with kernel-local CAKE queue-delay as the primary signal under load, demoting RTT to a confidence-gated secondary. Restore Spectrum DOCSIS throughput without making the controller vulnerable to carrier ICMP/UDP deprioritization. DL-only scope; UL stays RTT-led.
 
@@ -36,7 +46,9 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - Parallel milestone: v1.39 remains open. Phase 191 closure pending ATT weather-rerun. Phase 192 (reflector scorer blackout-awareness + log hygiene) still planned and required by MEAS-06/VALN-03 24h soak.
 - Priority: stability > safety > clarity > elegance. No state-machine, threshold, EWMA, dwell, deadband, or burst-detection changes. Arbitration changes input to classification, not classification rules themselves.
 
-**Phase status:** v1.40 Phases 193-195 are executed. Phase 196 remains blocked only on the ATT canary gate. Phase 197 completed the queue-primary refractory semantics split, and Phase 198 closed the Spectrum cake-primary rerun with passing attempt 11 evidence for VALN-04/VALN-05a while preserving SAFE-05. Phase 199 is ready to plan.
+**Phase status:** v1.40 Phases 193-199 all complete. Phase 196 was blocked at phase level on Spectrum B-leg evidence; Phase 198 closed the gap with attempt 11 canonical promotion (VALN-04, VALN-05a). Phase 199 closed the OBS-02 spec/impl/doc drift caveat docs-only. SAFE-05 enforced throughout. VALN-05b (ATT canary) remains deferred-by-design pending v1.39 Phase 191 closure.
+
+</details>
 
 ## In Progress: v1.39 Control-Path Timing & Measurement Accounting
 

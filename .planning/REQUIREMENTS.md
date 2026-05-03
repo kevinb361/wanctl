@@ -2,52 +2,10 @@
 
 **Core Value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-**Active Milestones (parallel):**
-- **v1.40 Queue-Primary Signal Arbitration** — current active work (defined 2026-04-23)
-- **v1.39 Control-Path Timing & Measurement Accounting** — in closure; Phase 191 ATT weather-rerun + Phase 192 execution remain
+**Active Milestones:**
+- **v1.39 Control-Path Timing & Measurement Accounting** — in closure; Phase 191 ATT weather-rerun + Phase 192 closeout soak remain
 
----
-
-## v1.40 Requirements (defined 2026-04-23)
-
-### Signal Arbitration (ARB)
-
-- [x] **ARB-01**: When `cake_signal` is supported and the latest `cake_snapshot` provides a valid `avg_delay_us` and `base_delay_us`, DL distress classification consumes `queue_delay_delta_us = max(0, avg_delay_us - base_delay_us)` as its primary input instead of RTT delta. When `cake_signal` is unsupported, DL classification falls back to the v1.39 RTT-primary path byte-identically.
-- [x] **ARB-02**: DL classification consumes RTT delta only through an `rtt_confidence` scalar in `[0.0, 1.0]` derived from ICMP/UDP agreement and direction agreement with the queue-delay signal. RTT cannot override a queue-GREEN reading unless `rtt_confidence >= 0.6` and queue and RTT agree in direction.
-- [x] **ARB-03**: Fusion healer bypass enters only when queue-delay distress (`queue_delay_delta_us` over its distress threshold) AND RTT distress (`rtt_confidence >= 0.6` with RTT zone at least YELLOW) are both sustained in the same worsening-or-held direction for 6 consecutive cycles. Single-path flips never enter bypass. Magnitude ratios between µs (queue) and ms (RTT) are never used as the alignment metric.
-- [x] **ARB-04**: v1.40 arbitration changes are DL-only. UL distress classification, UL state machine, and UL rate compute remain byte-identical to v1.39.
-
-### Measurement Accounting (MEAS)
-
-- [x] **MEAS-07**: `queue_delay_delta_us` is computed from the CAKE-provided `base_delay_us` field. No Python-side learned idle baseline, no baseline-freeze state machine, no healthy-idle gate is introduced for the queue-delay path.
-
-### Observability (OBS)
-
-- [x] **OBS-01**: `/health` per-WAN response contains a `signal_arbitration` block with fields `active_primary_signal` (one of `"queue"`, `"rtt"`, `"none"`), `rtt_confidence` (float 0.0–1.0 or null), `cake_av_delay_delta_us` (int or null), and `control_decision_reason` (short stable-vocabulary string such as `queue_distress`, `rtt_veto`, `healer_bypass`, `green_stable`). The existing `download.state`, `download.state_reason`, `download.hysteresis`, and `upload.*` fields remain byte-compatible with v1.39 consumers; new fields are additive under `signal_arbitration`, not nested under `hysteresis`.
-- [x] **OBS-02**: Per-cycle numeric metrics are written to the per-WAN metrics SQLite store when defined for that cycle. `wanctl_arbitration_active_primary` (0=none, 1=queue, 2=rtt) is emitted for each CAKE-metrics-enabled cycle and serves as the reliable per-cycle denominator for coverage queries. `wanctl_rtt_confidence` and `wanctl_cake_avg_delay_delta_us` are emitted only when valid; cold-start and invalid-snapshot cycles produce absent SQLite rows and `/health` nulls — no NaN, -1, or sentinel emission. All emitted values are numeric and compatible with the existing Prometheus-style exporter schema. *Wording amended in Phase 199 to formally specify absent-row semantics.*
-
-### Control Safety (SAFE)
-
-- [x] **SAFE-05**: No state-machine rule, EWMA alpha, dwell-cycle count, deadband value, burst detection parameter, or zone threshold is modified during v1.40. Arbitration changes the signal input to classification; classification rules and hysteresis logic remain untouched. Any PR touching state-machine code, EWMA alphas, or hysteresis constants is rejected.
-
-### Verification (VALN)
-
-- [x] **VALN-04**: Spectrum cake-primary B-leg validation runs on the same deployment token used for the accepted Phase 196 rtt-blend A-leg, under the Phase 197 refractory split semantics. A/B comparison artifact (`ab-comparison.json`) is produced against the accepted A-leg control evidence (excluding the invalid A-leg flent throughput captured under wrong source bind) and computes pass/fail deltas on RTT-distress event counts, burst trigger counts, dwell-bypass responsiveness, fusion state transitions, queue-primary coverage, and refractory fallback rate. Phase 198 Plan 07 canonicalized attempt 11 and regenerated the final A/B comparison with `comparison_verdict: pass`.
-- [x] **VALN-05a**: Spectrum DL `flent tcp_12down` 30s throughput under `cake-primary` recovers to ≥90% of the 591 Mbps CAKE-only-static floor (2026-04-23 measurement). Acceptance: 2-of-3 corrected source-bound (`10.10.110.226`) runs with individual medians ≥532 Mbps and median-of-medians ≥532 Mbps. Phase 198 Plan 06 attempt 11 passed this requirement (`medians_above_532=3`, `median_of_medians_mbps=674.156379`).
-- [ ] **VALN-05b** (deferred — ATT canary): After v1.39 Phase 191 closure, run ATT `flent tcp_12down` under `cake-primary`. Acceptance: ATT DL throughput ≥95% of last passing ATT baseline. Failure keeps ATT on `rtt-blend` and requires a follow-up phase before ATT `cake-primary` enablement. Tracks Phase 196-08.
-
-### v1.40 Out of Scope
-
-| Feature | Reason |
-|---------|--------|
-| UL queue-primary classification | UL is healthy in production; v1.40 scope is DL-only. UL remains RTT-led. |
-| Python-learned idle baseline for queue delay | Kernel already provides `base_delay_us`; reusing it avoids a new baseline-freeze state machine that re-introduces the RTT path's fragility (MEAS-07). |
-| `peak_delay_us` as primary signal | Too spike-prone for primary control scalar. Remains available as a secondary burst corroborator only. |
-| Magnitude ratio between queue-delay µs and RTT ms for healer alignment | Fake precision across different domains. Alignment is categorical direction-over-N-cycles only. |
-| Re-enabling fusion on Spectrum or ATT | Fusion workaround state stays as-is. Any re-enable is gated on v1.40 arbitration shipping + separate analysis. |
-| Nesting new arbitration telemetry under `download.hysteresis` | Would break `/health` consumer back-compat. New fields live in a dedicated `signal_arbitration` block. |
-| Concurrent Spectrum soaks | Attribution-destroying. v1.39 Phase 192 24h soak completes before v1.40 Phase 196 starts. |
-| Changing any state-machine, threshold, EWMA, dwell, deadband, or burst-detection value | Locked per SAFE-05. v1.40 changes classification input, not classification rules. |
+**Recently Archived:** v1.40 Queue-Primary Signal Arbitration (shipped 2026-05-03 — see `.planning/milestones/v1.40-REQUIREMENTS.md`).
 
 ---
 
@@ -109,23 +67,6 @@
 | VALN-02 | Phase 191 + Phase 192 | Complete |
 | VALN-03 | Phase 192 closeout soak | Pending |
 
-### v1.40
-
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| ARB-01      | Phase 194 | Complete |
-| ARB-02      | Phase 195 | Complete |
-| ARB-03      | Phase 195 | Complete |
-| ARB-04      | Phase 194 | Complete |
-| MEAS-07     | Phase 193 | Complete |
-| OBS-01      | Phase 193 | Complete |
-| OBS-02      | Phase 193 + Phase 199 (wording amendment) | Complete (caveat resolved by Phase 199) |
-| SAFE-05     | Phase 193 + Phase 194 + Phase 195 + Phase 196 + Phase 197 + Phase 198 (enforced throughout) | Complete |
-| VALN-04     | Phase 198 Plan 07 canonicalized passing attempt 11 and regenerated `ab-comparison.json` | Complete |
-| VALN-05a    | Phase 198 Plan 06 attempt 11 (`medians_above_532=3`, MoM `674.156379`) | Complete |
-| VALN-05b    | Phase 196-08 (deferred — gated on v1.39 Phase 191 closure) | Deferred |
-
 ---
 *v1.39 requirements defined: 2026-04-20*
-*v1.40 requirements defined: 2026-04-23*
-*v1.40 traceability filled: 2026-04-23*
+*v1.40 archived: 2026-05-03 (see `.planning/milestones/v1.40-REQUIREMENTS.md`)*
