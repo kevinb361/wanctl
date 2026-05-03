@@ -26,7 +26,7 @@
 
 ### Documentation (DOCS)
 
-- [ ] **DOCS-03**: `CHANGELOG.md` and `docs/CONFIGURATION.md` document the new optional UL threshold keys (`continuous_monitoring.upload.target_bloat_ms`, `continuous_monitoring.upload.warn_bloat_ms`) and explicitly note that SIGUSR1 does **not** reload these keys — a service restart is required after changing them. Verified against `wan_controller.py` SIGUSR1 reload scope (lines ~1894–1899: dwell/deadband only).
+- [x] **DOCS-03**: `CHANGELOG.md` and `docs/CONFIGURATION.md` document the new optional UL threshold keys (`continuous_monitoring.upload.target_bloat_ms`, `continuous_monitoring.upload.warn_bloat_ms`) and explicitly note that SIGUSR1 does **not** reload these keys — a service restart is required after changing them. Verified against `wan_controller.py` SIGUSR1 reload scope (lines ~1894–1899: dwell/deadband only).
 
 ### v1.41 Out of Scope
 
@@ -105,7 +105,7 @@
 | ARB-05  | Phase 200 | Complete |
 | SAFE-06 | Phase 200 | Complete |
 | VALN-06 | Phase 200 | Pending |
-| DOCS-03 | Phase 200 | Pending |
+| DOCS-03 | Phase 200 | Complete |
 
 ---
 *v1.39 requirements defined: 2026-04-20*
