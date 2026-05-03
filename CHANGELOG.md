@@ -53,6 +53,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fix; preflight now requires only `current_rate_mbps`, and the floor-collapse selector
   compares against the env-supplied floor value. Env template
   (`scripts/phase200-saturation-canary.env.example`) and `--help` updated.
+- Phase 200 Plan 05 canary gate is now fail-closed against env drift. New required env var
+  `PHASE200_REMOTE_YAML_SSH=user@host:/path/to/<wan>.yaml` lets the preflight SSH to the
+  deployed host, sudo-cat the YAML, and ABORT if `PHASE200_UL_FLOOR_MBPS` /
+  `PHASE200_UL_CEILING_MBPS` disagree with `continuous_monitoring.upload.{floor_mbps,
+ceiling_mbps}`. Without this cross-check, a stale floor env value would silently produce
+  false-PASS verdicts because the floor-collapse selector compared `current_rate_mbps`
+  against the wrong number. Surfaced by Codex stop-time review 2026-05-03.
 - Spectrum alerting config: restored `congestion_flapping` severity field
   (`severity: warning`) in `configs/spectrum.yaml`. Without this key, the alerting
   validator (`autorate_config.py:707-713`) silently disabled all alerting rules at
