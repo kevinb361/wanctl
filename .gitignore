@@ -82,3 +82,9 @@ configs/logrotate*.conf
 configs/logrotate-cake
 configs/steering.yaml
 .venv
+
+# Graphify default output dir; canonical location is .planning/graphs/
+graphify-out/
+
+# Scratch analysis scripts (use scripts/ for committed tooling)
+tmp_*.py
