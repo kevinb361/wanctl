@@ -144,8 +144,11 @@ KNOWN_AUTORATE_PATHS: set[str] = {
     "cake_params.upload_interface",
     "cake_params.download_interface",
     "cake_params.overhead",
+    "cake_params.mpu",
     "cake_params.memlimit",
     "cake_params.rtt",
+    "cake_params.ack_filter",
+    "cake_params.ingress",
     # Signal processing (_load_signal_processing_config)
     "signal_processing",
     "signal_processing.hampel",
@@ -159,7 +162,9 @@ KNOWN_AUTORATE_PATHS: set[str] = {
     "irtt.server",
     "irtt.port",
     "irtt.duration_sec",
+    "irtt.duration_ms",
     "irtt.interval_ms",
+    "irtt.packet_size",
     "irtt.cadence_sec",
     # Reflector quality scoring (_load_reflector_quality_config)
     "reflector_quality",
@@ -189,6 +194,33 @@ KNOWN_AUTORATE_PATHS: set[str] = {
     "tuning.max_step_pct",
     "tuning.exclude_params",
     "tuning.bounds",
+    "tuning.bounds.target_bloat_ms",
+    "tuning.bounds.target_bloat_ms.min",
+    "tuning.bounds.target_bloat_ms.max",
+    "tuning.bounds.warn_bloat_ms",
+    "tuning.bounds.warn_bloat_ms.min",
+    "tuning.bounds.warn_bloat_ms.max",
+    "tuning.bounds.hampel_sigma_threshold",
+    "tuning.bounds.hampel_sigma_threshold.min",
+    "tuning.bounds.hampel_sigma_threshold.max",
+    "tuning.bounds.hampel_window_size",
+    "tuning.bounds.hampel_window_size.min",
+    "tuning.bounds.hampel_window_size.max",
+    "tuning.bounds.load_time_constant_sec",
+    "tuning.bounds.load_time_constant_sec.min",
+    "tuning.bounds.load_time_constant_sec.max",
+    "tuning.bounds.fusion_icmp_weight",
+    "tuning.bounds.fusion_icmp_weight.min",
+    "tuning.bounds.fusion_icmp_weight.max",
+    "tuning.bounds.reflector_min_score",
+    "tuning.bounds.reflector_min_score.min",
+    "tuning.bounds.reflector_min_score.max",
+    "tuning.bounds.baseline_rtt_min",
+    "tuning.bounds.baseline_rtt_min.min",
+    "tuning.bounds.baseline_rtt_min.max",
+    "tuning.bounds.baseline_rtt_max",
+    "tuning.bounds.baseline_rtt_max.min",
+    "tuning.bounds.baseline_rtt_max.max",
     "tuning.oscillation_threshold",
     # Ping source IP (_load_timeout_config)
     "ping_source_ip",
@@ -200,8 +232,30 @@ KNOWN_AUTORATE_PATHS: set[str] = {
     "storage.retention.prometheus_compensated",
     # Cycle budget warning (WANController.__init__)
     "continuous_monitoring.warning_threshold_pct",
+    "continuous_monitoring.cake_stats_cadence_sec",
     # Hysteresis suppression alert (WANController.__init__)
     "continuous_monitoring.thresholds.suppression_alert_threshold",
+    # CAKE signal arbitration (Phase 193-197)
+    "cake_signal",
+    "cake_signal.enabled",
+    "cake_signal.drop_rate",
+    "cake_signal.drop_rate.enabled",
+    "cake_signal.drop_rate.time_constant_sec",
+    "cake_signal.drop_rate.threshold_drops_per_sec",
+    "cake_signal.backlog",
+    "cake_signal.backlog.enabled",
+    "cake_signal.backlog.threshold_bytes",
+    "cake_signal.peak_delay",
+    "cake_signal.peak_delay.enabled",
+    "cake_signal.metrics",
+    "cake_signal.metrics.enabled",
+    "cake_signal.detection",
+    "cake_signal.detection.refractory_cycles",
+    "cake_signal.recovery",
+    "cake_signal.recovery.probe_multiplier",
+    "cake_signal.recovery.probe_ceiling_pct",
+    # Startup/periodic maintenance retention cadence
+    "storage.maintenance_interval_seconds",
 }
 
 # Regex for detecting environment variable references in string values
@@ -621,5 +675,4 @@ def _run_autorate_validators(data: dict) -> list[CheckResult]:
     results.extend(check_deprecated_params(data))
     results.extend(validate_linux_cake(data))
     return results
-
 
