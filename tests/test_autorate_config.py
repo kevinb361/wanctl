@@ -339,6 +339,60 @@ lock_timeout: 300
             Config(str(config_file))
 
 
+class TestLoadUploadThresholdConfig:
+    """Tests for optional upload-specific RTT thresholds."""
+
+    def test_upload_thresholds_default_to_global_thresholds(
+        self, base_config_yaml_single_floor, tmp_path
+    ):
+        """Upload thresholds preserve existing behavior unless explicitly configured."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(base_config_yaml_single_floor)
+
+        config = Config(str(config_file))
+
+        assert config.upload_target_bloat_ms == 15
+        assert config.upload_warn_bloat_ms == 45
+
+    def test_upload_thresholds_can_override_global_thresholds(
+        self, base_config_yaml_single_floor, tmp_path
+    ):
+        """Upload-specific target/warn thresholds load from continuous_monitoring.upload."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            base_config_yaml_single_floor.replace(
+                "    factor_down: 0.85\n  thresholds:",
+                "    factor_down: 0.85\n"
+                "    target_bloat_ms: 42\n"
+                "    warn_bloat_ms: 105\n"
+                "  thresholds:",
+            )
+        )
+
+        config = Config(str(config_file))
+
+        assert config.target_bloat_ms == 15
+        assert config.warn_bloat_ms == 45
+        assert config.upload_target_bloat_ms == 42
+        assert config.upload_warn_bloat_ms == 105
+
+    def test_upload_thresholds_must_be_ordered(self, base_config_yaml_single_floor, tmp_path):
+        """Upload-specific target must stay below upload-specific warn threshold."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            base_config_yaml_single_floor.replace(
+                "    factor_down: 0.85\n  thresholds:",
+                "    factor_down: 0.85\n"
+                "    target_bloat_ms: 110\n"
+                "    warn_bloat_ms: 90\n"
+                "  thresholds:",
+            )
+        )
+
+        with pytest.raises(ValueError, match="threshold"):
+            Config(str(config_file))
+
+
 # =============================================================================
 # TestConfigCeilingAndSteps
 # =============================================================================

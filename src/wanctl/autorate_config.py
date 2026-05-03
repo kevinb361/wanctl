@@ -172,6 +172,20 @@ class Config(BaseConfig):
             "max": 1.0,
         },
         {
+            "path": "continuous_monitoring.upload.target_bloat_ms",
+            "type": (int, float),
+            "required": False,
+            "min": 1,
+            "max": 200,
+        },
+        {
+            "path": "continuous_monitoring.upload.warn_bloat_ms",
+            "type": (int, float),
+            "required": False,
+            "min": 1,
+            "max": 250,
+        },
+        {
             "path": "continuous_monitoring.upload.green_required",
             "type": int,
             "required": False,
@@ -276,7 +290,9 @@ class Config(BaseConfig):
         self.queue_down = self.validate_identifier(
             self.data["queues"]["download"], "queues.download"
         )
-        self.queue_up = self.validate_identifier(self.data["queues"]["upload"], "queues.upload")
+        self.queue_up = self.validate_identifier(
+            self.data["queues"]["upload"], "queues.upload"
+        )
 
     def _load_download_config(self, cm: dict) -> None:
         """Load download parameters with state-based floors and validation."""
@@ -337,6 +353,17 @@ class Config(BaseConfig):
         self.upload_factor_down_yellow = ul.get("factor_down_yellow", 0.94)
         # Consecutive GREEN cycles required before stepping up (default 5)
         self.upload_green_required = ul.get("green_required", 5)
+        # Optional upload-specific 3-state RTT thresholds are resolved after global
+        # thresholds load; absent keys preserve legacy global threshold behavior.
+        self._upload_target_bloat_ms_raw = ul.get("target_bloat_ms")
+        self._upload_warn_bloat_ms_raw = ul.get("warn_bloat_ms")
+        # Per-key presence flags (Phase 200 D-03: must be presence-based, NOT
+        # value-derived). Codex pre-review caught that a value-derived flag
+        # silently fails when an operator (a) sets a UL key equal to the DL
+        # global default, or (b) sets only one of the two keys. Presence
+        # detection (`"key" in ul`) handles both correctly.
+        self._upload_target_bloat_ms_explicit = "target_bloat_ms" in ul
+        self._upload_warn_bloat_ms_explicit = "warn_bloat_ms" in ul
 
         # Validate upload floor ordering: red <= yellow <= green <= ceiling
         validate_bandwidth_order(
@@ -354,7 +381,9 @@ class Config(BaseConfig):
         thresh = cm["thresholds"]
         self.target_bloat_ms = thresh["target_bloat_ms"]  # GREEN -> YELLOW (15ms)
         self.warn_bloat_ms = thresh["warn_bloat_ms"]  # YELLOW -> SOFT_RED (45ms)
-        self.hard_red_bloat_ms = thresh.get("hard_red_bloat_ms", DEFAULT_HARD_RED_BLOAT_MS)
+        self.hard_red_bloat_ms = thresh.get(
+            "hard_red_bloat_ms", DEFAULT_HARD_RED_BLOAT_MS
+        )
 
         # EWMA alpha from time constants (with legacy deprecation)
         self._load_ewma_alpha_config(thresh)
@@ -384,6 +413,17 @@ class Config(BaseConfig):
             logger=logging.getLogger(__name__),
         )
 
+        self.upload_target_bloat_ms = (
+            self._upload_target_bloat_ms_raw or self.target_bloat_ms
+        )
+        self.upload_warn_bloat_ms = self._upload_warn_bloat_ms_raw or self.warn_bloat_ms
+        if self.upload_target_bloat_ms >= self.upload_warn_bloat_ms:
+            raise ValueError(
+                "upload threshold ordering invalid: "
+                f"target_bloat_ms ({self.upload_target_bloat_ms}) must be less than "
+                f"warn_bloat_ms ({self.upload_warn_bloat_ms})"
+            )
+
     def _load_ewma_alpha_config(self, thresh: dict) -> None:
         """Resolve EWMA alpha values from time constants or legacy alpha params."""
         logger = logging.getLogger(__name__)
@@ -393,14 +433,20 @@ class Config(BaseConfig):
 
         # Deprecation: translate legacy alpha -> time_constant
         _tc_from_baseline = deprecate_param(
-            thresh, "alpha_baseline", "baseline_time_constant_sec", logger,
+            thresh,
+            "alpha_baseline",
+            "baseline_time_constant_sec",
+            logger,
             transform_fn=lambda alpha: cycle_interval / alpha,
         )
         if _tc_from_baseline is not None:
             thresh["baseline_time_constant_sec"] = _tc_from_baseline
 
         _tc_from_load = deprecate_param(
-            thresh, "alpha_load", "load_time_constant_sec", logger,
+            thresh,
+            "alpha_load",
+            "load_time_constant_sec",
+            logger,
             transform_fn=lambda alpha: cycle_interval / alpha,
         )
         if _tc_from_load is not None:
@@ -411,9 +457,7 @@ class Config(BaseConfig):
             thresh, "baseline", cycle_interval, logger
         )
         # Resolve load alpha
-        self.alpha_load = self._resolve_alpha(
-            thresh, "load", cycle_interval, logger
-        )
+        self.alpha_load = self._resolve_alpha(thresh, "load", cycle_interval, logger)
 
     def _resolve_alpha(
         self, thresh: dict, prefix: str, cycle_interval: float, logger: logging.Logger
@@ -464,7 +508,9 @@ class Config(BaseConfig):
     def _load_timeout_config(self) -> None:
         """Load timeout settings with defaults."""
         timeouts = self.data.get("timeouts", {})
-        self.timeout_ssh_command = timeouts.get("ssh_command", DEFAULT_AUTORATE_SSH_TIMEOUT)
+        self.timeout_ssh_command = timeouts.get(
+            "ssh_command", DEFAULT_AUTORATE_SSH_TIMEOUT
+        )
         self.timeout_ping = timeouts.get("ping", DEFAULT_AUTORATE_PING_TIMEOUT)
         # Source IP for ICMP pings (multi-WAN VM: different source IPs route through different WANs)
         self.ping_source_ip: str | None = self.data.get("ping_source_ip", None)
@@ -601,7 +647,9 @@ class Config(BaseConfig):
     ) -> dict | None:
         """Validate alerting cooldown and sustained duration. Returns None on failure."""
         default_cooldown_sec = alerting.get("default_cooldown_sec", 300)
-        if not isinstance(default_cooldown_sec, int) or isinstance(default_cooldown_sec, bool):
+        if not isinstance(default_cooldown_sec, int) or isinstance(
+            default_cooldown_sec, bool
+        ):
             logger.warning(
                 f"alerting.default_cooldown_sec must be int, got {type(default_cooldown_sec).__name__}; "
                 "disabling alerting"
@@ -617,7 +665,9 @@ class Config(BaseConfig):
             return None
 
         default_sustained_sec = alerting.get("default_sustained_sec", 60)
-        if not isinstance(default_sustained_sec, int) or isinstance(default_sustained_sec, bool):
+        if not isinstance(default_sustained_sec, int) or isinstance(
+            default_sustained_sec, bool
+        ):
             logger.warning(
                 f"alerting.default_sustained_sec must be int, "
                 f"got {type(default_sustained_sec).__name__}; disabling alerting"
@@ -649,7 +699,9 @@ class Config(BaseConfig):
         valid_severities = {"info", "warning", "critical"}
         for rule_name, rule in rules.items():
             if not isinstance(rule, dict):
-                logger.warning(f"alerting.rules.{rule_name} must be a map; disabling alerting")
+                logger.warning(
+                    f"alerting.rules.{rule_name} must be a map; disabling alerting"
+                )
                 self.alerting_config = None
                 return None
             severity = rule.get("severity")
@@ -722,7 +774,11 @@ class Config(BaseConfig):
 
         # Validate and extract hampel parameters
         window_size = hampel.get("window_size", 7)
-        if not isinstance(window_size, int) or isinstance(window_size, bool) or window_size < 3:
+        if (
+            not isinstance(window_size, int)
+            or isinstance(window_size, bool)
+            or window_size < 3
+        ):
             logger.warning(
                 f"signal_processing.hampel.window_size must be int >= 3, "
                 f"got {window_size!r}; defaulting to 7"
@@ -742,15 +798,23 @@ class Config(BaseConfig):
             sigma_threshold = 3.0
 
         # Validate EWMA time constants
-        jitter_tc = sp.get("jitter_time_constant_sec", 2.0) if isinstance(sp, dict) else 2.0
-        if not isinstance(jitter_tc, (int, float)) or isinstance(jitter_tc, bool) or jitter_tc <= 0:
+        jitter_tc = (
+            sp.get("jitter_time_constant_sec", 2.0) if isinstance(sp, dict) else 2.0
+        )
+        if (
+            not isinstance(jitter_tc, (int, float))
+            or isinstance(jitter_tc, bool)
+            or jitter_tc <= 0
+        ):
             logger.warning(
                 f"signal_processing.jitter_time_constant_sec must be positive number, "
                 f"got {jitter_tc!r}; defaulting to 2.0"
             )
             jitter_tc = 2.0
 
-        variance_tc = sp.get("variance_time_constant_sec", 5.0) if isinstance(sp, dict) else 5.0
+        variance_tc = (
+            sp.get("variance_time_constant_sec", 5.0) if isinstance(sp, dict) else 5.0
+        )
         if (
             not isinstance(variance_tc, (int, float))
             or isinstance(variance_tc, bool)
@@ -785,22 +849,35 @@ class Config(BaseConfig):
         irtt = self.data.get("irtt", {})
 
         if not isinstance(irtt, dict):
-            logger.warning(f"irtt config must be dict, got {type(irtt).__name__}; using defaults")
+            logger.warning(
+                f"irtt config must be dict, got {type(irtt).__name__}; using defaults"
+            )
             irtt = {}
 
         enabled = irtt.get("enabled", False)
         if not isinstance(enabled, bool):
-            logger.warning(f"irtt.enabled must be bool, got {enabled!r}; defaulting to false")
+            logger.warning(
+                f"irtt.enabled must be bool, got {enabled!r}; defaulting to false"
+            )
             enabled = False
 
         server = irtt.get("server")
         if server is not None and not isinstance(server, str):
-            logger.warning(f"irtt.server must be str, got {server!r}; defaulting to None")
+            logger.warning(
+                f"irtt.server must be str, got {server!r}; defaulting to None"
+            )
             server = None
 
         port = irtt.get("port", 2112)
-        if not isinstance(port, int) or isinstance(port, bool) or port < 1 or port > 65535:
-            logger.warning(f"irtt.port must be int 1-65535, got {port!r}; defaulting to 2112")
+        if (
+            not isinstance(port, int)
+            or isinstance(port, bool)
+            or port < 1
+            or port > 65535
+        ):
+            logger.warning(
+                f"irtt.port must be int 1-65535, got {port!r}; defaulting to 2112"
+            )
             port = 2112
 
         duration_sec = irtt.get("duration_sec", 1.0)
@@ -816,7 +893,11 @@ class Config(BaseConfig):
             duration_sec = 1.0
 
         interval_ms = irtt.get("interval_ms", 100)
-        if not isinstance(interval_ms, int) or isinstance(interval_ms, bool) or interval_ms < 1:
+        if (
+            not isinstance(interval_ms, int)
+            or isinstance(interval_ms, bool)
+            or interval_ms < 1
+        ):
             logger.warning(
                 f"irtt.interval_ms must be positive int, got {interval_ms!r}; defaulting to 100"
             )
@@ -915,7 +996,11 @@ class Config(BaseConfig):
         min_score = max(0.0, min(1.0, float(min_score)))
 
         window_size = rq.get("window_size", 50)
-        if not isinstance(window_size, int) or isinstance(window_size, bool) or window_size < 10:
+        if (
+            not isinstance(window_size, int)
+            or isinstance(window_size, bool)
+            or window_size < 10
+        ):
             logger.warning(
                 f"reflector_quality.window_size must be int >= 10, got {window_size!r}; "
                 "defaulting to 50"
@@ -1209,12 +1294,19 @@ class Config(BaseConfig):
             or isinstance(value, bool)
             or not (0.0 <= value <= 1.0)
         ):
-            logger.warning(f"fusion.healing.{key} invalid ({value!r}); defaulting to {default}")
+            logger.warning(
+                f"fusion.healing.{key} invalid ({value!r}); defaulting to {default}"
+            )
             return default
         return float(value)
 
     def _validate_fusion_window(
-        self, healing: dict, key: str, default: float, minimum: float, logger: logging.Logger
+        self,
+        healing: dict,
+        key: str,
+        default: float,
+        minimum: float,
+        logger: logging.Logger,
     ) -> float:
         """Validate a fusion healing window duration (must be >= minimum)."""
         value = healing.get(key, default)
@@ -1322,7 +1414,9 @@ class Config(BaseConfig):
             return None
 
         min_confidence = tuning.get("min_confidence", 0.3)
-        if not isinstance(min_confidence, (int, float)) or isinstance(min_confidence, bool):
+        if not isinstance(min_confidence, (int, float)) or isinstance(
+            min_confidence, bool
+        ):
             logger.warning(
                 f"tuning.min_confidence must be number, got {type(min_confidence).__name__}; "
                 "disabling tuning"
@@ -1435,7 +1529,9 @@ class Config(BaseConfig):
             self.tuning_config = None
             return None
 
-        if not isinstance(min_val, (int, float)) or not isinstance(max_val, (int, float)):
+        if not isinstance(min_val, (int, float)) or not isinstance(
+            max_val, (int, float)
+        ):
             logger.warning(
                 f"tuning.bounds.{param_name} min/max must be numeric; disabling tuning"
             )
