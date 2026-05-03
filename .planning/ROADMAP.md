@@ -111,6 +111,67 @@ Phase 191 ships before Phase 192 because the timing change affects *both* WANs s
 
 ---
 
+# Roadmap: wanctl v1.41 Per-Direction Control Surfaces
+
+**Milestone Goal:** Decouple UL and DL control thresholds so latency-first UL configurations are possible on deployments where UL saturation under DL-shared thresholds causes oscillation. Headline phase resolves the Spectrum UL collapse-to-floor pattern observed in production 2026-04-29 (live UL hysteresis storm visible at 5 → 15 → 31 suppressions/60s while DL=0). Single-phase milestone; v1.41 may grow if Phase 200 surfaces follow-on work.
+
+**Phases:** 1 | **Requirements mapped:** 4/4 ✓
+
+## Phase Summary
+
+| # | Phase | Goal | Requirements | Success Criteria |
+|---|-------|------|--------------|------------------|
+| 200 | Per-Direction RTT Bloat Thresholds (Spectrum UL Saturation Containment) | Add optional UL-specific RTT bloat threshold keys; close the silent-ignore validator gap; ship Spectrum YAML at 18 Mbit ceiling + 42/105 ms UL thresholds; verify with a 10–15 min saturated `iperf3 -P4` canary as the deploy gate plus 24h regression soak. | ARB-05, SAFE-06, VALN-06, DOCS-03 | 5 |
+
+---
+
+## Phase 200: Per-Direction RTT Bloat Thresholds (Spectrum UL Saturation Containment)
+
+**Goal:** Add optional `continuous_monitoring.upload.target_bloat_ms` and `continuous_monitoring.upload.warn_bloat_ms` keys so the legacy 3-state UL controller can use thresholds independent of the DL 4-state thresholds. Behavior is byte-identical when the new keys are absent (preserves all non-Spectrum deployments). On Spectrum, adopt the new keys at 42/105 ms and lower the upload ceiling 28→18 Mbps (latency-first gaming-server soak), with operator evidence trail in three `.planning/spectrum-*-2026-04-29.md` notes. Close the validator silent-ignore gap that allowed prod /etc/wanctl/spectrum.yaml to carry 4 unrecognized keys for 3 days. Ship a 10–15 min saturated UL canary as the deploy gate; 24h soak as regression watchdog.
+
+**Requirements addressed:** ARB-05, SAFE-06, VALN-06, DOCS-03
+
+**Depends on:** v1.40 closure (no overlap with queue-primary arbitration paths; DL classification is byte-identical)
+
+**Scope:**
+- Add optional UL-specific RTT bloat threshold keys to `autorate_config.py` schema (1–200 ms target, 1–250 ms warn, ordering check)
+- Update `wan_controller.py` to seed `target_delta` / `warn_delta` from per-direction config when present, else fall back to global; add per-key explicit-presence flags `_upload_target_bloat_ms_explicit` and `_upload_warn_bloat_ms_explicit` (Codex bug fix: must NOT be value-derived)
+- Update `_apply_threshold_param` to gate UL field writes per-flag (each flag protects its own field independently)
+- Update `check_config_validators.py` `KNOWN_AUTORATE_PATHS` to register the new keys
+- Add SAFE-06: validator rejects (or audibly warns on every startup) any unknown `continuous_monitoring.*` key
+- Update `tests/test_phase_195_replay.py::test_safe05_threshold_name_counts_are_unchanged` expected counts (D-13: warn_bloat 4 → 6, target_bloat 4 → 6)
+- Spectrum YAML: ceiling_mbps 28 → 18, factor_down_yellow 0.98, target_bloat_ms 42, warn_bloat_ms 105
+- Version bump to 1.41.0 in `pyproject.toml`, `src/wanctl/__init__.py`, `docker/Dockerfile`
+- CHANGELOG.md entry + `docs/CONFIGURATION.md` migration note (restart-required, SIGUSR1 does not reload these keys)
+- Pre-deploy canary: 10–15 min `iperf3 -P4` saturated UL loop at 18 Mbit; predefined rollback to v1.40 binary if UL collapses to floor in any cycle
+- 24h Spectrum UL regression soak after canary passes; UL hysteresis suppression rate must drop from current 31/60s to near-zero
+
+**Out of scope (locked):**
+- Per-direction DL state-machine threshold split (DL is healthy; v1.41 is UL-only)
+- New `/health` per-direction telemetry block (UL is already observable)
+- Refactoring `initialize_cake` complexity (C901 noqa stays; control-path refactor risk)
+- ATT cake-primary canary (VALN-05b inherited deferral from v1.40)
+- Coverage push >90% (pre-existing v1.40 debt; v1.41 tests will likely cross naturally)
+
+**Success Criteria:**
+1. The autorate config schema accepts the new optional UL-threshold keys, validates `target < warn` ordering, and falls back to DL globals byte-identically when absent. Verified by 4 new tests in `tests/test_autorate_config.py` (defaults, override, ordering violation) and `tests/test_wan_controller.py` (per-key presence wiring).
+2. The validator emits a WARNING log entry on startup when any unknown `continuous_monitoring.*` key is present in the deployment YAML. Verified by a new test that exercises the unknown-key path and asserts the log emission.
+3. The 10–15 min saturated `iperf3 -P4` UL canary at 18 Mbit ceiling on Spectrum completes without the UL controller collapsing to the 8 Mbit floor in any cycle. Pre/post idle baselines bookend the run; canary fails if any single cycle reaches floor.
+4. The 24h Spectrum UL regression soak after canary passes shows UL hysteresis suppression rate drops below 5/60s on average (down from the current 31/60s degraded state).
+5. CHANGELOG.md and `docs/CONFIGURATION.md` carry the migration note specifying that the new keys require a service restart to take effect (SIGUSR1 does not reload these). Verified by greps for the keys in both files.
+
+**Plans:** TBD (will be materialized via `/gsd-plan-phase 200`)
+
+---
+
+## v1.41 Ordering Rationale
+
+Single-phase milestone. Phase 200 is the only deliverable; no inter-phase ordering decisions required. Phase 200 has a hard production-state precondition: prod `/etc/wanctl/spectrum.yaml` already carries the new UL keys with no matching deployed code, so production is in a known-degraded state from 2026-04-29 onward. Phase 200 ships in a single sequence: bug-fix the diff (Codex finding D-11) → version bump → CHANGELOG → tests → canary → deploy → 24h soak. Cross-milestone dependency on v1.39 Phase 191 (ATT canary VALN-05b) inherits as deferred; v1.41 does not block on it.
+
+*v1.41 roadmap created: 2026-05-03*
+
+---
+
 # Archived Milestones
 
 - **v1.40 Queue-Primary Signal Arbitration** (shipped 2026-05-03) — see `.planning/milestones/v1.40-ROADMAP.md`
