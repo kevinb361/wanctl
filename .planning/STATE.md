@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
-status: planning
-last_updated: "2026-05-03T17:08:54.225Z"
+status: executing
+stopped_at: v1.40 milestone archived 2026-05-03 (commit 355a389, tag v1.40)
+last_updated: "2026-05-03T18:19:53.437Z"
 last_activity: 2026-05-03
 progress:
-  total_phases: 0
+  total_phases: 1
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 8
+  completed_plans: 2
+  percent: 25
 ---
 
 # Session State
@@ -20,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** v1.40 archived 2026-05-03; v1.41 to be opened (Phase 200 — Per-Direction RTT Bloat Thresholds queued on working tree).
+**Current focus:** Phase 200 — per-direction-rtt-bloat-thresholds
 
 ## Position
 
@@ -28,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 **Active parallel milestone:** v1.39 Control-Path Timing & Measurement Accounting (Phase 191 still open)
 **Next milestone:** v1.41 (to open via `/gsd-new-milestone`)
 
-Progress: v1.40 [██████████] 100% archived
+Progress: [███░░░░░░░] 25%
 
 ## Deferred Items
 
@@ -128,7 +129,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 ## Session Continuity
 
 Stopped at: v1.40 milestone archived 2026-05-03 (commit 355a389, tag v1.40)
-Resume file: none — next session opens v1.41 via `/gsd-new-milestone` (Phase 200 working-tree diff queued: per-direction RTT bloat thresholds for Spectrum UL saturation containment)
+Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
 ## Decisions
@@ -197,9 +198,11 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 198-06]: Attempt 10 remains recorded as retry because throughput failed despite all per-run loaded-window audits passing.
 - [Phase 198]: Promoted attempt 11 after source-of-truth recomputation confirmed throughput PASS, all three loaded-window audits pass, regenerated A/B comparison pass, and SAFE-05 clean.
 - [Phase 198]: Closed HIGH-3 cascade via fresh per-run dwell-bypass evidence from Plan 198-06 rather than the failing 24h-soak counter.
+- [Phase 200-02]: Applied D-09 by superseding only the SAFE-05 warn_bloat/target_bloat v1.40 pins for v1.41 per-direction upload threshold wiring; the seven non-UL pins remain unchanged. — The v1.41 per-direction threshold wiring intentionally added occurrences in wan_controller.py; preserving the other pins keeps SAFE-05 drift detection active.
 
 ## Performance Metrics
 
+- 2026-05-03: Phase 200 Plan 02 completed in 1min across 1 task and 2 files; SAFE-05 now pins v1.41 warn_bloat=12 and target_bloat=14, seven non-UL pins remained unchanged, phase replay passed with 25 tests, and the hot-path slice passed with 615 tests.
 - 2026-05-02: Phase 198 Plan 07 completed in 12min across 3 tasks and 12 evidence/verification files; attempt 11 was canonically promoted, VALN-04 and VALN-05a closed, SAFE-05 regenerated with diff_exit=0, and the hot-path slice passed with 573 tests.
 - 2026-05-02: Phase 198 Plan 06 completed after checkpointed off-peak reruns; attempt 11 passed VALN-05a with medians 685.992066/674.156379/560.381543 Mbps, all three per-run loaded-window audits passed, SAFE-05 remained clean, and the hot-path slice passed with 573 tests.
 - 2026-04-29: Phase 198 Plan 05 completed in ~16 min across 2 tasks and 3 new scripts; off-peak harness, loaded-window audit, and throughput verdict tooling passed syntax/content checks, SAFE-05 protected diff remained clean, and the hot-path slice passed with 572 tests.
@@ -238,7 +241,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-05-03 — Milestone v1.41 started
+Phase: 200 (per-direction-rtt-bloat-thresholds) — EXECUTING
+Plan: 2 of 8
+Status: Ready to execute
+Last activity: 2026-05-03

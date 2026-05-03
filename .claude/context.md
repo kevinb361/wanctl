@@ -98,6 +98,7 @@ Use these as the primary current docs:
 
 ## Current Validation Note
 
+- v1.41 Phase 200 is active for per-direction upload RTT bloat thresholds. Plan 200-02 intentionally superseded the v1.40 SAFE-05 replay count pins for `warn_bloat` and `target_bloat` only, using the live post-Plan-01 `wan_controller.py` counts (`warn_bloat=12`, `target_bloat=14`) while preserving the seven non-UL count pins.
 - Phase 196 Spectrum cake-primary documented B-leg exceptions were accepted for continuation, but the follow-up tcp_12down throughput check failed at 73.92243773827883 Mbps versus the 532 Mbps acceptance threshold; the A/B comparison remains blocked until passing throughput evidence exists.
 - Spectrum Silicom remains on CAKE for normal operation: `spec-modem` upload at 28Mbit, `spec-router` download at 940Mbit, `rtt: "100ms"`, WAN-path reflectors, IRTT disabled provisionally. Gateway-only RTT and `rtt: "1s"` are diagnostic controls only.
 - `deploy/systemd/wanctl@.service` must keep `/proc/net` visible because `tc` reads `/proc/net/psched` for HTB timing and burst accounting; do not reintroduce `ProcSubset=pid` while Linux shapers may use HTB.
