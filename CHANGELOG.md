@@ -35,6 +35,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   per-direction wiring. v1.40 SAFE-05 pin is intentionally superseded; the
   other 7 pinned counts remain unchanged. ARB-05, D-09.
 
+### Fixed
+
+- Phase 200 D-06 deploy verification surface: explicit UL threshold INFO log now emits
+  via `self.logger` (per-WAN named logger with handlers) instead of module logger, ensuring
+  the one-shot `phase200 explicit UL thresholds active` line reaches journalctl for Plan 06
+  verification grep. Initial v1.41 deploy (2026-05-03) was rolled back because the module
+  logger had no handlers attached in production, silently dropping the record. Plan 06 retry
+  deploy can now verify the logged thresholds match the deployed YAML. D-06 verification
+  restored; 2 new regression tests added (`test_phase200_d06_info_log_*`).
+
 ### Migration
 
 - **Service restart required for new keys.** The new `continuous_monitoring.upload.target_bloat_ms`
