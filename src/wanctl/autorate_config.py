@@ -1617,3 +1617,35 @@ class Config(BaseConfig):
 
         # Adaptive tuning (optional, disabled by default)
         self._load_tuning_config()
+
+        # SAFE-06 (D-08): startup-time unknown-key warning. Closes the v1.40
+        # silent-ignore gap that allowed prod /etc/wanctl/spectrum.yaml to carry
+        # unrecognized UL keys without any daemon-side warning.
+        self._warn_unknown_continuous_monitoring_keys()
+
+    def _warn_unknown_continuous_monitoring_keys(self) -> None:
+        """Emit a WARNING log entry for each unknown config key at startup.
+
+        Operators changing config in production must see drift between YAML and
+        the deployed code surface. Hard-reject was rejected (D-08): too
+        disruptive for legitimate cases where new keys ship in YAML before the
+        matching daemon. WARNING is audible without blocking startup.
+        """
+        logger = logging.getLogger(__name__)
+        try:
+            # Local import avoids a circular import at module load time:
+            # check_config_validators imports Config for schema validation.
+            from wanctl.check_config_validators import check_unknown_keys
+
+            unknown_results = check_unknown_keys(self.data)
+        except Exception as e:
+            logger.warning("Unknown-key check skipped due to validator error: %s", e)
+            return
+
+        for result in unknown_results:
+            logger.warning(
+                "%s in %s (SAFE-06: ignored by daemon — verify your YAML "
+                "matches the deployed binary)",
+                result.message,
+                self.config_file_path,
+            )
