@@ -100,6 +100,12 @@ def mock_autorate_config():
     # Bloat thresholds
     config.target_bloat_ms = 15.0
     config.warn_bloat_ms = 45.0
+    config.upload_target_bloat_ms = config.target_bloat_ms
+    config.upload_warn_bloat_ms = config.warn_bloat_ms
+    # Phase 200 D-03: per-key presence flags default to False for tests that
+    # don't override them. Tests asserting D-03 invariants set these to True.
+    config._upload_target_bloat_ms_explicit = False
+    config._upload_warn_bloat_ms_explicit = False
     config.hard_red_bloat_ms = 80.0
     # EWMA and baseline
     config.alpha_baseline = 0.001

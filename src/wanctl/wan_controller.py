@@ -18,7 +18,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from wanctl.alert_engine import AlertEngine
-from wanctl.asymmetry_analyzer import DIRECTION_ENCODING, AsymmetryAnalyzer, AsymmetryResult
+from wanctl.asymmetry_analyzer import (
+    DIRECTION_ENCODING,
+    AsymmetryAnalyzer,
+    AsymmetryResult,
+)
 from wanctl.autorate_config import Config
 from wanctl.cake_stats_thread import BackgroundCakeStatsThread
 from wanctl.config_base import get_storage_config
@@ -49,7 +53,10 @@ from wanctl.rtt_measurement import (
     RTTCycleStatus,
     RTTMeasurement,
 )
-from wanctl.runtime_pressure import get_storage_file_snapshot, read_process_memory_status
+from wanctl.runtime_pressure import (
+    get_storage_file_snapshot,
+    read_process_memory_status,
+)
 from wanctl.signal_processing import SignalProcessor, SignalResult
 from wanctl.storage import MetricsWriter
 from wanctl.storage.deferred_writer import DeferredIOWorker
@@ -105,10 +112,17 @@ def _apply_threshold_param(wc: "WANController", param: str, val: float) -> bool:
     """Apply threshold and EWMA tuning parameters. Returns True if handled."""
     if param == "target_bloat_ms":
         wc.green_threshold = val
-        wc.target_delta = val
+        # Phase 200 D-03: per-key gate. Only overwrite UL target_delta if the
+        # operator did NOT explicitly set continuous_monitoring.upload.target_bloat_ms
+        # in YAML. The flag is presence-based, not value-derived.
+        if getattr(wc, "_upload_target_bloat_ms_explicit", False) is not True:
+            wc.target_delta = val
     elif param == "warn_bloat_ms":
         wc.soft_red_threshold = val
-        wc.warn_delta = val
+        # Phase 200 D-03: per-key independence — UL warn_delta is gated by its
+        # own presence flag, not by the target_bloat_ms presence flag.
+        if getattr(wc, "_upload_warn_bloat_ms_explicit", False) is not True:
+            wc.warn_delta = val
     elif param == "hard_red_bloat_ms":
         wc.hard_red_threshold = val
     elif param == "alpha_load":
@@ -158,7 +172,10 @@ def _apply_signal_param(wc: "WANController", param: str, val: float) -> bool:
         wc._fusion_icmp_weight = val
     elif param == "reflector_min_score":
         min_score_descriptor = getattr(type(wc._reflector_scorer), "min_score", None)
-        if isinstance(min_score_descriptor, property) and min_score_descriptor.fset is not None:
+        if (
+            isinstance(min_score_descriptor, property)
+            and min_score_descriptor.fset is not None
+        ):
             wc._reflector_scorer.min_score = val
         else:
             wc._reflector_scorer._min_score = val
@@ -373,9 +390,35 @@ class WANController:
         self.green_threshold = config.target_bloat_ms  # 15ms: GREEN -> YELLOW
         self.soft_red_threshold = config.warn_bloat_ms  # 45ms: YELLOW -> SOFT_RED
         self.hard_red_threshold = config.hard_red_bloat_ms  # 80ms: SOFT_RED -> RED
-        # Legacy 3-state thresholds (for upload)
-        self.target_delta = config.target_bloat_ms
-        self.warn_delta = config.warn_bloat_ms
+        # Legacy 3-state thresholds (for upload).  These default to the global
+        # thresholds but may be overridden for upload-only DOCSIS behavior.
+        self.target_delta = getattr(
+            config, "upload_target_bloat_ms", config.target_bloat_ms
+        )
+        self.warn_delta = getattr(config, "upload_warn_bloat_ms", config.warn_bloat_ms)
+        # Phase 200 D-03: per-key presence flags independently gate live-tuning
+        # writes to target_delta and warn_delta. Codex pre-review caught that a
+        # value-derived flag silently fails when an operator coincidentally sets
+        # a UL key equal to the DL global, or sets only one of the two keys.
+        self._upload_target_bloat_ms_explicit = getattr(
+            config, "_upload_target_bloat_ms_explicit", False
+        )
+        self._upload_warn_bloat_ms_explicit = getattr(
+            config, "_upload_warn_bloat_ms_explicit", False
+        )
+        # Phase 200 D-06: one-shot INFO log emission when operator explicitly
+        # set either UL threshold. Plan 06 deploy verification reads this via
+        # journalctl grep — no new /health field added.
+        if self._upload_target_bloat_ms_explicit or self._upload_warn_bloat_ms_explicit:
+            logging.getLogger(__name__).info(
+                "phase200 explicit UL thresholds active: "
+                "upload_target_bloat_ms=%s upload_warn_bloat_ms=%s "
+                "(target_explicit=%s warn_explicit=%s)",
+                self.target_delta,
+                self.warn_delta,
+                self._upload_target_bloat_ms_explicit,
+                self._upload_warn_bloat_ms_explicit,
+            )
         self.alpha_baseline = config.alpha_baseline
         self.alpha_load = config.alpha_load
         self.baseline_update_threshold = config.baseline_update_threshold_ms
@@ -425,7 +468,9 @@ class WANController:
     def _init_state_persistence(self) -> None:
         """Initialize state persistence manager and zone tracking."""
         self.state_manager = WANControllerState(
-            state_file=self.config.state_file, logger=self.logger, wan_name=self.wan_name
+            state_file=self.config.state_file,
+            logger=self.logger,
+            wan_name=self.wan_name,
         )
         self._dl_zone: str = "GREEN"
         self._ul_zone: str = "GREEN"
@@ -463,7 +508,9 @@ class WANController:
             from wanctl import __version__
             from wanctl.webhook_delivery import DiscordFormatter, WebhookDelivery
 
-            formatter = DiscordFormatter(version=__version__, container_id=self.wan_name)
+            formatter = DiscordFormatter(
+                version=__version__, container_id=self.wan_name
+            )
             self._webhook_delivery: WebhookDelivery | None = WebhookDelivery(
                 formatter=formatter,
                 webhook_url=url,
@@ -481,7 +528,9 @@ class WANController:
             )
         else:
             self._webhook_delivery = None
-            self.alert_engine = AlertEngine(enabled=False, default_cooldown_sec=300, rules={})
+            self.alert_engine = AlertEngine(
+                enabled=False, default_cooldown_sec=300, rules={}
+            )
 
     def _init_signal_processing(self) -> None:
         """Initialize Hampel filter signal processor."""
@@ -618,14 +667,17 @@ class WANController:
         cm_config = config.data.get("continuous_monitoring", {}) if config.data else {}
         if not isinstance(cm_config, dict):
             cm_config = {}
-        self._warning_threshold_pct: float = float(cm_config.get("warning_threshold_pct", 80.0))
+        self._warning_threshold_pct: float = float(
+            cm_config.get("warning_threshold_pct", 80.0)
+        )
         self._budget_warning_streak: int = 0
         self._budget_warning_consecutive: int = 60  # 60 cycles = 3 seconds at 50ms
 
         # Hysteresis observability (Phase 136: HYST-01/HYST-02)
         self._suppression_alert_threshold: int = int(
             cm_config.get("thresholds", {}).get("suppression_alert_threshold", 20)
-            if isinstance(cm_config.get("thresholds"), dict) else 20
+            if isinstance(cm_config.get("thresholds"), dict)
+            else 20
         )
 
         # Background RTT measurement (Phase 132: PERF-02)
@@ -727,11 +779,17 @@ class WANController:
                 "%s: CAKE signal enabled (drop_rate=%s, backlog=%s, peak_delay=%s, "
                 "metrics=%s, tc=%.1fs, drop_thresh=%.1f, backlog_thresh=%d, "
                 "refractory=%d, probe_mult=%.1f, probe_ceil=%.0f%%)",
-                self.wan_name, config.drop_rate_enabled, config.backlog_enabled,
-                config.peak_delay_enabled, config.metrics_enabled,
-                config.time_constant_sec, config.drop_rate_threshold,
-                config.backlog_threshold_bytes, config.refractory_cycles,
-                config.probe_multiplier_factor, config.probe_ceiling_pct * 100,
+                self.wan_name,
+                config.drop_rate_enabled,
+                config.backlog_enabled,
+                config.peak_delay_enabled,
+                config.metrics_enabled,
+                config.time_constant_sec,
+                config.drop_rate_threshold,
+                config.backlog_threshold_bytes,
+                config.refractory_cycles,
+                config.probe_multiplier_factor,
+                config.probe_ceiling_pct * 100,
             )
         elif config.enabled and not self._cake_signal_supported:
             self.logger.warning(
@@ -769,7 +827,11 @@ class WANController:
         drop_rate_enabled = dr.get("enabled", False) is True
 
         tc_sec = dr.get("time_constant_sec", 1.0)
-        if not isinstance(tc_sec, (int, float)) or isinstance(tc_sec, bool) or tc_sec <= 0:
+        if (
+            not isinstance(tc_sec, (int, float))
+            or isinstance(tc_sec, bool)
+            or tc_sec <= 0
+        ):
             tc_sec = 1.0
         tc_sec = float(tc_sec)
         # Bounds: [0.1, 30.0]
@@ -792,12 +854,20 @@ class WANController:
 
         # Detection thresholds (Phase 160)
         drop_rate_threshold = dr.get("threshold_drops_per_sec", 10.0)
-        if not isinstance(drop_rate_threshold, (int, float)) or isinstance(drop_rate_threshold, bool) or drop_rate_threshold <= 0:
+        if (
+            not isinstance(drop_rate_threshold, (int, float))
+            or isinstance(drop_rate_threshold, bool)
+            or drop_rate_threshold <= 0
+        ):
             drop_rate_threshold = 10.0
         drop_rate_threshold = max(1.0, min(1000.0, float(drop_rate_threshold)))
 
         backlog_threshold = bl.get("threshold_bytes", 10000)
-        if not isinstance(backlog_threshold, (int, float)) or isinstance(backlog_threshold, bool) or backlog_threshold <= 0:
+        if (
+            not isinstance(backlog_threshold, (int, float))
+            or isinstance(backlog_threshold, bool)
+            or backlog_threshold <= 0
+        ):
             backlog_threshold = 10000
         backlog_threshold = max(100, min(10_000_000, int(backlog_threshold)))
 
@@ -806,7 +876,11 @@ class WANController:
         if not isinstance(det, dict):
             det = {}
         refractory_cycles = det.get("refractory_cycles", 40)
-        if not isinstance(refractory_cycles, (int, float)) or isinstance(refractory_cycles, bool) or refractory_cycles <= 0:
+        if (
+            not isinstance(refractory_cycles, (int, float))
+            or isinstance(refractory_cycles, bool)
+            or refractory_cycles <= 0
+        ):
             refractory_cycles = 40
         refractory_cycles = max(1, min(200, int(refractory_cycles)))
 
@@ -839,12 +913,20 @@ class WANController:
             rec = {}
 
         probe_multiplier = rec.get("probe_multiplier", 1.5)
-        if not isinstance(probe_multiplier, (int, float)) or isinstance(probe_multiplier, bool) or probe_multiplier < 1.0:
+        if (
+            not isinstance(probe_multiplier, (int, float))
+            or isinstance(probe_multiplier, bool)
+            or probe_multiplier < 1.0
+        ):
             probe_multiplier = 1.5
         probe_multiplier = max(1.0, min(5.0, float(probe_multiplier)))
 
         probe_ceiling_pct = rec.get("probe_ceiling_pct", 0.9)
-        if not isinstance(probe_ceiling_pct, (int, float)) or isinstance(probe_ceiling_pct, bool) or probe_ceiling_pct <= 0:
+        if (
+            not isinstance(probe_ceiling_pct, (int, float))
+            or isinstance(probe_ceiling_pct, bool)
+            or probe_ceiling_pct <= 0
+        ):
             probe_ceiling_pct = 0.9
         probe_ceiling_pct = max(0.5, min(1.0, float(probe_ceiling_pct)))
 
@@ -883,7 +965,9 @@ class WANController:
                     latest[param] = row
 
             if not latest:
-                self.logger.info(f"{self.wan_name}: No non-reverted tuning params to restore")
+                self.logger.info(
+                    f"{self.wan_name}: No non-reverted tuning params to restore"
+                )
                 return
 
             # Build TuningResult list for _apply_tuning_to_controller
@@ -952,9 +1036,15 @@ class WANController:
         """
         if not self._cake_signal_supported:
             return
-        if not self._dl_cake_signal.config.enabled and not self._ul_cake_signal.config.enabled:
+        if (
+            not self._dl_cake_signal.config.enabled
+            and not self._ul_cake_signal.config.enabled
+        ):
             return
-        if not self._dl_cake_signal.config.enabled and not self._ul_cake_signal.config.enabled:
+        if (
+            not self._dl_cake_signal.config.enabled
+            and not self._ul_cake_signal.config.enabled
+        ):
             return
 
         from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
@@ -1004,7 +1094,10 @@ class WANController:
         # Skip stale cached attribution during zero-success blackout cycles.
         if not (cycle_status and self._should_skip_scorer_update(cycle_status)):
             self._reflector_scorer.record_results(
-                {host: rtt_val is not None for host, rtt_val in snapshot.per_host_results.items()}
+                {
+                    host: rtt_val is not None
+                    for host, rtt_val in snapshot.per_host_results.items()
+                }
             )
         self._persist_reflector_events()
         now = time.monotonic()
@@ -1012,19 +1105,22 @@ class WANController:
             active_hosts = list(cycle_status.active_hosts)
             successful_hosts: list[str] = []
             blackout_cycles = int(getattr(self, "_zero_success_blackout_cycles", 0)) + 1
-            blackout_active = bool(getattr(self, "_zero_success_blackout_active", False))
-            blackout_started_ts = getattr(self, "_zero_success_blackout_started_ts", None)
+            blackout_active = bool(
+                getattr(self, "_zero_success_blackout_active", False)
+            )
+            blackout_started_ts = getattr(
+                self, "_zero_success_blackout_started_ts", None
+            )
             last_log_ts = float(getattr(self, "_zero_success_last_log_ts", 0.0))
-            log_cooldown_sec = float(getattr(self, "_zero_success_log_cooldown_sec", 1.0))
+            log_cooldown_sec = float(
+                getattr(self, "_zero_success_log_cooldown_sec", 1.0)
+            )
             self._zero_success_blackout_cycles = blackout_cycles
             if not blackout_active:
                 self._zero_success_blackout_active = True
                 self._zero_success_blackout_started_ts = now
                 blackout_started_ts = now
-            should_log = (
-                blackout_cycles == 1
-                or (now - last_log_ts) >= log_cooldown_sec
-            )
+            should_log = blackout_cycles == 1 or (now - last_log_ts) >= log_cooldown_sec
             if should_log:
                 duration_sec = (
                     now - blackout_started_ts
@@ -1039,9 +1135,13 @@ class WANController:
                 )
                 self._zero_success_last_log_ts = now
         else:
-            blackout_active = bool(getattr(self, "_zero_success_blackout_active", False))
+            blackout_active = bool(
+                getattr(self, "_zero_success_blackout_active", False)
+            )
             blackout_cycles = int(getattr(self, "_zero_success_blackout_cycles", 0))
-            blackout_started_ts = getattr(self, "_zero_success_blackout_started_ts", None)
+            blackout_started_ts = getattr(
+                self, "_zero_success_blackout_started_ts", None
+            )
             if blackout_active and blackout_cycles > 0:
                 duration_sec = (
                     now - blackout_started_ts
@@ -1056,10 +1156,16 @@ class WANController:
                 self._zero_success_blackout_active = False
                 self._zero_success_blackout_started_ts = None
                 self._zero_success_blackout_cycles = 0
-            active_hosts = list(snapshot.active_hosts or snapshot.per_host_results.keys())
+            active_hosts = list(
+                snapshot.active_hosts or snapshot.per_host_results.keys()
+            )
             successful_hosts = list(
                 snapshot.successful_hosts
-                or (host for host, rtt_val in snapshot.per_host_results.items() if rtt_val is not None)
+                or (
+                    host
+                    for host, rtt_val in snapshot.per_host_results.items()
+                    if rtt_val is not None
+                )
             )
 
         self._record_live_rtt_snapshot(
@@ -1108,7 +1214,9 @@ class WANController:
         )
 
         local_cycle_status = RTTCycleStatus(
-            successful_count=sum(1 for rtt_val in results.values() if rtt_val is not None),
+            successful_count=sum(
+                1 for rtt_val in results.values() if rtt_val is not None
+            ),
             active_hosts=tuple(active_hosts),
             successful_hosts=tuple(
                 host for host, rtt_val in results.items() if rtt_val is not None
@@ -1133,7 +1241,9 @@ class WANController:
         # Graceful degradation based on available results
         if len(rtts) >= 3:
             rtt = statistics.median(rtts)
-            self.logger.debug(f"{self.wan_name}: Median-of-{len(rtts)} RTT = {rtt:.2f}ms")
+            self.logger.debug(
+                f"{self.wan_name}: Median-of-{len(rtts)} RTT = {rtt:.2f}ms"
+            )
         elif len(rtts) == 2:
             rtt = statistics.mean(rtts)
             self.logger.debug(f"{self.wan_name}: Average-of-2 RTT = {rtt:.2f}ms")
@@ -1144,7 +1254,9 @@ class WANController:
             rtt_ms=float(rtt),
             timestamp=time.monotonic(),
             active_hosts=active_hosts,
-            successful_hosts=[host for host, rtt_val in results.items() if rtt_val is not None],
+            successful_hosts=[
+                host for host, rtt_val in results.items() if rtt_val is not None
+            ],
         )
         return rtt
 
@@ -1196,7 +1308,9 @@ class WANController:
                         details_json=details_json,
                     )
                 else:
-                    writer_method = getattr(type(self._metrics_writer), "write_reflector_event", None)
+                    writer_method = getattr(
+                        type(self._metrics_writer), "write_reflector_event", None
+                    )
                     if callable(writer_method):
                         self._metrics_writer.write_reflector_event(
                             timestamp,
@@ -1236,7 +1350,9 @@ class WANController:
         Slow EWMA (baseline_rtt): Only updates when line is idle (delta < threshold).
         """
         # Fast EWMA for load_rtt (responsive to current conditions)
-        self.load_rtt = (1 - self.alpha_load) * self.load_rtt + self.alpha_load * measured_rtt
+        self.load_rtt = (
+            1 - self.alpha_load
+        ) * self.load_rtt + self.alpha_load * measured_rtt
 
         # Slow EWMA for baseline_rtt (conditional update via protected logic)
         self._update_baseline_if_idle(measured_rtt)
@@ -1370,7 +1486,9 @@ class WANController:
         if not self.config.fallback_enabled:
             return (False, None)
 
-        self.logger.warning(f"{self.wan_name}: All ICMP pings failed - running fallback checks")
+        self.logger.warning(
+            f"{self.wan_name}: All ICMP pings failed - running fallback checks"
+        )
 
         # Check 1: Local gateway (fastest, ~50ms)
         # Note: Gateway RTT is not useful for WAN latency measurement
@@ -1443,7 +1561,10 @@ class WANController:
         # PROTECTED: Flash wear protection - only send queue limits when values change.
         # Router NAND has 100K-1M write cycles. See docs/CORE-ALGORITHM-ANALYSIS.md.
         # =====================================================================
-        if dl_rate == self.last_applied_dl_rate and ul_rate == self.last_applied_ul_rate:
+        if (
+            dl_rate == self.last_applied_dl_rate
+            and ul_rate == self.last_applied_ul_rate
+        ):
             self.logger.debug(
                 f"{self.wan_name}: Rates unchanged, skipping router update (flash wear protection)"
             )
@@ -1472,7 +1593,9 @@ class WANController:
             return True
 
         # Apply to router
-        success = self.router.set_limits(wan=self.wan_name, down_bps=dl_rate, up_bps=ul_rate)
+        success = self.router.set_limits(
+            wan=self.wan_name, down_bps=dl_rate, up_bps=ul_rate
+        )
         try:
             self._update_overlap_counters_on_apply_completion()
         except Exception:
@@ -1498,10 +1621,7 @@ class WANController:
         applied_rates = getattr(self.router, "get_last_applied_limits", None)
         if callable(applied_rates):
             applied = applied_rates()
-            if (
-                isinstance(applied, tuple)
-                and len(applied) == 2
-            ):
+            if isinstance(applied, tuple) and len(applied) == 2:
                 applied_dl_rate, applied_ul_rate = applied
 
         # Update tracking after successful write/coalesced apply
@@ -1586,7 +1706,9 @@ class WANController:
             return (False, None)
 
         # Total connectivity loss confirmed (both ICMP and TCP failed)
-        self.logger.warning(f"{self.wan_name}: Total connectivity loss - skipping cycle")
+        self.logger.warning(
+            f"{self.wan_name}: Total connectivity loss - skipping cycle"
+        )
         return (False, None)
 
     def _check_protocol_correlation(self, ratio: float) -> None:
@@ -1610,8 +1732,7 @@ class WANController:
             else self._irtt_deprioritization_log_cooldown_sec
         )
         cooldown_elapsed = (
-            now - self._irtt_deprioritization_last_transition_ts
-            >= cooldown_sec
+            now - self._irtt_deprioritization_last_transition_ts >= cooldown_sec
         )
 
         if deprioritized:
@@ -1622,7 +1743,9 @@ class WANController:
 
             if not self._irtt_deprioritization_logged:
                 if cooldown_elapsed:
-                    irtt_result = self._irtt_thread.get_latest() if self._irtt_thread else None
+                    irtt_result = (
+                        self._irtt_thread.get_latest() if self._irtt_thread else None
+                    )
                     udp_rtt = irtt_result.rtt_mean_ms if irtt_result else 0.0
                     self.logger.info(
                         f"{self.wan_name}: Protocol deprioritization detected: "
@@ -1675,7 +1798,11 @@ class WANController:
             grace_period_sec=healing_cfg["grace_period_sec"],
             min_signal_variance=healing_cfg["min_signal_variance"],
             cycle_interval_sec=self.config.irtt_config["cadence_sec"],
-            alert_engine=self.alert_engine if isinstance(self.alert_engine, AlertEngine) else None,
+            alert_engine=(
+                self.alert_engine
+                if isinstance(self.alert_engine, AlertEngine)
+                else None
+            ),
             parameter_locks=self._parameter_locks,
         )
         self.logger.info(
@@ -1728,7 +1855,8 @@ class WANController:
             return filtered_rtt
 
         fused = (
-            self._fusion_icmp_weight * filtered_rtt + (1.0 - self._fusion_icmp_weight) * irtt_rtt
+            self._fusion_icmp_weight * filtered_rtt
+            + (1.0 - self._fusion_icmp_weight) * irtt_rtt
         )
         self._last_fused_rtt = fused
         self.logger.debug(
@@ -2016,7 +2144,9 @@ class WANController:
             with open(self.config.config_file_path) as f:
                 fresh_data = yaml.safe_load(f)
         except Exception as e:
-            self.logger.error(f"[HYSTERESIS] Suppression alert config reload failed: {e}")
+            self.logger.error(
+                f"[HYSTERESIS] Suppression alert config reload failed: {e}"
+            )
             return
 
         cm = fresh_data.get("continuous_monitoring", {}) if fresh_data else {}
@@ -2163,7 +2293,9 @@ class WANController:
         self._asymmetry_staleness_sec = new_staleness
 
         # If gate disabled via reload, reset active state
-        if not new_enabled and (self._asymmetry_gate_active or self._asymmetry_downstream_streak > 0):
+        if not new_enabled and (
+            self._asymmetry_gate_active or self._asymmetry_downstream_streak > 0
+        ):
             self._asymmetry_gate_active = False
             self._asymmetry_downstream_streak = 0
 
@@ -2177,25 +2309,48 @@ class WANController:
         if old_config.enabled != new_config.enabled:
             changes.append(f"enabled={old_config.enabled}->{new_config.enabled}")
         if old_config.drop_rate_enabled != new_config.drop_rate_enabled:
-            changes.append(f"drop_rate={old_config.drop_rate_enabled}->{new_config.drop_rate_enabled}")
+            changes.append(
+                f"drop_rate={old_config.drop_rate_enabled}->{new_config.drop_rate_enabled}"
+            )
         if old_config.backlog_enabled != new_config.backlog_enabled:
-            changes.append(f"backlog={old_config.backlog_enabled}->{new_config.backlog_enabled}")
+            changes.append(
+                f"backlog={old_config.backlog_enabled}->{new_config.backlog_enabled}"
+            )
         if old_config.peak_delay_enabled != new_config.peak_delay_enabled:
-            changes.append(f"peak_delay={old_config.peak_delay_enabled}->{new_config.peak_delay_enabled}")
+            changes.append(
+                f"peak_delay={old_config.peak_delay_enabled}->{new_config.peak_delay_enabled}"
+            )
         if old_config.metrics_enabled != new_config.metrics_enabled:
-            changes.append(f"metrics={old_config.metrics_enabled}->{new_config.metrics_enabled}")
+            changes.append(
+                f"metrics={old_config.metrics_enabled}->{new_config.metrics_enabled}"
+            )
         if abs(old_config.time_constant_sec - new_config.time_constant_sec) > 0.001:
-            changes.append(f"tc={old_config.time_constant_sec}->{new_config.time_constant_sec}")
+            changes.append(
+                f"tc={old_config.time_constant_sec}->{new_config.time_constant_sec}"
+            )
         if abs(old_config.drop_rate_threshold - new_config.drop_rate_threshold) > 0.01:
-            changes.append(f"drop_threshold={old_config.drop_rate_threshold}->{new_config.drop_rate_threshold}")
+            changes.append(
+                f"drop_threshold={old_config.drop_rate_threshold}->{new_config.drop_rate_threshold}"
+            )
         if old_config.backlog_threshold_bytes != new_config.backlog_threshold_bytes:
-            changes.append(f"backlog_threshold={old_config.backlog_threshold_bytes}->{new_config.backlog_threshold_bytes}")
+            changes.append(
+                f"backlog_threshold={old_config.backlog_threshold_bytes}->{new_config.backlog_threshold_bytes}"
+            )
         if old_config.refractory_cycles != new_config.refractory_cycles:
-            changes.append(f"refractory={old_config.refractory_cycles}->{new_config.refractory_cycles}")
-        if abs(old_config.probe_multiplier_factor - new_config.probe_multiplier_factor) > 0.01:
-            changes.append(f"probe_multiplier={old_config.probe_multiplier_factor}->{new_config.probe_multiplier_factor}")
+            changes.append(
+                f"refractory={old_config.refractory_cycles}->{new_config.refractory_cycles}"
+            )
+        if (
+            abs(old_config.probe_multiplier_factor - new_config.probe_multiplier_factor)
+            > 0.01
+        ):
+            changes.append(
+                f"probe_multiplier={old_config.probe_multiplier_factor}->{new_config.probe_multiplier_factor}"
+            )
         if abs(old_config.probe_ceiling_pct - new_config.probe_ceiling_pct) > 0.01:
-            changes.append(f"probe_ceiling_pct={old_config.probe_ceiling_pct}->{new_config.probe_ceiling_pct}")
+            changes.append(
+                f"probe_ceiling_pct={old_config.probe_ceiling_pct}->{new_config.probe_ceiling_pct}"
+            )
 
         change_str = ", ".join(changes) if changes else "(unchanged)"
         self.logger.warning("[CAKE_SIGNAL] Config reload: %s", change_str)
@@ -2208,8 +2363,12 @@ class WANController:
 
         # Update QueueController thresholds based on enabled state
         if new_config.enabled and self._cake_signal_supported:
-            dr_thresh = new_config.drop_rate_threshold if new_config.drop_rate_enabled else 0.0
-            bl_thresh = new_config.backlog_threshold_bytes if new_config.backlog_enabled else 0
+            dr_thresh = (
+                new_config.drop_rate_threshold if new_config.drop_rate_enabled else 0.0
+            )
+            bl_thresh = (
+                new_config.backlog_threshold_bytes if new_config.backlog_enabled else 0
+            )
             self.download._drop_rate_threshold = dr_thresh
             self.upload._drop_rate_threshold = dr_thresh
             self.download._backlog_threshold_bytes = bl_thresh
@@ -2332,7 +2491,9 @@ class WANController:
             return 0, 0
 
         # Read congestion flags BEFORE reset clears them
-        had_congestion = self.download._window_had_congestion or self.upload._window_had_congestion
+        had_congestion = (
+            self.download._window_had_congestion or self.upload._window_had_congestion
+        )
         dl_count = self.download.reset_window()
         ul_count = self.upload.reset_window()
         total = dl_count + ul_count
@@ -2340,7 +2501,10 @@ class WANController:
         if had_congestion:
             self.logger.info(
                 "[HYSTERESIS] %s window: %d suppressions in 60s (DL: %d, UL: %d)",
-                self.wan_name, total, dl_count, ul_count,
+                self.wan_name,
+                total,
+                dl_count,
+                ul_count,
             )
             # Alert if suppression rate exceeds threshold (Phase 136: HYST-03, per D-04/D-05)
             if total > self._suppression_alert_threshold:
@@ -2377,7 +2541,9 @@ class WANController:
                 self._run_spike_detection()
             with PerfTimer("autorate_cake_stats", self.logger) as cake_stats_timer:
                 self._run_cake_stats()
-            with PerfTimer("autorate_congestion_assess", self.logger) as congestion_timer:
+            with PerfTimer(
+                "autorate_congestion_assess", self.logger
+            ) as congestion_timer:
                 dl_zone, dl_rate, dl_tr, ul_zone, ul_rate, ul_tr, delta = (
                     self._run_congestion_assessment()
                 )
@@ -2385,8 +2551,16 @@ class WANController:
                 irtt_result = self._run_irtt_observation(signal_result)
             with PerfTimer("autorate_logging_metrics", self.logger) as metrics_timer:
                 self._run_logging_metrics(
-                    measured_rtt, fused_rtt, dl_zone, ul_zone, dl_rate, ul_rate,
-                    delta, dl_tr, ul_tr, irtt_result,
+                    measured_rtt,
+                    fused_rtt,
+                    dl_zone,
+                    ul_zone,
+                    dl_rate,
+                    ul_rate,
+                    delta,
+                    dl_tr,
+                    ul_tr,
+                    irtt_result,
                 )
 
         # Skip router subsystem entirely when rates unchanged (saves netlink round-trip)
@@ -2398,24 +2572,41 @@ class WANController:
         )
         with PerfTimer("autorate_router_communication", self.logger) as router_timer:
             if rates_changed:
-                router_failed, router_breakdown = self._run_router_communication(dl_rate, ul_rate)
+                router_failed, router_breakdown = self._run_router_communication(
+                    dl_rate, ul_rate
+                )
             else:
                 router_failed = False
                 router_breakdown = {}
         self._record_profiling(
-            rtt_timer.elapsed_ms, state_timer.elapsed_ms, router_timer.elapsed_ms, cycle_start,
+            rtt_timer.elapsed_ms,
+            state_timer.elapsed_ms,
+            router_timer.elapsed_ms,
+            cycle_start,
             signal_processing_ms=signal_timer.elapsed_ms,
             ewma_spike_ms=ewma_timer.elapsed_ms,
             cake_stats_ms=cake_stats_timer.elapsed_ms,
             congestion_assess_ms=congestion_timer.elapsed_ms,
             irtt_observation_ms=irtt_timer.elapsed_ms,
             logging_metrics_ms=metrics_timer.elapsed_ms,
-            router_apply_primary_ms=router_breakdown.get("autorate_router_apply_primary", 0.0),
-            router_apply_pending_ms=router_breakdown.get("autorate_router_apply_pending", 0.0),
-            router_write_download_ms=router_breakdown.get("autorate_router_write_download", 0.0),
-            router_write_upload_ms=router_breakdown.get("autorate_router_write_upload", 0.0),
-            router_write_skipped_ms=router_breakdown.get("autorate_router_write_skipped", 0.0),
-            router_write_fallback_ms=router_breakdown.get("autorate_router_write_fallback", 0.0),
+            router_apply_primary_ms=router_breakdown.get(
+                "autorate_router_apply_primary", 0.0
+            ),
+            router_apply_pending_ms=router_breakdown.get(
+                "autorate_router_apply_pending", 0.0
+            ),
+            router_write_download_ms=router_breakdown.get(
+                "autorate_router_write_download", 0.0
+            ),
+            router_write_upload_ms=router_breakdown.get(
+                "autorate_router_write_upload", 0.0
+            ),
+            router_write_skipped_ms=router_breakdown.get(
+                "autorate_router_write_skipped", 0.0
+            ),
+            router_write_fallback_ms=router_breakdown.get(
+                "autorate_router_write_fallback", 0.0
+            ),
         )
         if router_failed:
             return False
@@ -2462,7 +2653,9 @@ class WANController:
         )
         self._last_signal_result = signal_result
         fused_rtt = self._compute_fused_rtt(signal_result.filtered_rtt)
-        self.load_rtt = (1 - self.alpha_load) * self.load_rtt + self.alpha_load * fused_rtt
+        self.load_rtt = (
+            1 - self.alpha_load
+        ) * self.load_rtt + self.alpha_load * fused_rtt
         self._update_baseline_if_idle(signal_result.filtered_rtt)
         return signal_result, fused_rtt
 
@@ -2494,7 +2687,9 @@ class WANController:
         if delta_accel > self.accel_threshold:
             self._spike_streak += 1
             if self._spike_streak >= self.accel_confirm and burst_window_open:
-                self._dl_burst_candidate_cycles = max(self._dl_burst_candidate_cycles, 2)
+                self._dl_burst_candidate_cycles = max(
+                    self._dl_burst_candidate_cycles, 2
+                )
                 self._dl_burst_candidate_accel_ms = float(delta_accel)
         else:
             self._spike_streak = 0
@@ -2595,7 +2790,10 @@ class WANController:
         """
         if not self._cake_signal_supported:
             return
-        if not self._dl_cake_signal.config.enabled and not self._ul_cake_signal.config.enabled:
+        if (
+            not self._dl_cake_signal.config.enabled
+            and not self._ul_cake_signal.config.enabled
+        ):
             return
 
         if self._cake_stats_thread is not None:
@@ -2617,8 +2815,12 @@ class WANController:
                             self.wan_name,
                             age_s * 1000,
                         )
-                    self._dl_cake_snapshot = self._dl_cake_signal.update(snapshot.dl_stats)
-                    self._ul_cake_snapshot = self._ul_cake_signal.update(snapshot.ul_stats)
+                    self._dl_cake_snapshot = self._dl_cake_signal.update(
+                        snapshot.dl_stats
+                    )
+                    self._ul_cake_snapshot = self._ul_cake_signal.update(
+                        snapshot.ul_stats
+                    )
                     return
             # No data yet or stale — fall through to inline
 
@@ -2646,9 +2848,7 @@ class WANController:
             return "improving"
         return "held"
 
-    def _derive_rtt_confidence(
-        self, queue_direction: str, rtt_direction: str
-    ) -> float:
+    def _derive_rtt_confidence(self, queue_direction: str, rtt_direction: str) -> float:
         """Derive rtt_confidence in [0.0, 1.0] from protocol + direction agreement.
 
         Protocol confidence uses the existing _check_protocol_correlation bands
@@ -2751,7 +2951,9 @@ class WANController:
         dl_cake_for_arbitration = self._dl_cake_snapshot
         # Stash refractory-active flag BEFORE decrement so this cycle's
         # arbitration regime is reported truthfully even when remaining decrements 1->0.
-        self._dl_arbitration_used_refractory_snapshot = self._dl_refractory_remaining > 0
+        self._dl_arbitration_used_refractory_snapshot = (
+            self._dl_refractory_remaining > 0
+        )
         if self._dl_refractory_remaining > 0:
             dl_cake_for_detection = None  # Phase 160: mask detection only.
             self._dl_refractory_remaining -= 1
@@ -2788,8 +2990,8 @@ class WANController:
                 queue_direction, rtt_direction
             )
 
-        primary, load_for_classifier, decision_reason = self._select_dl_primary_scalar_ms(
-            dl_cake_for_arbitration
+        primary, load_for_classifier, decision_reason = (
+            self._select_dl_primary_scalar_ms(dl_cake_for_arbitration)
         )
         dl_zone, dl_rate, dl_transition_reason = self.download.adjust_4state(
             self.baseline_rtt,
@@ -2809,16 +3011,15 @@ class WANController:
         # Alignment is categorical direction agreement over consecutive cycles.
         # Magnitude ratios between queue microseconds and RTT milliseconds are never used.
         queue_distressed_now = (
-            raw_queue_delta_ms is not None
-            and raw_queue_delta_ms > self.green_threshold
+            raw_queue_delta_ms is not None and raw_queue_delta_ms > self.green_threshold
         )
         rtt_distress_delta_ms = raw_rtt_delta_ms
         rtt_distressed_now = rtt_distress_delta_ms >= self.green_threshold
         rtt_conf_score = self._last_rtt_confidence
         confidence_high = rtt_conf_score is not None and rtt_conf_score >= 0.6
-        directions_aligned = (
-            queue_direction == rtt_direction
-            and queue_direction in ("worsening", "held")
+        directions_aligned = queue_direction == rtt_direction and queue_direction in (
+            "worsening",
+            "held",
         )
         if self._dl_refractory_remaining > 0:
             # Phase 197 (D-05): refractory window is detection-only. Streak stays
@@ -2860,7 +3061,10 @@ class WANController:
 
         effective_ul_load_rtt = self._compute_effective_ul_load_rtt()
         ul_zone, ul_rate, ul_transition_reason = self.upload.adjust(
-            self.baseline_rtt, effective_ul_load_rtt, self.target_delta, self.warn_delta,
+            self.baseline_rtt,
+            effective_ul_load_rtt,
+            self.target_delta,
+            self.warn_delta,
             cake_snapshot=ul_cake,
         )
         self._ul_zone = ul_zone
@@ -2888,10 +3092,19 @@ class WANController:
         self._check_latency_regression_alert(dl_zone, ul_zone)
         self._check_burst_churn_alert()
 
-        return dl_zone, dl_rate, dl_transition_reason, ul_zone, ul_rate, ul_transition_reason, delta
+        return (
+            dl_zone,
+            dl_rate,
+            dl_transition_reason,
+            ul_zone,
+            ul_rate,
+            ul_transition_reason,
+            delta,
+        )
 
     def _run_irtt_observation(
-        self, signal_result: SignalResult,
+        self,
+        signal_result: SignalResult,
     ) -> IRTTResult | None:
         """IRTT observation: protocol correlation, fusion healer, asymmetry, loss alerts."""
         irtt_result = self._irtt_thread.get_latest() if self._irtt_thread else None
@@ -2945,7 +3158,9 @@ class WANController:
         return irtt_result
 
     def _tick_fusion_healer(
-        self, filtered_rtt: float, irtt_result: IRTTResult,
+        self,
+        filtered_rtt: float,
+        irtt_result: IRTTResult,
     ) -> None:
         """Feed ICMP/IRTT deltas to fusion healer on new IRTT measurements."""
         if self._fusion_healer is None or irtt_result.timestamp == self._prev_irtt_ts:
@@ -3025,83 +3240,274 @@ class WANController:
         ul_state = float(STATE_ENCODING.get(ul_zone, 0))
         metrics_batch = [
             (ts, self.wan_name, "wanctl_rtt_ms", measured_rtt, None, "raw"),
-            (ts, self.wan_name, "wanctl_rtt_baseline_ms", self.baseline_rtt, None, "raw"),
+            (
+                ts,
+                self.wan_name,
+                "wanctl_rtt_baseline_ms",
+                self.baseline_rtt,
+                None,
+                "raw",
+            ),
             (ts, self.wan_name, "wanctl_rtt_load_ewma_ms", self.load_rtt, None, "raw"),
             (ts, self.wan_name, "wanctl_rtt_fused_ms", fused_rtt, None, "raw"),
             (ts, self.wan_name, "wanctl_rtt_delta_ms", delta, None, "raw"),
-            (ts, self.wan_name, "wanctl_fusion_bypass_active", 1.0 if self._fusion_bypass_active else 0.0, None, "raw"),
-            (ts, self.wan_name, "wanctl_fusion_bypass_offset_ms", self._fusion_bypass_offset_ms or 0.0, None, "raw"),
-            (ts, self.wan_name, "wanctl_fusion_bypass_count", float(self._fusion_bypass_count), None, "raw"),
-            (ts, self.wan_name, "wanctl_rate_download_mbps", dl_rate / 1e6, None, "raw"),
+            (
+                ts,
+                self.wan_name,
+                "wanctl_fusion_bypass_active",
+                1.0 if self._fusion_bypass_active else 0.0,
+                None,
+                "raw",
+            ),
+            (
+                ts,
+                self.wan_name,
+                "wanctl_fusion_bypass_offset_ms",
+                self._fusion_bypass_offset_ms or 0.0,
+                None,
+                "raw",
+            ),
+            (
+                ts,
+                self.wan_name,
+                "wanctl_fusion_bypass_count",
+                float(self._fusion_bypass_count),
+                None,
+                "raw",
+            ),
+            (
+                ts,
+                self.wan_name,
+                "wanctl_rate_download_mbps",
+                dl_rate / 1e6,
+                None,
+                "raw",
+            ),
             (ts, self.wan_name, "wanctl_rate_upload_mbps", ul_rate / 1e6, None, "raw"),
             (ts, self.wan_name, "wanctl_state", dl_state, self._download_labels, "raw"),
         ]
 
         if self._last_signal_result is not None:
             sr = self._last_signal_result
-            metrics_batch.extend([
-                (ts, self.wan_name, "wanctl_signal_jitter_ms", sr.jitter_ms, None, "raw"),
-                (ts, self.wan_name, "wanctl_signal_variance_ms2", sr.variance_ms2, None, "raw"),
-                (ts, self.wan_name, "wanctl_signal_confidence", sr.confidence, None, "raw"),
-                (ts, self.wan_name, "wanctl_signal_outlier_count", float(sr.total_outliers), None, "raw"),
-            ])
+            metrics_batch.extend(
+                [
+                    (
+                        ts,
+                        self.wan_name,
+                        "wanctl_signal_jitter_ms",
+                        sr.jitter_ms,
+                        None,
+                        "raw",
+                    ),
+                    (
+                        ts,
+                        self.wan_name,
+                        "wanctl_signal_variance_ms2",
+                        sr.variance_ms2,
+                        None,
+                        "raw",
+                    ),
+                    (
+                        ts,
+                        self.wan_name,
+                        "wanctl_signal_confidence",
+                        sr.confidence,
+                        None,
+                        "raw",
+                    ),
+                    (
+                        ts,
+                        self.wan_name,
+                        "wanctl_signal_outlier_count",
+                        float(sr.total_outliers),
+                        None,
+                        "raw",
+                    ),
+                ]
+            )
 
-        if irtt_result is not None and irtt_result.timestamp != self._last_irtt_write_ts:
-            metrics_batch.extend([
-                (ts, self.wan_name, "wanctl_irtt_rtt_ms", irtt_result.rtt_mean_ms, None, "raw"),
-                (ts, self.wan_name, "wanctl_irtt_ipdv_ms", irtt_result.ipdv_mean_ms, None, "raw"),
-                (ts, self.wan_name, "wanctl_irtt_loss_up_pct", irtt_result.send_loss, None, "raw"),
-                (ts, self.wan_name, "wanctl_irtt_loss_down_pct", irtt_result.receive_loss, None, "raw"),
-            ])
+        if (
+            irtt_result is not None
+            and irtt_result.timestamp != self._last_irtt_write_ts
+        ):
+            metrics_batch.extend(
+                [
+                    (
+                        ts,
+                        self.wan_name,
+                        "wanctl_irtt_rtt_ms",
+                        irtt_result.rtt_mean_ms,
+                        None,
+                        "raw",
+                    ),
+                    (
+                        ts,
+                        self.wan_name,
+                        "wanctl_irtt_ipdv_ms",
+                        irtt_result.ipdv_mean_ms,
+                        None,
+                        "raw",
+                    ),
+                    (
+                        ts,
+                        self.wan_name,
+                        "wanctl_irtt_loss_up_pct",
+                        irtt_result.send_loss,
+                        None,
+                        "raw",
+                    ),
+                    (
+                        ts,
+                        self.wan_name,
+                        "wanctl_irtt_loss_down_pct",
+                        irtt_result.receive_loss,
+                        None,
+                        "raw",
+                    ),
+                ]
+            )
             if self._last_asymmetry_result is not None:
-                metrics_batch.extend([
-                    (ts, self.wan_name, "wanctl_irtt_asymmetry_ratio", self._last_asymmetry_result.ratio, None, "raw"),
-                    (ts, self.wan_name, "wanctl_irtt_asymmetry_direction", DIRECTION_ENCODING.get(self._last_asymmetry_result.direction, 0.0), None, "raw"),
-                ])
+                metrics_batch.extend(
+                    [
+                        (
+                            ts,
+                            self.wan_name,
+                            "wanctl_irtt_asymmetry_ratio",
+                            self._last_asymmetry_result.ratio,
+                            None,
+                            "raw",
+                        ),
+                        (
+                            ts,
+                            self.wan_name,
+                            "wanctl_irtt_asymmetry_direction",
+                            DIRECTION_ENCODING.get(
+                                self._last_asymmetry_result.direction, 0.0
+                            ),
+                            None,
+                            "raw",
+                        ),
+                    ]
+                )
             self._last_irtt_write_ts = irtt_result.timestamp
 
         # CAKE signal metrics (Phase 159, CAKE-04)
         if self._dl_cake_signal.config.metrics_enabled:
             snap = self._dl_cake_snapshot
             if snap is not None and not snap.cold_start:
-                metrics_batch.extend([
-                    (ts, self.wan_name, "wanctl_cake_drop_rate", snap.drop_rate,
-                     self._download_labels, "raw"),
-                    (ts, self.wan_name, "wanctl_cake_total_drop_rate", snap.total_drop_rate,
-                     self._download_labels, "raw"),
-                    (ts, self.wan_name, "wanctl_cake_backlog_bytes", float(snap.backlog_bytes),
-                     self._download_labels, "raw"),
-                    (ts, self.wan_name, "wanctl_cake_peak_delay_us", float(snap.peak_delay_us),
-                     self._download_labels, "raw"),
-                ])
+                metrics_batch.extend(
+                    [
+                        (
+                            ts,
+                            self.wan_name,
+                            "wanctl_cake_drop_rate",
+                            snap.drop_rate,
+                            self._download_labels,
+                            "raw",
+                        ),
+                        (
+                            ts,
+                            self.wan_name,
+                            "wanctl_cake_total_drop_rate",
+                            snap.total_drop_rate,
+                            self._download_labels,
+                            "raw",
+                        ),
+                        (
+                            ts,
+                            self.wan_name,
+                            "wanctl_cake_backlog_bytes",
+                            float(snap.backlog_bytes),
+                            self._download_labels,
+                            "raw",
+                        ),
+                        (
+                            ts,
+                            self.wan_name,
+                            "wanctl_cake_peak_delay_us",
+                            float(snap.peak_delay_us),
+                            self._download_labels,
+                            "raw",
+                        ),
+                    ]
+                )
                 metrics_batch.append(
-                    (ts, self.wan_name, "wanctl_cake_avg_delay_delta_us",
-                     float(snap.max_delay_delta_us), self._download_labels, "raw")
+                    (
+                        ts,
+                        self.wan_name,
+                        "wanctl_cake_avg_delay_delta_us",
+                        float(snap.max_delay_delta_us),
+                        self._download_labels,
+                        "raw",
+                    )
                 )
             active_primary = getattr(self, "_last_arbitration_primary", "rtt")
             refractory_active = getattr(
                 self, "_dl_arbitration_used_refractory_snapshot", False
             )
-            metrics_batch.extend([
-                (ts, self.wan_name, "wanctl_arbitration_active_primary",
-                 float(ARBITRATION_PRIMARY_ENCODING[active_primary]), self._download_labels, "raw"),
-                (ts, self.wan_name, "wanctl_arbitration_refractory_active",
-                 1.0 if refractory_active else 0.0, self._download_labels, "raw"),
-            ])
+            metrics_batch.extend(
+                [
+                    (
+                        ts,
+                        self.wan_name,
+                        "wanctl_arbitration_active_primary",
+                        float(ARBITRATION_PRIMARY_ENCODING[active_primary]),
+                        self._download_labels,
+                        "raw",
+                    ),
+                    (
+                        ts,
+                        self.wan_name,
+                        "wanctl_arbitration_refractory_active",
+                        1.0 if refractory_active else 0.0,
+                        self._download_labels,
+                        "raw",
+                    ),
+                ]
+            )
             self._append_rtt_confidence_metric(metrics_batch, ts)
-        if self._ul_cake_snapshot is not None and self._ul_cake_signal.config.metrics_enabled:
+        if (
+            self._ul_cake_snapshot is not None
+            and self._ul_cake_signal.config.metrics_enabled
+        ):
             snap = self._ul_cake_snapshot
             if not snap.cold_start:
-                metrics_batch.extend([
-                    (ts, self.wan_name, "wanctl_cake_drop_rate", snap.drop_rate,
-                     self._upload_labels, "raw"),
-                    (ts, self.wan_name, "wanctl_cake_total_drop_rate", snap.total_drop_rate,
-                     self._upload_labels, "raw"),
-                    (ts, self.wan_name, "wanctl_cake_backlog_bytes", float(snap.backlog_bytes),
-                     self._upload_labels, "raw"),
-                    (ts, self.wan_name, "wanctl_cake_peak_delay_us", float(snap.peak_delay_us),
-                     self._upload_labels, "raw"),
-                ])
+                metrics_batch.extend(
+                    [
+                        (
+                            ts,
+                            self.wan_name,
+                            "wanctl_cake_drop_rate",
+                            snap.drop_rate,
+                            self._upload_labels,
+                            "raw",
+                        ),
+                        (
+                            ts,
+                            self.wan_name,
+                            "wanctl_cake_total_drop_rate",
+                            snap.total_drop_rate,
+                            self._upload_labels,
+                            "raw",
+                        ),
+                        (
+                            ts,
+                            self.wan_name,
+                            "wanctl_cake_backlog_bytes",
+                            float(snap.backlog_bytes),
+                            self._upload_labels,
+                            "raw",
+                        ),
+                        (
+                            ts,
+                            self.wan_name,
+                            "wanctl_cake_peak_delay_us",
+                            float(snap.peak_delay_us),
+                            self._upload_labels,
+                            "raw",
+                        ),
+                    ]
+                )
 
         if self._io_worker is not None:
             self._io_worker.enqueue_batch(metrics_batch)
@@ -3111,14 +3517,18 @@ class WANController:
         if dl_transition_reason:
             if self._io_worker is not None:
                 self._io_worker.enqueue_write(
-                    timestamp=ts, wan_name=self.wan_name, metric_name="wanctl_state",
+                    timestamp=ts,
+                    wan_name=self.wan_name,
+                    metric_name="wanctl_state",
                     value=dl_state,
                     labels={"direction": "download", "reason": dl_transition_reason},
                     granularity="raw",
                 )
             else:
                 self._metrics_writer.write_metric(
-                    timestamp=ts, wan_name=self.wan_name, metric_name="wanctl_state",
+                    timestamp=ts,
+                    wan_name=self.wan_name,
+                    metric_name="wanctl_state",
                     value=dl_state,
                     labels={"direction": "download", "reason": dl_transition_reason},
                     granularity="raw",
@@ -3126,14 +3536,18 @@ class WANController:
         if ul_transition_reason:
             if self._io_worker is not None:
                 self._io_worker.enqueue_write(
-                    timestamp=ts, wan_name=self.wan_name, metric_name="wanctl_state",
+                    timestamp=ts,
+                    wan_name=self.wan_name,
+                    metric_name="wanctl_state",
                     value=ul_state,
                     labels={"direction": "upload", "reason": ul_transition_reason},
                     granularity="raw",
                 )
             else:
                 self._metrics_writer.write_metric(
-                    timestamp=ts, wan_name=self.wan_name, metric_name="wanctl_state",
+                    timestamp=ts,
+                    wan_name=self.wan_name,
+                    metric_name="wanctl_state",
                     value=ul_state,
                     labels={"direction": "upload", "reason": ul_transition_reason},
                     granularity="raw",
@@ -3179,7 +3593,9 @@ class WANController:
         apply_finished: float | None = None
         any_kernel_write = False
         for backend_name in ("dl_backend", "ul_backend"):
-            backend = getattr(adapter, backend_name, None) if adapter is not None else None
+            backend = (
+                getattr(adapter, backend_name, None) if adapter is not None else None
+            )
             if backend is None:
                 continue
             started = getattr(backend, "_last_apply_started_monotonic", None)
@@ -3258,14 +3674,18 @@ class WANController:
             if isinstance(finished, (int, float)) and not isinstance(finished, bool):
                 dump_finished = float(finished)
                 result["last_dump_finished_monotonic"] = dump_finished
-            if isinstance(elapsed_ms, (int, float)) and not isinstance(elapsed_ms, bool):
+            if isinstance(elapsed_ms, (int, float)) and not isinstance(
+                elapsed_ms, bool
+            ):
                 result["last_dump_elapsed_ms"] = float(elapsed_ms)
 
         adapter = getattr(self, "router", None)
         apply_started: float | None = None
         apply_finished: float | None = None
         for backend_name in ("dl_backend", "ul_backend"):
-            backend = getattr(adapter, backend_name, None) if adapter is not None else None
+            backend = (
+                getattr(adapter, backend_name, None) if adapter is not None else None
+            )
             if backend is None:
                 continue
             started = getattr(backend, "_last_apply_started_monotonic", None)
@@ -3339,7 +3759,9 @@ class WANController:
             dl_rate / 1e6,
             ul_rate / 1e6,
             {
-                "apply_primary_ms": round(breakdown.get("autorate_router_apply_primary", 0.0), 3),
+                "apply_primary_ms": round(
+                    breakdown.get("autorate_router_apply_primary", 0.0), 3
+                ),
                 "write_download_ms": round(
                     breakdown.get("autorate_router_write_download", 0.0), 3
                 ),
@@ -3360,7 +3782,9 @@ class WANController:
         self._slow_router_apply_last_log_ts = now
         self._slow_router_apply_suppressed_count = 0
 
-    def _run_router_communication(self, dl_rate: int, ul_rate: int) -> tuple[bool, dict[str, float]]:
+    def _run_router_communication(
+        self, dl_rate: int, ul_rate: int
+    ) -> tuple[bool, dict[str, float]]:
         """Router communication subsystem: apply rates with flash wear and rate limiting."""
         breakdown = {
             "autorate_router_apply_primary": 0.0,
@@ -3377,7 +3801,9 @@ class WANController:
             for key, value in self._consume_router_write_timings().items():
                 breakdown[key] += value
             if primary_timer.elapsed_ms >= SLOW_ROUTER_APPLY_LOG_MS:
-                self._log_slow_router_apply(primary_timer.elapsed_ms, dl_rate, ul_rate, breakdown)
+                self._log_slow_router_apply(
+                    primary_timer.elapsed_ms, dl_rate, ul_rate, breakdown
+                )
 
             if not primary_ok:
                 self.router_connectivity.record_failure(
@@ -3404,9 +3830,13 @@ class WANController:
                             f"(DL={pending_dl / 1e6:.1f}Mbps, "
                             f"UL={pending_ul / 1e6:.1f}Mbps)"
                         )
-                        with PerfTimer("autorate_router_apply_pending") as pending_timer:
+                        with PerfTimer(
+                            "autorate_router_apply_pending"
+                        ) as pending_timer:
                             self.apply_rate_changes_if_needed(pending_dl, pending_ul)
-                        breakdown["autorate_router_apply_pending"] = pending_timer.elapsed_ms
+                        breakdown["autorate_router_apply_pending"] = (
+                            pending_timer.elapsed_ms
+                        )
                         for key, value in self._consume_router_write_timings().items():
                             breakdown[key] += value
         except Exception as e:
@@ -3422,7 +3852,12 @@ class WANController:
         return False, breakdown  # router_failed = False
 
     def _run_post_cycle(
-        self, cycle_start: float, dl_rate: int, ul_rate: int, dl_zone: str, ul_zone: str,
+        self,
+        cycle_start: float,
+        dl_rate: int,
+        ul_rate: int,
+        dl_zone: str,
+        ul_zone: str,
     ) -> None:
         """Post-cycle subsystem: state persistence and Prometheus metrics recording."""
         self._cycles_since_forced_save += 1
@@ -3445,7 +3880,9 @@ class WANController:
                 cycle_duration=cycle_duration,
                 burst_active=self._dl_burst_pending,
                 burst_trigger_delta=max(
-                    0, self._dl_burst_trigger_count - self._dl_burst_exported_trigger_count
+                    0,
+                    self._dl_burst_trigger_count
+                    - self._dl_burst_exported_trigger_count,
                 ),
                 burst_last_delta_ms=self._dl_burst_last_delta_ms,
                 burst_last_accel_ms=self._dl_burst_last_accel_ms,
@@ -3468,7 +3905,11 @@ class WANController:
         self._check_ul_congestion_alert(ul_zone, dl_rate, ul_rate, delta)
 
     def _check_dl_congestion_alert(
-        self, dl_zone: str, dl_rate: int, ul_rate: int, delta: float,
+        self,
+        dl_zone: str,
+        dl_rate: int,
+        ul_rate: int,
+        delta: float,
     ) -> None:
         """Check download sustained congestion timer (RED/SOFT_RED zones)."""
         now = time.monotonic()
@@ -3518,7 +3959,11 @@ class WANController:
                 self._dl_sustained_fired = False
 
     def _check_ul_congestion_alert(
-        self, ul_zone: str, dl_rate: int, ul_rate: int, delta: float,
+        self,
+        ul_zone: str,
+        dl_rate: int,
+        ul_rate: int,
+        delta: float,
     ) -> None:
         """Check upload sustained congestion timer (RED zone only)."""
         now = time.monotonic()
@@ -3569,7 +4014,9 @@ class WANController:
         """Alert on sustained elevated RTT delta outside the healthy GREEN state."""
         now = time.monotonic()
         delta = float(self.load_rtt - self.baseline_rtt)
-        degraded = delta >= self.green_threshold and (dl_zone != "GREEN" or ul_zone != "GREEN")
+        degraded = delta >= self.green_threshold and (
+            dl_zone != "GREEN" or ul_zone != "GREEN"
+        )
 
         if not degraded:
             self._latency_regression_start = None
@@ -3679,8 +4126,12 @@ class WANController:
         now = time.monotonic()
 
         # --- Upstream loss (send_loss) ---
-        up_threshold = self.alert_engine.get_rule_param("irtt_loss_upstream", "loss_threshold_pct", self._irtt_loss_threshold_pct)
-        up_sustained = self.alert_engine.get_rule_param("irtt_loss_upstream", "sustained_sec", self._sustained_sec)
+        up_threshold = self.alert_engine.get_rule_param(
+            "irtt_loss_upstream", "loss_threshold_pct", self._irtt_loss_threshold_pct
+        )
+        up_sustained = self.alert_engine.get_rule_param(
+            "irtt_loss_upstream", "sustained_sec", self._sustained_sec
+        )
 
         if irtt_result.send_loss >= up_threshold:
             if self._irtt_loss_up_start is None:
@@ -3718,8 +4169,12 @@ class WANController:
                 self._irtt_loss_up_fired = False
 
         # --- Downstream loss (receive_loss) ---
-        down_threshold = self.alert_engine.get_rule_param("irtt_loss_downstream", "loss_threshold_pct", self._irtt_loss_threshold_pct)
-        down_sustained = self.alert_engine.get_rule_param("irtt_loss_downstream", "sustained_sec", self._sustained_sec)
+        down_threshold = self.alert_engine.get_rule_param(
+            "irtt_loss_downstream", "loss_threshold_pct", self._irtt_loss_threshold_pct
+        )
+        down_sustained = self.alert_engine.get_rule_param(
+            "irtt_loss_downstream", "sustained_sec", self._sustained_sec
+        )
 
         if irtt_result.receive_loss >= down_threshold:
             if self._irtt_loss_down_start is None:
@@ -3887,13 +4342,21 @@ class WANController:
         now = time.monotonic()
 
         # Shared config rule for both DL and UL flapping
-        flap_window = self.alert_engine.get_rule_param("congestion_flapping", "flap_window_sec", 120)
-        flap_threshold = self.alert_engine.get_rule_param("congestion_flapping", "flap_threshold", 30)
-        flap_severity = self.alert_engine.get_rule_param("congestion_flapping", "severity", "warning")
+        flap_window = self.alert_engine.get_rule_param(
+            "congestion_flapping", "flap_window_sec", 120
+        )
+        flap_threshold = self.alert_engine.get_rule_param(
+            "congestion_flapping", "flap_threshold", 30
+        )
+        flap_severity = self.alert_engine.get_rule_param(
+            "congestion_flapping", "severity", "warning"
+        )
 
         # Dwell filter: only count transitions where departing zone was held
         # long enough to be a real state, not a single-cycle blip.
-        min_hold_sec = self.alert_engine.get_rule_param("congestion_flapping", "min_hold_sec", 1.0)
+        min_hold_sec = self.alert_engine.get_rule_param(
+            "congestion_flapping", "min_hold_sec", 1.0
+        )
         if min_hold_sec <= 0:
             min_hold_cycles = 0
         else:
@@ -3910,7 +4373,9 @@ class WANController:
         self._dl_prev_zone = dl_zone
 
         # Prune old transitions outside window
-        while self._dl_zone_transitions and (now - self._dl_zone_transitions[0] > flap_window):
+        while self._dl_zone_transitions and (
+            now - self._dl_zone_transitions[0] > flap_window
+        ):
             self._dl_zone_transitions.popleft()
         self._dl_peak_transitions = max(
             self._dl_peak_transitions, len(self._dl_zone_transitions)
@@ -3943,7 +4408,9 @@ class WANController:
         self._ul_prev_zone = ul_zone
 
         # Prune old transitions outside window
-        while self._ul_zone_transitions and (now - self._ul_zone_transitions[0] > flap_window):
+        while self._ul_zone_transitions and (
+            now - self._ul_zone_transitions[0] > flap_window
+        ):
             self._ul_zone_transitions.popleft()
         self._ul_peak_transitions = max(
             self._ul_peak_transitions, len(self._ul_zone_transitions)
@@ -4067,7 +4534,9 @@ class WANController:
             if self._cake_stats_thread is not None
             else None
         )
-        irtt_latest = self._irtt_thread.get_latest() if self._irtt_thread is not None else None
+        irtt_latest = (
+            self._irtt_thread.get_latest() if self._irtt_thread is not None else None
+        )
         return {
             "cycle_budget": {
                 "profiler": self._profiler,
@@ -4103,7 +4572,9 @@ class WANController:
                     else None
                 ),
                 "active_reflector_hosts": list(self._last_active_reflector_hosts),
-                "successful_reflector_hosts": list(self._last_successful_reflector_hosts),
+                "successful_reflector_hosts": list(
+                    self._last_successful_reflector_hosts
+                ),
                 "cadence_sec": (
                     self._rtt_thread.cadence_sec
                     if self._rtt_thread is not None
@@ -4193,12 +4664,24 @@ class WANController:
                     "dl_refractory_remaining": self._dl_refractory_remaining,
                     "ul_refractory_remaining": self._ul_refractory_remaining,
                     "refractory_cycles": self._refractory_cycles,
-                    "dl_dwell_bypassed_count": self.download.get_health_data().get("cake_detection", {}).get("dwell_bypassed_count", 0),
-                    "ul_dwell_bypassed_count": self.upload.get_health_data().get("cake_detection", {}).get("dwell_bypassed_count", 0),
-                    "dl_backlog_suppressed_count": self.download.get_health_data().get("cake_detection", {}).get("backlog_suppressed_count", 0),
-                    "ul_backlog_suppressed_count": self.upload.get_health_data().get("cake_detection", {}).get("backlog_suppressed_count", 0),
-                    "dl_recovery_probe": self.download.get_health_data().get("recovery_probe", {}),
-                    "ul_recovery_probe": self.upload.get_health_data().get("recovery_probe", {}),
+                    "dl_dwell_bypassed_count": self.download.get_health_data()
+                    .get("cake_detection", {})
+                    .get("dwell_bypassed_count", 0),
+                    "ul_dwell_bypassed_count": self.upload.get_health_data()
+                    .get("cake_detection", {})
+                    .get("dwell_bypassed_count", 0),
+                    "dl_backlog_suppressed_count": self.download.get_health_data()
+                    .get("cake_detection", {})
+                    .get("backlog_suppressed_count", 0),
+                    "ul_backlog_suppressed_count": self.upload.get_health_data()
+                    .get("cake_detection", {})
+                    .get("backlog_suppressed_count", 0),
+                    "dl_recovery_probe": self.download.get_health_data().get(
+                        "recovery_probe", {}
+                    ),
+                    "ul_recovery_probe": self.upload.get_health_data().get(
+                        "recovery_probe", {}
+                    ),
                 },
                 "burst": {
                     "active": self._dl_burst_pending,
@@ -4214,7 +4697,9 @@ class WANController:
                 },
             },
             "signal_arbitration": {
-                "active_primary_signal": getattr(self, "_last_arbitration_primary", "rtt"),
+                "active_primary_signal": getattr(
+                    self, "_last_arbitration_primary", "rtt"
+                ),
                 "rtt_confidence": getattr(self, "_last_rtt_confidence", None),
                 "control_decision_reason": getattr(
                     self,
@@ -4252,7 +4737,9 @@ class WANController:
                 self.download.green_streak = dl.get("green_streak", 0)
                 self.download.soft_red_streak = dl.get("soft_red_streak", 0)
                 self.download.red_streak = dl.get("red_streak", 0)
-                self.download.current_rate = dl.get("current_rate", self.download.ceiling_bps)
+                self.download.current_rate = dl.get(
+                    "current_rate", self.download.ceiling_bps
+                )
 
             # Restore upload controller state
             if "upload" in state:
@@ -4260,7 +4747,9 @@ class WANController:
                 self.upload.green_streak = ul.get("green_streak", 0)
                 self.upload.soft_red_streak = ul.get("soft_red_streak", 0)
                 self.upload.red_streak = ul.get("red_streak", 0)
-                self.upload.current_rate = ul.get("current_rate", self.upload.ceiling_bps)
+                self.upload.current_rate = ul.get(
+                    "current_rate", self.upload.ceiling_bps
+                )
 
             # Restore EWMA state
             if "ewma" in state:

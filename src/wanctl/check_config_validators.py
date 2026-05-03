@@ -65,6 +65,8 @@ KNOWN_AUTORATE_PATHS: set[str] = {
     "continuous_monitoring.upload.step_up_mbps",
     "continuous_monitoring.upload.factor_down",
     "continuous_monitoring.upload.factor_down_yellow",
+    "continuous_monitoring.upload.target_bloat_ms",
+    "continuous_monitoring.upload.warn_bloat_ms",
     "continuous_monitoring.upload.green_required",
     "continuous_monitoring.upload.floor_mbps",
     "continuous_monitoring.upload.floor_green_mbps",

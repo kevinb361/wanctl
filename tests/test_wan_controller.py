@@ -68,6 +68,96 @@ class TestHandleIcmpFailure:
             )
         return controller
 
+    def test_upload_thresholds_use_upload_specific_config(
+        self, mock_config, mock_router, mock_rtt_measurement, mock_logger
+    ):
+        """WANController should use upload-specific thresholds for 3-state upload control."""
+        from wanctl.wan_controller import WANController
+
+        mock_config.target_bloat_ms = 15.0
+        mock_config.warn_bloat_ms = 75.0
+        mock_config.upload_target_bloat_ms = 42.0
+        mock_config.upload_warn_bloat_ms = 105.0
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+
+        assert controller.green_threshold == 15.0
+        assert controller.soft_red_threshold == 75.0
+        assert controller.target_delta == 42.0
+        assert controller.warn_delta == 105.0
+
+    def test_upload_thresholds_explicit_when_value_equal_to_global(
+        self, mock_config, mock_router, mock_rtt_measurement, mock_logger
+    ):
+        """Phase 200 D-03: presence-based flag protects UL target_delta even
+        when operator sets continuous_monitoring.upload.target_bloat_ms equal
+        to the DL global. A value-derived flag would falsely report 'not
+        explicit' here, allowing live-tuning to overwrite the operator's intent.
+        """
+        from wanctl.wan_controller import WANController, _apply_threshold_param
+
+        mock_config.target_bloat_ms = 15.0
+        mock_config.warn_bloat_ms = 45.0
+        # Operator wrote `target_bloat_ms: 15` in YAML — equal to DL global,
+        # but flag is True because the key is PRESENT.
+        mock_config.upload_target_bloat_ms = 15.0
+        mock_config.upload_warn_bloat_ms = 45.0
+        mock_config._upload_target_bloat_ms_explicit = True
+        mock_config._upload_warn_bloat_ms_explicit = True
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+
+        # Live-tuner attempts to push target_bloat_ms=20 — must NOT overwrite UL.
+        _apply_threshold_param(controller, "target_bloat_ms", 20.0)
+
+        assert controller.green_threshold == 20.0  # DL field updated
+        assert controller.target_delta == 15.0  # UL field protected (D-03)
+
+    def test_upload_thresholds_explicit_per_key_independence(
+        self, mock_config, mock_router, mock_rtt_measurement, mock_logger
+    ):
+        """Phase 200 D-03: per-key independence — setting only target_bloat_ms
+        in YAML protects target_delta but leaves warn_delta open to live tuning.
+        """
+        from wanctl.wan_controller import WANController, _apply_threshold_param
+
+        mock_config.target_bloat_ms = 15.0
+        mock_config.warn_bloat_ms = 45.0
+        mock_config.upload_target_bloat_ms = 42.0
+        mock_config.upload_warn_bloat_ms = 45.0  # falls back to global
+        mock_config._upload_target_bloat_ms_explicit = True
+        mock_config._upload_warn_bloat_ms_explicit = False  # NOT explicit
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+
+        # Live-tuner pushes both. Only warn_delta should accept the new value.
+        _apply_threshold_param(controller, "target_bloat_ms", 99.0)
+        _apply_threshold_param(controller, "warn_bloat_ms", 99.0)
+
+        assert controller.target_delta == 42.0  # protected (explicit)
+        assert controller.warn_delta == 99.0  # tunable (NOT explicit)
+
     # =========================================================================
     # graceful_degradation mode tests
     # =========================================================================
@@ -80,7 +170,9 @@ class TestHandleIcmpFailure:
         controller.load_rtt = 28.5
 
         # Mock connectivity check to return True (connectivity exists)
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, None)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -95,7 +187,9 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 1  # Will become 2
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, None)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -109,7 +203,9 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 2  # Will become 3
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, None)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -123,7 +219,9 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 3  # Will become 4
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, None)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is False
@@ -138,7 +236,9 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 10  # Well past max
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, None)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is False
@@ -155,7 +255,9 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 0
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, None)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -169,7 +271,9 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 100
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, None)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -186,7 +290,9 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 0
         controller.load_rtt = 32.7
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, None)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -200,7 +306,9 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 100
         controller.load_rtt = 32.7
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, None)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -217,7 +325,9 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 0
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(False, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(False, None)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is False
@@ -251,7 +361,9 @@ class TestHandleIcmpFailure:
         controller.load_rtt = 28.5  # Should NOT be used
 
         # TCP RTT of 25.5ms available
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, 25.5)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, 25.5)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -267,7 +379,9 @@ class TestHandleIcmpFailure:
         controller.load_rtt = 28.5
 
         # TCP RTT available - should work regardless of cycle count
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, 30.2)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, 30.2)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -280,7 +394,9 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 0
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, 22.1)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, 22.1)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -292,7 +408,9 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 0
         controller.load_rtt = 28.5  # Should NOT be used
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, 19.8)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, 19.8)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is True
@@ -306,7 +424,9 @@ class TestHandleIcmpFailure:
         controller.load_rtt = 28.5
 
         # Connectivity exists but no TCP RTT (gateway-only case)
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, None)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is False  # Cycle 4 should fail
@@ -322,7 +442,9 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 0
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(True, None)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         assert should_continue is False
@@ -340,7 +462,9 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 0
 
         with (
-            patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)),
+            patch.object(
+                controller, "verify_connectivity_fallback", return_value=(True, None)
+            ),
             patch("wanctl.wan_controller.record_ping_failure") as mock_record,
         ):
             controller.handle_icmp_failure()
@@ -354,7 +478,9 @@ class TestHandleIcmpFailure:
         controller.icmp_unavailable_cycles = 0
 
         with (
-            patch.object(controller, "verify_connectivity_fallback", return_value=(True, None)),
+            patch.object(
+                controller, "verify_connectivity_fallback", return_value=(True, None)
+            ),
             patch("wanctl.wan_controller.record_ping_failure") as mock_record,
         ):
             controller.handle_icmp_failure()
@@ -701,7 +827,9 @@ class TestApplyRateChangesIfNeeded:
     # Transport-aware rate limiter tests (Phase 151)
     # =========================================================================
 
-    def test_linux_cake_no_rate_limiter_created(self, mock_config, mock_rtt_measurement, mock_logger):
+    def test_linux_cake_no_rate_limiter_created(
+        self, mock_config, mock_rtt_measurement, mock_logger
+    ):
         """Controller with needs_rate_limiting=False should have rate_limiter=None."""
         from wanctl.wan_controller import WANController
 
@@ -721,7 +849,9 @@ class TestApplyRateChangesIfNeeded:
 
         assert controller.rate_limiter is None
 
-    def test_linux_cake_every_cycle_applies(self, mock_config, mock_rtt_measurement, mock_logger):
+    def test_linux_cake_every_cycle_applies(
+        self, mock_config, mock_rtt_measurement, mock_logger
+    ):
         """Controller with rate_limiter=None applies every rate change (no throttling)."""
         from wanctl.wan_controller import WANController
 
@@ -747,7 +877,9 @@ class TestApplyRateChangesIfNeeded:
         assert result is True
         router.set_limits.assert_called_once()
 
-    def test_linux_cake_flash_wear_still_works(self, mock_config, mock_rtt_measurement, mock_logger):
+    def test_linux_cake_flash_wear_still_works(
+        self, mock_config, mock_rtt_measurement, mock_logger
+    ):
         """Controller with rate_limiter=None still skips identical rates (RATE-04)."""
         from wanctl.wan_controller import WANController
 
@@ -1111,12 +1243,18 @@ class TestDualFallbackFailure:
         controller.icmp_unavailable_cycles = 0
 
         # Mock dual failure - both ICMP and TCP fail
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(False, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(False, None)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
         # Safe defaults: (False, None) - NOT (True, 28.5)
-        assert should_continue is False, "Cycle should NOT continue on total connectivity loss"
-        assert measured_rtt is None, "Measured RTT must be None, NOT stale load_rtt (28.5)"
+        assert (
+            should_continue is False
+        ), "Cycle should NOT continue on total connectivity loss"
+        assert (
+            measured_rtt is None
+        ), "Measured RTT must be None, NOT stale load_rtt (28.5)"
 
     @pytest.mark.parametrize(
         "mode,stale_rtt",
@@ -1126,7 +1264,9 @@ class TestDualFallbackFailure:
             ("use_last_rtt", 42.1),
         ],
     )
-    def test_dual_failure_safe_across_all_fallback_modes(self, controller, mode, stale_rtt):
+    def test_dual_failure_safe_across_all_fallback_modes(
+        self, controller, mode, stale_rtt
+    ):
         """Dual failure returns (False, None) regardless of fallback mode.
 
         All fallback modes must return safe defaults on total connectivity loss.
@@ -1137,11 +1277,17 @@ class TestDualFallbackFailure:
         controller.load_rtt = stale_rtt  # Distinct stale value per mode
         controller.icmp_unavailable_cycles = 0
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(False, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(False, None)
+        ):
             should_continue, measured_rtt = controller.handle_icmp_failure()
 
-        assert should_continue is False, f"Mode '{mode}' must return False on total loss"
-        assert measured_rtt is None, f"Mode '{mode}' must return None, not stale RTT ({stale_rtt})"
+        assert (
+            should_continue is False
+        ), f"Mode '{mode}' must return False on total loss"
+        assert (
+            measured_rtt is None
+        ), f"Mode '{mode}' must return None, not stale RTT ({stale_rtt})"
 
     def test_dual_failure_does_not_increment_cycle_counter(self, controller):
         """Total connectivity loss should NOT increment icmp_unavailable_cycles.
@@ -1154,10 +1300,14 @@ class TestDualFallbackFailure:
         controller.icmp_unavailable_cycles = 0
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(False, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(False, None)
+        ):
             controller.handle_icmp_failure()
 
-        assert controller.icmp_unavailable_cycles == 0, "Counter should NOT increment on total loss"
+        assert (
+            controller.icmp_unavailable_cycles == 0
+        ), "Counter should NOT increment on total loss"
 
     def test_dual_failure_logs_warning(self, controller):
         """Total connectivity loss should log a warning."""
@@ -1165,7 +1315,9 @@ class TestDualFallbackFailure:
         controller.icmp_unavailable_cycles = 0
         controller.load_rtt = 28.5
 
-        with patch.object(controller, "verify_connectivity_fallback", return_value=(False, None)):
+        with patch.object(
+            controller, "verify_connectivity_fallback", return_value=(False, None)
+        ):
             controller.handle_icmp_failure()
 
         # Warning should be logged for total connectivity loss
@@ -1604,7 +1756,9 @@ class TestVerifyTcpConnectivity:
             return times[idx] if idx < len(times) else times[-1]
 
         with (
-            patch("socket.create_connection", side_effect=create_connection_side_effect),
+            patch(
+                "socket.create_connection", side_effect=create_connection_side_effect
+            ),
             patch("time.monotonic", side_effect=monotonic_side_effect),
         ):
             result = ctrl.verify_tcp_connectivity()
@@ -1620,7 +1774,9 @@ class TestVerifyTcpConnectivity:
         config.fallback_tcp_targets = [("1.1.1.1", 443), ("8.8.8.8", 443)]
 
         # All connections fail
-        with patch("socket.create_connection", side_effect=OSError("Connection refused")):
+        with patch(
+            "socket.create_connection", side_effect=OSError("Connection refused")
+        ):
             result = ctrl.verify_tcp_connectivity()
 
         assert result == (False, None)
@@ -2045,7 +2201,9 @@ class TestStateLoadSave:
         assert call_kwargs["congestion"]["dl_state"] == "RED"
         assert call_kwargs["congestion"]["ul_state"] == "YELLOW"
 
-    def test_get_health_data_includes_live_measurement_snapshot(self, controller_with_mocks):
+    def test_get_health_data_includes_live_measurement_snapshot(
+        self, controller_with_mocks
+    ):
         """get_health_data exposes the latest direct ICMP RTT snapshot."""
         ctrl, _, _, _ = controller_with_mocks
 
@@ -2066,7 +2224,9 @@ class TestStateLoadSave:
         assert measurement["successful_reflector_hosts"] == ["1.1.1.1"]
         assert measurement["cadence_sec"] == pytest.approx(0.25)
 
-    def test_get_health_data_includes_background_worker_stats(self, controller_with_mocks):
+    def test_get_health_data_includes_background_worker_stats(
+        self, controller_with_mocks
+    ):
         """get_health_data exposes async worker timing and staleness surfaces."""
         ctrl, _, _, _ = controller_with_mocks
 
@@ -2111,21 +2271,31 @@ class TestStateLoadSave:
         assert workers["irtt"]["stats"]["avg_ms"] == pytest.approx(40.0)
         assert workers["irtt"]["staleness_sec"] == pytest.approx(5.25)
 
-    def test_wan_controller_stores_cake_stats_cadence_sec_from_config(self, controller_with_mocks):
+    def test_wan_controller_stores_cake_stats_cadence_sec_from_config(
+        self, controller_with_mocks
+    ):
         """WANController stores the background CAKE stats cadence from Config."""
         ctrl, config, _, _ = controller_with_mocks
 
-        assert ctrl._cake_stats_cadence_sec == pytest.approx(config.cake_stats_cadence_sec)
+        assert ctrl._cake_stats_cadence_sec == pytest.approx(
+            config.cake_stats_cadence_sec
+        )
 
-    def test_start_background_cake_stats_uses_configured_cadence(self, controller_with_mocks):
+    def test_start_background_cake_stats_uses_configured_cadence(
+        self, controller_with_mocks
+    ):
         """BackgroundCakeStatsThread receives the configured CAKE stats cadence."""
         from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
 
         ctrl, _, _, _ = controller_with_mocks
         ctrl._cake_stats_cadence_sec = 0.25
         ctrl._cake_signal_supported = True
-        ctrl._dl_cake_signal = CakeSignalProcessor(config=CakeSignalConfig(enabled=True))
-        ctrl._ul_cake_signal = CakeSignalProcessor(config=CakeSignalConfig(enabled=True))
+        ctrl._dl_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True)
+        )
+        ctrl._ul_cake_signal = CakeSignalProcessor(
+            config=CakeSignalConfig(enabled=True)
+        )
         shutdown_event = MagicMock()
 
         adapter = MagicMock()
@@ -2133,7 +2303,9 @@ class TestStateLoadSave:
         adapter.ul_backend.interface = "eth0"
         ctrl.router = adapter
 
-        with patch("wanctl.wan_controller.BackgroundCakeStatsThread") as mock_thread_cls:
+        with patch(
+            "wanctl.wan_controller.BackgroundCakeStatsThread"
+        ) as mock_thread_cls:
             mock_thread = MagicMock()
             mock_thread_cls.return_value = mock_thread
 
@@ -2178,7 +2350,9 @@ class TestStateLoadSave:
         assert ctrl._overlap_max_ms == pytest.approx(5.0, abs=0.01)
         assert ctrl._last_overlap_ms == pytest.approx(5.0, abs=0.01)
 
-    def test_update_overlap_counters_skips_when_no_kernel_write(self, controller_with_mocks):
+    def test_update_overlap_counters_skips_when_no_kernel_write(
+        self, controller_with_mocks
+    ):
         """Skip-only applies do not mutate overlap counters."""
         ctrl, _, _, _ = controller_with_mocks
 
@@ -2245,17 +2419,15 @@ class TestStateLoadSave:
         assert overlap["last_dump_elapsed_ms"] == pytest.approx(8.0)
         assert overlap["last_apply_started_monotonic"] == pytest.approx(199.95)
         assert overlap["last_apply_finished_monotonic"] == pytest.approx(200.00)
-        assert (
-            health["background_workers"]["cake_stats"]["cadence_sec"]
-            == pytest.approx(ctrl._cake_stats_cadence_sec)
-        )
+        assert health["background_workers"]["cake_stats"][
+            "cadence_sec"
+        ] == pytest.approx(ctrl._cake_stats_cadence_sec)
         assert (
             health_again["background_workers"]["cake_stats"]["overlap"]["episodes"] == 3
         )
         assert ctrl._overlap_episodes == 3
         assert ctrl._overlap_max_ms == pytest.approx(7.25)
         assert ctrl._slow_apply_with_overlap_count == 1
-
 
     def test_log_slow_router_apply_counts_as_overlap_when_recent_completed_overlap(
         self, controller_with_mocks
@@ -2391,13 +2563,17 @@ class TestPhase193MetricsBatch:
         batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
         metrics = self._metrics_by_name(batch)
         dl_key = (("direction", "download"),)
-        assert metrics[("wanctl_cake_avg_delay_delta_us", dl_key)] == pytest.approx(4800.0)
+        assert metrics[("wanctl_cake_avg_delay_delta_us", dl_key)] == pytest.approx(
+            4800.0
+        )
         assert metrics[("wanctl_arbitration_active_primary", dl_key)] == pytest.approx(
             float(ARBITRATION_PRIMARY_ENCODING["rtt"])
         )
         assert ("wanctl_rtt_confidence", dl_key) not in metrics
 
-    def test_dl_metrics_batch_skips_nullable_values_when_snapshot_missing(self, controller):
+    def test_dl_metrics_batch_skips_nullable_values_when_snapshot_missing(
+        self, controller
+    ):
         controller._dl_cake_snapshot = None
         controller._ul_cake_snapshot = None
 
@@ -2424,7 +2600,9 @@ class TestPhase193MetricsBatch:
             float(ARBITRATION_PRIMARY_ENCODING["rtt"])
         )
 
-    def test_dl_metrics_batch_skips_nullable_delta_when_snapshot_is_cold_start(self, controller):
+    def test_dl_metrics_batch_skips_nullable_delta_when_snapshot_is_cold_start(
+        self, controller
+    ):
         controller._dl_cake_snapshot = self._make_snapshot(
             cold_start=True, max_delay_delta_us=9999
         )
@@ -2529,7 +2707,9 @@ class TestPhase193MetricsBatch:
         batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
         metrics = self._metrics_by_name(batch)
         dl_key = (("direction", "download"),)
-        assert metrics[("wanctl_arbitration_refractory_active", dl_key)] == pytest.approx(1.0)
+        assert metrics[
+            ("wanctl_arbitration_refractory_active", dl_key)
+        ] == pytest.approx(1.0)
 
     def test_dl_metrics_emit_refractory_active_zero_when_stash_false(self, controller):
         """Phase 197 D-07: wanctl_arbitration_refractory_active = 0.0 outside refractory."""
@@ -2554,9 +2734,13 @@ class TestPhase193MetricsBatch:
         batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
         metrics = self._metrics_by_name(batch)
         dl_key = (("direction", "download"),)
-        assert metrics[("wanctl_arbitration_refractory_active", dl_key)] == pytest.approx(0.0)
+        assert metrics[
+            ("wanctl_arbitration_refractory_active", dl_key)
+        ] == pytest.approx(0.0)
 
-    def test_ul_metrics_byte_identical_after_phase_197_metric_addition(self, controller):
+    def test_ul_metrics_byte_identical_after_phase_197_metric_addition(
+        self, controller
+    ):
         """Phase 197 SAFE-05: UL metric tuples must NOT include refractory_active."""
         controller._dl_cake_snapshot = self._make_snapshot(
             cold_start=False, max_delay_delta_us=4800
@@ -2609,9 +2793,7 @@ class TestPhase193MetricsBatch:
             )
 
         batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
-        confidence_rows = [
-            row for row in batch if row[2] == "wanctl_rtt_confidence"
-        ]
+        confidence_rows = [row for row in batch if row[2] == "wanctl_rtt_confidence"]
         assert confidence_rows == [
             (
                 1234,
@@ -2857,9 +3039,7 @@ class TestPhase194DLSelector:
         assert load_for_classifier == 33.5
         assert reason == ARBITRATION_REASON_GREEN_STABLE
 
-    def test_fallback_when_snapshot_is_cold_start_preserves_load_rtt(
-        self, controller
-    ):
+    def test_fallback_when_snapshot_is_cold_start_preserves_load_rtt(self, controller):
         from wanctl.wan_controller import ARBITRATION_REASON_GREEN_STABLE
 
         controller._cake_signal_supported = True
@@ -2874,13 +3054,13 @@ class TestPhase194DLSelector:
         assert load_for_classifier == 37.25
         assert reason == ARBITRATION_REASON_GREEN_STABLE
 
-    def test_initial_arbitration_state_defaults_to_rtt_primary_normal(
-        self, controller
-    ):
+    def test_initial_arbitration_state_defaults_to_rtt_primary_normal(self, controller):
         from wanctl.wan_controller import ARBITRATION_REASON_RTT_PRIMARY_NORMAL
 
         assert controller._last_arbitration_primary == "rtt"
-        assert controller._last_arbitration_reason == ARBITRATION_REASON_RTT_PRIMARY_NORMAL
+        assert (
+            controller._last_arbitration_reason == ARBITRATION_REASON_RTT_PRIMARY_NORMAL
+        )
 
     def test_select_dl_primary_returns_queue_during_refractory_with_valid_snapshot(
         self, controller
@@ -3202,7 +3382,9 @@ class TestPhase195HealerBypass:
             )
             assert controller._healer_aligned_streak == 0
             assert controller._fusion_bypass_active is False
-            assert controller._last_arbitration_reason != ARBITRATION_REASON_HEALER_BYPASS
+            assert (
+                controller._last_arbitration_reason != ARBITRATION_REASON_HEALER_BYPASS
+            )
 
     def test_aligned_distress_trips_healer_bypass_at_six_cycles(self, controller):
         from wanctl.wan_controller import (
@@ -3334,9 +3516,7 @@ class TestPhase195HealerBypass:
         assert controller._healer_aligned_streak == 0
         assert controller._fusion_bypass_active is False
 
-    def test_compute_fused_rtt_no_longer_emits_absolute_disagreement(
-        self, controller
-    ):
+    def test_compute_fused_rtt_no_longer_emits_absolute_disagreement(self, controller):
         from types import SimpleNamespace
 
         controller._fusion_enabled = True
@@ -3531,9 +3711,7 @@ class TestPhase195Confidence:
         assert controller._last_queue_direction == "unknown"
         assert controller._last_rtt_direction == "unknown"
 
-    def test_phase195_first_valid_snapshot_has_warmup_confidence(
-        self, controller
-    ):
+    def test_phase195_first_valid_snapshot_has_warmup_confidence(self, controller):
         self._stub_assessment_io(controller)
         controller._irtt_correlation = 1.0
         controller._dl_cake_snapshot = self._make_snapshot(max_delay_delta_us=1000)
@@ -3563,9 +3741,7 @@ class TestPhase195Confidence:
         assert controller._last_rtt_direction == "worsening"
         assert controller._last_rtt_confidence == pytest.approx(1.0)
 
-    def test_phase195_protocol_disagreement_caps_cycle_confidence(
-        self, controller
-    ):
+    def test_phase195_protocol_disagreement_caps_cycle_confidence(self, controller):
         self._stub_assessment_io(controller)
 
         controller._irtt_correlation = 1.0
@@ -3619,11 +3795,11 @@ class TestPhase195Confidence:
         assert arb["rtt_confidence"] == pytest.approx(controller._last_rtt_confidence)
 
     def test_phase195_health_reports_none_before_cycle(self, controller):
-        assert controller.get_health_data()["signal_arbitration"]["rtt_confidence"] is None
+        assert (
+            controller.get_health_data()["signal_arbitration"]["rtt_confidence"] is None
+        )
 
-    def test_phase195_dl_classifier_inputs_stay_phase194_compatible(
-        self, controller
-    ):
+    def test_phase195_dl_classifier_inputs_stay_phase194_compatible(self, controller):
         self._stub_assessment_io(controller)
         captured: list[tuple[str, int, str, str]] = []
 
@@ -3709,9 +3885,11 @@ class TestPhase195Confidence:
                     "YELLOW" if delta > controller.green_threshold else "GREEN",
                     int(classifier_load * 1_000_000),
                     "queue",
-                    "queue_distress"
-                    if delta > controller.green_threshold
-                    else "green_stable",
+                    (
+                        "queue_distress"
+                        if delta > controller.green_threshold
+                        else "green_stable"
+                    ),
                 )
             )
 
@@ -3983,7 +4161,9 @@ class TestRefractoryPeriod:
         controller._ul_cake_snapshot = None
 
         # Mock download.adjust_4state to simulate normal return
-        controller.download.adjust_4state = MagicMock(return_value=("GREEN", 800_000_000, None))
+        controller.download.adjust_4state = MagicMock(
+            return_value=("GREEN", 800_000_000, None)
+        )
         controller.upload.adjust = MagicMock(return_value=("GREEN", 40_000_000, None))
 
         # Simulate dwell bypass happening during adjust_4state
@@ -4001,7 +4181,9 @@ class TestRefractoryPeriod:
         controller._dl_cake_snapshot = self._make_snapshot()
         controller._ul_cake_snapshot = None
 
-        controller.download.adjust_4state = MagicMock(return_value=("GREEN", 800_000_000, None))
+        controller.download.adjust_4state = MagicMock(
+            return_value=("GREEN", 800_000_000, None)
+        )
         controller.upload.adjust = MagicMock(return_value=("GREEN", 40_000_000, None))
         controller.download._dwell_bypassed_this_cycle = False
         controller.upload._dwell_bypassed_this_cycle = False
@@ -4010,7 +4192,10 @@ class TestRefractoryPeriod:
 
         # DL should have been called with cake_snapshot=None (masked)
         call_kwargs = controller.download.adjust_4state.call_args
-        assert call_kwargs.kwargs.get("cake_snapshot") is None or call_kwargs[1].get("cake_snapshot") is None
+        assert (
+            call_kwargs.kwargs.get("cake_snapshot") is None
+            or call_kwargs[1].get("cake_snapshot") is None
+        )
 
     def test_refractory_decrements(self, controller):
         """Refractory counter decrements each cycle."""
@@ -4018,7 +4203,9 @@ class TestRefractoryPeriod:
         controller._dl_cake_snapshot = None
         controller._ul_cake_snapshot = None
 
-        controller.download.adjust_4state = MagicMock(return_value=("GREEN", 800_000_000, None))
+        controller.download.adjust_4state = MagicMock(
+            return_value=("GREEN", 800_000_000, None)
+        )
         controller.upload.adjust = MagicMock(return_value=("GREEN", 40_000_000, None))
         controller.download._dwell_bypassed_this_cycle = False
         controller.upload._dwell_bypassed_this_cycle = False
@@ -4034,7 +4221,9 @@ class TestRefractoryPeriod:
         controller._dl_cake_snapshot = snapshot
         controller._ul_cake_snapshot = None
 
-        controller.download.adjust_4state = MagicMock(return_value=("GREEN", 800_000_000, None))
+        controller.download.adjust_4state = MagicMock(
+            return_value=("GREEN", 800_000_000, None)
+        )
         controller.upload.adjust = MagicMock(return_value=("GREEN", 40_000_000, None))
         controller.download._dwell_bypassed_this_cycle = False
         controller.upload._dwell_bypassed_this_cycle = False
@@ -4043,7 +4232,9 @@ class TestRefractoryPeriod:
 
         # DL should have been called with the actual snapshot
         call_kwargs = controller.download.adjust_4state.call_args
-        passed_snapshot = call_kwargs.kwargs.get("cake_snapshot") or call_kwargs[1].get("cake_snapshot")
+        passed_snapshot = call_kwargs.kwargs.get("cake_snapshot") or call_kwargs[1].get(
+            "cake_snapshot"
+        )
         assert passed_snapshot is snapshot
 
     def test_dl_ul_refractory_independent(self, controller):
@@ -4054,7 +4245,9 @@ class TestRefractoryPeriod:
         controller._dl_cake_snapshot = snapshot
         controller._ul_cake_snapshot = snapshot
 
-        controller.download.adjust_4state = MagicMock(return_value=("GREEN", 800_000_000, None))
+        controller.download.adjust_4state = MagicMock(
+            return_value=("GREEN", 800_000_000, None)
+        )
         controller.upload.adjust = MagicMock(return_value=("GREEN", 40_000_000, None))
         controller.download._dwell_bypassed_this_cycle = False
         controller.upload._dwell_bypassed_this_cycle = False
@@ -4063,12 +4256,16 @@ class TestRefractoryPeriod:
 
         # DL should be masked (refractory > 0)
         dl_kwargs = controller.download.adjust_4state.call_args
-        dl_snap = dl_kwargs.kwargs.get("cake_snapshot") or dl_kwargs[1].get("cake_snapshot")
+        dl_snap = dl_kwargs.kwargs.get("cake_snapshot") or dl_kwargs[1].get(
+            "cake_snapshot"
+        )
         assert dl_snap is None
 
         # UL should pass the snapshot (refractory == 0)
         ul_kwargs = controller.upload.adjust.call_args
-        ul_snap = ul_kwargs.kwargs.get("cake_snapshot") or ul_kwargs[1].get("cake_snapshot")
+        ul_snap = ul_kwargs.kwargs.get("cake_snapshot") or ul_kwargs[1].get(
+            "cake_snapshot"
+        )
         assert ul_snap is snapshot
 
     def test_refractory_reset_on_disable(self, controller):
@@ -4100,10 +4297,14 @@ class TestRefractoryPeriod:
             controller.config.config_file_path = config_file
             # Bind real methods
             controller._parse_cake_signal_config = (
-                WANController._parse_cake_signal_config.__get__(controller, WANController)
+                WANController._parse_cake_signal_config.__get__(
+                    controller, WANController
+                )
             )
             controller._reload_cake_signal_config = (
-                WANController._reload_cake_signal_config.__get__(controller, WANController)
+                WANController._reload_cake_signal_config.__get__(
+                    controller, WANController
+                )
             )
 
             controller._reload_cake_signal_config()
@@ -4377,7 +4578,9 @@ class TestBurstDetection:
         assert controller._dl_burst_pending is False
         assert controller._dl_burst_reason is None
 
-    def test_run_spike_detection_latches_candidate_until_delta_corroborates(self, controller):
+    def test_run_spike_detection_latches_candidate_until_delta_corroborates(
+        self, controller
+    ):
         controller.previous_load_rtt = 20.0
         controller.load_rtt = 40.0
         controller.baseline_rtt = 25.0
@@ -4395,8 +4598,9 @@ class TestBurstDetection:
         assert controller._dl_burst_reason is not None
         assert controller._dl_burst_trigger_count == 1
 
-
-    def test_run_spike_detection_blocks_sustained_soft_red_burst_rearm(self, controller):
+    def test_run_spike_detection_blocks_sustained_soft_red_burst_rearm(
+        self, controller
+    ):
         controller.previous_load_rtt = 25.0
         controller.load_rtt = 42.5
         controller.baseline_rtt = 20.0
@@ -4440,7 +4644,9 @@ class TestBackgroundRttWiring:
 
         with (
             patch("wanctl.wan_controller.BackgroundRTTThread") as mock_thread_cls,
-            patch("wanctl.wan_controller.concurrent.futures.ThreadPoolExecutor") as mock_pool_cls,
+            patch(
+                "wanctl.wan_controller.concurrent.futures.ThreadPoolExecutor"
+            ) as mock_pool_cls,
         ):
             mock_thread = MagicMock()
             mock_thread_cls.return_value = mock_thread
@@ -4450,10 +4656,14 @@ class TestBackgroundRttWiring:
         _, pool_kwargs = mock_pool_cls.call_args
         _, kwargs = mock_thread_cls.call_args
         assert pool_kwargs["max_workers"] == max(3, len(controller.config.ping_hosts))
-        assert kwargs["cadence_sec"] == pytest.approx(BACKGROUND_RTT_MIN_CADENCE_SECONDS)
+        assert kwargs["cadence_sec"] == pytest.approx(
+            BACKGROUND_RTT_MIN_CADENCE_SECONDS
+        )
         mock_thread.start.assert_called_once()
 
-    def test_background_rtt_cadence_uses_controller_interval_when_slower(self, controller):
+    def test_background_rtt_cadence_uses_controller_interval_when_slower(
+        self, controller
+    ):
         """Controllers slower than the floor keep their own measurement cadence."""
         controller._cycle_interval_ms = 1000.0
 
@@ -4492,29 +4702,31 @@ class TestProtocolDeprioritizationFusionAwareCooldown:
         ctrl._irtt_thread = MagicMock()
         ctrl._irtt_thread.get_latest.return_value = MagicMock(rtt_mean_ms=24.0)
         ctrl._fusion_enabled = fusion_enabled
-        ctrl._fusion_healer = (
-            MagicMock(state=healer_state)
-            if healer_present
-            else None
-        )
+        ctrl._fusion_healer = MagicMock(state=healer_state) if healer_present else None
         return ctrl
 
     def _install_monotonic(self, monkeypatch, start):
         clock = {"now": float(start)}
-        monkeypatch.setattr("wanctl.wan_controller.time.monotonic", lambda: clock["now"])
+        monkeypatch.setattr(
+            "wanctl.wan_controller.time.monotonic", lambda: clock["now"]
+        )
         return clock
 
     def test_first_occurrence_emits_info_when_fusion_active(
         self, mock_autorate_config, monkeypatch
     ):
-        controller = self._make_controller(mock_autorate_config, healer_state=HealState.ACTIVE)
+        controller = self._make_controller(
+            mock_autorate_config, healer_state=HealState.ACTIVE
+        )
         clock = self._install_monotonic(monkeypatch, 100.0)
 
         controller._check_protocol_correlation(1.8)
 
         assert controller.logger.info.call_count == 1
         assert controller._irtt_deprioritization_logged is True
-        assert controller._irtt_deprioritization_last_transition_ts == pytest.approx(clock["now"])
+        assert controller._irtt_deprioritization_last_transition_ts == pytest.approx(
+            clock["now"]
+        )
 
     def test_first_occurrence_emits_info_when_fusion_suspended(
         self, mock_autorate_config, monkeypatch
@@ -4533,7 +4745,9 @@ class TestProtocolDeprioritizationFusionAwareCooldown:
     def test_normal_cooldown_5s_when_fusion_active(
         self, mock_autorate_config, monkeypatch
     ):
-        controller = self._make_controller(mock_autorate_config, healer_state=HealState.ACTIVE)
+        controller = self._make_controller(
+            mock_autorate_config, healer_state=HealState.ACTIVE
+        )
         clock = self._install_monotonic(monkeypatch, 100.0)
 
         controller._check_protocol_correlation(1.8)
@@ -4580,7 +4794,9 @@ class TestProtocolDeprioritizationFusionAwareCooldown:
     def test_recovery_path_uses_normal_cooldown_when_active(
         self, mock_autorate_config, monkeypatch
     ):
-        controller = self._make_controller(mock_autorate_config, healer_state=HealState.ACTIVE)
+        controller = self._make_controller(
+            mock_autorate_config, healer_state=HealState.ACTIVE
+        )
         clock = self._install_monotonic(monkeypatch, 100.0)
 
         controller._check_protocol_correlation(1.8)
@@ -4625,8 +4841,12 @@ class TestProtocolDeprioritizationFusionAwareCooldown:
         assert controller.logger.info.call_count == 1
         assert controller._irtt_deprioritization_logged is False
 
-    def test_fusion_transition_does_not_reset_latch(self, mock_autorate_config, monkeypatch):
-        controller = self._make_controller(mock_autorate_config, healer_state=HealState.ACTIVE)
+    def test_fusion_transition_does_not_reset_latch(
+        self, mock_autorate_config, monkeypatch
+    ):
+        controller = self._make_controller(
+            mock_autorate_config, healer_state=HealState.ACTIVE
+        )
         clock = self._install_monotonic(monkeypatch, 100.0)
 
         controller._check_protocol_correlation(1.8)
@@ -4640,14 +4860,18 @@ class TestProtocolDeprioritizationFusionAwareCooldown:
         assert controller.logger.info.call_count == 0
 
     def test_fusion_state_transitions_never_mutate_latch(self, mock_autorate_config):
-        controller = self._make_controller(mock_autorate_config, healer_state=HealState.ACTIVE)
+        controller = self._make_controller(
+            mock_autorate_config, healer_state=HealState.ACTIVE
+        )
         controller._irtt_deprioritization_logged = True
 
         for state in [HealState.SUSPENDED, HealState.RECOVERING, HealState.ACTIVE]:
             controller._fusion_healer.state = state
             assert controller._irtt_deprioritization_logged is True
 
-    def test_none_healer_treated_as_not_actionable(self, mock_autorate_config, monkeypatch):
+    def test_none_healer_treated_as_not_actionable(
+        self, mock_autorate_config, monkeypatch
+    ):
         controller = self._make_controller(
             mock_autorate_config,
             healer_present=False,
@@ -4680,7 +4904,9 @@ class TestProtocolDeprioritizationFusionAwareCooldown:
         assert controller.logger.info.call_count == 0
         assert controller.logger.debug.call_count == 1
 
-    def test_healer_recovering_treated_as_actionable(self, mock_autorate_config, monkeypatch):
+    def test_healer_recovering_treated_as_actionable(
+        self, mock_autorate_config, monkeypatch
+    ):
         controller = self._make_controller(
             mock_autorate_config,
             healer_state=HealState.RECOVERING,
@@ -4705,7 +4931,9 @@ class TestZeroSuccessCycle:
         wc.wan_name = "spectrum"
         wc.logger = MagicMock()
         wc._reflector_scorer = MagicMock()
-        wc._should_skip_scorer_update = lambda cycle_status: cycle_status.successful_count == 0
+        wc._should_skip_scorer_update = (
+            lambda cycle_status: cycle_status.successful_count == 0
+        )
         wc._rtt_thread = MagicMock(spec=BackgroundRTTThread)
         wc._persist_reflector_events = MagicMock()
         wc._last_raw_rtt = None
@@ -4803,7 +5031,9 @@ class TestZeroSuccessCycle:
         assert kwargs["timestamp"] == cached_ts
         assert kwargs["rtt_ms"] == 11.0
 
-    def test_zero_success_does_not_invoke_handle_icmp_failure(self, mock_wan_controller):
+    def test_zero_success_does_not_invoke_handle_icmp_failure(
+        self, mock_wan_controller
+    ):
         """SAFE-02: zero-success cycle does not escalate into ICMP fallback."""
         from wanctl.wan_controller import WANController
 
@@ -4876,7 +5106,9 @@ class TestZeroSuccessCycle:
 
         assert mock_wan_controller._reflector_scorer.record_results.call_count == 0
 
-    def test_zero_success_log_is_rate_limited_during_blackout(self, mock_wan_controller):
+    def test_zero_success_log_is_rate_limited_during_blackout(
+        self, mock_wan_controller
+    ):
         """Repeated zero-success cycles should not spam warning logs every controller cycle."""
         from wanctl.wan_controller import WANController
 
@@ -4897,7 +5129,10 @@ class TestZeroSuccessCycle:
         mock_wan_controller._rtt_thread.get_latest.return_value = snap
         mock_wan_controller._rtt_thread.get_cycle_status.return_value = status
 
-        with patch("wanctl.wan_controller.time.monotonic", side_effect=[101.0, 101.0, 101.2, 101.2]):
+        with patch(
+            "wanctl.wan_controller.time.monotonic",
+            side_effect=[101.0, 101.0, 101.2, 101.2],
+        ):
             WANController.measure_rtt(mock_wan_controller)
             WANController.measure_rtt(mock_wan_controller)
 
@@ -4929,9 +5164,15 @@ class TestZeroSuccessCycle:
             cycle_timestamp=102.0,
         )
         mock_wan_controller._rtt_thread.get_latest.return_value = snap
-        mock_wan_controller._rtt_thread.get_cycle_status.side_effect = [zero_status, ok_status]
+        mock_wan_controller._rtt_thread.get_cycle_status.side_effect = [
+            zero_status,
+            ok_status,
+        ]
 
-        with patch("wanctl.wan_controller.time.monotonic", side_effect=[101.0, 101.0, 102.5, 102.5]):
+        with patch(
+            "wanctl.wan_controller.time.monotonic",
+            side_effect=[101.0, 101.0, 102.5, 102.5],
+        ):
             WANController.measure_rtt(mock_wan_controller)
             WANController.measure_rtt(mock_wan_controller)
 
@@ -4980,11 +5221,17 @@ class TestReflectorScorerBlackoutGate:
 
     @staticmethod
     def _window_lengths(controller):
-        return {host: len(controller._reflector_scorer._windows[host]) for host in ["h1", "h2", "h3"]}
+        return {
+            host: len(controller._reflector_scorer._windows[host])
+            for host in ["h1", "h2", "h3"]
+        }
 
     @staticmethod
     def _success_counts(controller):
-        return {host: controller._reflector_scorer._success_counts[host] for host in ["h1", "h2", "h3"]}
+        return {
+            host: controller._reflector_scorer._success_counts[host]
+            for host in ["h1", "h2", "h3"]
+        }
 
     def test_zero_success_cycle_skips_reflector_scorer_update(self, controller):
         snapshot = RTTSnapshot(
@@ -5075,7 +5322,9 @@ class TestReflectorScorerBlackoutGate:
         for host in ["h1", "h2", "h3"]:
             assert after_lengths[host] == before_lengths[host] + 1
 
-    def test_zero_success_cycle_still_drains_pending_scorer_events(self, controller, tmp_path):
+    def test_zero_success_cycle_still_drains_pending_scorer_events(
+        self, controller, tmp_path
+    ):
         MetricsWriter._reset_instance()
         controller._metrics_writer = MetricsWriter(tmp_path / "reflector-events.db")
         controller._io_worker = None
