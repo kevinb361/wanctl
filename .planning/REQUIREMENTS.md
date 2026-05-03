@@ -3,9 +3,40 @@
 **Core Value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
 **Active Milestones:**
+- **v1.41 Per-Direction Control Surfaces** — current active work (defined 2026-05-03)
 - **v1.39 Control-Path Timing & Measurement Accounting** — in closure; Phase 191 ATT weather-rerun + Phase 192 closeout soak remain
 
 **Recently Archived:** v1.40 Queue-Primary Signal Arbitration (shipped 2026-05-03 — see `.planning/milestones/v1.40-REQUIREMENTS.md`).
+
+---
+
+## v1.41 Requirements (defined 2026-05-03)
+
+### Signal Arbitration (ARB)
+
+- [ ] **ARB-05**: When `continuous_monitoring.upload.target_bloat_ms` and/or `continuous_monitoring.upload.warn_bloat_ms` are present in the deployment YAML, the legacy 3-state UL distress classifier consumes those values as the UL RTT bloat thresholds independent of the DL 4-state thresholds. When the keys are absent, UL falls back to the DL globals byte-identically (preserves all non-Spectrum deployments). Per-key explicit-presence flags gate live-tuning writes (`_apply_threshold_param` cannot silently overwrite UL thresholds when an operator pushes a global tuning update).
+
+### Control Safety (SAFE)
+
+- [ ] **SAFE-06**: The autorate config validator rejects (or emits an audible WARNING log entry on every startup) any unknown `continuous_monitoring.*` key. Silent-ignore is forbidden. This closes the v1.40-era gap where `/etc/wanctl/spectrum.yaml` carried 4 unrecognized keys for 3 days without a single warning, leaving production half-shipped.
+
+### Verification (VALN)
+
+- [ ] **VALN-06**: Spectrum UL saturation gate — a 10–15 min `iperf3 -P4` saturated upload loop at the deployed UL ceiling does not collapse to the UL floor in any cycle. Verified pre/post idle baselines bookend the run. This is the deploy-gate acceptance test; it must pass before the binary is promoted to `/opt/wanctl`. A 24-hour Spectrum regression soak runs after as a watchdog, not as the verdict.
+
+### Documentation (DOCS)
+
+- [ ] **DOCS-03**: `CHANGELOG.md` and `docs/CONFIGURATION.md` document the new optional UL threshold keys (`continuous_monitoring.upload.target_bloat_ms`, `continuous_monitoring.upload.warn_bloat_ms`) and explicitly note that SIGUSR1 does **not** reload these keys — a service restart is required after changing them. Verified against `wan_controller.py` SIGUSR1 reload scope (lines ~1894–1899: dwell/deadband only).
+
+### v1.41 Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Per-direction DL state-machine threshold split | DL is healthy; v1.41 is UL-only. DL stays governed by the v1.40 4-state path. |
+| New `/health` per-direction telemetry block | UL behavior is already observable via the existing `/health` upload state and CAKE peak-delay surfaces. Adding a new block would be premature. |
+| Refactoring `initialize_cake` complexity (C901 noqa) | Control-path refactor risk under "stability > safety > clarity" rule. The function is correct; the `noqa: C901` was the right call in v1.40 cleanup. |
+| Coverage push back over 90% | Pre-existing v1.40 debt at 89.64%. v1.41's new tests will likely cross 90% naturally; if they don't, that's a separate cleanup phase. |
+| ATT cake-primary canary (VALN-05b) | Inherited cross-milestone deferral from v1.40. Still gated on v1.39 Phase 191 closure. Tracks `.planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md`. |
 
 ---
 
@@ -67,6 +98,16 @@
 | VALN-02 | Phase 191 + Phase 192 | Complete |
 | VALN-03 | Phase 192 closeout soak | Pending |
 
+### v1.41
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| ARB-05  | Phase 200 | Pending |
+| SAFE-06 | Phase 200 | Pending |
+| VALN-06 | Phase 200 | Pending |
+| DOCS-03 | Phase 200 | Pending |
+
 ---
 *v1.39 requirements defined: 2026-04-20*
 *v1.40 archived: 2026-05-03 (see `.planning/milestones/v1.40-REQUIREMENTS.md`)*
+*v1.41 requirements defined: 2026-05-03*
