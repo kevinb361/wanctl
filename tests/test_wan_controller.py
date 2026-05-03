@@ -158,6 +158,69 @@ class TestHandleIcmpFailure:
         assert controller.target_delta == 42.0  # protected (explicit)
         assert controller.warn_delta == 99.0  # tunable (NOT explicit)
 
+    def test_upload_thresholds_ordering_invariant_holds_after_live_tuning(
+        self, mock_config, mock_router, mock_rtt_measurement, mock_logger
+    ):
+        """Phase 200 D-03: live-tuning of an unprotected UL threshold field
+        cannot invert the target<warn ordering against the protected field.
+        Codex stop-hook caught that per-key gates alone allow this case.
+        """
+        from wanctl.wan_controller import WANController, _apply_threshold_param
+
+        # Config A: target explicit (=42), warn implicit (=45 from global).
+        # Live-tuner tries to push warn down to 30 (would create 42 >= 30).
+        mock_config.target_bloat_ms = 15.0
+        mock_config.warn_bloat_ms = 45.0
+        mock_config.upload_target_bloat_ms = 42.0
+        mock_config.upload_warn_bloat_ms = 45.0
+        mock_config._upload_target_bloat_ms_explicit = True
+        mock_config._upload_warn_bloat_ms_explicit = False
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_config,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+
+        # Tuner attempts warn_bloat_ms=30 — would invert ordering (30 < 42).
+        _apply_threshold_param(controller, "warn_bloat_ms", 30.0)
+        assert controller.target_delta == 42.0  # protected
+        assert controller.warn_delta == 45.0  # ordering guard rejected 30
+        assert controller.target_delta < controller.warn_delta
+
+        # Tuner attempts warn_bloat_ms=80 — valid (80 > 42), accepted.
+        _apply_threshold_param(controller, "warn_bloat_ms", 80.0)
+        assert controller.warn_delta == 80.0
+        assert controller.target_delta < controller.warn_delta
+
+        # Symmetric case: target implicit, warn explicit; tuner pushes
+        # target above warn.
+        mock_config2 = type(mock_config)()
+        for attr in vars(mock_config):
+            setattr(mock_config2, attr, getattr(mock_config, attr))
+        mock_config2.upload_target_bloat_ms = 15.0  # falls back to global
+        mock_config2.upload_warn_bloat_ms = 105.0
+        mock_config2._upload_target_bloat_ms_explicit = False
+        mock_config2._upload_warn_bloat_ms_explicit = True
+
+        with patch.object(WANController, "load_state"):
+            controller2 = WANController(
+                wan_name="TestWAN2",
+                config=mock_config2,
+                router=mock_router,
+                rtt_measurement=mock_rtt_measurement,
+                logger=mock_logger,
+            )
+
+        # Tuner attempts target_bloat_ms=200 — would invert (200 > 105).
+        _apply_threshold_param(controller2, "target_bloat_ms", 200.0)
+        assert controller2.warn_delta == 105.0  # protected
+        assert controller2.target_delta == 15.0  # ordering guard rejected 200
+        assert controller2.target_delta < controller2.warn_delta
+
     # =========================================================================
     # graceful_degradation mode tests
     # =========================================================================
