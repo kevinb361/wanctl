@@ -179,7 +179,9 @@ class RouterOSREST:
             logger=logger,
         )
 
-    @retry_with_backoff(max_attempts=2, initial_delay=0.05, backoff_factor=1.0, max_delay=0.1)
+    @retry_with_backoff(
+        max_attempts=2, initial_delay=0.05, backoff_factor=1.0, max_delay=0.1
+    )
     def run_cmd(
         self, cmd: str, capture: bool = False, timeout: int | None = None
     ) -> tuple[int, str, str]:
@@ -225,7 +227,9 @@ class RouterOSREST:
             self.logger.error(f"Unexpected error: {e}")
             return 1, "", str(e)
 
-    def _execute_command(self, cmd: str, timeout: int | None = None) -> dict[str, Any] | None:
+    def _execute_command(
+        self, cmd: str, timeout: int | None = None
+    ) -> dict[str, Any] | list[dict[str, Any]] | None:
         """Parse CLI command and execute via REST API.
 
         Supports common queue tree operations:
@@ -255,7 +259,7 @@ class RouterOSREST:
 
     def _execute_single_command(
         self, cmd: str, timeout: int | None = None
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, Any] | list[dict[str, Any]] | None:
         """Execute a single CLI command via REST API.
 
         Args:
@@ -337,7 +341,9 @@ class RouterOSREST:
 
         return params
 
-    def _handle_queue_tree_set(self, cmd: str, timeout: int | None = None) -> dict | None:
+    def _handle_queue_tree_set(
+        self, cmd: str, timeout: int | None = None
+    ) -> dict | None:
         """Handle /queue tree set command.
 
         Example: /queue tree set [find name="WAN-Download"] queue=cake-down max-limit=500000000
@@ -388,7 +394,9 @@ class RouterOSREST:
             self.logger.error(f"REST API error updating queue: {e}")
             return None
 
-    def _handle_queue_reset_counters(self, cmd: str, timeout: int | None = None) -> dict | None:
+    def _handle_queue_reset_counters(
+        self, cmd: str, timeout: int | None = None
+    ) -> dict | None:
         """Handle /queue tree reset-counters command.
 
         Example: /queue tree reset-counters [find name="WAN-Download"]
@@ -426,7 +434,9 @@ class RouterOSREST:
 
         try:
             # RouterOS REST API expects .id parameter for the target
-            resp = self._request("POST", url, json={".id": queue_id}, timeout=timeout_val)
+            resp = self._request(
+                "POST", url, json={".id": queue_id}, timeout=timeout_val
+            )
 
             if resp.ok:
                 self.logger.debug(f"Reset counters for queue {queue_name}")
@@ -440,7 +450,9 @@ class RouterOSREST:
             self.logger.error(f"REST API error resetting counters: {e}")
             return None
 
-    def _handle_queue_tree_print(self, cmd: str, timeout: int | None = None) -> dict | None:
+    def _handle_queue_tree_print(
+        self, cmd: str, timeout: int | None = None
+    ) -> dict | None:
         """Handle /queue tree print command.
 
         Args:
@@ -510,7 +522,9 @@ class RouterOSREST:
         url = f"{self.base_url}/ip/firewall/mangle/{rule_id}"
 
         try:
-            resp = self._request("PATCH", url, json={"disabled": disabled}, timeout=timeout_val)
+            resp = self._request(
+                "PATCH", url, json={"disabled": disabled}, timeout=timeout_val
+            )
 
             if resp.ok:
                 self.logger.debug(f"Mangle rule '{comment}' disabled={disabled}")
@@ -522,7 +536,9 @@ class RouterOSREST:
             self.logger.error(f"REST API error: {e}")
             return None
 
-    def _handle_mangle_print(self, cmd: str, timeout: int | None = None) -> list[dict[str, Any]] | None:
+    def _handle_mangle_print(
+        self, cmd: str, timeout: int | None = None
+    ) -> list[dict[str, Any]] | None:
         """Handle /ip firewall mangle print commands."""
         timeout_val = timeout if timeout is not None else self.timeout
         url = f"{self.base_url}/ip/firewall/mangle"
@@ -544,7 +560,12 @@ class RouterOSREST:
                 comment = item.get("comment")
                 if not isinstance(comment, str):
                     continue
-                if regex_match and comment_filter in comment or not regex_match and comment == comment_filter:
+                if (
+                    regex_match
+                    and comment_filter in comment
+                    or not regex_match
+                    and comment == comment_filter
+                ):
                     matched.append(item)
             return matched
 
@@ -581,13 +602,17 @@ class RouterOSREST:
 
         # Check cache first
         if use_cache and filter_value in cache:
-            self.logger.debug(f"Resource ID cache hit: {filter_value} -> {cache[filter_value]}")
+            self.logger.debug(
+                f"Resource ID cache hit: {filter_value} -> {cache[filter_value]}"
+            )
             return cache[filter_value]
 
         url = f"{self.base_url}/{endpoint}"
 
         try:
-            resp = self._request("GET", url, params={filter_key: filter_value}, timeout=timeout_val)
+            resp = self._request(
+                "GET", url, params={filter_key: filter_value}, timeout=timeout_val
+            )
 
             if resp.ok and resp.json():
                 items = resp.json()
@@ -596,7 +621,9 @@ class RouterOSREST:
                     # Cache the result
                     if resource_id and use_cache:
                         cache[filter_value] = resource_id
-                        self.logger.debug(f"Resource ID cached: {filter_value} -> {resource_id}")
+                        self.logger.debug(
+                            f"Resource ID cached: {filter_value} -> {resource_id}"
+                        )
                     return resource_id  # type: ignore[no-any-return]
 
             # RouterOS REST filtering is not fully reliable for some literal
@@ -718,7 +745,9 @@ class RouterOSREST:
         url = f"{self.base_url}/queue/tree"
 
         try:
-            resp = self._request("GET", url, params={"name": queue_name}, timeout=self.timeout)
+            resp = self._request(
+                "GET", url, params={"name": queue_name}, timeout=self.timeout
+            )
 
             if resp.ok and resp.json():
                 items = resp.json()
@@ -748,7 +777,9 @@ class RouterOSREST:
         url = f"{self.base_url}/queue/type"
 
         try:
-            resp = self._request("GET", url, params={"name": type_name}, timeout=self.timeout)
+            resp = self._request(
+                "GET", url, params={"name": type_name}, timeout=self.timeout
+            )
 
             if resp.ok and resp.json():
                 items = resp.json()
@@ -781,7 +812,9 @@ class RouterOSREST:
         # Find the queue type ID via GET /queue/type?name=...
         url = f"{self.base_url}/queue/type"
         try:
-            resp = self._request("GET", url, params={"name": type_name}, timeout=self.timeout)
+            resp = self._request(
+                "GET", url, params={"name": type_name}, timeout=self.timeout
+            )
             if not resp.ok or not resp.json():
                 self.logger.error(f"Queue type not found: {type_name}")
                 return False

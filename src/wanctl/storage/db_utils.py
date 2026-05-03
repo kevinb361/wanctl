@@ -23,8 +23,9 @@ Deployment atomicity assumption:
 
 import logging
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Any
 
 from wanctl.storage.writer import DEFAULT_DB_PATH
 
@@ -58,8 +59,8 @@ def discover_wan_dbs(db_dir: Path | None = None) -> list[Path]:
 
 def query_all_wans(
     query_fn: Callable[..., list[dict]],
-    db_paths: list[Path] | None = None,
-    **kwargs,
+    db_paths: Sequence[Path] | None = None,
+    **kwargs: Any,
 ) -> QueryAllWansResult:
     """Run a read-only query against each database and merge the rows."""
     paths = db_paths if db_paths is not None else discover_wan_dbs()
@@ -74,4 +75,6 @@ def query_all_wans(
             logger.warning("Failed to query %s, skipping: %s", db_path.name, exc)
 
     results.sort(key=lambda row: row.get("timestamp", 0))
-    return QueryAllWansResult(results, all_failed=bool(paths) and failures == len(paths))
+    return QueryAllWansResult(
+        results, all_failed=bool(paths) and failures == len(paths)
+    )
