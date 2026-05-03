@@ -67,9 +67,12 @@ continuous_monitoring:
   # Upload parameters (Phase 2A: unchanged, 3-state)
   upload:
     floor_mbps: 8 # Keeps upstream from going too conservative
-    ceiling_mbps: 28 # Silicom Spectrum validation 2026-04-28; 32Mbps caused loaded-latency spikes
+    ceiling_mbps: 18 # Latency-first gaming-server soak 2026-04-29; stopped-controller sweep had best p95/p99 at 18Mbit
     step_up_mbps: 5 # Phase 135 validated 2026-04-03 (was 1, +17.6% UL throughput)
     factor_down: 0.90 # Phase 135 validated 2026-04-03 (was 0.85, gentler decay wins on UL)
+    factor_down_yellow: 0.98 # 2026-04-29 upload A/B: gentler YELLOW decay than default 0.94 without fully holding at 1.0
+    target_bloat_ms: 42 # 2026-04-29 UL-only fix: static 18M OK, shared 15ms target caused live-controller floor oscillation
+    warn_bloat_ms: 105 # UL-only 3-state RED threshold; keep DL global thresholds unchanged
     green_required: 3 # linux-cake confirmed 2026-04-02 (unchanged from REST)
 
   # RTT thresholds (Phase 2A: 4-state for download)
