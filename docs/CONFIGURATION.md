@@ -168,6 +168,59 @@ Tune based on your baseline RTT:
 
 Lower values = more aggressive response.
 
+## Per-Direction Upload Thresholds (v1.41+)
+
+The legacy 3-state upload controller normally shares the same RTT bloat thresholds
+as the 4-state download controller: `continuous_monitoring.thresholds.target_bloat_ms`
+(default 15 ms) and `continuous_monitoring.thresholds.warn_bloat_ms` (default 45 ms).
+
+On deployments where upload saturation under DL-shared thresholds causes the
+upload controller to oscillate between ceiling and floor (Spectrum cable production
+pattern observed 2026-04-29: 31 UL hysteresis suppressions per 60 s with DL=0),
+you can override the upload thresholds independently:
+
+- `continuous_monitoring.upload.target_bloat_ms`
+- `continuous_monitoring.upload.warn_bloat_ms`
+
+```yaml
+continuous_monitoring:
+  upload:
+    # Existing keys preserved; new optional keys below.
+    target_bloat_ms: 42   # GREEN -> YELLOW (UL-only)
+    warn_bloat_ms: 105    # YELLOW -> RED   (UL-only)
+```
+
+Bounds:
+
+- `target_bloat_ms`: 1-200 ms
+- `warn_bloat_ms`: 1-250 ms
+- Ordering: `target_bloat_ms` MUST be strictly less than `warn_bloat_ms`
+  (validated at config load; `Config(...)` raises `ValueError` if violated)
+
+When both keys are absent, upload thresholds fall back to the global thresholds
+byte-identically — non-Spectrum deployments are unaffected.
+
+### Migration note: service restart required (NOT SIGUSR1)
+
+The `target_bloat_ms` and `warn_bloat_ms` keys under `continuous_monitoring.upload`
+are loaded only at daemon startup (`Config.__init__`). The SIGUSR1 hot-reload
+handlers cover only `dwell_cycles`, `deadband_ms`, fusion settings, tuning
+settings, and CAKE-signal settings — they do NOT pick up changes to these
+upload-threshold keys. In `src/wanctl/wan_controller.py`, the SIGUSR1 reload
+scope is the hot-reload chain (`_reload_all_hot_reloadable_config_sections`) and
+`_reload_hysteresis_config` reloads only dwell/deadband-style hysteresis fields;
+the v1.41 upload-threshold keys are initialized once at startup.
+
+To change UL thresholds in production:
+
+1. Edit `/etc/wanctl/<wan>.yaml`
+2. Run `sudo systemctl restart wanctl@<wan>.service`
+3. Verify via `curl -s http://127.0.0.1:9101/health | jq` (the daemon will load
+   the new values; live-tuner cannot silently overwrite them — per-key presence
+   flags gate writes when the keys are explicitly set in YAML)
+
+Sending SIGUSR1 alone will NOT apply changes to these keys.
+
 ### EWMA Time Constants
 
 - baseline_time_constant_sec (2.5-5.0): Higher = slower baseline tracking

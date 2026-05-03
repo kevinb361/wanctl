@@ -5,6 +5,46 @@ All notable changes to wanctl are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.41.0] - 2026-05-03
+
+### Added
+
+- Optional per-direction RTT bloat thresholds for the legacy 3-state upload
+  controller: `continuous_monitoring.upload.target_bloat_ms` (1-200 ms) and
+  `continuous_monitoring.upload.warn_bloat_ms` (1-250 ms). When absent,
+  upload behavior is byte-identical with v1.40 (DL globals shared as before).
+  When present, the live-tuner cannot silently overwrite operator-explicit
+  UL thresholds — per-key presence flags gate writes to `target_delta` and
+  `warn_delta` independently. Phase 200, ARB-05, D-03.
+- Startup-time WARNING log emission for any unknown `continuous_monitoring.*`
+  key in the deployment YAML. Closes the v1.40 silent-ignore gap that
+  allowed prod `/etc/wanctl/spectrum.yaml` to carry 4 unrecognized UL keys
+  for 3 days. SAFE-06, D-08.
+- `tests/test_wan_controller.py::test_upload_thresholds_explicit_when_value_equal_to_global`
+  and `test_upload_thresholds_explicit_per_key_independence` — D-03 invariant tests.
+- `tests/test_autorate_config.py::TestSafe06UnknownKeyWarning` — SAFE-06 regression test.
+
+### Changed
+
+- `configs/spectrum.yaml` upload section adopts D-05 latency-first gaming-server
+  soak settings: `ceiling_mbps: 28 → 18`, `factor_down_yellow: 0.98`,
+  `target_bloat_ms: 42` (new), `warn_bloat_ms: 105` (new). Operator evidence
+  trail in `.planning/spectrum-{upload-ceiling,lower-ceiling,inline-native-18-upload}-2026-04-29.md`.
+- `tests/test_phase_195_replay.py::test_safe05_threshold_name_counts_are_unchanged`
+  bumps `warn_bloat` and `target_bloat` expected counts to reflect the v1.41
+  per-direction wiring. v1.40 SAFE-05 pin is intentionally superseded; the
+  other 7 pinned counts remain unchanged. ARB-05, D-09.
+
+### Migration
+
+- **Service restart required for new keys.** The new `continuous_monitoring.upload.target_bloat_ms`
+  and `continuous_monitoring.upload.warn_bloat_ms` keys load only at `Config.__init__`
+  time. SIGUSR1 hot-reload handlers (`_reload_hysteresis_config`,
+  `_reload_fusion_config`, `_reload_tuning_config`, `_reload_cake_signal_config`)
+  do NOT pick up changes to these keys. Operators changing UL thresholds in YAML
+  must run `sudo systemctl restart wanctl@<wan>.service` for the change to take
+  effect. DOCS-03, D-12.
+
 ## [Unreleased]
 
 ### Added
