@@ -121,7 +121,7 @@ Phase 191 ships before Phase 192 because the timing change affects *both* WANs s
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 200 | Per-Direction RTT Bloat Thresholds (Spectrum UL Saturation Containment) | 7/8 | In Progress|  |
+| 200 | Per-Direction RTT Bloat Thresholds (Spectrum UL Saturation Containment) | 8/8 | Blocked — VALN-06 canary failed; rollback executed |  |
 
 ---
 
@@ -160,7 +160,7 @@ Phase 191 ships before Phase 192 because the timing change affects *both* WANs s
 4. The 24h Spectrum UL regression soak after canary passes shows UL hysteresis suppression rate drops below 5/60s on average (down from the current 31/60s degraded state).
 5. CHANGELOG.md and `docs/CONFIGURATION.md` carry the migration note specifying that the new keys require a service restart to take effect (SIGUSR1 does not reload these). Verified by greps for the keys in both files.
 
-**Plans:** 7/8 plans executed
+**Plans:** 8/8 plans executed; phase blocked on VALN-06 after failed saturation canary and D-10 rollback
 
 ---
 
