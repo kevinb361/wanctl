@@ -393,6 +393,62 @@ class TestLoadUploadThresholdConfig:
             Config(str(config_file))
 
 
+class TestSafe06UnknownKeyWarning:
+    """SAFE-06 (D-08): daemon must warn on unknown config keys at startup."""
+
+    def test_unknown_continuous_monitoring_key_warns(
+        self, base_config_yaml_single_floor, tmp_path, caplog
+    ):
+        """Synthetic unknown key produces a WARNING containing its path."""
+        unknown_key_yaml = base_config_yaml_single_floor.replace(
+            "    factor_down: 0.85\n  thresholds:",
+            "    factor_down: 0.85\n"
+            "    target_bloat_ms_typo: 42\n"
+            "  thresholds:",
+        )
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(unknown_key_yaml)
+
+        with caplog.at_level(logging.WARNING, logger="wanctl.autorate_config"):
+            Config(str(config_file))
+
+        unknown_warnings = [
+            rec
+            for rec in caplog.records
+            if rec.levelno == logging.WARNING and "target_bloat_ms_typo" in rec.getMessage()
+        ]
+        assert len(unknown_warnings) >= 1, (
+            f"Expected at least one WARNING for the synthetic unknown key, got: "
+            f"{[r.getMessage() for r in caplog.records]}"
+        )
+        assert any("unknown" in rec.getMessage().lower() for rec in unknown_warnings)
+
+    def test_known_continuous_monitoring_keys_do_not_warn(
+        self, base_config_yaml_single_floor, tmp_path, caplog
+    ):
+        """Valid YAML produces zero unknown-key WARNINGs."""
+        yaml_text = base_config_yaml_single_floor.replace(
+            "    factor_down: 0.85\n  thresholds:",
+            "    factor_down: 0.85\n"
+            "    target_bloat_ms: 42\n"
+            "    warn_bloat_ms: 105\n"
+            "  thresholds:",
+        )
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(yaml_text)
+
+        with caplog.at_level(logging.WARNING, logger="wanctl.autorate_config"):
+            Config(str(config_file))
+
+        unknown_warnings = [
+            rec for rec in caplog.records if "Unknown config key" in rec.getMessage()
+        ]
+        assert unknown_warnings == [], (
+            f"Expected zero unknown-key warnings, got: "
+            f"{[r.getMessage() for r in unknown_warnings]}"
+        )
+
+
 # =============================================================================
 # TestConfigCeilingAndSteps
 # =============================================================================
