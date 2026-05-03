@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: executing
-stopped_at: Completed 200-05-PLAN.md
-last_updated: "2026-05-03T18:38:06.309Z"
+stopped_at: "Phase 200 Plan 06 FAIL: saturation canary 20260503T215734Z verdict=fail (122 UL floor hits), D-10 rollback executed, Plan 07 blocked, gap-closure phase required (DOCSIS-aware UL control)"
+last_updated: "2026-05-03T22:14:37Z"
 last_activity: 2026-05-03
 progress:
   total_phases: 1
@@ -128,8 +128,8 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 200-05-PLAN.md
-Resume file: None
+Stopped at: Phase 200 Plan 06 outcome (FAIL) recorded in 200-DEPLOY-LOG.md and verdict.json; awaiting gap-closure phase planning
+Resume file: .planning/phases/200-per-direction-rtt-bloat-thresholds/200-DEPLOY-LOG.md
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
 ## Decisions
