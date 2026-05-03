@@ -28,8 +28,14 @@ Required env vars (set before running, e.g. via `source phase200-saturation-cana
   PHASE200_SPECTRUM_HEALTH_URL  /health endpoint (Spectrum).
   PHASE200_IPERF_TARGET         iperf3 server hostname or IP.
   PHASE200_IPERF_LOCAL_BIND     Local source IP that exits Spectrum.
-  PHASE200_UL_FLOOR_MBPS        Upload floor in Mbps (from spectrum.yaml).
-  PHASE200_UL_CEILING_MBPS      Upload ceiling in Mbps (from spectrum.yaml).
+  PHASE200_UL_FLOOR_MBPS        Upload floor in Mbps (declared expectation).
+  PHASE200_UL_CEILING_MBPS      Upload ceiling in Mbps (declared expectation).
+  PHASE200_REMOTE_YAML_SSH      user@host:/path/to/wan.yaml — preflight reads
+                                this and ABORTs if env values do not match
+                                the deployed continuous_monitoring.upload.{
+                                floor_mbps, ceiling_mbps}. Fail-closed against
+                                stale env values that would silently produce
+                                false-PASS verdicts.
 
 Optional overrides:
   PHASE200_LOAD_DURATION_SEC     Default 900 (15 min).
@@ -190,8 +196,16 @@ require_var PHASE200_IPERF_LOCAL_BIND
 # (current_rate_mbps, hysteresis, state) but not the YAML config (floor_mbps,
 # ceiling_mbps). Compare current_rate_mbps against PHASE200_UL_FLOOR_MBPS to
 # detect collapse-to-floor.
+#
+# Codex stop-time review (2026-05-03): env vars alone are not fail-closed —
+# stale env values silently produce false-PASS verdicts because the floor-
+# collapse selector compares current_rate_mbps against the wrong number.
+# Mitigation: PHASE200_REMOTE_YAML_SSH is now required; preflight SSHes to the
+# host, reads the deployed YAML, and ABORTs if env values disagree with the
+# real continuous_monitoring.upload.{floor_mbps, ceiling_mbps}.
 require_var PHASE200_UL_FLOOR_MBPS
 require_var PHASE200_UL_CEILING_MBPS
+require_var PHASE200_REMOTE_YAML_SSH
 
 require_command curl
 require_command jq
@@ -238,6 +252,50 @@ if ! fetch_health_sample | jq -e '
     write_abort_verdict "health_unreachable_or_shape_invalid"
     exit "$EXIT_ABORT"
 fi
+
+log_info "Preflight: cross-checking env floor/ceiling against deployed YAML at ${PHASE200_REMOTE_YAML_SSH}"
+# PHASE200_REMOTE_YAML_SSH is "user@host:/path/to/wan.yaml". Split on the first ':'.
+REMOTE_SSH_TARGET="${PHASE200_REMOTE_YAML_SSH%%:*}"
+REMOTE_YAML_PATH="${PHASE200_REMOTE_YAML_SSH#*:}"
+if [[ -z "$REMOTE_SSH_TARGET" || -z "$REMOTE_YAML_PATH" || "$REMOTE_SSH_TARGET" == "$PHASE200_REMOTE_YAML_SSH" ]]; then
+    log_abort "PHASE200_REMOTE_YAML_SSH must be 'user@host:/path/to/wan.yaml', got: ${PHASE200_REMOTE_YAML_SSH}"
+    write_abort_verdict "remote_yaml_ssh_malformed"
+    exit "$EXIT_ABORT"
+fi
+YAML_PROBE="$(ssh -o ConnectTimeout=10 -o BatchMode=no "$REMOTE_SSH_TARGET" "sudo cat ${REMOTE_YAML_PATH}" 2>/dev/null \
+    | python3 -c '
+import sys, json, yaml
+try:
+    d = yaml.safe_load(sys.stdin)
+    ul = d["continuous_monitoring"]["upload"]
+    print(json.dumps({"floor": ul["floor_mbps"], "ceiling": ul["ceiling_mbps"]}))
+except Exception as exc:
+    print(json.dumps({"error": str(exc)}))
+' 2>/dev/null)"
+if [[ -z "$YAML_PROBE" ]]; then
+    log_abort "Failed to read or parse ${REMOTE_YAML_PATH} via ssh ${REMOTE_SSH_TARGET}"
+    write_abort_verdict "remote_yaml_unreadable"
+    exit "$EXIT_ABORT"
+fi
+YAML_ERROR="$(printf '%s' "$YAML_PROBE" | jq -r '.error // empty')"
+if [[ -n "$YAML_ERROR" ]]; then
+    log_abort "Remote YAML parse error: ${YAML_ERROR}"
+    write_abort_verdict "remote_yaml_parse_error"
+    exit "$EXIT_ABORT"
+fi
+YAML_FLOOR="$(printf '%s' "$YAML_PROBE" | jq -r '.floor')"
+YAML_CEIL="$(printf '%s' "$YAML_PROBE" | jq -r '.ceiling')"
+if [[ "$YAML_FLOOR" != "$PHASE200_UL_FLOOR_MBPS" ]]; then
+    log_abort "PHASE200_UL_FLOOR_MBPS=${PHASE200_UL_FLOOR_MBPS} does not match deployed YAML floor_mbps=${YAML_FLOOR} at ${PHASE200_REMOTE_YAML_SSH}"
+    write_abort_verdict "env_yaml_floor_mismatch"
+    exit "$EXIT_ABORT"
+fi
+if [[ "$YAML_CEIL" != "$PHASE200_UL_CEILING_MBPS" ]]; then
+    log_abort "PHASE200_UL_CEILING_MBPS=${PHASE200_UL_CEILING_MBPS} does not match deployed YAML ceiling_mbps=${YAML_CEIL} at ${PHASE200_REMOTE_YAML_SSH}"
+    write_abort_verdict "env_yaml_ceiling_mismatch"
+    exit "$EXIT_ABORT"
+fi
+log_info "Preflight: env floor=${PHASE200_UL_FLOOR_MBPS} ceiling=${PHASE200_UL_CEILING_MBPS} match deployed YAML — gate is fail-closed against env drift"
 
 log_info "Preflight: checking iperf3 target reachability"
 if ! iperf3 -c "$PHASE200_IPERF_TARGET" -B "$PHASE200_IPERF_LOCAL_BIND" -t 1 -J >/dev/null 2>&1; then
