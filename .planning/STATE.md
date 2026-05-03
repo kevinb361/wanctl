@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.40
 milestone_name: Ordering Rationale
-status: completed
-stopped_at: Phase 199 context gathered
-last_updated: "2026-05-02T12:18:01.324Z"
-last_activity: 2026-05-02
+status: archived
+stopped_at: v1.40 milestone archived 2026-05-03
+last_updated: "2026-05-03T16:45:00Z"
+last_activity: 2026-05-03
 progress:
   total_phases: 10
   completed_phases: 10
@@ -21,17 +21,46 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 199 — obs-02-spec-impl-reconciliation
+**Current focus:** v1.40 archived 2026-05-03; v1.41 to be opened (Phase 200 — Per-Direction RTT Bloat Thresholds queued on working tree).
 
 ## Position
 
-**Milestone:** v1.40 Queue-Primary Signal Arbitration
-**Phase:** 199
-**Plan:** Not started
-**Status:** Phase 199 complete
-**Last activity:** 2026-05-02
+**Last shipped milestone:** v1.40 Ordering Rationale (archived 2026-05-03; verdict `tech_debt`)
+**Active parallel milestone:** v1.39 Control-Path Timing & Measurement Accounting (Phase 191 still open)
+**Next milestone:** v1.41 (to open via `/gsd-new-milestone`)
 
-Progress: [██████████] 100%
+Progress: v1.40 [██████████] 100% archived
+
+## Deferred Items
+
+Items acknowledged and deferred at v1.40 milestone close on 2026-05-03 (per audit-open snapshot):
+
+| Category | Item | Status |
+|----------|------|--------|
+| debug_sessions | knowledge-base | unknown |
+| quick_tasks | 001-rename-phase2b-to-confidence-based-steer | missing |
+| quick_tasks | 002-fix-health-version | missing |
+| quick_tasks | 003-remove-deprecated-sample-params | missing |
+| quick_tasks | 004-fix-socket-warnings | missing |
+| quick_tasks | 005-fix-watchdog-safe-startup-maintenance | missing |
+| quick_tasks | 260319-lk3-fix-state-file-persistence-and-tuning-pa | missing |
+| quick_tasks | 260320-9wi-update-readme-and-config-schema-docs-for | missing |
+| quick_tasks | 260327-uy3-add-spike-detector-confirmation-counter- | missing |
+| quick_tasks | 6-lan-accessible-health-endpoints-and-dual | missing |
+| quick_tasks | 7-fix-flapping-alert-bugs-rule-name-mismat | missing |
+| quick_tasks | 8-fix-flapping-alert-detection-cooldown-ke | missing |
+| threads | phase-196-queue-primary-refractory-semantics-investigation | in_progress |
+| todos | 2026-04-08-investigate-tcp-12down-latency-spikes | unknown |
+| todos | 2026-04-10-monitor-proxmox-steal-cpu | unknown |
+| todos | 2026-04-12-investigate-steering-cycle-overruns-and-blocking-i-o | unknown |
+| todos | 2026-04-15-profile-post-hotpath-baseline-on-production-wan | unknown |
+| todos | 2026-04-17-24h-soak-checkpoint-verification | unknown |
+| seeds | 001-spectrum-topology-correct-cake-mode | dormant |
+| uat_gaps | (2 items) | resolved |
+
+Most quick_tasks at status `missing` are legacy directory entries without metadata files (no live work). v1.41 should triage these via `/gsd-review-backlog`.
+
+The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is preserved in `.planning/todos/pending/` and tied to v1.40 VALN-05b deferral (cross-milestone gate on v1.39 Phase 191 closure).
 
 ## Parallel Milestone
 

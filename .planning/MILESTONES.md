@@ -1,5 +1,26 @@
 # Project Milestones: wanctl
 
+## v1.40 Ordering Rationale — Queue-Primary Signal Arbitration (Shipped: 2026-05-03)
+
+**Phases completed:** 7 phases (193–199), 28 plans, 30 SUMMARYs (Phase 198 had multiple attempts canonicalized at attempt 11)
+
+**Key accomplishments:**
+
+- Replaced RTT-primary DL congestion classification with kernel-local CAKE queue delay (`avg_delay_us - base_delay_us`) as the primary signal under load (ARB-01, MEAS-07), demoting RTT to a confidence-gated secondary scalar `rtt_confidence ∈ [0.0, 1.0]` (ARB-02).
+- Tightened the fusion healer bypass gate so single-path flips no longer destabilize the control path; bypass requires sustained queue + RTT distress for 6 consecutive cycles in agreeing direction (ARB-03).
+- Established the queue-primary refractory split: `dl_cake_for_detection` masked during 40-cycle refractory (preserving Phase 160 cascade safety) vs `dl_cake_for_arbitration` live during refractory (so primary classifier sees valid CAKE signal). Resolved Phase 196 Spectrum throughput regression root-caused to refractory masking forcing RTT fallback under legitimate queue-primary load.
+- Validated Spectrum cake-primary in production: Phase 198 Plan 06 attempt 11 throughput verdict `medians_above_532=3`, MoM 674.156379 Mbps (vs 532 Mbps acceptance threshold) — VALN-04 + VALN-05a closed; canonical `ab-comparison.json` with `comparison_verdict: pass` regenerated against Phase 196 A-leg control evidence.
+- Preserved UL byte-identity throughout (ARB-04, SAFE-05): the test pin `tests/test_phase_195_replay.py::test_safe05_threshold_name_counts_are_unchanged` confirms no threshold-name drift in `wan_controller.py` at v1.40 closure.
+- Closed the OBS-02 spec/impl/doc drift caveat docs-only in Phase 199: REQUIREMENTS.md, `docs/SUBSYSTEMS.md`, and `docs/RUNBOOK.md` now carry the absent-row semantic verbatim.
+
+**Closure verdict:** `tech_debt` — 9/9 actionable requirements satisfied. VALN-05b (ATT regression canary) deferred-by-design pending v1.39 Phase 191 closure (cross-milestone dependency). Pre-archive cleanup commits `58d2255` (lint + whitespace) and `b4ce583` (mypy) closed v1.40 hygiene debt that escaped Phase 199's docs-only verification.
+
+**Known deferred items at close:** 21 (1 debug session, 11 quick tasks, 1 thread, 5 todos, 1 seed, 2 UAT gaps) — see STATE.md `## Deferred Items`.
+
+**Tech debt acknowledged:** `make ci` coverage 89.64% (0.36% under 90% threshold), 9 vulture dead-code findings at 60% confidence, Nyquist VALIDATION.md gaps in phases 193 (by-design replay-equivalence) and 195 (production UAT substituted).
+
+---
+
 ## v1.38 Measurement Resilience Under Load (Shipped: 2026-04-15)
 
 **Phases completed:** 5 phases, 12 plans, 26 tasks
