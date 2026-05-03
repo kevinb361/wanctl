@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: executing
-stopped_at: Completed 200-04-PLAN.md
-last_updated: "2026-05-03T18:32:47.105Z"
+stopped_at: Completed 200-05-PLAN.md
+last_updated: "2026-05-03T18:38:06.309Z"
 last_activity: 2026-05-03
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 8
-  completed_plans: 4
-  percent: 50
+  completed_plans: 5
+  percent: 63
 ---
 
 # Session State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 **Active parallel milestone:** v1.39 Control-Path Timing & Measurement Accounting (Phase 191 still open)
 **Next milestone:** v1.41 (to open via `/gsd-new-milestone`)
 
-Progress: [█████░░░░░] 50%
+Progress: [██████░░░░] 63%
 
 ## Deferred Items
 
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 200-04-PLAN.md
+Stopped at: Completed 200-05-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -204,9 +204,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 200-04]: Applied D-05 by committing Spectrum D-05 upload settings in YAML while preserving the portable controller architecture (deployment-specific behavior remains in config).
 - [Phase 200-04]: Applied D-11 by aligning pyproject.toml, wanctl.__version__, and docker/Dockerfile on version 1.41.0.
 - [Phase 200-04]: Applied D-12/DOCS-03 by documenting that the new upload threshold keys are startup-only and require `systemctl restart wanctl@<wan>.service`; SIGUSR1 alone does not reload them.
+- [Phase 200-05]: Applied D-07 by adding a fail-closed Spectrum upload saturation canary as the primary Plan 06 deploy gate.
+- [Phase 200-05]: Applied D-10 by recording the v1.40 /opt/wanctl binary rollback protocol in verdict.json on pass, fail, and abort paths.
 
 ## Performance Metrics
 
+- 2026-05-03: Phase 200 Plan 05 completed in 2min across 1 task and 4 files; saturation canary script/env template/tracked evidence directory were created, smoke checks passed without production traffic, and the hot-path slice passed with 617 tests.
 - 2026-05-03: Phase 200 Plan 04 completed in 2min across 2 tasks and 7 files; version surfaces report 1.41.0, Spectrum YAML carries D-05 UL settings, changelog/docs cover restart-required migration guidance, and the hot-path slice passed with 617 tests.
 - 2026-05-03: Phase 200 Plan 03 completed in 3min across 1 TDD task and 3 source/test files; SAFE-06 startup warnings passed RED/GREEN tests, shipped Spectrum/ATT configs emitted zero unknown-key warnings, and the hot-path slice passed with 617 tests.
 - 2026-05-03: Phase 200 Plan 02 completed in 1min across 1 task and 2 files; SAFE-05 now pins v1.41 warn_bloat=12 and target_bloat=14, seven non-UL pins remained unchanged, phase replay passed with 25 tests, and the hot-path slice passed with 615 tests.
@@ -249,6 +252,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 200 (per-direction-rtt-bloat-thresholds) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Ready to execute
 Last activity: 2026-05-03
