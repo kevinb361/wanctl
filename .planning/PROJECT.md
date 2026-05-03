@@ -19,11 +19,22 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Latest:** v1.40 Ordering Rationale — DL distress classification now consumes kernel-local CAKE queue delay (`avg_delay_us - base_delay_us`) as the primary signal under load; RTT demoted to confidence-gated secondary; fusion healer bypass requires sustained queue + RTT distress for 6 cycles; Spectrum cake-primary recovers DOCSIS throughput (Phase 198 attempt 11: MoM 674 Mbps vs 532 acceptance); UL byte-identical to v1.39 (SAFE-05). OBS-02 spec/impl/doc lockstep closed in Phase 199.
 **Previous:** v1.38 Measurement Resilience Under Load — measurement degradation surfaced via machine-readable health signals, bounded stale-cache safety, operator guidance, and closed milestone traceability.
 
-## Next Milestone: v1.41 (to be opened)
+## Current Milestone: v1.41 Per-Direction Control Surfaces
 
-**Headline phase queued:** Phase 200 — Per-Direction RTT Bloat Thresholds (Spectrum UL Saturation Containment). Working-tree diff ready: 7 files, +125/-6 lines, all `make ci` clean except a known SAFE-05 pin update that will be part of Phase 200's `D-13` task. Codex pre-review surfaced one bug to fix in-phase (`_upload_thresholds_explicit` should be per-key presence-based, not value-derived).
+**Goal:** Decouple UL and DL control thresholds so latency-first UL configurations are possible on deployments where UL saturation under DL-shared thresholds causes oscillation. Headline phase resolves the Spectrum UL collapse-to-floor pattern observed in production 2026-04-29 (live UL hysteresis storm visible at 5 → 15 → 31 suppressions/60s while DL=0).
 
-Open via `/gsd-new-milestone` to formalize v1.41 theme and scope.
+**Target features:**
+- Per-direction (UL-specific) RTT bloat thresholds — `continuous_monitoring.upload.target_bloat_ms` / `warn_bloat_ms` keys, optional with global fallback
+- Validator hard-fail (or audible warn) on unknown `continuous_monitoring.*` keys — closes the silent-ignore "config-leads-code" gap that allowed prod /etc/wanctl/spectrum.yaml to carry 4 unrecognized keys for 3 days
+- Saturation canary as the deploy gate — 10–15 min `iperf3 -P4` saturated loop replaces 24h soak as primary acceptance test; soak runs after as regression watchdog
+- Restart-required migration documentation — SIGUSR1 does not reload these threshold keys
+
+**Key context:**
+- Phase 200 working-tree diff already drafted before milestone open (7 files, +125/-6) but contains a real bug Codex pre-review caught: `_upload_thresholds_explicit` is value-derived; must become per-key presence-based to handle the case where operator coincidentally sets UL thresholds equal to DL globals
+- Production is **currently degraded** waiting on the Phase 200 fix — `cake-shaper:/etc/wanctl/spectrum.yaml` carries the 4 new UL keys but `/opt/wanctl` Python doesn't recognize them, so the controller is using DL globals (15/45 ms) for UL and oscillating
+- Cross-milestone deferral inherited from v1.40: VALN-05b (ATT cake-primary canary) gated on v1.39 Phase 191 closure
+- Priority: stability > safety > clarity > elegance. Per-direction split is additive — non-Spectrum deployments (cable, ATT, fiber) remain byte-identical when the new keys are absent
+- Version bump: 1.41.0 across `pyproject.toml`, `src/wanctl/__init__.py`, `docker/Dockerfile`
 
 <details>
 <summary>Archived v1.40 milestone goals (collapsed for brevity)</summary>
