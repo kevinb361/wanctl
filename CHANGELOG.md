@@ -53,6 +53,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fix; preflight now requires only `current_rate_mbps`, and the floor-collapse selector
   compares against the env-supplied floor value. Env template
   (`scripts/phase200-saturation-canary.env.example`) and `--help` updated.
+- Spectrum alerting config: restored `congestion_flapping` severity field
+  (`severity: warning`) in `configs/spectrum.yaml`. Without this key, the alerting
+  validator (`autorate_config.py:707-713`) silently disabled all alerting rules at
+  config load. Bug introduced 2026-04-17 during the cooldown bump that did not
+  preserve severity; surfaced 2026-05-03 during Phase 200 deploy work because every
+  service restart emitted `alerting.rules.congestion_flapping missing required
+'severity'; disabling alerting`. Operators using pre-fix Spectrum YAML on production
+  should merge this key into their deployment and restart the service for alerting to
+  re-enable. Tracked separately as quick-task `260503-cfs-fix-spectrum-alerting-severity`.
 
 ### Migration
 
