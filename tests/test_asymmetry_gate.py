@@ -8,14 +8,13 @@ and SIGUSR1 hot-reload.
 from __future__ import annotations
 
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 import yaml
 
 from wanctl.asymmetry_analyzer import AsymmetryResult
 from wanctl.wan_controller import WANController
-
 
 # =============================================================================
 # Helpers
@@ -318,13 +317,16 @@ class TestAsymmetryGateConfigLoading:
 
     def test_valid_config_produces_correct_dict(self, tmp_path):
         """Valid YAML produces correct config dict."""
-        config = self._load(tmp_path, {
-            "enabled": True,
-            "damping_factor": 0.4,
-            "min_ratio": 2.5,
-            "confirm_readings": 5,
-            "staleness_sec": 60.0,
-        })
+        config = self._load(
+            tmp_path,
+            {
+                "enabled": True,
+                "damping_factor": 0.4,
+                "min_ratio": 2.5,
+                "confirm_readings": 5,
+                "staleness_sec": 60.0,
+            },
+        )
         gate = config.asymmetry_gate_config
         assert gate["enabled"] is True
         assert gate["damping_factor"] == pytest.approx(0.4)
@@ -473,7 +475,6 @@ class TestCongestionAssessmentIntegration:
         assert controller._asymmetry_gate_active is True
 
         # Mock upload.adjust to capture the load_rtt argument
-        original_adjust = controller.upload.adjust
         captured_args = {}
 
         def capture_adjust(baseline, load_rtt, target_delta, warn_delta, **kwargs):

@@ -104,7 +104,9 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             tc_timeout: Default timeout for subprocess tc fallback commands.
         """
         super().__init__(interface=interface, logger=logger, tc_timeout=tc_timeout)
-        self._ipr: Any = None  # IPRoute | None -- Any to avoid type errors when pyroute2 absent
+        self._ipr: Any = (
+            None  # IPRoute | None -- Any to avoid type errors when pyroute2 absent
+        )
         self._ifindex: int | None = None
         self._last_apply_started_monotonic: float | None = None
         self._last_apply_finished_monotonic: float | None = None
@@ -180,7 +182,9 @@ class NetlinkCakeBackend(LinuxCakeBackend):
         try:
             ipr = self._get_ipr()
             apply_start_mono = time.monotonic()
-            ipr.tc("change", kind="cake", index=self._ifindex, bandwidth=f"{rate_kbit}kbit")
+            ipr.tc(
+                "change", kind="cake", index=self._ifindex, bandwidth=f"{rate_kbit}kbit"
+            )
             apply_finish_mono = time.monotonic()
             self._last_bandwidth_bps = applied_rate_bps
             self._last_apply_started_monotonic = apply_start_mono
@@ -189,7 +193,9 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             self._last_write_elapsed_ms = (time.perf_counter() - start) * 1000.0
             self._last_write_skipped = False
             self._last_write_used_fallback = False
-            self.logger.debug("Netlink: set %s bandwidth to %skbit", self.interface, rate_kbit)
+            self.logger.debug(
+                "Netlink: set %s bandwidth to %skbit", self.interface, rate_kbit
+            )
             return True
         except (NetlinkError, OSError, ImportError) as e:
             apply_finish_mono = time.monotonic()
@@ -268,13 +274,17 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             self._reset_ipr()
             return super().get_queue_stats(queue)
 
-        result = self._parse_cake_msg(msgs, filter_ifindex=False)  # dump already filtered by index
+        result = self._parse_cake_msg(
+            msgs, filter_ifindex=False
+        )  # dump already filtered by index
         if result is None:
             self._reset_ipr()
             return super().get_queue_stats(queue)
         return result
 
-    def _parse_cake_msg(self, msgs: list, filter_ifindex: bool = True) -> dict[str, Any] | None:
+    def _parse_cake_msg(
+        self, msgs: list, filter_ifindex: bool = True
+    ) -> dict[str, Any] | None:
         """Parse CAKE stats from a tc dump message list for this interface.
 
         Finds the CAKE message matching this backend's ifindex and extracts
@@ -307,18 +317,40 @@ class NetlinkCakeBackend(LinuxCakeBackend):
         queue_stats = stats2.get_attr("TCA_STATS_QUEUE") or {}
 
         stats: dict[str, Any] = {
-            "packets": basic.get("packets", 0) if isinstance(basic, dict) else getattr(basic, "packets", 0),
-            "bytes": basic.get("bytes", 0) if isinstance(basic, dict) else getattr(basic, "bytes", 0),
-            "dropped": queue_stats.get("drops", 0) if isinstance(queue_stats, dict) else getattr(queue_stats, "drops", 0),
-            "queued_packets": queue_stats.get("qlen", 0) if isinstance(queue_stats, dict) else getattr(queue_stats, "qlen", 0),
-            "queued_bytes": queue_stats.get("backlog", 0) if isinstance(queue_stats, dict) else getattr(queue_stats, "backlog", 0),
+            "packets": (
+                basic.get("packets", 0)
+                if isinstance(basic, dict)
+                else getattr(basic, "packets", 0)
+            ),
+            "bytes": (
+                basic.get("bytes", 0)
+                if isinstance(basic, dict)
+                else getattr(basic, "bytes", 0)
+            ),
+            "dropped": (
+                queue_stats.get("drops", 0)
+                if isinstance(queue_stats, dict)
+                else getattr(queue_stats, "drops", 0)
+            ),
+            "queued_packets": (
+                queue_stats.get("qlen", 0)
+                if isinstance(queue_stats, dict)
+                else getattr(queue_stats, "qlen", 0)
+            ),
+            "queued_bytes": (
+                queue_stats.get("backlog", 0)
+                if isinstance(queue_stats, dict)
+                else getattr(queue_stats, "backlog", 0)
+            ),
         }
 
         app = stats2.get_attr("TCA_STATS_APP")
         if app is not None:
             stats["memory_used"] = app.get_attr("TCA_CAKE_STATS_MEMORY_USED") or 0
             stats["memory_limit"] = app.get_attr("TCA_CAKE_STATS_MEMORY_LIMIT") or 0
-            stats["capacity_estimate"] = app.get_attr("TCA_CAKE_STATS_CAPACITY_ESTIMATE64") or 0
+            stats["capacity_estimate"] = (
+                app.get_attr("TCA_CAKE_STATS_CAPACITY_ESTIMATE64") or 0
+            )
         else:
             stats["memory_used"] = 0
             stats["memory_limit"] = 0
@@ -329,22 +361,47 @@ class NetlinkCakeBackend(LinuxCakeBackend):
         if app is not None:
             tins_container = app.get_attr("TCA_CAKE_STATS_TIN_STATS")
             if tins_container is not None:
-                for i in range(1, 9):  # tins are 1-indexed: TCA_CAKE_TIN_STATS_1 through _8
+                for i in range(
+                    1, 9
+                ):  # tins are 1-indexed: TCA_CAKE_TIN_STATS_1 through _8
                     tin = tins_container.get_attr(f"TCA_CAKE_TIN_STATS_{i}")
                     if tin is None:
                         break
                     tin_stats: dict[str, Any] = {
-                        "sent_bytes": tin.get_attr("TCA_CAKE_TIN_STATS_SENT_BYTES64") or 0,
-                        "sent_packets": tin.get_attr("TCA_CAKE_TIN_STATS_SENT_PACKETS") or 0,
-                        "dropped_packets": tin.get_attr("TCA_CAKE_TIN_STATS_DROPPED_PACKETS") or 0,
-                        "ecn_marked_packets": tin.get_attr("TCA_CAKE_TIN_STATS_ECN_MARKED_PACKETS") or 0,
-                        "backlog_bytes": tin.get_attr("TCA_CAKE_TIN_STATS_BACKLOG_BYTES") or 0,
-                        "peak_delay_us": tin.get_attr("TCA_CAKE_TIN_STATS_PEAK_DELAY_US") or 0,
-                        "avg_delay_us": tin.get_attr("TCA_CAKE_TIN_STATS_AVG_DELAY_US") or 0,
-                        "base_delay_us": tin.get_attr("TCA_CAKE_TIN_STATS_BASE_DELAY_US") or 0,
-                        "sparse_flows": tin.get_attr("TCA_CAKE_TIN_STATS_SPARSE_FLOWS") or 0,
-                        "bulk_flows": tin.get_attr("TCA_CAKE_TIN_STATS_BULK_FLOWS") or 0,
-                        "unresponsive_flows": tin.get_attr("TCA_CAKE_TIN_STATS_UNRESPONSIVE_FLOWS") or 0,
+                        "sent_bytes": tin.get_attr("TCA_CAKE_TIN_STATS_SENT_BYTES64")
+                        or 0,
+                        "sent_packets": tin.get_attr("TCA_CAKE_TIN_STATS_SENT_PACKETS")
+                        or 0,
+                        "dropped_packets": tin.get_attr(
+                            "TCA_CAKE_TIN_STATS_DROPPED_PACKETS"
+                        )
+                        or 0,
+                        "ecn_marked_packets": tin.get_attr(
+                            "TCA_CAKE_TIN_STATS_ECN_MARKED_PACKETS"
+                        )
+                        or 0,
+                        "backlog_bytes": tin.get_attr(
+                            "TCA_CAKE_TIN_STATS_BACKLOG_BYTES"
+                        )
+                        or 0,
+                        "peak_delay_us": tin.get_attr(
+                            "TCA_CAKE_TIN_STATS_PEAK_DELAY_US"
+                        )
+                        or 0,
+                        "avg_delay_us": tin.get_attr("TCA_CAKE_TIN_STATS_AVG_DELAY_US")
+                        or 0,
+                        "base_delay_us": tin.get_attr(
+                            "TCA_CAKE_TIN_STATS_BASE_DELAY_US"
+                        )
+                        or 0,
+                        "sparse_flows": tin.get_attr("TCA_CAKE_TIN_STATS_SPARSE_FLOWS")
+                        or 0,
+                        "bulk_flows": tin.get_attr("TCA_CAKE_TIN_STATS_BULK_FLOWS")
+                        or 0,
+                        "unresponsive_flows": tin.get_attr(
+                            "TCA_CAKE_TIN_STATS_UNRESPONSIVE_FLOWS"
+                        )
+                        or 0,
                     }
                     total_ecn += tin_stats["ecn_marked_packets"]
                     tins.append(tin_stats)
@@ -353,7 +410,7 @@ class NetlinkCakeBackend(LinuxCakeBackend):
         stats["ecn_marked"] = total_ecn
         return stats
 
-    def initialize_cake(self, params: dict[str, Any]) -> bool:
+    def initialize_cake(self, params: dict[str, Any]) -> bool:  # noqa: C901
         """Initialize CAKE qdisc via netlink tc replace. Falls back on failure.
 
         Maps params dict keys to pyroute2 kwargs:
@@ -490,7 +547,9 @@ class NetlinkCakeBackend(LinuxCakeBackend):
                             )
                             all_match = False
                     return all_match
-            self.logger.error("No CAKE qdisc found on %s during validation", self.interface)
+            self.logger.error(
+                "No CAKE qdisc found on %s during validation", self.interface
+            )
             return False
         except (NetlinkError, OSError, ImportError) as e:
             self.logger.warning(
@@ -537,7 +596,9 @@ class NetlinkCakeBackend(LinuxCakeBackend):
             self._ipr = None
 
     @classmethod
-    def from_config(cls, config: BaseConfig, direction: str = "download") -> NetlinkCakeBackend:
+    def from_config(
+        cls, config: BaseConfig, direction: str = "download"
+    ) -> NetlinkCakeBackend:
         """Create NetlinkCakeBackend from config object.
 
         Same logic as LinuxCakeBackend.from_config but returns NetlinkCakeBackend.
@@ -556,6 +617,8 @@ class NetlinkCakeBackend(LinuxCakeBackend):
         interface_key = f"{direction}_interface"
         interface = cake_params.get(interface_key, "")
         if not interface:
-            raise ValueError(f"cake_params.{interface_key} required for linux-cake-netlink transport")
+            raise ValueError(
+                f"cake_params.{interface_key} required for linux-cake-netlink transport"
+            )
         tc_timeout = config.data.get("timeouts", {}).get("tc_command", 5.0)
         return cls(interface=interface, tc_timeout=tc_timeout)

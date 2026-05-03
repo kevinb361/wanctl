@@ -4,7 +4,6 @@ import json
 import subprocess
 from pathlib import Path
 
-
 CANARY_SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "canary-check.sh"
 
 HEALTHY_FIXTURE = {
