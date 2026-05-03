@@ -640,14 +640,23 @@ class TestPhase195SourceGuards:
         )
 
     def test_safe05_threshold_name_counts_are_unchanged(self) -> None:
+        # SAFE-05 (v1.40 origin) pinned threshold-name counts in
+        # src/wanctl/wan_controller.py to detect silent classification drift.
+        # v1.41 Phase 200 (ARB-05, D-09) intentionally introduces per-direction
+        # upload thresholds — `_upload_target_bloat_ms_explicit` and
+        # `_upload_warn_bloat_ms_explicit` flags add new occurrences of
+        # `warn_bloat` and `target_bloat` substrings. The bump below is
+        # a deliberate structural change, NOT classification drift.
+        # All other expected counts MUST remain at their v1.40 pins;
+        # any divergence indicates accidental drift in classification rules.
         src = Path("src/wanctl/wan_controller.py").read_text()
         expected_counts = {
             "factor_down": 17,
             "step_up": 12,
             "dwell_cycles": 14,
             "deadband_ms": 14,
-            "warn_bloat": 4,
-            "target_bloat": 4,
+            "warn_bloat": 12,  # v1.41: was 4 (v1.40 pin); ARB-05 added per-direction wiring
+            "target_bloat": 14,  # v1.41: was 4 (v1.40 pin); ARB-05 added per-direction wiring
             "hard_red": 17,
             "burst_threshold": 0,
             "green_required": 12,
