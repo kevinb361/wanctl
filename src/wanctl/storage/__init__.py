@@ -22,7 +22,11 @@ from wanctl.storage.downsampler import (
     DOWNSAMPLE_THRESHOLDS,
     downsample_metrics,
 )
-from wanctl.storage.maintenance import maintenance_lock, maintenance_lock_path, run_startup_maintenance
+from wanctl.storage.maintenance import (
+    maintenance_lock,
+    maintenance_lock_path,
+    run_startup_maintenance,
+)
 from wanctl.storage.reader import (
     compute_summary,
     query_benchmarks,

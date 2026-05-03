@@ -30,10 +30,9 @@ All notify functions are no-ops if systemd is not available (graceful fallback).
 This eliminates the need for `if sd_notify:` checks throughout daemon code.
 """
 
+import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
-import threading
-
 
 # Optional systemd integration - graceful fallback if not available
 try:

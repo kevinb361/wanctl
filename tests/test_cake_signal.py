@@ -22,7 +22,6 @@ from wanctl.cake_signal import (
     u32_delta,
 )
 
-
 # ---------------------------------------------------------------------------
 # Test helpers
 # ---------------------------------------------------------------------------
@@ -540,7 +539,6 @@ class TestCakeSignalYAMLConfig:
 
     def _make_controller_with_yaml(self, tmp_path, yaml_content: str):
         """Create a minimal mock WANController with a temp YAML config file."""
-        import yaml as _yaml
         from unittest.mock import MagicMock
 
         config_file = tmp_path / "test.yaml"
@@ -704,7 +702,6 @@ class TestCakeSignalReload:
 
     def _make_mock_ctrl(self, tmp_path, yaml_content: str):
         """Create mock WANController with real _parse and _reload bound."""
-        import yaml
         from unittest.mock import MagicMock
 
         from wanctl.wan_controller import WANController
@@ -1025,7 +1022,6 @@ class TestCakeSignalReloadDetection:
 
     def _make_mock_ctrl(self, tmp_path, yaml_content: str):
         """Create mock WANController with real _parse and _reload bound."""
-        import yaml
         from unittest.mock import MagicMock
 
         from wanctl.wan_controller import WANController

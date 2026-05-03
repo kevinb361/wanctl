@@ -51,8 +51,8 @@ from wanctl.storage.deferred_writer import DeferredIOWorker
 from wanctl.systemd_utils import (
     is_systemd_available,
     notify_degraded,
-    startup_watchdog_heartbeat,
     notify_watchdog,
+    startup_watchdog_heartbeat,
 )
 from wanctl.tuning.models import TuningConfig
 from wanctl.wan_controller import (

@@ -40,7 +40,6 @@ Usage:
 from __future__ import annotations
 
 import logging
-import json
 import re
 import warnings
 from typing import TYPE_CHECKING, Any
@@ -545,9 +544,7 @@ class RouterOSREST:
                 comment = item.get("comment")
                 if not isinstance(comment, str):
                     continue
-                if regex_match and comment_filter in comment:
-                    matched.append(item)
-                elif not regex_match and comment == comment_filter:
+                if regex_match and comment_filter in comment or not regex_match and comment == comment_filter:
                     matched.append(item)
             return matched
 

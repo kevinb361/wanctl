@@ -25,7 +25,6 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
-
 T = TypeVar("T")
 
 
@@ -58,7 +57,7 @@ class CommandResult(Generic[T]):
     error: str | None = None
 
     @classmethod
-    def ok(cls, value: T) -> "CommandResult":
+    def ok(cls, value: T) -> CommandResult:
         """Create a successful result with a value.
 
         Args:
@@ -70,7 +69,7 @@ class CommandResult(Generic[T]):
         return cls(success=True, value=value, error=None)
 
     @classmethod
-    def err(cls, error: str, value: T | None = None) -> "CommandResult":
+    def err(cls, error: str, value: T | None = None) -> CommandResult:
         """Create a failed result with an error message.
 
         Args:
