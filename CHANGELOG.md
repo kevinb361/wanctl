@@ -70,6 +70,15 @@ ceiling_mbps}`. Without this cross-check, a stale floor env value would silently
   should merge this key into their deployment and restart the service for alerting to
   re-enable. Tracked separately as quick-task `260503-cfs-fix-spectrum-alerting-severity`.
 
+### Known Gaps
+
+- Phase 200 Plan 07 24h regression soak was blocked because Plan 06's saturated
+  Spectrum upload canary failed (`122` UL floor-collapse samples during the 900s
+  loaded window) and D-10 rollback restored production to the v1.40 baseline.
+  No soak capture was launched against the rolled-back binary; Plan 08 and the
+  Phase 201 gap-closure work should treat VALN-06 as failed/blocked rather than
+  soak-satisfied.
+
 ### Migration
 
 - **Service restart required for new keys.** The new `continuous_monitoring.upload.target_bloat_ms`

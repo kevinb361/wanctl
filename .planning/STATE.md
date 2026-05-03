@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: executing
-stopped_at: "Phase 200 Plan 06 FAIL: saturation canary 20260503T215734Z verdict=fail (122 UL floor hits), D-10 rollback executed, Plan 07 blocked, gap-closure phase required (DOCSIS-aware UL control)"
-last_updated: "2026-05-03T22:14:37Z"
-last_activity: 2026-05-03
+stopped_at: Phase 200 Plan 07 blocked closeout complete; next is Plan 08 phase verification/final SUMMARY
+last_updated: "2026-05-03T23:15:02Z"
+last_activity: 2026-05-03 -- Phase 200 Plan 07 blocked closeout
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 8
-  completed_plans: 5
-  percent: 63
+  completed_plans: 7
+  percent: 88
 ---
 
 # Session State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 **Active parallel milestone:** v1.39 Control-Path Timing & Measurement Accounting (Phase 191 still open)
 **Next milestone:** v1.41 (to open via `/gsd-new-milestone`)
 
-Progress: [██████░░░░] 63%
+Progress: [█████████░] 88%
 
 ## Deferred Items
 
@@ -128,8 +128,8 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Phase 200 Plan 06 outcome (FAIL) recorded in 200-DEPLOY-LOG.md and verdict.json; awaiting gap-closure phase planning
-Resume file: .planning/phases/200-per-direction-rtt-bloat-thresholds/200-DEPLOY-LOG.md
+Stopped at: Phase 200 Plan 07 blocked closeout complete; next is Plan 08 phase verification/final SUMMARY
+Resume file: .planning/phases/200-per-direction-rtt-bloat-thresholds/200-07-SUMMARY.md
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
 ## Decisions
@@ -206,9 +206,11 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 200-04]: Applied D-12/DOCS-03 by documenting that the new upload threshold keys are startup-only and require `systemctl restart wanctl@<wan>.service`; SIGUSR1 alone does not reload them.
 - [Phase 200-05]: Applied D-07 by adding a fail-closed Spectrum upload saturation canary as the primary Plan 06 deploy gate.
 - [Phase 200-05]: Applied D-10 by recording the v1.40 /opt/wanctl binary rollback protocol in verdict.json on pass, fail, and abort paths.
+- [Phase 200-07]: Blocked the 24h regression soak because Plan 06 canary verdict was fail, not pass; no production soak capture was launched against the rolled-back v1.40 binary.
 
 ## Performance Metrics
 
+- 2026-05-03: Phase 200 Plan 07 completed as blocked in 2min across 1 gate outcome and 6 planning/docs/tracking files; Plan 06 verdict=fail prevented the 24h soak, no production action was taken, and the hot-path slice passed with 619 tests.
 - 2026-05-03: Phase 200 Plan 05 completed in 2min across 1 task and 4 files; saturation canary script/env template/tracked evidence directory were created, smoke checks passed without production traffic, and the hot-path slice passed with 617 tests.
 - 2026-05-03: Phase 200 Plan 04 completed in 2min across 2 tasks and 7 files; version surfaces report 1.41.0, Spectrum YAML carries D-05 UL settings, changelog/docs cover restart-required migration guidance, and the hot-path slice passed with 617 tests.
 - 2026-05-03: Phase 200 Plan 03 completed in 3min across 1 TDD task and 3 source/test files; SAFE-06 startup warnings passed RED/GREEN tests, shipped Spectrum/ATT configs emitted zero unknown-key warnings, and the hot-path slice passed with 617 tests.
@@ -252,6 +254,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 200 (per-direction-rtt-bloat-thresholds) — EXECUTING
-Plan: 5 of 8
-Status: Ready to execute
-Last activity: 2026-05-03
+Plan: 8 of 8
+Status: Ready to execute Plan 08
+Last activity: 2026-05-03 -- Plan 07 blocked closeout complete
