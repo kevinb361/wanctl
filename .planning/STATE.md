@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: executing
-stopped_at: v1.40 milestone archived 2026-05-03 (commit 355a389, tag v1.40)
-last_updated: "2026-05-03T18:19:53.437Z"
+stopped_at: Completed 200-03-PLAN.md
+last_updated: "2026-05-03T18:27:12.103Z"
 last_activity: 2026-05-03
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 8
-  completed_plans: 2
-  percent: 25
+  completed_plans: 3
+  percent: 38
 ---
 
 # Session State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 **Active parallel milestone:** v1.39 Control-Path Timing & Measurement Accounting (Phase 191 still open)
 **Next milestone:** v1.41 (to open via `/gsd-new-milestone`)
 
-Progress: [███░░░░░░░] 25%
+Progress: [████░░░░░░] 38%
 
 ## Deferred Items
 
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: v1.40 milestone archived 2026-05-03 (commit 355a389, tag v1.40)
+Stopped at: Completed 200-03-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -199,9 +199,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 198]: Promoted attempt 11 after source-of-truth recomputation confirmed throughput PASS, all three loaded-window audits pass, regenerated A/B comparison pass, and SAFE-05 clean.
 - [Phase 198]: Closed HIGH-3 cascade via fresh per-run dwell-bypass evidence from Plan 198-06 rather than the failing 24h-soak counter.
 - [Phase 200-02]: Applied D-09 by superseding only the SAFE-05 warn_bloat/target_bloat v1.40 pins for v1.41 per-direction upload threshold wiring; the seven non-UL pins remain unchanged. — The v1.41 per-direction threshold wiring intentionally added occurrences in wan_controller.py; preserving the other pins keeps SAFE-05 drift detection active.
+- [Phase 200-03]: Applied D-08 as daemon startup WARNING emission (not hard-reject) and reused check_unknown_keys so CLI and daemon drift detection stay aligned.
+- [Phase 200-03]: Registered existing shipped Spectrum/ATT config paths in KNOWN_AUTORATE_PATHS so SAFE-06 warnings identify real drift instead of already-supported production keys.
 
 ## Performance Metrics
 
+- 2026-05-03: Phase 200 Plan 03 completed in 3min across 1 TDD task and 3 source/test files; SAFE-06 startup warnings passed RED/GREEN tests, shipped Spectrum/ATT configs emitted zero unknown-key warnings, and the hot-path slice passed with 617 tests.
 - 2026-05-03: Phase 200 Plan 02 completed in 1min across 1 task and 2 files; SAFE-05 now pins v1.41 warn_bloat=12 and target_bloat=14, seven non-UL pins remained unchanged, phase replay passed with 25 tests, and the hot-path slice passed with 615 tests.
 - 2026-05-02: Phase 198 Plan 07 completed in 12min across 3 tasks and 12 evidence/verification files; attempt 11 was canonically promoted, VALN-04 and VALN-05a closed, SAFE-05 regenerated with diff_exit=0, and the hot-path slice passed with 573 tests.
 - 2026-05-02: Phase 198 Plan 06 completed after checkpointed off-peak reruns; attempt 11 passed VALN-05a with medians 685.992066/674.156379/560.381543 Mbps, all three per-run loaded-window audits passed, SAFE-05 remained clean, and the hot-path slice passed with 573 tests.
@@ -242,6 +245,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 200 (per-direction-rtt-bloat-thresholds) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Ready to execute
 Last activity: 2026-05-03
