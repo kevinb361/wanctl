@@ -28,6 +28,8 @@ Required env vars (set before running, e.g. via `source phase200-saturation-cana
   PHASE200_SPECTRUM_HEALTH_URL  /health endpoint (Spectrum).
   PHASE200_IPERF_TARGET         iperf3 server hostname or IP.
   PHASE200_IPERF_LOCAL_BIND     Local source IP that exits Spectrum.
+  PHASE200_UL_FLOOR_MBPS        Upload floor in Mbps (from spectrum.yaml).
+  PHASE200_UL_CEILING_MBPS      Upload ceiling in Mbps (from spectrum.yaml).
 
 Optional overrides:
   PHASE200_LOAD_DURATION_SEC     Default 900 (15 min).
@@ -183,6 +185,13 @@ require_var PHASE200_OUT_DIR
 require_var PHASE200_SPECTRUM_HEALTH_URL
 require_var PHASE200_IPERF_TARGET
 require_var PHASE200_IPERF_LOCAL_BIND
+# Phase 200 Plan 06 Attempt 2: floor/ceiling come from operator-supplied env vars
+# rather than /health, because /health.wans[].upload exposes runtime state
+# (current_rate_mbps, hysteresis, state) but not the YAML config (floor_mbps,
+# ceiling_mbps). Compare current_rate_mbps against PHASE200_UL_FLOOR_MBPS to
+# detect collapse-to-floor.
+require_var PHASE200_UL_FLOOR_MBPS
+require_var PHASE200_UL_CEILING_MBPS
 
 require_command curl
 require_command jq
@@ -196,6 +205,12 @@ HEALTH_POLL_HZ="${PHASE200_HEALTH_POLL_HZ:-1}"
 validate_positive_int PHASE200_LOAD_DURATION_SEC "$LOAD_DURATION_SEC"
 validate_positive_int PHASE200_BASELINE_DURATION_SEC "$BASELINE_DURATION_SEC"
 validate_positive_int PHASE200_HEALTH_POLL_HZ "$HEALTH_POLL_HZ"
+validate_positive_int PHASE200_UL_FLOOR_MBPS "$PHASE200_UL_FLOOR_MBPS"
+validate_positive_int PHASE200_UL_CEILING_MBPS "$PHASE200_UL_CEILING_MBPS"
+if (( PHASE200_UL_FLOOR_MBPS >= PHASE200_UL_CEILING_MBPS )); then
+    log_abort "PHASE200_UL_FLOOR_MBPS ($PHASE200_UL_FLOOR_MBPS) must be less than PHASE200_UL_CEILING_MBPS ($PHASE200_UL_CEILING_MBPS)"
+    exit "$EXIT_ABORT"
+fi
 POLL_INTERVAL_SEC="$(poll_interval_for_hz "$HEALTH_POLL_HZ")"
 
 UTC_TS="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -213,12 +228,13 @@ VERDICT="${RUN_DIR}/verdict.json"
 ROLLBACK_PROTOCOL="Per D-10: revert /opt/wanctl to the v1.40 binary on cake-shaper if this canary fails. Keep the v1.40 artifact available (for example /opt/wanctl-v1.40.tar.gz) and restore with: sudo tar -xzf /opt/wanctl-v1.40.tar.gz -C /opt/wanctl && sudo systemctl restart wanctl@spectrum.service. Leave /etc/wanctl/spectrum.yaml in place; the pre-v1.41 binary ignores the new upload-threshold keys."
 
 log_info "Preflight: checking Spectrum /health shape"
+# /health.wans[].upload only carries runtime state (current_rate_mbps, hysteresis,
+# state, state_reason). Floor/ceiling are sourced from PHASE200_UL_FLOOR_MBPS /
+# PHASE200_UL_CEILING_MBPS env vars, not from /health.
 if ! fetch_health_sample | jq -e '
       (.wans[0].upload.current_rate_mbps? | numbers)
-      and (.wans[0].upload.floor_mbps? | numbers)
-      and (.wans[0].upload.ceiling_mbps? | numbers)
     ' >/dev/null; then
-    log_abort "${PHASE200_SPECTRUM_HEALTH_URL} did not return expected .wans[0].upload shape"
+    log_abort "${PHASE200_SPECTRUM_HEALTH_URL} did not return expected .wans[0].upload.current_rate_mbps"
     write_abort_verdict "health_unreachable_or_shape_invalid"
     exit "$EXIT_ABORT"
 fi
@@ -250,11 +266,10 @@ capture_health_ndjson "$POST_NDJSON" "$BASELINE_DURATION_SEC" >/dev/null
 summarize_baseline "$POST_NDJSON" "$POST_BASELINE" "post_idle"
 POST_BASELINE_RTT_MS="$(jq -r '.baseline_rtt_ms.p50 // null' "$POST_BASELINE")"
 
-UL_FLOOR_HITS="$(jq -s '
+UL_FLOOR_HITS="$(jq -s --argjson floor "$PHASE200_UL_FLOOR_MBPS" '
   [ .[]
     | select((.wans[0].upload.current_rate_mbps? // null) != null)
-    | select((.wans[0].upload.floor_mbps? // null) != null)
-    | select(.wans[0].upload.current_rate_mbps == .wans[0].upload.floor_mbps)
+    | select(.wans[0].upload.current_rate_mbps == $floor)
   ] | length
 ' "$LOADED_CAPTURE")"
 UL_HYSTERESIS_SUPPRESSIONS="$(jq -s '

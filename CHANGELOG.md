@@ -44,6 +44,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logger had no handlers attached in production, silently dropping the record. Plan 06 retry
   deploy can now verify the logged thresholds match the deployed YAML. D-06 verification
   restored; 2 new regression tests added (`test_phase200_d06_info_log_*`).
+- Phase 200 Plan 05 saturation canary script: floor and ceiling thresholds are now sourced
+  from new `PHASE200_UL_FLOOR_MBPS` / `PHASE200_UL_CEILING_MBPS` env vars (matching
+  `continuous_monitoring.upload.{floor_mbps, ceiling_mbps}` in the deployed YAML) instead
+  of `/health.wans[].upload.{floor_mbps, ceiling_mbps}` — fields that do not exist.
+  `/health` carries runtime state (`current_rate_mbps`, `hysteresis`, `state`,
+  `state_reason`) but not config. Plan 06 Attempt 2's canary preflight aborted before this
+  fix; preflight now requires only `current_rate_mbps`, and the floor-collapse selector
+  compares against the env-supplied floor value. Env template
+  (`scripts/phase200-saturation-canary.env.example`) and `--help` updated.
 
 ### Migration
 
