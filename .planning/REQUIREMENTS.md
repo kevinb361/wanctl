@@ -22,7 +22,7 @@
 
 ### Verification (VALN)
 
-- [x] **VALN-06**: Spectrum UL saturation gate — a 10–15 min `iperf3 -P4` saturated upload loop at the deployed UL ceiling does not collapse to the UL floor in any cycle. Verified pre/post idle baselines bookend the run. This is the deploy-gate acceptance test; it must pass before the binary is promoted to `/opt/wanctl`. A 24-hour Spectrum regression soak runs after as a watchdog, not as the verdict.
+- [ ] **VALN-06**: Spectrum UL saturation gate — a 10–15 min `iperf3 -P4` saturated upload loop at the deployed UL ceiling does not collapse to the UL floor in any cycle. Verified pre/post idle baselines bookend the run. This is the deploy-gate acceptance test; it must pass before the binary is promoted to `/opt/wanctl`. A 24-hour Spectrum regression soak runs after as a watchdog, not as the verdict. **Blocked in Phase 200:** Plan 06 canary recorded 122 UL floor hits and D-10 rollback executed; see `200-VERIFICATION.md`.
 
 ### Documentation (DOCS)
 
@@ -102,10 +102,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ARB-05  | Phase 200 | Complete |
-| SAFE-06 | Phase 200 | Complete |
-| VALN-06 | Phase 200 | Complete |
-| DOCS-03 | Phase 200 | Complete |
+| ARB-05  | Phase 200 | Satisfied (`200-VERIFICATION.md`) |
+| SAFE-06 | Phase 200 | Satisfied (`200-VERIFICATION.md`) |
+| VALN-06 | Phase 200 | Blocked (`200-VERIFICATION.md`; canary failed with 122 floor hits, rollback executed) |
+| DOCS-03 | Phase 200 | Satisfied (`200-VERIFICATION.md`) |
 
 ---
 *v1.39 requirements defined: 2026-04-20*
