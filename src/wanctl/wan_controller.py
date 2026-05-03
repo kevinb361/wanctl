@@ -116,13 +116,40 @@ def _apply_threshold_param(wc: "WANController", param: str, val: float) -> bool:
         # operator did NOT explicitly set continuous_monitoring.upload.target_bloat_ms
         # in YAML. The flag is presence-based, not value-derived.
         if getattr(wc, "_upload_target_bloat_ms_explicit", False) is not True:
-            wc.target_delta = val
+            # Phase 200 D-03 ordering guard: never write a UL target_delta that
+            # would invert the target<warn invariant against the (possibly
+            # protected) UL warn_delta. Codex stop-hook caught this — per-key
+            # gates would otherwise let live-tuning break the ordering.
+            if val < wc.warn_delta:
+                wc.target_delta = val
+            else:
+                logging.getLogger(__name__).warning(
+                    "phase200 live-tuning skipped: target_bloat_ms=%s would "
+                    "invert UL ordering (warn_delta=%s); UL target_delta "
+                    "remains %s",
+                    val,
+                    wc.warn_delta,
+                    wc.target_delta,
+                )
     elif param == "warn_bloat_ms":
         wc.soft_red_threshold = val
         # Phase 200 D-03: per-key independence — UL warn_delta is gated by its
         # own presence flag, not by the target_bloat_ms presence flag.
         if getattr(wc, "_upload_warn_bloat_ms_explicit", False) is not True:
-            wc.warn_delta = val
+            # Phase 200 D-03 ordering guard: never write a UL warn_delta that
+            # would invert the target<warn invariant against the (possibly
+            # protected) UL target_delta.
+            if val > wc.target_delta:
+                wc.warn_delta = val
+            else:
+                logging.getLogger(__name__).warning(
+                    "phase200 live-tuning skipped: warn_bloat_ms=%s would "
+                    "invert UL ordering (target_delta=%s); UL warn_delta "
+                    "remains %s",
+                    val,
+                    wc.target_delta,
+                    wc.warn_delta,
+                )
     elif param == "hard_red_bloat_ms":
         wc.hard_red_threshold = val
     elif param == "alpha_load":
