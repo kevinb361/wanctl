@@ -22,7 +22,7 @@
 
 ### Verification (VALN)
 
-- [ ] **VALN-06**: Spectrum UL saturation gate — a 10–15 min `iperf3 -P4` saturated upload loop at the deployed UL ceiling does not collapse to the UL floor in any cycle. Verified pre/post idle baselines bookend the run. This is the deploy-gate acceptance test; it must pass before the binary is promoted to `/opt/wanctl`. A 24-hour Spectrum regression soak runs after as a watchdog, not as the verdict.
+- [x] **VALN-06**: Spectrum UL saturation gate — a 10–15 min `iperf3 -P4` saturated upload loop at the deployed UL ceiling does not collapse to the UL floor in any cycle. Verified pre/post idle baselines bookend the run. This is the deploy-gate acceptance test; it must pass before the binary is promoted to `/opt/wanctl`. A 24-hour Spectrum regression soak runs after as a watchdog, not as the verdict.
 
 ### Documentation (DOCS)
 
@@ -104,7 +104,7 @@
 |-------------|-------|--------|
 | ARB-05  | Phase 200 | Complete |
 | SAFE-06 | Phase 200 | Complete |
-| VALN-06 | Phase 200 | Pending |
+| VALN-06 | Phase 200 | Complete |
 | DOCS-03 | Phase 200 | Complete |
 
 ---
