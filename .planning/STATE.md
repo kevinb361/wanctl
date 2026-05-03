@@ -128,8 +128,9 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Phase 199 context gathered
-Resume file: .planning/phases/199-obs-02-spec-impl-reconciliation/199-CONTEXT.md
+Stopped at: v1.40 milestone archived 2026-05-03 (commit 355a389, tag v1.40)
+Resume file: none — next session opens v1.41 via `/gsd-new-milestone` (Phase 200 working-tree diff queued: per-direction RTT bloat thresholds for Spectrum UL saturation containment)
+Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
 ## Decisions
 
