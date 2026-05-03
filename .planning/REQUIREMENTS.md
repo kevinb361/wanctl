@@ -18,7 +18,7 @@
 
 ### Control Safety (SAFE)
 
-- [ ] **SAFE-06**: The autorate config validator rejects (or emits an audible WARNING log entry on every startup) any unknown `continuous_monitoring.*` key. Silent-ignore is forbidden. This closes the v1.40-era gap where `/etc/wanctl/spectrum.yaml` carried 4 unrecognized keys for 3 days without a single warning, leaving production half-shipped.
+- [x] **SAFE-06**: The autorate config validator rejects (or emits an audible WARNING log entry on every startup) any unknown `continuous_monitoring.*` key. Silent-ignore is forbidden. This closes the v1.40-era gap where `/etc/wanctl/spectrum.yaml` carried 4 unrecognized keys for 3 days without a single warning, leaving production half-shipped.
 
 ### Verification (VALN)
 
@@ -103,7 +103,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | ARB-05  | Phase 200 | Complete |
-| SAFE-06 | Phase 200 | Pending |
+| SAFE-06 | Phase 200 | Complete |
 | VALN-06 | Phase 200 | Pending |
 | DOCS-03 | Phase 200 | Pending |
 
