@@ -14,7 +14,7 @@
 
 ### Signal Arbitration (ARB)
 
-- [ ] **ARB-05**: When `continuous_monitoring.upload.target_bloat_ms` and/or `continuous_monitoring.upload.warn_bloat_ms` are present in the deployment YAML, the legacy 3-state UL distress classifier consumes those values as the UL RTT bloat thresholds independent of the DL 4-state thresholds. When the keys are absent, UL falls back to the DL globals byte-identically (preserves all non-Spectrum deployments). Per-key explicit-presence flags gate live-tuning writes (`_apply_threshold_param` cannot silently overwrite UL thresholds when an operator pushes a global tuning update).
+- [x] **ARB-05**: When `continuous_monitoring.upload.target_bloat_ms` and/or `continuous_monitoring.upload.warn_bloat_ms` are present in the deployment YAML, the legacy 3-state UL distress classifier consumes those values as the UL RTT bloat thresholds independent of the DL 4-state thresholds. When the keys are absent, UL falls back to the DL globals byte-identically (preserves all non-Spectrum deployments). Per-key explicit-presence flags gate live-tuning writes (`_apply_threshold_param` cannot silently overwrite UL thresholds when an operator pushes a global tuning update).
 
 ### Control Safety (SAFE)
 
@@ -102,7 +102,7 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ARB-05  | Phase 200 | Pending |
+| ARB-05  | Phase 200 | Complete |
 | SAFE-06 | Phase 200 | Pending |
 | VALN-06 | Phase 200 | Pending |
 | DOCS-03 | Phase 200 | Pending |
