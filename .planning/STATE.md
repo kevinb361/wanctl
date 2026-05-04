@@ -4,7 +4,7 @@ milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: blocked
 stopped_at: Completed 200-15-PLAN.md — Phase 200 closed as gaps_found
-last_updated: "2026-05-04T14:05:00.000Z"
+last_updated: "2026-05-04T13:59:50.000Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 1
