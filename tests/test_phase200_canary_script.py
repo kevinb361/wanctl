@@ -79,3 +79,57 @@ def test_summarize_baseline_rejects_old_broken_path():
     result = _run_summarize_baseline(ndjson)
     # Path is correct now; OLD-shape input produces no samples.
     assert result["sample_count"] == 0
+
+
+def _run_validate_remote_yaml_path(path: str) -> tuple[int, str]:
+    """Drive validate_remote_yaml_path via --self-test mode.
+
+    Round-2 HIGH (WR-02 test ordering): the previous tests pointed
+    PHASE200_SPECTRUM_HEALTH_URL at http://127.0.0.1:1/health to reach the
+    path validator in live mode. The script's health preflight runs BEFORE
+    the path validator, so live-mode tests aborted with
+    health_unreachable_or_shape_invalid and never reached the gate under
+    test (false-green: tests passed by erroring out at the wrong stage).
+    --self-test mode bypasses the preflight and invokes the validator
+    function directly, so tests assert the validator's actual behavior.
+    """
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), "--self-test", "validate_remote_yaml_path", path],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    return proc.returncode, proc.stderr
+
+
+def test_remote_yaml_path_rejects_metacharacters():
+    # Path component (after user@host:) — contains a `;` shell metachar.
+    rc, err = _run_validate_remote_yaml_path("/etc/wanctl/spectrum.yaml; rm -rf /")
+    assert rc == 2
+    assert "remote_yaml_path_unsafe" in err or "safe chars only" in err
+
+
+def test_remote_yaml_path_rejects_relative_path():
+    rc, err = _run_validate_remote_yaml_path("etc/wanctl/spectrum.yaml")
+    assert rc == 2
+    assert "remote_yaml_path_unsafe" in err or "safe chars only" in err
+
+
+def test_remote_yaml_path_rejects_command_substitution():
+    """Round-2 HIGH augment: $() shell-substitution must be rejected."""
+    rc, err = _run_validate_remote_yaml_path("/etc/wanctl/$(rm -rf /).yaml")
+    assert rc == 2
+    assert "remote_yaml_path_unsafe" in err or "safe chars only" in err
+
+
+def test_remote_yaml_path_rejects_dot_dot():
+    """Round-2 HIGH augment: traversal-like relative path (does not start with /)."""
+    rc, err = _run_validate_remote_yaml_path("../etc/passwd")
+    assert rc == 2
+
+
+def test_remote_yaml_path_accepts_safe_absolute_path():
+    """Safe path passes validator; exit code 0."""
+    rc, err = _run_validate_remote_yaml_path("/etc/wanctl/spectrum.yaml")
+    assert rc == 0
+    assert "remote_yaml_path_unsafe" not in err
