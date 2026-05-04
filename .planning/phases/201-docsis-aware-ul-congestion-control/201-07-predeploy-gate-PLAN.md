@@ -329,8 +329,15 @@ if [[ ! -x "$PREDEPLOY_GATE" ]]; then
     exit 2
 fi
 echo "[deploy] running Phase 201 predeploy gate"
-if ! "$PREDEPLOY_GATE"; then
-    gate_rc=$?
+# IMPORTANT: capture the gate's exit code via `|| gate_rc=$?`, NOT inside an
+# `if ! cmd; then gate_rc=$?` block. Inside `if ! cmd`, $? is the exit code of
+# the NEGATION (always 0 when the then-branch fires), not of cmd — so
+# `exit "$gate_rc"` would silently exit 0 on gate failure. This is the exact
+# fail-OPEN bug Codex stop-time review caught and is the reason for this
+# specific wiring pattern. Do NOT rewrite this as `if ! cmd`.
+gate_rc=0
+"$PREDEPLOY_GATE" || gate_rc=$?
+if (( gate_rc != 0 )); then
     echo "[deploy] ABORTING: predeploy gate exit=${gate_rc}. Reconcile /etc/wanctl/spectrum.yaml on the deploy target before retrying." >&2
     exit "$gate_rc"
 fi
@@ -339,7 +346,7 @@ echo "[deploy] predeploy gate PASS"
 
 If deploy.sh has a separate preflight section or a dispatcher pattern (multi-WAN), choose the integration point that ensures the gate runs ONCE before any /opt/wanctl write. Do NOT duplicate the gate invocation across loop iterations.
 
-If the script uses `set -euo pipefail` and the gate exit-1 would auto-abort, the explicit `if ! ... ; then exit $?; fi` is still preferred for the operator-actionable echo line.
+**Bash exit-code propagation (anti-pattern):** Do NOT use `if ! "$PREDEPLOY_GATE"; then gate_rc=$?; ...; fi`. Inside `if ! cmd; then`, `$?` reflects the exit code of the negation (always `0` when the then-branch fires), so `gate_rc` would be `0` and `exit "$gate_rc"` would silently exit `0` on gate failure. Use `gate_rc=0; "$PREDEPLOY_GATE" || gate_rc=$?` — `$?` evaluated on the right side of `||` is the failed command's true exit code. This is the exact bug Codex stop-time review flagged on 2026-05-04 ("deploy gate failure still exits 0").
 
 Do NOT modify any existing rsync flags or the unit-restart commands; the only change is the new gate block immediately before rsync.
   </action>
@@ -350,12 +357,14 @@ Do NOT modify any existing rsync flags or the unit-restart commands; the only ch
     - `bash -n scripts/deploy.sh` returns 0.
     - The gate invocation is BEFORE the rsync command (verify by line-number ordering): `awk '/phase201-predeploy-gate/{p=NR} /rsync.*\\/opt\\/wanctl/{r=NR} END {exit (p>0 \&\& p < r)?0:1}' scripts/deploy.sh` returns 0.
     - **Fail-closed on missing gate (D-15):** `grep -Ec '\[\[ ! -x .*phase201-predeploy-gate.*\]\]' scripts/deploy.sh` returns >= 1 — the wiring tests for a *missing/non-executable* gate first and exits non-zero. The legacy "WARNING + skip" pattern MUST NOT be present: `grep -c 'WARNING.*skipping Phase 201 gate' scripts/deploy.sh` returns 0.
-    - **Integration test:** running `bash -c 'PREDEPLOY_GATE=/nonexistent ./scripts/deploy.sh ...'` (or equivalent fault-injection that hides the gate) exits non-zero with a message containing `ABORTING` and `D-15`. If full deploy.sh execution is impractical in CI, a unit-style harness that sources just the gate-invocation block with a missing path achieves the same coverage.
+    - **Correct exit-code capture (Codex stop-time review fix):** `grep -c '|| gate_rc=\$?' scripts/deploy.sh` returns >= 1 (the wiring uses the `|| gate_rc=$?` pattern, NOT the broken `if ! cmd; then gate_rc=$?` pattern). The broken pattern MUST NOT be present: `grep -Ec 'if ! .*phase201-predeploy-gate' scripts/deploy.sh` returns 0.
+    - **Integration test — exit-code propagation (the bug Codex caught):** with the gate file present, force the gate to exit `1` (e.g., wrap it in a fault-injection shim or set `PREDEPLOY_GATE` to a script that does `exit 1`). Run the gate-invocation block under deploy.sh and assert `deploy.sh` itself exits `1` (NOT `0`). Repeat with gate exit `2` and assert deploy.sh exits `2`. If full deploy.sh execution is impractical in CI, a unit-style harness that sources just the gate-invocation block with a stub-gate-that-fails achieves the same coverage. **The test must FAIL if deploy.sh exits 0 when the gate exits non-zero.**
+    - **Integration test — missing gate:** running `bash -c 'PREDEPLOY_GATE=/nonexistent ./scripts/deploy.sh ...'` (or equivalent fault-injection that hides the gate) exits non-zero with a message containing `ABORTING` and `D-15`.
   </acceptance_criteria>
   <verify>
-    <automated>bash -n scripts/deploy.sh &amp;&amp; grep -q 'phase201-predeploy-gate.sh' scripts/deploy.sh &amp;&amp; ! grep -q 'WARNING.*skipping Phase 201 gate' scripts/deploy.sh &amp;&amp; grep -Eq '\[\[ ! -x .*phase201-predeploy-gate.*\]\]' scripts/deploy.sh</automated>
+    <automated>bash -n scripts/deploy.sh &amp;&amp; grep -q 'phase201-predeploy-gate.sh' scripts/deploy.sh &amp;&amp; ! grep -q 'WARNING.*skipping Phase 201 gate' scripts/deploy.sh &amp;&amp; grep -Eq '\[\[ ! -x .*phase201-predeploy-gate.*\]\]' scripts/deploy.sh &amp;&amp; grep -q '|| gate_rc=\$?' scripts/deploy.sh &amp;&amp; ! grep -Eq 'if ! .*phase201-predeploy-gate' scripts/deploy.sh</automated>
   </verify>
-  <done>deploy.sh invokes the predeploy gate before rsync; non-zero gate exit aborts deploy with operator-actionable message; **missing/non-executable gate also aborts (fail-closed, NOT warn-and-continue)**; D-15 traceability comment present.</done>
+  <done>deploy.sh invokes the predeploy gate before rsync; non-zero gate exit aborts deploy with operator-actionable message AND deploy.sh propagates the gate's actual exit code (not 0); **missing/non-executable gate also aborts (fail-closed, NOT warn-and-continue)**; D-15 traceability comment present; integration tests prove exit-code propagation for gate-rc 1, 2, and missing-gate cases.</done>
 </task>
 
 </tasks>
