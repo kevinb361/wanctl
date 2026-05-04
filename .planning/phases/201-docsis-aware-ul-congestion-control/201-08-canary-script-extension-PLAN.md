@@ -241,15 +241,17 @@ Each self-test sub-command should NOT exec real ssh/iperf3; instead, set up env 
 # Phase 201 D-12 additions (env-declared expectation; canary preflight
 # cross-checks against deployed YAML and ABORTs on mismatch).
 # Also gates the /health DOCSIS-mode three-branch probe.
-# Optional: leave empty for legacy (non-DOCSIS) canary runs.
+# Phase 201 runs are fail-closed: these must be set to true/12.
+# Legacy A/B runs must explicitly set PHASE201_LEGACY_MODE=true instead.
 # Example (Spectrum after Phase 201 deploy):
 #   PHASE201_DOCSIS_MODE=true
 #   PHASE201_SETPOINT_MBPS=12
 PHASE201_DOCSIS_MODE=""
 PHASE201_SETPOINT_MBPS=""
+PHASE201_LEGACY_MODE=""
 ```
 
-CRITICAL: do NOT change any existing behavior when PHASE201_* env vars are empty. Phase 200 canary semantics must be preserved for legacy A/B comparisons against v1.40/v1.41 binaries.
+CRITICAL (Codex HIGH #5): Phase 201 canary runs fail closed when `PHASE201_DOCSIS_MODE` or `PHASE201_SETPOINT_MBPS` is empty. Preserve legacy A/B behavior only behind explicit `PHASE201_LEGACY_MODE=true`; do not treat empty Phase 201 vars as an implicit legacy run.
   </action>
   <acceptance_criteria>
     - `grep -c 'PHASE201_DOCSIS_MODE' scripts/phase200-saturation-canary.sh` returns >= 3 (env extraction + comparison + self-test).
@@ -507,7 +509,7 @@ Add to `scripts/phase200-saturation-canary.env.example`:
 
 | Threat ID | Category | Component | Disposition | Mitigation Plan |
 |-----------|----------|-----------|-------------|-----------------|
-| T-201-36 | Tampering | Operator forgets to set PHASE201_DOCSIS_MODE -> canary proceeds against legacy v1.41 binary thinking it's v1.42 | mitigate | /health DOCSIS-mode probe is gated on `PHASE201_DOCSIS_MODE=true`; if env unset, no probe runs (legacy compat). When set, three-branch probe asserts docsis_mode_active=true. Operator-actionable verdict on mismatch. |
+| T-201-36 | Tampering | Operator forgets to set PHASE201_DOCSIS_MODE -> canary proceeds against legacy v1.41 binary thinking it's v1.42 | mitigate | Phase 201 mode aborts if `PHASE201_DOCSIS_MODE` or `PHASE201_SETPOINT_MBPS` is unset. Legacy compatibility requires explicit `PHASE201_LEGACY_MODE=true`; when docsis mode is set, the three-branch /health probe asserts docsis_mode_active=true. Operator-actionable verdict on mismatch. |
 | T-201-37 | Tampering | Env false-PASS regression (Phase 200 dd67493 family) | mitigate | New env vars use the SAME pattern as PHASE200_UL_FLOOR_MBPS / PHASE200_UL_CEILING_MBPS — env-declared expectation + SSH probe + jq comparison + abort. Self-test cases cover mismatch paths. |
 | T-201-38 | Tampering | YAML probe shell-injection via REMOTE_YAML_PATH | mitigate | Inherits Phase 200 Plan 11 `validate_remote_yaml_path` regex check (already in canary script before line 322). |
 | T-201-39 | Repudiation | Verdict reasons drift from documented set | mitigate | Acceptance grep enforces all six new verdict reason strings present. Phase 200 verdict.json schema preserved. |
@@ -528,7 +530,7 @@ Add to `scripts/phase200-saturation-canary.env.example`:
 - D-11 reuse mandate honored (no fork).
 - WR-02 closed.
 - Three-branch /health probe per RESEARCH Pitfall 7.
-- Operator can opt out by leaving PHASE201_* empty (legacy compat).
+- Operator can opt out only by setting PHASE201_LEGACY_MODE=true (legacy compat); empty PHASE201_* vars abort Phase 201 runs.
 - v1.43+ replay corpus has max_delay_delta_us baked in.
 </success_criteria>
 

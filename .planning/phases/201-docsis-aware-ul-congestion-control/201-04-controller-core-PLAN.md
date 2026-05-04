@@ -19,7 +19,7 @@ must_haves:
     - "_is_cake_aligned_for_pushup is categorical AND-gate (backlog_low AND delay_delta_low AND not cold_start) — never µs/ms ratio"
     - "Setpoint clamp injects in GREEN+sustained-streak push-up branch — RED decay byte-identical to legacy; YELLOW gains a docsis-only above-setpoint pull-down branch (REVIEWS MED-4) but legacy YELLOW path is byte-identical"
     - "RED fast-trip path (delta > warn_delta) returns rate <= current_rate * factor_down regardless of integral or CAKE state (ARCH-03 invariant)"
-    - "REVIEWS HIGH-5: cycle-level floor-hit counter (self.floor_hit_cycles) increments at every 50ms cycle whose computed rate equals floor_red_bps; monotonic per daemon lifetime; Plan 05-T2 exposes via /health.wans[].upload.floor_hit_cycles_total"
+    - "REVIEWS HIGH-5: cycle-level floor-hit counter (self.floor_hit_cycles) increments after final enforce_rate_bounds() output when bounded new_rate == floor_red_bps; monotonic per daemon lifetime; Plan 05-T2 exposes via /health.wans[].upload.floor_hit_cycles_total"
     - "REVIEWS HIGH-4: replay against Phase 200 Attempt 3 capture, expanded 20x via hold-last interpolation to 50ms cadence, produces ZERO floor-hit cycles in DOCSIS-mode controller (synthetic VALN-06 closure under cycle-fidelity conditions)"
     - "REVIEWS MED-4: above-setpoint controller in sustained YELLOW pulls DOWN to setpoint (factor_down_yellow=1.0 hold-above edge case closed)"
   artifacts:
@@ -49,8 +49,10 @@ Wave 0 tests landed in Plan 201-02 (TestDocsisModeIntegralClassifier, TestDocsis
 
 **REVIEWS amendments (2026-05-04, see 201-REVIEWS.md):**
 - **HIGH-4 (replay timing fidelity, Option A chosen):** Plan 04-T3 expands each 1 Hz NDJSON sample into 20 synthetic 50ms cycles via *hold-last interpolation* (load_rtt and cake fields held constant across the 20 cycles). Reasoning: Option A (cycle-fidelity replay) gives stronger evidence than Option B (downgrade to coarse regression); the planner's Option B fallback would weaken the synthetic VALN-06 closure claim. Hold-last (vs linear interpolation) is more conservative — it doesn't smooth out the RTT-delta peaks that drive the integral. Documented in test docstring AND in RESEARCH.md Assumptions Log (planner adds A11 entry in Plan 04-T3).
-- **HIGH-5 (cycle-level floor-hit counter):** Plan 04-T2 adds `self.floor_hit_cycles: int = 0` and increments it inside `_compute_rate_3state` whenever the computed rate equals `self.floor_red_bps`. This is the cycle-fidelity (50ms) VALN-06 evidence vector. Plan 05-T2 exposes it as additive `/health.wans[].upload.floor_hit_cycles_total`. Plans 11/12 verdict against counter delta, not snapshot rates.
-- **MED-4 (above-setpoint YELLOW pull-down):** Plan 04-T2 adds a setpoint pull-down branch in `_compute_rate_3state`'s YELLOW arm: when `self._docsis_mode and self._setpoint_bps and current_rate > self._setpoint_bps and self._headroom_state == "EXHAUSTED" and yellow_streak >= dwell_cycles`, return `min(current_rate * factor_down_yellow, self._setpoint_bps)`. Closes the R5 (`factor_down_yellow=1.0`) edge case where a controller pushed above setpoint can hold there indefinitely.
+- **HIGH-5 (cycle-level floor-hit counter):** Plan 04-T2 adds `self.floor_hit_cycles: int = 0` and increments it in `adjust()` after the existing `enforce_rate_bounds()` clamp whenever the final bounded `new_rate == self.floor_red_bps`. This counts floor hits caused by post-bounds clamping as well as explicit floor returns, preserving cycle-fidelity (50ms) VALN-06 evidence. Plan 05-T2 exposes it as additive `/health.wans[].upload.floor_hit_cycles_total`. Plans 11/12 verdict against counter delta, not snapshot rates.
+- **MED-4 / Codex HIGH #2 (above-setpoint YELLOW pull-down):** Legacy YELLOW behavior is byte-identical only when `docsis_mode=False`. In DOCSIS mode, Plan 04-T2 adds a setpoint pull-down branch in `_compute_rate_3state`'s YELLOW arm: when `self._docsis_mode and self._setpoint_bps is not None and current_rate > self._setpoint_bps and self._headroom_state == "EXHAUSTED" and self._yellow_decay_streak >= self.dwell_cycles`, return `min(current_rate * self.factor_down_yellow, self._setpoint_bps)`. Do not introduce a new `yellow_streak` field. Closes the R5 (`factor_down_yellow=1.0`) edge case where a controller pushed above setpoint can hold there indefinitely.
+- **Codex HIGH #3 (replay threshold alignment):** Plan 04-T3 replay thresholds must match Phase 201 runtime after Plan 06 strips upload R0 keys: use Spectrum global fallback thresholds `target_delta=15.0` and `warn_delta=75.0` unless the executor writes an explicit justification for a transformed effective-UL threshold. The default plan path is no transformation. `integral_threshold_ms_s=30.0` is framed as a 2s integral budget: average positive RTT delta of 15ms over the full 2s window (`15ms * 2s = 30 ms*s`).
+- **Codex MED #7 (RED fast-trip exactness):** Red fast-trip tests must assert exact immediate `current_rate * factor_down` behavior before bounds (or final bounded equivalent when the decay would cross floor), independent of `_headroom_state` and `_cake_aligned`, not merely "rate below setpoint".
 - **HIGH-3 (stub removal):** acceptance criterion at the plan level — `grep -c 'Wave 0 stub' tests/test_queue_controller.py tests/test_phase_201_replay.py` returns 0 after Plan 04 completes (every implemented stub has its xfail/fail decorator removed).
 
 Output: `queue_controller.py` extended with ~100 net-new lines (was ~80; +20 for floor_hit_cycles + above-setpoint YELLOW); replay test wired with 20-cycle expansion; SAFE-05 v1.42 pins re-baselined for controller surface; RESEARCH.md A11 assumption log entry.
@@ -229,7 +231,7 @@ Do NOT touch any existing kwarg defaults or any existing init line. Verify with 
     - `_update_integral(delta_ms)` appends `max(0, delta_ms)` to `self._integral_window`, computes `integral_ms_s = sum(self._integral_window) * 0.05`, returns (integral_ms_s, "EXHAUSTED") if window not full, else returns AVAILABLE iff integral_ms_s <= self._integral_threshold_ms_s.
     - `_is_cake_aligned_for_pushup(cake)` returns False on `cake is None or cake.cold_start`, else `(cake.backlog_bytes <= self._cake_backlog_low_threshold_bytes) and (cake.max_delay_delta_us <= self._cake_delay_delta_low_threshold_us)`.
     - `adjust()` is modified ONLY to insert two lines BEFORE the existing `_classify_zone_3state` call, gated on `if self._docsis_mode`: update integral and CAKE-alignment state. The existing classifier and rate-decision code paths are otherwise untouched.
-    - `_compute_rate_3state()` GREEN+sustained-streak branch gains a setpoint clamp: when `self._docsis_mode and self._setpoint_bps is not None and not (self._headroom_state == "AVAILABLE" and self._cake_aligned)`, return `min(raw_rate, self._setpoint_bps)`; otherwise return `raw_rate`. RED and YELLOW branches are byte-identical to legacy.
+    - `_compute_rate_3state()` GREEN+sustained-streak branch gains a setpoint clamp: when `self._docsis_mode and self._setpoint_bps is not None and not (self._headroom_state == "AVAILABLE" and self._cake_aligned)`, return `min(raw_rate, self._setpoint_bps)`; otherwise return `raw_rate`. RED remains byte-identical to legacy. YELLOW remains byte-identical only when `docsis_mode=False`; DOCSIS mode adds the above-setpoint pull-down branch using existing `_yellow_decay_streak` state.
   </behavior>
   <action>
 Add the two helper methods at module-class scope (immediately after the existing `_classify_zone_3state` method or at a similar logical location — locate via grep; place near other helpers):
@@ -293,7 +295,17 @@ Modify `_compute_rate_3state()` GREEN+sustained branch — locate the existing `
             return raw_rate
 ```
 
-Verify the RED branch (`if self.red_streak >= 1:`) and YELLOW branch (`if zone == "YELLOW":`) and the final `return self.current_rate` are NOT modified. Run a diff and visually confirm.
+Verify the RED branch (`if self.red_streak >= 1:`) and the final `return self.current_rate` are NOT modified except for the centralized post-bounds floor-hit counter in `adjust()`. The YELLOW branch may change only for the DOCSIS-mode above-setpoint pull-down branch described above; the legacy `docsis_mode=False` YELLOW path must remain byte-identical. Run a diff and visually confirm.
+
+Modify `adjust()` after the existing `enforce_rate_bounds()` call (where final `new_rate` is known):
+
+```python
+        bounded_rate = enforce_rate_bounds(...existing args...)
+        if bounded_rate == self.floor_red_bps:
+            self.floor_hit_cycles += 1
+```
+
+Adapt to the existing local variable names; do not add floor-hit increments inside `_compute_rate_3state()` return branches. The counter must observe the final bounded rate so below-floor RED/YELLOW outputs clamped by `enforce_rate_bounds()` are counted.
 
 Add a single new attribute to `get_health_data()` if such a method exists in QueueController — but ONLY if Plan 201-05 hasn't claimed that file's write. Check via the wave-2 plan pair: Plan 201-05 owns `wan_controller.py` health surface; this task owns `queue_controller.py` only. The QueueController-internal health-state fields (docsis_mode_active, setpoint_mbps, headroom_state, rtt_integral_ms_s, cake_aligned) are populated in Plan 201-05 by reading `q._docsis_mode`, `q._setpoint_bps`, etc.; do NOT add a new method here.
 
@@ -305,8 +317,9 @@ Do NOT change any other line in the file.
     - `grep -c "self._update_integral(delta)" src/wanctl/queue_controller.py` returns 1.
     - `grep -c "self._is_cake_aligned_for_pushup(cake_snapshot)" src/wanctl/queue_controller.py` returns 1.
     - `grep -c "min(raw_rate, self._setpoint_bps)" src/wanctl/queue_controller.py` returns >= 1.
-    - **REVIEWS MED-4:** `grep -c "yellow_streak >= self.dwell_cycles" src/wanctl/queue_controller.py` returns >= 1 (above-setpoint YELLOW pull-down condition). `grep -c "self.factor_down_yellow" src/wanctl/queue_controller.py` returns >= 1 (the pull-down arithmetic).
-    - **REVIEWS HIGH-5:** `grep -c "self.floor_hit_cycles += 1" src/wanctl/queue_controller.py` returns >= 3 (counter wraps at every floor-landing return path: GREEN-clamp, YELLOW-pulldown, RED-decay, fallthrough — at least 3 wrap sites; exact count depends on existing return paths).
+    - **REVIEWS MED-4 / Codex HIGH #2:** `grep -c "self._yellow_decay_streak >= self.dwell_cycles" src/wanctl/queue_controller.py` returns >= 1 (above-setpoint YELLOW pull-down condition using existing state). `grep -c "yellow_streak" src/wanctl/queue_controller.py` returns 0 (no new/non-existent field). `grep -c "self.factor_down_yellow" src/wanctl/queue_controller.py` returns >= 1 (the pull-down arithmetic).
+    - **REVIEWS HIGH-5 / Codex HIGH #1:** `grep -c "self.floor_hit_cycles += 1" src/wanctl/queue_controller.py` returns 1 (centralized in `adjust()` after final `enforce_rate_bounds()` output, not scattered across `_compute_rate_3state()` return branches).
+    - **REVIEWS HIGH-5 / Codex HIGH #1:** Floor-counter tests include a post-bounds clamp case where `_compute_rate_3state()` returns below floor and `enforce_rate_bounds()` clamps to `floor_red_bps`; `floor_hit_cycles` increments for that cycle.
     - **REVIEWS HIGH-5:** TestDocsisModeFloorHitCounter passes: `.venv/bin/pytest -o addopts='' tests/test_queue_controller.py -q -k TestDocsisModeFloorHitCounter` returns 0.
     - **REVIEWS MED-4:** TestDocsisModeAboveSetpointYellowPulldown passes: `.venv/bin/pytest -o addopts='' tests/test_queue_controller.py -q -k TestDocsisModeAboveSetpointYellowPulldown` returns 0.
     - `grep -v '^#\\|^ *#' src/wanctl/queue_controller.py | grep -c "max_delay_delta_us"` returns >= 1 (corroborator references field).
@@ -462,8 +475,11 @@ class TestAttempt3ReplayWithDocsisMode:
             pytest.skip("Attempt 3 corpus empty — see 201-01-CORPUS-AUDIT.md")
 
         ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
-        target_delta = 5.0  # mirrors Spectrum legacy global target_bloat_ms=15 / 3
-        warn_delta = 15.0   # mirrors Spectrum legacy global warn_bloat_ms=75 / 5
+        # Codex pre-review HIGH #3: Phase 201 strips upload R0 keys, so replay
+        # uses the same Spectrum global fallback thresholds runtime will use.
+        # The 30 ms*s integral threshold is 15ms average positive delta over 2s.
+        target_delta = 15.0
+        warn_delta = 75.0
         cycles_replayed = 0
         for sample in phase201_attempt3_trace:
             if sample.baseline_rtt_ms is None or sample.load_rtt_ms is None:
@@ -559,7 +575,7 @@ Do NOT modify any v1.41 (Phase 200) pins that should remain stable (warn_bloat=1
 - Phase 197 + Phase 195 replays still green (no regression in legacy paths).
 - Full test suite green; SAFE-05 v1.42 baseline matches.
 - Static checks clean (ruff + mypy on queue_controller.py).
-- Net new code in queue_controller.py is under ~80 lines (per RESEARCH "Don't Hand-Roll" budget).
+- Net new code in queue_controller.py is reviewed against an accepted ~100-line budget (Codex MED #8); executor records `git diff --numstat src/wanctl/queue_controller.py` in SUMMARY.md. If the budget grows materially beyond ~100 net-new lines, stop and split or re-plan before continuing.
 </verification>
 
 <success_criteria>

@@ -20,6 +20,7 @@ must_haves:
     - "Gate exits 1 (BLOCK) with operator-actionable message when rejected v1.41 keys present, OR docsis_mode: true without setpoint_mbps"
     - "Gate exits 2 (ABORT) on missing remote python3+pyyaml, missing SSH access, malformed env, or unreadable YAML (closes WR-02)"
     - "scripts/deploy.sh invokes the gate BEFORE rsync of /opt/wanctl artifacts; deploy aborts on non-zero gate exit"
+    - "scripts/deploy.sh invokes the gate only for Spectrum deploys (WAN_NAME=spectrum or equivalent deploy target), derives REMOTE_SSH_TARGET and REMOTE_YAML_PATH from existing deploy variables when unset, and skips ATT/non-Spectrum with tests"
     - "REMOTE_YAML_PATH validated with absolute-path regex (^/[A-Za-z0-9._/-]+$) before SSH command construction (Phase 200 Plan 11 pattern)"
     - "Predeploy gate test suite (tests/test_phase201_predeploy_gate.py from Plan 201-02) passes end-to-end"
   artifacts:
@@ -53,6 +54,8 @@ After this plan lands, any future Spectrum deploy/restart under v1.42 is gated: 
 Plan 201-02 wrote test stubs in `tests/test_phase201_predeploy_gate.py` with `pytest.skip()` guards. This plan removes those skips by implementing the gate script with `PHASE201_LOCAL_YAML_OVERRIDE` test escape hatch.
 
 Output: One new shell script (executable); deploy.sh extension; full predeploy-gate test class GREEN.
+
+Codex pre-review HIGH #4 amendment: deploy integration is Spectrum-scoped. The gate must not abort ATT/non-Spectrum deploys. When deploy.sh has `TARGET_HOST` and `WAN_NAME`, derive `REMOTE_SSH_TARGET=${REMOTE_SSH_TARGET:-$TARGET_HOST}` and `REMOTE_YAML_PATH=${REMOTE_YAML_PATH:-/etc/wanctl/${WAN_NAME}.yaml}` before invoking the gate. For non-Spectrum WANs, log a skip and continue without touching the gate. Tests must include ATT/non-Spectrum skip coverage and Spectrum default-derivation coverage.
 </objective>
 
 <execution_context>
@@ -313,9 +316,9 @@ First, read `scripts/deploy.sh` end-to-end. Find:
 
 Insert a new gate-invocation block IMMEDIATELY BEFORE the rsync command. The block must:
 
-1. Only run for Spectrum deploys (the gate's scope is Spectrum YAML; ATT and other YAMLs do not carry the v1.41 keys per D-17). If deploy.sh is WAN-aware, gate by WAN name; if it's ALL-WANs, run the gate once and let it short-circuit on non-Spectrum if the YAML doesn't have the rejected keys (which it shouldn't).
+1. Only run for Spectrum deploys (the gate's scope is Spectrum YAML; ATT and other YAMLs do not carry the v1.41 keys per D-17). If deploy.sh is WAN-aware, gate by `WAN_NAME=spectrum` or the existing equivalent deploy variable. ATT/non-Spectrum deploys must log an explicit skip and continue; do NOT inspect `/etc/wanctl/spectrum.yaml` for non-Spectrum deploys.
 
-2. Source environment for `REMOTE_SSH_TARGET` and `REMOTE_YAML_PATH`. Reuse the existing canary `.env` if deploy.sh already loads it; otherwise add an inline doc note that operator must export these before invoking deploy.sh.
+2. Derive environment for `REMOTE_SSH_TARGET` and `REMOTE_YAML_PATH` from deploy variables when unset. Required default shape: `REMOTE_SSH_TARGET=${REMOTE_SSH_TARGET:-${TARGET_HOST}}` and `REMOTE_YAML_PATH=${REMOTE_YAML_PATH:-/etc/wanctl/${WAN_NAME}.yaml}` (adapt variable names to deploy.sh's actual names). Reuse the existing canary `.env` only if deploy.sh already loads it.
 
 3. Invoke the gate; capture exit code; on non-zero, print operator-actionable line and exit deploy.sh with the gate's exit code.
 
@@ -332,27 +335,32 @@ Suggested insert (adapt to deploy.sh structure):
 # point at a stub gate that fails). The bare assignment `PREDEPLOY_GATE=...`
 # would have overwritten the env var and broken the integration tests below.
 : "${PREDEPLOY_GATE:=$(dirname "$0")/phase201-predeploy-gate.sh}"
-if [[ ! -x "$PREDEPLOY_GATE" ]]; then
+if [[ "${WAN_NAME:-}" != "spectrum" ]]; then
+    echo "[deploy] skipping Phase 201 predeploy gate for WAN_NAME=${WAN_NAME:-unknown} (Spectrum-only gate)"
+elif [[ ! -x "$PREDEPLOY_GATE" ]]; then
     # Fail-closed (D-15): missing/non-executable gate is treated identically to
     # gate failure. "I cannot verify" == "verification failed" — never let a
     # deploy proceed without the gate having run successfully.
     echo "[deploy] ABORTING: $PREDEPLOY_GATE not found or not executable. Phase 201 D-15 fail-closed contract: deploys cannot proceed without the predeploy gate. Restore the gate script (chmod +x) and retry." >&2
     exit 2
+else
+    echo "[deploy] running Phase 201 predeploy gate"
+    : "${REMOTE_SSH_TARGET:=${TARGET_HOST:?TARGET_HOST required for Spectrum predeploy gate}}"
+    : "${REMOTE_YAML_PATH:=/etc/wanctl/${WAN_NAME}.yaml}"
+    # IMPORTANT: capture the gate's exit code via `|| gate_rc=$?`, NOT inside an
+    # `if ! cmd; then gate_rc=$?` block. Inside `if ! cmd`, $? is the exit code of
+    # the NEGATION (always 0 when the then-branch fires), not of cmd — so
+    # `exit "$gate_rc"` would silently exit 0 on gate failure. This is the exact
+    # fail-OPEN bug Codex stop-time review caught and is the reason for this
+    # specific wiring pattern. Do NOT rewrite this as `if ! cmd`.
+    gate_rc=0
+    "$PREDEPLOY_GATE" || gate_rc=$?
+    if (( gate_rc != 0 )); then
+        echo "[deploy] ABORTING: predeploy gate exit=${gate_rc}. Reconcile /etc/wanctl/spectrum.yaml on the deploy target before retrying." >&2
+        exit "$gate_rc"
+    fi
+    echo "[deploy] predeploy gate PASS"
 fi
-echo "[deploy] running Phase 201 predeploy gate"
-# IMPORTANT: capture the gate's exit code via `|| gate_rc=$?`, NOT inside an
-# `if ! cmd; then gate_rc=$?` block. Inside `if ! cmd`, $? is the exit code of
-# the NEGATION (always 0 when the then-branch fires), not of cmd — so
-# `exit "$gate_rc"` would silently exit 0 on gate failure. This is the exact
-# fail-OPEN bug Codex stop-time review caught and is the reason for this
-# specific wiring pattern. Do NOT rewrite this as `if ! cmd`.
-gate_rc=0
-"$PREDEPLOY_GATE" || gate_rc=$?
-if (( gate_rc != 0 )); then
-    echo "[deploy] ABORTING: predeploy gate exit=${gate_rc}. Reconcile /etc/wanctl/spectrum.yaml on the deploy target before retrying." >&2
-    exit "$gate_rc"
-fi
-echo "[deploy] predeploy gate PASS"
 ```
 
 If deploy.sh has a separate preflight section or a dispatcher pattern (multi-WAN), choose the integration point that ensures the gate runs ONCE before any /opt/wanctl write. Do NOT duplicate the gate invocation across loop iterations.
@@ -372,6 +380,7 @@ Do NOT modify any existing rsync flags or the unit-restart commands; the only ch
     - **REVIEWS MED-1 (env-overridable PREDEPLOY_GATE):** the assignment uses the `${VAR:=default}` pattern, NOT bare assignment that overwrites env. Verify with: `grep -Ec ':\s*"\$\{PREDEPLOY_GATE:=' scripts/deploy.sh` returns >= 1 AND `grep -Ec '^PREDEPLOY_GATE="\$\(dirname' scripts/deploy.sh` returns 0 (no bare assignment that would clobber the env override). Integration test: `PREDEPLOY_GATE=/tmp/fake-failing-gate ./scripts/deploy.sh` (with a stub `/tmp/fake-failing-gate` that exits 1) MUST cause deploy.sh to exit non-zero, proving the env override took effect.
     - **REVIEWS MED-2 (no non-existent script reference):** the gate's BLOCK messages MUST NOT mention `phase201-reconcile-yaml.sh` (the script doesn't exist; auto-strip is rejected per RESEARCH §9 Option B): `grep -c 'phase201-reconcile-yaml' scripts/phase201-predeploy-gate.sh` returns 0.
     - **REVIEWS MED-3 (default REMOTE_YAML_PATH):** the gate script defaults `REMOTE_YAML_PATH=/etc/wanctl/spectrum.yaml` when env is unset: `grep -Ec ':\s*"\$\{REMOTE_YAML_PATH:=/etc/wanctl/spectrum.yaml\}"' scripts/phase201-predeploy-gate.sh` returns >= 1.
+    - **Codex HIGH #4:** ATT/non-Spectrum deploy path skips the gate and exits through the normal deploy path; Spectrum deploy path derives `REMOTE_SSH_TARGET` from `TARGET_HOST` and `REMOTE_YAML_PATH` from `/etc/wanctl/${WAN_NAME}.yaml` when those env vars are unset. Add/keep tests that prove both behaviors.
     - **Integration test — exit-code propagation (the bug Codex caught):** with the gate file present, force the gate to exit `1` (e.g., wrap it in a fault-injection shim or set `PREDEPLOY_GATE` to a script that does `exit 1`). Run the gate-invocation block under deploy.sh and assert `deploy.sh` itself exits `1` (NOT `0`). Repeat with gate exit `2` and assert deploy.sh exits `2`. If full deploy.sh execution is impractical in CI, a unit-style harness that sources just the gate-invocation block with a stub-gate-that-fails achieves the same coverage. **The test must FAIL if deploy.sh exits 0 when the gate exits non-zero.**
     - **Integration test — missing gate:** running `bash -c 'PREDEPLOY_GATE=/nonexistent ./scripts/deploy.sh ...'` (or equivalent fault-injection that hides the gate) exits non-zero with a message containing `ABORTING` and `D-15`.
   </acceptance_criteria>
