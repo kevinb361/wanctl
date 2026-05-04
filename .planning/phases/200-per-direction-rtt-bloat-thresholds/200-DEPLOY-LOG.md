@@ -198,3 +198,31 @@ Per Plan 06 Task 3 FAIL branch wording:
 4. **Substantially lower ceiling**: shape at 12-14 Mbit instead of 18 Mbit, sacrificing peak throughput for stable latency. Operator choice; a Phase 200 follow-up could spike this.
 
 Recommend opening Phase 201 (or sequel-numbered) for DOCSIS-aware UL congestion control with the 122-collapse evidence file from this canary run as the seed.
+
+## Deploy Timeline (Attempt 3 — Gap-Closure)
+
+- Pre-deploy snapshot: `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz` on cake-shaper (`1.5M`, root-owned, verified before deploy).
+- Operator gate: prior `Approved to deploy` response carried forward after the missing timestamp blocker was closed; no concurrent Spectrum experiment and production YAML gate were already operator-confirmed.
+- Deploy commit: `57be072` (working tree HEAD with Plans 10-13 landed).
+- Deploy command: `./scripts/deploy.sh spectrum kevin@10.10.110.223` at `2026-05-04T13:30:57Z`.
+- Deploy result: rsync application tree matched `101` Python files; config deployed to `/etc/wanctl/spectrum.yaml`; pre-startup validation had `0` errors and one existing transport-name warning (`linux-cake-netlink` skipped by validator).
+- Service restart: `sudo systemctl restart wanctl@spectrum.service` at `2026-05-04T13:31:00Z`.
+- Post-restart `is-active`: `active` at `2026-05-04T13:31:06Z`.
+- Post-restart explicit-UL-thresholds journal grep:
+  `journalctl -u wanctl@spectrum.service --since "2026-05-04T13:31:00Z" | grep "phase200 explicit UL thresholds active"`
+  hit:
+
+  ```text
+  May 04 08:31:01 cake-shaper wanctl-spectrum[3212509]: 2026-05-04 08:31:01,618 [spectrum] [INFO] phase200 explicit UL thresholds active: upload_target_bloat_ms=42 upload_warn_bloat_ms=105 (target_explicit=True warn_explicit=True)
+  ```
+
+- Post-restart `/health` upload snapshot: `state=GREEN`, `current_rate_mbps=18.0`, `hysteresis.suppressions_per_min=0`, `hysteresis.transitions_suppressed=0`, `hysteresis.green_streak=4766`.
+- Local→remote Python-tree sha256 fingerprint: `707bdaedce6cfeb74b21fd1c869263811922a138a487e305514de8940be26d6d` (matched local, differs from v1.40 fingerprint `b9c7c19513aa3678dbe171a4d0c29906a85c23ceae67b499fed5e81f7b3e7e9e` from Plan 06 rollback).
+
+### Attempt 3 Rollback Pin
+
+```bash
+export UTC_TS=20260504T132936Z
+```
+
+If D-10 is triggered by Attempt 3 canary `fail` or `abort`, restore `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz` and restart `wanctl@spectrum.service`.
