@@ -329,7 +329,7 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        echo "Step 1.5 complete: floor_hit_cycles_total_start=$FLOOR_HIT_T0 (source: $SOURCE) recorded in $ENV_FILE" >&2
        ```
 
-       **Why this is structured this way (lessons from rounds 1-11):**
+       **Why this is structured this way (lessons from rounds 1-12):**
        - `set -euo pipefail` so any unbound var or pipeline failure aborts; no silent partial writes.
        - `|| true` only on `ls` no-match (legitimate empty case), not on `jq`/`ssh` failures (those should propagate).
        - The `SOURCE` variable is set inside each successful branch, never inferred post-hoc from leftover state (round-6 catch).
@@ -338,7 +338,8 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        - **Validation uses an `awk` whitelist filter, NOT `bash -n` (round-7) and NOT a value-charset blacklist (round-8).** Whitelisting constrains keys to the EXACT THREE Step 1.5 writes, each with its per-key value charset, blocking magic env vars (`PATH=`, `IFS=`, `BASH_ENV=`, `LD_PRELOAD=`, `PROMPT_COMMAND=`, `BASH_FUNC_xxx%%=`) that poison shell state without using a single metacharacter.
        - **Cardinality + completeness validation (round-9 catch).** Each whitelisted key appears EXACTLY ONCE; in strict mode all 3 must be present. Previously `>>`-appended files where prior failed soak attempts left stale duplicates passed line-shape but represented multiple incoherent capture sessions; cardinality enforcement closes that.
        - **TRUE atomic file replacement (round-10 catch).** Step 1.5 writes to a temp file in the same directory, validates the temp file in strict mode, then `mv -f` (POSIX `rename(2)`, atomic within the same filesystem) into place. Round-9's `: > FILE` + `{ ... } > FILE` was NOT atomic — sequential writes have visibility windows. Rename(2) gives true POSIX atomicity.
-       - **Abort-path stale-file defense (round-11 catch).** Round-10's trap cleans up the temp file on any failure path, but left the *prior* `$ENV_FILE` intact. An operator who re-runs Step 1.5, hits an early abort, and then proceeds to Step 4 would have Step 4 source the **stale** prior file (which the validator cannot catch if the file was itself produced by a once-successful prior run — it's well-formed, just temporally wrong). Round-11's fix: at the START of Step 1.5, atomically rename any pre-existing `$ENV_FILE` to `.stale.<TS>` (forensics preserved, but the file no longer exists at the path Step 4 sources). Postcondition: at every moment after this block, `$ENV_FILE` either contains a valid fresh capture from THIS run, or does not exist at all. No third state is reachable.
+       - **Abort-path stale-file defense (round-11 catch).** Round-10's trap cleans up the temp file on any failure path, but left the *prior* `$ENV_FILE` intact. Round-11 fix: at the START of Step 1.5, atomically rename any pre-existing `$ENV_FILE` to `.stale.<TS>`. Postcondition: at every moment after this block, `$ENV_FILE` either contains a valid fresh capture from THIS run, or does not exist at all.
+       - **Consumer actually exits on failure (round-12 catch).** Round-11's plan prose said "if Step 1.5 aborts, `$ENV_FILE` doesn't exist, Step 4's missing-file branch fires correctly, soak is authored as FAIL." But the previous Step 4 implementation just printed `FAIL:` to stderr and **fell through** — no exit, no return. Subsequent code called validate on a missing file (undefined behavior), then `source` on a missing file (silently leaves vars unset), then arithmetic on an unset variable. The "Continue to write soak-summary.json with verdict: fail" comment was aspirational. Round-12 fix: explicit `SOAK_VERDICT` / `SOAK_FAIL_REASON` script variables; `write_soak_summary_and_exit` helper; every failure branch calls it; consumer never falls through past a detected failure. Plus: validator early-fails on missing/unreadable file (defense-in-depth — never returns 0 for a file it couldn't read). Plus: T+24h capture validates `FLOOR_HIT_T24` is a non-negative integer before arithmetic. Plus: post-source variable-set assertions catch TOCTOU races between validation and source.
        - **Trap-cleanup of the temp file** (`trap 'rm -f "$TMP_ENV_FILE"' EXIT`). Any exit path — success, validation failure, signal, OOM kill — removes the temp file. On successful rename, the temp path no longer exists, so the trap is a no-op. No leaked half-written files.
        - **Three-checkpoint validation (rounds 7+8+9+10).** Pre-existing-file lenient validation (informational; surfaces legacy contamination), pre-rename strict validation on the temp file (refuses to publish an invalid file), post-rename strict re-validation on the live file (catches the rare case of a concurrent writer racing our rename). All three checkpoints use the same closed-set whitelist + cardinality validator.
        - **The `SOURCE` label is itself validated against the bare-value charset before writing** (round-7 catch reinforced).
@@ -393,6 +394,17 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        validate_env_file() {
            local file="$1"
            local mode="${2:-strict}"
+           # Round-12 defense: early-fail on missing/unreadable file.
+           # Without this, awk would error noisily but the function might
+           # falsely return 0 because the violations capture would be empty.
+           if [[ ! -f "$file" ]]; then
+               echo "ABORT: validator called on missing file: $file" >&2
+               return 1
+           fi
+           if [[ ! -r "$file" ]]; then
+               echo "ABORT: validator called on unreadable file: $file" >&2
+               return 1
+           fi
            local violations
            violations=$(awk '
                BEGIN { soak_start_utc=0; floor_start=0; floor_src=0 }
@@ -435,21 +447,88 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
            return 0
        }
 
+       # ROUND-12 EXPLICIT VERDICT TRACKING: round-11's plan prose said "if
+       # Step 1.5 aborts, $ENV_FILE doesn't exist, Step 4's missing-file
+       # branch fires correctly, soak is authored as FAIL." But the previous
+       # implementation just printed FAIL: to stderr and FELL THROUGH — no
+       # exit, no return, no early branch. Subsequent code called
+       # validate_env_file on a missing file (undefined behavior), then
+       # source on a missing file (silently leaves vars unset), then
+       # arithmetic on an unset variable (set -u trap, or worse, with
+       # undefined fallback).
+       #
+       # Fix: track verdict + reason in explicit script variables, set them
+       # on every failure branch, take a SINGLE EXIT path that writes
+       # soak-summary.json from those variables. Code structure must make
+       # the FAIL path actually execute the summary-write logic, not rely
+       # on aspirational comments next to fall-through echo statements.
+       SOAK_VERDICT="pending"
+       SOAK_FAIL_REASON=""
+
+       write_soak_summary_and_exit() {
+           # Always write soak-summary.json (or fail-summary on early aborts)
+           # and exit with the right code. SOAK_VERDICT must be "pass" |
+           # "fail" | "abort" before this is called.
+           local out_dir="${OUT:-$PHASE_DIR/soak/$(date -u +%Y%m%dT%H%M%SZ)}"
+           mkdir -p "$out_dir"
+           jq -n \
+               --arg verdict "$SOAK_VERDICT" \
+               --arg reason  "$SOAK_FAIL_REASON" \
+               '{verdict: $verdict, reason: $reason, partial_evidence: true}' \
+               > "$out_dir/soak-summary.json"
+           if [[ "$SOAK_VERDICT" == "pass" ]]; then
+               exit 0
+           elif [[ "$SOAK_VERDICT" == "abort" ]]; then
+               exit 2
+           else
+               exit 1
+           fi
+       }
+
+       # Pre-source check 1: file must exist. Round-11's backup-on-entry at
+       # Step 1.5 ensures aborted Step 1.5 leaves no $ENV_FILE; Step 4 must
+       # actually USE that signal, not just acknowledge it.
        if [[ ! -f "$ENV_FILE" ]]; then
-           echo "FAIL: $ENV_FILE missing — Step 1.5 was not executed at soak start. PRIMARY soak gate uncollectible." >&2
-           # Continue to write soak-summary.json with verdict: fail and reason
-           # soak_primary_gate_uncollectible_t0_baseline_missing, then exit non-zero.
+           SOAK_VERDICT="fail"
+           SOAK_FAIL_REASON="soak_primary_gate_uncollectible_t0_baseline_missing"
+           echo "FAIL: $ENV_FILE missing — Step 1.5 was not executed at soak start, OR aborted before atomic rename. Round-11 invariant: missing $ENV_FILE means PRIMARY soak gate baseline was never captured. Authoring verdict: fail and exiting." >&2
+           write_soak_summary_and_exit
        fi
 
-       # Strict-mode validate, then source. If validation fails, treat as soak
-       # FAIL — do NOT source a contaminated/incomplete/duplicated file.
+       # Pre-source check 2: strict-mode validation (round-8 whitelist +
+       # round-9 cardinality + completeness). validate_env_file itself must
+       # also early-fail on missing file (defense in depth).
        if ! validate_env_file "$ENV_FILE" strict; then
-           echo "FAIL: $ENV_FILE was contaminated, incomplete, or had duplicate keys between Step 1.5 (write) and Step 4 (read). PRIMARY soak gate evidence is unreliable. Authoring verdict: fail with reason soak_primary_gate_env_file_contaminated." >&2
-           # Continue to write soak-summary.json with verdict: fail; do NOT source.
-           # Exit non-zero after writing the summary.
-       else
-           # Validated; safe to source.
-           source "$ENV_FILE"
+           SOAK_VERDICT="fail"
+           SOAK_FAIL_REASON="soak_primary_gate_env_file_contaminated"
+           echo "FAIL: $ENV_FILE was contaminated, incomplete, or had duplicate keys between Step 1.5 (write) and Step 4 (read). PRIMARY soak gate evidence is unreliable. Authoring verdict: fail and exiting." >&2
+           write_soak_summary_and_exit
+       fi
+
+       # Validation passed; safe to source. (Variables loaded into the shell.)
+       source "$ENV_FILE"
+
+       # Pre-source check 3: post-source sanity — round-9's strict mode
+       # validates cardinality and completeness BEFORE source; this check
+       # is defense-in-depth in case `source` itself fails (e.g., file
+       # disappears between validation and source — TOCTOU window).
+       if [[ -z "${floor_hit_cycles_total_start:-}" ]] \
+           || [[ -z "${soak_start_utc:-}" ]] \
+           || [[ -z "${floor_hit_cycles_total_start_source:-}" ]]; then
+           SOAK_VERDICT="fail"
+           SOAK_FAIL_REASON="soak_primary_gate_post_source_variables_unset"
+           echo "FAIL: required variables not set after sourcing $ENV_FILE — possible TOCTOU race between validation and source. Authoring verdict: fail and exiting." >&2
+           write_soak_summary_and_exit
+       fi
+
+       # Defense-in-depth: re-assert the captured value is a non-negative
+       # integer (the validator already enforced this via regex, but a TOCTOU
+       # race could deliver a different file).
+       if ! [[ "$floor_hit_cycles_total_start" =~ ^[0-9]+$ ]]; then
+           SOAK_VERDICT="fail"
+           SOAK_FAIL_REASON="soak_primary_gate_post_source_value_invalid"
+           echo "FAIL: floor_hit_cycles_total_start='$floor_hit_cycles_total_start' is not a non-negative integer after sourcing $ENV_FILE. Authoring verdict: fail and exiting." >&2
+           write_soak_summary_and_exit
        fi
 
        if [[ -z "${floor_hit_cycles_total_start:-}" ]]; then
@@ -458,16 +537,37 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
            # uncollectible reason, then exit non-zero.
        fi
 
-       # Capture T+24h counter live, compute delta:
-       FLOOR_HIT_T24=$(ssh cake-shaper "curl -sS http://127.0.0.1:9101/health" \
-           | jq -r '.wans[0].upload.floor_hit_cycles_total')
+       # Capture T+24h counter live, validate, compute delta. Round-12: explicit
+       # verdict-set on every failure path (no fall-through with aspirational
+       # "FAIL: ..." echoes).
+       FLOOR_HIT_T24=$(ssh cake-shaper "curl -sS http://127.0.0.1:9101/health" 2>/dev/null \
+           | jq -r '.wans[0].upload.floor_hit_cycles_total // empty' 2>/dev/null || true)
+       if ! [[ "$FLOOR_HIT_T24" =~ ^[0-9]+$ ]]; then
+           SOAK_VERDICT="abort"
+           SOAK_FAIL_REASON="soak_t24_capture_unavailable"
+           echo "ABORT: T+24h /health.upload.floor_hit_cycles_total unavailable or non-integer ('$FLOOR_HIT_T24'). Network issue, daemon down, or /health field absent. PRIMARY gate cannot be evaluated." >&2
+           write_soak_summary_and_exit
+       fi
+
        FLOOR_HIT_DELTA=$(( FLOOR_HIT_T24 - floor_hit_cycles_total_start ))
        if (( FLOOR_HIT_DELTA < 0 )); then
            # Counter went backwards — daemon restarted mid-soak. INFRASTRUCTURE
            # gate violated; PRIMARY gate is invalidated by the restart (counter
-           # reset to 0). Author verdict: fail with both reasons.
-           echo "FAIL: floor_hit_cycles_total_delta=$FLOOR_HIT_DELTA (negative) — daemon restart mid-soak invalidates PRIMARY gate." >&2
+           # reset to 0).
+           SOAK_VERDICT="fail"
+           SOAK_FAIL_REASON="soak_primary_gate_uncollectible_negative_delta_${FLOOR_HIT_DELTA}"
+           echo "FAIL: floor_hit_cycles_total_delta=$FLOOR_HIT_DELTA (negative) — daemon restart mid-soak invalidates PRIMARY gate. Authoring verdict: fail and exiting." >&2
+           write_soak_summary_and_exit
        fi
+       if (( FLOOR_HIT_DELTA > 0 )); then
+           SOAK_VERDICT="fail"
+           SOAK_FAIL_REASON="soak_primary_gate_floor_hit_cycles_delta_${FLOOR_HIT_DELTA}"
+           echo "FAIL: floor_hit_cycles_total_delta=$FLOOR_HIT_DELTA — controller hit floor during the 24h soak (cycle-fidelity counter). Authoring verdict: fail and exiting." >&2
+           write_soak_summary_and_exit
+       fi
+       # FLOOR_HIT_DELTA == 0: PRIMARY gate green. Continue to evaluate
+       # SECONDARY (suppression rate) and INFRASTRUCTURE (restart count) gates
+       # before the final verdict (per the decision matrix).
 
        OUT=.planning/phases/201-docsis-aware-ul-congestion-control/soak/$(date -u -d "$soak_start_utc" +%Y%m%dT%H%M%SZ)
        mkdir -p "$OUT"
