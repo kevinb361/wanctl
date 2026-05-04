@@ -17,7 +17,7 @@ tags: [phase-201, wave-4, spectrum-yaml, version-bump, docs, migration, r5-r3-di
 
 must_haves:
   truths:
-    - "configs/spectrum.yaml gains docsis_mode: true, setpoint_mbps: 12, integral_window_seconds: 2.0, integral_threshold_ms_s: 30.0, cake_backlog_low_threshold_bytes: 5000, cake_delay_delta_low_threshold_us: 5000"
+    - "configs/spectrum.yaml gains docsis_mode: true, setpoint_mbps: 12 [ASSUMED, canary-validated not sweep-proven], integral_window_seconds: 2.0, integral_threshold_ms_s: 30.0, cake_backlog_low_threshold_bytes: 5000, cake_delay_delta_low_threshold_us: 5000"
     - "configs/spectrum.yaml has target_bloat_ms and warn_bloat_ms REMOVED from continuous_monitoring.upload (R0 strip per RESEARCH §5)"
     - "configs/spectrum.yaml RETAINS factor_down_yellow: 1.0 and consecutive_yellow_decay_clamp: 40 (R5 + R3 keep per RESEARCH §5)"
     - "Upload ceiling_mbps stays at 18 and floor_mbps stays at 8 (D-10)"
@@ -53,6 +53,8 @@ must_haves:
 Wave 3 deployment-config wave. Lands the Spectrum YAML edits per RESEARCH §5 (R5+R3 keep, R0 strip, D-09 setpoint=12), bumps version to 1.42.0 in three places, and writes the CHANGELOG and CONFIGURATION migration sections. Non-Spectrum YAMLs are untouched (D-17).
 
 After this lands, a Spectrum daemon restarted under v1.42 will be in DOCSIS-mode at setpoint=12 with the new corroborator logic active. Plan 201-07 will guard the deploy with the predeploy gate.
+
+Codex pre-review MED #6 amendment: `setpoint_mbps: 12` is retained as `[ASSUMED]`, not sweep-verified. CHANGELOG and CONFIGURATION wording must state that the canary validates this assumption; if the canary fails on setpoint, the next parameter branch prefers `10` before testing `14`.
 
 Output: Edited configs/spectrum.yaml; version bumped in three files; CHANGELOG and CONFIGURATION docs extended.
 </objective>
@@ -128,7 +130,7 @@ Apply these edits to `continuous_monitoring.upload`:
 ```
     # Phase 201 (v1.42) DOCSIS-aware UL congestion control mode (per VALN-06).
     # Operating point: 12 Mbit (60% of ~20 Mbit estimated provisioned upstream).
-    # Setpoint = ASSUMED A4 + A5 from RESEARCH.md; canary validates.
+    # Setpoint = [ASSUMED] A4 + A5 from RESEARCH.md; canary validates.
     # Fallback on canary fail: drop to 10 (parameter tune, NOT control-model rejection).
     docsis_mode: true
     setpoint_mbps: 12
@@ -262,6 +264,7 @@ Content of the new section (mirror style of v1.41.0 entry):
 
 ### Changed
 - Spectrum (`configs/spectrum.yaml`): `docsis_mode: true`, `setpoint_mbps: 12`. Removed v1.41 rejected-hypothesis `target_bloat_ms: 42` and `warn_bloat_ms: 105`. Retained `factor_down_yellow: 1.0` and `consecutive_yellow_decay_clamp: 40` (R5 + R3 complementary to setpoint clamp; RESEARCH.md §5).
+- `setpoint_mbps: 12` is `[ASSUMED]`, not sweep-proven. Phase 201 canary validates it; if setpoint-specific canary failure occurs, the next branch should prefer `10` before testing `14`.
 - Upload `QueueController.adjust()` augmented with optional integral path + setpoint clamp. Legacy path byte-identical when `docsis_mode` absent.
 
 ### Migration
@@ -296,7 +299,7 @@ Enable per deployment by setting:
     continuous_monitoring:
       upload:
         docsis_mode: true
-        setpoint_mbps: 12  # link-specific; no global default
+        setpoint_mbps: 12  # [ASSUMED], link-specific; canary-validates; no global default
         # Optional tuning keys (defaults shown):
         integral_window_seconds: 2.0          # 0.5..10.0
         integral_threshold_ms_s: 30.0         # 1.0..1000.0
@@ -308,6 +311,8 @@ When `docsis_mode: true`, the upload controller:
 - Runs `setpoint_mbps` as the operating point (NOT the ceiling).
 - Uses a windowed RTT integral as the headroom probe.
 - AND-gates push-toward-ceiling on CAKE backlog/delay-delta low.
+
+For Spectrum v1.42, `setpoint_mbps: 12` is an assumed starting point rather than a sweep-proven optimum. Treat a setpoint-specific canary failure as a parameter branch first; prefer testing `10` before `14`.
 
 When `docsis_mode: false` or absent, behavior is byte-identical to v1.41.
 
