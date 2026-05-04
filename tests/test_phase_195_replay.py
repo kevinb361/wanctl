@@ -650,6 +650,11 @@ class TestPhase195SourceGuards:
         # All other expected counts MUST remain at their v1.40 pins;
         # any divergence indicates accidental drift in classification rules.
         src = Path("src/wanctl/wan_controller.py").read_text()
+        # Phase 201 (v1.42) SAFE-05 baseline. Phase 200 v1.41 pins (warn_bloat=12,
+        # target_bloat=14, etc.) preserved verbatim — Phase 201 keys are distinct
+        # strings and do NOT add incidental occurrences of v1.41 thresholds.
+        # If a v1.41 pin drifts during a future change, treat that drift as a
+        # real signal and reconcile manually (do not auto-bump).
         expected_counts = {
             "factor_down": 17,
             "step_up": 12,
@@ -664,6 +669,21 @@ class TestPhase195SourceGuards:
 
         for name, expected_count in expected_counts.items():
             assert len(re.findall(name, src)) == expected_count
+
+        phase201_src = "\n".join(
+            path.read_text() for path in Path("src/wanctl").rglob("*.py")
+        )
+        phase201_expected_counts = {
+            "docsis_mode": 15,
+            "setpoint_mbps": 20,
+            "integral_window_seconds": 4,
+            "integral_threshold_ms_s": 4,
+            "cake_backlog_low_threshold_bytes": 6,
+            "cake_delay_delta_low_threshold_us": 6,
+        }
+
+        for name, expected_count in phase201_expected_counts.items():
+            assert sum(1 for line in phase201_src.splitlines() if name in line) == expected_count
 
     def test_no_absolute_disagreement_literal_remains(self) -> None:
         src = Path("src/wanctl/wan_controller.py").read_text()
