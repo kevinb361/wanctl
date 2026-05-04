@@ -172,6 +172,70 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 
 ---
 
+# Roadmap: wanctl v1.42 DOCSIS-Aware UL Congestion Control
+
+**Milestone Goal:** Close VALN-06 (inherited blocking from Phase 200) by replacing the rejected per-direction-thresholds hypothesis with a DOCSIS-aware UL control mode that runs a conservative YAML setpoint as the operating point and uses a windowed RTT integral (with CAKE backlog as direction-aligned secondary corroborator) as the headroom probe. YAML opt-in keyed off `continuous_monitoring.upload.docsis_mode: true`; absent or `false` preserves byte-identical legacy behavior for all non-Spectrum deployments (CLAUDE.md NON-NEGOTIABLE: portable controller architecture).
+
+**Phases:** 1 | **Requirements mapped:** 1/1 ✓ (VALN-06 inherited blocking)
+
+## Phase Summary
+
+| # | Phase | Goal | Requirements | Success Criteria |
+|---|-------|------|--------------|------------------|
+| 201 | DOCSIS-Aware UL Congestion Control | 1/1 (VALN-06 inherited) | Open — planning | Spectrum UL canary `ul_floor_hits_during_load=0` AND 24h soak UL hysteresis suppression rate `<5/60s` |
+
+---
+
+## Phase 201: DOCSIS-Aware UL Congestion Control
+
+**Goal:** Ship a DOCSIS-aware UL congestion control mode that holds Spectrum DOCSIS upload off the floor under saturated load. The mode runs a YAML setpoint well below the upload ceiling and uses a windowed RTT integral as the headroom probe (with CAKE backlog as direction-aligned secondary corroborator) to decide when to push toward the ceiling. YAML opt-in; non-DOCSIS deployments stay byte-identical.
+
+**Requirements addressed:** VALN-06 (inherited blocking from Phase 200; closure shape per `.planning/phases/200-per-direction-rtt-bloat-thresholds/200-VERIFICATION.md` `closure: deferred-to-phase-201`, `inherited_as: blocking_requirement`)
+
+**Depends on:** Phase 200 closure (gaps_found 2026-05-04). v1.41 ceiling drop 28→18 Mbit and YAML key registration are orthogonal latency-first decisions and are preserved.
+
+**Scope:**
+- New YAML keys under `continuous_monitoring.upload.*`: `docsis_mode: bool` (default `false`), `setpoint_mbps: int|float` (REQUIRED when `docsis_mode: true`; validator fails closed if missing), windowed RTT-integral keys (planner finalizes naming + ordering)
+- Register new keys in `KNOWN_AUTORATE_PATHS` (`src/wanctl/check_config_validators.py:28-180`); honor existing ordering-check pattern (`src/wanctl/autorate_config.py:182-194`)
+- RTT-integral classifier: replace or augment `_classify_zone_3state()` (`src/wanctl/queue_controller.py:139-182`) with integral-of-RTT-over-baseline metric over a configurable window; planner decides replace vs augment based on RESEARCH.md
+- Setpoint clamp pre-classifier integration in `_compute_rate_3state()` (`src/wanctl/queue_controller.py:229-256`); CAKE-backlog corroborator wired through `CakeSignalSnapshot` (`src/wanctl/cake_signal.py:85-123`) at UL cycle invocation (`src/wanctl/wan_controller.py:2978-2984`); push-to-ceiling requires RTT-integral low for sustained window AND CAKE direction-aligned (categorical, never µs/ms magnitude ratio); single-signal flips do not bypass
+- Spectrum YAML (`configs/spectrum.yaml`): `docsis_mode: true`, `setpoint_mbps: 12` (60% of ~20 Mbit provisioned upstream — subject to challenge by researcher / planner / cross-AI review against the three Spectrum sweep notes); upload ceiling preserved at 18 Mbit; floor preserved at 8 Mbit
+- Predeploy gate that inspects `/etc/wanctl/spectrum.yaml` on deploy target for v1.41-only rejected-hypothesis keys (`target_bloat_ms`, `warn_bloat_ms`, `consecutive_yellow_decay_clamp`, `factor_down_yellow=1.0`) and either reconciles with Phase 201's design or fails closed before the deploy proceeds
+- `/health` payload extension: NEW additive fields under `.wans[].upload` (candidates: `setpoint_mbps`, `headroom_mbps`, `rtt_integral_ms_s`, `docsis_state`, `docsis_mode_active`); runtime-state semantics, not config echoes (Phase 200 RETRO lesson); planner finalizes naming
+- Restart-required for new keys (SIGUSR1 reload scope stays at dwell/deadband only, `src/wanctl/wan_controller.py:1894-1899`); migration note in `docs/CONFIGURATION.md` and `CHANGELOG.md` mirroring Phase 200 DOCS-03 pattern
+- Reuse `scripts/phase200-saturation-canary.sh`; extend preflight YAML cross-check (`scripts/phase200-saturation-canary.sh:314-358`) to also cross-check `docsis_mode: true` and `setpoint_mbps`; add /health probe asserting DOCSIS-mode telemetry block is live before saturation begins; same fail-closed pattern + rollback to v1.40 on any loaded-cycle floor hit
+- 24h Spectrum UL regression soak watchdog at `<5/60s` UL hysteresis suppression rate (unchanged from inherited Phase 200 closure shape)
+- Version bump to 1.42.0 in `pyproject.toml`, `src/wanctl/__init__.py`, `docker/Dockerfile`
+- Codex pre-review before plan implementation AND Codex stop-time review after deploy machinery is in place; both required, not optional (Phase 200 RETRO "high-leverage on production-control work")
+
+**Out of scope (locked):**
+- Modem SNMP / DOCSIS HCS counters (D-05 — new transport + firmware dependency; RTT-integral + CAKE corroborator is sufficient on available signals)
+- Live-tunable DOCSIS-mode keys via SIGUSR1 (D-08 — restart-required; control-path stability)
+- Global default for `setpoint_mbps` (D-07 — setpoint is link-specific; principled defaults not knowable without per-link evidence)
+- `setpoint_pct` companion key (D-07 — rejected to keep validator + ordering surface minimal)
+- ATT, fiber, DSL, and other non-DOCSIS YAMLs (D-17 — absence of `docsis_mode` preserves legacy 3-state UL behavior verbatim; no edits)
+- Tightening soak watchdog below `<5/60s` (D-14 — premature before zero-floor-hit canary first proves the mode; v1.43+ may revisit if Phase 201 soak data supports)
+- Per-direction DL state-machine changes (DL is healthy; v1.42 is UL-only, same scope discipline as v1.41)
+
+**Success Criteria:**
+1. The autorate config schema accepts `docsis_mode`, `setpoint_mbps`, and the windowed RTT-integral keys; enforces `setpoint_mbps` REQUIRED when `docsis_mode: true` (validator fails closed if missing); preserves byte-identical legacy 3-state UL behavior when `docsis_mode` is absent or `false`. Verified by new tests covering defaults, opt-in, missing-required validator failure, and key ordering.
+2. The 10–15 min saturated `iperf3 -P4` UL canary at the deployed Spectrum ceiling completes with `ul_floor_hits_during_load=0` (zero loaded-window floor-hit cycles); pre/post idle baselines bookend the run; canary fails if any single loaded cycle reaches floor; same fail-closed rollback to v1.40 on canary fail. Direct evidence Phase 201 must improve upon: `.planning/phases/200-per-direction-rtt-bloat-thresholds/canary/20260504T133207Z/verdict.json` (`verdict: fail`, `ul_floor_hits_during_load: 4`).
+3. The 24h Spectrum UL regression soak after canary passes shows UL hysteresis suppression rate drops below 5/60s on average. Soak watchdog gates closure; failure rolls back.
+4. The predeploy gate inspects `/etc/wanctl/spectrum.yaml` on the deploy target and either reconciles v1.41-only rejected-hypothesis keys with Phase 201's own design or fails closed before the deploy proceeds. Verified by canary preflight log evidence.
+5. `CHANGELOG.md` and `docs/CONFIGURATION.md` carry the migration note specifying that `docsis_mode`, `setpoint_mbps`, and the RTT-integral window keys require a service restart to take effect (SIGUSR1 does not reload these). Verified by greps for the keys in both files.
+
+**Plans:** 0/N — plan-phase pending.
+
+---
+
+## v1.42 Ordering Rationale
+
+Single-phase milestone seeded by Phase 200's operator-escalated VALN-06 deferral on 2026-05-04. Phase 200 RETRO's architectural diagnosis (residual failure regime is shaping-headroom dominated, not threshold dominated) eliminates the spike-first ambiguity that would otherwise apply to a new control mode. Phase 201 ships in a single sequence: research → plan (with cross-AI review) → predeploy gate → canary → deploy → 24h soak.
+
+*v1.42 roadmap created: 2026-05-04*
+
+---
+
 # Archived Milestones
 
 - **v1.40 Queue-Primary Signal Arbitration** (shipped 2026-05-03) — see `.planning/milestones/v1.40-ROADMAP.md`
