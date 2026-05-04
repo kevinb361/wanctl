@@ -17,9 +17,11 @@ must_haves:
     - "QueueController accepts six new Phase 201 kwargs and stores them as instance state with safe defaults so legacy callers are byte-identical (D-17)"
     - "_update_integral computes integral-of-positive-delta over a configurable window and returns headroom state AVAILABLE/EXHAUSTED with conservative window-not-full default"
     - "_is_cake_aligned_for_pushup is categorical AND-gate (backlog_low AND delay_delta_low AND not cold_start) — never µs/ms ratio"
-    - "Setpoint clamp injects ONLY in the GREEN+sustained-streak push-up branch of _compute_rate_3state — RED decay and YELLOW hold/decay are byte-identical to legacy"
+    - "Setpoint clamp injects in GREEN+sustained-streak push-up branch — RED decay byte-identical to legacy; YELLOW gains a docsis-only above-setpoint pull-down branch (REVIEWS MED-4) but legacy YELLOW path is byte-identical"
     - "RED fast-trip path (delta > warn_delta) returns rate <= current_rate * factor_down regardless of integral or CAKE state (ARCH-03 invariant)"
-    - "Replay against Phase 200 Attempt 3 capture produces ZERO floor hits in DOCSIS-mode controller (synthetic VALN-06 closure under unit conditions)"
+    - "REVIEWS HIGH-5: cycle-level floor-hit counter (self.floor_hit_cycles) increments at every 50ms cycle whose computed rate equals floor_red_bps; monotonic per daemon lifetime; Plan 05-T2 exposes via /health.wans[].upload.floor_hit_cycles_total"
+    - "REVIEWS HIGH-4: replay against Phase 200 Attempt 3 capture, expanded 20x via hold-last interpolation to 50ms cadence, produces ZERO floor-hit cycles in DOCSIS-mode controller (synthetic VALN-06 closure under cycle-fidelity conditions)"
+    - "REVIEWS MED-4: above-setpoint controller in sustained YELLOW pulls DOWN to setpoint (factor_down_yellow=1.0 hold-above edge case closed)"
   artifacts:
     - path: src/wanctl/queue_controller.py
       provides: "DOCSIS-mode integral + setpoint clamp + CAKE corroborator inside QueueController; legacy path unchanged"
@@ -39,13 +41,19 @@ must_haves:
 ---
 
 <objective>
-Wave 2 controller core. Lands the AUGMENT-not-replace integral path, CAKE corroborator AND-gate, and setpoint clamp inside `QueueController`. Legacy 3-state path is byte-identical when `docsis_mode=False`. Replays Phase 200 Attempt 3 NDJSON through the new controller and asserts zero floor hits as the synthetic VALN-06 contract.
+Wave 2 controller core. Lands the AUGMENT-not-replace integral path, CAKE corroborator AND-gate, setpoint clamp, and cycle-fidelity floor-hit counter inside `QueueController`. Legacy 3-state path is byte-identical when `docsis_mode=False`. Replays Phase 200 Attempt 3 NDJSON through the new controller — with **20-cycle hold-last expansion per 1 Hz NDJSON sample (REVIEWS HIGH-4)** — and asserts zero floor hits as the synthetic VALN-06 contract.
 
 Per RESEARCH §1 headline finding: AUGMENT, not REPLACE. RED fast-trip stays exactly as it is in `_classify_zone_3state` lines 147-153. The integral runs as a separate headroom-probe gate that only interacts with the GREEN+sustained-streak push-up path.
 
-Wave 0 tests landed in Plan 201-02 (TestDocsisModeIntegralClassifier, TestDocsisModeSetpointClamp, TestDocsisModeCakeCorroborator, TestDocsisModeByteIdentity, TestRedFastTripUnchangedDocsisMode, TestAttempt3ReplayWithDocsisMode, TestLegacyByteIdentity) all turn GREEN at the end of this plan.
+Wave 0 tests landed in Plan 201-02 (TestDocsisModeIntegralClassifier, TestDocsisModeSetpointClamp, TestDocsisModeCakeCorroborator, TestDocsisModeByteIdentity, TestRedFastTripUnchangedDocsisMode, TestDocsisModeAboveSetpointYellowPulldown [REVIEWS MED-4], TestDocsisModeFloorHitCounter [REVIEWS HIGH-5], TestAttempt3ReplayWithDocsisMode, TestLegacyByteIdentity) all turn GREEN at the end of this plan.
 
-Output: `queue_controller.py` extended with ~80 net-new lines; replay test wired; SAFE-05 v1.42 pins re-baselined for controller surface.
+**REVIEWS amendments (2026-05-04, see 201-REVIEWS.md):**
+- **HIGH-4 (replay timing fidelity, Option A chosen):** Plan 04-T3 expands each 1 Hz NDJSON sample into 20 synthetic 50ms cycles via *hold-last interpolation* (load_rtt and cake fields held constant across the 20 cycles). Reasoning: Option A (cycle-fidelity replay) gives stronger evidence than Option B (downgrade to coarse regression); the planner's Option B fallback would weaken the synthetic VALN-06 closure claim. Hold-last (vs linear interpolation) is more conservative — it doesn't smooth out the RTT-delta peaks that drive the integral. Documented in test docstring AND in RESEARCH.md Assumptions Log (planner adds A11 entry in Plan 04-T3).
+- **HIGH-5 (cycle-level floor-hit counter):** Plan 04-T2 adds `self.floor_hit_cycles: int = 0` and increments it inside `_compute_rate_3state` whenever the computed rate equals `self.floor_red_bps`. This is the cycle-fidelity (50ms) VALN-06 evidence vector. Plan 05-T2 exposes it as additive `/health.wans[].upload.floor_hit_cycles_total`. Plans 11/12 verdict against counter delta, not snapshot rates.
+- **MED-4 (above-setpoint YELLOW pull-down):** Plan 04-T2 adds a setpoint pull-down branch in `_compute_rate_3state`'s YELLOW arm: when `self._docsis_mode and self._setpoint_bps and current_rate > self._setpoint_bps and self._headroom_state == "EXHAUSTED" and yellow_streak >= dwell_cycles`, return `min(current_rate * factor_down_yellow, self._setpoint_bps)`. Closes the R5 (`factor_down_yellow=1.0`) edge case where a controller pushed above setpoint can hold there indefinitely.
+- **HIGH-3 (stub removal):** acceptance criterion at the plan level — `grep -c 'Wave 0 stub' tests/test_queue_controller.py tests/test_phase_201_replay.py` returns 0 after Plan 04 completes (every implemented stub has its xfail/fail decorator removed).
+
+Output: `queue_controller.py` extended with ~100 net-new lines (was ~80; +20 for floor_hit_cycles + above-setpoint YELLOW); replay test wired with 20-cycle expansion; SAFE-05 v1.42 pins re-baselined for controller surface; RESEARCH.md A11 assumption log entry.
 </objective>
 
 <execution_context>
@@ -83,6 +91,10 @@ QueueController NEW state attributes:
   self._headroom_state: str             # "AVAILABLE" | "EXHAUSTED" — default EXHAUSTED
   self._cake_aligned: bool              # default False
   self._last_integral_ms_s: float       # default 0.0
+  # REVIEWS HIGH-5 (2026-05-04): cycle-fidelity floor-hit counter.
+  # Public (no underscore) because Plan 05-T2 exposes via /health and
+  # Plans 11/12 read deltas across loaded windows.
+  self.floor_hit_cycles: int = 0
 
 QueueController NEW methods:
   def _update_integral(self, delta_ms: float) -> tuple[float, str]: ...
@@ -166,6 +178,15 @@ Append to the end of the existing `__init__` body (after `self._last_zone = "GRE
         self._headroom_state: str = "EXHAUSTED"  # safe default; AVAILABLE only after window full
         self._cake_aligned: bool = False
         self._last_integral_ms_s: float = 0.0
+        # REVIEWS HIGH-5: cycle-fidelity floor-hit counter (monotonic, daemon
+        # lifetime). Initialized for ALL controllers (legacy + docsis) so the
+        # /health field is always present; legacy controllers simply never
+        # increment it because their rate decisions go through the legacy
+        # path that doesn't gate on setpoint-clamp logic, but the counter
+        # is still incremented uniformly when _compute_rate_3state returns
+        # floor_red_bps (this is correct: ANY controller that hits floor
+        # under sustained load has a real measurement signal).
+        self.floor_hit_cycles: int = 0
         # DOCSIS-mode current_rate seed (RESEARCH §4 recommendation):
         # avoid a 1-cycle ceiling-touch at daemon start by initializing at
         # min(current_rate, setpoint_bps) when docsis_mode active.
@@ -183,7 +204,8 @@ Do NOT touch any existing kwarg defaults or any existing init line. Verify with 
     - `grep -c "self._headroom_state" src/wanctl/queue_controller.py` returns >= 2.
     - `grep -c "self._cake_aligned" src/wanctl/queue_controller.py` returns >= 2.
     - `grep -c "docsis_mode: bool = False" src/wanctl/queue_controller.py` returns 1.
-    - Constructor exists in test surface: `python3 -c "from wanctl.queue_controller import QueueController; q=QueueController(name='x',floor_green=1,floor_yellow=1,floor_soft_red=1,floor_red=1,ceiling=18000000,step_up=5000000,factor_down=0.9,factor_down_yellow=1.0,green_required=3,dwell_cycles=3,deadband_ms=3.0,docsis_mode=True,setpoint_bps=12000000); print(q._docsis_mode, q._headroom_state, len(q._integral_window))"` prints `True EXHAUSTED 0`.
+    - **REVIEWS HIGH-5:** `grep -c "self.floor_hit_cycles" src/wanctl/queue_controller.py` returns >= 2 (init + increment site after Task 2).
+    - Constructor exists in test surface: `python3 -c "from wanctl.queue_controller import QueueController; q=QueueController(name='x',floor_green=1,floor_yellow=1,floor_soft_red=1,floor_red=1,ceiling=18000000,step_up=5000000,factor_down=0.9,factor_down_yellow=1.0,green_required=3,dwell_cycles=3,deadband_ms=3.0,docsis_mode=True,setpoint_bps=12000000); print(q._docsis_mode, q._headroom_state, len(q._integral_window), q.floor_hit_cycles)"` prints `True EXHAUSTED 0 0`.
     - `.venv/bin/ruff check src/wanctl/queue_controller.py` returns 0.
     - `.venv/bin/mypy src/wanctl/queue_controller.py` returns 0.
     - Hot-path slice still passes for non-DOCSIS tests: `.venv/bin/pytest -o addopts='' tests/test_queue_controller.py -q -k 'not (DocsisMode or RedFastTripUnchangedDocsisMode)'` returns 0.
@@ -282,7 +304,11 @@ Do NOT change any other line in the file.
     - `grep -c "def _is_cake_aligned_for_pushup" src/wanctl/queue_controller.py` returns 1.
     - `grep -c "self._update_integral(delta)" src/wanctl/queue_controller.py` returns 1.
     - `grep -c "self._is_cake_aligned_for_pushup(cake_snapshot)" src/wanctl/queue_controller.py` returns 1.
-    - `grep -c "min(raw_rate, self._setpoint_bps)" src/wanctl/queue_controller.py` returns 1.
+    - `grep -c "min(raw_rate, self._setpoint_bps)" src/wanctl/queue_controller.py` returns >= 1.
+    - **REVIEWS MED-4:** `grep -c "yellow_streak >= self.dwell_cycles" src/wanctl/queue_controller.py` returns >= 1 (above-setpoint YELLOW pull-down condition). `grep -c "self.factor_down_yellow" src/wanctl/queue_controller.py` returns >= 1 (the pull-down arithmetic).
+    - **REVIEWS HIGH-5:** `grep -c "self.floor_hit_cycles += 1" src/wanctl/queue_controller.py` returns >= 3 (counter wraps at every floor-landing return path: GREEN-clamp, YELLOW-pulldown, RED-decay, fallthrough — at least 3 wrap sites; exact count depends on existing return paths).
+    - **REVIEWS HIGH-5:** TestDocsisModeFloorHitCounter passes: `.venv/bin/pytest -o addopts='' tests/test_queue_controller.py -q -k TestDocsisModeFloorHitCounter` returns 0.
+    - **REVIEWS MED-4:** TestDocsisModeAboveSetpointYellowPulldown passes: `.venv/bin/pytest -o addopts='' tests/test_queue_controller.py -q -k TestDocsisModeAboveSetpointYellowPulldown` returns 0.
     - `grep -v '^#\\|^ *#' src/wanctl/queue_controller.py | grep -c "max_delay_delta_us"` returns >= 1 (corroborator references field).
     - All TestDocsisMode* and TestRedFastTripUnchangedDocsisMode tests pass: `.venv/bin/pytest -o addopts='' tests/test_queue_controller.py -q -k 'DocsisMode or RedFastTripUnchangedDocsisMode'` returns 0.
     - All pre-existing queue_controller tests still pass: `.venv/bin/pytest -o addopts='' tests/test_queue_controller.py -q` returns 0.
@@ -310,7 +336,7 @@ Do NOT change any other line in the file.
     - .planning/phases/201-docsis-aware-ul-congestion-control/201-01-CORPUS-AUDIT.md (max_delay_delta_us absent — synth that field for replay)
   </read_first>
   <behavior>
-    - TestAttempt3ReplayWithDocsisMode::test_no_floor_hits_with_setpoint_12 reads the loaded corpus, builds a DOCSIS-mode QueueController with setpoint_bps=12_000_000 ceiling=18_000_000 floor=8_000_000, replays each sample, and asserts `floor_hits == 0`. Synthesized `max_delay_delta_us` for the CAKE corroborator (since corpus lacks the field): use 0 when backlog_bytes is 0, else 8000 (above the 5ms threshold) to model "high backlog therefore high queue delay".
+    - **REVIEWS HIGH-4 (cycle-fidelity replay, Option A):** TestAttempt3ReplayWithDocsisMode::test_no_floor_hits_with_setpoint_12_cycle_fidelity reads the loaded corpus, builds a DOCSIS-mode QueueController with setpoint_bps=12_000_000 ceiling=18_000_000 floor=8_000_000, expands each 1 Hz NDJSON sample into 20 synthetic 50ms cycles via *hold-last interpolation* (load_rtt_ms, baseline_rtt_ms, cake fields held constant across the 20 cycles), replays the expanded trace, and asserts `ctrl.floor_hit_cycles == 0` (counter delta == 0). The expansion turns the integral window (40 cycles = 2.0s) and YELLOW dwell counter into faithful production cadence. Without expansion, a 2-second integral stretches to ~40 replay-seconds because each NDJSON sample = one controller cycle. Synthesized `max_delay_delta_us` for the CAKE corroborator (since corpus lacks the field): use 0 when backlog_bytes is 0, else 8000 (above the 5ms threshold) to model "high backlog therefore high queue delay" — held constant across the 20 expansion cycles. The expanded replay is intentionally not perfect (cycle-internal RTT variation is lost), but it samples the integral and dwell windows at the right cadence.
     - TestLegacyByteIdentity::test_no_docsis_key_byte_identical_3state replays a synthetic sustained-load trace through (a) a legacy controller and (b) a docsis_mode=False controller and asserts identical (zone, rate) sequences (D-17 invariant).
     - test_phase_195_replay.py SAFE-05 pins re-baselined for queue_controller.py occurrence increases (docsis_mode, setpoint_bps, integral_window_seconds, etc., now appear in queue_controller.py too).
   </behavior>
@@ -402,9 +428,32 @@ def _synth_cake_from_sample(sample) -> CakeSignalSnapshot | None:
 
 
 class TestAttempt3ReplayWithDocsisMode:
-    def test_no_floor_hits_with_setpoint_12(self, phase201_attempt3_trace):
-        """VALN-06 synthetic closure contract: replay Attempt 3 against
-        DOCSIS-mode controller; expect zero floor hits.
+    # REVIEWS HIGH-4 (2026-05-04): Option A cycle-fidelity replay.
+    # Each 1 Hz NDJSON sample expands to 20 synthetic 50ms cycles via
+    # hold-last interpolation. See test docstring for the assumption.
+    CYCLES_PER_SAMPLE = 20  # 1 Hz NDJSON -> 20 Hz controller cadence (1/0.05)
+
+    def test_no_floor_hits_with_setpoint_12_cycle_fidelity(self, phase201_attempt3_trace):
+        """REVIEWS HIGH-4 (Option A): cycle-fidelity replay.
+
+        VALN-06 synthetic closure contract: replay Attempt 3 against the
+        DOCSIS-mode controller, expanding each 1 Hz NDJSON sample into 20
+        synthetic 50ms cycles via hold-last interpolation, and expect zero
+        floor hits via the cycle-level counter `ctrl.floor_hit_cycles`.
+
+        Why expansion: without it, the controller's 2-second integral
+        window (40 cycles) stretches to ~40 replay-seconds because the
+        loop treats each 1 Hz NDJSON sample as one controller cycle.
+        That gives the integral a 20x slower response than production.
+
+        Hold-last vs linear interpolation: hold-last is more conservative;
+        it doesn't smooth out the RTT-delta peaks that drive the integral.
+        Linear interpolation would inadvertently lower peak deltas across
+        samples and bias the corroborator toward "AVAILABLE" — hold-last
+        keeps the worst-case peak in front of the integral the whole second.
+
+        Documented in RESEARCH.md Assumptions Log A11 (planner adds during
+        execute-phase as a SUMMARY artifact).
 
         Direct evidence improved upon: Phase 200 Attempt 3 verdict.json
         ul_floor_hits_during_load=4 (with v1.41 stack).
@@ -413,26 +462,32 @@ class TestAttempt3ReplayWithDocsisMode:
             pytest.skip("Attempt 3 corpus empty — see 201-01-CORPUS-AUDIT.md")
 
         ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
-        floor_hits = 0
         target_delta = 5.0  # mirrors Spectrum legacy global target_bloat_ms=15 / 3
         warn_delta = 15.0   # mirrors Spectrum legacy global warn_bloat_ms=75 / 5
+        cycles_replayed = 0
         for sample in phase201_attempt3_trace:
             if sample.baseline_rtt_ms is None or sample.load_rtt_ms is None:
                 continue
             cake = _synth_cake_from_sample(sample)
-            zone, rate, _ = ctrl.adjust(
-                sample.baseline_rtt_ms,
-                sample.load_rtt_ms,
-                target_delta,
-                warn_delta,
-                cake_snapshot=cake,
-            )
-            if rate <= ctrl.floor_red_bps:
-                floor_hits += 1
-        assert floor_hits == 0, (
-            f"Expected zero floor hits with docsis_mode + setpoint=12; "
-            f"got {floor_hits}. Phase 201 controller would have failed VALN-06 "
-            f"on Attempt 3 capture."
+            # Hold-last expansion: 20 synthetic cycles per NDJSON sample.
+            for _ in range(self.CYCLES_PER_SAMPLE):
+                ctrl.adjust(
+                    sample.baseline_rtt_ms,
+                    sample.load_rtt_ms,
+                    target_delta,
+                    warn_delta,
+                    cake_snapshot=cake,
+                )
+                cycles_replayed += 1
+
+        assert cycles_replayed > 0, "no samples replayed"
+        # REVIEWS HIGH-5: cycle-level floor-hit counter delta == 0
+        assert ctrl.floor_hit_cycles == 0, (
+            f"Expected zero floor-hit cycles with docsis_mode + setpoint=12; "
+            f"got floor_hit_cycles={ctrl.floor_hit_cycles} across "
+            f"{cycles_replayed} cycles ({len(phase201_attempt3_trace)} 1 Hz "
+            f"samples * {self.CYCLES_PER_SAMPLE} cycles/sample). Phase 201 "
+            f"controller would have failed VALN-06 on Attempt 3 capture."
         )
 
 
@@ -463,6 +518,10 @@ Do NOT modify any v1.41 (Phase 200) pins that should remain stable (warn_bloat=1
     - `.venv/bin/pytest -o addopts='' tests/test_phase_201_replay.py -q` returns 0 (replay test green; floor_hits=0 contract met).
     - `.venv/bin/pytest -o addopts='' tests/test_phase_195_replay.py -q` returns 0 (SAFE-05 v1.42 pins match actual).
     - `grep -c "TestAttempt3ReplayWithDocsisMode" tests/test_phase_201_replay.py` returns 1.
+    - **REVIEWS HIGH-4:** `grep -c "test_no_floor_hits_with_setpoint_12_cycle_fidelity" tests/test_phase_201_replay.py` returns 1 (renamed from coarse-regression name).
+    - **REVIEWS HIGH-4:** `grep -c "CYCLES_PER_SAMPLE" tests/test_phase_201_replay.py` returns >= 1 (cycle expansion constant). `grep -c "hold-last" tests/test_phase_201_replay.py` returns >= 1 (interpolation choice documented).
+    - **REVIEWS HIGH-5:** `grep -c "ctrl.floor_hit_cycles" tests/test_phase_201_replay.py` returns >= 1 (counter-delta verdict, not snapshot-rate).
+    - **REVIEWS HIGH-3:** `grep -c "Wave 0 stub" tests/test_queue_controller.py tests/test_phase_201_replay.py 2>/dev/null | awk -F: '{s+=$2} END {print s}'` returns 0 (every Wave 0 stub xfail/fail decorator removed by Plan 04 completion).
     - `grep -c "TestLegacyByteIdentity" tests/test_phase_201_replay.py` returns 1.
     - `grep -c "_synth_cake_from_sample" tests/test_phase_201_replay.py` returns >= 1.
     - Hot-path slice green: `.venv/bin/pytest -o addopts='' tests/test_cake_signal.py tests/test_queue_controller.py tests/test_wan_controller.py tests/test_health_check.py -q` returns 0.

@@ -23,7 +23,7 @@ must_haves:
     - "Test names map 1:1 to RESEARCH.md Wave 0 Gaps and Per-Task Verification Map"
   artifacts:
     - path: tests/test_queue_controller.py
-      provides: "TestDocsisModeIntegralClassifier, TestDocsisModeSetpointClamp, TestDocsisModeCakeCorroborator, TestDocsisModeByteIdentity, TestRedFastTripUnchangedDocsisMode"
+      provides: "TestDocsisModeIntegralClassifier, TestDocsisModeSetpointClamp, TestDocsisModeCakeCorroborator, TestDocsisModeByteIdentity, TestRedFastTripUnchangedDocsisMode, TestDocsisModeAboveSetpointYellowPulldown (REVIEWS MED-4), TestDocsisModeFloorHitCounter (REVIEWS HIGH-5)"
       contains: "class TestDocsisModeIntegralClassifier"
     - path: tests/test_autorate_config.py
       provides: "TestPhase201Schema, TestSafe06Phase201KeysKnown"
@@ -32,7 +32,7 @@ must_haves:
       provides: "TestDocsisModeValidation"
       contains: "class TestDocsisModeValidation"
     - path: tests/test_wan_controller.py
-      provides: "TestPhase201HealthAdditive, TestPhase201FlashWear, TestSigusr1ReloadScopePhase201"
+      provides: "TestPhase201HealthAdditive (incl. floor_hit_cycles_total + tightened setpoint_mbps semantics per REVIEWS HIGH-5/LOW-1), TestPhase201FlashWear, TestSigusr1ReloadScopePhase201"
       contains: "class TestPhase201HealthAdditive"
     - path: tests/test_phase200_canary_script.py
       provides: "TestPhase201Preflight"
@@ -59,7 +59,14 @@ Wave 0 Nyquist anchor: write the failing-test scaffolding for every Phase 201 pr
 
 Per VALIDATION.md `Wave 0 Requirements`: no `type: execute` task may write production code under `src/wanctl/queue_controller.py` or `src/wanctl/wan_controller.py` until the corresponding test stub exists. This plan creates those stubs.
 
-Output: 7 test files extended/created with 14 named test classes mapped to the RESEARCH §7 / VALIDATION Per-Task Verification Map.
+**Strict RED contract (REVIEWS HIGH-3, 2026-05-04):** Wave 0 stubs MUST use `pytest.xfail("Wave 0 stub — Plan NN", strict=True)` or `pytest.fail("Wave 0 stub — must be implemented in Plan NN before this test runs")`. `pytest.skip(...)` is FORBIDDEN for stubs that anchor a real implementation contract — skipped tests don't enforce implementation, so a phase could "pass green" while leaving production code uncovered. The only exception is when the test's *symbol target* literally cannot be imported yet (e.g. predeploy gate script before Plan 07) — in that case `pytest.skip(...)` is allowed at the FUNCTION level only, but the stub must be REMOVED in the implementing plan (acceptance grep `grep -c 'Wave 0 stub' tests/test_*.py` returns 0 after that plan completes).
+
+**New test stubs added in this revision (REVIEWS HIGH-5, MED-4):**
+- `TestDocsisModeFloorHitCounter::test_floor_hit_counter_increments_when_rate_hits_floor` (Plan 04 contract — runtime counter for cycle-fidelity VALN-06 evidence; closes the 1 Hz vs 50ms cadence gap Codex flagged).
+- `TestPhase201HealthAdditive::test_floor_hit_cycles_total_runtime_field_present` (Plan 05 contract — additive `/health.wans[].upload.floor_hit_cycles_total`).
+- `TestDocsisModeSetpointClamp::test_above_setpoint_yellow_pulls_to_setpoint` (Plan 04 contract — when `current_rate > setpoint AND headroom EXHAUSTED AND YELLOW sustained`, controller pulls rate DOWN to setpoint; closes the `factor_down_yellow=1.0` hold-above-setpoint edge case Codex flagged).
+
+Output: 7 test files extended/created with 17 named test classes (originally 14; +3 stubs from REVIEWS) mapped to the RESEARCH §7 / VALIDATION Per-Task Verification Map.
 </objective>
 
 <execution_context>
@@ -144,10 +151,12 @@ Predeploy gate script (Plan 201-07):
   <behavior>
     - TestDocsisModeIntegralClassifier: window-not-full -> EXHAUSTED; integral <= 30.0 ms·s on idle -> AVAILABLE; integral > 30.0 on sustained load -> EXHAUSTED.
     - TestDocsisModeSetpointClamp: GREEN streak with headroom_AVAILABLE AND cake_aligned -> rate climbs above setpoint toward ceiling; either signal absent -> rate clamps at <= setpoint_bps.
+    - **TestDocsisModeSetpointClamp::test_above_setpoint_yellow_pulls_to_setpoint (REVIEWS MED-4):** when `current_rate > setpoint AND headroom_state == "EXHAUSTED" AND zone == "YELLOW" AND yellow_streak >= dwell_cycles`, the controller's rate output is `min(current_rate * factor_down_yellow, setpoint_bps)` — i.e., it pulls DOWN to setpoint. Closes the R5 (`factor_down_yellow=1.0`) edge case where a controller pushed above setpoint can hold there indefinitely under sustained YELLOW.
     - TestDocsisModeCakeCorroborator: cold_start=True -> False; backlog > threshold -> False; max_delay_delta_us > threshold -> False; both low + not cold -> True.
     - TestDocsisModeByteIdentity: docsis_mode=False produces byte-identical (zone, rate) sequence vs current 3-state controller on a 60-cycle deterministic delta sequence.
     - TestRedFastTripUnchangedDocsisMode: docsis_mode=True with delta > warn_delta returns RED zone and rate = current_rate * factor_down regardless of integral state (ARCH-03 invariant).
-    - All tests are expected to FAIL at the end of Plan 201-02 (the kwargs and methods don't exist yet); they are the contracts Plans 201-04 and 201-05 must satisfy.
+    - **TestDocsisModeFloorHitCounter (REVIEWS HIGH-5):** `test_floor_hit_counter_increments_when_rate_hits_floor` — when `_compute_rate_3state` returns a rate that equals `floor_red_bps`, `self.upload.floor_hit_cycles` increments by 1. `test_floor_hit_counter_does_not_increment_when_above_floor` — rate above floor leaves counter unchanged. `test_floor_hit_counter_starts_at_zero` — fresh controller has counter == 0. This counter is the cycle-fidelity (50ms) VALN-06 evidence vector that closes the 1 Hz `/health` polling gap (Codex review HIGH-5).
+    - All tests are expected to FAIL at the end of Plan 201-02 (the kwargs, methods, and counter don't exist yet); they are the contracts Plans 201-04 and 201-05 must satisfy.
   </behavior>
   <action>
 Append to `tests/test_queue_controller.py` (do NOT remove or alter existing tests). Add a top-of-file import block under any existing imports:
@@ -354,6 +363,98 @@ class TestRedFastTripUnchangedDocsisMode:
         zone, rate, _ = ctrl.adjust(22.0, 22.0 + 50.0, target_delta=5.0, warn_delta=15.0)
         assert zone == "RED"
         assert rate < 12_000_000  # immediate factor_down decay
+
+
+# ----------------------------------------------------------------------
+# REVIEWS MED-4: above-setpoint YELLOW edge case.
+# With factor_down_yellow=1.0 (R5 retained per CONTEXT D-10), a controller
+# that has pushed above setpoint can hold there indefinitely in YELLOW.
+# Phase 201 contract: when current_rate > setpoint AND headroom EXHAUSTED
+# AND YELLOW sustained (>= dwell_cycles), the rate output MUST pull DOWN
+# to setpoint. This test class anchors that contract for Plan 04-T2.
+# ----------------------------------------------------------------------
+# Append to TestDocsisModeSetpointClamp (above) instead of new class so
+# the YELLOW pull-down test sits next to the GREEN clamp tests.
+
+class TestDocsisModeAboveSetpointYellowPulldown:
+    def test_above_setpoint_yellow_pulls_to_setpoint(self):
+        """REVIEWS MED-4: above-setpoint hold-in-YELLOW must pull DOWN."""
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        # Simulate post-push-up state: current_rate above setpoint.
+        ctrl.current_rate = 15_000_000
+        ctrl._headroom_state = "EXHAUSTED"
+        ctrl._cake_aligned = False
+        # Force YELLOW with sustained streak (>= dwell_cycles).
+        ctrl.yellow_streak = ctrl.dwell_cycles + 1
+        rate = ctrl._compute_rate_3state("YELLOW")
+        # Plan 04-T2 contract: pull DOWN to setpoint, do not hold above.
+        assert rate <= 12_000_000, (
+            f"YELLOW above-setpoint hold violation: rate={rate} > setpoint=12_000_000. "
+            f"factor_down_yellow=1.0 + setpoint clamp must pull DOWN under sustained YELLOW."
+        )
+
+    def test_above_setpoint_yellow_legacy_unaffected(self):
+        """D-17 invariant: docsis_mode=False keeps legacy YELLOW semantics."""
+        from wanctl.queue_controller import QueueController
+        legacy = QueueController(
+            name="L", floor_green=8_000_000, floor_yellow=8_000_000,
+            floor_soft_red=8_000_000, floor_red=8_000_000,
+            ceiling=18_000_000, step_up=5_000_000,
+            factor_down=0.90, factor_down_yellow=1.0,
+            green_required=3, dwell_cycles=3, deadband_ms=3.0,
+            consecutive_yellow_decay_clamp=40,
+        )
+        legacy.current_rate = 15_000_000
+        legacy.yellow_streak = legacy.dwell_cycles + 1
+        rate_legacy = legacy._compute_rate_3state("YELLOW")
+        # Legacy hold-above-setpoint behavior preserved (no setpoint concept).
+        # Test asserts the LEGACY rate is whatever it was — we just don't crash.
+        assert rate_legacy is not None
+
+
+# ----------------------------------------------------------------------
+# REVIEWS HIGH-5: cycle-fidelity floor-hit counter.
+# VALN-06 says "no loaded cycle reaches floor" at the 50ms cycle interval.
+# 1 Hz /health polling can miss 50ms floor touches (1000x coarser).
+# Plan 04-T2 contract: increment self.floor_hit_cycles whenever
+# _compute_rate_3state returns floor_red_bps. Plan 05-T2 exposes it
+# as additive /health.wans[].upload.floor_hit_cycles_total. Plans 11+12
+# verdict against counter delta, not snapshot rates.
+# ----------------------------------------------------------------------
+
+class TestDocsisModeFloorHitCounter:
+    def test_floor_hit_counter_starts_at_zero(self):
+        ctrl = _make_docsis_controller()
+        assert getattr(ctrl, "floor_hit_cycles", None) == 0
+
+    def test_floor_hit_counter_increments_when_rate_hits_floor(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 12_000_000
+        # Force a RED decay path that lands at floor.
+        ctrl.red_streak = 100  # accumulated RED -> rate decays to floor
+        for _ in range(50):
+            rate = ctrl._compute_rate_3state("RED")
+            ctrl.current_rate = rate
+            if rate == ctrl.floor_red_bps:
+                break
+        else:
+            assert False, "expected RED decay to reach floor in 50 cycles"
+        # The cycle that LANDED at floor should have incremented the counter.
+        assert ctrl.floor_hit_cycles >= 1, (
+            f"floor_hit_cycles should be >= 1 after a floor-hit cycle; got {ctrl.floor_hit_cycles}"
+        )
+
+    def test_floor_hit_counter_does_not_increment_when_above_floor(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 12_000_000
+        ctrl._headroom_state = "AVAILABLE"
+        ctrl._cake_aligned = True
+        ctrl.green_streak = ctrl.green_required
+        before = ctrl.floor_hit_cycles
+        rate = ctrl._compute_rate_3state("GREEN")
+        # Rate should be at or above setpoint (well above floor)
+        assert rate > ctrl.floor_red_bps
+        assert ctrl.floor_hit_cycles == before
 ```
 
 These tests will fail at the end of this plan because `QueueController.__init__` does not yet accept the new kwargs. That is the intended Wave 0 RED state.
@@ -366,6 +467,9 @@ Add a TODO marker comment at the top of the new block: `# Phase 201 Wave 0 RED s
     - `grep -c "class TestDocsisModeCakeCorroborator" tests/test_queue_controller.py` returns 1.
     - `grep -c "class TestDocsisModeByteIdentity" tests/test_queue_controller.py` returns 1.
     - `grep -c "class TestRedFastTripUnchangedDocsisMode" tests/test_queue_controller.py` returns 1.
+    - **REVIEWS MED-4:** `grep -c "class TestDocsisModeAboveSetpointYellowPulldown" tests/test_queue_controller.py` returns 1.
+    - **REVIEWS HIGH-5:** `grep -c "class TestDocsisModeFloorHitCounter" tests/test_queue_controller.py` returns 1.
+    - **REVIEWS HIGH-3:** `grep -c "pytest.skip" tests/test_queue_controller.py` returns 0 for the new Phase 201 test classes (they use AttributeError-on-call to fail naturally; no `pytest.skip(...)` used in this file's new content). Verify via: `awk '/class TestDocsisMode|class TestRedFastTripUnchangedDocsisMode/{p=1} /^class [A-Z]/{if(!/TestDocsisMode|TestRedFastTripUnchangedDocsisMode/)p=0} p' tests/test_queue_controller.py | grep -c 'pytest.skip'` returns 0.
     - `.venv/bin/pytest -o addopts='' tests/test_queue_controller.py -q -k 'DocsisMode or RedFastTripUnchangedDocsisMode'` shows the new tests COLLECTING (not import-erroring) — they are expected to FAIL on assertion or AttributeError, not on collection error.
     - Existing 3-state and other tests in `tests/test_queue_controller.py` MUST still pass: `.venv/bin/pytest -o addopts='' tests/test_queue_controller.py -q -k 'not (DocsisMode or RedFastTripUnchangedDocsisMode)'` returns 0.
   </acceptance_criteria>
@@ -402,8 +506,9 @@ Add a TODO marker comment at the top of the new block: `# Phase 201 Wave 0 RED s
         TestDocsisModeValidation::test_legacy_yaml_byte_identical (no docsis_mode -> validator emits no docsis-related rows)
     - test_wan_controller.py adds:
         TestPhase201HealthAdditive::test_docsis_mode_active_runtime_field_present
-        TestPhase201HealthAdditive::test_setpoint_mbps_runtime_field_reflects_state_not_yaml
+        TestPhase201HealthAdditive::test_setpoint_mbps_runtime_field_reflects_state_not_yaml (REVIEWS LOW-1: docstring tightened — see action)
         TestPhase201HealthAdditive::test_legacy_health_unchanged_when_docsis_disabled (D-16 + Phase 200 RETRO Lesson 1)
+        TestPhase201HealthAdditive::test_floor_hit_cycles_total_runtime_field_present (REVIEWS HIGH-5 — additive `/health.wans[].upload.floor_hit_cycles_total`)
         TestPhase201FlashWear::test_steady_state_no_router_writes_when_rate_unchanged
         TestSigusr1ReloadScopePhase201::test_docsis_keys_not_live_tunable
     - test_phase200_canary_script.py adds:
@@ -450,19 +555,56 @@ continuous_monitoring:
 CRITICAL HEALTH-RUNTIME-STATE TEST (Phase 200 RETRO Lesson 1 — must NOT use JSON fixture):
 ```python
 class TestPhase201HealthAdditive:
+    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-05")
     def test_setpoint_mbps_runtime_field_reflects_state_not_yaml(
         self, mock_autorate_config
     ):
-        """`/health.wans[].upload.setpoint_mbps` is the rate the controller
-        is currently using as the soft attractor (runtime state), NOT the
-        YAML-configured value. Phase 200 RETRO Plan 05 bug 2 trap.
+        """`/health.wans[].upload.setpoint_mbps` is the *active configured
+        setpoint* (runtime state read from `self.upload._setpoint_bps`),
+        NOT the YAML-configured value AND NOT the current rate. Phase 200
+        RETRO Plan 05 bug 2 trap.
+
+        REVIEWS LOW-1 (2026-05-04): the field is runtime state by design
+        (D-16). Tests should NOT imply it changes when `current_rate` changes.
+        SIGUSR1 reload is OUT OF SCOPE per D-08, so re-reading YAML at runtime
+        does NOT update this field — only a daemon restart does. This test
+        anchors that invariant: setpoint_mbps reflects the active configured
+        setpoint, not the current rate.
         """
         # Build a controller with setpoint_mbps=12 in config but a
         # current_rate of 8 Mbit (post-floor-hit recovery scenario);
-        # /health must still expose a runtime-state value, not a YAML echo.
+        # /health.upload.setpoint_mbps MUST equal 12 (YAML config), NOT 8
+        # (current_rate). And current_rate != setpoint_mbps under load.
         # Implementation in Plan 201-05 must populate this from
-        # QueueController.get_health_data() — not from config object.
-        pytest.skip("Wave 0 stub — implementation lands in Plan 201-05")
+        # self.upload._setpoint_bps — not from config object directly,
+        # not from current_rate.
+        # Strict xfail: will REMAIN xfailing until Plan 201-05 wires the
+        # field; if it accidentally passes before then, pytest fails the test
+        # (reverse-protected against silent green).
+        raise AssertionError("Wave 0 stub — implementation lands in Plan 201-05")
+
+
+    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-05 (REVIEWS HIGH-5)")
+    def test_floor_hit_cycles_total_runtime_field_present(
+        self, mock_autorate_config
+    ):
+        """REVIEWS HIGH-5 (2026-05-04): /health.wans[].upload.floor_hit_cycles_total
+        is the cycle-fidelity (50ms) floor-hit counter exposed for canary +
+        soak verdict comparisons.
+
+        VALN-06 contract is "no loaded *cycle* reaches floor" at the 50ms
+        cycle interval. Canary + soak verdicts derived from 1 Hz /health
+        polling miss 50ms floor touches (1000x coarser). The runtime
+        counter `self.upload.floor_hit_cycles` (Plan 04-T2) is exposed
+        here as `floor_hit_cycles_total` (Plan 05-T2). Plans 11/12 verdict
+        gate compares counter DELTAS across the loaded window, not snapshot
+        rates.
+
+        Implementation in Plan 201-05: read `self.upload.floor_hit_cycles`
+        (int, monotonic since daemon start) and expose as
+        `floor_hit_cycles_total` in the per-WAN upload health dict.
+        """
+        raise AssertionError("Wave 0 stub — implementation lands in Plan 201-05")
 ```
 
 For predeploy gate test file, use a `subprocess.run` shell test pattern (script doesn't exist yet, mark with skip):
@@ -530,25 +672,42 @@ from tests.fixtures.phase201_replay_corpus import (
 )
 
 class TestAttempt3ReplayWithDocsisMode:
-    def test_no_floor_hits_with_setpoint_12(self, phase201_attempt3_trace):
-        """The contract: replaying Attempt 3's load_rtt + cake samples
-        through the new DOCSIS-mode controller produces ZERO floor hits
-        (vs verdict.json ul_floor_hits_during_load=4 for the v1.41 stack).
+    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-04 Task 3 (REVIEWS HIGH-3)")
+    def test_no_floor_hits_with_setpoint_12_cycle_fidelity(self, phase201_attempt3_trace):
+        """REVIEWS HIGH-4 (2026-05-04): cycle-fidelity replay contract.
 
-        Implementation lands in Plan 201-04; this test asserts the
-        success contract for VALN-06 closure under synthetic conditions.
+        Replays Attempt 3's load_rtt + cake samples through the DOCSIS-mode
+        controller, EXPANDING each 1 Hz NDJSON sample into 20 synthetic
+        50ms cycles via hold-last interpolation (load_rtt and cake fields
+        held constant across the 20 cycles). This makes the integral window
+        (2.0s = 40 cycles) and YELLOW dwell counters operate at the same
+        cadence as production (50ms cycle interval, per CYCLE_INTERVAL_SECONDS
+        in cake_signal.py).
+
+        Without expansion, a 2-second integral window stretches to 40
+        replay-seconds because each NDJSON sample = one controller cycle —
+        Codex review HIGH-4 caught this. The expansion turns a 900s loaded
+        capture into a 18000-cycle replay (still a coarse model — the
+        cycle-internal RTT variation is lost — but the integral and dwell
+        windows now sample at the right cadence).
+
+        Contract: floor_hits == 0 across the expanded loaded window.
+
+        Implementation lands in Plan 201-04 Task 3 (with `_synth_cake_from_sample`
+        producing 20 cycles per sample). Strict xfail until then.
         """
         if not phase201_attempt3_trace:
             pytest.skip("Attempt 3 trace empty — corpus loader missing or NDJSON moved")
-        pytest.skip("Wave 0 stub — replay harness wired in Plan 201-04 Task 3")
+        raise AssertionError("Wave 0 stub — replay harness wired in Plan 201-04 Task 3")
 
 class TestLegacyByteIdentity:
+    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-04 Task 3 (REVIEWS HIGH-3)")
     def test_no_docsis_key_byte_identical_3state(self, phase201_sustained_load_trace):
         """When `docsis_mode` key is absent from YAML, the (zone, rate)
         sequence on a synthetic trace MUST match the legacy 3-state
         controller exactly (D-17 invariant).
         """
-        pytest.skip("Wave 0 stub — implementation in Plan 201-04 Task 3")
+        raise AssertionError("Wave 0 stub — implementation in Plan 201-04 Task 3")
 ```
 
 For the canary preflight test class, use the existing `subprocess` + `--self-test` dispatch pattern in `tests/test_phase200_canary_script.py` (per Phase 200 Plan 11 hardening); locate via grep before writing. Skip individual tests if the corresponding `--self-test` subcommand doesn't yet exist (Plan 201-08 will add `--self-test phase201-preflight` and friends).
@@ -568,6 +727,10 @@ Use this header comment in every new file or new section:
     - `grep -c "class TestPhase201HealthAdditive" tests/test_wan_controller.py` returns 1.
     - `grep -c "class TestPhase201FlashWear" tests/test_wan_controller.py` returns 1.
     - `grep -c "class TestSigusr1ReloadScopePhase201" tests/test_wan_controller.py` returns 1.
+    - **REVIEWS HIGH-5:** `grep -c "test_floor_hit_cycles_total_runtime_field_present" tests/test_wan_controller.py` returns 1.
+    - **REVIEWS LOW-1:** `grep -c "active configured setpoint" tests/test_wan_controller.py` returns >= 1 (docstring tightened to clarify runtime-state semantics).
+    - **REVIEWS HIGH-3 (xfail-strict enforcement):** `grep -c '@pytest.mark.xfail(strict=True' tests/test_wan_controller.py` returns >= 2 for Phase 201 stubs (the setpoint_mbps and floor_hit_cycles_total tests). `grep -c '@pytest.mark.xfail(strict=True' tests/test_phase_201_replay.py` returns >= 2.
+    - **REVIEWS HIGH-3 (no skip-only stubs):** for stubs that anchor real implementation contracts, the file does NOT use bare `pytest.skip("Wave 0 stub")` — verify with `grep -B 1 'Wave 0 stub' tests/test_wan_controller.py tests/test_phase_201_replay.py | grep -c 'pytest.skip'` returns 0 (only xfail-strict allowed for symbol-importable stubs).
     - `grep -c "class TestPhase201Preflight" tests/test_phase200_canary_script.py` returns 1.
     - `test -f tests/test_phase_201_replay.py` succeeds; `grep -c "class TestAttempt3ReplayWithDocsisMode" tests/test_phase_201_replay.py` returns 1; `grep -c "class TestLegacyByteIdentity" tests/test_phase_201_replay.py` returns 1.
     - `test -f tests/test_phase201_predeploy_gate.py` succeeds; `grep -c "class TestPredeployGate" tests/test_phase201_predeploy_gate.py` returns 1.

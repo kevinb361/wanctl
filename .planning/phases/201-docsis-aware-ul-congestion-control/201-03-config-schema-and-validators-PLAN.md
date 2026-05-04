@@ -3,7 +3,7 @@ phase: 201-docsis-aware-ul-congestion-control
 plan: 03
 type: tdd
 wave: 1
-depends_on: [02]
+depends_on: [02, 09]
 files_modified:
   - src/wanctl/autorate_config.py
   - src/wanctl/check_config_validators.py
@@ -46,8 +46,13 @@ Wave 1 schema layer. Lands the YAML-key surface and validator wiring for Phase 2
 
 This plan is the SAFE-06 + D-06 + D-03 (Codex catch) gate. After this lands, ANY production YAML that includes these new keys is parsed correctly, validated, and reports presence flags upward. Without this, Plan 201-04 cannot wire the controller because it has no Config attributes to read.
 
-Output: Updated config + validator modules; updated SAFE-05 baseline test; previously-failing Wave 0 schema tests now GREEN.
+**Cross-AI review gating (REVIEWS HIGH-1, 2026-05-04):** `depends_on` includes Plan 201-09 (Codex pre-review). Wave 1 schema-layer code does not land until the cross-AI pre-review is captured with operator sign-off. Plan 09 is also Wave 1 (`depends_on: [01, 02]`); it runs alongside Plan 03 in the wave but Plan 03 is gated on Plan 09's GO verdict per D-18.
+
+**Wave 0 stub-removal acceptance (REVIEWS HIGH-3):** Every test stub this plan turns GREEN must have its `Wave 0 stub` marker REMOVED in the same commit. Acceptance criterion at the plan level: after Plan 03 completes, `grep -c 'Wave 0 stub' tests/test_autorate_config.py tests/test_check_config.py 2>/dev/null` returns 0 (no implemented Phase 201 test still carries the Wave 0 stub xfail/fail decorator).
+
+Output: Updated config + validator modules; updated SAFE-05 baseline test; previously-failing Wave 0 schema tests now GREEN with stub markers removed.
 </objective>
+
 
 <execution_context>
 @$HOME/.claude/get-shit-done/workflows/execute-plan.md
@@ -464,6 +469,8 @@ Plan 201-04 (controller core) will add MORE occurrences for the new keys when it
 - Hot-path regression slice unchanged.
 - Static checks clean (ruff + mypy).
 - Anti-pattern grep returns 0 (no value-derived flags).
+- **Wave 0 stub removal (REVIEWS HIGH-3):** `grep -c 'Wave 0 stub' tests/test_autorate_config.py tests/test_check_config.py 2>/dev/null | awk -F: '{s+=$2} END {print s}'` returns 0 — every test this plan turns GREEN has had its `Wave 0 stub` marker (xfail / pytest.fail decorator) removed in the same commit.
+- **Cross-AI pre-review gate (REVIEWS HIGH-1):** Plan 201-09 (Codex pre-review) verdict file exists and shows GO before Wave 1 implementation lands; planner records the pre-review verdict in 201-03-SUMMARY.md.
 </verification>
 
 <success_criteria>

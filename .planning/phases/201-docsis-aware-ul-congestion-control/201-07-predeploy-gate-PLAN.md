@@ -2,7 +2,7 @@
 phase: 201-docsis-aware-ul-congestion-control
 plan: 07
 type: execute
-wave: 4
+wave: 5
 depends_on: [02, 06]
 files_modified:
   - scripts/phase201-predeploy-gate.sh
@@ -10,7 +10,7 @@ files_modified:
   - tests/test_phase201_predeploy_gate.py
 autonomous: true
 requirements: [VALN-06]
-tags: [phase-201, wave-4, predeploy, d-15, fail-closed, security-gate]
+tags: [phase-201, wave-5, predeploy, d-15, fail-closed, security-gate]
 
 must_haves:
   truths:
@@ -164,8 +164,12 @@ read_yaml() {
         cat -- "$PHASE201_LOCAL_YAML_OVERRIDE"
         return 0
     fi
-    if [[ -z "${REMOTE_SSH_TARGET:-}" || -z "${REMOTE_YAML_PATH:-}" ]]; then
-        log_abort "REMOTE_SSH_TARGET and REMOTE_YAML_PATH must be set (or use PHASE201_LOCAL_YAML_OVERRIDE)"
+    # REVIEWS MED-3 (2026-05-04): default REMOTE_YAML_PATH if env not set.
+    # Operator can override via env (testing); default points at the canonical
+    # production YAML path. REMOTE_SSH_TARGET still required (no safe default).
+    : "${REMOTE_YAML_PATH:=/etc/wanctl/spectrum.yaml}"
+    if [[ -z "${REMOTE_SSH_TARGET:-}" ]]; then
+        log_abort "REMOTE_SSH_TARGET must be set (or use PHASE201_LOCAL_YAML_OVERRIDE)"
         return $EXIT_ABORT
     fi
     if ! validate_remote_yaml_path "$REMOTE_YAML_PATH"; then
@@ -240,11 +244,14 @@ main() {
 
     local blocked=false
     if [[ "$has_target" == "True" ]]; then
-        log_block "BLOCK: target_bloat_ms present in continuous_monitoring.upload (rejected v1.41 hypothesis key). Remove it from /etc/wanctl/spectrum.yaml or run scripts/phase201-reconcile-yaml.sh --strip-rejected (operator-manual)."
+        # REVIEWS MED-2 (2026-05-04): no non-existent reconcile-script reference.
+        # Auto-strip is rejected (RESEARCH §9 Option B + D-15 fail-closed-not-auto-strip).
+        # Operator must manually edit the deployed YAML; gate gives explicit steps.
+        log_block "BLOCK: target_bloat_ms present in continuous_monitoring.upload (rejected v1.41 hypothesis key). Reconcile manually: ssh to deploy target, edit /etc/wanctl/spectrum.yaml, remove the target_bloat_ms key under continuous_monitoring.upload, then 'sudo systemctl restart wanctl@<wan>.service'. Re-run this gate to confirm clean."
         blocked=true
     fi
     if [[ "$has_warn" == "True" ]]; then
-        log_block "BLOCK: warn_bloat_ms present in continuous_monitoring.upload (rejected v1.41 hypothesis key). Remove it from /etc/wanctl/spectrum.yaml or run scripts/phase201-reconcile-yaml.sh --strip-rejected (operator-manual)."
+        log_block "BLOCK: warn_bloat_ms present in continuous_monitoring.upload (rejected v1.41 hypothesis key). Reconcile manually: ssh to deploy target, edit /etc/wanctl/spectrum.yaml, remove the warn_bloat_ms key under continuous_monitoring.upload, then 'sudo systemctl restart wanctl@<wan>.service'. Re-run this gate to confirm clean."
         blocked=true
     fi
     if [[ "$docsis_mode" == "True" && -z "$setpoint" ]]; then
@@ -320,7 +327,11 @@ Suggested insert (adapt to deploy.sh structure):
 # hypothesis keys in /etc/wanctl/spectrum.yaml on the deploy target.
 # Runs BEFORE rsync of /opt/wanctl artifacts.
 # ----------------------------------------------------------------------
-PREDEPLOY_GATE="$(dirname "$0")/phase201-predeploy-gate.sh"
+# REVIEWS MED-1 (2026-05-04): use ${VAR:=default} so an externally-set
+# PREDEPLOY_GATE env var takes precedence (allows fault-injection tests to
+# point at a stub gate that fails). The bare assignment `PREDEPLOY_GATE=...`
+# would have overwritten the env var and broken the integration tests below.
+: "${PREDEPLOY_GATE:=$(dirname "$0")/phase201-predeploy-gate.sh}"
 if [[ ! -x "$PREDEPLOY_GATE" ]]; then
     # Fail-closed (D-15): missing/non-executable gate is treated identically to
     # gate failure. "I cannot verify" == "verification failed" — never let a
@@ -358,6 +369,9 @@ Do NOT modify any existing rsync flags or the unit-restart commands; the only ch
     - The gate invocation is BEFORE the rsync command (verify by line-number ordering): `awk '/phase201-predeploy-gate/{p=NR} /rsync.*\\/opt\\/wanctl/{r=NR} END {exit (p>0 \&\& p < r)?0:1}' scripts/deploy.sh` returns 0.
     - **Fail-closed on missing gate (D-15):** `grep -Ec '\[\[ ! -x .*phase201-predeploy-gate.*\]\]' scripts/deploy.sh` returns >= 1 — the wiring tests for a *missing/non-executable* gate first and exits non-zero. The legacy "WARNING + skip" pattern MUST NOT be present: `grep -c 'WARNING.*skipping Phase 201 gate' scripts/deploy.sh` returns 0.
     - **Correct exit-code capture (Codex stop-time review fix):** `grep -c '|| gate_rc=\$?' scripts/deploy.sh` returns >= 1 (the wiring uses the `|| gate_rc=$?` pattern, NOT the broken `if ! cmd; then gate_rc=$?` pattern). The broken pattern MUST NOT be present: `grep -Ec 'if ! .*phase201-predeploy-gate' scripts/deploy.sh` returns 0.
+    - **REVIEWS MED-1 (env-overridable PREDEPLOY_GATE):** the assignment uses the `${VAR:=default}` pattern, NOT bare assignment that overwrites env. Verify with: `grep -Ec ':\s*"\$\{PREDEPLOY_GATE:=' scripts/deploy.sh` returns >= 1 AND `grep -Ec '^PREDEPLOY_GATE="\$\(dirname' scripts/deploy.sh` returns 0 (no bare assignment that would clobber the env override). Integration test: `PREDEPLOY_GATE=/tmp/fake-failing-gate ./scripts/deploy.sh` (with a stub `/tmp/fake-failing-gate` that exits 1) MUST cause deploy.sh to exit non-zero, proving the env override took effect.
+    - **REVIEWS MED-2 (no non-existent script reference):** the gate's BLOCK messages MUST NOT mention `phase201-reconcile-yaml.sh` (the script doesn't exist; auto-strip is rejected per RESEARCH §9 Option B): `grep -c 'phase201-reconcile-yaml' scripts/phase201-predeploy-gate.sh` returns 0.
+    - **REVIEWS MED-3 (default REMOTE_YAML_PATH):** the gate script defaults `REMOTE_YAML_PATH=/etc/wanctl/spectrum.yaml` when env is unset: `grep -Ec ':\s*"\$\{REMOTE_YAML_PATH:=/etc/wanctl/spectrum.yaml\}"' scripts/phase201-predeploy-gate.sh` returns >= 1.
     - **Integration test — exit-code propagation (the bug Codex caught):** with the gate file present, force the gate to exit `1` (e.g., wrap it in a fault-injection shim or set `PREDEPLOY_GATE` to a script that does `exit 1`). Run the gate-invocation block under deploy.sh and assert `deploy.sh` itself exits `1` (NOT `0`). Repeat with gate exit `2` and assert deploy.sh exits `2`. If full deploy.sh execution is impractical in CI, a unit-style harness that sources just the gate-invocation block with a stub-gate-that-fails achieves the same coverage. **The test must FAIL if deploy.sh exits 0 when the gate exits non-zero.**
     - **Integration test — missing gate:** running `bash -c 'PREDEPLOY_GATE=/nonexistent ./scripts/deploy.sh ...'` (or equivalent fault-injection that hides the gate) exits non-zero with a message containing `ABORTING` and `D-15`.
   </acceptance_criteria>
