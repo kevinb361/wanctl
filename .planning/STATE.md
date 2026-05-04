@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: executing
-stopped_at: Completed 200-13-PLAN.md
-last_updated: "2026-05-04T01:23:12.196Z"
+stopped_at: Completed 200-10-PLAN.md
+last_updated: "2026-05-04T01:49:34.069Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 15
-  completed_plans: 13
-  percent: 87
+  completed_plans: 14
+  percent: 93
 ---
 
 # Session State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 **Active parallel milestone:** v1.39 Control-Path Timing & Measurement Accounting (Phase 191 still open)
 **Next milestone:** v1.41 (to open via `/gsd-new-milestone`)
 
-Progress: [█████████░] 87%
+Progress: [█████████░] 93%
 
 ## Deferred Items
 
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 200-13-PLAN.md
+Stopped at: Completed 200-10-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -220,9 +220,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 200]: The WR-01 gap was closed in tests/test_check_config.py because tests/test_check_config_validators.py is a stale planned path.
 - [Phase 200-13]: Closed WR-03 with direct Docker package-directory copy (`COPY src/wanctl /opt/wanctl/wanctl`) while preserving `PYTHONPATH=/opt/wanctl`.
 - [Phase 200-13]: Repo-root `.dockerignore` is the correct location because the canonical Docker build context is `docker build -f docker/Dockerfile .`.
+- [Phase 200-10]: Implemented approved R5+R3 only: Spectrum factor_down_yellow=1.0 and upload_consecutive_yellow_decay_clamp=40; R1/R2/R4 remain unimplemented.
+- [Phase 200-10]: Consecutive-YELLOW clamp defaults to 0 for byte-identical behavior when absent and resets on any non-YELLOW zone while preserving immediate RED decay.
 
 ## Performance Metrics
 
+- 2026-05-04: Phase 200 Plan 10 completed in 8min15s across 2 TDD gates and 11 files; approved R5+R3 landed with Spectrum factor_down_yellow=1.0, consecutive_yellow_decay_clamp=40, 763-test acceptance slice passed, dedicated single-GREEN clamp reset passed, and ruff/mypy passed.
 - 2026-05-04: Phase 200 Plan 13 completed in 1min23s across 1 task and 3 files; WR-03 Docker packaging now preserves the full wanctl package tree, repo-root .dockerignore is present, static checks passed, Docker CLI was unavailable, and the hot-path slice passed with 578 tests.
 - 2026-05-04: Phase 200 Plan 12 completed in 3min across 1 TDD task and 3 files; WR-01 preflight/daemon upload threshold-ordering parity is closed, check-config tests passed with 112 tests, ruff/mypy passed, and the hot-path slice passed with 578 tests.
 - 2026-05-04: Phase 200 Plan 11 completed in 4min across 2 TDD tasks and 4 files; canary self-test coverage passed with 9 tests, shellcheck was unavailable, and the hot-path slice passed with 578 tests.
@@ -275,6 +278,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 200 (per-direction-rtt-bloat-thresholds) — EXECUTING
-Plan: 14 of 15
+Plan: 15 of 15
 Status: Ready to execute
 Last activity: 2026-05-04
