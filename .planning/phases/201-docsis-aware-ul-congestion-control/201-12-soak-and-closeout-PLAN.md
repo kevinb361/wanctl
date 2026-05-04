@@ -92,32 +92,42 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        PHASE_DIR=.planning/phases/201-docsis-aware-ul-congestion-control
        ENV_FILE=/tmp/phase201-soak.env
 
-       # Strict env-file shape validator. Rejects ANY line that is not:
-       #   - empty/whitespace-only
-       #   - a comment (starts with #)
-       #   - KEY=value      (value: alphanumeric + . _ : / -; NO shell metachars)
-       #   - KEY="value"    (value: anything except double-quote, dollar, backtick,
-       #                     backslash — preventing command-substitution injection)
-       # Rationale: this file gets sourced by Step 4. `bash -n` is the WRONG check
-       # (it accepts any syntactically valid shell, including commands like
-       # `WARN: foo` or `rm -rf /` — both are parseable as shell, both execute on
-       # source). The right check is a content shape filter that allows ONLY
-       # assignment lines. (Round-7 fix: previous validation used bash -n which
-       # passes any parseable shell.)
+       # Strict env-file validator (round-8: KEY-WHITELIST, not just value-charset).
+       #
+       # Rationale: this file gets sourced by Step 4. The round-7 validator
+       # rejected dangerous characters in VALUES but allowed arbitrary KEY names —
+       # which means lines like `PATH=/tmp/evil:/bin`, `IFS=,`, `BASH_ENV=/tmp/evil.sh`,
+       # `PROMPT_COMMAND='rm -rf /'`, `LD_PRELOAD=/tmp/evil.so`, or
+       # `BASH_FUNC_foo%%=evil` would all match the value-shape regex and on
+       # `source` would poison the shell state. Every one of those has a clean
+       # value-charset; what makes them dangerous is the KEY identity.
+       #
+       # This validator whitelists THE EXACT THREE KEYS Step 1 + Step 1.5 are
+       # allowed to write, each with its own per-key value charset. Anything
+       # else — unknown keys, magic env vars (PATH/IFS/etc.), function-export
+       # attacks, malformed entries — is rejected.
+       #
+       # Allowed entries:
+       #   soak_start_utc=ISO-8601-Z           (Step 1; charset: [0-9T:Z-]+)
+       #   floor_hit_cycles_total_start=NNN    (Step 1.5; charset: [0-9]+)
+       #   floor_hit_cycles_total_start_source="…"   (Step 1.5; quoted; charset:
+       #                                              [A-Za-z0-9._/:-]+)
        validate_env_file() {
            local file="$1"
            local violations
            violations=$(awk '
-               /^[[:space:]]*$/                                   { next }
-               /^[[:space:]]*#/                                   { next }
-               /^[a-zA-Z_][a-zA-Z0-9_]*=[A-Za-z0-9._\/:-]*$/      { next }
-               /^[a-zA-Z_][a-zA-Z0-9_]*="[^"$`\\]*"$/             { next }
+               /^[[:space:]]*$/                                                              { next }
+               /^[[:space:]]*#/                                                              { next }
+               /^soak_start_utc=[0-9TZ:-]+$/                                                 { next }
+               /^floor_hit_cycles_total_start=[0-9]+$/                                       { next }
+               /^floor_hit_cycles_total_start_source="[A-Za-z0-9._\/:-]+"$/                  { next }
                { print "line " NR ": " $0 }
            ' "$file")
            if [[ -n "$violations" ]]; then
-               echo "ABORT: $file has lines that are NOT strict KEY=VALUE assignments:" >&2
+               echo "ABORT: $file has lines that are NOT in the whitelist of allowed key=value assignments:" >&2
                echo "$violations" >&2
-               echo "ABORT: bash 'source' would execute non-assignment lines as commands. Inspect and clean before continuing." >&2
+               echo "ABORT: bash 'source' on this file would either execute non-assignment lines as commands OR poison the shell environment via magic env vars (PATH, IFS, BASH_ENV, LD_PRELOAD, etc.) or function-export attacks." >&2
+               echo "ABORT: Allowed keys are: soak_start_utc, floor_hit_cycles_total_start, floor_hit_cycles_total_start_source. Inspect and clean before continuing." >&2
                return 1
            fi
            return 0
@@ -201,15 +211,15 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        echo "Step 1.5 complete: floor_hit_cycles_total_start=$FLOOR_HIT_T0 (source: $SOURCE) recorded in $ENV_FILE" >&2
        ```
 
-       **Why this is structured this way (lessons from rounds 1-7):**
+       **Why this is structured this way (lessons from rounds 1-8):**
        - `set -euo pipefail` so any unbound var or pipeline failure aborts; no silent partial writes.
        - `|| true` only on `ls` no-match (legitimate empty case), not on `jq`/`ssh` failures (those should propagate).
        - The `SOURCE` variable is set inside each successful branch, never inferred post-hoc from leftover state, so the provenance label always matches the code path that actually produced the value (round-6 catch).
        - Strict integer regex validation (`^[0-9]+$`) on the counter value — empty string, `null`, `"-1"`, `"1.0"` all rejected.
-       - The env file gets ONLY `key=value` lines, double-quoted where the value could contain a colon or path-separator. Commentary, warnings, success messages all go to **stderr**. The env file is data only; channel separation is enforced.
-       - **Validation uses `awk` shape filter, NOT `bash -n` (round-7 catch).** `bash -n` answers "is this parseable as shell?" — but `WARN: foo`, `echo hello`, `rm -rf /` are all parseable. They would be silently accepted by `bash -n` and then **executed** by `source`. The strict shape filter (empty / comment / `KEY=alphanumeric.colon.path` / `KEY="no-dollar-no-backtick-no-backslash"`) only allows assignment lines. Anything else is rejected with line numbers — regardless of whether bash could parse it.
-       - **The validator runs PRE-write AND POST-write.** Pre-write catches contamination from prior buggy runs (e.g., env files written by an earlier session with the broken Step 1.5 implementation). Post-write catches: (a) our own writes producing a non-conformant line, (b) concurrent process contamination mid-write.
-       - **The `SOURCE` label is itself validated against the bare-value charset before writing.** Prevents a future code path from producing a SOURCE string with spaces, `$`, or backticks that would break sourceability — the class of bug that turned round-6's lying-provenance into a potential injection vector.
+       - The env file gets ONLY `key=value` lines. Commentary, warnings, success messages all go to **stderr**. The env file is data only; channel separation is enforced (round-6 catch).
+       - **Validation uses an `awk` whitelist filter, NOT `bash -n` (round-7 catch) and NOT a value-charset blacklist (round-8 catch).** `bash -n` answers "is this parseable as shell?" — every shell command is parseable, including `rm -rf /`. A value-charset filter alone allows arbitrary KEY names — including `PATH=`, `IFS=`, `BASH_ENV=`, `LD_PRELOAD=`, `PROMPT_COMMAND=`, `BASH_FUNC_xxx%%=`, etc., which poison shell state without using a single dangerous metacharacter. The validator whitelists THE EXACT THREE keys Step 1 + Step 1.5 are allowed to write, with per-key value charsets. Anything outside the whitelist — unknown keys, magic env vars, function-export attacks, malformed entries — is rejected by line number.
+       - **The validator runs PRE-write AND POST-write at Step 1.5, AND PRE-source at Step 4.** Pre-write catches contamination from prior buggy runs. Post-write catches our own bug + concurrent contamination. Pre-source catches contamination introduced *between* Step 1.5 and Step 4 (a 24h+ window during which `/tmp` could be touched by the operator, by other processes, or by a malicious actor with `/tmp` write access).
+       - **The `SOURCE` label is itself validated against the bare-value charset before writing.** Prevents a future code path from producing a SOURCE string with spaces, `$`, or backticks that would break sourceability or inject — the class of bug that turned round-6's lying-provenance into a potential injection vector.
 
        **Failure modes Step 1.5 closes:**
        - Step 1.5 skipped entirely → Step 4 detects missing `floor_hit_cycles_total_start` and authors `verdict: fail` with reason `soak_primary_gate_uncollectible_t0_baseline_missing`.
@@ -242,14 +252,54 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        - Any non-INFO log lines (errors/warnings) flagged
 
        Example synthesis (REQUIRED steps, not optional — operator can adapt to local tooling but the PRIMARY-gate capture commands are not skippable):
-       ```
-       # Read T+0 baseline captured at Step 1.5 (REVIEWS HIGH-5). This is REQUIRED;
-       # if /tmp/phase201-soak.env doesn't have floor_hit_cycles_total_start, the
-       # PRIMARY soak gate is uncollectible — author verdict: fail with reason
-       # `soak_primary_gate_uncollectible_t0_baseline_missing`.
-       source /tmp/phase201-soak.env
+       ```bash
+       set -euo pipefail
+       ENV_FILE=/tmp/phase201-soak.env
+
+       # ROUND-8 DEFENSE: Re-validate the env file BEFORE source, because a 24h
+       # window separates Step 1.5's POST-write validation from Step 4's source.
+       # During that window the file could have been touched by the operator,
+       # another process, or a malicious actor with /tmp write access.
+       # Re-paste the validate_env_file function from Step 1.5 (or operator can
+       # source a shared helper if one exists).
+       validate_env_file() {
+           local file="$1"
+           local violations
+           violations=$(awk '
+               /^[[:space:]]*$/                                                              { next }
+               /^[[:space:]]*#/                                                              { next }
+               /^soak_start_utc=[0-9TZ:-]+$/                                                 { next }
+               /^floor_hit_cycles_total_start=[0-9]+$/                                       { next }
+               /^floor_hit_cycles_total_start_source="[A-Za-z0-9._\/:-]+"$/                  { next }
+               { print "line " NR ": " $0 }
+           ' "$file")
+           if [[ -n "$violations" ]]; then
+               echo "ABORT: $file failed pre-source validation:" >&2
+               echo "$violations" >&2
+               return 1
+           fi
+           return 0
+       }
+
+       if [[ ! -f "$ENV_FILE" ]]; then
+           echo "FAIL: $ENV_FILE missing — Step 1.5 was not executed at soak start. PRIMARY soak gate uncollectible." >&2
+           # Continue to write soak-summary.json with verdict: fail and reason
+           # soak_primary_gate_uncollectible_t0_baseline_missing, then exit non-zero.
+       fi
+
+       # Validate then source. If validation fails, treat as soak FAIL with
+       # the env-poisoning reason — do NOT source a contaminated file.
+       if ! validate_env_file "$ENV_FILE"; then
+           echo "FAIL: $ENV_FILE was contaminated between Step 1.5 (write) and Step 4 (read). PRIMARY soak gate evidence is unreliable. Authoring verdict: fail with reason soak_primary_gate_env_file_contaminated." >&2
+           # Continue to write soak-summary.json with verdict: fail; do NOT source.
+           # Exit non-zero after writing the summary.
+       else
+           # Validated; safe to source.
+           source "$ENV_FILE"
+       fi
+
        if [[ -z "${floor_hit_cycles_total_start:-}" ]]; then
-           echo "FAIL: PRIMARY soak gate uncollectible — Step 1.5 was not executed at soak start. Authoring verdict: fail." >&2
+           echo "FAIL: PRIMARY soak gate uncollectible — Step 1.5 was not executed at soak start (or env file failed validation). Authoring verdict: fail." >&2
            # Continue to write soak-summary.json with verdict: fail and the
            # uncollectible reason, then exit non-zero.
        fi
@@ -310,6 +360,7 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        |---|---|---|---|
        | **PRIMARY** (REVIEWS HIGH-5) | `floor_hit_cycles_total_delta == 0` over the 24h window | **FAIL** with reason `soak_primary_gate_floor_hit_cycles_delta_<N>` | Cycle-fidelity 50ms counter; this is the authoritative signal. |
        | **PRIMARY-COLLECTIBILITY** (REVIEWS round-5) | `floor_hit_cycles_total_start` was captured at Step 1.5 AND `/tmp/phase201-soak.env` carries it through to Step 4 AND `floor_hit_cycles_total_delta >= 0` (no daemon restart mid-soak) | **FAIL** with reason `soak_primary_gate_uncollectible_t0_baseline_missing` (Step 1.5 skipped) OR `soak_primary_gate_uncollectible_negative_delta_<N>` (daemon restart mid-soak invalidates the gate) | The PRIMARY gate is only meaningful if the T+0 anchor was actually captured. Operator skipping Step 1.5 OR a mid-soak daemon restart invalidates the entire 24h evidence — fail-closed; do NOT author `verdict: pass` on the assumption that "the counter probably didn't increment." Re-run the soak after capturing T+0 at the start. |
+       | **ENV-FILE INTEGRITY** (REVIEWS round-8) | `/tmp/phase201-soak.env` passes the strict whitelist validator at Step 4 PRE-source (only the 3 allowed keys with their per-key value charsets are present; no magic env vars; no function-export attacks; no malformed entries) | **FAIL** with reason `soak_primary_gate_env_file_contaminated` | The 24h window between Step 1.5 (write) and Step 4 (read) is enough time for `/tmp/phase201-soak.env` to be touched by another process or the operator. If validation fails at Step 4, the file is NOT sourced — instead the soak is authored as FAIL with the contamination reason. The PRIMARY gate evidence is treated as unreliable: do NOT trust `floor_hit_cycles_total_start` from a file that failed validation, even if the value looks plausible. |
        | **SECONDARY** (D-14, NO RELAXATION) | `ul_hysteresis_suppression_rate_per_60s.mean < 5.0` | **FAIL** with reason `soak_secondary_gate_suppression_rate_<value>` | Inherited Phase 200 closure-shape watchdog. |
        | **INFRASTRUCTURE** | `daemon_restart_count == 0` | **FAIL** with reason `soak_infrastructure_daemon_restart_count_<N>` | A daemon restart mid-soak invalidates the counter delta (would reset to 0); restart-count > 0 is itself a regression signal. |
        | **PRIMARY/CROSS-CHECK COHERENCE** | `floor_hit_cycles_total_delta == 0` IFF `floor_hits_during_soak_1hz_secondary == 0` (i.e., they agree) | **FAIL** with reason `soak_primary_secondary_disagreement_counter_<N>_snapshot_<M>` | Disagreement indicates /health-vs-counter drift bug or a counter-increment defect; treated as FAIL not "investigate" — fail-closed. |
