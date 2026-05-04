@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: executing
-stopped_at: Completed 201-01-corpus-inspection-and-fixtures-PLAN.md
-last_updated: "2026-05-04T21:15:08.858Z"
+stopped_at: Completed 201-02-test-stubs-PLAN.md
+last_updated: "2026-05-04T21:23:45.172Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 1
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 201-01-corpus-inspection-and-fixtures-PLAN.md
+Stopped at: Completed 201-02-test-stubs-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -226,9 +226,13 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 200]: Plan 200-15 should close Phase 200 as gaps_found. — The canary failed and the 24h soak was correctly skipped after rollback.
 - [Phase 200 gap closure]: Operator-provided Plan 200-15 execution context selected the Category B closeout branch: close Phase 200 as `gaps_found` based on Plan 200-14 Attempt 3 canary fail (4 UL floor hits), rollback from `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`, and skipped soak. VALN-06 remains unsatisfied; a second gap-closure cycle requires a new operator decision.
 - [Phase 200 closure 2026-05-04]: Operator escalated VALN-06 to Phase 201 (`docsis-aware-ul-congestion-control`) as an inherited blocking requirement rather than entering a second Phase 200 gap-closure cycle. Rationale: Phase 200's RETRO concluded the per-direction-thresholds hypothesis is the wrong fix; the residual 4 loaded-window floor hits live in a shaping-headroom regime that is Phase 201's seeded scope. No second remediation attempted; no production binary change (Spectrum on v1.40); v1.41 YAML keys remain on prod /etc/wanctl/spectrum.yaml inactive under v1.40 but MUST be reconciled before any future Spectrum deploy/restart — a Phase 201 predeploy gate is required.
+- [Phase 201-02]: Wave 0 RED scaffolding is complete; production-code plans 201-03 through 201-08 now have named pytest contracts to satisfy before controller/config/canary behavior can ship.
+- [Phase 201-02]: Importable Phase 201 stubs use strict xfail or natural missing-symbol failures rather than skip-only placeholders; only the absent predeploy shell script uses function-level skips until Plan 201-07 creates it.
+- [Phase 201-02]: `201-VALIDATION.md` now marks `wave_0_complete: true`; downstream implementation plans must remove their matching `Wave 0 stub` markers as they land GREEN behavior.
 
 ## Performance Metrics
 
+- 2026-05-04: Phase 201 Plan 02 completed in 7min across 2 Wave 0 TDD scaffold tasks and 8 files; 18 named Phase 201 test classes now collect, hot-path baseline passed with 583 tests, and VALIDATION.md wave_0_complete flipped true.
 - 2026-05-04: Phase 200 Plan 15 completed documentation closeout in ~9min across 5 planning artifacts plus summary; status is gaps_found, VALN-06 remains blocked after Attempt 3 canary 20260504T133207Z failed with 4 UL floor hits, rollback used /opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz, and soak was skipped.
 - 2026-05-04: Phase 200 Plan 14 completed in 21min27s across 4 task outcomes and 11 evidence/docs files; Attempt 3 deployed commit 57be072, canary 20260504T133207Z failed with 4 UL floor hits, D-10 rollback restored /opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz, soak was skipped, and the hot-path slice passed with 583 tests.
 - 2026-05-04: Phase 200 Plan 10 completed in 8min15s across 2 TDD gates and 11 files; approved R5+R3 landed with Spectrum factor_down_yellow=1.0, consecutive_yellow_decay_clamp=40, 763-test acceptance slice passed, dedicated single-GREEN clamp reset passed, and ruff/mypy passed.
@@ -284,6 +288,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 201 (docsis-aware-ul-congestion-control) — EXECUTING
-Plan: 2 of 12
+Plan: 3 of 12
 Status: Ready to execute
 Last activity: 2026-05-04
