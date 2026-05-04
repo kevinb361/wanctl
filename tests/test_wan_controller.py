@@ -2,6 +2,7 @@
 
 import threading
 import time
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,7 +15,6 @@ from wanctl.wan_controller import (
     ARBITRATION_PRIMARY_ENCODING,
     BACKGROUND_RTT_MIN_CADENCE_SECONDS,
 )
-
 
 # Phase 201 Wave 0 RED scaffolding — Plan 201-02 stubs.
 # Implementation lands in Plans 201-03 (config/validator),
@@ -5406,7 +5406,7 @@ class TestSigusr1ReloadScopePhase201:
 
     def test_docsis_keys_not_live_tunable(self, mock_autorate_config):
         """D-08: docsis_mode and setpoint keys are restart-required, not SIGUSR1-tunable."""
-        source = open("src/wanctl/wan_controller.py", encoding="utf-8").read()
+        source = Path("src/wanctl/wan_controller.py").read_text()
         reload_start = source.index("def reload")
         reload_end = source.index("def shutdown_threads", reload_start)
         reload_body = source[reload_start:reload_end]
