@@ -415,6 +415,36 @@ class WANController:
             consecutive_yellow_decay_clamp=getattr(
                 config, "upload_consecutive_yellow_decay_clamp", 0
             ),
+            # Phase 201 (DOCSIS-aware UL control mode) — getattr with safe
+            # defaults so legacy YAMLs with no Phase 201 keys are byte-identical
+            # (D-17). setpoint_bps is the BPS conversion of setpoint_mbps,
+            # gated by the per-key explicit-presence flag (D-03).
+            docsis_mode=(getattr(config, "docsis_mode", False) is True),
+            setpoint_bps=(
+                int(config.setpoint_mbps * 1_000_000)
+                if getattr(config, "_setpoint_mbps_explicit", False) is True
+                else None
+            ),
+            integral_window_seconds=(
+                config.integral_window_seconds
+                if isinstance(getattr(config, "integral_window_seconds", None), int | float)
+                else 2.0
+            ),
+            integral_threshold_ms_s=(
+                config.integral_threshold_ms_s
+                if isinstance(getattr(config, "integral_threshold_ms_s", None), int | float)
+                else 30.0
+            ),
+            cake_backlog_low_threshold_bytes=getattr(
+                config, "cake_backlog_low_threshold_bytes", 5000
+            )
+            if isinstance(getattr(config, "cake_backlog_low_threshold_bytes", None), int)
+            else 5000,
+            cake_delay_delta_low_threshold_us=(
+                getattr(config, "cake_delay_delta_low_threshold_us", 5000)
+                if isinstance(getattr(config, "cake_delay_delta_low_threshold_us", None), int)
+                else 5000
+            ),
         )
 
         # Thresholds (Phase 2A: 4-state for download, 3-state for upload)
@@ -435,6 +465,12 @@ class WANController:
         self._upload_warn_bloat_ms_explicit = getattr(
             config, "_upload_warn_bloat_ms_explicit", False
         )
+        # Phase 201 D-03 mirror: presence-based per-key flags. NEVER value-derived.
+        # Codex pre-review caught the value-derived flag regression in Phase 200.
+        self._docsis_mode_explicit = getattr(config, "_docsis_mode_explicit", False) is True
+        self._setpoint_mbps_explicit = (
+            getattr(config, "_setpoint_mbps_explicit", False) is True
+        )
         # Phase 200 D-06: one-shot INFO log emission when operator explicitly
         # set either UL threshold. Plan 06 deploy verification reads this via
         # journalctl grep — no new /health field added. Must use self.logger
@@ -449,6 +485,16 @@ class WANController:
                 self.warn_delta,
                 self._upload_target_bloat_ms_explicit,
                 self._upload_warn_bloat_ms_explicit,
+            )
+        # One-shot INFO log when operator opts into DOCSIS-mode. MUST use
+        # self.logger (per-WAN configured logger). Phase 200 Plan 01 Task 2:
+        # logging.getLogger(__name__) silently drops in production.
+        if self._docsis_mode_explicit and getattr(config, "docsis_mode", False) is True:
+            self.logger.info(
+                "phase201 docsis_mode active: setpoint_mbps=%s window_s=%s threshold_ms_s=%s",
+                getattr(config, "setpoint_mbps", None),
+                getattr(config, "integral_window_seconds", 2.0),
+                getattr(config, "integral_threshold_ms_s", 30.0),
             )
         self.alpha_baseline = config.alpha_baseline
         self.alpha_load = config.alpha_load

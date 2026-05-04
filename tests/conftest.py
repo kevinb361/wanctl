@@ -136,6 +136,21 @@ def mock_autorate_config():
     # don't override them. Tests asserting D-03 invariants set these to True.
     config._upload_target_bloat_ms_explicit = False
     config._upload_warn_bloat_ms_explicit = False
+    # Phase 201 DOCSIS-aware upload mode defaults. Explicit defaults are
+    # required because MagicMock would otherwise fabricate truthy attributes and
+    # accidentally enable DOCSIS mode in legacy tests.
+    config.docsis_mode = False
+    config._docsis_mode_explicit = False
+    config.setpoint_mbps = None
+    config._setpoint_mbps_explicit = False
+    config.integral_window_seconds = 2.0
+    config._integral_window_seconds_explicit = False
+    config.integral_threshold_ms_s = 30.0
+    config._integral_threshold_ms_s_explicit = False
+    config.cake_backlog_low_threshold_bytes = 5000
+    config._cake_backlog_low_threshold_bytes_explicit = False
+    config.cake_delay_delta_low_threshold_us = 5000
+    config._cake_delay_delta_low_threshold_us_explicit = False
     config.hard_red_bloat_ms = 80.0
     # EWMA and baseline
     config.alpha_baseline = 0.001
