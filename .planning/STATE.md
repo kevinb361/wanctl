@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: executing
-stopped_at: Completed 200-10-PLAN.md
-last_updated: "2026-05-04T01:49:34.069Z"
+stopped_at: Completed 200-14-PLAN.md
+last_updated: "2026-05-04T13:54:12.927Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 1
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 200-10-PLAN.md
+Stopped at: Completed 200-14-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -222,9 +222,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 200-13]: Repo-root `.dockerignore` is the correct location because the canonical Docker build context is `docker build -f docker/Dockerfile .`.
 - [Phase 200-10]: Implemented approved R5+R3 only: Spectrum factor_down_yellow=1.0 and upload_consecutive_yellow_decay_clamp=40; R1/R2/R4 remain unimplemented.
 - [Phase 200-10]: Consecutive-YELLOW clamp defaults to 0 for byte-identical behavior when absent and resets on any non-YELLOW zone while preserving immediate RED decay.
+- [Phase 200]: Attempt 3 canary verdict=fail triggered immediate D-10 rollback; Task 4 soak was skipped per fail-closed branch semantics. — VALN-06 requires zero loaded-window floor hits; Attempt 3 had 4 floor samples despite improvement from Attempt 2.
+- [Phase 200]: Plan 200-15 should close Phase 200 as gaps_found. — The canary failed and the 24h soak was correctly skipped after rollback.
 
 ## Performance Metrics
 
+- 2026-05-04: Phase 200 Plan 14 completed in 21min27s across 4 task outcomes and 11 evidence/docs files; Attempt 3 deployed commit 57be072, canary 20260504T133207Z failed with 4 UL floor hits, D-10 rollback restored /opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz, soak was skipped, and the hot-path slice passed with 583 tests.
 - 2026-05-04: Phase 200 Plan 10 completed in 8min15s across 2 TDD gates and 11 files; approved R5+R3 landed with Spectrum factor_down_yellow=1.0, consecutive_yellow_decay_clamp=40, 763-test acceptance slice passed, dedicated single-GREEN clamp reset passed, and ruff/mypy passed.
 - 2026-05-04: Phase 200 Plan 13 completed in 1min23s across 1 task and 3 files; WR-03 Docker packaging now preserves the full wanctl package tree, repo-root .dockerignore is present, static checks passed, Docker CLI was unavailable, and the hot-path slice passed with 578 tests.
 - 2026-05-04: Phase 200 Plan 12 completed in 3min across 1 TDD task and 3 files; WR-01 preflight/daemon upload threshold-ordering parity is closed, check-config tests passed with 112 tests, ruff/mypy passed, and the hot-path slice passed with 578 tests.
@@ -274,6 +277,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), `2026-04-23` (`64.40 Mbps`), `2026-04-23c` (`61.47 Mbps`), and `2026-04-24` (`70.95 Mbps`) FAIL samples against the old ATT RRUL download comparator. The `2026-04-24` run narrowed the issue because ATT tcp_12down and VoIP looked healthy and Spectrum throughput was strong, but it still did not close Phase 191. Phase 192 is allowed to proceed only under the explicit operator waiver in `192-PRECONDITION-WAIVER.md`.
 - Phase 196 remains blocked only for the deferred ATT canary because Phase 191 closure is still open; Spectrum VALN-04 and VALN-05a were closed by Phase 198 Plan 07 attempt 11 canonical promotion.
 - Pending follow-up created: `.planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md` tracks the required ATT cake-primary canary rerun after Phase 191 closes.
+- Phase 200 closure remains gaps_found: Plan 200-14 Attempt 3 canary 20260504T133207Z failed with 4 UL floor hits; D-10 rollback used /opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz and the soak was skipped.
 
 ## Current Position
 
