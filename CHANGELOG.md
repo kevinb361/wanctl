@@ -47,6 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Live-tuning threshold application now treats missing/non-numeric test-double
+  `target_delta` / `warn_delta` attributes as absent while preserving the
+  production ordering guard for real `WANController` instances. This restores
+  the full tuning regression suite after the Phase 200 D-03 per-key guard.
 - Phase 200 D-06 deploy verification surface: explicit UL threshold INFO log now emits
   via `self.logger` (per-WAN named logger with handlers) instead of module logger, ensuring
   the one-shot `phase200 explicit UL thresholds active` line reaches journalctl for Plan 06
