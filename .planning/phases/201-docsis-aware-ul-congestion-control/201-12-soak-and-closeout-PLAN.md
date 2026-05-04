@@ -96,12 +96,13 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
 
     4. **At soak end (~24h after start)**, capture the soak summary. The summary MUST include:
        - `soak_start_utc`, `soak_end_utc`, `soak_duration_s` (>= 86_400)
-       - `floor_hits_during_soak` (must be 0; any nonzero is a hard regression)
-       - `ul_hysteresis_suppression_rate_per_60s_p50`, `_p95`, `_mean`
+       - `floor_hit_cycles_total_start`, `floor_hit_cycles_total_end`, `floor_hit_cycles_total_delta` (PRIMARY gate — must be 0; cycle-fidelity 50ms counter, REVIEWS HIGH-5)
+       - `floor_hits_during_soak_1hz_secondary` (1 Hz snapshot count — must also be 0; cross-check)
+       - `ul_hysteresis_suppression_rate_per_60s_p50`, `_p95`, `_mean` (D-14 SECONDARY gate — `_mean` must be < 5.0)
        - `headroom_state_distribution` (counts of AVAILABLE/EXHAUSTED across the soak)
        - `cake_aligned_distribution` (counts of true/false across the soak)
        - `rtt_integral_ms_s` quartiles + max
-       - Daemon restart count during soak (must be 0)
+       - Daemon restart count during soak (INFRASTRUCTURE gate — must be 0)
        - Any non-INFO log lines (errors/warnings) flagged
 
        Example synthesis (operator can adapt to local tooling — Phase 200 evidence-harness has helpers):
@@ -144,21 +145,27 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        }
        ```
 
-       VALN-06 watchdog PASS conditions (REVIEWS HIGH-5):
-       - PRIMARY: `floor_hit_cycles_total_delta == 0` (cycle-fidelity 50ms counter delta over the full 24h window).
-       - SECONDARY (defense-in-depth, retained): `ul_hysteresis_suppression_rate_per_60s.mean < 5.0`.
-       - INFRASTRUCTURE: `daemon_restart_count == 0`.
-       - 1 Hz cross-check: `floor_hits_during_soak_1hz_secondary == 0` (was the only metric in the original plan; now demoted to a secondary signal — disagreement with `floor_hit_cycles_total_delta` is a sign of a /health-vs-counter drift bug).
+       **VALN-06 24h soak watchdog decision matrix (authoritative — operator MUST evaluate every row before authoring `verdict` in soak-summary.json. ALL `pass` conditions must hold conjunctively. ANY single FAIL row makes the verdict `fail`. Ambiguity = FAIL by default; this is a fail-closed contract):**
 
-       If `floor_hit_cycles_total_delta > 0` but `ul_hysteresis_suppression_rate_per_60s.mean < 5.0`, the watchdog FAILS — the new primary gate has caught a sub-second floor touch the 1 Hz polling missed.
+       | Gate | Condition | Verdict effect if violated | Notes |
+       |---|---|---|---|
+       | **PRIMARY** (REVIEWS HIGH-5) | `floor_hit_cycles_total_delta == 0` over the 24h window | **FAIL** with reason `soak_primary_gate_floor_hit_cycles_delta_<N>` | Cycle-fidelity 50ms counter; this is the authoritative signal. |
+       | **SECONDARY** (D-14, NO RELAXATION) | `ul_hysteresis_suppression_rate_per_60s.mean < 5.0` | **FAIL** with reason `soak_secondary_gate_suppression_rate_<value>` | Inherited Phase 200 closure-shape watchdog. |
+       | **INFRASTRUCTURE** | `daemon_restart_count == 0` | **FAIL** with reason `soak_infrastructure_daemon_restart_count_<N>` | A daemon restart mid-soak invalidates the counter delta (would reset to 0); restart-count > 0 is itself a regression signal. |
+       | **PRIMARY/CROSS-CHECK COHERENCE** | `floor_hit_cycles_total_delta == 0` IFF `floor_hits_during_soak_1hz_secondary == 0` (i.e., they agree) | **FAIL** with reason `soak_primary_secondary_disagreement_counter_<N>_snapshot_<M>` | Disagreement indicates /health-vs-counter drift bug or a counter-increment defect; treated as FAIL not "investigate" — fail-closed. |
+       | **DURATION** | `soak_duration_s >= 86_400` (24h minimum) | **FAIL** with reason `soak_duration_short_<N>s` | A short soak has not produced enough evidence to satisfy D-14. |
+
+       **PASS authoring rule:** write `"verdict": "pass"` in soak-summary.json ONLY when every row above is in its non-violated state. If any row violates, write `"verdict": "fail"` with the listed reason string (concatenate multiple reasons with `;` if multiple gates fail). The operator does NOT have discretion to interpret a partial-pass — there is no "PRIMARY pass + SECONDARY fail = soft pass" path. ALL gates must hold.
+
+       **Anti-pattern reminder:** the original Phase 200 closure-shape soak watchdog evaluated only `ul_hysteresis_suppression_rate_per_60s.mean < 5.0`. The cycle-fidelity counter was added by REVIEWS HIGH-5 to close the 1 Hz vs 50ms resolution gap. Demoting the counter to "advisory" by writing `verdict: pass` despite `floor_hit_cycles_total_delta > 0` because suppression rate is fine would re-create the exact fail-OPEN HIGH-5 was designed to prevent. Don't.
 
     6. **Capture operator-readable summary** in 201-12-SOAK-VERDICT.md mirroring the 201-11 shape (Soak start/end, key stats, decision PASS/FAIL, rollback protocol if FAIL).
 
     7. **On FAIL**: execute D-10 rollback (same archive Plan 201-11 captured); record rollback in 201-12-SOAK-VERDICT.md; type "soak-fail" + the watchdog metric that failed. Phase 201 closes as `gaps_found` and a follow-up phase is required (mirror Phase 200 closure shape).
   </how-to-verify>
   <resume-signal>
-    PASS: type "soak-pass" with the soak-summary.json mean suppression rate to proceed to Task 2 (closeout artifacts).
-    FAIL: type "soak-fail" + which gate (floor-hit, suppression-rate, restart-count) + operator's chosen remediation path.
+    PASS: type "soak-pass" with the soak-summary.json `floor_hit_cycles_total_delta` (must be 0) AND `ul_hysteresis_suppression_rate_per_60s.mean` (must be < 5.0) to proceed to Task 2 (closeout artifacts). Both numbers are required — operator restating them is an attestation that the AND-gate held.
+    FAIL: type "soak-fail" + ALL violated gates from the decision matrix (PRIMARY / SECONDARY / INFRASTRUCTURE / COHERENCE / DURATION — list every one that violated, do NOT pick "the worst"; multiple-gate FAIL is common and operator must surface all of them) + operator's chosen remediation path. If verdict.json contains `;`-separated reasons (multi-gate FAIL), the resume signal must include all of them verbatim.
   </resume-signal>
 </task>
 

@@ -196,13 +196,21 @@ Output: timestamped canary directory with the standard Phase 200 capture shape; 
            .baseline_rtt_pre_p50, .baseline_rtt_post_p50' \
            .planning/phases/201-docsis-aware-ul-congestion-control/canary/<TIMESTAMP>/verdict.json
        ```
-       VALN-06 PASS condition (REVIEWS HIGH-5):
-       - `verdict == "pass"` AND
-       - `floor_hit_cycles_total_delta_loaded_window == 0` (PRIMARY — cycle-fidelity 50ms counter delta) AND
-       - `ul_floor_hits_during_load == 0` (SECONDARY cross-check — 1 Hz snapshot rate compare) AND
-       - `baseline_rtt_pre_p50` close to `baseline_rtt_post_p50` (within ~3 ms — proves the test path itself is fault-isolated).
+       **VALN-06 verdict decision matrix (authoritative — Plan 08-T3 enforces this in the canary script's verdict-writing logic; operator just confirms):**
 
-       The 1 Hz snapshot rate compare REMAINS as a defense-in-depth cross-check. If the two metrics disagree (e.g., counter delta == 0 but ul_floor_hits_during_load > 0, or vice versa), STOP and investigate — this is a sign of either a counter-increment bug in Plan 04 OR a /health serialization gap in Plan 05.
+       | `verdict` field | What it means | Required action |
+       |---|---|---|
+       | `"pass"` | Script's AND-coupled gate held: counter delta == 0 AND snapshot == 0 AND no disagreement. The script CANNOT write `pass` if any of these failed (Plan 08-T3). | PASS — proceed to step 5 (verdict capture) and Plan 201-12 |
+       | `"fail"` with reason `primary_gate_floor_hit_cycles_delta_<N>_snapshot_zero_disagreement` | Cycle-fidelity counter caught sub-second floor touches the 1 Hz snapshot missed. **This is the exact scenario REVIEWS HIGH-5 was designed to catch.** | FAIL — execute rollback (step 6); A5 fallback (re-canary at setpoint=10) is allowed |
+       | `"fail"` with reason `secondary_gate_disagreement_snapshot_<N>_counter_delta_zero` | Snapshot saw floor at a 1 Hz tick but counter delta is 0. Indicates `/health` serialization lag OR counter-increment bug. | FAIL — execute rollback (step 6); investigate /health-vs-counter drift before re-canary; A5 fallback NOT applicable (this is a defect, not a control-model issue) |
+       | `"fail"` with reason `ul_floor_hits_during_load_<N>_counter_delta_<M>` | Both gates report floor hits — clean control-model failure. | FAIL — execute rollback (step 6); A5 fallback (re-canary at setpoint=10) is allowed |
+       | `"abort"` with reason `phase201_floor_hit_counter_field_missing` | `/health.wans[0].upload.floor_hit_cycles_total` was absent at start or end of loaded window. Plan 05 deploy didn't ship. | ABORT — environment fix needed; redeploy and re-run |
+       | `"abort"` with reason `phase201_floor_hit_counter_delta_negative` | Counter went backwards mid-window — process restart. | ABORT — investigate daemon stability; re-run |
+       | `"abort"` with any other reason | Phase 200 ABORT family (env mismatch, SSH fail, etc.) | ABORT — remediate per reason and re-run |
+
+       **You do NOT need to manually re-AND the gates.** The script's verdict-decision in Plan 08-T3 already enforces them. `verdict == "pass"` is the authoritative signal. The numeric fields (`floor_hit_cycles_total_delta_loaded_window`, `ul_floor_hits_during_load`, baseline RTT bookends) are for record-keeping in 201-11-CANARY-VERDICT.md and post-mortem evidence, NOT operator-discretion gate-recomputation.
+
+       **Belt-and-suspenders sanity check:** if `verdict == "pass"` AND any of (`floor_hit_cycles_total_delta_loaded_window != 0`, `ul_floor_hits_during_load != 0`, `baseline_rtt_post_p50 - baseline_rtt_pre_p50 > 3ms`), STOP and treat as FAIL with operator-escalation — this would indicate a script bug in Plan 08-T3, NOT a "soft" interpretation case. Such a state is impossible if Plan 08-T3 acceptance criteria all passed.
 
     5. **Capture the operator-readable verdict** in 201-11-CANARY-VERDICT.md:
 
@@ -231,13 +239,17 @@ Output: timestamped canary directory with the standard Phase 200 capture shape; 
        - **floor_hit_cycles_total delta (PRIMARY VERDICT): <value>** — MUST be 0 for VALN-06 PASS
        - ul_floor_hits_during_load (1 Hz secondary cross-check): <value>
        - Post-idle baseline RTT p50: <value> ms
-       - Verdict: PASS | FAIL
+       - Verdict: PASS | FAIL | ABORT
        - verdict.json reason: <verbatim>
 
-       ## Decision
+       ## Decision (per the verdict-decision matrix above; A5 re-canary fallback availability is reason-dependent)
        - [ ] PASS -> proceed to Plan 201-12 (24h soak)
-       - [ ] FAIL -> execute rollback below; consider re-canary attempt at setpoint_mbps=10 per RESEARCH §4 fallback
-       - [ ] ABORT -> verdict.json shows ABORT verdict; environment issue; remediate per verdict reason and re-run
+       - [ ] FAIL with reason `ul_floor_hits_during_load_<N>_counter_delta_<M>` (both gates fail, control-model failure) -> execute rollback (below); A5 re-canary at setpoint_mbps=10 ALLOWED per RESEARCH §4 fallback
+       - [ ] FAIL with reason `primary_gate_floor_hit_cycles_delta_<N>_snapshot_zero_disagreement` (cycle-fidelity counter caught what 1 Hz missed — same control-model failure mode) -> execute rollback (below); A5 re-canary at setpoint_mbps=10 ALLOWED
+       - [ ] FAIL with reason `secondary_gate_disagreement_snapshot_<N>_counter_delta_zero` (DEFECT — /health-vs-counter drift OR counter-increment bug) -> execute rollback (below); A5 re-canary at setpoint_mbps=10 NOT ALLOWED until the underlying defect is identified and fixed; escalate to gap-closure planning
+       - [ ] ABORT with reason `phase201_floor_hit_counter_field_missing` (Plan 05 didn't deploy) -> environment fix needed; redeploy and re-run; rollback NOT required (binary state was never validated)
+       - [ ] ABORT with reason `phase201_floor_hit_counter_delta_negative` (process restart mid-window) -> investigate daemon stability; re-run after operator confirms stability; rollback at operator's discretion based on daemon state
+       - [ ] ABORT with any other reason (Phase 200 ABORT family) -> remediate per verdict.json `reason` field and re-run
 
        ## Rollback (executed if FAIL — REVIEWS HIGH-7: BOTH binary AND YAML)
        - `ssh cake-shaper "sudo tar -xzf /opt/wanctl-prephase201-<TS>.tar.gz -C /opt/wanctl"`  # binary restore
