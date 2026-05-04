@@ -198,7 +198,7 @@ try:
     d = yaml.safe_load(sys.stdin)
     if not isinstance(d, dict):
         print(json.dumps({"error": "yaml root not a mapping"}))
-        sys.exit(0)
+        sys.exit(2)
     cm = d.get("continuous_monitoring") or {}
     ul = cm.get("upload") or {}
     print(json.dumps({
@@ -211,6 +211,7 @@ try:
     }))
 except Exception as exc:
     print(json.dumps({"error": str(exc)}))
+    sys.exit(2)
 '
 }
 
@@ -320,17 +321,20 @@ Suggested insert (adapt to deploy.sh structure):
 # Runs BEFORE rsync of /opt/wanctl artifacts.
 # ----------------------------------------------------------------------
 PREDEPLOY_GATE="$(dirname "$0")/phase201-predeploy-gate.sh"
-if [[ -x "$PREDEPLOY_GATE" ]]; then
-    echo "[deploy] running Phase 201 predeploy gate"
-    if ! "$PREDEPLOY_GATE"; then
-        gate_rc=$?
-        echo "[deploy] ABORTING: predeploy gate exit=${gate_rc}. Reconcile /etc/wanctl/spectrum.yaml on the deploy target before retrying."
-        exit "$gate_rc"
-    fi
-    echo "[deploy] predeploy gate PASS"
-else
-    echo "[deploy] WARNING: $PREDEPLOY_GATE not found or not executable; skipping Phase 201 gate. This is unsafe for Spectrum deploys under v1.42+."
+if [[ ! -x "$PREDEPLOY_GATE" ]]; then
+    # Fail-closed (D-15): missing/non-executable gate is treated identically to
+    # gate failure. "I cannot verify" == "verification failed" — never let a
+    # deploy proceed without the gate having run successfully.
+    echo "[deploy] ABORTING: $PREDEPLOY_GATE not found or not executable. Phase 201 D-15 fail-closed contract: deploys cannot proceed without the predeploy gate. Restore the gate script (chmod +x) and retry." >&2
+    exit 2
 fi
+echo "[deploy] running Phase 201 predeploy gate"
+if ! "$PREDEPLOY_GATE"; then
+    gate_rc=$?
+    echo "[deploy] ABORTING: predeploy gate exit=${gate_rc}. Reconcile /etc/wanctl/spectrum.yaml on the deploy target before retrying." >&2
+    exit "$gate_rc"
+fi
+echo "[deploy] predeploy gate PASS"
 ```
 
 If deploy.sh has a separate preflight section or a dispatcher pattern (multi-WAN), choose the integration point that ensures the gate runs ONCE before any /opt/wanctl write. Do NOT duplicate the gate invocation across loop iterations.
@@ -345,11 +349,13 @@ Do NOT modify any existing rsync flags or the unit-restart commands; the only ch
     - `grep -c 'D-15' scripts/deploy.sh` returns >= 1 (decision-traceability comment).
     - `bash -n scripts/deploy.sh` returns 0.
     - The gate invocation is BEFORE the rsync command (verify by line-number ordering): `awk '/phase201-predeploy-gate/{p=NR} /rsync.*\\/opt\\/wanctl/{r=NR} END {exit (p>0 \&\& p < r)?0:1}' scripts/deploy.sh` returns 0.
+    - **Fail-closed on missing gate (D-15):** `grep -Ec '\[\[ ! -x .*phase201-predeploy-gate.*\]\]' scripts/deploy.sh` returns >= 1 — the wiring tests for a *missing/non-executable* gate first and exits non-zero. The legacy "WARNING + skip" pattern MUST NOT be present: `grep -c 'WARNING.*skipping Phase 201 gate' scripts/deploy.sh` returns 0.
+    - **Integration test:** running `bash -c 'PREDEPLOY_GATE=/nonexistent ./scripts/deploy.sh ...'` (or equivalent fault-injection that hides the gate) exits non-zero with a message containing `ABORTING` and `D-15`. If full deploy.sh execution is impractical in CI, a unit-style harness that sources just the gate-invocation block with a missing path achieves the same coverage.
   </acceptance_criteria>
   <verify>
-    <automated>bash -n scripts/deploy.sh &amp;&amp; grep -q 'phase201-predeploy-gate.sh' scripts/deploy.sh</automated>
+    <automated>bash -n scripts/deploy.sh &amp;&amp; grep -q 'phase201-predeploy-gate.sh' scripts/deploy.sh &amp;&amp; ! grep -q 'WARNING.*skipping Phase 201 gate' scripts/deploy.sh &amp;&amp; grep -Eq '\[\[ ! -x .*phase201-predeploy-gate.*\]\]' scripts/deploy.sh</automated>
   </verify>
-  <done>deploy.sh invokes the predeploy gate before rsync; non-zero gate exit aborts deploy with operator-actionable message; D-15 traceability comment present.</done>
+  <done>deploy.sh invokes the predeploy gate before rsync; non-zero gate exit aborts deploy with operator-actionable message; **missing/non-executable gate also aborts (fail-closed, NOT warn-and-continue)**; D-15 traceability comment present.</done>
 </task>
 
 </tasks>
@@ -371,7 +377,7 @@ Do NOT modify any existing rsync flags or the unit-restart commands; the only ch
 | T-201-30 | Spoofing | Auto-strip silently removes operator-curated keys without audit trail | mitigate | RESEARCH §9 Option B chosen (fail-closed, NOT auto-strip). Operator action required. |
 | T-201-31 | Repudiation | Gate logs nothing on PASS, so operators don't know it ran | mitigate | log_info "PASS" line; deploy.sh prints "[deploy] predeploy gate PASS". |
 | T-201-32 | Information Disclosure | Gate output reveals YAML contents in CI logs | accept | YAML contains operator config, not secrets; output is bool flags + operator-actionable messages, not raw YAML. |
-| T-201-33 | Tampering | Gate skipped via missing executable bit -> deploy proceeds with v1.41 keys live under v1.42 | mitigate | deploy.sh prints WARNING when gate not executable; operator-visible. Acceptance gate: `test -x scripts/phase201-predeploy-gate.sh` enforced in Task 1. |
+| T-201-33 | Tampering | Gate skipped via missing executable bit -> deploy proceeds with v1.41 keys live under v1.42 | mitigate | deploy.sh fails closed with `exit 2` when gate is missing or non-executable (NOT a warning + continue). Acceptance gate: `test -x scripts/phase201-predeploy-gate.sh` enforced in Task 1; `grep -c '\[\[ ! -x .*phase201-predeploy-gate' scripts/deploy.sh` returns >= 1; integration test asserts deploy.sh aborts with non-zero when gate file is removed. "I cannot verify" == "verification failed" — D-15 fail-closed contract. |
 | T-201-34 | DoS | Remote python3+pyyaml missing -> gate hangs | mitigate | SSH ConnectTimeout=5 + BatchMode=yes ensures fast-fail; abort with operator-actionable message (closes WR-02). |
 | T-201-35 | Tampering | Gate deletes or modifies the target YAML | accept | Gate uses `sudo cat`, not edit; no write paths in the script (verified by grep `sudo (rm|tee|sed|cp|mv)` returning 0). |
 </threat_model>
