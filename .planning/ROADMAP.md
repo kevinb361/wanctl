@@ -182,7 +182,7 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 201 | DOCSIS-Aware UL Congestion Control | 1/1 (VALN-06 inherited) | Open — planning | Spectrum UL canary `ul_floor_hits_during_load=0` AND 24h soak UL hysteresis suppression rate `<5/60s` |
+| 201 | DOCSIS-Aware UL Congestion Control | 1/12 | In Progress|  |
 
 ---
 
@@ -224,10 +224,10 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 4. The predeploy gate inspects `/etc/wanctl/spectrum.yaml` on the deploy target and either reconciles v1.41-only rejected-hypothesis keys with Phase 201's own design or fails closed before the deploy proceeds. Verified by canary preflight log evidence.
 5. `CHANGELOG.md` and `docs/CONFIGURATION.md` carry the migration note specifying that `docsis_mode`, `setpoint_mbps`, and the RTT-integral window keys require a service restart to take effect (SIGUSR1 does not reload these). Verified by greps for the keys in both files.
 
-**Plans:** 12 plans (replanned 2026-05-04 after cross-AI review — no new plans, in-place amendments only; see 201-REVIEWS.md). Wave structure: W0 [01,02] -> W1 [03,09] -> W2 [04] -> W3 [05] -> W4 [06] -> W5 [07,08] -> W6 [10] -> W7 [11] -> W8 [12].
+**Plans:** 1/12 plans executed
 
 Plans:
-- [ ] 201-01-corpus-inspection-and-fixtures-PLAN.md — Wave 0 corpus audit + replay-corpus loader + synthetic-trace fixtures (resolves Open Questions 1 + 2)
+- [x] 201-01-corpus-inspection-and-fixtures-PLAN.md — Wave 0 corpus audit + replay-corpus loader + synthetic-trace fixtures (resolves Open Questions 1 + 2)
 - [ ] 201-02-test-stubs-PLAN.md — Wave 0 RED scaffolding for all Phase 201 production-code surfaces (14 named test classes across 7 test files)
 - [ ] 201-03-config-schema-and-validators-PLAN.md — Schema entries + presence flags + required-when-other validation; KNOWN_AUTORATE_PATHS registration; SAFE-05 v1.42 baseline (D-06, SAFE-06, D-03)
 - [ ] 201-04-controller-core-PLAN.md — QueueController DOCSIS-mode internals: integral, CAKE corroborator, setpoint clamp; replay against Attempt 3 corpus -> floor_hits=0

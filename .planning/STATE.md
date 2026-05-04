@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
-status: Phase 200 sealed via operator-escalated deferral 2026-05-04; v1.41 milestone closed with VALN-06 carried forward to Phase 201 / v1.42 as an inherited blocking requirement. ARB-05, SAFE-06, DOCS-03 satisfied. Production on v1.40 binary post-rollback; v1.41 YAML keys remain on prod /etc/wanctl/spectrum.yaml and are inactive under v1.40 but MUST be reconciled before any future Spectrum deploy/restart (Phase 201 predeploy gate).
-stopped_at: Phase 201 context gathered (DOCSIS-aware UL congestion control); D-01..D-18 captured; ready for /gsd-plan-phase 201
-last_updated: "2026-05-04T17:29:57.311Z"
+status: executing
+stopped_at: Completed 201-01-corpus-inspection-and-fixtures-PLAN.md
+last_updated: "2026-05-04T21:15:08.858Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 1
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 200 — per-direction-rtt-bloat-thresholds
+**Current focus:** Phase 201 — docsis-aware-ul-congestion-control
 
 ## Position
 
@@ -128,8 +128,8 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Phase 201 context gathered (DOCSIS-aware UL congestion control); D-01..D-18 captured; ready for /gsd-plan-phase 201
-Resume file: .planning/phases/201-docsis-aware-ul-congestion-control/201-CONTEXT.md
+Stopped at: Completed 201-01-corpus-inspection-and-fixtures-PLAN.md
+Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
 ## Decisions
@@ -283,7 +283,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Current Position
 
-Phase: 200 (per-direction-rtt-bloat-thresholds) — CLOSED / gaps_found / VALN-06 deferred to Phase 201
-Plan: 16 of 16
-Status: Phase 200 sealed via operator-escalated deferral 2026-05-04; v1.41 milestone closed with VALN-06 carried forward to Phase 201 / v1.42 as an inherited blocking requirement. ARB-05, SAFE-06, DOCS-03 satisfied. Production on v1.40 binary post-rollback; v1.41 YAML keys remain on prod /etc/wanctl/spectrum.yaml and are inactive under v1.40 but MUST be reconciled before any future Spectrum deploy/restart (Phase 201 predeploy gate).
+Phase: 201 (docsis-aware-ul-congestion-control) — EXECUTING
+Plan: 2 of 12
+Status: Ready to execute
 Last activity: 2026-05-04
