@@ -39,7 +39,7 @@ Wave 1+ is blocked until these amendments land and are reviewed:
 - [x] No HIGH-severity comment has unaddressed DEFER (DEFER allowed only for LOW/MED).
 - [x] Plan amendments are listed and dated 2026-05-04.
 - [x] Operator confirms Wave 1+ is **paused** until the accepted amendments land.
-- [ ] Operator confirms Wave 1 may proceed. **Not checked: Codex verdict is BLOCK.**
+- [x] Operator confirms Wave 1 may proceed after amendment commit `28e270b` reconciled the accepted BLOCK findings.
 
 ## Raw Codex Verdict
 
