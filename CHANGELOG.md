@@ -5,6 +5,49 @@ All notable changes to wanctl are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.42.0 — DOCSIS-Aware UL Congestion Control
+
+**Phase 201 closes inherited blocking VALN-06 from Phase 200.**
+
+### Added
+
+- `continuous_monitoring.upload.docsis_mode: bool` (default false)
+- `continuous_monitoring.upload.setpoint_mbps: int|float` (REQUIRED when docsis_mode: true; validator fails closed if absent)
+- `continuous_monitoring.upload.integral_window_seconds: float` (default 2.0; min 0.5, max 10.0)
+- `continuous_monitoring.upload.integral_threshold_ms_s: float` (default 30.0; min 1.0, max 1000.0)
+- `continuous_monitoring.upload.cake_backlog_low_threshold_bytes: int` (default 5000)
+- `continuous_monitoring.upload.cake_delay_delta_low_threshold_us: int` (default 5000)
+- `/health.wans[].upload.docsis_mode_active` (runtime state)
+- `/health.wans[].upload.setpoint_mbps` (runtime state, NOT a YAML echo)
+- `/health.wans[].upload.headroom_state` (runtime state: AVAILABLE | EXHAUSTED)
+- `/health.wans[].upload.rtt_integral_ms_s` (runtime state)
+- `/health.wans[].upload.cake_aligned` (runtime state)
+- `scripts/phase201-predeploy-gate.sh` (D-15)
+
+### Changed
+
+- Spectrum (`configs/spectrum.yaml`): `docsis_mode: true`, `setpoint_mbps: 12`. Removed v1.41 rejected-hypothesis `target_bloat_ms: 42` and `warn_bloat_ms: 105`. Retained `factor_down_yellow: 1.0` and `consecutive_yellow_decay_clamp: 40` (R5 + R3 complementary to setpoint clamp; RESEARCH.md §5).
+- `setpoint_mbps: 12` is `[ASSUMED]`, not sweep-proven. Phase 201 canary validates it; if setpoint-specific canary failure occurs, the next branch should prefer `10` before testing `14`.
+- Upload `QueueController.adjust()` augmented with optional integral path + setpoint clamp. Legacy path byte-identical when `docsis_mode` absent.
+
+### Migration
+
+**Service restart required** for the new keys. SIGUSR1 does NOT reload them. Apply with: `sudo systemctl restart wanctl@<wan>.service`.
+
+The predeploy gate (`scripts/phase201-predeploy-gate.sh`) inspects `/etc/wanctl/spectrum.yaml` for v1.41-only rejected-hypothesis keys (`target_bloat_ms`, `warn_bloat_ms` in `continuous_monitoring.upload`) and aborts the deploy with operator-actionable instructions if found.
+
+### Inherited blocking closure
+
+- VALN-06: Spectrum UL canary `ul_floor_hits_during_load=0` AND 24h soak UL hysteresis suppression `<5/60s` (verified by Phase 201 canary + soak; see `.planning/phases/201-docsis-aware-ul-congestion-control/`).
+
+### Out of scope (deferred to v1.43+)
+
+- Modem SNMP / DOCSIS HCS counter signal
+- Tighter soak watchdog `<2/60s`
+- DOCSIS-mode auto-tuning of `setpoint_mbps`
+- Multi-window integral
+- ATT cake-primary canary (VALN-05b — cross-milestone, gated on v1.39 Phase 191 closure)
+
 ## [1.41.0] - 2026-05-03
 
 ### Added
