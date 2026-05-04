@@ -151,6 +151,33 @@ deploy_code() {
 
     ssh "$TARGET_HOST" "sudo mkdir -p $TARGET_CODE_DIR"
 
+    # ----------------------------------------------------------------------
+    # Phase 201 predeploy gate (D-15) — fail-closed against rejected v1.41
+    # hypothesis keys in /etc/wanctl/spectrum.yaml on the deploy target.
+    # Runs BEFORE rsync of /opt/wanctl artifacts. Spectrum-scoped by design:
+    # ATT/non-Spectrum deploys must not inspect the Spectrum YAML.
+    # ----------------------------------------------------------------------
+    : "${PREDEPLOY_GATE:=$SCRIPT_DIR/phase201-predeploy-gate.sh}"
+    if [[ "${WAN_NAME:-}" != "spectrum" ]]; then
+        echo "[deploy] skipping Phase 201 predeploy gate for WAN_NAME=${WAN_NAME:-unknown} (Spectrum-only gate)"
+    elif [[ ! -x "${PREDEPLOY_GATE:-$SCRIPT_DIR/phase201-predeploy-gate.sh}" ]]; then
+        print_error "ABORTING: $PREDEPLOY_GATE not found or not executable. Phase 201 D-15 fail-closed contract: deploys cannot proceed without the predeploy gate. Restore the gate script (chmod +x) and retry."
+        exit 2
+    else
+        echo "[deploy] running Phase 201 predeploy gate"
+        : "${REMOTE_SSH_TARGET:=${TARGET_HOST:?TARGET_HOST required for Spectrum predeploy gate}}"
+        : "${REMOTE_YAML_PATH:=/etc/wanctl/${WAN_NAME}.yaml}"
+        # Capture the gate's exit code via `|| gate_rc=$?`; do not rewrite this
+        # as `if ! cmd`, because that captures the negation status and fails open.
+        gate_rc=0
+        REMOTE_SSH_TARGET="$REMOTE_SSH_TARGET" REMOTE_YAML_PATH="$REMOTE_YAML_PATH" "$PREDEPLOY_GATE" || gate_rc=$?
+        if (( gate_rc != 0 )); then
+            print_error "ABORTING: predeploy gate exit=${gate_rc}. Reconcile /etc/wanctl/spectrum.yaml on the deploy target before retrying."
+            exit "$gate_rc"
+        fi
+        echo "[deploy] predeploy gate PASS"
+    fi
+
     local rsync_opts="-av --delete"
     rsync_opts+=" --exclude=__pycache__ --exclude=*.pyc"
     rsync_opts+=" --rsync-path='sudo rsync'"
