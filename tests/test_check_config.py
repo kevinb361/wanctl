@@ -48,11 +48,6 @@ from wanctl.check_steering_validators import (
 )
 
 
-# Phase 201 Wave 0 RED scaffolding — Plan 201-02 stubs.
-# Implementation lands in Plans 201-03 (config/validator),
-# 201-04 (controller core), 201-05 (telemetry / wan_controller),
-# 201-07 (predeploy gate), 201-08 (canary extension).
-
 # =============================================================================
 # FIXTURES
 # =============================================================================

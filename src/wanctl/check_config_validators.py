@@ -25,6 +25,8 @@ from wanctl.config_validation_utils import validate_bandwidth_order, validate_th
 # Sources: BASE_SCHEMA + Config.SCHEMA + imperative loads in _load_specific_fields.
 # This must cover ALL paths in production configs (spectrum.yaml, att.yaml)
 # to avoid false-positive "unknown key" warnings.
+_DOCSIS_SETPOINT_PATH = "continuous_monitoring.upload.setpoint_mbps"
+
 KNOWN_AUTORATE_PATHS: set[str] = {
     # From BASE_SCHEMA
     "wan_name",
@@ -68,6 +70,12 @@ KNOWN_AUTORATE_PATHS: set[str] = {
     "continuous_monitoring.upload.consecutive_yellow_decay_clamp",
     "continuous_monitoring.upload.target_bloat_ms",
     "continuous_monitoring.upload.warn_bloat_ms",
+    "continuous_monitoring.upload.docsis_mode",
+    _DOCSIS_SETPOINT_PATH,
+    "continuous_monitoring.upload.integral_window_seconds",
+    "continuous_monitoring.upload.integral_threshold_ms_s",
+    "continuous_monitoring.upload.cake_backlog_low_threshold_bytes",
+    "continuous_monitoring.upload.cake_delay_delta_low_threshold_us",
     "continuous_monitoring.upload.green_required",
     "continuous_monitoring.upload.floor_mbps",
     "continuous_monitoring.upload.floor_green_mbps",
@@ -316,6 +324,7 @@ def validate_cross_fields(data: dict) -> list[CheckResult]:
     results.extend(_validate_upload_floors(cm))
     results.extend(_validate_threshold_ordering(cm))
     results.extend(_validate_upload_threshold_ordering(cm))
+    results.extend(_validate_docsis_mode_setpoint(cm))
     results.extend(_validate_transport_consistency(data))
 
     return results
@@ -450,6 +459,73 @@ def _validate_upload_threshold_ordering(cm: dict) -> list[CheckResult]:
         "upload threshold ordering invalid: "
         f"target_bloat_ms ({target}) must be less than warn_bloat_ms ({warn}); "
         "upload target_bloat_ms must be less than upload warn_bloat_ms",
+    )]
+
+
+def _validate_docsis_mode_setpoint(cm: dict) -> list[CheckResult]:
+    """Validate Phase 201 DOCSIS-mode setpoint config (D-06).
+
+    Rules:
+      - docsis_mode: true requires setpoint_mbps (fail-closed when absent).
+      - When docsis_mode: true, setpoint_mbps MUST satisfy
+        floor_mbps < setpoint_mbps < ceiling_mbps (strict; RESEARCH §3
+        Pitfall 2 + Assumption A7).
+      - When docsis_mode is absent or false, this validator is silent
+        (D-17 byte-identity invariant).
+    """
+    ul = cm.get("upload", {})
+    if not isinstance(ul, dict):
+        return []
+    if ul.get("docsis_mode") is not True:
+        return []  # opt-out path — byte-identical legacy
+    setpoint = ul.get("setpoint_mbps")
+    floor = ul.get("floor_mbps", ul.get("floor_red_mbps"))
+    ceiling = ul.get("ceiling_mbps")
+    if setpoint is None:
+        return [CheckResult(
+            "Cross-field Checks",
+            _DOCSIS_SETPOINT_PATH,
+            Severity.ERROR,
+            "docsis_mode: true requires setpoint_mbps (D-06; validator fails closed)",
+        )]
+    try:
+        sp = float(setpoint)
+    except (TypeError, ValueError):
+        return [CheckResult(
+            "Cross-field Checks",
+            _DOCSIS_SETPOINT_PATH,
+            Severity.ERROR,
+            f"setpoint_mbps must be numeric, got {setpoint!r}",
+        )]
+    if floor is not None:
+        try:
+            fl = float(floor)
+        except (TypeError, ValueError):
+            fl = None
+        if fl is not None and not (fl < sp):
+            return [CheckResult(
+                "Cross-field Checks",
+                _DOCSIS_SETPOINT_PATH,
+                Severity.ERROR,
+                f"setpoint_mbps ({sp}) must be > floor_mbps ({fl})",
+            )]
+    if ceiling is not None:
+        try:
+            ce = float(ceiling)
+        except (TypeError, ValueError):
+            ce = None
+        if ce is not None and not (sp < ce):
+            return [CheckResult(
+                "Cross-field Checks",
+                _DOCSIS_SETPOINT_PATH,
+                Severity.ERROR,
+                f"setpoint_mbps ({sp}) must be < ceiling_mbps ({ce})",
+            )]
+    return [CheckResult(
+        "Cross-field Checks",
+        _DOCSIS_SETPOINT_PATH,
+        Severity.PASS,
+        f"DOCSIS-mode setpoint ordering valid: floor < {sp} < ceiling",
     )]
 
 
