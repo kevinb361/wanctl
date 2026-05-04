@@ -39,6 +39,7 @@ The predeploy gate (`scripts/phase201-predeploy-gate.sh`) inspects `/etc/wanctl/
 ### Inherited blocking closure
 
 - VALN-06: Spectrum UL canary `ul_floor_hits_during_load=0` AND 24h soak UL hysteresis suppression `<5/60s` (verified by Phase 201 canary + soak; see `.planning/phases/201-docsis-aware-ul-congestion-control/`).
+- 2026-05-04 canary at `setpoint_mbps=12` failed closed (`floor_hit_cycles_total_delta_loaded_window=1453`, `ul_floor_hits_during_load=84`) and rollback restored the previous binary/YAML pair. Do not promote v1.42.0 or start the 24h soak from that evidence; a setpoint-10 reattempt or gap-closure plan requires explicit operator decision.
 
 ### Out of scope (deferred to v1.43+)
 

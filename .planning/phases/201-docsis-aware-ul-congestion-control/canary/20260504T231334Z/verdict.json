@@ -1,0 +1,21 @@
+{
+  "phase": 200,
+  "run_id": "20260504T231334Z",
+  "started_at_utc": "2026-05-04T23:14:35Z",
+  "finished_at_utc": "2026-05-04T23:30:36Z",
+  "duration_sec": 1022,
+  "ul_floor_hits_during_load": 84,
+  "floor_hit_cycles_total_loaded_window_start": 0,
+  "floor_hit_cycles_total_loaded_window_end": 1453,
+  "floor_hit_cycles_total_delta_loaded_window": 1453,
+  "primary_gate": "floor_hit_cycles_total_delta_loaded_window",
+  "primary_gate_value": 1453,
+  "ul_floor_threshold_hit": true,
+  "pre_baseline_rtt_ms": 22.88,
+  "post_baseline_rtt_ms": 22.87,
+  "ul_hysteresis_suppressions_per_60s": null,
+  "verdict": "fail",
+  "reason": "ul_floor_hits_during_load_84_counter_delta_1453",
+  "rollback_protocol_recorded": true,
+  "rollback_protocol": "Per D-10: revert /opt/wanctl to the v1.40 binary on cake-shaper if this canary fails. Keep the v1.40 artifact available (for example /opt/wanctl-v1.40.tar.gz) and restore with: sudo tar -xzf /opt/wanctl-v1.40.tar.gz -C /opt/wanctl && sudo systemctl restart wanctl@spectrum.service. Leave /etc/wanctl/spectrum.yaml in place; the pre-v1.41 binary ignores the new upload-threshold keys."
+}
