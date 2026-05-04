@@ -1,6 +1,6 @@
 ---
 phase: 200-per-direction-rtt-bloat-thresholds
-verified: 2026-05-04T14:24:43Z
+verified: 2026-05-04T16:52:01Z
 status: gaps_found
 score: 3/5 roadmap success criteria verified
 overrides_applied: 0
@@ -51,6 +51,7 @@ re_verification:
     - "Saturated Spectrum UL canary still failed: 4 loaded-window floor hits."
     - "24h Spectrum regression soak was skipped because the canary failed."
   regressions: []
+  verifier_note: "2026-05-04T16:52:01Z re-check confirmed VALN-06 remains deferred/blocked; ARB-05, SAFE-06, and DOCS-03 still satisfy code/docs/tests evidence."
 closure: deferred-to-phase-201
 closure_decision:
   date: 2026-05-04
@@ -104,7 +105,7 @@ gaps:
 
 **Phase Goal:** Add optional `continuous_monitoring.upload.target_bloat_ms` and `continuous_monitoring.upload.warn_bloat_ms` keys so the legacy 3-state UL controller can use thresholds independent of DL thresholds, preserve byte-identical behavior when keys are absent, adopt Spectrum UL settings, close validator silent-ignore behavior, ship a 10-15 min saturated UL canary as deploy gate, and run a 24h soak as regression watchdog.
 
-**Verified:** 2026-05-04T14:24:43Z  
+**Verified:** 2026-05-04T16:52:01Z  
 **Status:** gaps_found  
 **Re-verification:** Yes — previous `200-VERIFICATION.md` already had structured gaps. Failed validation items were re-checked fully; previously passing code/docs items received regression checks.
 
@@ -165,6 +166,10 @@ gaps:
 | R3 clamp single-GREEN reset | `.venv/bin/pytest -o addopts='' tests/test_queue_controller.py -q -k 'yellow_clamp_resets_on_single_green'` | `1 passed, 137 deselected` | ✓ PASS |
 | Per-key UL explicit gates | `.venv/bin/pytest -o addopts='' tests/test_wan_controller.py -q -k 'upload_thresholds_explicit'` | `2 passed, 206 deselected` | ✓ PASS |
 | SAFE-06 + upload preflight + canary helper tests | `.venv/bin/pytest -o addopts='' tests/test_autorate_config.py::TestSafe06UnknownKeyWarning tests/test_check_config.py::TestUploadThresholdOrdering tests/test_phase200_canary_script.py -q` | `17 passed` | ✓ PASS |
+| 2026-05-04 re-check: upload threshold config + SAFE-06 | `.venv/bin/pytest -o addopts='' tests/test_autorate_config.py -q -k 'upload_thresholds or Safe06UnknownKeyWarning'` | `5 passed, 38 deselected` | ✓ PASS |
+| 2026-05-04 re-check: WAN controller upload threshold/D-06 wiring | `.venv/bin/pytest -o addopts='' tests/test_wan_controller.py -q -k 'upload_thresholds or phase200_d06'` | `6 passed, 202 deselected` | ✓ PASS |
+| 2026-05-04 re-check: validator and canary helper tests | `.venv/bin/pytest -o addopts='' tests/test_check_config.py::TestUploadThresholdOrdering tests/test_phase200_canary_script.py -q` | `15 passed` | ✓ PASS |
+| 2026-05-04 re-check: YELLOW clamp behavior | `.venv/bin/pytest -o addopts='' tests/test_queue_controller.py -q -k 'yellow_clamp'` | `2 passed, 136 deselected` | ✓ PASS |
 | Full suite after closeout | Recorded execution outcome | `4787 passed, 6 skipped, 2 deselected` | ✓ PASS (recorded evidence) |
 | Schema drift gate | Recorded execution outcome | `drift_detected=false` | ✓ PASS (recorded evidence) |
 
@@ -240,5 +245,5 @@ direct Attempt 3 evidence (`verdict: fail`, `ul_floor_hits_during_load: 4`).
 
 ---
 
-_Verified: 2026-05-04T14:24:43Z_  
+_Verified: 2026-05-04T16:52:01Z_  
 _Verifier: the agent (gsd-verifier)_
