@@ -39,6 +39,7 @@ class QueueController:
         backlog_threshold_bytes: int = 0,
         probe_multiplier_factor: float = 1.0,
         probe_ceiling_pct: float = 0.9,
+        consecutive_yellow_decay_clamp: int = 0,
     ):
         self.name = name
         self.floor_green_bps = floor_green
@@ -51,6 +52,11 @@ class QueueController:
         self.factor_down_yellow = (
             factor_down_yellow  # Gentle decay for YELLOW (default 1.0 = no decay)
         )
+        # 200-10 R3: bound consecutive YELLOW multiplicative decay cycles.
+        # Default 0 = no clamp (byte-identical). When > 0, hold after that
+        # many consecutive YELLOW decay calls until any non-YELLOW zone resets.
+        self.consecutive_yellow_decay_clamp = consecutive_yellow_decay_clamp
+        self._yellow_decay_streak = 0
         self.current_rate = ceiling  # Start at ceiling
 
         # Hysteresis counters (require consecutive green cycles before stepping up)
@@ -223,11 +229,30 @@ class QueueController:
     def _compute_rate_3state(self, zone: str) -> int:
         """Compute new rate for 3-state logic based on zone and streaks."""
         if self.red_streak >= 1:
+            # 200-10 R3: RED decay remains immediate and resets YELLOW clamp state.
+            self._yellow_decay_streak = 0
             return int(self.current_rate * self.factor_down)
         if self.green_streak >= self.green_required:
+            # 200-10 R3: sustained GREEN recovery resets the YELLOW clamp state.
+            self._yellow_decay_streak = 0
             return self.current_rate + self._compute_probe_step()
         if zone == "YELLOW":
+            if (
+                self.consecutive_yellow_decay_clamp > 0
+                and self._yellow_decay_streak >= self.consecutive_yellow_decay_clamp
+            ):
+                self._logger.debug(
+                    "[YELLOW-CLAMP] %s held rate at %d after %d consecutive YELLOW decay cycles",
+                    self.name,
+                    self.current_rate,
+                    self._yellow_decay_streak,
+                )
+                return self.current_rate
+            self._yellow_decay_streak += 1
             return int(self.current_rate * self.factor_down_yellow)
+        # 200-10 R3: any non-YELLOW zone, including a single GREEN below
+        # green_required, resets the clamp counter.
+        self._yellow_decay_streak = 0
         return self.current_rate
 
     def _compute_probe_step(self) -> int:

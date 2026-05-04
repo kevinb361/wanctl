@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   key in the deployment YAML. Closes the v1.40 silent-ignore gap that
   allowed prod `/etc/wanctl/spectrum.yaml` to carry 4 unrecognized UL keys
   for 3 days. SAFE-06, D-08.
+- Optional upload-only `continuous_monitoring.upload.consecutive_yellow_decay_clamp`
+  for the legacy 3-state controller. Default `0` is byte-identical; when set,
+  consecutive YELLOW multiplicative decay is capped while RED decay remains
+  immediate. Plan 200-10 R3 adds Spectrum `clamp_count=40` after the failed
+  saturated upload canary analysis in Plan 200-09.
 - `tests/test_wan_controller.py::test_upload_thresholds_explicit_when_value_equal_to_global`
   and `test_upload_thresholds_explicit_per_key_independence` — D-03 invariant tests.
 - `tests/test_autorate_config.py::TestSafe06UnknownKeyWarning` — SAFE-06 regression test.
@@ -30,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   soak settings: `ceiling_mbps: 28 → 18`, `factor_down_yellow: 0.98`,
   `target_bloat_ms: 42` (new), `warn_bloat_ms: 105` (new). Operator evidence
   trail in `.planning/spectrum-{upload-ceiling,lower-ceiling,inline-native-18-upload}-2026-04-29.md`.
+- Spectrum upload R5+R3 remediation from Plans 200-09/200-10: raise
+  `factor_down_yellow` from `0.98` to `1.0` so YELLOW holds rate, and add
+  `consecutive_yellow_decay_clamp: 40` to bound future YELLOW decay cascades.
+  Non-Spectrum YAMLs remain untouched; controller behavior is unchanged when
+  the new clamp key is absent.
 - `tests/test_phase_195_replay.py::test_safe05_threshold_name_counts_are_unchanged`
   bumps `warn_bloat` and `target_bloat` expected counts to reflect the v1.41
   per-direction wiring. v1.40 SAFE-05 pin is intentionally superseded; the

@@ -2159,7 +2159,9 @@ class TestYellowDecayClamp:
         rates = [self._yellow(qc) for _ in range(6)]
 
         assert rates == sorted(rates, reverse=True)
-        assert all(later < earlier for earlier, later in zip(rates, rates[1:]))
+        assert all(
+            later < earlier for earlier, later in zip(rates, rates[1:], strict=False)
+        )
 
     def test_clamp_holds_after_n_yellow_decays(self):
         """After N YELLOW decays, additional consecutive YELLOW cycles hold."""

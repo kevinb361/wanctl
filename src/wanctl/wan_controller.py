@@ -408,6 +408,9 @@ class WANController:
             green_required=config.upload_green_required,  # Faster recovery
             dwell_cycles=config.dwell_cycles,
             deadband_ms=config.deadband_ms,
+            consecutive_yellow_decay_clamp=getattr(
+                config, "upload_consecutive_yellow_decay_clamp", 0
+            ),
         )
 
         # Thresholds (Phase 2A: 4-state for download, 3-state for upload)
