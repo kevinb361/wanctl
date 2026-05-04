@@ -189,7 +189,7 @@ Critically, the upload constructor's existing `consecutive_yellow_decay_clamp` g
 </task>
 
 <task type="auto" tdd="true">
-  <name>Task 2: Add five additive /health runtime-state fields under .wans[].upload</name>
+  <name>Task 2: Add six additive /health runtime-state fields under .wans[].upload</name>
   <files>src/wanctl/wan_controller.py, tests/test_phase_195_replay.py</files>
   <read_first>
     - src/wanctl/wan_controller.py — locate via grep: `grep -n '"upload":\\|self._ul_cake_snapshot\\|def get_health\\|def _build_health\\|def _wan_health' src/wanctl/wan_controller.py | head -20`
@@ -285,7 +285,7 @@ After the dict-literal edit, re-run the SAFE-05 v1.42 baseline check. Phase 201 
   <verify>
     <automated>.venv/bin/pytest -o addopts='' tests/test_queue_controller.py tests/test_wan_controller.py tests/test_autorate_config.py tests/test_check_config.py tests/test_phase_201_replay.py tests/test_phase_195_replay.py tests/test_phase_197_replay.py tests/test_health_check.py tests/test_cake_signal.py -q &amp;&amp; .venv/bin/ruff check src/wanctl/wan_controller.py</automated>
   </verify>
-  <done>Five additive /health fields live; runtime-state semantics enforced (no config-echo); flash-wear regression gate green; SAFE-05 v1.42 baseline absorbs the wan_controller surface increase.</done>
+  <done>Six additive /health fields live (incl. floor_hit_cycles_total per REVIEWS HIGH-5); runtime-state semantics enforced (no config-echo); flash-wear regression gate green; SAFE-05 v1.42 baseline absorbs the wan_controller surface increase.</done>
 </task>
 
 </tasks>
@@ -323,7 +323,7 @@ After the dict-literal edit, re-run the SAFE-05 v1.42 baseline check. Phase 201 
 - WANController upload constructor receives six new Phase 201 kwargs via getattr-with-default.
 - Per-key explicit-presence flags presence-based (D-03).
 - One-shot INFO log uses self.logger (D-06 + Phase 200 Plan 01 lesson).
-- /health adds five additive runtime-state fields under .wans[].upload (D-16 + Phase 200 RETRO Plan 05 lesson).
+- /health adds six additive runtime-state fields under .wans[].upload (D-16 + Phase 200 RETRO Plan 05 lesson; sixth field is floor_hit_cycles_total per REVIEWS HIGH-5).
 - D-08 invariant preserved (SIGUSR1 reload scope unchanged).
 - ARCH-05 invariant preserved (flash-wear dedup intact).
 </success_criteria>
