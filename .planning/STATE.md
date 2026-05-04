@@ -4,7 +4,7 @@ milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: executing
 stopped_at: Blocked after 201-09-codex-pre-review-PLAN.md
-last_updated: "2026-05-04T22:22:03.904Z"
+last_updated: "2026-05-04T22:45:02.764Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 1
@@ -298,6 +298,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 201 (docsis-aware-ul-congestion-control) — EXECUTING
-Plan: 6 of 12
+Plan: 7 of 12
 Status: Ready to execute
 Last activity: 2026-05-04
