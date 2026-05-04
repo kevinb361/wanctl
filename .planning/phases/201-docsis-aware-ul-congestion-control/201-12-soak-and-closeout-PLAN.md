@@ -77,12 +77,9 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
   <how-to-verify>
     Operator MUST execute:
 
-    1. **Mark soak start time** (UTC ISO):
-       ```
-       echo "soak_start_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> /tmp/phase201-soak.env
-       ```
+    1. **(Round-9 — atomic capture, no longer separate from Step 1.5):** Step 1's prior responsibility (recording `soak_start_utc`) has moved into Step 1.5. The two captures (`soak_start_utc` and `floor_hit_cycles_total_start`) are now a single atomic write so they always represent the same soak run. **Do not write the env file separately at this step** — proceed directly to Step 1.5. (This change closes the round-9 staleness class: previously `>>`-append across soak attempts could accumulate stale `soak_start_utc=` and `floor_hit_cycles_total_start=` lines from prior failed attempts; the file would pass the round-8 line-shape validator but represent multiple incoherent captures layered together.)
 
-    1.5. **CAPTURE PRIMARY-GATE BASELINE** (REVIEWS HIGH-5: this MUST happen at soak T+0 — `/health.upload.floor_hit_cycles_total` is a live in-process counter; past values cannot be reconstructed at soak end. Skipping this step makes the PRIMARY soak gate uncollectible, which itself is a fail-OPEN.):
+    1.5. **ATOMIC CAPTURE OF SOAK-START STATE** (REVIEWS HIGH-5 + round-5/9: this MUST happen at soak T+0 — `/health.upload.floor_hit_cycles_total` is a live in-process counter; past values cannot be reconstructed at soak end. Skipping this step makes the PRIMARY soak gate uncollectible. Round-9: also unifies `soak_start_utc` capture into the same write so the timestamp and counter baseline are guaranteed to be a temporally-coherent pair.):
 
        **Required invariants for `/tmp/phase201-soak.env`:** the file MUST contain ONLY `key=value` assignments after this step (no warnings, no commentary, no narration), so that Step 4's `source /tmp/phase201-soak.env` is a clean, deterministic load. All informational output goes to stderr. All values are validated as digit-only integers before being written. The provenance label is set from the code path that actually produced the value, NOT from a leftover variable.
 
@@ -112,33 +109,78 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        #   floor_hit_cycles_total_start=NNN    (Step 1.5; charset: [0-9]+)
        #   floor_hit_cycles_total_start_source="…"   (Step 1.5; quoted; charset:
        #                                              [A-Za-z0-9._/:-]+)
+       # Validator (round-8 whitelist + round-9 cardinality):
+       #   - Each non-empty, non-comment line must be one of the 3 allowed
+       #     KEY=VALUE shapes (round-8 closed-set whitelist).
+       #   - Each key must appear EXACTLY ONCE (round-9 cardinality). Previously
+       #     the validator accepted multiple `soak_start_utc=` or
+       #     `floor_hit_cycles_total_start=` lines as long as each individually
+       #     matched the whitelist regex — but that allows stale data from a
+       #     prior failed soak to persist and silently mix with fresh data.
+       #     `source` would last-write-win, which is correct for the variable
+       #     value but disguises the fact that the file represents multiple
+       #     incoherent capture sessions. Cardinality == 1 forces atomic-fresh.
+       #   - All 3 keys must be present after the write (round-9 completeness).
        validate_env_file() {
            local file="$1"
+           local mode="${2:-strict}"   # "strict" requires all 3 keys; "writable" allows empty file
            local violations
            violations=$(awk '
+               BEGIN { soak_start_utc=0; floor_start=0; floor_src=0 }
                /^[[:space:]]*$/                                                              { next }
                /^[[:space:]]*#/                                                              { next }
-               /^soak_start_utc=[0-9TZ:-]+$/                                                 { next }
-               /^floor_hit_cycles_total_start=[0-9]+$/                                       { next }
-               /^floor_hit_cycles_total_start_source="[A-Za-z0-9._\/:-]+"$/                  { next }
-               { print "line " NR ": " $0 }
+               /^soak_start_utc=[0-9TZ:-]+$/                                                 { soak_start_utc++; next }
+               /^floor_hit_cycles_total_start=[0-9]+$/                                       { floor_start++; next }
+               /^floor_hit_cycles_total_start_source="[A-Za-z0-9._\/:-]+"$/                  { floor_src++; next }
+               { print "line " NR ": shape violation: " $0 }
+               END {
+                   if (soak_start_utc > 1) print "cardinality violation: soak_start_utc appears " soak_start_utc " times (must be exactly 1)"
+                   if (floor_start    > 1) print "cardinality violation: floor_hit_cycles_total_start appears " floor_start " times (must be exactly 1)"
+                   if (floor_src      > 1) print "cardinality violation: floor_hit_cycles_total_start_source appears " floor_src " times (must be exactly 1)"
+               }
            ' "$file")
            if [[ -n "$violations" ]]; then
-               echo "ABORT: $file has lines that are NOT in the whitelist of allowed key=value assignments:" >&2
+               echo "ABORT: $file failed validation (round-8 whitelist + round-9 cardinality):" >&2
                echo "$violations" >&2
-               echo "ABORT: bash 'source' on this file would either execute non-assignment lines as commands OR poison the shell environment via magic env vars (PATH, IFS, BASH_ENV, LD_PRELOAD, etc.) or function-export attacks." >&2
-               echo "ABORT: Allowed keys are: soak_start_utc, floor_hit_cycles_total_start, floor_hit_cycles_total_start_source. Inspect and clean before continuing." >&2
+               echo "ABORT: Allowed keys (each appears exactly once after Step 1.5): soak_start_utc, floor_hit_cycles_total_start, floor_hit_cycles_total_start_source." >&2
                return 1
+           fi
+           # In strict mode, also verify all 3 keys are present (completeness).
+           if [[ "$mode" == "strict" ]]; then
+               local missing
+               missing=$(awk '
+                   BEGIN { soak_start_utc=0; floor_start=0; floor_src=0 }
+                   /^soak_start_utc=/                                                            { soak_start_utc++ }
+                   /^floor_hit_cycles_total_start=/                                              { floor_start++ }
+                   /^floor_hit_cycles_total_start_source=/                                       { floor_src++ }
+                   END {
+                       if (soak_start_utc == 0) print "missing key: soak_start_utc"
+                       if (floor_start    == 0) print "missing key: floor_hit_cycles_total_start"
+                       if (floor_src      == 0) print "missing key: floor_hit_cycles_total_start_source"
+                   }
+               ' "$file")
+               if [[ -n "$missing" ]]; then
+                   echo "ABORT: $file is missing required keys (round-9 completeness):" >&2
+                   echo "$missing" >&2
+                   return 1
+               fi
            fi
            return 0
        }
 
-       # Pre-flight: validate the existing env file BEFORE we touch it. Catches
-       # contamination from prior buggy runs that the previous Step 1.5
-       # implementation could have introduced.
-       if [[ -f "$ENV_FILE" ]]; then
-           validate_env_file "$ENV_FILE" || exit 2
-       fi
+       # Round-9 atomic-fresh capture: TRUNCATE the env file before this run's
+       # writes. Any prior content (from a previous soak attempt that failed,
+       # from operator scratch, from another process) is discarded. The file
+       # after this step represents exactly one soak run's T+0 state, captured
+       # atomically.
+       #
+       # Caveat: if the operator INTENDED to resume an in-flight soak (e.g., the
+       # tmux pane crashed but the daemon kept running and the counter is still
+       # ticking), they should NOT re-run Step 1.5 — they should jump to Step 4
+       # and use the existing env file. Re-running Step 1.5 means "I am starting
+       # a new soak from now"; truncate-and-rewrite makes that semantics
+       # explicit and detectable.
+       : > "$ENV_FILE"
 
        # Find the most recent canary verdict.json. `|| true` prevents set-e abort
        # on no-match; `2>/dev/null` suppresses ls's "no such file" stderr noise.
@@ -192,18 +234,28 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
            exit 2
        fi
 
-       # Atomic append: only key=value lines go into the sourceable env file.
-       # Commentary goes to stderr, NOT into $ENV_FILE.
+       # Compute soak_start_utc HERE (atomic with counter capture) so the
+       # timestamp and counter baseline are guaranteed to represent the same
+       # moment-in-time. Round-9 fix: previously soak_start_utc was captured
+       # in a separate Step 1, possibly hours before Step 1.5 ran, leading
+       # to mismatched temporal anchors.
+       SOAK_START_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+       # Atomic write — file was truncated above (`: > "$ENV_FILE"`), so this
+       # block produces the entire env file in one batch. All 3 required keys
+       # land together; no `>>`-append accumulation across runs.
        {
+           echo "soak_start_utc=$SOAK_START_UTC"
            echo "floor_hit_cycles_total_start=$FLOOR_HIT_T0"
            echo "floor_hit_cycles_total_start_source=\"$SOURCE\""
-       } >> "$ENV_FILE"
+       } > "$ENV_FILE"
 
-       # Post-flight: re-validate the file after our writes. Confirms our own
-       # writes are conformant AND that nothing else (e.g., a concurrent process)
-       # contaminated the file mid-write. Strict shape check — NOT bash -n.
-       validate_env_file "$ENV_FILE" || {
-           echo "ABORT: post-write validation failed — Step 1.5 wrote a non-conformant line OR the file was contaminated mid-write. Inspect $ENV_FILE before continuing." >&2
+       # Post-flight: re-validate the file after our writes IN STRICT MODE
+       # (round-9: must have all 3 keys, exactly once each). Confirms our own
+       # writes are conformant + complete + cardinality-correct, and catches
+       # any concurrent contamination mid-write.
+       validate_env_file "$ENV_FILE" strict || {
+           echo "ABORT: post-write validation failed — Step 1.5's write was non-conformant, incomplete, OR the file was contaminated mid-write. Inspect $ENV_FILE before continuing." >&2
            exit 2
        }
 
@@ -211,15 +263,17 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        echo "Step 1.5 complete: floor_hit_cycles_total_start=$FLOOR_HIT_T0 (source: $SOURCE) recorded in $ENV_FILE" >&2
        ```
 
-       **Why this is structured this way (lessons from rounds 1-8):**
+       **Why this is structured this way (lessons from rounds 1-9):**
        - `set -euo pipefail` so any unbound var or pipeline failure aborts; no silent partial writes.
        - `|| true` only on `ls` no-match (legitimate empty case), not on `jq`/`ssh` failures (those should propagate).
-       - The `SOURCE` variable is set inside each successful branch, never inferred post-hoc from leftover state, so the provenance label always matches the code path that actually produced the value (round-6 catch).
+       - The `SOURCE` variable is set inside each successful branch, never inferred post-hoc from leftover state (round-6 catch).
        - Strict integer regex validation (`^[0-9]+$`) on the counter value — empty string, `null`, `"-1"`, `"1.0"` all rejected.
-       - The env file gets ONLY `key=value` lines. Commentary, warnings, success messages all go to **stderr**. The env file is data only; channel separation is enforced (round-6 catch).
-       - **Validation uses an `awk` whitelist filter, NOT `bash -n` (round-7 catch) and NOT a value-charset blacklist (round-8 catch).** `bash -n` answers "is this parseable as shell?" — every shell command is parseable, including `rm -rf /`. A value-charset filter alone allows arbitrary KEY names — including `PATH=`, `IFS=`, `BASH_ENV=`, `LD_PRELOAD=`, `PROMPT_COMMAND=`, `BASH_FUNC_xxx%%=`, etc., which poison shell state without using a single dangerous metacharacter. The validator whitelists THE EXACT THREE keys Step 1 + Step 1.5 are allowed to write, with per-key value charsets. Anything outside the whitelist — unknown keys, magic env vars, function-export attacks, malformed entries — is rejected by line number.
-       - **The validator runs PRE-write AND POST-write at Step 1.5, AND PRE-source at Step 4.** Pre-write catches contamination from prior buggy runs. Post-write catches our own bug + concurrent contamination. Pre-source catches contamination introduced *between* Step 1.5 and Step 4 (a 24h+ window during which `/tmp` could be touched by the operator, by other processes, or by a malicious actor with `/tmp` write access).
-       - **The `SOURCE` label is itself validated against the bare-value charset before writing.** Prevents a future code path from producing a SOURCE string with spaces, `$`, or backticks that would break sourceability or inject — the class of bug that turned round-6's lying-provenance into a potential injection vector.
+       - The env file gets ONLY `key=value` lines. Commentary, warnings, success messages all go to **stderr** (round-6 catch).
+       - **Validation uses an `awk` whitelist filter, NOT `bash -n` (round-7) and NOT a value-charset blacklist (round-8).** `bash -n` accepts every parseable shell line including `rm -rf /`. A value-charset filter accepts arbitrary KEY names including `PATH=`, `IFS=`, `BASH_ENV=`, `LD_PRELOAD=`, `PROMPT_COMMAND=`, `BASH_FUNC_xxx%%=`, etc. — magic env vars that poison shell state without using a single dangerous metacharacter. The whitelist constrains keys to the EXACT THREE Step 1.5 writes, each with its per-key value charset.
+       - **Cardinality + completeness validation (round-9 catch).** Each of the 3 keys must appear EXACTLY ONCE — no zero (incomplete), no duplicates (stale + fresh layered together). Previously the line-shape validator passed `>>`-appended files where prior failed soak attempts had left stale `soak_start_utc=` or `floor_hit_cycles_total_start=` lines; on `source`, last-write-wins gave a fresh-looking value, but the file as a whole represented multiple incoherent capture sessions.
+       - **Atomic capture (round-9 fix).** Step 1.5 truncates the env file (`: > "$ENV_FILE"`) and writes all 3 keys in one batch (`{ … } > "$ENV_FILE"`). The `soak_start_utc` and `floor_hit_cycles_total_start` are now captured at the same moment, so the timestamp and counter baseline are guaranteed to be a temporally-coherent pair. No `>>`-append; re-running Step 1.5 means "starting a new soak from now" with explicit truncate-and-rewrite semantics.
+       - **The validator runs PRE-write AND POST-write-strict at Step 1.5, AND PRE-source-strict at Step 4.** Pre-write catches contamination from prior buggy runs (legacy `>>`-append files left over). Post-write-strict catches our own bug + concurrent contamination + missing keys. Pre-source-strict catches 24h-window contamination AND any cardinality drift from concurrent writers.
+       - **The `SOURCE` label is itself validated against the bare-value charset before writing** (round-7 catch reinforced).
 
        **Failure modes Step 1.5 closes:**
        - Step 1.5 skipped entirely → Step 4 detects missing `floor_hit_cycles_total_start` and authors `verdict: fail` with reason `soak_primary_gate_uncollectible_t0_baseline_missing`.
@@ -256,27 +310,58 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        set -euo pipefail
        ENV_FILE=/tmp/phase201-soak.env
 
-       # ROUND-8 DEFENSE: Re-validate the env file BEFORE source, because a 24h
-       # window separates Step 1.5's POST-write validation from Step 4's source.
-       # During that window the file could have been touched by the operator,
-       # another process, or a malicious actor with /tmp write access.
-       # Re-paste the validate_env_file function from Step 1.5 (or operator can
-       # source a shared helper if one exists).
+       # ROUND-8/9 DEFENSE: Re-validate the env file BEFORE source IN STRICT MODE
+       # (cardinality + completeness + shape), because a 24h window separates
+       # Step 1.5's write from Step 4's source. During that window the file
+       # could have been touched by the operator, another process, or a
+       # malicious actor with /tmp write access — adding stale lines, deleting
+       # required keys, or appending magic env vars. Strict mode catches:
+       #   - whitelist violations (round-8: PATH=/etc/evil, BASH_ENV=...)
+       #   - duplicate keys (round-9: stale + fresh layered together)
+       #   - missing keys (round-9: incomplete capture)
+       # Re-paste the validate_env_file function from Step 1.5 (or operator
+       # sources a shared helper if one exists in the canary toolkit).
        validate_env_file() {
            local file="$1"
+           local mode="${2:-strict}"
            local violations
            violations=$(awk '
+               BEGIN { soak_start_utc=0; floor_start=0; floor_src=0 }
                /^[[:space:]]*$/                                                              { next }
                /^[[:space:]]*#/                                                              { next }
-               /^soak_start_utc=[0-9TZ:-]+$/                                                 { next }
-               /^floor_hit_cycles_total_start=[0-9]+$/                                       { next }
-               /^floor_hit_cycles_total_start_source="[A-Za-z0-9._\/:-]+"$/                  { next }
-               { print "line " NR ": " $0 }
+               /^soak_start_utc=[0-9TZ:-]+$/                                                 { soak_start_utc++; next }
+               /^floor_hit_cycles_total_start=[0-9]+$/                                       { floor_start++; next }
+               /^floor_hit_cycles_total_start_source="[A-Za-z0-9._\/:-]+"$/                  { floor_src++; next }
+               { print "line " NR ": shape violation: " $0 }
+               END {
+                   if (soak_start_utc > 1) print "cardinality violation: soak_start_utc appears " soak_start_utc " times (must be exactly 1)"
+                   if (floor_start    > 1) print "cardinality violation: floor_hit_cycles_total_start appears " floor_start " times (must be exactly 1)"
+                   if (floor_src      > 1) print "cardinality violation: floor_hit_cycles_total_start_source appears " floor_src " times (must be exactly 1)"
+               }
            ' "$file")
            if [[ -n "$violations" ]]; then
                echo "ABORT: $file failed pre-source validation:" >&2
                echo "$violations" >&2
                return 1
+           fi
+           if [[ "$mode" == "strict" ]]; then
+               local missing
+               missing=$(awk '
+                   BEGIN { soak_start_utc=0; floor_start=0; floor_src=0 }
+                   /^soak_start_utc=/                  { soak_start_utc++ }
+                   /^floor_hit_cycles_total_start=/    { floor_start++ }
+                   /^floor_hit_cycles_total_start_source=/ { floor_src++ }
+                   END {
+                       if (soak_start_utc == 0) print "missing key: soak_start_utc"
+                       if (floor_start    == 0) print "missing key: floor_hit_cycles_total_start"
+                       if (floor_src      == 0) print "missing key: floor_hit_cycles_total_start_source"
+                   }
+               ' "$file")
+               if [[ -n "$missing" ]]; then
+                   echo "ABORT: $file is missing required keys:" >&2
+                   echo "$missing" >&2
+                   return 1
+               fi
            fi
            return 0
        }
@@ -287,10 +372,10 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
            # soak_primary_gate_uncollectible_t0_baseline_missing, then exit non-zero.
        fi
 
-       # Validate then source. If validation fails, treat as soak FAIL with
-       # the env-poisoning reason — do NOT source a contaminated file.
-       if ! validate_env_file "$ENV_FILE"; then
-           echo "FAIL: $ENV_FILE was contaminated between Step 1.5 (write) and Step 4 (read). PRIMARY soak gate evidence is unreliable. Authoring verdict: fail with reason soak_primary_gate_env_file_contaminated." >&2
+       # Strict-mode validate, then source. If validation fails, treat as soak
+       # FAIL — do NOT source a contaminated/incomplete/duplicated file.
+       if ! validate_env_file "$ENV_FILE" strict; then
+           echo "FAIL: $ENV_FILE was contaminated, incomplete, or had duplicate keys between Step 1.5 (write) and Step 4 (read). PRIMARY soak gate evidence is unreliable. Authoring verdict: fail with reason soak_primary_gate_env_file_contaminated." >&2
            # Continue to write soak-summary.json with verdict: fail; do NOT source.
            # Exit non-zero after writing the summary.
        else
@@ -360,7 +445,7 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        |---|---|---|---|
        | **PRIMARY** (REVIEWS HIGH-5) | `floor_hit_cycles_total_delta == 0` over the 24h window | **FAIL** with reason `soak_primary_gate_floor_hit_cycles_delta_<N>` | Cycle-fidelity 50ms counter; this is the authoritative signal. |
        | **PRIMARY-COLLECTIBILITY** (REVIEWS round-5) | `floor_hit_cycles_total_start` was captured at Step 1.5 AND `/tmp/phase201-soak.env` carries it through to Step 4 AND `floor_hit_cycles_total_delta >= 0` (no daemon restart mid-soak) | **FAIL** with reason `soak_primary_gate_uncollectible_t0_baseline_missing` (Step 1.5 skipped) OR `soak_primary_gate_uncollectible_negative_delta_<N>` (daemon restart mid-soak invalidates the gate) | The PRIMARY gate is only meaningful if the T+0 anchor was actually captured. Operator skipping Step 1.5 OR a mid-soak daemon restart invalidates the entire 24h evidence — fail-closed; do NOT author `verdict: pass` on the assumption that "the counter probably didn't increment." Re-run the soak after capturing T+0 at the start. |
-       | **ENV-FILE INTEGRITY** (REVIEWS round-8) | `/tmp/phase201-soak.env` passes the strict whitelist validator at Step 4 PRE-source (only the 3 allowed keys with their per-key value charsets are present; no magic env vars; no function-export attacks; no malformed entries) | **FAIL** with reason `soak_primary_gate_env_file_contaminated` | The 24h window between Step 1.5 (write) and Step 4 (read) is enough time for `/tmp/phase201-soak.env` to be touched by another process or the operator. If validation fails at Step 4, the file is NOT sourced — instead the soak is authored as FAIL with the contamination reason. The PRIMARY gate evidence is treated as unreliable: do NOT trust `floor_hit_cycles_total_start` from a file that failed validation, even if the value looks plausible. |
+       | **ENV-FILE INTEGRITY** (REVIEWS round-8 + round-9) | `/tmp/phase201-soak.env` passes the strict whitelist validator at Step 4 PRE-source (round-8: only the 3 allowed keys with their per-key value charsets; no magic env vars; no function-export attacks; no malformed entries) AND passes cardinality+completeness checks (round-9: each of the 3 keys appears exactly once; none missing; none duplicated by stale/append residue) | **FAIL** with reason `soak_primary_gate_env_file_contaminated` (whitelist or shape violation) OR `soak_primary_gate_env_file_stale` (duplicate keys: stale data layered over fresh) OR `soak_primary_gate_env_file_incomplete` (missing required key) | The 24h window between Step 1.5 (write) and Step 4 (read) is long enough for the env file to be modified, appended-to, or partially deleted. Strict-mode validation at PRE-source catches all three failure shapes; if any triggers, the file is NOT sourced — soak is authored as FAIL. Round-9 specifically closes the gap where `>>`-append from a previous failed soak attempt would leave stale `soak_start_utc=` or `floor_hit_cycles_total_start=` lines that individually pass round-8 shape but represent multiple incoherent capture sessions. |
        | **SECONDARY** (D-14, NO RELAXATION) | `ul_hysteresis_suppression_rate_per_60s.mean < 5.0` | **FAIL** with reason `soak_secondary_gate_suppression_rate_<value>` | Inherited Phase 200 closure-shape watchdog. |
        | **INFRASTRUCTURE** | `daemon_restart_count == 0` | **FAIL** with reason `soak_infrastructure_daemon_restart_count_<N>` | A daemon restart mid-soak invalidates the counter delta (would reset to 0); restart-count > 0 is itself a regression signal. |
        | **PRIMARY/CROSS-CHECK COHERENCE** | `floor_hit_cycles_total_delta == 0` IFF `floor_hits_during_soak_1hz_secondary == 0` (i.e., they agree) | **FAIL** with reason `soak_primary_secondary_disagreement_counter_<N>_snapshot_<M>` | Disagreement indicates /health-vs-counter drift bug or a counter-increment defect; treated as FAIL not "investigate" — fail-closed. |
