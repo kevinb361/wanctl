@@ -5288,12 +5288,44 @@ class TestReflectorScorerBlackoutGate:
 
 
 class TestPhase201HealthAdditive:
-    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-05")
+    def _docsis_controller(self, mock_autorate_config):
+        from wanctl.wan_controller import WANController
+
+        mock_autorate_config.docsis_mode = True
+        mock_autorate_config._docsis_mode_explicit = True
+        mock_autorate_config.setpoint_mbps = 12
+        mock_autorate_config._setpoint_mbps_explicit = True
+        mock_autorate_config.integral_window_seconds = 2.0
+        mock_autorate_config.integral_threshold_ms_s = 30.0
+        mock_autorate_config.cake_backlog_low_threshold_bytes = 5000
+        mock_autorate_config.cake_delay_delta_low_threshold_us = 5000
+        with patch.object(WANController, "load_state"):
+            return WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=MagicMock(),
+                rtt_measurement=MagicMock(),
+                logger=MagicMock(),
+            )
+
+    def _upload_health(self, controller):
+        from wanctl.health_check import HealthCheckHandler
+
+        handler = HealthCheckHandler.__new__(HealthCheckHandler)
+        return handler._build_rate_hysteresis_section(
+            controller.upload,
+            controller.get_health_data(),
+            direction="upload",
+        )
+
     def test_docsis_mode_active_runtime_field_present(self, mock_autorate_config):
         """Additive /health.wans[].upload.docsis_mode_active runtime field."""
-        raise AssertionError("Wave 0 stub — implementation lands in Plan 201-05")
+        controller = self._docsis_controller(mock_autorate_config)
 
-    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-05")
+        upload = self._upload_health(controller)
+
+        assert upload["docsis_mode_active"] is True
+
     def test_setpoint_mbps_runtime_field_reflects_state_not_yaml(
         self, mock_autorate_config
     ):
@@ -5309,14 +5341,36 @@ class TestPhase201HealthAdditive:
         anchors that invariant: setpoint_mbps reflects the active configured setpoint — the active configured
         setpoint, not the current rate.
         """
-        raise AssertionError("Wave 0 stub — implementation lands in Plan 201-05")
+        controller = self._docsis_controller(mock_autorate_config)
+        mock_autorate_config.setpoint_mbps = 99
+        controller.upload.current_rate = 8_000_000
 
-    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-05")
+        upload = self._upload_health(controller)
+
+        assert upload["current_rate_mbps"] == 8.0
+        assert upload["setpoint_mbps"] == 12.0
+
     def test_legacy_health_unchanged_when_docsis_disabled(self, mock_autorate_config):
         """D-16 + Phase 200 RETRO Lesson 1: legacy health shape stays additive-only."""
-        raise AssertionError("Wave 0 stub — implementation lands in Plan 201-05")
+        from wanctl.wan_controller import WANController
 
-    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-05 (REVIEWS HIGH-5)")
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=MagicMock(),
+                rtt_measurement=MagicMock(),
+                logger=MagicMock(),
+            )
+
+        upload = self._upload_health(controller)
+
+        assert upload["current_rate_mbps"] == 40.0
+        assert upload["state"] in {"GREEN", "YELLOW", "RED"}
+        assert "hysteresis" in upload
+        assert upload["docsis_mode_active"] is False
+        assert upload["setpoint_mbps"] is None
+
     def test_floor_hit_cycles_total_runtime_field_present(self, mock_autorate_config):
         """REVIEWS HIGH-5 (2026-05-04): /health.wans[].upload.floor_hit_cycles_total
         is the cycle-fidelity (50ms) floor-hit counter exposed for canary +
@@ -5330,14 +5384,41 @@ class TestPhase201HealthAdditive:
         gate compares counter DELTAS across the loaded window, not snapshot
         rates.
         """
-        raise AssertionError("Wave 0 stub — implementation lands in Plan 201-05")
+        controller = self._docsis_controller(mock_autorate_config)
+        controller.upload.floor_hit_cycles = 17
+
+        upload = self._upload_health(controller)
+
+        assert upload["floor_hit_cycles_total"] == 17
+        assert isinstance(upload["floor_hit_cycles_total"], int)
 
 
 class TestPhase201FlashWear:
-    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-05")
     def test_steady_state_no_router_writes_when_rate_unchanged(self, mock_autorate_config):
         """Setpoint mode must preserve last_applied_ul_rate flash-wear dedup."""
-        raise AssertionError("Wave 0 stub — implementation lands in Plan 201-05")
+        from wanctl.wan_controller import WANController
+
+        router = MagicMock()
+        router.set_limits.return_value = True
+        router.needs_rate_limiting = True
+        router.rate_limit_params = {"max_changes": 5, "window_seconds": 10}
+        mock_autorate_config.docsis_mode = True
+        mock_autorate_config._docsis_mode_explicit = True
+        mock_autorate_config.setpoint_mbps = 35
+        mock_autorate_config._setpoint_mbps_explicit = True
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=router,
+                rtt_measurement=MagicMock(),
+                logger=MagicMock(),
+            )
+
+        assert controller.apply_rate_changes_if_needed(800_000_000, 35_000_000) is True
+        assert controller.apply_rate_changes_if_needed(800_000_000, 35_000_000) is True
+        router.set_limits.assert_called_once()
 
 
 class TestSigusr1ReloadScopePhase201:
