@@ -182,7 +182,7 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 201 | DOCSIS-Aware UL Congestion Control | 10/12 | In Progress — stop-time review GO WITH FOLLOW-UPS; canary next after PHASE201_LOCAL_YAML_OVERRIDE unset check |  |
+| 201 | DOCSIS-Aware UL Congestion Control | 11/12 | Blocked — Plan 201-11 canary failed at setpoint_mbps=12 (`floor_hit_cycles_total_delta_loaded_window=1453`, `ul_floor_hits_during_load=84`); D-10 rollback complete; Plan 201-12 must not proceed without explicit operator reattempt/gap decision | 2026-05-04 |
 
 ---
 
@@ -224,7 +224,7 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 4. The predeploy gate inspects `/etc/wanctl/spectrum.yaml` on the deploy target and either reconciles v1.41-only rejected-hypothesis keys with Phase 201's own design or fails closed before the deploy proceeds. Verified by canary preflight log evidence.
 5. `CHANGELOG.md` and `docs/CONFIGURATION.md` carry the migration note specifying that `docsis_mode`, `setpoint_mbps`, and the RTT-integral window keys require a service restart to take effect (SIGUSR1 does not reload these). Verified by greps for the keys in both files.
 
-**Plans:** 10/12 plans executed
+**Plans:** 11/12 plans executed — Phase blocked by failed Plan 201-11 canary; Plan 201-12 is gated pending explicit operator decision.
 
 Plans:
 - [x] 201-01-corpus-inspection-and-fixtures-PLAN.md — Wave 0 corpus audit + replay-corpus loader + synthetic-trace fixtures (resolves Open Questions 1 + 2)
@@ -237,8 +237,8 @@ Plans:
 - [x] 201-08-canary-script-extension-PLAN.md — D-12 preflight extension: env-vs-YAML cross-check + /health DOCSIS-mode probe + WR-02 closure; max_delay_delta_us capture
 - [x] 201-09-codex-pre-review-PLAN.md — Cross-AI pre-review checkpoint before Wave 2 implementation (D-18 first leg); verdict BLOCK, amendments required before Wave 1+ continues
 - [x] 201-10-codex-stop-time-review-PLAN.md — Cross-AI stop-time review checkpoint before live canary (D-18 second leg); GO WITH FOLLOW-UPS, no HIGH findings
-- [ ] 201-11-canary-execution-PLAN.md — Live 10-15 min iperf3 -P4 saturated UL canary; PRIMARY VALN-06 gate (zero floor hits); D-10 rollback on fail
-- [ ] 201-12-soak-and-closeout-PLAN.md — 24h Spectrum UL regression soak watchdog (<5/60s); 201-VERIFICATION.md + REQUIREMENTS.md + STATE.md closeout
+- [x] 201-11-canary-execution-PLAN.md — Live 10-15 min iperf3 -P4 saturated UL canary FAILED at setpoint_mbps=12 (`verdict: fail`, reason `ul_floor_hits_during_load_84_counter_delta_1453`); D-10 rollback restored both binary and YAML; see `201-11-CANARY-VERDICT.md`
+- [ ] 201-12-soak-and-closeout-PLAN.md — BLOCKED after failed canary; 24h Spectrum UL regression soak must not proceed unless explicit operator decision creates a reattempt/gap path
 
 
 ---

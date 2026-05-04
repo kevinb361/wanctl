@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
-status: executing
-stopped_at: Completed 201-10-codex-stop-time-review-PLAN.md
-last_updated: "2026-05-04T23:08:27.000Z"
+status: blocked
+stopped_at: Completed 201-11-canary-execution-PLAN.md with canary FAIL and rollback complete
+last_updated: "2026-05-04T23:45:00.000Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 1
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 201 — docsis-aware-ul-congestion-control; Plan 10 stop-time review complete with GO WITH FOLLOW-UPS before live canary
+**Current focus:** Phase 201 — docsis-aware-ul-congestion-control; Plan 11 live canary failed at setpoint_mbps=12 and rollback is complete. Plan 201-12 is blocked pending explicit operator reattempt/gap decision.
 
 ## Position
 
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 201-10-codex-stop-time-review-PLAN.md
+Stopped at: Completed 201-11-canary-execution-PLAN.md with canary FAIL and rollback complete
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -244,9 +244,13 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 201-08]: max_delay_delta_us is already serialized through CakeSignalSnapshot and the wan_controller.py cake_signal.upload payload, so no controller code change was needed for canary captures.
 - [Phase 201-10]: Codex stop-time review returned GO WITH FOLLOW-UPS with no HIGH findings; Plan 201-11 canary may proceed if PHASE201_LOCAL_YAML_OVERRIDE is confirmed unset before deploy/canary.
 - [Phase 201-10]: Deferred the max_delay_delta_us public /health serialization gap as non-blocking for VALN-06 because the live canary gate uses floor_hit_cycles_total_delta_loaded_window plus ul_floor_hits_during_load, not max_delay_delta_us.
+- [Phase 201-11]: Canary at setpoint_mbps=12 failed the primary VALN-06 gate with floor_hit_cycles_total_delta_loaded_window=1453 and ul_floor_hits_during_load=84 (`reason: ul_floor_hits_during_load_84_counter_delta_1453`); both gates reported floor hits, so rollback was required and completed.
+- [Phase 201-11]: Rollback restored both `/opt/wanctl` from `/opt/wanctl-prephase201-20260504T231220Z.tar.gz` and `/etc/wanctl/spectrum.yaml` from `/etc/wanctl/spectrum.yaml.prephase201-20260504T231220Z`; post-rollback `/health.version` was 1.39.0 and checked Phase 201 YAML key counts were all zero.
+- [Phase 201-11]: Plan 201-12 must not proceed after the failed canary unless an explicit operator decision creates a setpoint_mbps=10 reattempt path or gap-closure planning.
 
 ## Performance Metrics
 
+- 2026-05-04: Phase 201 Plan 11 completed as blocked/failed after live canary `20260504T231334Z`; predeploy reconciliation/deploy succeeded, but the 1022s loaded canary failed VALN-06 with floor_hit_cycles_total_delta_loaded_window=1453 and ul_floor_hits_during_load=84; D-10 rollback restored binary and YAML to predeploy snapshots and post-rollback health reported version 1.39.0.
 - 2026-05-04: Phase 201 Plan 10 completed in 11min across 1 Codex stop-time review gate and 5 planning/context files; Codex returned GO WITH FOLLOW-UPS with no HIGH findings, full suite passed with 4864 tests, and Plan 201-11 may proceed after confirming PHASE201_LOCAL_YAML_OVERRIDE is unset.
 - 2026-05-04: Phase 201 Plan 08 completed in 7min across 3 tasks and 5 plan-scoped files; the reused saturation canary now fails closed for Phase 201 env (`PHASE201_DOCSIS_MODE=true`, `PHASE201_SETPOINT_MBPS=12`), keeps legacy A/B behind explicit `PHASE201_LEGACY_MODE=true`, gates verdicts on floor-hit counter deltas, and passed 26 canary script tests.
 - 2026-05-04: Phase 201 Plan 07 completed in 3min across 2 tasks plus cleanup and 5 plan-scoped files; Spectrum predeploy gate now blocks rejected v1.41 upload threshold keys before rsync, ATT/non-Spectrum deploys skip without inspecting Spectrum YAML, and the focused predeploy test suite passed with 11 tests.
@@ -301,7 +305,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Blockers
 
-- Phase 201 Codex pre-review BLOCK is reconciled through Plans 201-04 through 201-08, and Plan 201-10 stop-time review returned GO WITH FOLLOW-UPS with no HIGH findings. Before Plan 201-11 deploy/canary, confirm `PHASE201_LOCAL_YAML_OVERRIDE` is unset. Track the non-blocking `max_delay_delta_us` public `/health` serialization follow-up before future replay-corpus work depends on that field.
+- Phase 201 Plan 201-11 live canary failed at setpoint_mbps=12 with both floor-hit gates reporting failures (`floor_hit_cycles_total_delta_loaded_window=1453`, `ul_floor_hits_during_load=84`, reason `ul_floor_hits_during_load_84_counter_delta_1453`). Rollback is complete. Plan 201-12 is blocked; no soak should start without explicit operator decision for setpoint-10 reattempt or gap-closure planning. Track the non-blocking `max_delay_delta_us` public `/health` serialization follow-up before future replay-corpus work depends on that field.
 - VALN-06 inherited by Phase 201 (`docsis-aware-ul-congestion-control`) as a blocking requirement per operator escalation 2026-05-04. Phase 200 closed as `gaps_found` after gap-closure cycle 1: Plan 200-14 Attempt 3 canary `20260504T133207Z` improved loaded-window UL floor hits from 122 (Attempt 2) to 4 but did not reach the zero-hit gate; D-10 rollback restored `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`; the 24h soak was skipped fail-closed. No second Phase 200 remediation cycle was attempted; the residual failure regime is shaping-headroom dominated, which is Phase 201's scope. Production binary remains v1.40; v1.41 YAML keys remain on prod `/etc/wanctl/spectrum.yaml` and are inactive under v1.40 but MUST be reconciled before any future Spectrum deploy/restart (Phase 201 predeploy gate). See `200-VERIFICATION.md` `closure: deferred-to-phase-201`, `200-RETRO.md` `## Final Closure (2026-05-04)`, and `201-CONTEXT.md` `## Inherited Requirements`.
 - Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), `2026-04-23` (`64.40 Mbps`), `2026-04-23c` (`61.47 Mbps`), and `2026-04-24` (`70.95 Mbps`) FAIL samples against the old ATT RRUL download comparator. The `2026-04-24` run narrowed the issue because ATT tcp_12down and VoIP looked healthy and Spectrum throughput was strong, but it still did not close Phase 191. Phase 192 is allowed to proceed only under the explicit operator waiver in `192-PRECONDITION-WAIVER.md`.
 - Phase 196 remains blocked only for the deferred ATT canary because Phase 191 closure is still open; Spectrum VALN-04 and VALN-05a were closed by Phase 198 Plan 07 attempt 11 canonical promotion.
@@ -309,7 +313,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Current Position
 
-Phase: 201 (docsis-aware-ul-congestion-control) — EXECUTING
-Plan: 10 of 12
-Status: Ready to execute Plan 201-11 canary after confirming PHASE201_LOCAL_YAML_OVERRIDE is unset
+Phase: 201 (docsis-aware-ul-congestion-control) — BLOCKED
+Plan: 11 of 12
+Status: Plan 201-11 canary failed and rollback is complete; Plan 201-12 must not proceed without explicit operator reattempt/gap decision
 Last activity: 2026-05-04
