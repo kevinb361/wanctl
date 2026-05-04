@@ -172,6 +172,13 @@ class Config(BaseConfig):
             "max": 1.0,
         },
         {
+            "path": "continuous_monitoring.upload.consecutive_yellow_decay_clamp",
+            "type": int,
+            "required": False,
+            "min": 0,
+            "max": 200,
+        },
+        {
             "path": "continuous_monitoring.upload.target_bloat_ms",
             "type": (int, float),
             "required": False,
@@ -351,6 +358,12 @@ class Config(BaseConfig):
         self.upload_factor_down = ul["factor_down"]
         # Upload YELLOW decay (gentler than download, default 0.94 = 6% per cycle)
         self.upload_factor_down_yellow = ul.get("factor_down_yellow", 0.94)
+        self.upload_consecutive_yellow_decay_clamp = ul.get(
+            "consecutive_yellow_decay_clamp", 0
+        )
+        self._upload_consecutive_yellow_decay_clamp_explicit = (
+            "consecutive_yellow_decay_clamp" in ul
+        )
         # Consecutive GREEN cycles required before stepping up (default 5)
         self.upload_green_required = ul.get("green_required", 5)
         # Optional upload-specific 3-state RTT thresholds are resolved after global

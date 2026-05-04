@@ -96,6 +96,8 @@ def mock_autorate_config():
     config.upload_step_up = 1_000_000
     config.upload_factor_down = 0.85
     config.upload_factor_down_yellow = 0.94
+    config.upload_consecutive_yellow_decay_clamp = 0
+    config._upload_consecutive_yellow_decay_clamp_explicit = False
     config.upload_green_required = 5
     # Bloat thresholds
     config.target_bloat_ms = 15.0

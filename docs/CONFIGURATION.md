@@ -186,8 +186,10 @@ you can override the upload thresholds independently:
 continuous_monitoring:
   upload:
     # Existing keys preserved; new optional keys below.
+    factor_down_yellow: 1.0  # Hold during YELLOW; RED decay remains immediate
     target_bloat_ms: 42   # GREEN -> YELLOW (UL-only)
     warn_bloat_ms: 105    # YELLOW -> RED   (UL-only)
+    consecutive_yellow_decay_clamp: 40  # Optional cap on consecutive YELLOW decays
 ```
 
 Bounds:
@@ -199,6 +201,22 @@ Bounds:
 
 When both keys are absent, upload thresholds fall back to the global thresholds
 byte-identically — non-Spectrum deployments are unaffected.
+
+For high-jitter DOCSIS upstreams with narrow ceiling headroom, keep
+`factor_down_yellow: 1.0` (the `QueueController` default) unless canary evidence
+shows gentle YELLOW decay is safe. Plan 200-09 found that Spectrum's earlier
+`factor_down_yellow: 0.98` could cascade from 18 Mbit to the 8 Mbit floor during
+saturated upload YELLOW dwell while RED decay remained the correct immediate
+severe-congestion response.
+
+`continuous_monitoring.upload.consecutive_yellow_decay_clamp` is an optional
+integer guard for deployments that intentionally use `factor_down_yellow < 1.0`.
+Default `0` disables the guard and preserves byte-identical behavior. Values
+above `0` allow that many consecutive YELLOW multiplicative decay cycles, then
+hold the current upload rate until any non-YELLOW cycle resets the counter. The
+Spectrum Plan 200-10 remediation uses `40`, matching the estimated 18→8 Mbps
+decay horizon at 50 ms cycles; lower values such as 5-30 are reasonable starting
+points for future DOCSIS experiments only after canary evidence supports them.
 
 ### Migration note: service restart required (NOT SIGUSR1)
 
