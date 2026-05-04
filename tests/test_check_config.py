@@ -279,6 +279,69 @@ class TestCrossField:
         assert len(errors) == 0
 
 
+class TestUploadThresholdOrdering:
+    """200-12 WR-01: parity with daemon upload threshold rejection."""
+
+    def _cm(self, ul: dict | None = None, thresholds: dict | None = None) -> dict:
+        cm = {}
+        if ul is not None:
+            cm["upload"] = ul
+        if thresholds is not None:
+            cm["thresholds"] = thresholds
+        return {"continuous_monitoring": cm}
+
+    def test_valid_explicit_upload_ordering_passes(self):
+        results = validate_cross_fields(
+            self._cm(ul={"target_bloat_ms": 10, "warn_bloat_ms": 50})
+        )
+        rows = [r for r in results if r.field == "continuous_monitoring.upload.thresholds"]
+        assert len(rows) == 1
+        assert rows[0].severity == Severity.PASS
+
+    def test_inverted_explicit_upload_ordering_errors(self):
+        results = validate_cross_fields(
+            self._cm(ul={"target_bloat_ms": 50, "warn_bloat_ms": 10})
+        )
+        rows = [r for r in results if r.field == "continuous_monitoring.upload.thresholds"]
+        assert len(rows) == 1
+        assert rows[0].severity == Severity.ERROR
+        assert "upload target_bloat_ms must be less than upload warn_bloat_ms" in rows[0].message
+
+    def test_equal_upload_thresholds_error(self):
+        results = validate_cross_fields(
+            self._cm(ul={"target_bloat_ms": 42, "warn_bloat_ms": 42})
+        )
+        rows = [r for r in results if r.field == "continuous_monitoring.upload.thresholds"]
+        assert len(rows) == 1
+        assert rows[0].severity == Severity.ERROR
+
+    def test_absent_upload_thresholds_emits_no_row(self):
+        results = validate_cross_fields(
+            self._cm(thresholds={"target_bloat_ms": 10, "warn_bloat_ms": 50})
+        )
+        rows = [r for r in results if r.field == "continuous_monitoring.upload.thresholds"]
+        assert rows == []
+
+    def test_partial_upload_threshold_falls_back_to_global(self):
+        results = validate_cross_fields(
+            self._cm(
+                ul={"target_bloat_ms": 200},
+                thresholds={"target_bloat_ms": 10, "warn_bloat_ms": 50},
+            )
+        )
+        rows = [r for r in results if r.field == "continuous_monitoring.upload.thresholds"]
+        assert len(rows) == 1
+        assert rows[0].severity == Severity.ERROR
+
+    def test_non_numeric_upload_threshold_errors(self):
+        results = validate_cross_fields(
+            self._cm(ul={"target_bloat_ms": "fast", "warn_bloat_ms": 50})
+        )
+        rows = [r for r in results if r.field == "continuous_monitoring.upload.thresholds"]
+        assert len(rows) == 1
+        assert rows[0].severity == Severity.ERROR
+
+
 # =============================================================================
 # TestPathChecks (CVAL-06)
 # =============================================================================
@@ -1322,4 +1385,3 @@ class TestExports:
             "continuous_monitoring.use_median_of_three",
         ]:
             assert required in KNOWN_AUTORATE_PATHS, f"Missing: {required}"
-
