@@ -152,6 +152,12 @@ class QueueController:
         self._dwell_bypassed_this_cycle = False
         self._backlog_suppressed_this_cycle = False
         delta = load_rtt - baseline_rtt
+        # Phase 201: integral + cake-alignment update BEFORE classify.
+        # Consumes the same delta the classifier consumes, preserving existing
+        # asymmetry-gate semantics from WANController.
+        if self._docsis_mode:
+            self._last_integral_ms_s, self._headroom_state = self._update_integral(delta)
+            self._cake_aligned = self._is_cake_aligned_for_pushup(cake_snapshot)
         zone = self._classify_zone_3state(delta, target_delta, warn_delta, cake_snapshot)
 
         # Track congestion during window (Phase 136: HYST-01)
@@ -160,6 +166,8 @@ class QueueController:
 
         new_rate = self._compute_rate_3state(zone)
         new_rate = enforce_rate_bounds(new_rate, floor=self.floor_red_bps, ceiling=self.ceiling_bps)
+        if new_rate == self.floor_red_bps:
+            self.floor_hit_cycles += 1
         self.current_rate = new_rate
 
         transition_reason = self._build_transition_reason(
@@ -230,6 +238,37 @@ class QueueController:
 
         return "GREEN"
 
+    def _update_integral(self, delta_ms: float) -> tuple[float, str]:
+        """Append delta sample, return (integral_ms_s, headroom_state).
+
+        Phase 201 RESEARCH §1. Negative deltas clamp to zero (transient
+        improvements add no headroom credit). Window-not-full is conservative
+        (EXHAUSTED) — controller stays clamped at setpoint until enough samples
+        accumulate. Cycle interval is 50ms; integral_ms_s = sum * 0.05.
+        """
+        self._integral_window.append(max(0.0, float(delta_ms)))
+        integral_ms_s = sum(self._integral_window) * 0.05
+        self._last_integral_ms_s = integral_ms_s
+        if len(self._integral_window) < (self._integral_window.maxlen or 0):
+            return integral_ms_s, "EXHAUSTED"
+        if integral_ms_s <= self._integral_threshold_ms_s:
+            return integral_ms_s, "AVAILABLE"
+        return integral_ms_s, "EXHAUSTED"
+
+    def _is_cake_aligned_for_pushup(
+        self, cake: CakeSignalSnapshot | None
+    ) -> bool:
+        """Categorical AND-gate: backlog low AND max_delay_delta_us low.
+
+        Phase 197 mirror — never µs/ms ratio (Phase 200 RETRO Codex pushback).
+        Cold-start veto-deny is intentional (RESEARCH Pitfall 4).
+        """
+        if cake is None or getattr(cake, "cold_start", False):
+            return False
+        backlog_low = cake.backlog_bytes <= self._cake_backlog_low_threshold_bytes
+        delay_low = cake.max_delay_delta_us <= self._cake_delay_delta_low_threshold_us
+        return bool(backlog_low and delay_low)
+
     def _apply_dwell_logic(self) -> str:
         """Apply dwell timer for GREEN->YELLOW transition (HYST-01).
 
@@ -266,8 +305,22 @@ class QueueController:
         if self.green_streak >= self.green_required:
             # 200-10 R3: sustained GREEN recovery resets the YELLOW clamp state.
             self._yellow_decay_streak = 0
-            return self.current_rate + self._compute_probe_step()
+            raw_rate = self.current_rate + self._compute_probe_step()
+            # Phase 201: setpoint clamp on push-up only.
+            # Decreases (RED/YELLOW) are unaffected — those branches return earlier.
+            if self._docsis_mode and self._setpoint_bps is not None:
+                if not (self._headroom_state == "AVAILABLE" and self._cake_aligned):
+                    return min(raw_rate, self._setpoint_bps)
+            return raw_rate
         if zone == "YELLOW":
+            if (
+                self._docsis_mode
+                and self._setpoint_bps is not None
+                and self.current_rate > self._setpoint_bps
+                and self._headroom_state == "EXHAUSTED"
+                and self._yellow_decay_streak >= self.dwell_cycles
+            ):
+                return min(int(self.current_rate * self.factor_down_yellow), self._setpoint_bps)
             if (
                 self.consecutive_yellow_decay_clamp > 0
                 and self._yellow_decay_streak >= self.consecutive_yellow_decay_clamp
