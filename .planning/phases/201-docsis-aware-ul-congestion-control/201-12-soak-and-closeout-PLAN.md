@@ -170,35 +170,62 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
            return 0
        }
 
+       # ROUND-11 ABORT-PATH DEFENSE: back up any pre-existing $ENV_FILE
+       # IMMEDIATELY, before any operation that could fail. This ensures the
+       # invariant: at any moment after Step 1.5 begins, $ENV_FILE either
+       # contains a valid fresh capture from THIS run, or does not exist at
+       # all. No third state — including "stale file from a prior run" — is
+       # reachable.
+       #
+       # Round-10's trap-cleanup of $TMP_ENV_FILE handles the case where
+       # Step 1.5 fails AFTER mktemp (the temp file is removed). But it left
+       # the prior $ENV_FILE intact, so an operator who runs Step 1.5, hits
+       # an abort (e.g., neither anchor available, jq fails, ssh times out),
+       # and then absent-mindedly proceeds to Step 4 would have Step 4 source
+       # the STALE prior file. The validator cannot catch this if the prior
+       # file was itself produced by a once-successful Step 1.5 (it's
+       # well-formed, just from a different soak run).
+       #
+       # Pattern: rename the prior file to .stale.<TS> as the FIRST step.
+       # Forensics is preserved (operator can inspect the .stale.* file for
+       # context after an abort) but $ENV_FILE no longer exists, so Step 4's
+       # missing-file branch fires correctly and authors verdict: fail with
+       # reason soak_primary_gate_uncollectible_t0_baseline_missing.
+       #
+       # rename(2) within the same filesystem is atomic, so concurrent readers
+       # never see a partial state. The .stale.<TS> name is dot-prefixed so
+       # ls listings don't clutter the operator's view.
+       if [[ -f "$ENV_FILE" ]]; then
+           STALE_BACKUP="${ENV_FILE}.stale.$(date -u +%Y%m%dT%H%M%SZ)"
+           # If the timestamp collides (Step 1.5 re-run within the same second),
+           # mktemp-style suffix avoids overwriting an existing backup.
+           if [[ -e "$STALE_BACKUP" ]]; then
+               STALE_BACKUP=$(mktemp -p "$(dirname "$ENV_FILE")" \
+                   ".$(basename "$ENV_FILE").stale.XXXXXX")
+               # mktemp creates an empty file; remove it so mv-f doesn't
+               # truncate-and-replace what's there.
+               rm -f -- "$STALE_BACKUP"
+           fi
+           mv -f -- "$ENV_FILE" "$STALE_BACKUP"
+
+           # Lenient validation of the moved-aside file — informational only,
+           # surfaces whether the prior file was conformant. Does not affect
+           # Step 1.5's flow (we're going to write a fresh file regardless).
+           validate_env_file "$STALE_BACKUP" lenient || {
+               echo "INFO: pre-existing $ENV_FILE was non-conformant; backed up to $STALE_BACKUP for forensics." >&2
+           }
+           echo "INFO: backed up pre-existing $ENV_FILE to $STALE_BACKUP (round-11: aborted Step 1.5 must not leave stale data sourceable)." >&2
+       fi
+       # POSTCONDITION OF THIS BLOCK: $ENV_FILE does not exist. Step 4 will
+       # correctly detect a missing file if Step 1.5 aborts before the rename.
+
        # Round-10 TRUE-ATOMIC capture via mktemp + write + validate + rename.
-       #
-       # Round-9 used `: > "$ENV_FILE"` (truncate) followed by `{ ... } > "$ENV_FILE"`
-       # (sequential write of 3 lines) and called this "atomic." That claim was
-       # false: between the truncate syscall and each `echo`'s write syscall there
-       # are multiple visibility windows where a reader (concurrent Step 4 in
-       # another tmux pane, another monitor process, an interrupted script) can
-       # see the file empty or with 1-of-3 lines or 2-of-3 lines. Atomic in the
-       # POSIX-filesystem sense means "either the whole operation is visible or
-       # none of it is" — the only standard way to get that for file content is
-       # rename(2) within the same filesystem.
-       #
-       # Pattern: write to a temp file (same directory ⇒ same filesystem), validate
-       # the temp file in strict mode, then rename into place. `trap` cleans up the
-       # temp file on any exit (success, failure, signal) so we never leave
-       # half-written files behind.
+       # Pattern: write to a temp file (same directory ⇒ same filesystem),
+       # validate the temp file in strict mode, then rename into place. The
+       # trap cleans up the temp file on any exit (success, failure, signal)
+       # so we never leave half-written files behind.
        TMP_ENV_FILE=$(mktemp -p "$(dirname "$ENV_FILE")" ".$(basename "$ENV_FILE").tmp.XXXXXX")
        trap 'rm -f -- "$TMP_ENV_FILE"' EXIT
-
-       # If the existing $ENV_FILE is non-conformant (legacy from a buggy run),
-       # validate it now in lenient mode so we surface the issue immediately —
-       # but proceed regardless, because Step 1.5 is going to atomically replace
-       # it. The validation here is informational; the rename below is what
-       # actually fixes the file state.
-       if [[ -f "$ENV_FILE" ]]; then
-           validate_env_file "$ENV_FILE" lenient || {
-               echo "WARN: pre-existing $ENV_FILE failed lenient validation; will be replaced atomically by Step 1.5." >&2
-           }
-       fi
 
        # Find the most recent canary verdict.json. `|| true` prevents set-e abort
        # on no-match; `2>/dev/null` suppresses ls's "no such file" stderr noise.
@@ -302,7 +329,7 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        echo "Step 1.5 complete: floor_hit_cycles_total_start=$FLOOR_HIT_T0 (source: $SOURCE) recorded in $ENV_FILE" >&2
        ```
 
-       **Why this is structured this way (lessons from rounds 1-10):**
+       **Why this is structured this way (lessons from rounds 1-11):**
        - `set -euo pipefail` so any unbound var or pipeline failure aborts; no silent partial writes.
        - `|| true` only on `ls` no-match (legitimate empty case), not on `jq`/`ssh` failures (those should propagate).
        - The `SOURCE` variable is set inside each successful branch, never inferred post-hoc from leftover state (round-6 catch).
@@ -310,16 +337,18 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        - The env file gets ONLY `key=value` lines. Commentary, warnings, success messages all go to **stderr** (round-6 catch).
        - **Validation uses an `awk` whitelist filter, NOT `bash -n` (round-7) and NOT a value-charset blacklist (round-8).** Whitelisting constrains keys to the EXACT THREE Step 1.5 writes, each with its per-key value charset, blocking magic env vars (`PATH=`, `IFS=`, `BASH_ENV=`, `LD_PRELOAD=`, `PROMPT_COMMAND=`, `BASH_FUNC_xxx%%=`) that poison shell state without using a single metacharacter.
        - **Cardinality + completeness validation (round-9 catch).** Each whitelisted key appears EXACTLY ONCE; in strict mode all 3 must be present. Previously `>>`-appended files where prior failed soak attempts left stale duplicates passed line-shape but represented multiple incoherent capture sessions; cardinality enforcement closes that.
-       - **TRUE atomic file replacement (round-10 catch).** Step 1.5 writes to a temp file in the same directory, validates the temp file in strict mode, then `mv -f` (POSIX `rename(2)`, atomic within the same filesystem) into place. Round-9's `: > FILE` (truncate) + `{ ... } > FILE` (sequential 3-line write) was NOT atomic — between the truncate syscall and each `echo`'s write syscall there were multiple visibility windows where a concurrent reader (Step 4 in another tmux pane, a monitor process, an interrupted script) could observe the file empty or with 1-of-3 / 2-of-3 lines. Calling that "atomic" conflated *consecutive ordering* with *atomicity-in-the-POSIX-sense* (either operation completes fully or its effects are not visible). Rename(2) gives the latter.
+       - **TRUE atomic file replacement (round-10 catch).** Step 1.5 writes to a temp file in the same directory, validates the temp file in strict mode, then `mv -f` (POSIX `rename(2)`, atomic within the same filesystem) into place. Round-9's `: > FILE` + `{ ... } > FILE` was NOT atomic — sequential writes have visibility windows. Rename(2) gives true POSIX atomicity.
+       - **Abort-path stale-file defense (round-11 catch).** Round-10's trap cleans up the temp file on any failure path, but left the *prior* `$ENV_FILE` intact. An operator who re-runs Step 1.5, hits an early abort, and then proceeds to Step 4 would have Step 4 source the **stale** prior file (which the validator cannot catch if the file was itself produced by a once-successful prior run — it's well-formed, just temporally wrong). Round-11's fix: at the START of Step 1.5, atomically rename any pre-existing `$ENV_FILE` to `.stale.<TS>` (forensics preserved, but the file no longer exists at the path Step 4 sources). Postcondition: at every moment after this block, `$ENV_FILE` either contains a valid fresh capture from THIS run, or does not exist at all. No third state is reachable.
        - **Trap-cleanup of the temp file** (`trap 'rm -f "$TMP_ENV_FILE"' EXIT`). Any exit path — success, validation failure, signal, OOM kill — removes the temp file. On successful rename, the temp path no longer exists, so the trap is a no-op. No leaked half-written files.
        - **Three-checkpoint validation (rounds 7+8+9+10).** Pre-existing-file lenient validation (informational; surfaces legacy contamination), pre-rename strict validation on the temp file (refuses to publish an invalid file), post-rename strict re-validation on the live file (catches the rare case of a concurrent writer racing our rename). All three checkpoints use the same closed-set whitelist + cardinality validator.
        - **The `SOURCE` label is itself validated against the bare-value charset before writing** (round-7 catch reinforced).
 
        **Failure modes Step 1.5 closes:**
-       - Step 1.5 skipped entirely → Step 4 detects missing `floor_hit_cycles_total_start` and authors `verdict: fail` with reason `soak_primary_gate_uncollectible_t0_baseline_missing`.
-       - Step 1.5 ran but neither anchor available → `exit 2` with operator-actionable abort message; env file untouched (or only has the prior `soak_start_utc` line).
-       - Step 1.5 ran and succeeded → env file has clean `key=value` pairs; Step 4 sources cleanly.
-       - Step 1.5 ran with verdict.json predating Plan 08-T3 → fallback to `live_health`; provenance label honestly records the source so post-mortem can compare.
+       - **Step 1.5 never run** → `$ENV_FILE` doesn't exist; Step 4's missing-file branch fires; verdict: fail with reason `soak_primary_gate_uncollectible_t0_baseline_missing`.
+       - **Step 1.5 ran but aborted before rename** (anchor unavailable, jq failure, ssh timeout, `mktemp` failure) → round-11 has already moved the prior file to `.stale.<TS>`; round-10 trap removed the temp file; `$ENV_FILE` does not exist; Step 4's missing-file branch fires. The `.stale.<TS>` file is available for forensics but is NOT sourced.
+       - **Step 1.5 ran and succeeded** → atomic rename produces a valid fresh `$ENV_FILE`; Step 4 sources cleanly.
+       - **Step 1.5 ran with verdict.json predating Plan 08-T3** → fallback to `live_health`; provenance label honestly records the source so post-mortem can compare.
+       - **Operator manually copies a `.stale.<TS>` file back to `$ENV_FILE`** → strict validator accepts the (well-formed) content but the operator-discipline contract was violated. The decision matrix's coherence check (round-9: cardinality, completeness) cannot detect a temporally-stale-but-otherwise-valid file. This is the residual operator-discipline gap; mitigation is to encode the rule "do not promote `.stale.*` files" in operator runbook + soak-summary.json's `floor_hit_cycles_total_start_source` field provenance audit trail.
 
     2. **Schedule soak finish capture** (24h + 30 min for summarization):
        ```
