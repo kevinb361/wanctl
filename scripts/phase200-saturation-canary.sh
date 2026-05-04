@@ -187,6 +187,28 @@ summarize_baseline() {
     ' "$in_ndjson" >"$out_json"
 }
 
+# WR-02 (200-11): reject any REMOTE_YAML_PATH that is not an absolute path
+# composed of safe characters. Operator-supplied paths can contain shell
+# metacharacters and would expand inside the remote ssh command. Round-2
+# HIGH (WR-02 test ordering): factor into a function so the --self-test
+# mode can drive it without running health preflight.
+# Round-3 stop-hook fix: this function MUST be defined alongside the other
+# helpers (NOT at the call site at line 259), because the --self-test
+# dispatcher (Task 1) is placed below ALL helper definitions and would
+# otherwise call this function before its `() { ... }` line is parsed.
+validate_remote_yaml_path() {
+    local path="$1"
+    if [[ -z "$path" ]]; then
+        echo "validate_remote_yaml_path: empty path" >&2
+        return 2
+    fi
+    if ! [[ "$path" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
+        echo "remote_yaml_path_unsafe: PHASE200_REMOTE_YAML_SSH path must be an absolute path with safe chars only [A-Za-z0-9._/-]: ${path}" >&2
+        return 2
+    fi
+    return 0
+}
+
 # 200-11: --self-test mode for offline regression testing.
 # Allows tests to exercise individual helper functions WITHOUT running the
 # live canary main flow (deploy probe, ssh, iperf3, etc.). Codex MEDIUM
@@ -298,7 +320,13 @@ if [[ -z "$REMOTE_SSH_TARGET" || -z "$REMOTE_YAML_PATH" || "$REMOTE_SSH_TARGET" 
     write_abort_verdict "remote_yaml_ssh_malformed"
     exit "$EXIT_ABORT"
 fi
-YAML_PROBE="$(ssh -o ConnectTimeout=10 -o BatchMode=no "$REMOTE_SSH_TARGET" "sudo cat ${REMOTE_YAML_PATH}" 2>/dev/null \
+if ! validate_remote_yaml_path "$REMOTE_YAML_PATH"; then
+    log_abort "PHASE200_REMOTE_YAML_SSH path failed validation: ${REMOTE_YAML_PATH}"
+    write_abort_verdict "remote_yaml_path_unsafe"
+    exit "$EXIT_ABORT"
+fi
+YAML_PROBE="$(ssh -o ConnectTimeout=10 -o BatchMode=no "$REMOTE_SSH_TARGET" \
+    "sudo cat -- '${REMOTE_YAML_PATH}'" 2>/dev/null \
     | python3 -c '
 import sys, json, yaml
 try:
