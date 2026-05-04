@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
-status: executing
-stopped_at: Completed 200-14-PLAN.md
-last_updated: "2026-05-04T13:54:12.927Z"
+status: blocked
+stopped_at: Completed 200-15-PLAN.md — Phase 200 closed as gaps_found
+last_updated: "2026-05-04T14:05:00.000Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 15
-  completed_plans: 14
-  percent: 93
+  completed_plans: 15
+  percent: 100
 ---
 
 # Session State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 **Active parallel milestone:** v1.39 Control-Path Timing & Measurement Accounting (Phase 191 still open)
 **Next milestone:** v1.41 (to open via `/gsd-new-milestone`)
 
-Progress: [█████████░] 93%
+Progress: [██████████] 100%
 
 ## Deferred Items
 
@@ -224,9 +224,11 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 200-10]: Consecutive-YELLOW clamp defaults to 0 for byte-identical behavior when absent and resets on any non-YELLOW zone while preserving immediate RED decay.
 - [Phase 200]: Attempt 3 canary verdict=fail triggered immediate D-10 rollback; Task 4 soak was skipped per fail-closed branch semantics. — VALN-06 requires zero loaded-window floor hits; Attempt 3 had 4 floor samples despite improvement from Attempt 2.
 - [Phase 200]: Plan 200-15 should close Phase 200 as gaps_found. — The canary failed and the 24h soak was correctly skipped after rollback.
+- [Phase 200 gap closure]: Operator-provided Plan 200-15 execution context selected the Category B closeout branch: close Phase 200 as `gaps_found` based on Plan 200-14 Attempt 3 canary fail (4 UL floor hits), rollback from `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`, and skipped soak. VALN-06 remains unsatisfied; a second gap-closure cycle requires a new operator decision.
 
 ## Performance Metrics
 
+- 2026-05-04: Phase 200 Plan 15 completed documentation closeout in ~9min across 5 planning artifacts plus summary; status is gaps_found, VALN-06 remains blocked after Attempt 3 canary 20260504T133207Z failed with 4 UL floor hits, rollback used /opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz, and soak was skipped.
 - 2026-05-04: Phase 200 Plan 14 completed in 21min27s across 4 task outcomes and 11 evidence/docs files; Attempt 3 deployed commit 57be072, canary 20260504T133207Z failed with 4 UL floor hits, D-10 rollback restored /opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz, soak was skipped, and the hot-path slice passed with 583 tests.
 - 2026-05-04: Phase 200 Plan 10 completed in 8min15s across 2 TDD gates and 11 files; approved R5+R3 landed with Spectrum factor_down_yellow=1.0, consecutive_yellow_decay_clamp=40, 763-test acceptance slice passed, dedicated single-GREEN clamp reset passed, and ruff/mypy passed.
 - 2026-05-04: Phase 200 Plan 13 completed in 1min23s across 1 task and 3 files; WR-03 Docker packaging now preserves the full wanctl package tree, repo-root .dockerignore is present, static checks passed, Docker CLI was unavailable, and the hot-path slice passed with 578 tests.
@@ -273,15 +275,14 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Blockers
 
-- Phase 200 closure blocked: VALN-06 failed because Plan 06 canary `20260503T215734Z` recorded 122 UL collapse-to-floor events during the 900s loaded window; D-10 rollback restored the v1.40 binary, Plan 07 soak was blocked, and gap-closure planning is seeded at `.planning/phases/201-docsis-aware-ul-congestion-control/201-CONTEXT.md`.
+- Phase 200 remains gaps_found after gap-closure cycle 1: VALN-06 failed because Plan 200-14 Attempt 3 canary `20260504T133207Z` recorded 4 UL floor hits during the 900s loaded window; D-10 rollback restored `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`, the 24h soak was skipped fail-closed, and a second gap-closure cycle or operator escalation is pending.
 - Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), `2026-04-23` (`64.40 Mbps`), `2026-04-23c` (`61.47 Mbps`), and `2026-04-24` (`70.95 Mbps`) FAIL samples against the old ATT RRUL download comparator. The `2026-04-24` run narrowed the issue because ATT tcp_12down and VoIP looked healthy and Spectrum throughput was strong, but it still did not close Phase 191. Phase 192 is allowed to proceed only under the explicit operator waiver in `192-PRECONDITION-WAIVER.md`.
 - Phase 196 remains blocked only for the deferred ATT canary because Phase 191 closure is still open; Spectrum VALN-04 and VALN-05a were closed by Phase 198 Plan 07 attempt 11 canonical promotion.
 - Pending follow-up created: `.planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md` tracks the required ATT cake-primary canary rerun after Phase 191 closes.
-- Phase 200 closure remains gaps_found: Plan 200-14 Attempt 3 canary 20260504T133207Z failed with 4 UL floor hits; D-10 rollback used /opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz and the soak was skipped.
 
 ## Current Position
 
-Phase: 200 (per-direction-rtt-bloat-thresholds) — EXECUTING
+Phase: 200 (per-direction-rtt-bloat-thresholds) — BLOCKED-2nd-stage / gaps_found
 Plan: 15 of 15
-Status: Ready to execute
+Status: Closed as gaps_found; VALN-06 remains unsatisfied after Attempt 3 canary fail and skipped soak
 Last activity: 2026-05-04
