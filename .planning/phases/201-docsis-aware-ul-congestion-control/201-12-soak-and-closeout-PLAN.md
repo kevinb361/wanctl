@@ -83,27 +83,86 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        ```
 
     1.5. **CAPTURE PRIMARY-GATE BASELINE** (REVIEWS HIGH-5: this MUST happen at soak T+0 — `/health.upload.floor_hit_cycles_total` is a live in-process counter; past values cannot be reconstructed at soak end. Skipping this step makes the PRIMARY soak gate uncollectible, which itself is a fail-OPEN.):
-       ```
-       # Anchor: the canary's floor_hit_cycles_total_loaded_window_end (from Plan 201-11
-       # verdict.json) IS the soak T+0 baseline by construction (no cycles between
-       # canary loaded-window end and soak start, modulo deploy time which is bounded).
-       # Prefer the verdict.json value; fall back to a fresh /health sample if needed.
-       CANARY_VERDICT=$(ls -1t .planning/phases/201-docsis-aware-ul-congestion-control/canary/*/verdict.json | head -1)
-       FLOOR_HIT_T0=$(jq -r '.floor_hit_cycles_total_loaded_window_end' "$CANARY_VERDICT")
-       if [[ "$FLOOR_HIT_T0" == "null" || -z "$FLOOR_HIT_T0" ]]; then
-           # verdict.json predates Plan 08-T3 OR field is absent — capture live and warn.
-           FLOOR_HIT_T0=$(ssh cake-shaper "curl -sS http://127.0.0.1:9101/health" \
-               | jq -r '.wans[0].upload.floor_hit_cycles_total')
-           echo "WARN: anchored floor_hit_cycles_total_start=$FLOOR_HIT_T0 from live /health (verdict.json missing field); soak start drifted from canary by deploy/restart latency." >> /tmp/phase201-soak.env
+
+       **Required invariants for `/tmp/phase201-soak.env`:** the file MUST contain ONLY `key=value` assignments after this step (no warnings, no commentary, no narration), so that Step 4's `source /tmp/phase201-soak.env` is a clean, deterministic load. All informational output goes to stderr. All values are validated as digit-only integers before being written. The provenance label is set from the code path that actually produced the value, NOT from a leftover variable.
+
+       ```bash
+       set -euo pipefail
+
+       PHASE_DIR=.planning/phases/201-docsis-aware-ul-congestion-control
+       ENV_FILE=/tmp/phase201-soak.env
+
+       # Find the most recent canary verdict.json. `|| true` prevents set-e abort
+       # on no-match; `2>/dev/null` suppresses ls's "no such file" stderr noise.
+       CANARY_VERDICT=$(ls -1t "$PHASE_DIR"/canary/*/verdict.json 2>/dev/null | head -1 || true)
+
+       FLOOR_HIT_T0=""
+       SOURCE=""
+
+       # Try anchor 1: Plan 201-11 verdict.json `.floor_hit_cycles_total_loaded_window_end`.
+       # This is the canonical anchor — by construction, the canary's last counter
+       # value is identical to soak T+0 (no cycles between canary loaded-window end
+       # and soak start, modulo bounded deploy/restart time).
+       if [[ -n "$CANARY_VERDICT" && -s "$CANARY_VERDICT" ]]; then
+           candidate=$(jq -r '.floor_hit_cycles_total_loaded_window_end // empty' "$CANARY_VERDICT" 2>/dev/null || true)
+           if [[ "$candidate" =~ ^[0-9]+$ ]]; then
+               FLOOR_HIT_T0="$candidate"
+               SOURCE="verdict.json:$CANARY_VERDICT"
+           fi
        fi
-       if [[ "$FLOOR_HIT_T0" == "null" || -z "$FLOOR_HIT_T0" || ! "$FLOOR_HIT_T0" =~ ^[0-9]+$ ]]; then
-           echo "ABORT: floor_hit_cycles_total_start unavailable from both verdict.json and /health. Cannot proceed — PRIMARY soak gate would be uncollectible." >&2
+
+       # Try anchor 2 (fallback): live /health sample. Only used when verdict.json
+       # is missing OR predates Plan 08-T3 (field absent). Operator should be aware
+       # this introduces deploy-latency drift between canary end and soak start.
+       if [[ -z "$FLOOR_HIT_T0" ]]; then
+           candidate=$(ssh cake-shaper "curl -sS http://127.0.0.1:9101/health" 2>/dev/null \
+               | jq -r '.wans[0].upload.floor_hit_cycles_total // empty' 2>/dev/null || true)
+           if [[ "$candidate" =~ ^[0-9]+$ ]]; then
+               FLOOR_HIT_T0="$candidate"
+               SOURCE="live_health"
+           fi
+       fi
+
+       # Hard-fail if neither anchor produced a valid integer. PRIMARY soak gate
+       # is uncollectible; better to FAIL the procedure NOW than 24 hours from now.
+       if [[ -z "$FLOOR_HIT_T0" ]]; then
+           echo "ABORT: floor_hit_cycles_total_start unavailable from both verdict.json (${CANARY_VERDICT:-not found}) and live /health." >&2
+           echo "ABORT: PRIMARY soak gate is uncollectible. Restore /health.upload.floor_hit_cycles_total (Plan 05) and/or fix verdict.json (Plan 08-T3), then re-run Step 1.5." >&2
            exit 2
        fi
-       echo "floor_hit_cycles_total_start=$FLOOR_HIT_T0" >> /tmp/phase201-soak.env
-       echo "floor_hit_cycles_total_start_source=$([[ -n "$CANARY_VERDICT" ]] && echo "verdict.json:$CANARY_VERDICT" || echo "live /health")" >> /tmp/phase201-soak.env
+
+       # Atomic append: only key=value lines go into the sourceable env file.
+       # Commentary goes to stderr, NOT into $ENV_FILE.
+       {
+           echo "floor_hit_cycles_total_start=$FLOOR_HIT_T0"
+           echo "floor_hit_cycles_total_start_source=\"$SOURCE\""
+       } >> "$ENV_FILE"
+
+       # Verify the env file is clean-sourceable before declaring Step 1.5 complete.
+       # If the file has any non-key=value lines (e.g., from a prior buggy run),
+       # this catches it now.
+       if ! bash -n <(grep -v '^[[:space:]]*$\|^[[:space:]]*#' "$ENV_FILE"); then
+           echo "ABORT: $ENV_FILE has non-sourceable lines. Inspect and clean before continuing." >&2
+           exit 2
+       fi
+
+       # Operator-visible confirmation (stderr, not $ENV_FILE):
+       echo "Step 1.5 complete: floor_hit_cycles_total_start=$FLOOR_HIT_T0 (source: $SOURCE) recorded in $ENV_FILE" >&2
        ```
-       Both `floor_hit_cycles_total_start` and its source provenance MUST be recorded in `/tmp/phase201-soak.env` BEFORE the 24h wait begins. Step 4 reads this file when authoring the summary; without it, the PRIMARY gate is uncollectible and the soak verdict defaults to FAIL per the decision matrix's "ambiguity = FAIL by default" policy.
+
+       **Why this is structured this way (lessons from rounds 1-6):**
+       - `set -euo pipefail` so any unbound var or pipeline failure aborts; no silent partial writes.
+       - `|| true` only on `ls` no-match (legitimate empty case), not on `jq`/`ssh` failures (those should propagate).
+       - The `SOURCE` variable is set inside each successful branch, never inferred post-hoc from leftover state, so the provenance label always matches the code path that actually produced the value.
+       - Strict regex validation (`^[0-9]+$`) — empty string, `null`, `"-1"`, `"1.0"` all rejected.
+       - The env file gets ONLY `key=value` lines, double-quoted where the value could contain a colon or path-separator. `bash -n` on a stripped copy verifies sourceability before exit.
+       - Commentary, warnings, success messages all go to **stderr**. The env file is data only; channel separation is enforced.
+
+       **Failure modes Step 1.5 closes:**
+       - Step 1.5 skipped entirely → Step 4 detects missing `floor_hit_cycles_total_start` and authors `verdict: fail` with reason `soak_primary_gate_uncollectible_t0_baseline_missing`.
+       - Step 1.5 ran but neither anchor available → `exit 2` with operator-actionable abort message; env file untouched (or only has the prior `soak_start_utc` line).
+       - Step 1.5 ran and succeeded → env file has clean `key=value` pairs; Step 4 sources cleanly.
+       - Step 1.5 ran with verdict.json predating Plan 08-T3 → fallback to `live_health`; provenance label honestly records the source so post-mortem can compare.
 
     2. **Schedule soak finish capture** (24h + 30 min for summarization):
        ```
