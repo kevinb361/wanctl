@@ -173,19 +173,55 @@ summarize_baseline() {
     local label="$3"
 
     jq -s --arg label "$label" '
-      [ .[] | select(.wans[0].rtt.baseline_rtt_ms? != null) | .wans[0].rtt.baseline_rtt_ms ] as $rtts
+      [ .[] | select(.wans[0].baseline_rtt_ms? != null) | .wans[0].baseline_rtt_ms ] as $rtts
       | {
           label: $label,
-          sample_count: length,
+          sample_count: ($rtts | length),
           baseline_rtt_ms: {
             min: ($rtts | min),
-            p50: ($rtts | sort | .[length / 2 | floor]),
+            p50: (if ($rtts | length) > 0 then ($rtts | sort | .[($rtts | length) / 2 | floor]) else null end),
             max: ($rtts | max)
           },
           samples: .
         }
     ' "$in_ndjson" >"$out_json"
 }
+
+# 200-11: --self-test mode for offline regression testing.
+# Allows tests to exercise individual helper functions WITHOUT running the
+# live canary main flow (deploy probe, ssh, iperf3, etc.). Codex MEDIUM
+# finding: do not use fragile sed range extraction to source bash functions.
+# Round-2 HIGH (WR-02 test ordering): also expose validate_remote_yaml_path
+# so tests can exercise the path validator directly, without going through
+# the live health preflight that aborts before the validator runs.
+if [[ "${1:-}" == "--self-test" ]]; then
+    shift
+    if [[ "$#" -eq 0 ]]; then
+        echo "Usage: $0 --self-test <function> [args...]"
+        echo "Available:"
+        echo "  summarize_baseline <in_ndjson> <out_json> <label>"
+        echo "  validate_remote_yaml_path <path>"
+        exit 0
+    fi
+    case "$1" in
+        summarize_baseline)
+            shift
+            summarize_baseline "$@"
+            ;;
+        validate_remote_yaml_path)
+            shift
+            # Direct validator invocation; bypasses health preflight so tests
+            # can assert validator behavior independently.
+            validate_remote_yaml_path "$@"
+            exit $?
+            ;;
+        *)
+            echo "Unknown self-test target: $1" >&2
+            exit 2
+            ;;
+    esac
+    exit 0
+fi
 
 require_var PHASE200_OUT_DIR
 require_var PHASE200_SPECTRUM_HEALTH_URL
