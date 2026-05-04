@@ -319,6 +319,24 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "last_zone": last_zone,
             },
         }
+        if direction == "upload":
+            # Phase 201 additive runtime-state fields (D-16). These values come
+            # from the live QueueController instance via get_health_data(), not
+            # from YAML config echoes (Phase 200 RETRO Plan 05 bug 2 family).
+            result.update(
+                {
+                    "docsis_mode_active": bool(
+                        qc_health.get("docsis_mode_active", False)
+                    ),
+                    "setpoint_mbps": qc_health.get("setpoint_mbps"),
+                    "headroom_state": qc_health.get("headroom_state", "EXHAUSTED"),
+                    "rtt_integral_ms_s": qc_health.get("rtt_integral_ms_s", 0.0),
+                    "cake_aligned": bool(qc_health.get("cake_aligned", False)),
+                    "floor_hit_cycles_total": int(
+                        qc_health.get("floor_hit_cycles_total", 0)
+                    ),
+                }
+            )
         if direction == "download":
             cake_detection = qc_health.get("cake_detection", {})
             result["hysteresis"]["dwell_bypassed_count"] = int(

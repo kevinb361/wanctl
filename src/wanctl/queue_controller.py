@@ -608,4 +608,12 @@ class QueueController:
                 "probe_step_count": self._probe_step_count,
                 "above_ceiling_pct": self.current_rate >= self.ceiling_bps * self._probe_ceiling_pct,
             },
+            "docsis_mode_active": bool(self._docsis_mode),
+            "setpoint_mbps": (
+                (self._setpoint_bps / 1_000_000) if self._setpoint_bps else None
+            ),
+            "headroom_state": self._headroom_state,
+            "rtt_integral_ms_s": round(self._last_integral_ms_s, 3),
+            "cake_aligned": bool(self._cake_aligned),
+            "floor_hit_cycles_total": int(self.floor_hit_cycles),
         }
