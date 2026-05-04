@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections import deque
 from typing import TYPE_CHECKING, Any
 
 from wanctl.rate_utils import enforce_rate_bounds
@@ -40,6 +41,15 @@ class QueueController:
         probe_multiplier_factor: float = 1.0,
         probe_ceiling_pct: float = 0.9,
         consecutive_yellow_decay_clamp: int = 0,
+        # Phase 201 (DOCSIS-aware UL control mode) — keyword-only with safe
+        # defaults. Legacy callers are byte-identical because docsis_mode
+        # defaults False and the new branches gate on it.
+        docsis_mode: bool = False,
+        setpoint_bps: int | None = None,
+        integral_window_seconds: float = 2.0,
+        integral_threshold_ms_s: float = 30.0,
+        cake_backlog_low_threshold_bytes: int = 5000,
+        cake_delay_delta_low_threshold_us: int = 5000,
     ):
         self.name = name
         self.floor_green_bps = floor_green
@@ -93,6 +103,27 @@ class QueueController:
 
         # Track previous state for transition detection
         self._last_zone: str = "GREEN"
+
+        # Phase 201 — DOCSIS-aware UL control mode internals.
+        # All initialized unconditionally; only consulted when docsis_mode=True.
+        self._docsis_mode: bool = docsis_mode
+        self._setpoint_bps: int | None = setpoint_bps
+        # Cycle is 50ms (cake_signal.CYCLE_INTERVAL_SECONDS); use literal here
+        # to avoid an import cycle with the legacy module surface.
+        _window_size = max(1, round(integral_window_seconds / 0.05))
+        self._integral_window: deque[float] = deque(maxlen=_window_size)
+        self._integral_threshold_ms_s: float = integral_threshold_ms_s
+        self._cake_backlog_low_threshold_bytes: int = cake_backlog_low_threshold_bytes
+        self._cake_delay_delta_low_threshold_us: int = cake_delay_delta_low_threshold_us
+        self._headroom_state: str = "EXHAUSTED"
+        self._cake_aligned: bool = False
+        self._last_integral_ms_s: float = 0.0
+        # REVIEWS HIGH-5: cycle-fidelity floor-hit counter (monotonic, daemon lifetime).
+        self.floor_hit_cycles: int = 0
+        # DOCSIS-mode current_rate seed (RESEARCH §4 recommendation): avoid a
+        # 1-cycle ceiling-touch at daemon start by initializing at setpoint.
+        if self._docsis_mode and self._setpoint_bps is not None:
+            self.current_rate = min(self.current_rate, self._setpoint_bps)
 
     def adjust(
         self,
