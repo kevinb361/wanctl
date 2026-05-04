@@ -123,7 +123,9 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        #   - All 3 keys must be present after the write (round-9 completeness).
        validate_env_file() {
            local file="$1"
-           local mode="${2:-strict}"   # "strict" requires all 3 keys; "writable" allows empty file
+           local mode="${2:-strict}"   # "strict" requires all 3 keys with cardinality 1;
+                                        # "lenient" allows empty/missing/incomplete (used to inspect
+                                        # pre-existing files before atomic replacement)
            local violations
            violations=$(awk '
                BEGIN { soak_start_utc=0; floor_start=0; floor_src=0 }
@@ -168,19 +170,35 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
            return 0
        }
 
-       # Round-9 atomic-fresh capture: TRUNCATE the env file before this run's
-       # writes. Any prior content (from a previous soak attempt that failed,
-       # from operator scratch, from another process) is discarded. The file
-       # after this step represents exactly one soak run's T+0 state, captured
-       # atomically.
+       # Round-10 TRUE-ATOMIC capture via mktemp + write + validate + rename.
        #
-       # Caveat: if the operator INTENDED to resume an in-flight soak (e.g., the
-       # tmux pane crashed but the daemon kept running and the counter is still
-       # ticking), they should NOT re-run Step 1.5 — they should jump to Step 4
-       # and use the existing env file. Re-running Step 1.5 means "I am starting
-       # a new soak from now"; truncate-and-rewrite makes that semantics
-       # explicit and detectable.
-       : > "$ENV_FILE"
+       # Round-9 used `: > "$ENV_FILE"` (truncate) followed by `{ ... } > "$ENV_FILE"`
+       # (sequential write of 3 lines) and called this "atomic." That claim was
+       # false: between the truncate syscall and each `echo`'s write syscall there
+       # are multiple visibility windows where a reader (concurrent Step 4 in
+       # another tmux pane, another monitor process, an interrupted script) can
+       # see the file empty or with 1-of-3 lines or 2-of-3 lines. Atomic in the
+       # POSIX-filesystem sense means "either the whole operation is visible or
+       # none of it is" — the only standard way to get that for file content is
+       # rename(2) within the same filesystem.
+       #
+       # Pattern: write to a temp file (same directory ⇒ same filesystem), validate
+       # the temp file in strict mode, then rename into place. `trap` cleans up the
+       # temp file on any exit (success, failure, signal) so we never leave
+       # half-written files behind.
+       TMP_ENV_FILE=$(mktemp -p "$(dirname "$ENV_FILE")" ".$(basename "$ENV_FILE").tmp.XXXXXX")
+       trap 'rm -f -- "$TMP_ENV_FILE"' EXIT
+
+       # If the existing $ENV_FILE is non-conformant (legacy from a buggy run),
+       # validate it now in lenient mode so we surface the issue immediately —
+       # but proceed regardless, because Step 1.5 is going to atomically replace
+       # it. The validation here is informational; the rename below is what
+       # actually fixes the file state.
+       if [[ -f "$ENV_FILE" ]]; then
+           validate_env_file "$ENV_FILE" lenient || {
+               echo "WARN: pre-existing $ENV_FILE failed lenient validation; will be replaced atomically by Step 1.5." >&2
+           }
+       fi
 
        # Find the most recent canary verdict.json. `|| true` prevents set-e abort
        # on no-match; `2>/dev/null` suppresses ls's "no such file" stderr noise.
@@ -236,26 +254,47 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
 
        # Compute soak_start_utc HERE (atomic with counter capture) so the
        # timestamp and counter baseline are guaranteed to represent the same
-       # moment-in-time. Round-9 fix: previously soak_start_utc was captured
-       # in a separate Step 1, possibly hours before Step 1.5 ran, leading
-       # to mismatched temporal anchors.
+       # moment-in-time. Round-9 fix preserved: soak_start_utc and
+       # floor_hit_cycles_total_start are captured in the same script block.
        SOAK_START_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-       # Atomic write — file was truncated above (`: > "$ENV_FILE"`), so this
-       # block produces the entire env file in one batch. All 3 required keys
-       # land together; no `>>`-append accumulation across runs.
+       # Write the entire content to the TEMP file in one block. Concurrent
+       # readers of $ENV_FILE see the old file (or no file); they cannot
+       # observe the temp file's intermediate states because the temp name
+       # is dot-prefixed and randomized.
        {
            echo "soak_start_utc=$SOAK_START_UTC"
            echo "floor_hit_cycles_total_start=$FLOOR_HIT_T0"
            echo "floor_hit_cycles_total_start_source=\"$SOURCE\""
-       } > "$ENV_FILE"
+       } > "$TMP_ENV_FILE"
 
-       # Post-flight: re-validate the file after our writes IN STRICT MODE
-       # (round-9: must have all 3 keys, exactly once each). Confirms our own
-       # writes are conformant + complete + cardinality-correct, and catches
-       # any concurrent contamination mid-write.
+       # Validate the temp file BEFORE making it visible at $ENV_FILE.
+       # If validation fails, the trap removes the temp file and the
+       # existing (possibly-prior-good) $ENV_FILE is untouched. No
+       # half-published states.
+       validate_env_file "$TMP_ENV_FILE" strict || {
+           echo "ABORT: pre-rename validation of $TMP_ENV_FILE failed — Step 1.5's write was non-conformant, incomplete, or had wrong cardinality. The existing $ENV_FILE (if any) is unchanged. Inspect Step 1.5's logic before continuing." >&2
+           exit 2
+       }
+
+       # Atomic rename — POSIX rename(2) within the same filesystem is
+       # atomic. Any concurrent reader of $ENV_FILE sees either the old
+       # file or the new file, never a partial. The trap (set above)
+       # would clean up $TMP_ENV_FILE if mv failed; on success the temp
+       # file no longer exists at the temp path, and the trap is a no-op.
+       mv -f -- "$TMP_ENV_FILE" "$ENV_FILE" || {
+           echo "ABORT: atomic rename $TMP_ENV_FILE -> $ENV_FILE failed (likely cross-filesystem or permissions). The existing $ENV_FILE (if any) is unchanged." >&2
+           exit 2
+       }
+       # Rename succeeded; clear the trap target so EXIT trap is no-op.
+       trap - EXIT
+
+       # Post-rename verification: re-read $ENV_FILE and validate. Catches
+       # the unlikely case where mv-f succeeded but a concurrent writer
+       # raced our rename. Round-9 strict mode (cardinality + completeness
+       # + whitelist).
        validate_env_file "$ENV_FILE" strict || {
-           echo "ABORT: post-write validation failed — Step 1.5's write was non-conformant, incomplete, OR the file was contaminated mid-write. Inspect $ENV_FILE before continuing." >&2
+           echo "ABORT: post-rename verification of $ENV_FILE failed — file was modified by a concurrent writer between rename and verification. The PRIMARY soak gate evidence is unreliable; do not begin the soak. Investigate the concurrent writer." >&2
            exit 2
        }
 
@@ -263,16 +302,17 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        echo "Step 1.5 complete: floor_hit_cycles_total_start=$FLOOR_HIT_T0 (source: $SOURCE) recorded in $ENV_FILE" >&2
        ```
 
-       **Why this is structured this way (lessons from rounds 1-9):**
+       **Why this is structured this way (lessons from rounds 1-10):**
        - `set -euo pipefail` so any unbound var or pipeline failure aborts; no silent partial writes.
        - `|| true` only on `ls` no-match (legitimate empty case), not on `jq`/`ssh` failures (those should propagate).
        - The `SOURCE` variable is set inside each successful branch, never inferred post-hoc from leftover state (round-6 catch).
        - Strict integer regex validation (`^[0-9]+$`) on the counter value — empty string, `null`, `"-1"`, `"1.0"` all rejected.
        - The env file gets ONLY `key=value` lines. Commentary, warnings, success messages all go to **stderr** (round-6 catch).
-       - **Validation uses an `awk` whitelist filter, NOT `bash -n` (round-7) and NOT a value-charset blacklist (round-8).** `bash -n` accepts every parseable shell line including `rm -rf /`. A value-charset filter accepts arbitrary KEY names including `PATH=`, `IFS=`, `BASH_ENV=`, `LD_PRELOAD=`, `PROMPT_COMMAND=`, `BASH_FUNC_xxx%%=`, etc. — magic env vars that poison shell state without using a single dangerous metacharacter. The whitelist constrains keys to the EXACT THREE Step 1.5 writes, each with its per-key value charset.
-       - **Cardinality + completeness validation (round-9 catch).** Each of the 3 keys must appear EXACTLY ONCE — no zero (incomplete), no duplicates (stale + fresh layered together). Previously the line-shape validator passed `>>`-appended files where prior failed soak attempts had left stale `soak_start_utc=` or `floor_hit_cycles_total_start=` lines; on `source`, last-write-wins gave a fresh-looking value, but the file as a whole represented multiple incoherent capture sessions.
-       - **Atomic capture (round-9 fix).** Step 1.5 truncates the env file (`: > "$ENV_FILE"`) and writes all 3 keys in one batch (`{ … } > "$ENV_FILE"`). The `soak_start_utc` and `floor_hit_cycles_total_start` are now captured at the same moment, so the timestamp and counter baseline are guaranteed to be a temporally-coherent pair. No `>>`-append; re-running Step 1.5 means "starting a new soak from now" with explicit truncate-and-rewrite semantics.
-       - **The validator runs PRE-write AND POST-write-strict at Step 1.5, AND PRE-source-strict at Step 4.** Pre-write catches contamination from prior buggy runs (legacy `>>`-append files left over). Post-write-strict catches our own bug + concurrent contamination + missing keys. Pre-source-strict catches 24h-window contamination AND any cardinality drift from concurrent writers.
+       - **Validation uses an `awk` whitelist filter, NOT `bash -n` (round-7) and NOT a value-charset blacklist (round-8).** Whitelisting constrains keys to the EXACT THREE Step 1.5 writes, each with its per-key value charset, blocking magic env vars (`PATH=`, `IFS=`, `BASH_ENV=`, `LD_PRELOAD=`, `PROMPT_COMMAND=`, `BASH_FUNC_xxx%%=`) that poison shell state without using a single metacharacter.
+       - **Cardinality + completeness validation (round-9 catch).** Each whitelisted key appears EXACTLY ONCE; in strict mode all 3 must be present. Previously `>>`-appended files where prior failed soak attempts left stale duplicates passed line-shape but represented multiple incoherent capture sessions; cardinality enforcement closes that.
+       - **TRUE atomic file replacement (round-10 catch).** Step 1.5 writes to a temp file in the same directory, validates the temp file in strict mode, then `mv -f` (POSIX `rename(2)`, atomic within the same filesystem) into place. Round-9's `: > FILE` (truncate) + `{ ... } > FILE` (sequential 3-line write) was NOT atomic — between the truncate syscall and each `echo`'s write syscall there were multiple visibility windows where a concurrent reader (Step 4 in another tmux pane, a monitor process, an interrupted script) could observe the file empty or with 1-of-3 / 2-of-3 lines. Calling that "atomic" conflated *consecutive ordering* with *atomicity-in-the-POSIX-sense* (either operation completes fully or its effects are not visible). Rename(2) gives the latter.
+       - **Trap-cleanup of the temp file** (`trap 'rm -f "$TMP_ENV_FILE"' EXIT`). Any exit path — success, validation failure, signal, OOM kill — removes the temp file. On successful rename, the temp path no longer exists, so the trap is a no-op. No leaked half-written files.
+       - **Three-checkpoint validation (rounds 7+8+9+10).** Pre-existing-file lenient validation (informational; surfaces legacy contamination), pre-rename strict validation on the temp file (refuses to publish an invalid file), post-rename strict re-validation on the live file (catches the rare case of a concurrent writer racing our rename). All three checkpoints use the same closed-set whitelist + cardinality validator.
        - **The `SOURCE` label is itself validated against the bare-value charset before writing** (round-7 catch reinforced).
 
        **Failure modes Step 1.5 closes:**
