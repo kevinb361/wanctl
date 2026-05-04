@@ -1028,32 +1028,39 @@ See Section 7 above. Summary: 8+ new test files / classes are required before im
 
 **Confirmation strategy:** Before plan execution, the operator should confirm A4 (Spectrum provisioned rate) by reading the ISP plan or the SLA. If A4 is wrong (e.g., provisioned is 25 Mbit, not 20), A5 reasoning shifts and `setpoint_mbps: 14` becomes more defensible than 12. This is the single highest-leverage assumption to verify pre-canary.
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All five open questions seeded by this research were substantively resolved during plan creation. Inline `RESOLVED:` markers cite the resolution artifact. Original recommendations preserved for trace.
 
 1. **Are per-cycle CAKE backlog and delay-delta fields present in Phase 200 Attempt 3 NDJSON capture?**
    - What we know: `loaded_capture.ndjson` exists; `phase200-saturation-canary.sh` captures `/health` at 1 Hz.
    - What's unclear: whether `/health.cake_signal.upload.{backlog_bytes, max_delay_delta_us}` is in the capture shape or only in `/health.wans[].upload`.
    - Recommendation: PLAN should include a Wave 0 task that inspects the existing NDJSON to confirm; if absent, extend the capture shape during the Phase 201 canary itself.
+   - **RESOLVED:** Plan 01-T1 (`201-01-corpus-inspection-and-fixtures-PLAN.md`). The corpus audit (`201-01-CORPUS-AUDIT.md`) confirms `max_delay_delta_us` is ABSENT from the Attempt 3 capture; `backlog_bytes` and `cold_start` are present. The replay test in Plan 04-T3 synthesizes `max_delay_delta_us` from `backlog_bytes` conservatively (high backlog → high delay-delta) so the corroborator biases toward MORE veto under load. Plan 08-T2 captures `max_delay_delta_us` at 1 Hz going forward for v1.43+ replay corpora.
 
 2. **What is Spectrum's actual provisioned upstream rate?**
    - What we know: Phase 200 RETRO says "~20 Mbit"; CONTEXT D-09 uses "60% of ~20 Mbit".
    - What's unclear: ISP-side actual provisioned rate. Could be 20, 22, 24, or 25 depending on speedtier.
    - Recommendation: operator should confirm before canary; if rate differs from ~20 by more than 10%, recompute setpoint as 60% of actual. This is the highest-impact pre-canary assumption.
+   - **RESOLVED:** Recorded as ASSUMED A4 in `## Assumptions Log` (~20 Mbit provisioned upstream). Pre-canary operator-confirmation step is encoded in Plan 11 canary execution preamble. A5 fallback contract (drop setpoint to 10 Mbit on canary fail, parameter-tune-not-control-model-rejection) protects against A4 misestimation.
 
 3. **Should the canary script sample `/health` at 5 Hz instead of 1 Hz during the Phase 201 loaded window?**
    - What we know: 1 Hz catches floor hits at second granularity; loaded window is 900 s; 1 Hz produces 900 samples.
    - What's unclear: whether 5 Hz overhead degrades the canary's own validity or signals.
    - Recommendation: PLAN can leave at 1 Hz for canary verdict (it's the gate-driving signal — `current_rate_mbps` snapshot every second is sufficient to detect floor); raise to 5 Hz only if the replay corpus needs finer resolution. Defer to v1.43 if needed.
+   - **RESOLVED:** Plan 08 keeps capture at 1 Hz for canary verdict. Plan 08-T2 adds `max_delay_delta_us` to the captured shape (capture-shape evolution, not rate change). 5 Hz deferred to v1.43+ if replay corpus resolution becomes the bottleneck.
 
 4. **Does `_compute_effective_ul_load_rtt()` (asymmetry-gate attenuated) interact with the integral correctly?**
    - What we know: the function returns `self.load_rtt` attenuated by `damping_factor` when downstream-only congestion is detected (`wan_controller.py:2654-2750`).
    - What's unclear: if the attenuated load_rtt is fed into the integral, the integral could be biased low during DL-only events, falsely signaling headroom available, leading to push-up that masks an actual problem.
    - Recommendation: integral should consume the SAME `effective_ul_load_rtt` that the existing classifier consumes (preserves current asymmetry-gate semantics). Add a regression test that exercises asymmetry-gate active + integral path together to catch divergence.
+   - **RESOLVED:** Plan 04-T2 action explicitly: "Consumes the same delta the classifier consumes — preserves asymmetry-gate semantics." The integral feeds off `effective_ul_load_rtt - baseline_rtt` (the same input the existing classifier sees), so asymmetry-gate attenuation propagates uniformly to both the classifier and the integral. No DL-only-event divergence is possible.
 
 5. **Is there an existing `green_required` analog for "sustained low integral"?**
    - What we know: `green_required=3` for Spectrum UL gates push-up cadence on consecutive GREEN cycles.
    - What's unclear: whether the integral's "below threshold for full window" requirement subsumes `green_required` or runs in parallel.
    - Recommendation: integral runs IN PARALLEL with `green_required`. Push-up requires BOTH (sustained green streak AND headroom_AVAILABLE AND cake_aligned). Triple-AND is a stronger gate than the current double-AND-implicit-headroom of legacy.
+   - **RESOLVED:** Plan 02-T1 stub `test_clamp_at_setpoint_when_headroom_exhausted` and Plan 04-T2 wire the triple-AND gate (`green_streak >= green_required AND headroom_AVAILABLE AND cake_aligned`). Integral runs in parallel with `green_required`; both must hold for push-up. Stronger than legacy's double-AND-implicit-headroom shape.
 
 ## Sources
 
