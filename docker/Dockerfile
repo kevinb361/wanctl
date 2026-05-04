@@ -26,15 +26,13 @@ RUN useradd -r -s /usr/sbin/nologin -d /var/lib/wanctl -m wanctl
 
 # Create FHS-compliant directory structure
 RUN mkdir -p /opt/wanctl \
-    /opt/wanctl/backends \
-    /opt/wanctl/steering \
     /etc/wanctl \
     /etc/wanctl/ssh \
     /var/lib/wanctl \
     /var/log/wanctl \
     /run/wanctl
 
-# Set ownership
+# Set ownership on writable runtime dirs (code dir is owned by root)
 RUN chown -R root:wanctl /etc/wanctl \
     && chown -R wanctl:wanctl /var/lib/wanctl \
     && chown -R wanctl:wanctl /var/log/wanctl \
@@ -53,18 +51,16 @@ RUN pip install --no-cache-dir \
     icmplib>=3.0.4 \
     cryptography>=46.0.5
 
-# Copy application code
-COPY src/wanctl/*.py /opt/wanctl/
-COPY src/wanctl/backends/*.py /opt/wanctl/backends/
-COPY src/wanctl/steering/*.py /opt/wanctl/steering/
+# Copy the entire wanctl package directory intact, preserving subpackage layout.
+# Imports like `from wanctl.storage.deferred_writer import DeferredIOWorker`
+# require /opt/wanctl/wanctl/__init__.py (PYTHONPATH=/opt/wanctl below).
+# IMPORTANT: build context MUST be the repo root, not docker/. Use:
+#     docker build -f docker/Dockerfile -t wanctl:latest .
+COPY src/wanctl /opt/wanctl/wanctl
 
-# Set permissions on code
-RUN chmod 755 /opt/wanctl \
-    && chmod 644 /opt/wanctl/*.py \
-    && chmod 755 /opt/wanctl/backends \
-    && chmod 644 /opt/wanctl/backends/*.py \
-    && chmod 755 /opt/wanctl/steering \
-    && chmod 644 /opt/wanctl/steering/*.py
+# Set permissions on code (read-only for everyone, executable for dirs)
+RUN find /opt/wanctl/wanctl -type d -exec chmod 755 {} + \
+    && find /opt/wanctl/wanctl -type f -name '*.py' -exec chmod 644 {} +
 
 # Copy entrypoint script
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh

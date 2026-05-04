@@ -1,0 +1,14 @@
+# 200-13: prevent caches and dev artifacts from leaking into the build context.
+# Build invocation MUST be `docker build -f docker/Dockerfile .` (repo root).
+**/__pycache__
+**/*.pyc
+**/*.pyo
+.venv
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.git
+.planning
+tests
+docs
+work-ansible
