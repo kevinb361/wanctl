@@ -260,6 +260,115 @@ lock_timeout: 300
 # =============================================================================
 
 
+# Phase 201 Wave 0 RED scaffolding — Plan 201-02 stubs.
+# Implementation lands in Plans 201-03 (config/validator),
+# 201-04 (controller core), 201-05 (telemetry / wan_controller),
+# 201-07 (predeploy gate), 201-08 (canary extension).
+
+
+class TestPhase201Schema:
+    def test_docsis_mode_default_false(self, tmp_path, base_config_yaml_single_floor):
+        cfg_path = tmp_path / "test.yaml"
+        cfg_path.write_text(base_config_yaml_single_floor)
+        cfg = Config(str(cfg_path))
+        assert cfg.docsis_mode is False
+
+    def test_docsis_mode_true_requires_setpoint_mbps_raises(
+        self, tmp_path, base_config_yaml_single_floor
+    ):
+        cfg_path = tmp_path / "test.yaml"
+        cfg_path.write_text(
+            base_config_yaml_single_floor.replace(
+                "    factor_down: 0.85\n",
+                "    factor_down: 0.85\n    docsis_mode: true\n",
+            )
+        )
+        with pytest.raises(ValueError, match="docsis_mode.*setpoint_mbps"):
+            Config(str(cfg_path))
+
+    def test_setpoint_below_floor_raises(self, tmp_path, base_config_yaml_single_floor):
+        cfg_path = tmp_path / "test.yaml"
+        cfg_path.write_text(
+            base_config_yaml_single_floor.replace(
+                "    factor_down: 0.85\n",
+                "    factor_down: 0.85\n    docsis_mode: true\n    setpoint_mbps: 4\n",
+            )
+        )
+        with pytest.raises(ValueError, match="setpoint_mbps"):
+            Config(str(cfg_path))
+
+    def test_setpoint_above_ceiling_raises(self, tmp_path, base_config_yaml_single_floor):
+        cfg_path = tmp_path / "test.yaml"
+        cfg_path.write_text(
+            base_config_yaml_single_floor.replace(
+                "    factor_down: 0.85\n",
+                "    factor_down: 0.85\n    docsis_mode: true\n    setpoint_mbps: 50\n",
+            )
+        )
+        with pytest.raises(ValueError, match="setpoint_mbps"):
+            Config(str(cfg_path))
+
+    def test_explicit_presence_flags_are_presence_based(self, tmp_path):
+        # Per Phase 200 Codex pre-review: presence-based, NEVER value-derived.
+        # Operator setting docsis_mode: false (matching default) MUST still
+        # produce _docsis_mode_explicit=True (because the key was written).
+        yaml_text = """
+wan_name: TestWAN
+router:
+  host: "192.168.1.1"
+  user: "admin"
+  ssh_key: "/tmp/test_id_rsa"
+queues:
+  download: "cake-download"
+  upload: "cake-upload"
+continuous_monitoring:
+  enabled: true
+  baseline_rtt_initial: 25.0
+  ping_hosts: ["1.1.1.1"]
+  download:
+    floor_mbps: 400
+    ceiling_mbps: 920
+    step_up_mbps: 10
+    factor_down: 0.85
+  upload:
+    floor_mbps: 25
+    ceiling_mbps: 40
+    step_up_mbps: 1
+    factor_down: 0.85
+    docsis_mode: false
+  thresholds:
+    target_bloat_ms: 15
+    warn_bloat_ms: 45
+    baseline_time_constant_sec: 60
+    load_time_constant_sec: 0.5
+logging:
+  main_log: "/tmp/test.log"
+  debug_log: "/tmp/test_debug.log"
+lock_file: "/tmp/test.lock"
+lock_timeout: 300
+"""
+        cfg_path = tmp_path / "test.yaml"
+        cfg_path.write_text(yaml_text)
+        cfg = Config(str(cfg_path))
+        assert cfg._docsis_mode_explicit is True  # KEY WAS WRITTEN
+        assert cfg.docsis_mode is False
+
+
+class TestSafe06Phase201KeysKnown:
+    def test_all_phase201_keys_in_known_autorate_paths(self):
+        from wanctl.check_config_validators import KNOWN_AUTORATE_PATHS
+
+        expected = {
+            "continuous_monitoring.upload.docsis_mode",
+            "continuous_monitoring.upload.setpoint_mbps",
+            "continuous_monitoring.upload.integral_window_seconds",
+            "continuous_monitoring.upload.integral_threshold_ms_s",
+            "continuous_monitoring.upload.cake_backlog_low_threshold_bytes",
+            "continuous_monitoring.upload.cake_delay_delta_low_threshold_us",
+        }
+        assert expected <= KNOWN_AUTORATE_PATHS
+
+
 class TestLoadUploadConfig:
     """Tests for Config._load_upload_config method."""
 

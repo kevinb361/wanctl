@@ -47,6 +47,12 @@ from wanctl.check_steering_validators import (
     validate_steering_schema_fields,
 )
 
+
+# Phase 201 Wave 0 RED scaffolding — Plan 201-02 stubs.
+# Implementation lands in Plans 201-03 (config/validator),
+# 201-04 (controller core), 201-05 (telemetry / wan_controller),
+# 201-07 (predeploy gate), 201-08 (canary extension).
+
 # =============================================================================
 # FIXTURES
 # =============================================================================
@@ -1386,3 +1392,46 @@ class TestExports:
             "continuous_monitoring.use_median_of_three",
         ]:
             assert required in KNOWN_AUTORATE_PATHS, f"Missing: {required}"
+
+
+class TestDocsisModeValidation:
+    def test_missing_setpoint_emits_error_when_docsis_true(self):
+        data = _valid_config_data()
+        data["continuous_monitoring"]["upload"]["docsis_mode"] = True
+        results = validate_cross_fields(data)
+        assert any(
+            r.severity == Severity.ERROR
+            and "docsis_mode" in r.message
+            and "setpoint_mbps" in r.message
+            for r in results
+        )
+
+    def test_setpoint_below_floor_emits_error(self):
+        data = _valid_config_data()
+        data["continuous_monitoring"]["upload"].update(
+            {"docsis_mode": True, "setpoint_mbps": 4}
+        )
+        results = validate_cross_fields(data)
+        assert any(
+            r.severity == Severity.ERROR and "setpoint_mbps" in r.field for r in results
+        )
+
+    def test_setpoint_above_ceiling_emits_error(self):
+        data = _valid_config_data()
+        data["continuous_monitoring"]["upload"].update(
+            {"docsis_mode": True, "setpoint_mbps": 25}
+        )
+        results = validate_cross_fields(data)
+        assert any(
+            r.severity == Severity.ERROR and "setpoint_mbps" in r.field for r in results
+        )
+
+    def test_legacy_yaml_byte_identical(self):
+        data = _valid_config_data()
+        results = validate_cross_fields(data)
+        docsis_rows = [
+            r
+            for r in results
+            if "docsis" in r.field.lower() or "docsis" in r.message.lower()
+        ]
+        assert docsis_rows == []

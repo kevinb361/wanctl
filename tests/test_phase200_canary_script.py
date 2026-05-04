@@ -10,6 +10,8 @@ import json
 import subprocess
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "phase200-saturation-canary.sh"
 
@@ -133,3 +135,72 @@ def test_remote_yaml_path_accepts_safe_absolute_path():
     rc, err = _run_validate_remote_yaml_path("/etc/wanctl/spectrum.yaml")
     assert rc == 0
     assert "remote_yaml_path_unsafe" not in err
+
+
+# Phase 201 Wave 0 RED scaffolding — Plan 201-02 stubs.
+# Implementation lands in Plans 201-03 (config/validator),
+# 201-04 (controller core), 201-05 (telemetry / wan_controller),
+# 201-07 (predeploy gate), 201-08 (canary extension).
+
+
+def _run_phase201_self_test(name: str, *args: str) -> subprocess.CompletedProcess[str]:
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), "--self-test", name, *args],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    if proc.returncode == 0 and "unknown self-test" in proc.stdout.lower():
+        pytest.skip(f"Wave 0 stub — implementation in Plan 201-08: {name}")
+    if proc.returncode != 0 and "unknown self-test" in (proc.stdout + proc.stderr).lower():
+        pytest.skip(f"Wave 0 stub — implementation in Plan 201-08: {name}")
+    return proc
+
+
+class TestPhase201Preflight:
+    def test_env_yaml_docsis_mode_match_pass(self):
+        result = _run_phase201_self_test("phase201-preflight", "docsis_match")
+        assert result.returncode == 0
+
+    def test_env_yaml_docsis_mode_mismatch_aborts(self):
+        result = _run_phase201_self_test("phase201-preflight", "docsis_mismatch")
+        assert result.returncode == 2
+        assert "docsis_mode" in result.stderr + result.stdout
+
+    def test_env_yaml_setpoint_mbps_mismatch_aborts(self):
+        result = _run_phase201_self_test("phase201-preflight", "setpoint_mismatch")
+        assert result.returncode == 2
+        assert "setpoint" in result.stderr + result.stdout
+
+    def test_health_docsis_key_absent_aborts(self):
+        result = _run_phase201_self_test("phase201-health", "absent")
+        assert result.returncode == 2
+        assert "health_docsis_key_absent" in result.stderr + result.stdout
+
+    def test_health_docsis_false_aborts(self):
+        result = _run_phase201_self_test("phase201-health", "false")
+        assert result.returncode == 2
+        assert "health_docsis_false" in result.stderr + result.stdout
+
+    def test_remote_python_yaml_missing_aborts(self):
+        result = _run_phase201_self_test("phase201-remote-python-yaml", "missing")
+        assert result.returncode == 2
+        assert "remote_python_yaml_missing" in result.stderr + result.stdout
+
+
+class TestPhase201EnvFailClosed:
+    def test_missing_docsis_mode_env_aborts(self):
+        result = _run_phase201_self_test("phase201-env", "missing_docsis_mode")
+        assert result.returncode == 2
+
+    def test_missing_setpoint_mbps_env_aborts(self):
+        result = _run_phase201_self_test("phase201-env", "missing_setpoint_mbps")
+        assert result.returncode == 2
+
+    def test_both_legacy_and_docsis_env_set_aborts(self):
+        result = _run_phase201_self_test("phase201-env", "legacy_and_docsis")
+        assert result.returncode == 2
+
+    def test_legacy_mode_only_ok(self):
+        result = _run_phase201_self_test("phase201-env", "legacy_only")
+        assert result.returncode == 0

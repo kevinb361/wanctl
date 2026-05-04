@@ -16,6 +16,12 @@ from wanctl.wan_controller import (
 )
 
 
+# Phase 201 Wave 0 RED scaffolding — Plan 201-02 stubs.
+# Implementation lands in Plans 201-03 (config/validator),
+# 201-04 (controller core), 201-05 (telemetry / wan_controller),
+# 201-07 (predeploy gate), 201-08 (canary extension).
+
+
 class TestHandleIcmpFailure:
     """Tests for WANController.handle_icmp_failure() method.
 
@@ -5279,3 +5285,63 @@ class TestReflectorScorerBlackoutGate:
         assert after_row_count > before_row_count
         assert self._window_lengths(controller) == before_lengths
         MetricsWriter._reset_instance()
+
+
+class TestPhase201HealthAdditive:
+    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-05")
+    def test_docsis_mode_active_runtime_field_present(self, mock_autorate_config):
+        """Additive /health.wans[].upload.docsis_mode_active runtime field."""
+        raise AssertionError("Wave 0 stub — implementation lands in Plan 201-05")
+
+    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-05")
+    def test_setpoint_mbps_runtime_field_reflects_state_not_yaml(
+        self, mock_autorate_config
+    ):
+        """`/health.wans[].upload.setpoint_mbps` is the active configured
+        setpoint (runtime state read from `self.upload._setpoint_bps`),
+        NOT the YAML-configured value AND NOT the current rate. Phase 200
+        RETRO Lesson 1 / Plan 05 bug 2 trap.
+
+        REVIEWS LOW-1 (2026-05-04): the field is runtime state by design
+        (D-16). Tests should NOT imply it changes when `current_rate` changes.
+        SIGUSR1 reload is OUT OF SCOPE per D-08, so re-reading YAML at runtime
+        does NOT update this field — only a daemon restart does. This test
+        anchors that invariant: setpoint_mbps reflects the active configured setpoint — the active configured
+        setpoint, not the current rate.
+        """
+        raise AssertionError("Wave 0 stub — implementation lands in Plan 201-05")
+
+    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-05")
+    def test_legacy_health_unchanged_when_docsis_disabled(self, mock_autorate_config):
+        """D-16 + Phase 200 RETRO Lesson 1: legacy health shape stays additive-only."""
+        raise AssertionError("Wave 0 stub — implementation lands in Plan 201-05")
+
+    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-05 (REVIEWS HIGH-5)")
+    def test_floor_hit_cycles_total_runtime_field_present(self, mock_autorate_config):
+        """REVIEWS HIGH-5 (2026-05-04): /health.wans[].upload.floor_hit_cycles_total
+        is the cycle-fidelity (50ms) floor-hit counter exposed for canary +
+        soak verdict comparisons.
+
+        VALN-06 contract is "no loaded *cycle* reaches floor" at the 50ms
+        cycle interval. Canary + soak verdicts derived from 1 Hz /health
+        polling miss 50ms floor touches (1000x coarser). The runtime
+        counter `self.upload.floor_hit_cycles` (Plan 04-T2) is exposed
+        here as `floor_hit_cycles_total` (Plan 05-T2). Plans 11/12 verdict
+        gate compares counter DELTAS across the loaded window, not snapshot
+        rates.
+        """
+        raise AssertionError("Wave 0 stub — implementation lands in Plan 201-05")
+
+
+class TestPhase201FlashWear:
+    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-05")
+    def test_steady_state_no_router_writes_when_rate_unchanged(self, mock_autorate_config):
+        """Setpoint mode must preserve last_applied_ul_rate flash-wear dedup."""
+        raise AssertionError("Wave 0 stub — implementation lands in Plan 201-05")
+
+
+class TestSigusr1ReloadScopePhase201:
+    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-05")
+    def test_docsis_keys_not_live_tunable(self, mock_autorate_config):
+        """D-08: docsis_mode and setpoint keys are restart-required, not SIGUSR1-tunable."""
+        raise AssertionError("Wave 0 stub — implementation lands in Plan 201-05")
