@@ -63,6 +63,33 @@ Bug 4 is structurally interesting: the `dd67493` fix for bug 2 (replace nonexist
 - Quick task `.planning/quick/260503-cfs-fix-spectrum-alerting-severity/260503-cfs-PLAN.md`: side-discovery alerting fix.
 - Phase 201 seed `.planning/phases/201-docsis-aware-ul-congestion-control/201-CONTEXT.md`: gap-closure direction with 122-collapse evidence reference.
 
+## Gap-Closure Cycle (Plans 09-15)
+
+### What worked
+
+- The hypothesis-first Plan 200-09 flow kept the production-control change behind a BLOCKING operator approval checkpoint, matching the project priority of stability before elegance.
+- Splitting WR-01 / WR-02 / WR-03 into separate Wave-1 plans (200-11/12/13) reduced wall-clock cost without crossing file scopes.
+- Codex cross-AI review in `200-REVIEWS.md` caught the original file-target error (UL decay lives in `queue_controller.py`, not `wan_controller.py`) and surfaced the missing R5 YAML-only YELLOW hold as the conservative remediation path; both findings shaped the reviews-mode revision.
+- The Plan 200-11 jq path fix proved itself live in Plan 200-14 by populating `pre_baseline_rtt_ms=21.7` and `post_baseline_rtt_ms=22.23` in `canary/20260504T133207Z/verdict.json`.
+- The fail-closed deploy protocol held again: Attempt 3 failed the canary, rolled back via `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`, and correctly skipped the 24h soak.
+
+### What did not work / what was harder than expected
+
+- The approved R5+R3 branch was insufficient to satisfy VALN-06. Attempt 3 improved the loaded-window floor-hit count from 122 to 4, but the contract requires zero floor hits, so the canary still failed.
+- The large improvement is operationally meaningful but not shippable evidence. Plan 200-15 therefore closes the phase as `gaps_found`, not passed, verified, or partially verified.
+- Because the canary failed, no 24h soak ran; the soak watchdog remains unexercised rather than failed with data.
+
+### Lessons for v1.42
+
+- DOCSIS-aware UL congestion mode remains the likely v1.42 candidate if the remaining failure is dominated by insufficient shaping headroom or modem/CMTS queue behavior rather than simple YELLOW decay.
+- Per-direction `/health` telemetry is more attractive after Plan 200-14: explicit UL suppression and floor-hit counters would have shortened analysis of the remaining 4 floor samples.
+- Cross-AI review before implementation is high-leverage on production-control work. Codex caught the file-target error, missing R5 option, and later the risky hybrid `verified-with-soak-gap` closeout state before archive.
+- Future gap-closure plans should treat “materially improved but still failed” as a distinct branch: preserve the improvement evidence, but do not dilute acceptance criteria or mark requirements satisfied.
+
+### Cross-milestone reference
+
+- The deferred todo `.planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md` remains related operational context for v1.42 planning because ATT cake-primary validation is still gated on Phase 191 closure while Spectrum work continues to generate production-canary debt.
+
 ---
 *Phase: 200-per-direction-rtt-bloat-thresholds*
 *Retro written: 2026-05-03*
