@@ -5341,7 +5341,75 @@ class TestPhase201FlashWear:
 
 
 class TestSigusr1ReloadScopePhase201:
-    @pytest.mark.xfail(strict=True, reason="Wave 0 stub — Plan 201-05")
+    def test_upload_queue_receives_docsis_kwargs_and_presence_flags(
+        self, mock_autorate_config
+    ):
+        """WANController wires Phase 201 upload kwargs with presence-based flags."""
+        from wanctl.wan_controller import WANController
+
+        logger = MagicMock()
+        mock_autorate_config.docsis_mode = True
+        mock_autorate_config._docsis_mode_explicit = True
+        mock_autorate_config.setpoint_mbps = 12
+        mock_autorate_config._setpoint_mbps_explicit = True
+        mock_autorate_config.integral_window_seconds = 2.5
+        mock_autorate_config.integral_threshold_ms_s = 31.5
+        mock_autorate_config.cake_backlog_low_threshold_bytes = 4096
+        mock_autorate_config.cake_delay_delta_low_threshold_us = 4500
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=MagicMock(),
+                rtt_measurement=MagicMock(),
+                logger=logger,
+            )
+
+        assert controller._docsis_mode_explicit is True
+        assert controller._setpoint_mbps_explicit is True
+        assert controller.upload._docsis_mode is True
+        assert controller.upload._setpoint_bps == 12_000_000
+        assert controller.upload._integral_window.maxlen == 50
+        assert controller.upload._integral_threshold_ms_s == 31.5
+        assert controller.upload._cake_backlog_low_threshold_bytes == 4096
+        assert controller.upload._cake_delay_delta_low_threshold_us == 4500
+        logger.info.assert_any_call(
+            "phase201 docsis_mode active: setpoint_mbps=%s window_s=%s threshold_ms_s=%s",
+            12,
+            2.5,
+            31.5,
+        )
+
+    def test_setpoint_bps_absent_when_setpoint_key_not_explicit(
+        self, mock_autorate_config
+    ):
+        """D-03: setpoint constructor plumbing is gated by presence, not value."""
+        from wanctl.wan_controller import WANController
+
+        mock_autorate_config.docsis_mode = True
+        mock_autorate_config._docsis_mode_explicit = True
+        mock_autorate_config.setpoint_mbps = 12
+        mock_autorate_config._setpoint_mbps_explicit = False
+
+        with patch.object(WANController, "load_state"):
+            controller = WANController(
+                wan_name="TestWAN",
+                config=mock_autorate_config,
+                router=MagicMock(),
+                rtt_measurement=MagicMock(),
+                logger=MagicMock(),
+            )
+
+        assert controller.upload._docsis_mode is True
+        assert controller.upload._setpoint_bps is None
+
     def test_docsis_keys_not_live_tunable(self, mock_autorate_config):
         """D-08: docsis_mode and setpoint keys are restart-required, not SIGUSR1-tunable."""
-        raise AssertionError("Wave 0 stub — implementation lands in Plan 201-05")
+        source = open("src/wanctl/wan_controller.py", encoding="utf-8").read()
+        reload_start = source.index("def reload")
+        reload_end = source.index("def shutdown_threads", reload_start)
+        reload_body = source[reload_start:reload_end]
+
+        assert "docsis_mode" not in reload_body
+        assert "setpoint_mbps" not in reload_body
