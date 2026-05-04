@@ -2,7 +2,7 @@
 
 **Author:** the agent (gsd-planner gap-closure, reviews-mode revision)  
 **Date:** 2026-05-04 UTC  
-**Status:** awaiting operator approval at Plan 09 checkpoint
+**Status:** operator approval recorded; Plan 200-10 should implement approved R5+R3 remediation
 
 **Inputs:**
 - `canary/20260503T215734Z/loaded_capture.ndjson` (886 1Hz `/health` samples, primary evidence)
@@ -265,9 +265,9 @@ Hypothesis: below-target YELLOW/deadband or backlog-suppressed recovery keeps th
 ## Operator Approval
 
 [Filled at Plan 09 checkpoint:]
-- Approved branch(es): __________
-- If R1: ceiling target = __________
-- If R3: clamp count = __________
-- If R5: factor_down_yellow target = __________
-- Rationale: __________
-- Date / signal: __________
+- Approved branch(es): `R5+R3`
+- If R1: ceiling target = not selected
+- If R3: clamp count = `40`
+- If R5: factor_down_yellow target = `1.0`
+- Rationale: Operator approved the evidence-weighted hedged branch: restore Spectrum's YAML-only YELLOW hold for the immediate canary failure mode while adding the byte-identical-default consecutive-YELLOW decay clamp for Plan 200-10.
+- Date / signal: 2026-05-04 continuation response — approved `R5+R3` with default checkpoint parameters (`factor_down_yellow=1.0`, `clamp_count=40`).
