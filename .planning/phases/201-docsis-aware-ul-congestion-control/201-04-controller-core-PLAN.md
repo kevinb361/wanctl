@@ -20,7 +20,7 @@ must_haves:
     - "Setpoint clamp injects in GREEN+sustained-streak push-up branch — RED decay byte-identical to legacy; YELLOW gains a docsis-only above-setpoint pull-down branch (REVIEWS MED-4) but legacy YELLOW path is byte-identical"
     - "RED fast-trip path (delta > warn_delta) returns rate <= current_rate * factor_down regardless of integral or CAKE state (ARCH-03 invariant)"
     - "REVIEWS HIGH-5: cycle-level floor-hit counter (self.floor_hit_cycles) increments after final enforce_rate_bounds() output when bounded new_rate == floor_red_bps; monotonic per daemon lifetime; Plan 05-T2 exposes via /health.wans[].upload.floor_hit_cycles_total"
-    - "REVIEWS HIGH-4: replay against Phase 200 Attempt 3 capture, expanded 20x via hold-last interpolation to 50ms cadence, produces ZERO floor-hit cycles in DOCSIS-mode controller (synthetic VALN-06 closure under cycle-fidelity conditions)"
+    - "REVIEWS HIGH-4 revised at checkpoint: replay against Phase 200 Attempt 3 capture, expanded 20x via hold-last interpolation to 50ms cadence, records the RED-heavy floor-hit outcome under exact RED fast-trip and post-bounds floor-hit accounting; this is a safety diagnostic/regression, not synthetic VALN-06 closure"
     - "REVIEWS MED-4: above-setpoint controller in sustained YELLOW pulls DOWN to setpoint (factor_down_yellow=1.0 hold-above edge case closed)"
   artifacts:
     - path: src/wanctl/queue_controller.py
@@ -41,14 +41,14 @@ must_haves:
 ---
 
 <objective>
-Wave 2 controller core. Lands the AUGMENT-not-replace integral path, CAKE corroborator AND-gate, setpoint clamp, and cycle-fidelity floor-hit counter inside `QueueController`. Legacy 3-state path is byte-identical when `docsis_mode=False`. Replays Phase 200 Attempt 3 NDJSON through the new controller — with **20-cycle hold-last expansion per 1 Hz NDJSON sample (REVIEWS HIGH-4)** — and asserts zero floor hits as the synthetic VALN-06 contract.
+Wave 2 controller core. Lands the AUGMENT-not-replace integral path, CAKE corroborator AND-gate, setpoint clamp, and cycle-fidelity floor-hit counter inside `QueueController`. Legacy 3-state path is byte-identical when `docsis_mode=False`. Replays Phase 200 Attempt 3 NDJSON through the new controller — with **20-cycle hold-last expansion per 1 Hz NDJSON sample (REVIEWS HIGH-4)** — as a safety diagnostic that records the RED-heavy floor-hit outcome while preserving exact RED fast-trip behavior and post-bounds floor-hit accounting. Per the Task 3 checkpoint resolution, this replay is **not** a synthetic VALN-06 closure proof; live canary Plan 201-11 remains the primary VALN-06 closure gate.
 
 Per RESEARCH §1 headline finding: AUGMENT, not REPLACE. RED fast-trip stays exactly as it is in `_classify_zone_3state` lines 147-153. The integral runs as a separate headroom-probe gate that only interacts with the GREEN+sustained-streak push-up path.
 
 Wave 0 tests landed in Plan 201-02 (TestDocsisModeIntegralClassifier, TestDocsisModeSetpointClamp, TestDocsisModeCakeCorroborator, TestDocsisModeByteIdentity, TestRedFastTripUnchangedDocsisMode, TestDocsisModeAboveSetpointYellowPulldown [REVIEWS MED-4], TestDocsisModeFloorHitCounter [REVIEWS HIGH-5], TestAttempt3ReplayWithDocsisMode, TestLegacyByteIdentity) all turn GREEN at the end of this plan.
 
 **REVIEWS amendments (2026-05-04, see 201-REVIEWS.md):**
-- **HIGH-4 (replay timing fidelity, Option A chosen):** Plan 04-T3 expands each 1 Hz NDJSON sample into 20 synthetic 50ms cycles via *hold-last interpolation* (load_rtt and cake fields held constant across the 20 cycles). Reasoning: Option A (cycle-fidelity replay) gives stronger evidence than Option B (downgrade to coarse regression); the planner's Option B fallback would weaken the synthetic VALN-06 closure claim. Hold-last (vs linear interpolation) is more conservative — it doesn't smooth out the RTT-delta peaks that drive the integral. Documented in test docstring AND in RESEARCH.md Assumptions Log (planner adds A11 entry in Plan 04-T3).
+- **HIGH-4 (replay timing fidelity, revised at Task 3 checkpoint):** Plan 04-T3 expands each 1 Hz NDJSON sample into 20 synthetic 50ms cycles via *hold-last interpolation* (load_rtt and cake fields held constant across the 20 cycles). The original zero-floor synthetic VALN-06 claim contradicted HIGH-5 post-bounds floor-hit accounting plus MED #7 exact RED fast-trip preservation under RED-heavy 20x hold-last samples. The replay contract is revised to pin the observed RED-heavy floor-hit outcome as a safety diagnostic/regression for replay mechanics and legacy byte identity; live canary Plan 201-11 remains the VALN-06 closure gate. Documented in test docstring, SUMMARY, and RESEARCH.md Assumptions Log A11.
 - **HIGH-5 (cycle-level floor-hit counter):** Plan 04-T2 adds `self.floor_hit_cycles: int = 0` and increments it in `adjust()` after the existing `enforce_rate_bounds()` clamp whenever the final bounded `new_rate == self.floor_red_bps`. This counts floor hits caused by post-bounds clamping as well as explicit floor returns, preserving cycle-fidelity (50ms) VALN-06 evidence. Plan 05-T2 exposes it as additive `/health.wans[].upload.floor_hit_cycles_total`. Plans 11/12 verdict against counter delta, not snapshot rates.
 - **MED-4 / Codex HIGH #2 (above-setpoint YELLOW pull-down):** Legacy YELLOW behavior is byte-identical only when `docsis_mode=False`. In DOCSIS mode, Plan 04-T2 adds a setpoint pull-down branch in `_compute_rate_3state`'s YELLOW arm: when `self._docsis_mode and self._setpoint_bps is not None and current_rate > self._setpoint_bps and self._headroom_state == "EXHAUSTED" and self._yellow_decay_streak >= self.dwell_cycles`, return `min(current_rate * self.factor_down_yellow, self._setpoint_bps)`. Do not introduce a new `yellow_streak` field. Closes the R5 (`factor_down_yellow=1.0`) edge case where a controller pushed above setpoint can hold there indefinitely.
 - **Codex HIGH #3 (replay threshold alignment):** Plan 04-T3 replay thresholds must match Phase 201 runtime after Plan 06 strips upload R0 keys: use Spectrum global fallback thresholds `target_delta=15.0` and `warn_delta=75.0` unless the executor writes an explicit justification for a transformed effective-UL threshold. The default plan path is no transformation. `integral_threshold_ms_s=30.0` is framed as a 2s integral budget: average positive RTT delta of 15ms over the full 2s window (`15ms * 2s = 30 ms*s`).
@@ -349,7 +349,7 @@ Do NOT change any other line in the file.
     - .planning/phases/201-docsis-aware-ul-congestion-control/201-01-CORPUS-AUDIT.md (max_delay_delta_us absent — synth that field for replay)
   </read_first>
   <behavior>
-    - **REVIEWS HIGH-4 (cycle-fidelity replay, Option A):** TestAttempt3ReplayWithDocsisMode::test_no_floor_hits_with_setpoint_12_cycle_fidelity reads the loaded corpus, builds a DOCSIS-mode QueueController with setpoint_bps=12_000_000 ceiling=18_000_000 floor=8_000_000, expands each 1 Hz NDJSON sample into 20 synthetic 50ms cycles via *hold-last interpolation* (load_rtt_ms, baseline_rtt_ms, cake fields held constant across the 20 cycles), replays the expanded trace, and asserts `ctrl.floor_hit_cycles == 0` (counter delta == 0). The expansion turns the integral window (40 cycles = 2.0s) and YELLOW dwell counter into faithful production cadence. Without expansion, a 2-second integral stretches to ~40 replay-seconds because each NDJSON sample = one controller cycle. Synthesized `max_delay_delta_us` for the CAKE corroborator (since corpus lacks the field): use 0 when backlog_bytes is 0, else 8000 (above the 5ms threshold) to model "high backlog therefore high queue delay" — held constant across the 20 expansion cycles. The expanded replay is intentionally not perfect (cycle-internal RTT variation is lost), but it samples the integral and dwell windows at the right cadence.
+    - **REVIEWS HIGH-4 (cycle-fidelity replay, revised at checkpoint):** TestAttempt3ReplayWithDocsisMode::test_red_heavy_floor_hits_recorded_with_setpoint_12_cycle_fidelity reads the loaded corpus, builds a DOCSIS-mode QueueController with setpoint_bps=12_000_000 ceiling=18_000_000 floor=8_000_000, expands each 1 Hz NDJSON sample into 20 synthetic 50ms cycles via *hold-last interpolation* (load_rtt_ms, baseline_rtt_ms, cake fields held constant across the 20 cycles), replays the expanded trace, and asserts the recorded RED-heavy floor-hit outcome (`ctrl.floor_hit_cycles == 1003` with the current implementation). The expansion turns the integral window (40 cycles = 2.0s) and YELLOW dwell counter into faithful production cadence while preserving RED-heavy samples. Synthesized `max_delay_delta_us` for the CAKE corroborator (since corpus lacks the field): use 100 when backlog_bytes <= 5000, else 8000 (above the 5ms threshold) to model "high backlog therefore high queue delay" — held constant across the 20 expansion cycles. The expanded replay is intentionally not perfect (cycle-internal RTT variation is lost), but it samples the integral and dwell windows at the right cadence and no longer claims synthetic VALN-06 closure.
     - TestLegacyByteIdentity::test_no_docsis_key_byte_identical_3state replays a synthetic sustained-load trace through (a) a legacy controller and (b) a docsis_mode=False controller and asserts identical (zone, rate) sequences (D-17 invariant).
     - test_phase_195_replay.py SAFE-05 pins re-baselined for queue_controller.py occurrence increases (docsis_mode, setpoint_bps, integral_window_seconds, etc., now appear in queue_controller.py too).
   </behavior>
@@ -531,10 +531,10 @@ Then re-baseline `tests/test_phase_195_replay.py` SAFE-05 pins. After Plan 201-0
 Do NOT modify any v1.41 (Phase 200) pins that should remain stable (warn_bloat=12, target_bloat=14, factor_down=17, etc. — these strings should not appear in Plan 201-04's new code).
   </action>
   <acceptance_criteria>
-    - `.venv/bin/pytest -o addopts='' tests/test_phase_201_replay.py -q` returns 0 (replay test green; floor_hits=0 contract met).
+    - `.venv/bin/pytest -o addopts='' tests/test_phase_201_replay.py -q` returns 0 (replay diagnostic green; RED-heavy floor-hit outcome pinned under revised contract).
     - `.venv/bin/pytest -o addopts='' tests/test_phase_195_replay.py -q` returns 0 (SAFE-05 v1.42 pins match actual).
     - `grep -c "TestAttempt3ReplayWithDocsisMode" tests/test_phase_201_replay.py` returns 1.
-    - **REVIEWS HIGH-4:** `grep -c "test_no_floor_hits_with_setpoint_12_cycle_fidelity" tests/test_phase_201_replay.py` returns 1 (renamed from coarse-regression name).
+    - **REVIEWS HIGH-4 revised:** `grep -c "test_red_heavy_floor_hits_recorded_with_setpoint_12_cycle_fidelity" tests/test_phase_201_replay.py` returns 1 (zero-floor synthetic closure assertion removed).
     - **REVIEWS HIGH-4:** `grep -c "CYCLES_PER_SAMPLE" tests/test_phase_201_replay.py` returns >= 1 (cycle expansion constant). `grep -c "hold-last" tests/test_phase_201_replay.py` returns >= 1 (interpolation choice documented).
     - **REVIEWS HIGH-5:** `grep -c "ctrl.floor_hit_cycles" tests/test_phase_201_replay.py` returns >= 1 (counter-delta verdict, not snapshot-rate).
     - **REVIEWS HIGH-3:** `grep -c "Wave 0 stub" tests/test_queue_controller.py tests/test_phase_201_replay.py 2>/dev/null | awk -F: '{s+=$2} END {print s}'` returns 0 (every Wave 0 stub xfail/fail decorator removed by Plan 04 completion).
@@ -546,7 +546,7 @@ Do NOT modify any v1.41 (Phase 200) pins that should remain stable (warn_bloat=1
   <verify>
     <automated>.venv/bin/pytest -o addopts='' tests/test_phase_201_replay.py tests/test_phase_195_replay.py -q &amp;&amp; .venv/bin/pytest -q 2>&amp;1 | tail -3 | grep -E '0 failed|passed'</automated>
   </verify>
-  <done>Replay test asserts floor_hits=0 against Attempt 3 corpus; legacy byte-identity test green; SAFE-05 v1.42 pins re-baselined; full suite green.</done>
+  <done>Replay test pins the RED-heavy floor-hit outcome against Attempt 3 corpus under exact RED/floor accounting; legacy byte-identity test green; SAFE-05 v1.42 pins remain green; full suite green.</done>
 </task>
 
 </tasks>
@@ -581,11 +581,11 @@ Do NOT modify any v1.41 (Phase 200) pins that should remain stable (warn_bloat=1
 <success_criteria>
 - AUGMENT-not-replace shape preserved: legacy 3-state path byte-identical when docsis_mode=False.
 - RED fast-trip immediate (ARCH-03).
-- Synthetic VALN-06 closure contract: replay floor_hits = 0.
+- Revised replay contract: Attempt 3 replay is a safety diagnostic that pins the RED-heavy floor-hit outcome under exact RED/floor accounting; live Plan 201-11 canary remains the VALN-06 closure gate.
 - D-17 byte-identity test green.
 - SAFE-05 v1.42 baseline established for controller surface.
 </success_criteria>
 
 <output>
-After completion, create `.planning/phases/201-docsis-aware-ul-congestion-control/201-04-SUMMARY.md` with: lines added/modified in queue_controller.py, replay test floor_hits result (must be 0), full-suite pass count, ruff/mypy status, and a one-line note on whether the synth_cake_from_sample assumption (high backlog -> high delay-delta) is conservative enough.
+After completion, create `.planning/phases/201-docsis-aware-ul-congestion-control/201-04-SUMMARY.md` with: lines added/modified in queue_controller.py, replay diagnostic floor_hits result (1003 under the revised contract), full-suite pass count, ruff/mypy status, and a one-line note on whether the synth_cake_from_sample assumption (high backlog -> high delay-delta) is conservative enough.
 </output>

@@ -803,14 +803,14 @@ def _is_cake_aligned_for_pushup(self, cake: CakeSignalSnapshot | None) -> bool:
 1. **Reuse Attempt 3 capture as primary corpus** — it has the 4 floor hits Phase 201 must eliminate.
 2. **Reuse Attempt 2 capture as secondary corpus** (122 floor hits, bimodal distribution) — proves new controller doesn't regress against worst-case.
 3. **Capture richer fields during the Phase 201 canary itself** — extend `phase200-saturation-canary.sh` capture loop to also record per-cycle CAKE backlog and delay-delta (additive to existing NDJSON shape, no breakage). This becomes the v1.42+ replay corpus.
-4. **Sample-rate concern:** existing capture is 1 Hz; integral wants 20 Hz. 1 Hz can validate the integral state-machine logic but not the 50 ms response time. **Plan should consider whether canary script should sample /health at higher rate during the Phase 201 loaded window** — 5 Hz is a reasonable compromise (250 ms granularity, 4× capture overhead). Trade-off is /health endpoint load during canary; mitigation is to keep iperf3 the actual load and /health sampling truly read-only.
+4. **Sample-rate concern:** existing capture is 1 Hz; integral wants 20 Hz. Plan 201-04 initially selected 20x hold-last expansion for cycle fidelity, but Task 3 checkpoint resolution revised the replay contract: hold-last preserves RED-heavy samples, so the replay records floor hits under exact RED fast-trip and post-bounds floor-hit accounting instead of serving as synthetic VALN-06 closure. Live canary Plan 201-11 remains the closure gate. **Plan should consider whether canary script should sample /health at higher rate during future loaded windows** — 5 Hz is a reasonable compromise (250 ms granularity, 4× capture overhead). Trade-off is /health endpoint load during canary; mitigation is to keep iperf3 the actual load and /health sampling truly read-only.
 
 **Replay test shape (mirror `test_phase_197_replay.py`):**
 ```python
 TRACE_ATTEMPT_3 = [...]  # parsed from loaded_capture.ndjson
-EXPECTED_FLOOR_HITS_NEW_CONTROLLER = 0  # the contract
+EXPECTED_FLOOR_HITS_NEW_CONTROLLER = 1003  # revised diagnostic contract
 
-def test_attempt_3_replay_no_floor_hits():
+def test_attempt_3_replay_records_red_heavy_floor_hits():
     ctrl = _docsis_mode_controller(setpoint_mbps=12, ceiling=18)
     floor_hits = 0
     for sample in TRACE_ATTEMPT_3:
@@ -1025,6 +1025,7 @@ See Section 7 above. Summary: 8+ new test files / classes are required before im
 | A8 | Phase 200's R5 (`factor_down_yellow=1.0`) and R3 (`consecutive_yellow_decay_clamp=40`) should be retained in Phase 201 | Section 5 | If retained but no longer needed under new control model, they're dead config (cheap). If removed and the new control model has a YELLOW-decay edge case, controller could regress. Keeping is safer. |
 | A9 | Predeploy gate fail-closed (Section 9 option B) is preferable to auto-strip | Section 9 | If operator workflow tolerates auto-strip well, fail-closed adds friction. CLAUDE.md priority order (stability > safety) supports fail-closed. |
 | A10 | Replay-test sample rate of 1 Hz from existing capture is sufficient for state-machine validation | Section 8 | Integral has 50 ms granularity; 1 Hz sampling means each replay sample represents 20 cycles. State-machine logic is correctly validated; timing fidelity is not. Acceptable for unit-replay; canary provides true 50 ms validation. |
+| A11 | 20x hold-last Attempt 3 replay is a safety diagnostic, not synthetic VALN-06 closure | Section 8, Plan 201-04 Task 3 checkpoint | The original zero-floor replay expectation contradicted exact RED fast-trip behavior and post-bounds floor-hit accounting. Revised contract records the RED-heavy floor-hit outcome (1003 cycles in current replay) while preserving legacy byte-identity/cycle-fidelity mechanics; live Plan 201-11 canary remains the zero-floor VALN-06 gate. |
 
 **Confirmation strategy:** Before plan execution, the operator should confirm A4 (Spectrum provisioned rate) by reading the ISP plan or the SLA. If A4 is wrong (e.g., provisioned is 25 Mbit, not 20), A5 reasoning shifts and `setpoint_mbps: 14` becomes more defensible than 12. This is the single highest-leverage assumption to verify pre-canary.
 
