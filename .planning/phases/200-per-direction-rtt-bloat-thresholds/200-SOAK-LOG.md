@@ -20,3 +20,13 @@ No soak capture was launched, no production traffic was generated, and no produc
 ## Next Step
 
 Use the Plan 06 failure evidence and `200-RETRO.md` as the input to gap-closure planning (Phase 201 / DOCSIS-aware UL congestion control). Plan 08 should record VALN-06 as failed/blocked rather than satisfied by a soak.
+
+## Soak (Attempt 3)
+
+- Status: **skipped (canary-fail-branch)**.
+- Checked at: `2026-05-04T13:49:26Z`.
+- Gate source: `.planning/phases/200-per-direction-rtt-bloat-thresholds/canary/20260504T133207Z/verdict.json`.
+- Attempt 3 verdict: `fail` with `ul_floor_hits_during_load=4`.
+- D-10 rollback: executed at `2026-05-04T13:49:19Z` using `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`; production service verified `active` after restart.
+
+No 24h soak capture was launched. Per Plan 200-14, Task 4 is skipped on the canary fail branch and Plan 200-15 should record Phase 200 as `gaps_found`.
