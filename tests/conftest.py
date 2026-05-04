@@ -7,6 +7,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tests.fixtures.phase201_replay_corpus import (
+    load_attempt2_trace,
+    load_attempt3_trace,
+    synthesize_idle_trace,
+    synthesize_sustained_load_trace,
+)
+
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -38,6 +45,27 @@ def temp_dir():
     """Create a temporary directory for test files."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
+
+
+# Phase 201 replay corpus fixtures (Plan 201-01).
+@pytest.fixture(scope="session")
+def phase201_attempt3_trace():
+    return load_attempt3_trace()
+
+
+@pytest.fixture(scope="session")
+def phase201_attempt2_trace():
+    return load_attempt2_trace()
+
+
+@pytest.fixture
+def phase201_sustained_load_trace():
+    return synthesize_sustained_load_trace()
+
+
+@pytest.fixture
+def phase201_idle_trace():
+    return synthesize_idle_trace()
 
 
 @pytest.fixture
