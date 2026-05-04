@@ -121,7 +121,7 @@ Phase 191 ships before Phase 192 because the timing change affects *both* WANs s
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 200 | Per-Direction RTT Bloat Thresholds (Spectrum UL Saturation Containment) | 15/15 | Blocked — VALN-06 second canary failed; second gap-closure cycle pending | 2026-05-04 |
+| 200 | Per-Direction RTT Bloat Thresholds (Spectrum UL Saturation Containment) | 16/16 | Closed (gaps_found) — ARB-05/SAFE-06/DOCS-03 satisfied; VALN-06 deferred to Phase 201 (inherited blocking requirement) by operator escalation 2026-05-04 | 2026-05-04 |
 
 ---
 
@@ -156,11 +156,11 @@ Phase 191 ships before Phase 192 because the timing change affects *both* WANs s
 **Success Criteria:**
 1. The autorate config schema accepts the new optional UL-threshold keys, validates `target < warn` ordering, and falls back to DL globals byte-identically when absent. Verified by 4 new tests in `tests/test_autorate_config.py` (defaults, override, ordering violation) and `tests/test_wan_controller.py` (per-key presence wiring).
 2. The validator emits a WARNING log entry on startup when any unknown `continuous_monitoring.*` key is present in the deployment YAML. Verified by a new test that exercises the unknown-key path and asserts the log emission.
-3. The 10–15 min saturated `iperf3 -P4` UL canary at 18 Mbit ceiling on Spectrum completes without the UL controller collapsing to the 8 Mbit floor in any cycle. Pre/post idle baselines bookend the run; canary fails if any single cycle reaches floor.
-4. The 24h Spectrum UL regression soak after canary passes shows UL hysteresis suppression rate drops below 5/60s on average (down from the current 31/60s degraded state).
+3. The 10–15 min saturated `iperf3 -P4` UL canary at 18 Mbit ceiling on Spectrum completes without the UL controller collapsing to the 8 Mbit floor in any cycle. Pre/post idle baselines bookend the run; canary fails if any single cycle reaches floor. **(Deferred to Phase 201 — see `200-RETRO.md`. Plan 200-14 Attempt 3 reduced loaded-window floor hits from 122 to 4; zero-hit gate not reached; operator escalated 2026-05-04. Inherited as blocking requirement under Phase 201.)**
+4. The 24h Spectrum UL regression soak after canary passes shows UL hysteresis suppression rate drops below 5/60s on average (down from the current 31/60s degraded state). **(Deferred to Phase 201 — see `200-RETRO.md`. Soak watchdog never ran because the canary gate failed; deferral is not a measurement claim. Inherited as blocking requirement under Phase 201.)**
 5. CHANGELOG.md and `docs/CONFIGURATION.md` carry the migration note specifying that the new keys require a service restart to take effect (SIGUSR1 does not reload these). Verified by greps for the keys in both files.
 
-**Plans:** 15/15 plans complete — Phase 200 closed as `gaps_found`; Plan 200-14 Attempt 3 canary failed with 4 UL floor hits, rollback executed, and the 24h soak was skipped. VALN-06 remains blocked pending a second gap-closure cycle or operator escalation.
+**Plans:** 16/16 plans complete — Phase 200 closed as `gaps_found` with operator-escalated deferral of VALN-06 to Phase 201 (`docsis-aware-ul-congestion-control`) on 2026-05-04 as an inherited blocking requirement. ARB-05, SAFE-06, and DOCS-03 are satisfied. Plan 200-14 Attempt 3 canary improved loaded-window UL floor hits 122 -> 4 but did not reach zero; the residual failure regime is shaping-headroom dominated and is Phase 201's seeded scope. No second Phase 200 remediation was attempted. Production binary remains v1.40 post-rollback; v1.41 YAML keys remain on prod `/etc/wanctl/spectrum.yaml` and are inactive under v1.40 but MUST be reconciled before any future Spectrum deploy or service restart (Phase 201 predeploy gate is required to inspect the file and either reconcile or fail closed). See `200-VERIFICATION.md` `closure: deferred-to-phase-201`, `200-RETRO.md` `## Final Closure (2026-05-04)`, and direct evidence at `canary/20260504T133207Z/verdict.json`.
 
 ---
 

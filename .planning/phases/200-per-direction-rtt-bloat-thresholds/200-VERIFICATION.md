@@ -51,6 +51,34 @@ re_verification:
     - "Saturated Spectrum UL canary still failed: 4 loaded-window floor hits."
     - "24h Spectrum regression soak was skipped because the canary failed."
   regressions: []
+closure: deferred-to-phase-201
+closure_decision:
+  date: 2026-05-04
+  decided_by: operator
+  rationale: |
+    Phase 200 RETRO concluded that the per-direction-thresholds hypothesis is the
+    wrong fix; the remaining loaded-window floor regime is dominated by shaping
+    headroom rather than threshold geometry. Plans 200-09..200-14 reduced UL
+    floor hits from 122 to 4 (a 96.7% improvement) but the deploy gate requires
+    zero. Marginal returns on further Phase 200 tuning are judged low; VALN-06
+    is escalated to Phase 201 (docsis-aware-ul-congestion-control), which is
+    already seeded with the 122-collapse evidence as the proper next-milestone
+    candidate.
+  no_second_remediation_attempted: true
+  production_state_change: none
+  production_binary: v1.40 (rolled back post Attempt 3 canary fail)
+  prod_yaml_state: |
+    v1.41 keys remain on /etc/wanctl/spectrum.yaml and are inactive under the
+    rolled-back v1.40 binary, but they MUST be reconciled before any future
+    Spectrum deploy or service restart that uses a binary which re-recognizes
+    those keys. A Phase 201 predeploy gate (see follow-ons) is required to
+    inspect the file and either reconcile or fail closed.
+  inherits_to: phase-201-docsis-aware-ul-congestion-control
+  inherited_as: blocking_requirement
+  see_also:
+    - .planning/phases/200-per-direction-rtt-bloat-thresholds/200-RETRO.md
+    - .planning/phases/201-docsis-aware-ul-congestion-control/201-CONTEXT.md
+    - .planning/phases/200-per-direction-rtt-bloat-thresholds/canary/20260504T133207Z/verdict.json
 gaps:
   - truth: "The 10-15 min saturated iperf3 -P4 UL canary at 18 Mbit completes without the UL controller collapsing to the 8 Mbit floor in any cycle"
     status: failed
@@ -168,6 +196,47 @@ None for the current status. The decisive production behavior was already exerci
 ### Gaps Summary
 
 Phase 200 achieved the implementation, safety-warning, docs, Spectrum config/remediation, and canary-evidence-surface goals. It did **not** achieve VALN-06. Gap-closure Attempt 3 materially improved the saturated Spectrum UL canary from 122 floor samples to 4 and fixed the baseline RTT bookends, but the deploy gate allows zero loaded-window floor hits. The canary failed, D-10 rollback executed using `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`, and the 24h soak was correctly skipped fail-closed. Phase 200 remains `gaps_found` until a second-stage remediation/operator decision produces a zero-floor-hit canary followed by a passing 24h soak.
+
+### Closure Decision (2026-05-04, operator-escalated)
+
+Phase 200 is sealed at `gaps_found` with **VALN-06 deferred to Phase 201
+(`docsis-aware-ul-congestion-control`)** rather than re-entered into a second
+gap-closure cycle. The operator made this call on 2026-05-04 after weighing two
+findings:
+
+1. The Phase 200 RETRO concluded that the per-direction-thresholds hypothesis
+   is the wrong fix: the remaining failure regime is dominated by shaping
+   headroom (DOCSIS upstream queue depth versus wanctl ceiling), not threshold
+   geometry. Plans 200-09..200-14 reduced loaded-window UL floor hits from 122
+   to 4 — a 96.7% improvement but still non-zero, and the deploy gate is
+   strictly fail-closed at zero.
+2. Phase 201 already exists as a seed (`.planning/phases/201-docsis-aware-ul-congestion-control/201-CONTEXT.md`)
+   and is loaded with the 122-collapse evidence file as its design input.
+   ROADMAP.md explicitly allows operator escalation as a closure path for
+   VALN-06.
+
+No second remediation was attempted; production binary remains on v1.40
+post-rollback. The v1.41 YAML keys (`continuous_monitoring.upload.target_bloat_ms`,
+`warn_bloat_ms`, `consecutive_yellow_decay_clamp`, `factor_down_yellow=1.0`,
+`ceiling_mbps=18`) remain on prod `/etc/wanctl/spectrum.yaml` and are inactive
+under the rolled-back v1.40 binary, but they MUST be reconciled before any
+future Spectrum deploy or service restart that uses a binary which re-recognizes
+those keys. A future binary that consumes them would reactivate rejected-hypothesis
+state silently. Phase 201's PLAN must include a predeploy gate that inspects
+`/etc/wanctl/spectrum.yaml` for v1.41-only keys and either reconciles or fails
+closed (see `<follow_ons>` in `200-16-PLAN.md`).
+
+The two failed-truth rows in this report (row #4 saturated UL canary, row #5
+24h soak) remain `FAILED` — they are not retroactively marked verified. The
+other observable-truth rows (#1 schema/fallback, #2 SAFE-06 unknown-key warning,
+#3 Spectrum YAML adoption, #6 changelog/docs) remain `VERIFIED`.
+
+VALN-06 traceability is now carried by Phase 201's `## Inherited Requirements`
+block as an **inherited blocking requirement** — Phase 201 SPEC and PLAN must
+carry VALN-06 forward and cannot silently drop it during 201 scoping. See
+`200-RETRO.md` `## Final Closure (2026-05-04)` for the full operator-decision
+narrative and v1.42 lessons, and `canary/20260504T133207Z/verdict.json` for the
+direct Attempt 3 evidence (`verdict: fail`, `ul_floor_hits_during_load: 4`).
 
 ---
 

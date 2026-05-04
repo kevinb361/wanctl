@@ -90,6 +90,63 @@ Bug 4 is structurally interesting: the `dd67493` fix for bug 2 (replace nonexist
 
 - The deferred todo `.planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md` remains related operational context for v1.42 planning because ATT cake-primary validation is still gated on Phase 191 closure while Spectrum work continues to generate production-canary debt.
 
+## Final Closure (2026-05-04)
+
+**Operator decision:** VALN-06 is **deferred to Phase 201 (`docsis-aware-ul-congestion-control`) as an inherited blocking requirement**. Phase 200 / v1.41 closes as `gaps_found` via operator escalation rather than running a second gap-closure cycle.
+
+### Decision rationale
+
+Two findings drove the escalation:
+
+1. **The hypothesis was already diagnosed insufficient by Phase 200's own retro.** The "What did not work" subsection above states that the residual failure regime — bimodal ceiling/floor oscillation under saturated DOCSIS upload — is dominated by shaping headroom (CMTS-side queue filling before wanctl's qdisc can absorb bufferbloat), not by threshold geometry. Wider thresholds slow the descent but do not stop the controller from reaching the floor when the upstream queue is already deep. This is the architectural conclusion the retro reached after Plans 09-15 ran.
+
+2. **Marginal returns on further Phase 200 work were judged low.** Plans 200-09 -> 200-14 reduced loaded-window UL floor hits from 122 (Attempt 2, 2026-05-03) to 4 (Attempt 3, 2026-05-04 canary `20260504T133207Z`) — a 96.7% improvement under the per-direction-thresholds + R5 + R3 stack. The deploy gate is fail-closed at zero, so the canary still failed and rolled back via `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz` at `2026-05-04T13:49:19Z`. The remaining 4 hits live in a regime where additional threshold or decay tuning is unlikely to reach zero without changing the control model. Phase 201 is the right scope for that change; it already exists as a seed and is loaded with the 122-collapse evidence as its design input.
+
+### What was not attempted
+
+- **No second Phase 200 remediation cycle.** The plan to enumerate further candidate causes (additional R-options, lower ceiling, integral-of-RTT) was not undertaken. A second cycle would consume planning + production-canary cost while testing variants of the hypothesis that the retro already rejected as architecturally insufficient.
+- **No production binary change.** Spectrum remains on the v1.40 binary post the 2026-05-04T13:49:19Z rollback. The v1.41 YAML keys (`continuous_monitoring.upload.target_bloat_ms=42`, `warn_bloat_ms=105`, `consecutive_yellow_decay_clamp=40`, `factor_down_yellow=1.0`, `ceiling_mbps=18`) remain on disk under `/etc/wanctl/spectrum.yaml` and are inactive under the rolled-back v1.40 binary, but they MUST be reconciled before any future Spectrum deploy or service restart that uses a binary which re-recognizes those keys. A future binary that consumes them would reactivate rejected-hypothesis state silently. This is not a "harmless" condition — it is rejected-hypothesis state sitting in production config and is a real operational risk that Phase 201's PLAN must address with a predeploy gate (inspect `/etc/wanctl/spectrum.yaml` for v1.41-only keys; reconcile or fail closed).
+- **No re-cut of v1.41.** The 1.41.0 version was already minted in `pyproject.toml`, `src/wanctl/__init__.py`, and `docker/Dockerfile`, and the CHANGELOG entry stays. The version is recorded in history as the milestone that proved the per-direction-thresholds hypothesis insufficient. v1.42 will pick up the binary again under Phase 201.
+
+### VALN-06 routing
+
+- **Owning phase:** Phase 201 (`docsis-aware-ul-congestion-control`).
+- **Inheritance status:** **Inherited blocking requirement.** Phase 201 SPEC and PLAN must carry VALN-06 forward — it cannot be silently dropped during 201 scoping. Future Phase 201 planning that fails to enumerate VALN-06 in its requirements list MUST be treated as a planning defect.
+- **Inheritance trail:** `200-VERIFICATION.md` frontmatter `closure: deferred-to-phase-201` + `inherited_as: blocking_requirement` -> `REQUIREMENTS.md` row `Deferred -> Phase 201 (inherited blocking requirement)` -> `201-CONTEXT.md` `## Inherited Requirements` block.
+- **Direct evidence pointer:** `.planning/phases/200-per-direction-rtt-bloat-thresholds/canary/20260504T133207Z/verdict.json` records the Attempt 3 verdict (`verdict: fail`, `ul_floor_hits_during_load: 4`, `ul_floor_threshold_hit: true`, baseline RTT bookends populated).
+- **Closure shape:** Phase 201 will produce its own canary verdict against its own (DOCSIS-aware) control model. VALN-06 closes when that canary passes with zero loaded-window floor hits AND its 24h soak watchdog passes; the same fail-closed gate applies. Phase 201 does NOT inherit Phase 200's "must use 18 Mbit ceiling" or "must use 42/105 ms thresholds" — those were Phase 200's hypothesis-under-test, not the requirement.
+
+### What ARB-05, SAFE-06, DOCS-03 closed
+
+These three Phase 200 requirements remain satisfied and are not affected by the deferral:
+
+- **ARB-05** (per-direction UL thresholds with absent-key fallback and per-key explicit-presence flags) shipped in Plan 200-01, validated by Plan 200-02 and Plan 200-12.
+- **SAFE-06** (validator audibly warns on unknown `continuous_monitoring.*` keys) shipped in Plan 200-03 and is exercised by tests in `tests/test_autorate_config.py::TestSafe06UnknownKeyWarning`.
+- **DOCS-03** (CHANGELOG.md and docs/CONFIGURATION.md document the new keys plus restart-required migration) shipped in Plan 200-04 and Plan 200-13.
+
+The deferral is scoped to VALN-06 only.
+
+### Open advisory items (do not block VALN-06's Phase 201 path)
+
+- `200-REVIEW.md` WR-01 (Dockerfile unquoted shell-form pip constraints) and IN-01 (stale top-of-file comment) remain advisory. They have no controller-path impact.
+- `200-REVIEW.md` WR-02 (canary script Python/PyYAML dependency precheck) remains advisory; Attempt 3's canary did produce a verdict, so this did not affect VALN-06 evidence.
+- These can become quick tasks if the operator wants them closed; they are not on the VALN-06 critical path.
+
+### Non-controller mitigation option
+
+While Phase 201 is being designed and shipped, the Spectrum production UL hysteresis storm (5 -> 15 -> 31 suppressions/60s, observed 2026-04-29 onward and again now post-rollback) is operational debt. A non-controller mitigation — e.g., manually lowering Spectrum's deployed UL ceiling well below provisioned upstream rate via YAML-only edit, no code change, AND/OR reverting prod `/etc/wanctl/spectrum.yaml` to its v1.40-shape values to remove the rejected-hypothesis keys — is available as a quick task if the suppression rate becomes operationally painful before Phase 201 ships. Plan 200-16's Task 1 explicitly exposes this as Branch B of the operator countersignature decision. That is a separate operator decision and is **not** a Phase 200 / 201 plan; it is a quick-task mitigation tracked outside the milestone graph.
+
+### Cross-milestone reference
+
+- `.planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md` — the deferred ATT cake-primary canary is unrelated to VALN-06 (different WAN, different control mode) but lives in the same operational neighborhood; v1.42 planning may want to consolidate Spectrum + ATT control-mode work into a single milestone if the timing aligns.
+
+### Lessons reinforced for v1.42
+
+- **A retro that diagnoses the hypothesis as architecturally wrong is a stronger signal than further tuning.** When the retro itself says "the fix is a different control model, not wider thresholds," operator escalation to the next-architecture phase is the correct response, not a second gap-closure cycle on the rejected hypothesis.
+- **Diminishing returns under fail-closed gates.** A 96.7% improvement (122 -> 4 floor hits) is operationally meaningful but is not shippable evidence under a zero-hit gate. Future plans involving fail-closed deploy gates should treat "materially improved but still failed" as a distinct, terminal branch — not as license to relax the gate.
+- **Operator escalation as a first-class closure path.** ROADMAP.md explicitly allowed operator escalation as a VALN-06 closure path. Treating it as a first-class option (with its own traceability seal — this plan) is cleaner than implicit deferral via inactivity.
+- **Rejected-hypothesis state in prod config is real risk, not "harmless."** v1.41 YAML keys on `/etc/wanctl/spectrum.yaml` are inactive under v1.40 but would silently reactivate under any future binary that recognizes them. Future deferrals that leave config-side state behind should mandate a successor-phase predeploy gate, not assume binary rollback alone is sufficient.
+
 ---
 *Phase: 200-per-direction-rtt-bloat-thresholds*
 *Retro written: 2026-05-03*

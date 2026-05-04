@@ -22,7 +22,7 @@
 
 ### Verification (VALN)
 
-- [ ] **VALN-06**: Spectrum UL saturation gate — a 10–15 min `iperf3 -P4` saturated upload loop at the deployed UL ceiling does not collapse to the UL floor in any cycle. Verified pre/post idle baselines bookend the run. This is the deploy-gate acceptance test; it must pass before the binary is promoted to `/opt/wanctl`. A 24-hour Spectrum regression soak runs after as a watchdog, not as the verdict. **Blocked in Phase 200 gap closure:** Plan 200-14 Attempt 3 canary repaired the baseline bookends and improved from 122 to 4 UL floor hits, but still failed the zero-floor-hit gate; D-10 rollback used `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz` and the soak was skipped fail-closed. See `200-VERIFICATION.md`.
+- [ ] **VALN-06**: Spectrum UL saturation gate — a 10–15 min `iperf3 -P4` saturated upload loop at the deployed UL ceiling does not collapse to the UL floor in any cycle. Verified pre/post idle baselines bookend the run. This is the deploy-gate acceptance test; it must pass before the binary is promoted to `/opt/wanctl`. A 24-hour Spectrum regression soak runs after as a watchdog, not as the verdict. **Blocked in Phase 200 gap closure:** Plan 200-14 Attempt 3 canary repaired the baseline bookends and improved from 122 to 4 UL floor hits, but still failed the zero-floor-hit gate; D-10 rollback used `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz` and the soak was skipped fail-closed. See `200-VERIFICATION.md`. **Operator-escalated 2026-05-04: deferred to Phase 201 (`docsis-aware-ul-congestion-control`) as an inherited blocking requirement** because Phase 200's per-direction-thresholds hypothesis was diagnosed insufficient by its own RETRO; the residual failure regime is shaping-headroom dominated, not threshold dominated. Phase 201 SPEC and PLAN must carry VALN-06 forward; it cannot be silently dropped during 201 scoping. See `200-RETRO.md` Final Closure section and `201-CONTEXT.md` Inherited Requirements block.
 
 ### Documentation (DOCS)
 
@@ -104,7 +104,7 @@
 |-------------|-------|--------|
 | ARB-05  | Phase 200 | Satisfied (`200-VERIFICATION.md`) |
 | SAFE-06 | Phase 200 | Satisfied (`200-VERIFICATION.md`) |
-| VALN-06 | Phase 200 | Blocked (`200-VERIFICATION.md`; Plan 200-14 Attempt 3 canary failed with 4 floor hits, rollback executed, soak skipped) |
+| VALN-06 | Phase 200 (deferred to Phase 201) | Deferred -> Phase 201 (inherited blocking requirement) (`200-VERIFICATION.md` closure: deferred-to-phase-201; `200-RETRO.md` Final Closure 2026-05-04; `201-CONTEXT.md` Inherited Requirements; `canary/20260504T133207Z/verdict.json`). Plan 200-14 Attempt 3 canary improved 122 -> 4 UL floor hits but did not reach zero; operator escalated to DOCSIS-aware control (Phase 201) rather than running a second Phase 200 gap-closure cycle. **Inherited as blocking requirement; Phase 201 SPEC and PLAN must carry VALN-06 forward — cannot be silently dropped during 201 scoping.** |
 | DOCS-03 | Phase 200 | Satisfied (`200-VERIFICATION.md`) |
 
 ---
