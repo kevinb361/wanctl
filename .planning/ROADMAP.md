@@ -182,7 +182,7 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 201 | DOCSIS-Aware UL Congestion Control | 5/12 | In Progress — controller core complete; replay diagnostic revised, VALN-06 still gates on live canary |  |
+| 201 | DOCSIS-Aware UL Congestion Control | 6/12 | In Progress|  |
 
 ---
 
@@ -224,14 +224,14 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 4. The predeploy gate inspects `/etc/wanctl/spectrum.yaml` on the deploy target and either reconciles v1.41-only rejected-hypothesis keys with Phase 201's own design or fails closed before the deploy proceeds. Verified by canary preflight log evidence.
 5. `CHANGELOG.md` and `docs/CONFIGURATION.md` carry the migration note specifying that `docsis_mode`, `setpoint_mbps`, and the RTT-integral window keys require a service restart to take effect (SIGUSR1 does not reload these). Verified by greps for the keys in both files.
 
-**Plans:** 5/12 plans executed — Plan 201-04 controller core is complete after checkpoint revision of the replay contract. Plan 201-09 Codex pre-review returned BLOCK on 2026-05-04; Plan 201-04 amendments are resolved, and remaining accepted amendments continue through Plans 201-05, 201-07, and 201-08 before live canary continuation.
+**Plans:** 6/12 plans executed
 
 Plans:
 - [x] 201-01-corpus-inspection-and-fixtures-PLAN.md — Wave 0 corpus audit + replay-corpus loader + synthetic-trace fixtures (resolves Open Questions 1 + 2)
 - [x] 201-02-test-stubs-PLAN.md — Wave 0 RED scaffolding for all Phase 201 production-code surfaces (14 named test classes across 7 test files)
 - [x] 201-03-config-schema-and-validators-PLAN.md — Schema entries + presence flags + required-when-other validation; KNOWN_AUTORATE_PATHS registration; SAFE-05 v1.42 baseline (D-06, SAFE-06, D-03)
 - [x] 201-04-controller-core-PLAN.md — QueueController DOCSIS-mode internals: integral, CAKE corroborator, setpoint clamp; Attempt 3 replay revised to RED-heavy floor-hit diagnostic (Plan 201-11 remains VALN-06 gate)
-- [ ] 201-05-wan-controller-and-health-PLAN.md — WANController constructor wiring + presence flags + INFO log + 5 additive /health runtime-state fields (D-16, D-08)
+- [x] 201-05-wan-controller-and-health-PLAN.md — WANController constructor wiring + presence flags + INFO log + 5 additive /health runtime-state fields (D-16, D-08)
 - [ ] 201-06-spectrum-yaml-and-version-PLAN.md — configs/spectrum.yaml R5+R3 keep + R0 strip + setpoint=12; version 1.42.0; CHANGELOG + CONFIGURATION migration (D-09, D-10, RESEARCH §5)
 - [ ] 201-07-predeploy-gate-PLAN.md — scripts/phase201-predeploy-gate.sh fail-closed against rejected v1.41 keys; deploy.sh integration (D-15)
 - [ ] 201-08-canary-script-extension-PLAN.md — D-12 preflight extension: env-vs-YAML cross-check + /health DOCSIS-mode probe + WR-02 closure; max_delay_delta_us capture
