@@ -4,7 +4,7 @@ milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: executing
 stopped_at: Blocked after 201-09-codex-pre-review-PLAN.md
-last_updated: "2026-05-04T22:45:02.764Z"
+last_updated: "2026-05-04T22:50:03.489Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 1
@@ -235,9 +235,13 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 201-09]: Accepted Codex BLOCK verdict; Wave 1+ is paused until HIGH amendments land for floor-hit counter placement, DOCSIS YELLOW/R5+R3 semantics, replay threshold fidelity, Spectrum-only predeploy gate wiring, and fail-closed Phase 201 canary env enforcement.
 - [Phase 201-09]: Setpoint 12 remains an explicit canary-validated assumption, not a Spectrum-sweep-proven value.
 - [Phase 201-04]: Task 3 checkpoint revised the Attempt 3 replay contract: the 20x hold-last replay records 1003 RED-heavy floor-hit cycles under exact RED fast-trip and post-bounds floor-hit accounting, so it is a safety diagnostic rather than synthetic VALN-06 closure; Plan 201-11 live canary remains the closure gate.
+- [Phase 201-07]: Implemented D-15 as fail-closed operator-manual reconciliation rather than auto-strip; the predeploy gate is read-only and blocks rejected v1.41 upload `target_bloat_ms` / `warn_bloat_ms` before Spectrum deploy.
+- [Phase 201-07]: Scoped deploy preflight to `WAN_NAME=spectrum`; ATT and other non-Spectrum deploys skip the gate without inspecting `/etc/wanctl/spectrum.yaml`.
+- [Phase 201-07]: VALN-06 remains open because Plan 201-07 delivers deploy safety only; Plan 201-11 live canary and Plan 201-12 soak remain the closure gates.
 
 ## Performance Metrics
 
+- 2026-05-04: Phase 201 Plan 07 completed in 3min across 2 tasks plus cleanup and 5 plan-scoped files; Spectrum predeploy gate now blocks rejected v1.41 upload threshold keys before rsync, ATT/non-Spectrum deploys skip without inspecting Spectrum YAML, and the focused predeploy test suite passed with 11 tests.
 - 2026-05-04: Phase 201 Plan 04 completed after checkpoint continuation in ~9min active Task 3 time across 3 total tasks and 7 plan-scoped files; DOCSIS QueueController internals landed, Attempt 3 replay now pins the 1003-cycle RED-heavy floor-hit diagnostic, SAFE-05 pins passed, hot-path slice passed with 604 tests, and the full suite passed with 4828 tests.
 - 2026-05-04: Phase 201 Plan 09 completed in 4min across 1 Codex review gate and 4 planning/tracking files; Codex returned BLOCK with 5 HIGH, 3 MED, and 1 LOW comments, all HIGH comments were accepted, and Wave 1+ is paused pending plan amendments.
 - 2026-05-04: Phase 201 Plan 03 completed in 21min across 3 tasks and 5 files; DOCSIS-mode upload schema keys, presence flags, fail-closed Config/check-config setpoint validation, SAFE-06 registration, and SAFE-05 v1.42 source occurrence pins landed; targeted schema/validator tests, SAFE-05 pin test, scoped hot-path slice, ruff, and mypy passed.
@@ -298,6 +302,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 201 (docsis-aware-ul-congestion-control) — EXECUTING
-Plan: 7 of 12
+Plan: 8 of 12
 Status: Ready to execute
 Last activity: 2026-05-04
