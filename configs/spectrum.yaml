@@ -71,9 +71,21 @@ continuous_monitoring:
     step_up_mbps: 5 # Phase 135 validated 2026-04-03 (was 1, +17.6% UL throughput)
     factor_down: 0.90 # Phase 135 validated 2026-04-03 (was 0.85, gentler decay wins on UL)
     factor_down_yellow: 1.0 # 200-10 R5: hold during YELLOW; restores QueueController default for Spectrum per 200-09
-    target_bloat_ms: 42 # 2026-04-29 UL-only fix: static 18M OK, shared 15ms target caused live-controller floor oscillation
-    warn_bloat_ms: 105 # UL-only 3-state RED threshold; keep DL global thresholds unchanged
     consecutive_yellow_decay_clamp: 40 # 200-10 R3: bound consecutive YELLOW decay cascade at ~2s/40 cycles
+    # Phase 201 (v1.42) DOCSIS-aware UL congestion control mode (per VALN-06).
+    # Operating point: 12 Mbit (60% of ~20 Mbit estimated provisioned upstream).
+    # Setpoint = [ASSUMED] A4 + A5 from RESEARCH.md; canary validates.
+    # Fallback on canary fail: drop to 10 (parameter tune, NOT control-model rejection).
+    docsis_mode: true
+    setpoint_mbps: 12
+    # Headroom probe: integral of max(0, load_rtt - baseline_rtt) over 2s window.
+    # Threshold 30 ms*s = average sample at exactly target_delta over full window.
+    integral_window_seconds: 2.0
+    integral_threshold_ms_s: 30.0
+    # CAKE corroborator (categorical AND-gate with integral). Phase 163 sweep
+    # backlog winner = 5000 bytes; delay-delta low = 5ms (deadband_ms analog).
+    cake_backlog_low_threshold_bytes: 5000
+    cake_delay_delta_low_threshold_us: 5000
     green_required: 3 # linux-cake confirmed 2026-04-02 (unchanged from REST)
 
   # RTT thresholds (Phase 2A: 4-state for download)
