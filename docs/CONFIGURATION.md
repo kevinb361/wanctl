@@ -239,6 +239,38 @@ To change UL thresholds in production:
 
 Sending SIGUSR1 alone will NOT apply changes to these keys.
 
+### DOCSIS-Aware UL Control Mode (v1.42+)
+
+Enable per deployment by setting:
+
+    continuous_monitoring:
+      upload:
+        docsis_mode: true
+        setpoint_mbps: 12  # [ASSUMED], link-specific; canary-validates; no global default
+        # Optional tuning keys (defaults shown):
+        integral_window_seconds: 2.0          # 0.5..10.0
+        integral_threshold_ms_s: 30.0         # 1.0..1000.0
+        cake_backlog_low_threshold_bytes: 5000
+        cake_delay_delta_low_threshold_us: 5000
+
+When `docsis_mode: true`, the upload controller:
+
+- Runs `setpoint_mbps` as the operating point (NOT the ceiling).
+- Uses a windowed RTT integral as the headroom probe.
+- AND-gates push-toward-ceiling on CAKE backlog/delay-delta low.
+
+For Spectrum v1.42, `setpoint_mbps: 12` is an assumed starting point rather than a sweep-proven optimum. Treat a setpoint-specific canary failure as a parameter branch first; prefer testing `10` before `14`.
+
+When `docsis_mode: false` or absent, behavior is byte-identical to v1.41.
+
+**Required ordering:** `floor_mbps < setpoint_mbps < ceiling_mbps` (strict; validator fails closed on violation).
+
+**Service restart required.** SIGUSR1 does NOT reload these keys. Apply changes with:
+
+    sudo systemctl restart wanctl@<wan>.service
+
+The predeploy gate (`scripts/phase201-predeploy-gate.sh`) inspects `/etc/wanctl/spectrum.yaml` on the deploy target and aborts the deploy with operator-actionable instructions if v1.41-only rejected-hypothesis keys (`target_bloat_ms`, `warn_bloat_ms` under `continuous_monitoring.upload`) are present.
+
 ### EWMA Time Constants
 
 - baseline_time_constant_sec (2.5-5.0): Higher = slower baseline tracking
