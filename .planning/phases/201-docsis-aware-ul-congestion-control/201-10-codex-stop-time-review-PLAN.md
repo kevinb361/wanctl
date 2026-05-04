@@ -2,13 +2,13 @@
 phase: 201-docsis-aware-ul-congestion-control
 plan: 10
 type: execute
-wave: 5
+wave: 6
 depends_on: [06, 07, 08]
 files_modified:
   - .planning/phases/201-docsis-aware-ul-congestion-control/201-10-CODEX-STOP-TIME-REVIEW.md
 autonomous: false
 requirements: [VALN-06]
-tags: [phase-201, wave-5, cross-ai-review, d-18, codex, checkpoint, stop-time]
+tags: [phase-201, wave-6, cross-ai-review, d-18, codex, checkpoint, stop-time]
 
 must_haves:
   truths:

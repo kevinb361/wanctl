@@ -2,7 +2,7 @@
 phase: 201-docsis-aware-ul-congestion-control
 plan: 12
 type: execute
-wave: 7
+wave: 8
 depends_on: [11]
 files_modified:
   - .planning/phases/201-docsis-aware-ul-congestion-control/soak/<TIMESTAMP>/soak-summary.json
@@ -13,13 +13,14 @@ files_modified:
   - .planning/STATE.md
 autonomous: false
 requirements: [VALN-06]
-tags: [phase-201, wave-7, soak, valn-06-watchdog, closeout, verification]
+tags: [phase-201, wave-8, soak, valn-06-watchdog, closeout, verification]
 
 must_haves:
   truths:
     - "24h Spectrum UL regression soak completed against the v1.42.0 binary that passed Plan 201-11 canary"
     - "UL hysteresis suppression rate over the soak window is < 5/60s mean (D-14 watchdog threshold; no relaxation, no tightening)"
     - "soak-summary.json captures suppression rate, floor-hit count (must be 0), CAKE backlog distribution, and DOCSIS-state transitions"
+    - "REVIEWS HIGH-5 (2026-05-04): soak verdict primary gate is `floor_hit_cycles_total` delta across the 24h window (end_value - start_value). Delta == 0 is required for VALN-06 watchdog PASS. The legacy `ul_hysteresis_suppression_rate_per_60s.mean < 5.0` gate is RETAINED as a SECONDARY watchdog signal."
     - "201-VERIFICATION.md records the closure verdict (passed/failed/blocked) with per-criterion evidence pointers"
     - "REQUIREMENTS.md flips VALN-06 to satisfied (or records the failure) with traceability to 201-VERIFICATION.md"
     - "STATE.md updated with phase closure (reflecting milestone v1.42 status)"
@@ -108,6 +109,10 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        OUT=.planning/phases/201-docsis-aware-ul-congestion-control/soak/$(date -u -d "$soak_start_utc" +%Y%m%dT%H%M%SZ)
        mkdir -p "$OUT"
        ssh cake-shaper "journalctl -u wanctl@spectrum.service --since '$soak_start_utc' --output=cat" > "$OUT/wanctl-spectrum.log"
+       # REVIEWS HIGH-5: capture floor_hit_cycles_total at soak start AND end:
+       #   floor_hit_start=$(ssh cake-shaper "curl -sS http://127.0.0.1:9101/health" | jq '.wans[0].upload.floor_hit_cycles_total')
+       #   floor_hit_end=$(ssh cake-shaper "curl -sS http://127.0.0.1:9101/health" | jq '.wans[0].upload.floor_hit_cycles_total')
+       #   floor_hit_delta=$((floor_hit_end - floor_hit_start))
        # ... operator-supplied summarization (use existing soak-monitor.sh + jq pipeline)
        ```
 
@@ -119,7 +124,10 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
          "soak_start_utc": "...",
          "soak_end_utc": "...",
          "soak_duration_s": ...,
-         "floor_hits_during_soak": 0,
+         "floor_hit_cycles_total_start": ...,
+         "floor_hit_cycles_total_end": ...,
+         "floor_hit_cycles_total_delta": 0,
+         "floor_hits_during_soak_1hz_secondary": 0,
          "ul_hysteresis_suppression_rate_per_60s": {
            "mean": ...,
            "p50": ...,
@@ -136,7 +144,13 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        }
        ```
 
-       VALN-06 watchdog PASS: `floor_hits_during_soak == 0` AND `ul_hysteresis_suppression_rate_per_60s.mean < 5.0` AND `daemon_restart_count == 0`.
+       VALN-06 watchdog PASS conditions (REVIEWS HIGH-5):
+       - PRIMARY: `floor_hit_cycles_total_delta == 0` (cycle-fidelity 50ms counter delta over the full 24h window).
+       - SECONDARY (defense-in-depth, retained): `ul_hysteresis_suppression_rate_per_60s.mean < 5.0`.
+       - INFRASTRUCTURE: `daemon_restart_count == 0`.
+       - 1 Hz cross-check: `floor_hits_during_soak_1hz_secondary == 0` (was the only metric in the original plan; now demoted to a secondary signal — disagreement with `floor_hit_cycles_total_delta` is a sign of a /health-vs-counter drift bug).
+
+       If `floor_hit_cycles_total_delta > 0` but `ul_hysteresis_suppression_rate_per_60s.mean < 5.0`, the watchdog FAILS — the new primary gate has caught a sub-second floor touch the 1 Hz polling missed.
 
     6. **Capture operator-readable summary** in 201-12-SOAK-VERDICT.md mirroring the 201-11 shape (Soak start/end, key stats, decision PASS/FAIL, rollback protocol if FAIL).
 

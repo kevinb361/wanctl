@@ -2,7 +2,7 @@
 phase: 201-docsis-aware-ul-congestion-control
 plan: 11
 type: execute
-wave: 6
+wave: 7
 depends_on: [10]
 files_modified:
   - .planning/phases/201-docsis-aware-ul-congestion-control/canary/<TIMESTAMP>/verdict.json
@@ -13,7 +13,7 @@ files_modified:
   - .planning/phases/201-docsis-aware-ul-congestion-control/201-11-CANARY-VERDICT.md
 autonomous: false
 requirements: [VALN-06]
-tags: [phase-201, wave-6, canary, manual, valn-06-primary-gate, fail-closed]
+tags: [phase-201, wave-7, canary, manual, valn-06-primary-gate, fail-closed]
 
 must_haves:
   truths:
@@ -24,7 +24,9 @@ must_haves:
     - "10-15 min iperf3 -P4 saturated UL canary at 18 Mbit ceiling completed"
     - "verdict.json reports ul_floor_hits_during_load = 0 (VALN-06 zero-floor-hit gate; D-13 NO RELAXATION)"
     - "Pre/post idle baseline RTTs bookend the run (proves fault-isolation on the test path itself)"
-    - "On canary FAIL: D-10 rollback executed (v1.42 binary replaced with prior archive); operator records the rolled-back state"
+    - "REVIEWS HIGH-7 (2026-05-04): rollback restores BOTH /opt/wanctl (binary archive) AND /etc/wanctl/spectrum.yaml (from spectrum.yaml.prephase201 snapshot taken in Task 1 step 0); rollback verification asserts /etc/wanctl/spectrum.yaml no longer contains 'docsis_mode:' after rollback completes — leaving v1.42 YAML keys under v1.40 binary is undefined behavior"
+    - "REVIEWS HIGH-5 (2026-05-04): canary verdict gates on `floor_hit_cycles_total` DELTA across the loaded window (computed as end-of-loaded-window minus start-of-loaded-window from /health.wans[0].upload.floor_hit_cycles_total). Delta == 0 is the VALN-06 PASS condition. 1 Hz /health snapshot rate-comparison is RETAINED as a secondary cross-check but is NOT the primary gate (1 Hz is 1000x coarser than the 50ms cycle interval — would miss sub-second floor touches)."
+    - "On canary FAIL: D-10 rollback executed (v1.42 binary AND YAML replaced with prior snapshot); operator records the rolled-back state" 
     - "On canary PASS: operator approves Plan 201-12 (24h soak)"
   artifacts:
     - path: .planning/phases/201-docsis-aware-ul-congestion-control/canary/<TIMESTAMP>/verdict.json
@@ -75,12 +77,22 @@ Output: timestamped canary directory with the standard Phase 200 capture shape; 
   <how-to-verify>
     Operator MUST execute:
 
-    1. **Capture pre-deploy archive** (rollback artifact for D-10):
+    1. **Capture pre-deploy archive AND YAML snapshot** (rollback artifacts for D-10 + REVIEWS HIGH-7):
        ```
-       ssh cake-shaper "sudo tar -czf /opt/wanctl-prephase201-$(date -u +%Y%m%dT%H%M%SZ).tar.gz -C /opt/wanctl ."
+       TS=$(date -u +%Y%m%dT%H%M%SZ)
+       # (a) /opt/wanctl binary archive
+       ssh cake-shaper "sudo tar -czf /opt/wanctl-prephase201-${TS}.tar.gz -C /opt/wanctl ."
        ssh cake-shaper "ls -la /opt/wanctl-prephase201-*.tar.gz | tail -1"
+       # (b) REVIEWS HIGH-7: /etc/wanctl/spectrum.yaml snapshot.
+       # Without this, rollback would leave v1.42 YAML keys (docsis_mode,
+       # setpoint_mbps, integral_window_seconds, etc.) on disk under the
+       # restored v1.40 binary — undefined behavior (validator may fail
+       # closed, silent-drop unknown keys, or fall through to legacy paths
+       # that never knew about them).
+       ssh cake-shaper "sudo cp -p /etc/wanctl/spectrum.yaml /etc/wanctl/spectrum.yaml.prephase201-${TS}"
+       ssh cake-shaper "ls -la /etc/wanctl/spectrum.yaml.prephase201-*"
        ```
-       Record the archive path in `.planning/phases/201-docsis-aware-ul-congestion-control/201-11-CANARY-VERDICT.md` `## Rollback Artifact` section.
+       Record BOTH artifact paths in `.planning/phases/201-docsis-aware-ul-congestion-control/201-11-CANARY-VERDICT.md` `## Rollback Artifacts` section. The TS variable is the SAME for both so they pair cleanly during rollback.
 
     2. **Reconcile /etc/wanctl/spectrum.yaml on the deploy target.**
        Run the predeploy gate manually first to see what's flagged:
@@ -173,12 +185,24 @@ Output: timestamped canary directory with the standard Phase 200 capture shape; 
        - `pre_idle_baseline.ndjson` + `pre_idle_baseline.json`
        - `post_idle_baseline.ndjson` + `post_idle_baseline.json`
 
-    4. **Read the verdict**:
+    4. **Read the verdict (REVIEWS HIGH-5: counter delta is PRIMARY GATE)**:
        ```
-       jq '.verdict, .ul_floor_hits_during_load, .baseline_rtt_pre_p50, .baseline_rtt_post_p50' \
+       # Primary gate: cycle-fidelity floor_hit_cycles_total delta across loaded window.
+       # Plan 08 canary script captures /health snapshots at start-of-loaded-window
+       # and end-of-loaded-window; verdict.json publishes the delta as a top-level field.
+       jq '.verdict,
+           .floor_hit_cycles_total_delta_loaded_window,
+           .ul_floor_hits_during_load,
+           .baseline_rtt_pre_p50, .baseline_rtt_post_p50' \
            .planning/phases/201-docsis-aware-ul-congestion-control/canary/<TIMESTAMP>/verdict.json
        ```
-       VALN-06 PASS condition: `verdict == "pass"` AND `ul_floor_hits_during_load == 0` AND `baseline_rtt_pre_p50` close to `baseline_rtt_post_p50` (within ~3 ms — proves the test path itself is fault-isolated).
+       VALN-06 PASS condition (REVIEWS HIGH-5):
+       - `verdict == "pass"` AND
+       - `floor_hit_cycles_total_delta_loaded_window == 0` (PRIMARY — cycle-fidelity 50ms counter delta) AND
+       - `ul_floor_hits_during_load == 0` (SECONDARY cross-check — 1 Hz snapshot rate compare) AND
+       - `baseline_rtt_pre_p50` close to `baseline_rtt_post_p50` (within ~3 ms — proves the test path itself is fault-isolated).
+
+       The 1 Hz snapshot rate compare REMAINS as a defense-in-depth cross-check. If the two metrics disagree (e.g., counter delta == 0 but ul_floor_hits_during_load > 0, or vice versa), STOP and investigate — this is a sign of either a counter-increment bug in Plan 04 OR a /health serialization gap in Plan 05.
 
     5. **Capture the operator-readable verdict** in 201-11-CANARY-VERDICT.md:
 
@@ -202,7 +226,10 @@ Output: timestamped canary directory with the standard Phase 200 capture shape; 
        ## Canary
        - Pre-idle baseline RTT p50: <value> ms
        - Loaded window duration: <s>
-       - ul_floor_hits_during_load: <value>
+       - **floor_hit_cycles_total at loaded-window start: <value>** (REVIEWS HIGH-5 — primary cycle-fidelity gate)
+       - **floor_hit_cycles_total at loaded-window end: <value>**
+       - **floor_hit_cycles_total delta (PRIMARY VERDICT): <value>** — MUST be 0 for VALN-06 PASS
+       - ul_floor_hits_during_load (1 Hz secondary cross-check): <value>
        - Post-idle baseline RTT p50: <value> ms
        - Verdict: PASS | FAIL
        - verdict.json reason: <verbatim>
@@ -212,11 +239,18 @@ Output: timestamped canary directory with the standard Phase 200 capture shape; 
        - [ ] FAIL -> execute rollback below; consider re-canary attempt at setpoint_mbps=10 per RESEARCH §4 fallback
        - [ ] ABORT -> verdict.json shows ABORT verdict; environment issue; remediate per verdict reason and re-run
 
-       ## Rollback (executed if FAIL)
-       - `ssh cake-shaper "sudo tar -xzf /opt/wanctl-prephase201-<TS>.tar.gz -C /opt/wanctl"`
+       ## Rollback (executed if FAIL — REVIEWS HIGH-7: BOTH binary AND YAML)
+       - `ssh cake-shaper "sudo tar -xzf /opt/wanctl-prephase201-<TS>.tar.gz -C /opt/wanctl"`  # binary restore
+       - `ssh cake-shaper "sudo cp -p /etc/wanctl/spectrum.yaml.prephase201-<TS> /etc/wanctl/spectrum.yaml"`  # YAML restore (REVIEWS HIGH-7)
        - `ssh cake-shaper "sudo systemctl restart wanctl@spectrum.service"`
        - Confirm /health.version == previous baseline (1.41.0 or 1.40.0 — operator records)
-       - YAML reconciliation: /etc/wanctl/spectrum.yaml retains the v1.42 keys (inactive under previous binary). Operator may or may not revert YAML; document the choice.
+       - **REVIEWS HIGH-7 verification:** assert v1.42 YAML keys are gone after restore:
+         ```
+         ssh cake-shaper "sudo cat /etc/wanctl/spectrum.yaml" | grep -c 'docsis_mode:'      # MUST return 0
+         ssh cake-shaper "sudo cat /etc/wanctl/spectrum.yaml" | grep -c 'setpoint_mbps:'    # MUST return 0
+         ssh cake-shaper "sudo cat /etc/wanctl/spectrum.yaml" | grep -c 'integral_window_seconds:'  # MUST return 0
+         ```
+         Record the grep counts in 201-11-CANARY-VERDICT.md `## Rollback Verification` section. If ANY grep returns non-zero, the YAML restore failed — STOP and investigate before declaring rollback complete.
        ```
 
     6. **On FAIL, execute rollback**. The full rollback command is in `verdict.json` as `rollback_protocol` (Phase 200 D-10 mirror). After rollback, type "fail-rollback-complete". Re-canary at setpoint=10 is a separate operator decision; if pursued, edit /etc/wanctl/spectrum.yaml `setpoint_mbps: 10` and re-run from Task 1.
@@ -253,6 +287,8 @@ Output: timestamped canary directory with the standard Phase 200 capture shape; 
 | T-201-50 | Tampering | False-PASS due to env-var drift | mitigate | Phase 201 canary preflight extension (Plan 201-08) cross-checks PHASE201_DOCSIS_MODE + PHASE201_SETPOINT_MBPS; mismatch ABORTs. |
 | T-201-51 | Repudiation | Canary verdict not recorded | mitigate | 201-11-CANARY-VERDICT.md is required artifact; verdict.json is canonical. |
 | T-201-52 | Tampering | Operator forgets to reconcile YAML (R0 keys still present) | mitigate | Predeploy gate BLOCKS; canary preflight `/health` probe also asserts docsis_mode_active=true. Two layers. |
+| T-201-52a | Tampering | **REVIEWS HIGH-7:** Rollback restores v1.40 binary but leaves v1.42 YAML keys in place — undefined behavior under old binary | mitigate | Task 1 step 1 captures `/etc/wanctl/spectrum.yaml.prephase201-<TS>` snapshot BEFORE deploy. Rollback restores BOTH /opt/wanctl (binary) AND /etc/wanctl/spectrum.yaml (config). Acceptance grep asserts `docsis_mode:` is absent from spectrum.yaml after rollback. |
+| T-201-52b | Tampering | **REVIEWS HIGH-5:** 1 Hz /health snapshot misses 50ms floor touches (1000x coarser than control loop), canary falsely PASS | mitigate | New `floor_hit_cycles_total` runtime counter (Plan 04-T2 + Plan 05-T2) provides cycle-fidelity (50ms) evidence. Plan 11-T2 verdict gate is counter-delta-PRIMARY, snapshot-rate-SECONDARY. |
 </threat_model>
 
 <verification>

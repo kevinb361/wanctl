@@ -2,7 +2,7 @@
 phase: 201-docsis-aware-ul-congestion-control
 plan: 06
 type: execute
-wave: 3
+wave: 4
 depends_on: [04, 05]
 files_modified:
   - configs/spectrum.yaml
@@ -13,7 +13,7 @@ files_modified:
   - docs/CONFIGURATION.md
 autonomous: true
 requirements: [VALN-06]
-tags: [phase-201, wave-3, spectrum-yaml, version-bump, docs, migration, r5-r3-disposition]
+tags: [phase-201, wave-4, spectrum-yaml, version-bump, docs, migration, r5-r3-disposition]
 
 must_haves:
   truths:
@@ -151,18 +151,31 @@ Verify after edit:
 - `.venv/bin/python -c "from wanctl.autorate_config import Config; c = Config('configs/spectrum.yaml'); assert c.docsis_mode is True; assert c.setpoint_mbps == 12; assert c._docsis_mode_explicit is True; assert c._setpoint_mbps_explicit is True; print('OK')"`
   </action>
   <acceptance_criteria>
-    - `grep -c '^    docsis_mode: true' configs/spectrum.yaml` returns 1.
-    - `grep -c '^    setpoint_mbps: 12' configs/spectrum.yaml` returns 1.
-    - `grep -c '^    integral_window_seconds: 2.0' configs/spectrum.yaml` returns 1.
-    - `grep -c '^    integral_threshold_ms_s: 30.0' configs/spectrum.yaml` returns 1.
-    - `grep -c '^    cake_backlog_low_threshold_bytes: 5000' configs/spectrum.yaml` returns 1.
-    - `grep -c '^    cake_delay_delta_low_threshold_us: 5000' configs/spectrum.yaml` returns 1.
-    - `grep -v '^#' configs/spectrum.yaml | grep -c '^    target_bloat_ms:'` returns 0 (R0 stripped).
-    - `grep -v '^#' configs/spectrum.yaml | grep -c '^    warn_bloat_ms:'` returns 0 (R0 stripped).
-    - `grep -c '^    factor_down_yellow: 1.0' configs/spectrum.yaml` returns 1 (R5 kept).
-    - `grep -c '^    consecutive_yellow_decay_clamp: 40' configs/spectrum.yaml` returns 1 (R3 kept).
-    - `grep -c '^    floor_mbps: 8' configs/spectrum.yaml` returns 1 (D-10 unchanged).
-    - `grep -c '^    ceiling_mbps: 18' configs/spectrum.yaml` returns 1 (D-10 unchanged).
+    - **REVIEWS MED-5 (path-aware YAML checks, NOT line-anchored grep):** the following Python YAML path checks all exit 0 — replacing the prior line-anchored greps that could match `download` keys at the same indentation level.
+
+      ```bash
+      # Required Phase 201 keys present under continuous_monitoring.upload
+      python3 -c "
+      import yaml
+      d = yaml.safe_load(open('configs/spectrum.yaml'))
+      ul = d['continuous_monitoring']['upload']
+      assert ul.get('docsis_mode') is True, 'docsis_mode must be True'
+      assert ul.get('setpoint_mbps') == 12, f'setpoint_mbps={ul.get(\"setpoint_mbps\")} != 12'
+      assert ul.get('integral_window_seconds') == 2.0, 'integral_window_seconds must be 2.0'
+      assert ul.get('integral_threshold_ms_s') == 30.0, 'integral_threshold_ms_s must be 30.0'
+      assert ul.get('cake_backlog_low_threshold_bytes') == 5000, 'cake_backlog_low_threshold_bytes must be 5000'
+      assert ul.get('cake_delay_delta_low_threshold_us') == 5000, 'cake_delay_delta_low_threshold_us must be 5000'
+      assert ul.get('factor_down_yellow') == 1.0, 'R5 factor_down_yellow=1.0 must be retained'
+      assert ul.get('consecutive_yellow_decay_clamp') == 40, 'R3 consecutive_yellow_decay_clamp=40 must be retained'
+      assert ul.get('floor_mbps') == 8, 'D-10 floor_mbps=8 must be unchanged'
+      assert ul.get('ceiling_mbps') == 18, 'D-10 ceiling_mbps=18 must be unchanged'
+      # R0 strip: rejected v1.41 keys MUST NOT be present in continuous_monitoring.upload
+      assert 'target_bloat_ms' not in ul, f'target_bloat_ms must be stripped from upload (got {ul.get(\"target_bloat_ms\")})'
+      assert 'warn_bloat_ms' not in ul, f'warn_bloat_ms must be stripped from upload (got {ul.get(\"warn_bloat_ms\")})'
+      print('OK')
+      "
+      ```
+
     - att.yaml unchanged: `git diff configs/att.yaml | wc -l` returns 0.
     - Config validates and reflects opt-in: see verify command.
   </acceptance_criteria>

@@ -2,22 +2,24 @@
 phase: 201-docsis-aware-ul-congestion-control
 plan: 05
 type: tdd
-wave: 2
-depends_on: [02, 03, 09]
+wave: 3
+depends_on: [02, 03, 09, 04]
 files_modified:
   - src/wanctl/wan_controller.py
   - tests/test_phase_195_replay.py
 autonomous: true
 requirements: [VALN-06]
-tags: [phase-201, wave-2, wan-controller, health, additive, flash-wear, sigusr1]
+tags: [phase-201, wave-3, wan-controller, health, additive, flash-wear, sigusr1]
 
 must_haves:
   truths:
     - "WANController constructor passes the six new Phase 201 kwargs to the upload QueueController via getattr-with-default plumbing (D-17 byte-identity for non-DOCSIS YAMLs)"
     - "WANController records _docsis_mode_explicit and _setpoint_mbps_explicit presence flags from Config (D-03 presence-based mirror)"
     - "One-shot INFO log on docsis_mode opt-in uses self.logger (NOT module-scope logger — Phase 200 Plan 01 Task 2 silent-drop bug)"
-    - "/health.wans[].upload gains five additive runtime-state fields: docsis_mode_active, setpoint_mbps, headroom_state, rtt_integral_ms_s, cake_aligned (D-16)"
+    - "/health.wans[].upload gains SIX additive runtime-state fields (REVIEWS HIGH-5 added the 6th): docsis_mode_active, setpoint_mbps, headroom_state, rtt_integral_ms_s, cake_aligned, floor_hit_cycles_total (D-16)"
     - "/health additive fields are RUNTIME STATE (read from QueueController instance attributes), NOT YAML config echoes (Phase 200 RETRO Plan 05 bug 2)"
+    - "REVIEWS LOW-1: setpoint_mbps reflects the active configured setpoint (self.upload._setpoint_bps), NOT the current rate"
+    - "REVIEWS HIGH-5: floor_hit_cycles_total is the cycle-fidelity (50ms) VALN-06 evidence vector — read from self.upload.floor_hit_cycles, exposed for canary + soak counter-delta verdicts"
     - "SIGUSR1 reload scope (lines ~1894-1899) is UNCHANGED — Phase 201 keys are restart-required (D-08)"
     - "Setpoint clamp does NOT bypass last_applied_ul_rate flash-wear dedup (ARCH-05)"
   artifacts:
@@ -36,11 +38,17 @@ must_haves:
 ---
 
 <objective>
-Wave 2 partner plan to 201-04. Lands the WANController-level plumbing (constructor wiring, presence flags, one-shot INFO log, /health additive fields). Runs in parallel with Plan 201-04 because the two plans touch disjoint files (queue_controller.py vs wan_controller.py — verified via files_modified).
+Wave 3 follow-up to 201-04 (REVIEWS HIGH-2: depends_on now includes [04] because Plan 05 passes new kwargs to QueueController whose constructor only exists after Plan 04 lands; was a Wave 2 parallel-with-04 plan, now Wave 3 serial-after-04). Lands the WANController-level plumbing (constructor wiring, presence flags, one-shot INFO log, /health additive fields, **floor_hit_cycles_total runtime-state field per REVIEWS HIGH-5**).
 
-Per Plan 201-02 Wave 0 contracts: TestPhase201HealthAdditive, TestPhase201FlashWear, and TestSigusr1ReloadScopePhase201 all turn GREEN at the end of this plan. Critically, the runtime-state-not-YAML-echo invariant (Phase 200 RETRO Plan 05 bug 2) is enforced by reading from `self.upload._headroom_state` etc. — NOT from `config.setpoint_mbps`.
+Per Plan 201-02 Wave 0 contracts: TestPhase201HealthAdditive, TestPhase201FlashWear, and TestSigusr1ReloadScopePhase201 all turn GREEN at the end of this plan. Critically, the runtime-state-not-YAML-echo invariant (Phase 200 RETRO Plan 05 bug 2 + REVIEWS LOW-1) is enforced by reading from `self.upload._headroom_state` / `self.upload.floor_hit_cycles` etc. — NOT from `config.setpoint_mbps`.
 
-Output: wan_controller.py extended with constructor wiring + INFO log + 5 additive /health fields; SAFE-05 v1.42 pins re-baselined for the wan_controller surface.
+**REVIEWS amendments (2026-05-04, see 201-REVIEWS.md):**
+- **HIGH-2 (depends_on serialization):** moved from Wave 2 to Wave 3; depends_on adds Plan 04. Plan 04's QueueController surface (new kwargs + `floor_hit_cycles` attribute) MUST exist before this plan wires it. SAFE-05 rebasing in Plans 04 and 05 is now naturally serial (no parallel collision on `tests/test_phase_195_replay.py`).
+- **HIGH-5 (floor-hit cycles counter exposure):** Plan 05-T2 adds a SIXTH additive `/health.wans[].upload` field — `floor_hit_cycles_total` (int, monotonic, runtime-state read from `self.upload.floor_hit_cycles`). Plans 11/12 verdict gates compare counter deltas across loaded windows.
+- **LOW-1 (setpoint_mbps semantics):** Plan 05-T2 docstrings clarify that `setpoint_mbps` is the *active configured setpoint* (read from `self.upload._setpoint_bps`), NOT the *current rate*. Tests should assert `current_rate != setpoint_mbps under load` as a positive invariant.
+- **HIGH-3 (stub removal):** acceptance criterion at the plan level — `grep -c 'Wave 0 stub' tests/test_wan_controller.py` returns 0 for Phase 201 stubs after Plan 05 completes.
+
+Output: wan_controller.py extended with constructor wiring + INFO log + **6 additive /health fields (was 5; +floor_hit_cycles_total)**; SAFE-05 v1.42 pins re-baselined for the wan_controller surface.
 </objective>
 
 <execution_context>
@@ -191,13 +199,14 @@ Critically, the upload constructor's existing `consecutive_yellow_decay_clamp` g
     - .planning/phases/200-per-direction-rtt-bloat-thresholds/200-RETRO.md — search "Plan 05 bug 2" / "floor_mbps/ceiling_mbps field assumption" (the bug pattern to avoid)
   </read_first>
   <behavior>
-    - The per-WAN /health builder produces a dict for `.wans[].upload`. Phase 201 adds five new keys to that dict:
+    - The per-WAN /health builder produces a dict for `.wans[].upload`. Phase 201 adds SIX new keys to that dict:
         "docsis_mode_active": self.upload._docsis_mode (bool — runtime, mirror of config but fed through controller instance)
-        "setpoint_mbps": (self.upload._setpoint_bps / 1_000_000) if self.upload._setpoint_bps else None  # runtime, in Mbit
+        "setpoint_mbps": (self.upload._setpoint_bps / 1_000_000) if self.upload._setpoint_bps else None  # runtime, in Mbit — REVIEWS LOW-1: active configured setpoint, NOT current_rate
         "headroom_state": self.upload._headroom_state  # str AVAILABLE|EXHAUSTED — runtime state machine
         "rtt_integral_ms_s": round(self.upload._last_integral_ms_s, 3)  # runtime accumulator
         "cake_aligned": self.upload._cake_aligned  # bool — runtime corroborator state
-    - All five fields are READ from the QueueController instance, not from the Config object. This ensures runtime-state semantics (Phase 200 RETRO Plan 05 bug 2 trap).
+        "floor_hit_cycles_total": int(self.upload.floor_hit_cycles)  # REVIEWS HIGH-5: monotonic counter, daemon-lifetime
+    - All six fields are READ from the QueueController instance, not from the Config object. This ensures runtime-state semantics (Phase 200 RETRO Plan 05 bug 2 trap + REVIEWS LOW-1).
     - The existing `.wans[].upload` keys (current_rate_mbps, state, state_reason, hysteresis) are UNCHANGED.
     - SAFE-05 v1.42 pins are re-baselined to absorb new occurrences in wan_controller.py.
   </behavior>
@@ -231,6 +240,12 @@ Add the five new keys to that dict literal. Place them AFTER the existing keys t
                 getattr(self.upload, "_last_integral_ms_s", 0.0), 3
             ),
             "cake_aligned": bool(getattr(self.upload, "_cake_aligned", False)),
+            # REVIEWS HIGH-5 (2026-05-04): cycle-fidelity floor-hit counter
+            # exposed for canary + soak counter-delta verdicts.
+            # Counter is monotonic per daemon lifetime — Plans 11/12 read
+            # the value at start-of-loaded-window and end-of-loaded-window
+            # and compare deltas (delta == 0 is the VALN-06 PASS condition).
+            "floor_hit_cycles_total": int(getattr(self.upload, "floor_hit_cycles", 0)),
         }
 ```
 
@@ -256,6 +271,9 @@ After the dict-literal edit, re-run the SAFE-05 v1.42 baseline check. Phase 201 
     - `grep -c '"rtt_integral_ms_s":' src/wanctl/wan_controller.py` returns 1.
     - `grep -c '"cake_aligned":' src/wanctl/wan_controller.py` returns 1.
     - `grep -c '"setpoint_mbps":' src/wanctl/wan_controller.py` returns 1.
+    - **REVIEWS HIGH-5:** `grep -c '"floor_hit_cycles_total":' src/wanctl/wan_controller.py` returns 1.
+    - **REVIEWS HIGH-5:** `grep -c "self.upload.floor_hit_cycles\|getattr(self.upload, .floor_hit_cycles" src/wanctl/wan_controller.py` returns >= 1 (runtime-state read).
+    - **REVIEWS HIGH-3 (stub removal):** `grep -c 'Wave 0 stub' tests/test_wan_controller.py 2>/dev/null` returns 0 for any test class touched by this plan (every implemented stub has its xfail/fail decorator removed in this commit).
     - `grep -v '^#\\|^ *#' src/wanctl/wan_controller.py | grep -c 'config.setpoint_mbps' | awk '{print $1}'` shows occurrences of `config.setpoint_mbps` are bounded — new /health code MUST NOT use `config.setpoint_mbps` directly (it must read from `self.upload._setpoint_bps`). Specifically: `grep -v '^#' src/wanctl/wan_controller.py | grep -A 0 '"setpoint_mbps":' | grep -c 'config.setpoint_mbps'` returns 0.
     - TestPhase201HealthAdditive passes: `.venv/bin/pytest -o addopts='' tests/test_wan_controller.py -q -k TestPhase201HealthAdditive` returns 0.
     - TestPhase201FlashWear passes: `.venv/bin/pytest -o addopts='' tests/test_wan_controller.py -q -k TestPhase201FlashWear` returns 0.

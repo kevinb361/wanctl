@@ -2,7 +2,7 @@
 phase: 201-docsis-aware-ul-congestion-control
 plan: 08
 type: execute
-wave: 4
+wave: 5
 depends_on: [02, 06]
 files_modified:
   - scripts/phase200-saturation-canary.sh
@@ -10,11 +10,11 @@ files_modified:
   - tests/test_phase200_canary_script.py
 autonomous: true
 requirements: [VALN-06]
-tags: [phase-201, wave-4, canary, d-12, fail-closed, env-yaml-cross-check, health-probe]
+tags: [phase-201, wave-5, canary, d-12, fail-closed, env-yaml-cross-check, health-probe]
 
 must_haves:
   truths:
-    - "Canary preflight cross-checks env vars PHASE201_DOCSIS_MODE and PHASE201_SETPOINT_MBPS against deployed YAML; ABORTs on mismatch with named verdict reasons"
+    - "Canary preflight cross-checks env vars PHASE201_DOCSIS_MODE and PHASE201_SETPOINT_MBPS against deployed YAML; ABORTs on mismatch with named verdict reasons (REVIEWS HIGH-6: missing env vars ABORT for Phase 201 runs unless explicit PHASE201_LEGACY_MODE=true is set; PHASE201_LEGACY_MODE=true mutually-exclusive with PHASE201_DOCSIS_MODE=true — both set ABORTs)"
     - "Canary preflight asserts /health.wans[0].upload.docsis_mode_active is present-and-true with three-branch logic (absent / false / true / invalid)"
     - "Canary preflight prechecks remote python3+pyyaml availability (closes WR-02)"
     - "Canary capture loop records cake_signal.upload.max_delay_delta_us at the existing 1 Hz cadence (closes 201-01-CORPUS-AUDIT.md gap for v1.43+ replay corpus)"
@@ -150,7 +150,37 @@ if [[ -n "${PHASE201_SETPOINT_MBPS:-}" ]]; then
 fi
 ```
 
-The new env vars are OPTIONAL (the canary still works for non-DOCSIS deploys when they're empty). When set, they're enforced.
+**REVIEWS HIGH-6 (2026-05-04) — fail-closed env enforcement.** The new env vars are OPTIONAL ONLY when the operator explicitly opts into legacy-mode comparison via `PHASE201_LEGACY_MODE=true` (e.g., A/B against v1.40 binary). For Phase 201 deploys, missing `PHASE201_DOCSIS_MODE` or `PHASE201_SETPOINT_MBPS` MUST abort. Without this, the canary silently no-ops the DOCSIS-mode probe AND mismatch checks while still claiming PASS.
+
+Add this block at the TOP of the canary preflight section (BEFORE any YAML probe or /health probe runs):
+
+```bash
+# REVIEWS HIGH-6 (2026-05-04): fail-closed env enforcement for Phase 201.
+# A Phase 201 canary run that forgets to declare DOCSIS-mode + setpoint
+# would silently no-op the new probes and falsely PASS — the same fail-OPEN
+# pattern Codex caught in Phase 200 (dd67493 -> 43838f4). Mutual exclusion
+# of PHASE201_LEGACY_MODE and PHASE201_DOCSIS_MODE prevents accidental
+# both-set drift.
+if [[ "${PHASE201_LEGACY_MODE:-}" == "true" && "${PHASE201_DOCSIS_MODE:-}" == "true" ]]; then
+    log_abort "PHASE201_LEGACY_MODE=true and PHASE201_DOCSIS_MODE=true are mutually exclusive; pick one"
+    write_abort_verdict "phase201_env_legacy_and_docsis_both_set"
+    exit "$EXIT_ABORT"
+fi
+if [[ "${PHASE201_LEGACY_MODE:-}" != "true" ]]; then
+    if [[ -z "${PHASE201_DOCSIS_MODE:-}" ]]; then
+        log_abort "PHASE201_DOCSIS_MODE must be set for Phase 201 canary runs (set PHASE201_LEGACY_MODE=true to opt into legacy A/B comparison instead)"
+        write_abort_verdict "phase201_env_docsis_mode_missing"
+        exit "$EXIT_ABORT"
+    fi
+    if [[ -z "${PHASE201_SETPOINT_MBPS:-}" ]]; then
+        log_abort "PHASE201_SETPOINT_MBPS must be set for Phase 201 canary runs (set PHASE201_LEGACY_MODE=true to opt into legacy A/B comparison instead)"
+        write_abort_verdict "phase201_env_setpoint_missing"
+        exit "$EXIT_ABORT"
+    fi
+fi
+```
+
+When the canary is invoked from Plan 11 in Phase 201 mode, both `PHASE201_DOCSIS_MODE=true` and `PHASE201_SETPOINT_MBPS=12` MUST be exported in the env file (Plan 11 Task 2 step 1 already does this — verify the env file template before launch).
 
 3. **/health DOCSIS-mode three-branch probe** (insert AFTER the existing /health shape check around line 312, BEFORE the YAML_PROBE block; or place it just BEFORE the loaded-window capture begins — wherever fetch_health_sample is callable):
 
@@ -228,6 +258,10 @@ CRITICAL: do NOT change any existing behavior when PHASE201_* env vars are empty
     - `grep -c 'health_docsis_false' scripts/phase200-saturation-canary.sh` returns 1.
     - `grep -c 'health_docsis_invalid' scripts/phase200-saturation-canary.sh` returns 1.
     - `grep -c 'remote_python_yaml_missing' scripts/phase200-saturation-canary.sh` returns 1.
+    - **REVIEWS HIGH-6:** `grep -c 'phase201_env_docsis_mode_missing' scripts/phase200-saturation-canary.sh` returns 1.
+    - **REVIEWS HIGH-6:** `grep -c 'phase201_env_setpoint_missing' scripts/phase200-saturation-canary.sh` returns 1.
+    - **REVIEWS HIGH-6:** `grep -c 'phase201_env_legacy_and_docsis_both_set' scripts/phase200-saturation-canary.sh` returns 1.
+    - **REVIEWS HIGH-6:** `grep -c 'PHASE201_LEGACY_MODE' scripts/phase200-saturation-canary.sh` returns >= 2 (legacy opt-in flag honored, mutually-exclusive check). `grep -c 'PHASE201_LEGACY_MODE' scripts/phase200-saturation-canary.env.example` returns >= 1 (operator-facing doc).
     - `grep -c 'PHASE201_DOCSIS_MODE' scripts/phase200-saturation-canary.env.example` returns >= 1.
     - `grep -c 'PHASE201_SETPOINT_MBPS' scripts/phase200-saturation-canary.env.example` returns >= 1.
     - `bash -n scripts/phase200-saturation-canary.sh` returns 0.
@@ -285,23 +319,33 @@ bash scripts/phase200-saturation-canary.sh --self-test capture-shape | jq -e '.w
 
 If the field is NOT present at fetch time, this means production /health doesn't expose it (it's an internal CakeSignalSnapshot field). In that case, Plan 201-05 needs to add it as part of the additive /health fields — coordinate via a follow-up task in this plan or fold into the SUMMARY for Plan 201-05.
 
-ACTUAL ACTION: Task 1 of Plan 201-05 only adds the FIVE upload-block fields (docsis_mode_active, setpoint_mbps, headroom_state, rtt_integral_ms_s, cake_aligned). The CAKE-internal max_delay_delta_us is already populated in CakeSignalSnapshot per cake_signal.py:92-123 — verify whether the existing `cake_signal.upload` block in /health serializes it. Read `src/wanctl/wan_controller.py` around the /health builder and inspect.
+**REVIEWS MED-6 (2026-05-04) — disposition: scripts-only stays.**
 
-If max_delay_delta_us is NOT serialized in /health currently:
-- Add it to the `cake_signal.upload` serialization in src/wanctl/wan_controller.py (additive only; new field under existing block).
-- Update SAFE-05 v1.42 baseline if the new occurrence count drifts.
-- Add to canary capture documentation.
+The replanner verified that `max_delay_delta_us` is ALREADY serialized in `/health.wans[].cake_signal.upload.max_delay_delta_us`:
 
-If it IS serialized currently (or after Plan 201-05 lands it as one of the additive fields):
-- This task is a verification-only no-op.
+- `src/wanctl/cake_signal.py:123` defines `max_delay_delta_us: int = 0` as a `CakeSignalSnapshot` dataclass field.
+- `src/wanctl/wan_controller.py:4511` serializes the snapshot wholesale (`"upload": self._ul_cake_snapshot`) — every dataclass field flows through.
+- `src/wanctl/wan_controller.py:4553` already references `self._dl_cake_snapshot.max_delay_delta_us` for the DL arbitration field, confirming the dataclass->JSON path works.
 
-Either way, document the outcome in 201-08-SUMMARY.md so the v1.43+ replay corpus has a known-good shape.
+Therefore, this task is **scripts-only verification + documentation**:
+
+1. Confirm the field is in `/health` output. From the deploy target during Plan 11:
+   ```
+   ssh cake-shaper "curl -sS http://127.0.0.1:9101/health" | jq '.wans[0].cake_signal.upload.max_delay_delta_us'
+   ```
+   Expect a non-null integer.
+
+2. Confirm capture loop preserves the field. The canary's `fetch_health_sample` uses `jq -c '.'` (full snapshot, no field-selection filter), so the field flows through unchanged. Verify by reading the existing `fetch_health_sample` body.
+
+3. Update 201-08-SUMMARY.md to record: "max_delay_delta_us already serialized via cake_signal.upload (CakeSignalSnapshot dataclass); no wan_controller.py modification needed; v1.43+ replay corpus picks it up automatically from existing canary captures."
+
+`files_modified` for THIS task is therefore the canary script ONLY (no wan_controller.py modification needed). If during execution the assumption proves wrong (field absent in /health output despite the dataclass + serialization audit), STOP and re-route via gap closure rather than expanding files_modified mid-flight — the dataclass audit was deterministic, so a discrepancy would indicate a deeper drift.
   </action>
   <acceptance_criteria>
     - Production `/health` payload contains `wans[].cake_signal.upload.max_delay_delta_us` (verify by reading src/wanctl/wan_controller.py and confirming the field is serialized; OR add it as part of this task if absent).
     - If a code change was needed in wan_controller.py to expose max_delay_delta_us, SAFE-05 baseline updated and `.venv/bin/pytest -o addopts='' tests/test_phase_195_replay.py::test_safe05_threshold_name_counts_are_unchanged -v` returns 0.
     - Self-test capture exposes the field: `bash scripts/phase200-saturation-canary.sh --self-test capture-shape 2>&1 | grep -q max_delay_delta_us` (if the self-test sub-command is implemented; otherwise verify via direct unit test in tests/test_wan_controller.py).
-    - 201-08-SUMMARY.md documents the disposition (added vs already-present).
+    - **REVIEWS MED-6:** 201-08-SUMMARY.md documents the disposition: max_delay_delta_us already serialized via `cake_signal.upload` (CakeSignalSnapshot dataclass at cake_signal.py:123 + serialization at wan_controller.py:4511); files_modified for this task remains scripts-only. Verify with: `grep -c 'CakeSignalSnapshot dataclass' .planning/phases/201-docsis-aware-ul-congestion-control/201-08-SUMMARY.md` returns >= 1.
   </acceptance_criteria>
   <verify>
     <automated>grep -q 'max_delay_delta_us' src/wanctl/wan_controller.py &amp;&amp; .venv/bin/pytest -o addopts='' tests/test_phase_195_replay.py::test_safe05_threshold_name_counts_are_unchanged -v</automated>
