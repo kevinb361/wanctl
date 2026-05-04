@@ -673,13 +673,17 @@ class TestPhase195SourceGuards:
         phase201_src = "\n".join(
             path.read_text() for path in Path("src/wanctl").rglob("*.py")
         )
+        # v1.42 baseline: Phase 201 controller surface (Plan 201-04) adds
+        # QueueController occurrences of docsis_mode, setpoint_bps-adjacent
+        # setpoint_mbps plumbing, integral window/threshold, and CAKE
+        # corroborator keys while preserving the v1.41 threshold pins above.
         phase201_expected_counts = {
-            "docsis_mode": 15,
+            "docsis_mode": 23,
             "setpoint_mbps": 20,
-            "integral_window_seconds": 4,
-            "integral_threshold_ms_s": 4,
-            "cake_backlog_low_threshold_bytes": 6,
-            "cake_delay_delta_low_threshold_us": 6,
+            "integral_window_seconds": 6,
+            "integral_threshold_ms_s": 7,
+            "cake_backlog_low_threshold_bytes": 9,
+            "cake_delay_delta_low_threshold_us": 9,
         }
 
         for name, expected_count in phase201_expected_counts.items():

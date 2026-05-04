@@ -3644,7 +3644,7 @@ class TestRedFastTripUnchangedDocsisMode:
         ctrl._cake_aligned = True
         zone, rate, _ = ctrl.adjust(22.0, 22.0 + 50.0, target_delta=5.0, warn_delta=15.0)
         assert zone == "RED"
-        assert rate < 12_000_000
+        assert rate == int(12_000_000 * ctrl.factor_down)
 
 
 class TestDocsisModeAboveSetpointYellowPulldown:
@@ -3654,7 +3654,7 @@ class TestDocsisModeAboveSetpointYellowPulldown:
         ctrl.current_rate = 15_000_000
         ctrl._headroom_state = "EXHAUSTED"
         ctrl._cake_aligned = False
-        ctrl.yellow_streak = ctrl.dwell_cycles + 1
+        ctrl._yellow_decay_streak = ctrl.dwell_cycles + 1
         rate = ctrl._compute_rate_3state("YELLOW")
         assert rate <= 12_000_000, (
             f"YELLOW above-setpoint hold violation: rate={rate} > setpoint=12_000_000. "
@@ -3679,7 +3679,7 @@ class TestDocsisModeAboveSetpointYellowPulldown:
             consecutive_yellow_decay_clamp=40,
         )
         legacy.current_rate = 15_000_000
-        legacy.yellow_streak = legacy.dwell_cycles + 1
+        legacy._yellow_decay_streak = legacy.dwell_cycles + 1
         rate_legacy = legacy._compute_rate_3state("YELLOW")
         assert rate_legacy is not None
 
@@ -3692,17 +3692,36 @@ class TestDocsisModeFloorHitCounter:
     def test_floor_hit_counter_increments_when_rate_hits_floor(self):
         ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
         ctrl.current_rate = 12_000_000
-        ctrl.red_streak = 100
+        ctrl.current_rate = ctrl.floor_red_bps + 100_000
         for _ in range(50):
-            rate = ctrl._compute_rate_3state("RED")
-            ctrl.current_rate = rate
+            zone, rate, _ = ctrl.adjust(
+                baseline_rtt=22.0,
+                load_rtt=22.0 + 100.0,
+                target_delta=15.0,
+                warn_delta=75.0,
+            )
+            assert zone == "RED"
             if rate == ctrl.floor_red_bps:
                 break
         else:
-            assert False, "expected RED decay to reach floor in 50 cycles"
+            pytest.fail("expected RED decay to reach floor in 50 cycles")
         assert ctrl.floor_hit_cycles >= 1, (
             f"floor_hit_cycles should be >= 1 after a floor-hit cycle; got {ctrl.floor_hit_cycles}"
         )
+
+    def test_floor_hit_counter_increments_on_post_bounds_clamp(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = ctrl.floor_red_bps + 1
+        before = ctrl.floor_hit_cycles
+        zone, rate, _ = ctrl.adjust(
+            baseline_rtt=22.0,
+            load_rtt=22.0 + 100.0,
+            target_delta=15.0,
+            warn_delta=75.0,
+        )
+        assert zone == "RED"
+        assert rate == ctrl.floor_red_bps
+        assert ctrl.floor_hit_cycles == before + 1
 
     def test_floor_hit_counter_does_not_increment_when_above_floor(self):
         ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
