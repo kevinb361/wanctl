@@ -21,6 +21,7 @@ must_haves:
     - "UL hysteresis suppression rate over the soak window is < 5/60s mean (D-14 watchdog threshold; no relaxation, no tightening)"
     - "soak-summary.json captures suppression rate, floor-hit count (must be 0), CAKE backlog distribution, and DOCSIS-state transitions"
     - "REVIEWS HIGH-5 (2026-05-04): soak verdict primary gate is `floor_hit_cycles_total` delta across the 24h window (end_value - start_value). Delta == 0 is required for VALN-06 watchdog PASS. The legacy `ul_hysteresis_suppression_rate_per_60s.mean < 5.0` gate is RETAINED as a SECONDARY watchdog signal."
+    - "REVIEWS round-5 (2026-05-04): the PRIMARY gate is COLLECTIBLE — Step 1.5 (capture floor_hit_cycles_total at soak T+0, anchored to Plan 201-11 verdict.json `.floor_hit_cycles_total_loaded_window_end` with live `/health` fallback) is REQUIRED before the 24h wait begins. /health exposes only the current counter value; past values cannot be reconstructed at soak end. Skipping Step 1.5 makes the PRIMARY gate uncollectible, which is itself a fail-OPEN — Step 4 detects the missing T+0 baseline and authors `verdict: fail` with reason `soak_primary_gate_uncollectible_t0_baseline_missing`. Daemon restart mid-soak (negative delta) similarly invalidates the gate and produces `soak_primary_gate_uncollectible_negative_delta_<N>`."
     - "201-VERIFICATION.md records the closure verdict (passed/failed/blocked) with per-criterion evidence pointers"
     - "REQUIREMENTS.md flips VALN-06 to satisfied (or records the failure) with traceability to 201-VERIFICATION.md"
     - "STATE.md updated with phase closure (reflecting milestone v1.42 status)"
@@ -81,6 +82,29 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        echo "soak_start_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> /tmp/phase201-soak.env
        ```
 
+    1.5. **CAPTURE PRIMARY-GATE BASELINE** (REVIEWS HIGH-5: this MUST happen at soak T+0 — `/health.upload.floor_hit_cycles_total` is a live in-process counter; past values cannot be reconstructed at soak end. Skipping this step makes the PRIMARY soak gate uncollectible, which itself is a fail-OPEN.):
+       ```
+       # Anchor: the canary's floor_hit_cycles_total_loaded_window_end (from Plan 201-11
+       # verdict.json) IS the soak T+0 baseline by construction (no cycles between
+       # canary loaded-window end and soak start, modulo deploy time which is bounded).
+       # Prefer the verdict.json value; fall back to a fresh /health sample if needed.
+       CANARY_VERDICT=$(ls -1t .planning/phases/201-docsis-aware-ul-congestion-control/canary/*/verdict.json | head -1)
+       FLOOR_HIT_T0=$(jq -r '.floor_hit_cycles_total_loaded_window_end' "$CANARY_VERDICT")
+       if [[ "$FLOOR_HIT_T0" == "null" || -z "$FLOOR_HIT_T0" ]]; then
+           # verdict.json predates Plan 08-T3 OR field is absent — capture live and warn.
+           FLOOR_HIT_T0=$(ssh cake-shaper "curl -sS http://127.0.0.1:9101/health" \
+               | jq -r '.wans[0].upload.floor_hit_cycles_total')
+           echo "WARN: anchored floor_hit_cycles_total_start=$FLOOR_HIT_T0 from live /health (verdict.json missing field); soak start drifted from canary by deploy/restart latency." >> /tmp/phase201-soak.env
+       fi
+       if [[ "$FLOOR_HIT_T0" == "null" || -z "$FLOOR_HIT_T0" || ! "$FLOOR_HIT_T0" =~ ^[0-9]+$ ]]; then
+           echo "ABORT: floor_hit_cycles_total_start unavailable from both verdict.json and /health. Cannot proceed — PRIMARY soak gate would be uncollectible." >&2
+           exit 2
+       fi
+       echo "floor_hit_cycles_total_start=$FLOOR_HIT_T0" >> /tmp/phase201-soak.env
+       echo "floor_hit_cycles_total_start_source=$([[ -n "$CANARY_VERDICT" ]] && echo "verdict.json:$CANARY_VERDICT" || echo "live /health")" >> /tmp/phase201-soak.env
+       ```
+       Both `floor_hit_cycles_total_start` and its source provenance MUST be recorded in `/tmp/phase201-soak.env` BEFORE the 24h wait begins. Step 4 reads this file when authoring the summary; without it, the PRIMARY gate is uncollectible and the soak verdict defaults to FAIL per the decision matrix's "ambiguity = FAIL by default" policy.
+
     2. **Schedule soak finish capture** (24h + 30 min for summarization):
        ```
        systemd-run --user --on-active=24h30m --unit=phase201-soak-finish \
@@ -105,16 +129,39 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        - Daemon restart count during soak (INFRASTRUCTURE gate — must be 0)
        - Any non-INFO log lines (errors/warnings) flagged
 
-       Example synthesis (operator can adapt to local tooling — Phase 200 evidence-harness has helpers):
+       Example synthesis (REQUIRED steps, not optional — operator can adapt to local tooling but the PRIMARY-gate capture commands are not skippable):
        ```
+       # Read T+0 baseline captured at Step 1.5 (REVIEWS HIGH-5). This is REQUIRED;
+       # if /tmp/phase201-soak.env doesn't have floor_hit_cycles_total_start, the
+       # PRIMARY soak gate is uncollectible — author verdict: fail with reason
+       # `soak_primary_gate_uncollectible_t0_baseline_missing`.
+       source /tmp/phase201-soak.env
+       if [[ -z "${floor_hit_cycles_total_start:-}" ]]; then
+           echo "FAIL: PRIMARY soak gate uncollectible — Step 1.5 was not executed at soak start. Authoring verdict: fail." >&2
+           # Continue to write soak-summary.json with verdict: fail and the
+           # uncollectible reason, then exit non-zero.
+       fi
+
+       # Capture T+24h counter live, compute delta:
+       FLOOR_HIT_T24=$(ssh cake-shaper "curl -sS http://127.0.0.1:9101/health" \
+           | jq -r '.wans[0].upload.floor_hit_cycles_total')
+       FLOOR_HIT_DELTA=$(( FLOOR_HIT_T24 - floor_hit_cycles_total_start ))
+       if (( FLOOR_HIT_DELTA < 0 )); then
+           # Counter went backwards — daemon restarted mid-soak. INFRASTRUCTURE
+           # gate violated; PRIMARY gate is invalidated by the restart (counter
+           # reset to 0). Author verdict: fail with both reasons.
+           echo "FAIL: floor_hit_cycles_total_delta=$FLOOR_HIT_DELTA (negative) — daemon restart mid-soak invalidates PRIMARY gate." >&2
+       fi
+
        OUT=.planning/phases/201-docsis-aware-ul-congestion-control/soak/$(date -u -d "$soak_start_utc" +%Y%m%dT%H%M%SZ)
        mkdir -p "$OUT"
        ssh cake-shaper "journalctl -u wanctl@spectrum.service --since '$soak_start_utc' --output=cat" > "$OUT/wanctl-spectrum.log"
-       # REVIEWS HIGH-5: capture floor_hit_cycles_total at soak start AND end:
-       #   floor_hit_start=$(ssh cake-shaper "curl -sS http://127.0.0.1:9101/health" | jq '.wans[0].upload.floor_hit_cycles_total')
-       #   floor_hit_end=$(ssh cake-shaper "curl -sS http://127.0.0.1:9101/health" | jq '.wans[0].upload.floor_hit_cycles_total')
-       #   floor_hit_delta=$((floor_hit_end - floor_hit_start))
-       # ... operator-supplied summarization (use existing soak-monitor.sh + jq pipeline)
+       # ... use existing soak-monitor.sh + jq pipeline for the suppression-rate stats
+       # ... write soak-summary.json including:
+       #   floor_hit_cycles_total_start: $floor_hit_cycles_total_start
+       #   floor_hit_cycles_total_end:   $FLOOR_HIT_T24
+       #   floor_hit_cycles_total_delta: $FLOOR_HIT_DELTA
+       #   floor_hit_cycles_total_start_source: $floor_hit_cycles_total_start_source
        ```
 
     5. **Capture verdict** in `.planning/phases/201-docsis-aware-ul-congestion-control/soak/<TIMESTAMP>/soak-summary.json`:
@@ -150,6 +197,7 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        | Gate | Condition | Verdict effect if violated | Notes |
        |---|---|---|---|
        | **PRIMARY** (REVIEWS HIGH-5) | `floor_hit_cycles_total_delta == 0` over the 24h window | **FAIL** with reason `soak_primary_gate_floor_hit_cycles_delta_<N>` | Cycle-fidelity 50ms counter; this is the authoritative signal. |
+       | **PRIMARY-COLLECTIBILITY** (REVIEWS round-5) | `floor_hit_cycles_total_start` was captured at Step 1.5 AND `/tmp/phase201-soak.env` carries it through to Step 4 AND `floor_hit_cycles_total_delta >= 0` (no daemon restart mid-soak) | **FAIL** with reason `soak_primary_gate_uncollectible_t0_baseline_missing` (Step 1.5 skipped) OR `soak_primary_gate_uncollectible_negative_delta_<N>` (daemon restart mid-soak invalidates the gate) | The PRIMARY gate is only meaningful if the T+0 anchor was actually captured. Operator skipping Step 1.5 OR a mid-soak daemon restart invalidates the entire 24h evidence — fail-closed; do NOT author `verdict: pass` on the assumption that "the counter probably didn't increment." Re-run the soak after capturing T+0 at the start. |
        | **SECONDARY** (D-14, NO RELAXATION) | `ul_hysteresis_suppression_rate_per_60s.mean < 5.0` | **FAIL** with reason `soak_secondary_gate_suppression_rate_<value>` | Inherited Phase 200 closure-shape watchdog. |
        | **INFRASTRUCTURE** | `daemon_restart_count == 0` | **FAIL** with reason `soak_infrastructure_daemon_restart_count_<N>` | A daemon restart mid-soak invalidates the counter delta (would reset to 0); restart-count > 0 is itself a regression signal. |
        | **PRIMARY/CROSS-CHECK COHERENCE** | `floor_hit_cycles_total_delta == 0` IFF `floor_hits_during_soak_1hz_secondary == 0` (i.e., they agree) | **FAIL** with reason `soak_primary_secondary_disagreement_counter_<N>_snapshot_<M>` | Disagreement indicates /health-vs-counter drift bug or a counter-increment defect; treated as FAIL not "investigate" — fail-closed. |
