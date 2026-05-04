@@ -260,12 +260,6 @@ lock_timeout: 300
 # =============================================================================
 
 
-# Phase 201 Wave 0 RED scaffolding — Plan 201-02 stubs.
-# Implementation lands in Plans 201-03 (config/validator),
-# 201-04 (controller core), 201-05 (telemetry / wan_controller),
-# 201-07 (predeploy gate), 201-08 (canary extension).
-
-
 class TestPhase201Schema:
     def test_docsis_mode_default_false(self, tmp_path, base_config_yaml_single_floor):
         cfg_path = tmp_path / "test.yaml"

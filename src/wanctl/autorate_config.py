@@ -193,6 +193,46 @@ class Config(BaseConfig):
             "max": 250,
         },
         {
+            "path": "continuous_monitoring.upload.docsis_mode",
+            "type": bool,
+            "required": False,
+        },
+        {
+            "path": "continuous_monitoring.upload.setpoint_mbps",
+            "type": (int, float),
+            "required": False,
+            "min": 1,
+            "max": 1000,
+        },
+        {
+            "path": "continuous_monitoring.upload.integral_window_seconds",
+            "type": (int, float),
+            "required": False,
+            "min": 0.5,
+            "max": 10.0,
+        },
+        {
+            "path": "continuous_monitoring.upload.integral_threshold_ms_s",
+            "type": (int, float),
+            "required": False,
+            "min": 1.0,
+            "max": 1000.0,
+        },
+        {
+            "path": "continuous_monitoring.upload.cake_backlog_low_threshold_bytes",
+            "type": int,
+            "required": False,
+            "min": 0,
+            "max": 1_000_000,
+        },
+        {
+            "path": "continuous_monitoring.upload.cake_delay_delta_low_threshold_us",
+            "type": int,
+            "required": False,
+            "min": 0,
+            "max": 1_000_000,
+        },
+        {
             "path": "continuous_monitoring.upload.green_required",
             "type": int,
             "required": False,
@@ -378,6 +418,30 @@ class Config(BaseConfig):
         self._upload_target_bloat_ms_explicit = "target_bloat_ms" in ul
         self._upload_warn_bloat_ms_explicit = "warn_bloat_ms" in ul
 
+        # Phase 201 — DOCSIS-aware UL control mode (per D-02..D-08).
+        # Per-key explicit-presence flags are PRESENCE-BASED, never value-derived
+        # (Phase 200 D-03 Codex pre-review catch).
+        self.docsis_mode = ul.get("docsis_mode", False)
+        self._docsis_mode_explicit = "docsis_mode" in ul
+        self.setpoint_mbps = ul.get("setpoint_mbps")
+        self._setpoint_mbps_explicit = "setpoint_mbps" in ul
+        self.integral_window_seconds = ul.get("integral_window_seconds", 2.0)
+        self._integral_window_seconds_explicit = "integral_window_seconds" in ul
+        self.integral_threshold_ms_s = ul.get("integral_threshold_ms_s", 30.0)
+        self._integral_threshold_ms_s_explicit = "integral_threshold_ms_s" in ul
+        self.cake_backlog_low_threshold_bytes = ul.get(
+            "cake_backlog_low_threshold_bytes", 5000
+        )
+        self._cake_backlog_low_threshold_bytes_explicit = (
+            "cake_backlog_low_threshold_bytes" in ul
+        )
+        self.cake_delay_delta_low_threshold_us = ul.get(
+            "cake_delay_delta_low_threshold_us", 5000
+        )
+        self._cake_delay_delta_low_threshold_us_explicit = (
+            "cake_delay_delta_low_threshold_us" in ul
+        )
+
         # Validate upload floor ordering: red <= yellow <= green <= ceiling
         validate_bandwidth_order(
             name="upload",
@@ -436,6 +500,26 @@ class Config(BaseConfig):
                 f"target_bloat_ms ({self.upload_target_bloat_ms}) must be less than "
                 f"warn_bloat_ms ({self.upload_warn_bloat_ms})"
             )
+
+        # Phase 201 D-06: docsis_mode: true requires setpoint_mbps (validator
+        # fails closed). And the setpoint must satisfy floor < setpoint < ceiling
+        # (strict; D-09 + RESEARCH §3 Pitfall 2). Use the BPS forms because
+        # upload_floor_red and upload_ceiling are already in bps in the Config.
+        if self.docsis_mode and self.setpoint_mbps is None:
+            raise ValueError(
+                "continuous_monitoring.upload.docsis_mode: true requires "
+                "setpoint_mbps (D-06; validator fails closed)"
+            )
+        if self.docsis_mode and self.setpoint_mbps is not None:
+            setpoint_bps = float(self.setpoint_mbps) * MBPS_TO_BPS
+            if not (self.upload_floor_red < setpoint_bps < self.upload_ceiling):
+                raise ValueError(
+                    f"continuous_monitoring.upload.setpoint_mbps "
+                    f"({self.setpoint_mbps}) must satisfy "
+                    f"floor_mbps < setpoint_mbps < ceiling_mbps "
+                    f"(floor_red_bps={self.upload_floor_red}, "
+                    f"ceiling_bps={self.upload_ceiling})"
+                )
 
     def _load_ewma_alpha_config(self, thresh: dict) -> None:
         """Resolve EWMA alpha values from time constants or legacy alpha params."""
