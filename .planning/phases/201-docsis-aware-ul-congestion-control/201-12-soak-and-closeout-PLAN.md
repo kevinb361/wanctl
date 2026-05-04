@@ -92,6 +92,44 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        PHASE_DIR=.planning/phases/201-docsis-aware-ul-congestion-control
        ENV_FILE=/tmp/phase201-soak.env
 
+       # Strict env-file shape validator. Rejects ANY line that is not:
+       #   - empty/whitespace-only
+       #   - a comment (starts with #)
+       #   - KEY=value      (value: alphanumeric + . _ : / -; NO shell metachars)
+       #   - KEY="value"    (value: anything except double-quote, dollar, backtick,
+       #                     backslash — preventing command-substitution injection)
+       # Rationale: this file gets sourced by Step 4. `bash -n` is the WRONG check
+       # (it accepts any syntactically valid shell, including commands like
+       # `WARN: foo` or `rm -rf /` — both are parseable as shell, both execute on
+       # source). The right check is a content shape filter that allows ONLY
+       # assignment lines. (Round-7 fix: previous validation used bash -n which
+       # passes any parseable shell.)
+       validate_env_file() {
+           local file="$1"
+           local violations
+           violations=$(awk '
+               /^[[:space:]]*$/                                   { next }
+               /^[[:space:]]*#/                                   { next }
+               /^[a-zA-Z_][a-zA-Z0-9_]*=[A-Za-z0-9._\/:-]*$/      { next }
+               /^[a-zA-Z_][a-zA-Z0-9_]*="[^"$`\\]*"$/             { next }
+               { print "line " NR ": " $0 }
+           ' "$file")
+           if [[ -n "$violations" ]]; then
+               echo "ABORT: $file has lines that are NOT strict KEY=VALUE assignments:" >&2
+               echo "$violations" >&2
+               echo "ABORT: bash 'source' would execute non-assignment lines as commands. Inspect and clean before continuing." >&2
+               return 1
+           fi
+           return 0
+       }
+
+       # Pre-flight: validate the existing env file BEFORE we touch it. Catches
+       # contamination from prior buggy runs that the previous Step 1.5
+       # implementation could have introduced.
+       if [[ -f "$ENV_FILE" ]]; then
+           validate_env_file "$ENV_FILE" || exit 2
+       fi
+
        # Find the most recent canary verdict.json. `|| true` prevents set-e abort
        # on no-match; `2>/dev/null` suppresses ls's "no such file" stderr noise.
        CANARY_VERDICT=$(ls -1t "$PHASE_DIR"/canary/*/verdict.json 2>/dev/null | head -1 || true)
@@ -131,6 +169,19 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
            exit 2
        fi
 
+       # Validate the SOURCE label against the same shape rules before we write
+       # it. The fallback path's "live_health" is plain alphanumeric — passes the
+       # bare-value rule. The verdict.json path's "verdict.json:.planning/.../verdict.json"
+       # contains slash and colon — passes the bare-value rule
+       # ([A-Za-z0-9._/:-]). If a future code path produces a SOURCE that
+       # contains spaces, dollar signs, or backticks, this regex rejects it
+       # before write — preventing the lying-provenance class of round 6 from
+       # becoming the injection class of round 7.
+       if [[ ! "$SOURCE" =~ ^[A-Za-z0-9._/:-]+$ ]]; then
+           echo "ABORT: SOURCE label '$SOURCE' contains characters that would break sourceability. Either fix the producer to emit only [A-Za-z0-9._/:-] characters, or extend the validator AND the consumer to handle the new shape consistently." >&2
+           exit 2
+       fi
+
        # Atomic append: only key=value lines go into the sourceable env file.
        # Commentary goes to stderr, NOT into $ENV_FILE.
        {
@@ -138,25 +189,27 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
            echo "floor_hit_cycles_total_start_source=\"$SOURCE\""
        } >> "$ENV_FILE"
 
-       # Verify the env file is clean-sourceable before declaring Step 1.5 complete.
-       # If the file has any non-key=value lines (e.g., from a prior buggy run),
-       # this catches it now.
-       if ! bash -n <(grep -v '^[[:space:]]*$\|^[[:space:]]*#' "$ENV_FILE"); then
-           echo "ABORT: $ENV_FILE has non-sourceable lines. Inspect and clean before continuing." >&2
+       # Post-flight: re-validate the file after our writes. Confirms our own
+       # writes are conformant AND that nothing else (e.g., a concurrent process)
+       # contaminated the file mid-write. Strict shape check — NOT bash -n.
+       validate_env_file "$ENV_FILE" || {
+           echo "ABORT: post-write validation failed — Step 1.5 wrote a non-conformant line OR the file was contaminated mid-write. Inspect $ENV_FILE before continuing." >&2
            exit 2
-       fi
+       }
 
        # Operator-visible confirmation (stderr, not $ENV_FILE):
        echo "Step 1.5 complete: floor_hit_cycles_total_start=$FLOOR_HIT_T0 (source: $SOURCE) recorded in $ENV_FILE" >&2
        ```
 
-       **Why this is structured this way (lessons from rounds 1-6):**
+       **Why this is structured this way (lessons from rounds 1-7):**
        - `set -euo pipefail` so any unbound var or pipeline failure aborts; no silent partial writes.
        - `|| true` only on `ls` no-match (legitimate empty case), not on `jq`/`ssh` failures (those should propagate).
-       - The `SOURCE` variable is set inside each successful branch, never inferred post-hoc from leftover state, so the provenance label always matches the code path that actually produced the value.
-       - Strict regex validation (`^[0-9]+$`) — empty string, `null`, `"-1"`, `"1.0"` all rejected.
-       - The env file gets ONLY `key=value` lines, double-quoted where the value could contain a colon or path-separator. `bash -n` on a stripped copy verifies sourceability before exit.
-       - Commentary, warnings, success messages all go to **stderr**. The env file is data only; channel separation is enforced.
+       - The `SOURCE` variable is set inside each successful branch, never inferred post-hoc from leftover state, so the provenance label always matches the code path that actually produced the value (round-6 catch).
+       - Strict integer regex validation (`^[0-9]+$`) on the counter value — empty string, `null`, `"-1"`, `"1.0"` all rejected.
+       - The env file gets ONLY `key=value` lines, double-quoted where the value could contain a colon or path-separator. Commentary, warnings, success messages all go to **stderr**. The env file is data only; channel separation is enforced.
+       - **Validation uses `awk` shape filter, NOT `bash -n` (round-7 catch).** `bash -n` answers "is this parseable as shell?" — but `WARN: foo`, `echo hello`, `rm -rf /` are all parseable. They would be silently accepted by `bash -n` and then **executed** by `source`. The strict shape filter (empty / comment / `KEY=alphanumeric.colon.path` / `KEY="no-dollar-no-backtick-no-backslash"`) only allows assignment lines. Anything else is rejected with line numbers — regardless of whether bash could parse it.
+       - **The validator runs PRE-write AND POST-write.** Pre-write catches contamination from prior buggy runs (e.g., env files written by an earlier session with the broken Step 1.5 implementation). Post-write catches: (a) our own writes producing a non-conformant line, (b) concurrent process contamination mid-write.
+       - **The `SOURCE` label is itself validated against the bare-value charset before writing.** Prevents a future code path from producing a SOURCE string with spaces, `$`, or backticks that would break sourceability — the class of bug that turned round-6's lying-provenance into a potential injection vector.
 
        **Failure modes Step 1.5 closes:**
        - Step 1.5 skipped entirely → Step 4 detects missing `floor_hit_cycles_total_start` and authors `verdict: fail` with reason `soak_primary_gate_uncollectible_t0_baseline_missing`.
