@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
-status: blocked
-stopped_at: Completed 200-15-PLAN.md — Phase 200 closed as gaps_found
-last_updated: "2026-05-04T13:59:50.000Z"
-last_activity: 2026-05-04
+status: executing
+stopped_at: Completed 200-16-PLAN.md — Phase 200 sealed; VALN-06 deferred to Phase 201 (operator escalation 2026-05-04)
+last_updated: "2026-05-04T16:40:06.000Z"
+last_activity: 2026-05-04 -- Phase 200 execution started
 progress:
   total_phases: 1
-  completed_phases: 0
-  total_plans: 15
-  completed_plans: 15
+  completed_phases: 1
+  total_plans: 16
+  completed_plans: 16
   percent: 100
 ---
 
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 200-14-PLAN.md
+Stopped at: Completed 200-16-PLAN.md — Phase 200 sealed; VALN-06 deferred to Phase 201 (operator escalation 2026-05-04)
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -211,7 +211,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 200]: SAFE-05 expected counts for warn_bloat/target_bloat were bumped intentionally for v1.41 per-direction wiring; the other seven v1.40 pins remain drift detectors (D-09).
 - [Phase 200]: Validator emits WARNING, not hard-reject, on unknown continuous_monitoring keys at startup; this closes the silent-ignore gap that allowed prod spectrum.yaml to carry unrecognized UL keys without an audible warning (D-08, SAFE-06).
 - [Phase 200]: Saturation canary at 18 Mbit Spectrum UL is the primary deploy gate per D-07; the 24h regression soak is a watchdog and was blocked because the canary failed.
-- [Phase 200]: Rollback protocol predefined per D-10 was executed after the failed canary — /opt/wanctl was restored to v1.40 while YAML stayed in place as harmless no-op under the older binary.
+- [Phase 200]: Rollback protocol predefined per D-10 was executed after the failed canary — /opt/wanctl was restored to v1.40 while YAML stayed in place inactive under the older binary but requiring reconciliation before any future Spectrum deploy/restart.
 - [Phase 200]: Spectrum YAML adoption — ceiling 18 Mbit, factor_down_yellow 0.98, target_bloat_ms 42, warn_bloat_ms 105 — was implemented but failed production validation under saturated DOCSIS upload.
 - [Phase 200-09]: Operator approved R5+R3 for Plan 200-10 with factor_down_yellow=1.0 and clamp_count=40.
 - [Phase 200-11]: Canary helper tests use --self-test dispatch instead of fragile sed-range sourcing, preventing live canary env validation during unit tests.
@@ -225,6 +225,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 200]: Attempt 3 canary verdict=fail triggered immediate D-10 rollback; Task 4 soak was skipped per fail-closed branch semantics. — VALN-06 requires zero loaded-window floor hits; Attempt 3 had 4 floor samples despite improvement from Attempt 2.
 - [Phase 200]: Plan 200-15 should close Phase 200 as gaps_found. — The canary failed and the 24h soak was correctly skipped after rollback.
 - [Phase 200 gap closure]: Operator-provided Plan 200-15 execution context selected the Category B closeout branch: close Phase 200 as `gaps_found` based on Plan 200-14 Attempt 3 canary fail (4 UL floor hits), rollback from `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`, and skipped soak. VALN-06 remains unsatisfied; a second gap-closure cycle requires a new operator decision.
+- [Phase 200 closure 2026-05-04]: Operator escalated VALN-06 to Phase 201 (`docsis-aware-ul-congestion-control`) as an inherited blocking requirement rather than entering a second Phase 200 gap-closure cycle. Rationale: Phase 200's RETRO concluded the per-direction-thresholds hypothesis is the wrong fix; the residual 4 loaded-window floor hits live in a shaping-headroom regime that is Phase 201's seeded scope. No second remediation attempted; no production binary change (Spectrum on v1.40); v1.41 YAML keys remain on prod /etc/wanctl/spectrum.yaml inactive under v1.40 but MUST be reconciled before any future Spectrum deploy/restart — a Phase 201 predeploy gate is required.
 
 ## Performance Metrics
 
@@ -275,14 +276,14 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Blockers
 
-- Phase 200 remains gaps_found after gap-closure cycle 1: VALN-06 failed because Plan 200-14 Attempt 3 canary `20260504T133207Z` recorded 4 UL floor hits during the 900s loaded window; D-10 rollback restored `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`, the 24h soak was skipped fail-closed, and a second gap-closure cycle or operator escalation is pending.
+- VALN-06 inherited by Phase 201 (`docsis-aware-ul-congestion-control`) as a blocking requirement per operator escalation 2026-05-04. Phase 200 closed as `gaps_found` after gap-closure cycle 1: Plan 200-14 Attempt 3 canary `20260504T133207Z` improved loaded-window UL floor hits from 122 (Attempt 2) to 4 but did not reach the zero-hit gate; D-10 rollback restored `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`; the 24h soak was skipped fail-closed. No second Phase 200 remediation cycle was attempted; the residual failure regime is shaping-headroom dominated, which is Phase 201's scope. Production binary remains v1.40; v1.41 YAML keys remain on prod `/etc/wanctl/spectrum.yaml` and are inactive under v1.40 but MUST be reconciled before any future Spectrum deploy/restart (Phase 201 predeploy gate). See `200-VERIFICATION.md` `closure: deferred-to-phase-201`, `200-RETRO.md` `## Final Closure (2026-05-04)`, and `201-CONTEXT.md` `## Inherited Requirements`.
 - Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), `2026-04-23` (`64.40 Mbps`), `2026-04-23c` (`61.47 Mbps`), and `2026-04-24` (`70.95 Mbps`) FAIL samples against the old ATT RRUL download comparator. The `2026-04-24` run narrowed the issue because ATT tcp_12down and VoIP looked healthy and Spectrum throughput was strong, but it still did not close Phase 191. Phase 192 is allowed to proceed only under the explicit operator waiver in `192-PRECONDITION-WAIVER.md`.
 - Phase 196 remains blocked only for the deferred ATT canary because Phase 191 closure is still open; Spectrum VALN-04 and VALN-05a were closed by Phase 198 Plan 07 attempt 11 canonical promotion.
 - Pending follow-up created: `.planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md` tracks the required ATT cake-primary canary rerun after Phase 191 closes.
 
 ## Current Position
 
-Phase: 200 (per-direction-rtt-bloat-thresholds) — BLOCKED-2nd-stage / gaps_found
-Plan: 15 of 15
-Status: Closed as gaps_found; VALN-06 remains unsatisfied after Attempt 3 canary fail and skipped soak
+Phase: 200 (per-direction-rtt-bloat-thresholds) — CLOSED / gaps_found / VALN-06 deferred to Phase 201
+Plan: 16 of 16
+Status: Phase 200 sealed via operator-escalated deferral 2026-05-04; v1.41 milestone closed with VALN-06 carried forward to Phase 201 / v1.42 as an inherited blocking requirement. ARB-05, SAFE-06, DOCS-03 satisfied. Production on v1.40 binary post-rollback; v1.41 YAML keys remain on prod /etc/wanctl/spectrum.yaml and are inactive under v1.40 but MUST be reconciled before any future Spectrum deploy/restart (Phase 201 predeploy gate).
 Last activity: 2026-05-04
