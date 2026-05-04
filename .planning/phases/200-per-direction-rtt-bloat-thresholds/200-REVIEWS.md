@@ -1,7 +1,8 @@
 ---
 phase: 200
 reviewers: [codex]
-reviewed_at: 2026-05-03T23:54:21Z
+reviewed_at: 2026-05-04T00:24:15Z
+rounds: 2
 plans_reviewed:
   - 200-09-PLAN.md
   - 200-10-PLAN.md
@@ -10,13 +11,128 @@ plans_reviewed:
   - 200-13-PLAN.md
   - 200-14-PLAN.md
   - 200-15-PLAN.md
-findings:
-  high: 6
-  medium: 5
-  low: 2
-overall_risk: HIGH
+round_1:
+  findings: { high: 6, medium: 5, low: 2 }
+  overall_risk: HIGH
+round_2:
+  closed: 11
+  partially_closed: 3
+  new_findings: { high: 3, medium: 1, low: 1 }
+  overall_risk: HIGH
+  recommendation: one_more_revision_pass
 self_cli_skipped: claude
 ---
+
+# Cross-AI Plan Review — Phase 200 (Gap Closure)
+
+## Codex Review — Round 2 (post-revision, 2026-05-04T00:24:15Z)
+
+**Closure Verification**
+
+| Prior finding | Status | Fix if not closed |
+|---|---:|---|
+| 1. 200-10 targeted wrong file | CLOSED | UL decay is now scoped to `queue_controller.py`; line refs match live source. |
+| 2. 200-09 conflated 1Hz samples with 50ms cycles | PARTIALLY_CLOSED | Framing is fixed, but floor-run jq command A does not compile. Replace it and run with `set -o pipefail`. |
+| 3. R2 does not address dominant YELLOW regime | CLOSED | R2 is now explicitly weak/conditional and not recommended standalone. |
+| 4. R1 can worsen C2 | CLOSED | Plan now warns and requires C1 evidence before R1. |
+| 5. Missing R5 YAML-only YELLOW hold | PARTIALLY_CLOSED | R5 exists, but “always justifiable” is not evidence-to-ship. Require NDJSON evidence tying floor events to YELLOW/adjacent-YELLOW cascade. |
+| 6. New R2/R3 keys violate SAFE-06 unless registered | CLOSED | 200-10 now includes schema, `KNOWN_AUTORATE_PATHS`, tests, docs. |
+| 7. 200-09 causes incomplete | CLOSED | C1..C8 now cover measurement, CAKE apply, asymmetry, verdict artifacts, wiring. |
+| 8. R3 underspecified | PARTIALLY_CLOSED | Spec is precise, but pseudocode does not reset on any GREEN, only recovery GREEN. Reset on any non-YELLOW. |
+| 9. 200-11 sed extraction bug | CLOSED | `--self-test` replaces sed extraction. |
+| 10. 200-14 missing abort branch | CLOSED | `pass/fail/abort` are explicit. |
+| 11. 200-15 hybrid verified-with-soak-gap | CLOSED | Removed; Category D keeps canary truth as verified but phase status `gaps_found`. |
+| 12. REMOTE_YAML_PATH regex restrictive | CLOSED | Restriction is documented and intentional. |
+| 13. Docker build context ambiguous | CLOSED | Plan now requires `docker build -f docker/Dockerfile .` and root `.dockerignore`. |
+
+**New Findings**
+
+- **HIGH: 200-09 floor-run pipeline A is broken.**  
+  `jq -c '.wans[0].upload | {ts: .sampled_at_utc // null, ...}'` fails under jq 1.7 with `unexpected //`; without pipefail Python prints zero runs. Fix:
+  ```bash
+  set -o pipefail
+  jq -c '{ts: .sampled_at_utc, rate: .wans[0].upload.current_rate_mbps, state: .wans[0].upload.state}' "$NDJSON" | ...
+  ```
+
+- **HIGH: 200-10 R3 pseudocode violates “consecutive” semantics.**  
+  It resets `_yellow_decay_streak` only when `green_streak >= green_required`, so `YELLOWx3, GREENx1, YELLOW` still clamps. Fix: reset on any `zone != "YELLOW"` before returning hold/recovery, and add a single-GREEN interruption test.
+
+- **HIGH: 200-11 WR-02 tests won’t reach the remote-path validator.**  
+  Live-mode tests use `http://127.0.0.1:1/health`, but the script checks health before `REMOTE_YAML_PATH`; tests abort with `health_unreachable_or_shape_invalid`. Fix: add `--self-test validate_remote_yaml_path`, or move path validation before health preflight and test that path.
+
+- **MEDIUM: 200-09 analysis G is not an executable command.**  
+  The plan asks for true-YELLOW vs deadband counts but provides only a comment. Add a concrete jq/Python command and embed its output.
+
+- **LOW: 200-09 R2 text has a typo.**  
+  It says `consecutive_monitoring.upload.floor_guard_below_target_enabled`; should be `continuous_monitoring.upload.floor_guard_below_target_enabled`.
+
+**Confidence Check**
+
+Verified against live source:
+
+| Plan 200-10 interface ref | Live status |
+|---|---|
+| `queue_controller.py:24-42` constructor | MATCH |
+| `factor_down_yellow` default at line 34 | MATCH |
+| `adjust()` at `91-131` | MATCH |
+| `_compute_rate_3state()` at `223-231` | MATCH |
+| RED path line 226, GREEN line 228, YELLOW line 230 | MATCH |
+| `adjust_4state()` line 288 | MATCH |
+| DL `_compute_rate_4state()` lines 431/437 | MATCH |
+| `wan_controller.py:398-411` upload instantiation | MATCH |
+| `autorate_config.py:335-365` upload config load | MATCH |
+| `check_config_validators.py:28`, existing upload keys lines 67-69 | MATCH |
+| `configs/spectrum.yaml:68-76` upload section | MATCH |
+
+**Risk Assessment**
+
+**HIGH** until one more revision. The architecture/file targeting is much improved, but the plan still has execution blockers in the NDJSON evidence step and Plan 200-11 tests, plus an R3 logic bug in the proposed control-path pseudocode.
+
+**Recommendation**
+
+One more revision pass needed. Fix 200-09 command A/G, fix 200-11 WR-02 test strategy, and correct R3 reset semantics before execution.
+
+---
+
+## Round 2 Consensus Summary
+
+### Closure Status
+- **11 of 13 round-1 findings CLOSED.** All HIGH-severity file-targeting and SAFE-06 violations resolved cleanly.
+- **3 PARTIALLY_CLOSED** require minor revision (200-09 R5 evidence-to-ship still hand-wavy, 200-10 R3 pseudocode logic bug, 200-09 framing shift OK but pipeline broken).
+- **5 NEW findings** introduced during revision (3 HIGH, 1 MEDIUM, 1 LOW). All concrete, all fixable in one targeted revision pass.
+
+### Top New Concerns
+1. **HIGH**: 200-09 floor-run jq pipeline A uses `// null` syntax that jq 1.7 rejects (`unexpected //`). Without `set -o pipefail`, pipeline silently produces zero runs and Plan 09 looks healthy while producing no evidence.
+2. **HIGH**: 200-10 R3 pseudocode resets `_yellow_decay_streak` only when `green_streak >= green_required`, so `YELLOW×3, GREEN×1, YELLOW` still clamps — violates "consecutive YELLOW decay" semantics. Fix: reset on any zone != YELLOW.
+3. **HIGH**: 200-11 WR-02 live-mode tests use `http://127.0.0.1:1/health` which fails the script's health preflight BEFORE reaching the path validator under test. Tests pass for the wrong reason (`health_unreachable_or_shape_invalid`), not for the validator they're supposedly exercising.
+4. **MEDIUM**: 200-09 analysis G ("true-YELLOW vs deadband counts") is just a comment, no executable command.
+5. **LOW**: 200-09 R2 typo `consecutive_monitoring.upload.floor_guard_below_target_enabled` → should be `continuous_monitoring.upload...`.
+
+### Confidence Check (Codex verified line numbers against live source — ALL MATCH)
+- `queue_controller.py:24-42` ctor ✓
+- `factor_down_yellow` default at line 34 ✓
+- `adjust()` at lines 91-131 ✓
+- `_compute_rate_3state()` at lines 223-231 ✓
+- RED at 226, GREEN at 228, YELLOW at 230 ✓
+- DL guard zone: `adjust_4state()` 288, `_compute_rate_4state()` 431/437 ✓
+- `wan_controller.py:398-411` UL instantiation ✓
+- `autorate_config.py:335-365` UL config load ✓
+- `check_config_validators.py:28, 67-69` ✓
+- `configs/spectrum.yaml:68-76` ✓
+
+### Recommendation
+**One more revision pass needed** before execution. Three HIGH-severity findings are surgical fixes (one jq command, one streak-reset condition, one test-strategy swap). Risk drops to LOW after these are addressed.
+
+### Action Required
+Run `/gsd-plan-phase 200 --reviews` to address the round-2 findings:
+- 200-09: fix jq pipeline A syntax (`// null` after `|` is invalid in jq 1.7); add `set -o pipefail`; flesh out analysis G with executable command; fix `consecutive_monitoring` typo; add NDJSON evidence requirement for R5 ship-decision (not just "always justifiable").
+- 200-10: fix R3 pseudocode reset condition to `zone != YELLOW` (not `green_streak >= green_required`); add the "single-GREEN interruption" test case.
+- 200-11: add `--self-test validate_remote_yaml_path` mode that bypasses health preflight, OR move path validation before health preflight in the script and test against the new ordering.
+
+---
+
+## Codex Review — Round 1 (initial, archived)
+
 
 # Cross-AI Plan Review — Phase 200 (Gap Closure)
 
@@ -90,7 +206,6 @@ The gap-closure set is strong around evidence capture, fail-closed canary gating
 
 **Overall risk: HIGH** until Plan 200-09/200-10 are revised. The supporting fixes are mostly low-risk, and Plan 200-14 is broadly fail-closed, but the remediation branch design can easily ship a change that does not address the failure. The most likely hidden bug is choosing R1 or R2 while the actual mechanism is repeated YELLOW decay in `QueueController`; that would burn another production canary and rollback without learning enough.
 
----
 
 ## Consensus Summary
 
