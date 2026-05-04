@@ -3452,3 +3452,265 @@ class TestBurstClamp:
 
         assert new_rate == 500_000_000
         assert ctrl.current_rate == 500_000_000
+
+
+# Phase 201 Wave 0 RED scaffolding — implementation in Plans 201-04 / 201-05.
+# Phase 201 Wave 0 RED scaffolding — Plan 201-02 stubs.
+# Implementation lands in Plans 201-03 (config/validator),
+# 201-04 (controller core), 201-05 (telemetry / wan_controller),
+# 201-07 (predeploy gate), 201-08 (canary extension).
+
+
+def _make_docsis_controller(
+    *,
+    docsis_mode: bool = True,
+    setpoint_bps: int | None = 12_000_000,
+    integral_window_seconds: float = 2.0,
+    integral_threshold_ms_s: float = 30.0,
+    cake_backlog_low_threshold_bytes: int = 5000,
+    cake_delay_delta_low_threshold_us: int = 5000,
+):
+    """Construct a QueueController with Phase 201 DOCSIS-mode kwargs.
+
+    Mirrors the shape that Plan 201-04 will land in
+    `src/wanctl/queue_controller.py`. This helper deliberately uses the
+    NEW keyword-only signature so tests fail loud if Plan 201-04 forgets
+    to add a kwarg.
+    """
+    return QueueController(
+        name="TestUpload-DOCSIS",
+        floor_green=8_000_000,
+        floor_yellow=8_000_000,
+        floor_soft_red=8_000_000,
+        floor_red=8_000_000,
+        ceiling=18_000_000,
+        step_up=5_000_000,
+        factor_down=0.90,
+        factor_down_yellow=1.0,
+        green_required=3,
+        dwell_cycles=3,
+        deadband_ms=3.0,
+        consecutive_yellow_decay_clamp=40,
+        docsis_mode=docsis_mode,
+        setpoint_bps=setpoint_bps,
+        integral_window_seconds=integral_window_seconds,
+        integral_threshold_ms_s=integral_threshold_ms_s,
+        cake_backlog_low_threshold_bytes=cake_backlog_low_threshold_bytes,
+        cake_delay_delta_low_threshold_us=cake_delay_delta_low_threshold_us,
+    )
+
+
+def _cake_snapshot(*, backlog_bytes=0, max_delay_delta_us=0, cold_start=False):
+    return CakeSignalSnapshot(
+        drop_rate=0.0,
+        total_drop_rate=0.0,
+        backlog_bytes=backlog_bytes,
+        peak_delay_us=max_delay_delta_us + 100,
+        tins=(),
+        cold_start=cold_start,
+        avg_delay_us=max_delay_delta_us + 50,
+        base_delay_us=50,
+        max_delay_delta_us=max_delay_delta_us,
+    )
+
+
+class TestDocsisModeIntegralClassifier:
+    def test_window_not_full_is_exhausted(self):
+        ctrl = _make_docsis_controller()
+        for _ in range(5):
+            integral, state = ctrl._update_integral(1.0)
+        assert state == "EXHAUSTED"
+
+    def test_full_idle_window_is_available(self):
+        ctrl = _make_docsis_controller(integral_threshold_ms_s=30.0)
+        for _ in range(40):
+            integral, state = ctrl._update_integral(0.0)
+        assert state == "AVAILABLE"
+        assert integral == pytest.approx(0.0, abs=1e-9)
+
+    def test_full_loaded_window_is_exhausted(self):
+        ctrl = _make_docsis_controller(integral_threshold_ms_s=30.0)
+        for _ in range(40):
+            integral, state = ctrl._update_integral(30.0)
+        assert state == "EXHAUSTED"
+        assert integral > 30.0
+
+    def test_negative_delta_clamped_to_zero(self):
+        ctrl = _make_docsis_controller(integral_threshold_ms_s=30.0)
+        for _ in range(40):
+            integral, state = ctrl._update_integral(-5.0)
+        assert integral == pytest.approx(0.0, abs=1e-9)
+        assert state == "AVAILABLE"
+
+
+class TestDocsisModeSetpointClamp:
+    def test_clamp_at_setpoint_when_headroom_exhausted(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 12_000_000
+        ctrl._headroom_state = "EXHAUSTED"
+        ctrl._cake_aligned = False
+        ctrl.green_streak = ctrl.green_required
+        rate = ctrl._compute_rate_3state("GREEN")
+        assert rate <= 12_000_000
+
+    def test_lift_toward_ceiling_when_both_signals_aligned(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 12_000_000
+        ctrl._headroom_state = "AVAILABLE"
+        ctrl._cake_aligned = True
+        ctrl.green_streak = ctrl.green_required
+        rate = ctrl._compute_rate_3state("GREEN")
+        assert rate > 12_000_000
+
+    def test_clamp_when_headroom_available_but_cake_misaligned(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 12_000_000
+        ctrl._headroom_state = "AVAILABLE"
+        ctrl._cake_aligned = False
+        ctrl.green_streak = ctrl.green_required
+        rate = ctrl._compute_rate_3state("GREEN")
+        assert rate <= 12_000_000
+
+    def test_red_decay_takes_rate_below_setpoint(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 12_000_000
+        ctrl.red_streak = 1
+        rate = ctrl._compute_rate_3state("RED")
+        assert rate < 12_000_000
+
+
+class TestDocsisModeCakeCorroborator:
+    def test_cold_start_returns_false(self):
+        ctrl = _make_docsis_controller()
+        snap = _cake_snapshot(cold_start=True)
+        assert ctrl._is_cake_aligned_for_pushup(snap) is False
+
+    def test_high_backlog_returns_false(self):
+        ctrl = _make_docsis_controller(cake_backlog_low_threshold_bytes=5000)
+        snap = _cake_snapshot(backlog_bytes=10_000, max_delay_delta_us=0)
+        assert ctrl._is_cake_aligned_for_pushup(snap) is False
+
+    def test_high_delay_delta_returns_false(self):
+        ctrl = _make_docsis_controller(cake_delay_delta_low_threshold_us=5000)
+        snap = _cake_snapshot(backlog_bytes=0, max_delay_delta_us=10_000)
+        assert ctrl._is_cake_aligned_for_pushup(snap) is False
+
+    def test_both_low_and_warm_returns_true(self):
+        ctrl = _make_docsis_controller(
+            cake_backlog_low_threshold_bytes=5000,
+            cake_delay_delta_low_threshold_us=5000,
+        )
+        snap = _cake_snapshot(backlog_bytes=100, max_delay_delta_us=100)
+        assert ctrl._is_cake_aligned_for_pushup(snap) is True
+
+    def test_none_snapshot_returns_false(self):
+        ctrl = _make_docsis_controller()
+        assert ctrl._is_cake_aligned_for_pushup(None) is False
+
+
+class TestDocsisModeByteIdentity:
+    def test_legacy_path_unchanged_when_docsis_disabled(self):
+        legacy = QueueController(
+            name="L",
+            floor_green=8_000_000,
+            floor_yellow=8_000_000,
+            floor_soft_red=8_000_000,
+            floor_red=8_000_000,
+            ceiling=18_000_000,
+            step_up=5_000_000,
+            factor_down=0.90,
+            factor_down_yellow=1.0,
+            green_required=3,
+            dwell_cycles=3,
+            deadband_ms=3.0,
+            consecutive_yellow_decay_clamp=40,
+        )
+        docsis_off = _make_docsis_controller(docsis_mode=False, setpoint_bps=None)
+        deltas = [(i % 7) * 1.5 for i in range(60)]
+        legacy_trace, docsis_trace = [], []
+        for delta in deltas:
+            l_zone, l_rate, _ = legacy.adjust(22.0, 22.0 + delta, 5.0, 15.0)
+            o_zone, o_rate, _ = docsis_off.adjust(22.0, 22.0 + delta, 5.0, 15.0)
+            legacy_trace.append((l_zone, l_rate))
+            docsis_trace.append((o_zone, o_rate))
+        assert legacy_trace == docsis_trace
+
+
+class TestRedFastTripUnchangedDocsisMode:
+    def test_red_immediate_decay_regardless_of_integral_state(self):
+        ctrl = _make_docsis_controller()
+        ctrl.current_rate = 12_000_000
+        ctrl._headroom_state = "AVAILABLE"
+        ctrl._cake_aligned = True
+        zone, rate, _ = ctrl.adjust(22.0, 22.0 + 50.0, target_delta=5.0, warn_delta=15.0)
+        assert zone == "RED"
+        assert rate < 12_000_000
+
+
+class TestDocsisModeAboveSetpointYellowPulldown:
+    def test_above_setpoint_yellow_pulls_to_setpoint(self):
+        """REVIEWS MED-4: above-setpoint hold-in-YELLOW must pull DOWN."""
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 15_000_000
+        ctrl._headroom_state = "EXHAUSTED"
+        ctrl._cake_aligned = False
+        ctrl.yellow_streak = ctrl.dwell_cycles + 1
+        rate = ctrl._compute_rate_3state("YELLOW")
+        assert rate <= 12_000_000, (
+            f"YELLOW above-setpoint hold violation: rate={rate} > setpoint=12_000_000. "
+            "factor_down_yellow=1.0 + setpoint clamp must pull DOWN under sustained YELLOW."
+        )
+
+    def test_above_setpoint_yellow_legacy_unaffected(self):
+        """D-17 invariant: docsis_mode=False keeps legacy YELLOW semantics."""
+        legacy = QueueController(
+            name="L",
+            floor_green=8_000_000,
+            floor_yellow=8_000_000,
+            floor_soft_red=8_000_000,
+            floor_red=8_000_000,
+            ceiling=18_000_000,
+            step_up=5_000_000,
+            factor_down=0.90,
+            factor_down_yellow=1.0,
+            green_required=3,
+            dwell_cycles=3,
+            deadband_ms=3.0,
+            consecutive_yellow_decay_clamp=40,
+        )
+        legacy.current_rate = 15_000_000
+        legacy.yellow_streak = legacy.dwell_cycles + 1
+        rate_legacy = legacy._compute_rate_3state("YELLOW")
+        assert rate_legacy is not None
+
+
+class TestDocsisModeFloorHitCounter:
+    def test_floor_hit_counter_starts_at_zero(self):
+        ctrl = _make_docsis_controller()
+        assert getattr(ctrl, "floor_hit_cycles", None) == 0
+
+    def test_floor_hit_counter_increments_when_rate_hits_floor(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 12_000_000
+        ctrl.red_streak = 100
+        for _ in range(50):
+            rate = ctrl._compute_rate_3state("RED")
+            ctrl.current_rate = rate
+            if rate == ctrl.floor_red_bps:
+                break
+        else:
+            assert False, "expected RED decay to reach floor in 50 cycles"
+        assert ctrl.floor_hit_cycles >= 1, (
+            f"floor_hit_cycles should be >= 1 after a floor-hit cycle; got {ctrl.floor_hit_cycles}"
+        )
+
+    def test_floor_hit_counter_does_not_increment_when_above_floor(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 12_000_000
+        ctrl._headroom_state = "AVAILABLE"
+        ctrl._cake_aligned = True
+        ctrl.green_streak = ctrl.green_required
+        before = ctrl.floor_hit_cycles
+        rate = ctrl._compute_rate_3state("GREEN")
+        assert rate > ctrl.floor_red_bps
+        assert ctrl.floor_hit_cycles == before
