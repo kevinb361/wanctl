@@ -22,7 +22,7 @@ must_haves:
     - "wanctl@spectrum.service restarted; /health.wans[].upload.docsis_mode_active reports true"
     - "Canary preflight passed: env-vs-YAML cross-check, /health DOCSIS-mode probe, remote-deps check all green"
     - "10-15 min iperf3 -P4 saturated UL canary at 18 Mbit ceiling completed"
-    - "verdict.json reports ul_floor_hits_during_load = 0 (VALN-06 zero-floor-hit gate; D-13 NO RELAXATION)"
+    - "verdict.json reports `verdict: pass` AND `floor_hit_cycles_total_delta_loaded_window == 0` (REVIEWS HIGH-5 PRIMARY VALN-06 gate). The canary script (Plan 08-T3) sets `verdict: pass` ONLY when this counter delta is zero AND-coupled with `ul_floor_hits_during_load == 0` (1 Hz snapshot, retained as SECONDARY cross-check); disagreement between the two produces `verdict: fail` with a diagnostic reason — never `verdict: pass`. D-13 NO RELAXATION applies to both metrics."
     - "Pre/post idle baseline RTTs bookend the run (proves fault-isolation on the test path itself)"
     - "REVIEWS HIGH-7 (2026-05-04): rollback restores BOTH /opt/wanctl (binary archive) AND /etc/wanctl/spectrum.yaml (from spectrum.yaml.prephase201 snapshot taken in Task 1 step 0); rollback verification asserts /etc/wanctl/spectrum.yaml no longer contains 'docsis_mode:' after rollback completes — leaving v1.42 YAML keys under v1.40 binary is undefined behavior"
     - "REVIEWS HIGH-5 (2026-05-04): canary verdict gates on `floor_hit_cycles_total` DELTA across the loaded window (computed as end-of-loaded-window minus start-of-loaded-window from /health.wans[0].upload.floor_hit_cycles_total). Delta == 0 is the VALN-06 PASS condition. 1 Hz /health snapshot rate-comparison is RETAINED as a secondary cross-check but is NOT the primary gate (1 Hz is 1000x coarser than the 50ms cycle interval — would miss sub-second floor touches)."
@@ -30,8 +30,8 @@ must_haves:
     - "On canary PASS: operator approves Plan 201-12 (24h soak)"
   artifacts:
     - path: .planning/phases/201-docsis-aware-ul-congestion-control/canary/<TIMESTAMP>/verdict.json
-      provides: "Canary verdict per phase200-saturation-canary.sh schema"
-      contains: "ul_floor_hits_during_load"
+      provides: "Canary verdict per phase200-saturation-canary.sh schema (extended in Plan 08-T3 with cycle-fidelity counter-delta primary-gate fields)"
+      contains: "floor_hit_cycles_total_delta_loaded_window"
     - path: .planning/phases/201-docsis-aware-ul-congestion-control/201-11-CANARY-VERDICT.md
       provides: "Operator-readable canary outcome + decisions"
       contains: "Canary verdict"
@@ -292,7 +292,7 @@ Output: timestamped canary directory with the standard Phase 200 capture shape; 
 </threat_model>
 
 <verification>
-- canary/<TIMESTAMP>/verdict.json exists with `verdict == "pass"` AND `ul_floor_hits_during_load == 0`.
+- canary/<TIMESTAMP>/verdict.json exists with `verdict == "pass"` AND `floor_hit_cycles_total_delta_loaded_window == 0` (PRIMARY — cycle-fidelity 50ms counter delta, REVIEWS HIGH-5) AND `ul_floor_hits_during_load == 0` (SECONDARY cross-check). The canary script (Plan 08-T3) writes `verdict: pass` only when ALL THREE hold; disagreement is FAIL with a diagnostic `reason`.
 - 201-11-CANARY-VERDICT.md committed with operator decision.
 - Pre-deploy archive path recorded.
 - Predeploy gate ran twice (first BLOCK to surface keys, second PASS after reconcile).
@@ -301,7 +301,7 @@ Output: timestamped canary directory with the standard Phase 200 capture shape; 
 </verification>
 
 <success_criteria>
-- Primary VALN-06 gate passed live: zero loaded-window floor hits.
+- Primary VALN-06 gate passed live: `floor_hit_cycles_total_delta_loaded_window == 0` (cycle-fidelity 50ms counter, REVIEWS HIGH-5) AND `ul_floor_hits_during_load == 0` (1 Hz snapshot SECONDARY cross-check) — both must be zero with no disagreement, enforced by the canary script's verdict-decision logic in Plan 08-T3.
 - D-13 zero-floor-hit gate honored without relaxation.
 - D-10 rollback protocol available and exercised on fail.
 - Predeploy gate proven against production state.

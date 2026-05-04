@@ -18,13 +18,15 @@ must_haves:
     - "Canary preflight asserts /health.wans[0].upload.docsis_mode_active is present-and-true with three-branch logic (absent / false / true / invalid)"
     - "Canary preflight prechecks remote python3+pyyaml availability (closes WR-02)"
     - "Canary capture loop records cake_signal.upload.max_delay_delta_us at the existing 1 Hz cadence (closes 201-01-CORPUS-AUDIT.md gap for v1.43+ replay corpus)"
+    - "REVIEWS HIGH-5 closure: canary script's verdict-decision is gated on floor_hit_cycles_total_delta_loaded_window == 0 AND-coupled with ul_floor_hits_during_load == 0 (snapshot). Disagreement between the two produces FAIL with a diagnostic verdict reason, NOT PASS. verdict.json publishes start/end/delta of the counter and a `primary_gate` field naming counter-delta as authoritative. The legacy single-gate `[[ snapshot == 0 ]] && write_pass_verdict` pattern is removed entirely."
     - "env-template gains PHASE201_DOCSIS_MODE and PHASE201_SETPOINT_MBPS commented examples"
     - "All TestPhase201Preflight cases pass (six cases from Plan 201-02 Wave 0 stubs)"
+    - "All TestPhase201CounterDeltaVerdict cases pass (six cases — pass / primary_fail / secondary_disagreement / both_fail / field_missing / negative_delta)"
     - "Pre-existing canary self-tests still pass (no regression to Phase 200 hardening)"
   artifacts:
     - path: scripts/phase200-saturation-canary.sh
-      provides: "D-12 preflight extension: env-vs-YAML cross-check for new keys; /health DOCSIS-mode probe; remote-deps precheck; max_delay_delta_us capture"
-      contains: "PHASE201_DOCSIS_MODE"
+      provides: "D-12 preflight extension: env-vs-YAML cross-check for new keys; /health DOCSIS-mode probe; remote-deps precheck; max_delay_delta_us capture; REVIEWS HIGH-5 counter-delta verdict-decision wiring"
+      contains: "floor_hit_cycles_total_delta_loaded_window"
     - path: scripts/phase200-saturation-canary.env.example
       provides: "Operator-facing env template additions"
       contains: "PHASE201_DOCSIS_MODE"
@@ -351,6 +353,143 @@ Therefore, this task is **scripts-only verification + documentation**:
     <automated>grep -q 'max_delay_delta_us' src/wanctl/wan_controller.py &amp;&amp; .venv/bin/pytest -o addopts='' tests/test_phase_195_replay.py::test_safe05_threshold_name_counts_are_unchanged -v</automated>
   </verify>
   <done>cake_signal.upload.max_delay_delta_us present in /health output and therefore in canary capture NDJSON; SAFE-05 baseline absorbed any new occurrence; 201-08-SUMMARY documents the disposition.</done>
+</task>
+
+<task type="auto" tdd="true">
+  <name>Task 3: Wire floor_hit_cycles_total counter-delta into the verdict-decision logic (REVIEWS HIGH-5 closure — primary gate must actually GATE, not just be labeled "primary")</name>
+  <files>scripts/phase200-saturation-canary.sh, tests/test_phase200_canary_script.py</files>
+  <read_first>
+    - scripts/phase200-saturation-canary.sh (full read; locate via grep first: `grep -n "write_pass_verdict\|write_fail_verdict\|write_abort_verdict\|verdict\.json\|ul_floor_hits_during_load\|verdict_pass\|verdict_fail" scripts/phase200-saturation-canary.sh`)
+    - .planning/phases/201-docsis-aware-ul-congestion-control/201-REVIEWS.md "Top HIGH Concerns #5" (verdict-script vs verdict-interpreter separation)
+    - .planning/phases/201-docsis-aware-ul-congestion-control/201-04-controller-core-PLAN.md (counter increment sites — confirms self.upload.floor_hit_cycles is monotonic per-process)
+    - .planning/phases/201-docsis-aware-ul-congestion-control/201-05-wan-controller-and-health-PLAN.md (confirms `/health.wans[0].upload.floor_hit_cycles_total` is an additive runtime field that mirrors self.upload.floor_hit_cycles)
+    - tests/test_phase200_canary_script.py (existing test file Plan 02 stubbed; locate the new TestPhase201CounterDeltaVerdict test class added by Plan 02-T2)
+  </read_first>
+  <action>
+**Purpose (REVIEWS HIGH-5 closure):** The HIGH-5 fix added a `floor_hit_cycles_total` counter and labeled it the "PRIMARY VALN-06 gate" in Plan 11. But the canary script — the actual agent that writes `verdict.json` and decides `verdict: pass/fail` — was not amended to gate on the counter delta. This task closes the loop: the script's verdict-decision uses counter_delta as the gate, AND-coupled with the legacy 1 Hz snapshot count. Disagreement between the two is itself a FAIL with a diagnostic verdict reason.
+
+**Step 1 — Snapshot the counter at loaded-window boundaries.**
+
+The canary script already brackets the loaded window with start/end timestamps (`LOADED_START_TS`, `LOADED_END_TS` — search the script for these). Add two new captures:
+
+```bash
+# Around the existing LOADED_START_TS capture in the canary script:
+LOADED_START_FLOOR_HIT_CYCLES_TOTAL=$(fetch_health_sample | jq -r '.wans[0].upload.floor_hit_cycles_total // "missing"')
+if [[ "$LOADED_START_FLOOR_HIT_CYCLES_TOTAL" == "missing" ]]; then
+    write_abort_verdict "phase201_floor_hit_counter_field_missing"
+    exit $EXIT_ABORT
+fi
+
+# Around the existing LOADED_END_TS capture:
+LOADED_END_FLOOR_HIT_CYCLES_TOTAL=$(fetch_health_sample | jq -r '.wans[0].upload.floor_hit_cycles_total // "missing"')
+if [[ "$LOADED_END_FLOOR_HIT_CYCLES_TOTAL" == "missing" ]]; then
+    write_abort_verdict "phase201_floor_hit_counter_field_missing"
+    exit $EXIT_ABORT
+fi
+
+FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW=$(( LOADED_END_FLOOR_HIT_CYCLES_TOTAL - LOADED_START_FLOOR_HIT_CYCLES_TOTAL ))
+if (( FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW < 0 )); then
+    # Counter went BACKWARDS — process restart mid-window or counter reset bug.
+    # Treat as ABORT (cannot trust the gate).
+    write_abort_verdict "phase201_floor_hit_counter_delta_negative"
+    exit $EXIT_ABORT
+fi
+```
+
+The "missing" branch closes the case where Plan 05's /health field somehow didn't ship (e.g., a partial deploy). The negative-delta branch closes the case where the controller process restarted mid-canary (counter would reset to 0). Both ABORT, not FAIL — they're environment problems, not control-model failures.
+
+**Step 2 — Gate verdict-decision on counter delta AND-coupled with the legacy snapshot count.**
+
+Locate the existing verdict-decision block (likely a function `decide_loaded_window_verdict` or inline near `write_pass_verdict` / `write_fail_verdict` calls — grep `ul_floor_hits_during_load` to find the existing site). Replace its single-condition gate with the AND-coupled gate:
+
+```bash
+# Existing pattern (Phase 200): verdict: pass iff ul_floor_hits_during_load == 0
+# REVIEWS HIGH-5 amended pattern: verdict: pass iff BOTH gates green AND no disagreement.
+
+if [[ "$UL_FLOOR_HITS_DURING_LOAD" == "0" ]] && (( FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW == 0 )); then
+    write_pass_verdict
+elif [[ "$UL_FLOOR_HITS_DURING_LOAD" == "0" ]] && (( FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW > 0 )); then
+    # 1 Hz snapshot missed sub-second floor touches the cycle-fidelity counter caught.
+    # This is the EXACT scenario REVIEWS HIGH-5 was designed to catch — the legacy
+    # snapshot would have written verdict: pass and silently failed VALN-06.
+    # FAIL with a diagnostic reason so operators see the gap.
+    write_fail_verdict "primary_gate_floor_hit_cycles_delta_${FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW}_snapshot_zero_disagreement"
+elif [[ "$UL_FLOOR_HITS_DURING_LOAD" != "0" ]] && (( FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW == 0 )); then
+    # Snapshot saw floor at a 1 Hz tick but counter delta is 0 — impossible unless
+    # /health.upload.floor_hit_cycles_total mirroring lags or there's a serialization
+    # bug. Treat as FAIL with a diagnostic so the bug surfaces.
+    write_fail_verdict "secondary_gate_disagreement_snapshot_${UL_FLOOR_HITS_DURING_LOAD}_counter_delta_zero"
+else
+    # Both gates report floor hits — clean FAIL.
+    write_fail_verdict "ul_floor_hits_during_load_${UL_FLOOR_HITS_DURING_LOAD}_counter_delta_${FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW}"
+fi
+```
+
+Both single-gate-zero-disagreement cases FAIL (not pass), making counter delta a true gate. The legacy `ul_floor_hits_during_load == 0` path alone NEVER produces `verdict: pass` — only the AND-coupled green case does.
+
+**Step 3 — Extend the verdict.json schema.**
+
+Update `write_pass_verdict` and `write_fail_verdict` (or whatever the existing helpers are named — grep for them) to also emit:
+
+```json
+{
+  "verdict": "pass" | "fail" | "abort",
+  "reason": "...",
+  "ul_floor_hits_during_load": <int>,                          // legacy 1 Hz snapshot count (SECONDARY)
+  "floor_hit_cycles_total_loaded_window_start": <int>,         // NEW (HIGH-5)
+  "floor_hit_cycles_total_loaded_window_end": <int>,           // NEW (HIGH-5)
+  "floor_hit_cycles_total_delta_loaded_window": <int>,         // NEW (HIGH-5) — PRIMARY gate metric
+  "primary_gate": "floor_hit_cycles_total_delta_loaded_window",// NEW — names the authoritative gate
+  "primary_gate_value": <int>,                                 // NEW — copy of delta for convenience
+  ...
+}
+```
+
+The `primary_gate` string field is operator-readable proof that the script considers counter-delta authoritative; the value field makes operator dashboards trivial.
+
+**Step 4 — Add self-tests via the existing `--self-test` dispatcher** (mirror the Phase 200 self-test pattern):
+
+- `--self-test phase201-counter-delta-pass` — synthesizes start=100, end=100, snapshot=0; expect `verdict: pass`.
+- `--self-test phase201-counter-delta-primary-fail` — synthesizes start=100, end=104 (4 hits, matching Phase 200 Attempt 3), snapshot=0; expect `verdict: fail` with reason `primary_gate_floor_hit_cycles_delta_4_snapshot_zero_disagreement`.
+- `--self-test phase201-counter-delta-secondary-disagreement` — synthesizes start=100, end=100 (counter delta 0), snapshot=2; expect `verdict: fail` with reason starting `secondary_gate_disagreement`.
+- `--self-test phase201-counter-delta-both-fail` — synthesizes start=100, end=104, snapshot=4; expect `verdict: fail` with reason `ul_floor_hits_during_load_4_counter_delta_4`.
+- `--self-test phase201-counter-delta-field-missing` — synthesizes /health response with no `floor_hit_cycles_total` field; expect `verdict: abort` with reason `phase201_floor_hit_counter_field_missing`.
+- `--self-test phase201-counter-delta-negative` — synthesizes start=100, end=80 (process restart mid-window); expect `verdict: abort` with reason `phase201_floor_hit_counter_delta_negative`.
+
+Each self-test sub-command sets up env vars / mock /health responses and asserts the verdict.json output without invoking real ssh/iperf3.
+
+**Step 5 — Pytest stubs** (Plan 02-T2 should have created `TestPhase201CounterDeltaVerdict` — extend it here):
+
+Add 6 cases that drive the canary script's `--self-test` dispatcher and assert the verdict reasons. Pattern mirrors existing Phase 200 self-test pytest cases.
+
+**Step 6 — env-template addition.**
+
+Add to `scripts/phase200-saturation-canary.env.example`:
+```
+# Phase 201 (REVIEWS HIGH-5): cycle-fidelity floor-hit counter delta is the
+# PRIMARY VALN-06 gate. The canary script reads /health.wans[0].upload.floor_hit_cycles_total
+# at loaded-window start and end, and FAILS the canary if delta != 0
+# regardless of the 1 Hz snapshot rate compare. No env var needed — the
+# script reads /health directly.
+```
+  </action>
+  <acceptance_criteria>
+    - `grep -c 'floor_hit_cycles_total_delta_loaded_window' scripts/phase200-saturation-canary.sh` returns >= 4 (capture x2, gate x1, verdict.json field x1).
+    - `grep -c 'phase201_floor_hit_counter_field_missing' scripts/phase200-saturation-canary.sh` returns >= 1 (ABORT path).
+    - `grep -c 'phase201_floor_hit_counter_delta_negative' scripts/phase200-saturation-canary.sh` returns >= 1 (ABORT path).
+    - `grep -c 'primary_gate_floor_hit_cycles_delta' scripts/phase200-saturation-canary.sh` returns >= 1 (FAIL reason for snapshot-zero counter-nonzero — the exact scenario HIGH-5 prevents).
+    - `grep -c 'secondary_gate_disagreement' scripts/phase200-saturation-canary.sh` returns >= 1 (FAIL reason for snapshot-nonzero counter-zero diagnostic).
+    - `grep -Ec '"primary_gate"\s*:\s*"floor_hit_cycles_total_delta_loaded_window"' scripts/phase200-saturation-canary.sh` returns >= 1 (verdict.json schema field that operators can grep on).
+    - **No remaining single-gate verdict.** `grep -Ec 'write_pass_verdict\(\)' scripts/phase200-saturation-canary.sh` returns >= 1, but every call site is preceded within 5 lines by both `UL_FLOOR_HITS_DURING_LOAD` and `FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW` checks (verify via `awk` or manual inspection during code review). The legacy single-gate `[[ "$UL_FLOOR_HITS_DURING_LOAD" == "0" ]] && write_pass_verdict` pattern MUST NOT remain anywhere: `grep -Ec 'UL_FLOOR_HITS_DURING_LOAD.*==.*0.*&&.*write_pass_verdict' scripts/phase200-saturation-canary.sh` returns 0.
+    - `bash -n scripts/phase200-saturation-canary.sh` returns 0.
+    - All six new self-tests dispatch correctly and produce expected verdicts: `bash scripts/phase200-saturation-canary.sh --self-test phase201-counter-delta-pass | jq -e '.verdict == "pass"'`, `--self-test phase201-counter-delta-primary-fail | jq -e '.verdict == "fail" and (.reason | startswith("primary_gate_floor_hit_cycles_delta"))'`, etc.
+    - Pytest: `.venv/bin/pytest -o addopts='' tests/test_phase200_canary_script.py::TestPhase201CounterDeltaVerdict -v` returns 0 (six cases green).
+    - SAFE-05 baseline test still passes: `.venv/bin/pytest -o addopts='' tests/test_phase_195_replay.py::test_safe05_threshold_name_counts_are_unchanged -v`.
+  </acceptance_criteria>
+  <verify>
+    <automated>bash -n scripts/phase200-saturation-canary.sh &amp;&amp; .venv/bin/pytest -o addopts='' tests/test_phase200_canary_script.py::TestPhase201CounterDeltaVerdict -v &amp;&amp; ! grep -Ec 'UL_FLOOR_HITS_DURING_LOAD.*==.*0.*&amp;&amp;.*write_pass_verdict' scripts/phase200-saturation-canary.sh</automated>
+  </verify>
+  <done>The canary script's verdict-decision logic gates on `floor_hit_cycles_total_delta_loaded_window == 0` AND `ul_floor_hits_during_load == 0` (AND-coupled, with disagreement producing FAIL not PASS). verdict.json publishes the delta + start/end + primary_gate name. The "PRIMARY/SECONDARY" labeling in Plan 11 is now backed by actual gate logic in the verdict-writing code, not just operator-interpretation prose. REVIEWS HIGH-5 is now closed at the gate-deciding agent, not just at the gate-interpreting agent.</done>
 </task>
 
 </tasks>
