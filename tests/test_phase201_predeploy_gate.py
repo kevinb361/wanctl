@@ -9,27 +9,14 @@ from pathlib import Path
 import pytest
 
 
-# Phase 201 Wave 0 RED scaffolding — Plan 201-02 stubs.
-# Implementation lands in Plans 201-03 (config/validator),
-# 201-04 (controller core), 201-05 (telemetry / wan_controller),
-# 201-07 (predeploy gate), 201-08 (canary extension).
-
-
 GATE_SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "phase201-predeploy-gate.sh"
 DEPLOY_SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "deploy.sh"
 
 
 @pytest.fixture
 def fake_remote_yaml(tmp_path):
-    """Create a tmp YAML and short-circuit the gate's SSH probe via env override.
-
-    The actual gate script (Plan 201-07) MUST honor PHASE201_LOCAL_YAML_OVERRIDE
-    to bypass SSH for tests. Until the script exists, function-level skips are
-    allowed by the Wave 0 strict-RED contract because the symbol target cannot
-    be imported or executed yet.
-    """
-    if not GATE_SCRIPT.exists():
-        pytest.skip("phase201-predeploy-gate.sh not yet created (Plan 201-07)")
+    """Create tmp YAML and short-circuit the gate's SSH probe via env override."""
+    assert GATE_SCRIPT.exists()
     return tmp_path
 
 
