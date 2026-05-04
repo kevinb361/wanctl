@@ -314,6 +314,7 @@ def validate_cross_fields(data: dict) -> list[CheckResult]:
     results.extend(_validate_download_floors(cm))
     results.extend(_validate_upload_floors(cm))
     results.extend(_validate_threshold_ordering(cm))
+    results.extend(_validate_upload_threshold_ordering(cm))
     results.extend(_validate_transport_consistency(data))
 
     return results
@@ -401,6 +402,54 @@ def _validate_threshold_ordering(cm: dict) -> list[CheckResult]:
         return [CheckResult("Cross-field Checks", "thresholds", Severity.PASS, "Threshold ordering: valid")]
     except ConfigValidationError as e:
         return [CheckResult("Cross-field Checks", "thresholds", Severity.ERROR, str(e))]
+
+
+def _validate_upload_threshold_ordering(cm: dict) -> list[CheckResult]:
+    """Validate continuous_monitoring.upload threshold ordering.
+
+    The daemon rejects upload target >= warn during Config._load_threshold_config;
+    the CLI preflight mirrors that fail-closed verdict for SAFE-06 / WR-01.
+    Missing upload-side values fall back to global thresholds, matching Config
+    resolution, but global-only configs are left to _validate_threshold_ordering.
+    """
+    ul = cm.get("upload", {})
+    thresholds = cm.get("thresholds", {})
+    if not isinstance(ul, dict) or not isinstance(thresholds, dict):
+        return []
+
+    target = ul.get("target_bloat_ms", thresholds.get("target_bloat_ms"))
+    warn = ul.get("warn_bloat_ms", thresholds.get("warn_bloat_ms"))
+    if target is None or warn is None:
+        return []
+    if "target_bloat_ms" not in ul and "warn_bloat_ms" not in ul:
+        return []
+
+    try:
+        target_f = float(target)
+        warn_f = float(warn)
+    except (TypeError, ValueError):
+        return [CheckResult(
+            "Cross-field Checks",
+            "continuous_monitoring.upload.thresholds",
+            Severity.ERROR,
+            f"upload target_bloat_ms or warn_bloat_ms is non-numeric: target={target!r} warn={warn!r}",
+        )]
+
+    if target_f < warn_f:
+        return [CheckResult(
+            "Cross-field Checks",
+            "continuous_monitoring.upload.thresholds",
+            Severity.PASS,
+            "Upload threshold ordering: valid",
+        )]
+    return [CheckResult(
+        "Cross-field Checks",
+        "continuous_monitoring.upload.thresholds",
+        Severity.ERROR,
+        "upload threshold ordering invalid: "
+        f"target_bloat_ms ({target}) must be less than warn_bloat_ms ({warn}); "
+        "upload target_bloat_ms must be less than upload warn_bloat_ms",
+    )]
 
 
 def _validate_transport_consistency(data: dict) -> list[CheckResult]:
@@ -675,4 +724,3 @@ def _run_autorate_validators(data: dict) -> list[CheckResult]:
     results.extend(check_deprecated_params(data))
     results.extend(validate_linux_cake(data))
     return results
-
