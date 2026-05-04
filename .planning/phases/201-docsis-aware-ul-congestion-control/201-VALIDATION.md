@@ -3,7 +3,7 @@ phase: 201
 slug: docsis-aware-ul-congestion-control
 status: draft
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-05-04
 last_updated: 2026-05-04 (replan after REVIEWS)
 ---
@@ -92,19 +92,19 @@ last_updated: 2026-05-04 (replan after REVIEWS)
 
 The following test stubs / fixtures / corpus prep MUST land in Wave 0 (Plans 201-01 + 201-02) before any production-code task in Wave 1+ runs. Anti-shallow-execution gate (per `<deep_work_rules>`):
 
-- [ ] `tests/fixtures/phase201_replay_corpus.py` — replay corpus loader + synthetic-trace generators (Plan 201-01 Task 2)
-- [ ] `tests/conftest.py` registers `phase201_attempt3_trace`, `phase201_attempt2_trace`, `phase201_sustained_load_trace`, `phase201_idle_trace` (Plan 201-01 Task 2)
-- [ ] `.planning/phases/201-docsis-aware-ul-congestion-control/201-01-CORPUS-AUDIT.md` documenting Open Question 1 + 2 verdicts (Plan 201-01 Task 1)
-- [ ] `tests/test_queue_controller.py` extended with `TestDocsisModeIntegralClassifier`, `TestDocsisModeSetpointClamp`, `TestDocsisModeCakeCorroborator`, `TestDocsisModeByteIdentity`, `TestRedFastTripUnchangedDocsisMode` (Plan 201-02 Task 1)
-- [ ] `tests/test_autorate_config.py` extended with `TestPhase201Schema` + `TestSafe06Phase201KeysKnown` (Plan 201-02 Task 2)
-- [ ] `tests/test_check_config.py` extended with `TestDocsisModeValidation` (Plan 201-02 Task 2)
-- [ ] `tests/test_wan_controller.py` extended with `TestPhase201HealthAdditive`, `TestPhase201FlashWear`, `TestSigusr1ReloadScopePhase201` (Plan 201-02 Task 2)
-- [ ] `tests/test_phase200_canary_script.py` extended with `TestPhase201Preflight` (Plan 201-02 Task 2)
-- [ ] `tests/test_phase_201_replay.py` (NEW) with `TestAttempt3ReplayWithDocsisMode` + `TestLegacyByteIdentity` skeletons (Plan 201-02 Task 2; full implementation in Plan 201-04 Task 3)
-- [ ] `tests/test_phase201_predeploy_gate.py` (NEW) with `TestPredeployGate` skeleton (Plan 201-02 Task 2; gate script populated in Plan 201-07)
-- [ ] **REVIEWS HIGH-5:** `tests/test_queue_controller.py::TestDocsisModeFloorHitCounter` (3 cases) + `tests/test_wan_controller.py::TestPhase201HealthAdditive::test_floor_hit_cycles_total_runtime_field_present` (Plan 201-02 Task 1 + Task 2; counter implementation in Plan 04-T2; /health field in Plan 05-T2)
-- [ ] **REVIEWS MED-4:** `tests/test_queue_controller.py::TestDocsisModeAboveSetpointYellowPulldown` (2 cases) (Plan 201-02 Task 1; pull-down implementation in Plan 04-T2)
-- [ ] **REVIEWS HIGH-6:** `tests/test_phase200_canary_script.py::TestPhase201EnvFailClosed` (4 cases — missing DOCSIS_MODE / missing SETPOINT_MBPS / both legacy+docsis set / legacy-mode-only OK) (Plan 201-02 Task 2; script enforcement in Plan 08-T1)
+- [x] `tests/fixtures/phase201_replay_corpus.py` — replay corpus loader + synthetic-trace generators (Plan 201-01 Task 2)
+- [x] `tests/conftest.py` registers `phase201_attempt3_trace`, `phase201_attempt2_trace`, `phase201_sustained_load_trace`, `phase201_idle_trace` (Plan 201-01 Task 2)
+- [x] `.planning/phases/201-docsis-aware-ul-congestion-control/201-01-CORPUS-AUDIT.md` documenting Open Question 1 + 2 verdicts (Plan 201-01 Task 1)
+- [x] `tests/test_queue_controller.py` extended with `TestDocsisModeIntegralClassifier`, `TestDocsisModeSetpointClamp`, `TestDocsisModeCakeCorroborator`, `TestDocsisModeByteIdentity`, `TestRedFastTripUnchangedDocsisMode` (Plan 201-02 Task 1)
+- [x] `tests/test_autorate_config.py` extended with `TestPhase201Schema` + `TestSafe06Phase201KeysKnown` (Plan 201-02 Task 2)
+- [x] `tests/test_check_config.py` extended with `TestDocsisModeValidation` (Plan 201-02 Task 2)
+- [x] `tests/test_wan_controller.py` extended with `TestPhase201HealthAdditive`, `TestPhase201FlashWear`, `TestSigusr1ReloadScopePhase201` (Plan 201-02 Task 2)
+- [x] `tests/test_phase200_canary_script.py` extended with `TestPhase201Preflight` (Plan 201-02 Task 2)
+- [x] `tests/test_phase_201_replay.py` (NEW) with `TestAttempt3ReplayWithDocsisMode` + `TestLegacyByteIdentity` skeletons (Plan 201-02 Task 2; full implementation in Plan 201-04 Task 3)
+- [x] `tests/test_phase201_predeploy_gate.py` (NEW) with `TestPredeployGate` skeleton (Plan 201-02 Task 2; gate script populated in Plan 201-07)
+- [x] **REVIEWS HIGH-5:** `tests/test_queue_controller.py::TestDocsisModeFloorHitCounter` (3 cases) + `tests/test_wan_controller.py::TestPhase201HealthAdditive::test_floor_hit_cycles_total_runtime_field_present` (Plan 201-02 Task 1 + Task 2; counter implementation in Plan 04-T2; /health field in Plan 05-T2)
+- [x] **REVIEWS MED-4:** `tests/test_queue_controller.py::TestDocsisModeAboveSetpointYellowPulldown` (2 cases) (Plan 201-02 Task 1; pull-down implementation in Plan 04-T2)
+- [x] **REVIEWS HIGH-6:** `tests/test_phase200_canary_script.py::TestPhase201EnvFailClosed` (4 cases — missing DOCSIS_MODE / missing SETPOINT_MBPS / both legacy+docsis set / legacy-mode-only OK) (Plan 201-02 Task 2; script enforcement in Plan 08-T1)
 
 `wave_0_complete: true` flips in 201-VALIDATION.md ONLY after all 13 items above are satisfied AND `.venv/bin/pytest -o addopts='' <Phase-201 focused slice> --collect-only` returns exit 0.
 
@@ -118,6 +118,6 @@ The following test stubs / fixtures / corpus prep MUST land in Wave 0 (Plans 201
 - [x] No watch-mode flags
 - [x] Feedback latency < 60 s for unit/integration; canary + soak excluded (manual-only)
 - [x] `nyquist_compliant: true` set in frontmatter
-- [ ] `wave_0_complete: true` (flips after Plan 201-02 lands)
+- [x] `wave_0_complete: true` (flipped after Plan 201-02 landed)
 
 **Approval:** pending Plan 201-02 completion.

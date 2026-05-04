@@ -182,7 +182,7 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 201 | DOCSIS-Aware UL Congestion Control | 1/12 | In Progress|  |
+| 201 | DOCSIS-Aware UL Congestion Control | 2/12 | In Progress|  |
 
 ---
 
@@ -224,11 +224,11 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 4. The predeploy gate inspects `/etc/wanctl/spectrum.yaml` on the deploy target and either reconciles v1.41-only rejected-hypothesis keys with Phase 201's own design or fails closed before the deploy proceeds. Verified by canary preflight log evidence.
 5. `CHANGELOG.md` and `docs/CONFIGURATION.md` carry the migration note specifying that `docsis_mode`, `setpoint_mbps`, and the RTT-integral window keys require a service restart to take effect (SIGUSR1 does not reload these). Verified by greps for the keys in both files.
 
-**Plans:** 1/12 plans executed
+**Plans:** 2/12 plans executed
 
 Plans:
 - [x] 201-01-corpus-inspection-and-fixtures-PLAN.md — Wave 0 corpus audit + replay-corpus loader + synthetic-trace fixtures (resolves Open Questions 1 + 2)
-- [ ] 201-02-test-stubs-PLAN.md — Wave 0 RED scaffolding for all Phase 201 production-code surfaces (14 named test classes across 7 test files)
+- [x] 201-02-test-stubs-PLAN.md — Wave 0 RED scaffolding for all Phase 201 production-code surfaces (14 named test classes across 7 test files)
 - [ ] 201-03-config-schema-and-validators-PLAN.md — Schema entries + presence flags + required-when-other validation; KNOWN_AUTORATE_PATHS registration; SAFE-05 v1.42 baseline (D-06, SAFE-06, D-03)
 - [ ] 201-04-controller-core-PLAN.md — QueueController DOCSIS-mode internals: integral, CAKE corroborator, setpoint clamp; replay against Attempt 3 corpus -> floor_hits=0
 - [ ] 201-05-wan-controller-and-health-PLAN.md — WANController constructor wiring + presence flags + INFO log + 5 additive /health runtime-state fields (D-16, D-08)
