@@ -196,12 +196,12 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
    # Phase 201 — Verification
 
    ## Inherited blocking closure
-   - **VALN-06** (inherited from Phase 200): satisfied via Plan 201-11 canary verdict `pass` (`ul_floor_hits_during_load=0`) AND Plan 201-12 24h soak verdict `pass` (`ul_hysteresis_suppression_rate_per_60s.mean=<value>`, < 5.0). See `canary/<TS>/verdict.json` and `soak/<TS>/soak-summary.json`.
+   - **VALN-06** (inherited from Phase 200): satisfied via Plan 201-11 canary verdict `pass` with PRIMARY gate `floor_hit_cycles_total_delta_loaded_window == 0` (cycle-fidelity 50ms counter, REVIEWS HIGH-5) AND-coupled with SECONDARY gate `ul_floor_hits_during_load == 0` (1 Hz snapshot, retained for cross-check) — both zero with no disagreement, enforced by the canary script's verdict-decision logic in Plan 08-T3. AND Plan 201-12 24h soak watchdog `pass` with PRIMARY gate `floor_hit_cycles_total_delta == 0` over the 24h window AND SECONDARY gate `ul_hysteresis_suppression_rate_per_60s.mean=<value>` (< 5.0). See `canary/<TS>/verdict.json` and `soak/<TS>/soak-summary.json`.
 
    ## Per-criterion evidence
    1. Schema accepts new keys + presence flags + ordering: TestPhase201Schema + TestSafe06Phase201KeysKnown + TestDocsisModeValidation green. Plan 201-03.
-   2. Canary `ul_floor_hits_during_load=0`: canary/<TS>/verdict.json (Plan 201-11). Direct evidence improved upon: Phase 200 canary 20260504T133207Z `ul_floor_hits_during_load: 4`.
-   3. 24h soak suppression rate `<5/60s` mean: soak/<TS>/soak-summary.json (Plan 201-12).
+   2. Canary PRIMARY `floor_hit_cycles_total_delta_loaded_window == 0` AND SECONDARY `ul_floor_hits_during_load == 0`: canary/<TS>/verdict.json (Plan 201-11), with the AND-coupled gate enforced by the canary script in Plan 08-T3. Direct evidence improved upon: Phase 200 canary 20260504T133207Z `ul_floor_hits_during_load: 4` (cycle-fidelity counter not present in v1.41).
+   3. 24h soak PRIMARY `floor_hit_cycles_total_delta == 0` AND SECONDARY suppression rate `<5/60s` mean: soak/<TS>/soak-summary.json (Plan 201-12).
    4. Predeploy gate inspects deploy target and aborts on rejected v1.41 keys: scripts/phase201-predeploy-gate.sh; tests/test_phase201_predeploy_gate.py green; live exercise in Plan 201-11.
    5. CHANGELOG + CONFIGURATION.md migration note: greps in Plan 201-06.
    6. Cross-AI review (D-18): 201-09-CODEX-PRE-REVIEW.md + 201-10-CODEX-STOP-TIME-REVIEW.md.
@@ -221,7 +221,7 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
 
 2. **Update `.planning/REQUIREMENTS.md`**:
    - Flip VALN-06 checkbox from `[ ]` to `[x]` if PASS.
-   - Update the VALN-06 row text from "Blocked in Phase 200 gap closure ... Operator-escalated 2026-05-04: deferred to Phase 201" to "Satisfied in Phase 201 (`docsis-aware-ul-congestion-control`) — canary `pass` with `ul_floor_hits_during_load=0` and 24h soak `<5/60s` mean. See `.planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md`."
+   - Update the VALN-06 row text from "Blocked in Phase 200 gap closure ... Operator-escalated 2026-05-04: deferred to Phase 201" to "Satisfied in Phase 201 (`docsis-aware-ul-congestion-control`) — canary `pass` with PRIMARY `floor_hit_cycles_total_delta_loaded_window == 0` (cycle-fidelity 50ms counter, REVIEWS HIGH-5) AND SECONDARY `ul_floor_hits_during_load == 0`; 24h soak watchdog `<5/60s` mean (also AND-coupled with counter-delta == 0). See `.planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md`."
    - On FAIL: leave checkbox `[ ]` and append Phase 201 closure note (gap or block).
 
 3. **Update `.planning/STATE.md`** frontmatter and body:
