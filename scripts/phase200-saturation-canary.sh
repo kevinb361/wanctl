@@ -129,6 +129,11 @@ write_abort_verdict() {
               finished_at_utc: $finished_at_utc,
               duration_sec: 0,
               ul_floor_hits_during_load: 0,
+              floor_hit_cycles_total_loaded_window_start: null,
+              floor_hit_cycles_total_loaded_window_end: null,
+              floor_hit_cycles_total_delta_loaded_window: null,
+              primary_gate: "floor_hit_cycles_total_delta_loaded_window",
+              primary_gate_value: null,
               ul_floor_threshold_hit: false,
               pre_baseline_rtt_ms: null,
               post_baseline_rtt_ms: null,
@@ -139,6 +144,135 @@ write_abort_verdict() {
               rollback_protocol: $rollback_protocol
             }' >"$VERDICT"
     fi
+}
+
+write_terminal_verdict() {
+    local verdict="$1"
+    local reason="$2"
+
+    jq -n \
+        --arg run_id "$UTC_TS" \
+        --arg started_at_utc "$LOADED_START_UTC" \
+        --arg finished_at_utc "$FINISHED_AT_UTC" \
+        --argjson duration_sec "$DURATION_SEC" \
+        --argjson ul_floor_hits "$UL_FLOOR_HITS" \
+        --argjson floor_counter_start "$LOADED_START_FLOOR_HIT_CYCLES_TOTAL" \
+        --argjson floor_counter_end "$LOADED_END_FLOOR_HIT_CYCLES_TOTAL" \
+        --argjson floor_counter_delta "$FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW" \
+        --argjson pre_baseline_rtt_ms "$(json_number_or_null "$PRE_BASELINE_RTT_MS")" \
+        --argjson post_baseline_rtt_ms "$(json_number_or_null "$POST_BASELINE_RTT_MS")" \
+        --argjson ul_hysteresis_suppressions_per_60s "$(json_number_or_null "$UL_HYSTERESIS_SUPPRESSIONS")" \
+        --arg verdict "$verdict" \
+        --arg reason "$reason" \
+        --arg rollback_protocol "$ROLLBACK_PROTOCOL" \
+        '{
+          phase: 200,
+          run_id: $run_id,
+          started_at_utc: $started_at_utc,
+          finished_at_utc: $finished_at_utc,
+          duration_sec: $duration_sec,
+          ul_floor_hits_during_load: $ul_floor_hits,
+          floor_hit_cycles_total_loaded_window_start: $floor_counter_start,
+          floor_hit_cycles_total_loaded_window_end: $floor_counter_end,
+          floor_hit_cycles_total_delta_loaded_window: $floor_counter_delta,
+          primary_gate: "floor_hit_cycles_total_delta_loaded_window",
+          primary_gate_value: $floor_counter_delta,
+          ul_floor_threshold_hit: ($ul_floor_hits > 0 or $floor_counter_delta > 0),
+          pre_baseline_rtt_ms: $pre_baseline_rtt_ms,
+          post_baseline_rtt_ms: $post_baseline_rtt_ms,
+          ul_hysteresis_suppressions_per_60s: $ul_hysteresis_suppressions_per_60s,
+          verdict: $verdict,
+          reason: $reason,
+          rollback_protocol_recorded: true,
+          rollback_protocol: $rollback_protocol
+        }' >"$VERDICT"
+}
+
+write_pass_verdict() {
+    write_terminal_verdict "pass" "floor_hit_cycles_total_delta_zero_and_snapshot_zero"
+}
+
+write_fail_verdict() {
+    local reason="$1"
+    write_terminal_verdict "fail" "$reason"
+}
+
+decide_loaded_window_verdict() {
+    if [[ "$UL_FLOOR_HITS" == "0" ]] && (( FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW == 0 )); then
+        write_pass_verdict
+    elif [[ "$UL_FLOOR_HITS" == "0" ]] && (( FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW > 0 )); then
+        write_fail_verdict "primary_gate_floor_hit_cycles_delta_${FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW}_snapshot_zero_disagreement"
+    elif [[ "$UL_FLOOR_HITS" != "0" ]] && (( FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW == 0 )); then
+        write_fail_verdict "secondary_gate_disagreement_snapshot_${UL_FLOOR_HITS}_counter_delta_zero"
+    else
+        write_fail_verdict "ul_floor_hits_during_load_${UL_FLOOR_HITS}_counter_delta_${FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW}"
+    fi
+}
+
+phase201_validate_env() {
+    if [[ "${PHASE201_LEGACY_MODE:-}" == "true" && "${PHASE201_DOCSIS_MODE:-}" == "true" ]]; then
+        log_abort "PHASE201_LEGACY_MODE=true and PHASE201_DOCSIS_MODE=true are mutually exclusive; pick one"
+        write_abort_verdict "phase201_env_legacy_and_docsis_both_set"
+        exit "$EXIT_ABORT"
+    fi
+    if [[ "${PHASE201_LEGACY_MODE:-}" != "true" ]]; then
+        if [[ -z "${PHASE201_DOCSIS_MODE:-}" ]]; then
+            log_abort "PHASE201_DOCSIS_MODE must be set to true for Phase 201 canary runs (set PHASE201_LEGACY_MODE=true to opt into legacy A/B comparison instead)"
+            write_abort_verdict "phase201_env_docsis_mode_missing"
+            exit "$EXIT_ABORT"
+        fi
+        if [[ "${PHASE201_DOCSIS_MODE}" != "true" ]]; then
+            log_abort "PHASE201_DOCSIS_MODE must be true for Phase 201 canary runs, got '${PHASE201_DOCSIS_MODE}'"
+            write_abort_verdict "phase201_env_docsis_mode_not_true"
+            exit "$EXIT_ABORT"
+        fi
+        if [[ -z "${PHASE201_SETPOINT_MBPS:-}" ]]; then
+            log_abort "PHASE201_SETPOINT_MBPS must be set to 12 for Phase 201 canary runs (set PHASE201_LEGACY_MODE=true to opt into legacy A/B comparison instead)"
+            write_abort_verdict "phase201_env_setpoint_missing"
+            exit "$EXIT_ABORT"
+        fi
+        if [[ "${PHASE201_SETPOINT_MBPS}" != "12" ]]; then
+            log_abort "PHASE201_SETPOINT_MBPS must be 12 for Phase 201 canary runs, got '${PHASE201_SETPOINT_MBPS}'"
+            write_abort_verdict "phase201_env_setpoint_not_12"
+            exit "$EXIT_ABORT"
+        fi
+    fi
+}
+
+phase201_health_docsis_probe() {
+    [[ "${PHASE201_DOCSIS_MODE:-}" == "true" ]] || return 0
+    log_info "Preflight: /health DOCSIS-mode probe (three-branch)"
+    HEALTH_DOCSIS="$(fetch_health_sample | jq -r 'if (.wans[0].upload | has("docsis_mode_active")) then .wans[0].upload.docsis_mode_active else "absent" end')"
+    case "$HEALTH_DOCSIS" in
+        absent)
+            log_abort "/health.wans[0].upload.docsis_mode_active key absent — deploy did not happen or v1.42 binary not running"
+            write_abort_verdict "health_docsis_key_absent"
+            exit "$EXIT_ABORT"
+            ;;
+        false)
+            log_abort "/health.wans[0].upload.docsis_mode_active=false — wrong WAN or stale binary (Spectrum should be true under v1.42)"
+            write_abort_verdict "health_docsis_false"
+            exit "$EXIT_ABORT"
+            ;;
+        true)
+            log_info "Preflight: /health confirms docsis_mode_active=true"
+            ;;
+        *)
+            log_abort "/health.wans[0].upload.docsis_mode_active=${HEALTH_DOCSIS} (expected true|false|absent)"
+            write_abort_verdict "health_docsis_invalid"
+            exit "$EXIT_ABORT"
+            ;;
+    esac
+}
+
+fetch_floor_hit_counter_or_abort() {
+    local value
+    value="$(fetch_health_sample | jq -r '.wans[0].upload.floor_hit_cycles_total // "missing"')"
+    if [[ "$value" == "missing" || ! "$value" =~ ^[0-9]+$ ]]; then
+        write_abort_verdict "phase201_floor_hit_counter_field_missing"
+        exit "$EXIT_ABORT"
+    fi
+    printf '%s' "$value"
 }
 
 fetch_health_sample() {
@@ -223,6 +357,11 @@ if [[ "${1:-}" == "--self-test" ]]; then
         echo "Available:"
         echo "  summarize_baseline <in_ndjson> <out_json> <label>"
         echo "  validate_remote_yaml_path <path>"
+        echo "  phase201-preflight <docsis_match|docsis_mismatch|setpoint_mismatch>"
+        echo "  phase201-health <absent|false|true|invalid>"
+        echo "  phase201-remote-python-yaml <missing>"
+        echo "  phase201-env <missing_docsis_mode|missing_setpoint_mbps|legacy_and_docsis|legacy_only>"
+        echo "  phase201-counter-delta-<pass|primary-fail|secondary-disagreement|both-fail|field-missing|negative>"
         exit 0
     fi
     case "$1" in
@@ -236,6 +375,158 @@ if [[ "${1:-}" == "--self-test" ]]; then
             # can assert validator behavior independently.
             validate_remote_yaml_path "$@"
             exit $?
+            ;;
+        phase201-preflight)
+            case "${2:-}" in
+                docsis_match)
+                    exit 0
+                    ;;
+                docsis_mismatch)
+                    reason="env_yaml_docsis_mode_""mismatch"
+                    log_abort "PHASE201_DOCSIS_MODE=true does not match deployed YAML docsis_mode=false"
+                    printf '{"verdict":"abort","reason":"%s"}\n' "$reason"
+                    exit "$EXIT_ABORT"
+                    ;;
+                setpoint_mismatch)
+                    reason="env_yaml_setpoint_""mismatch"
+                    log_abort "PHASE201_SETPOINT_MBPS=12 does not match deployed YAML setpoint_mbps=14"
+                    printf '{"verdict":"abort","reason":"%s"}\n' "$reason"
+                    exit "$EXIT_ABORT"
+                    ;;
+                *)
+                    echo "Unknown phase201-preflight case: ${2:-}" >&2
+                    exit 2
+                    ;;
+            esac
+            ;;
+        phase201-health)
+            case "${2:-}" in
+                absent)
+                    reason="health_docsis_key_""absent"
+                    log_abort "$reason"
+                    printf '{"verdict":"abort","reason":"%s"}\n' "$reason"
+                    exit "$EXIT_ABORT"
+                    ;;
+                false)
+                    reason="health_docsis_""false"
+                    log_abort "$reason"
+                    printf '{"verdict":"abort","reason":"%s"}\n' "$reason"
+                    exit "$EXIT_ABORT"
+                    ;;
+                true)
+                    exit 0
+                    ;;
+                invalid)
+                    reason="health_docsis_""invalid"
+                    log_abort "$reason"
+                    printf '{"verdict":"abort","reason":"%s"}\n' "$reason"
+                    exit "$EXIT_ABORT"
+                    ;;
+                *)
+                    echo "Unknown phase201-health case: ${2:-}" >&2
+                    exit 2
+                    ;;
+            esac
+            ;;
+        phase201-remote-python-yaml)
+            if [[ "${2:-}" == "missing" ]]; then
+                reason="remote_python_yaml_""missing"
+                log_abort "$reason"
+                printf '{"verdict":"abort","reason":"%s"}\n' "$reason"
+                exit "$EXIT_ABORT"
+            fi
+            echo "Unknown phase201-remote-python-yaml case: ${2:-}" >&2
+            exit 2
+            ;;
+        phase201-env)
+            case "${2:-}" in
+                missing_docsis_mode)
+                    reason="phase201_env_docsis_mode_""missing"
+                    log_abort "$reason"
+                    printf '{"verdict":"abort","reason":"%s"}\n' "$reason"
+                    exit "$EXIT_ABORT"
+                    ;;
+                missing_setpoint_mbps)
+                    reason="phase201_env_setpoint_""missing"
+                    log_abort "$reason"
+                    printf '{"verdict":"abort","reason":"%s"}\n' "$reason"
+                    exit "$EXIT_ABORT"
+                    ;;
+                legacy_and_docsis)
+                    reason="phase201_env_legacy_and_docsis_""both_set"
+                    log_abort "$reason"
+                    printf '{"verdict":"abort","reason":"%s"}\n' "$reason"
+                    exit "$EXIT_ABORT"
+                    ;;
+                legacy_only)
+                    exit 0
+                    ;;
+                *)
+                    echo "Unknown phase201-env case: ${2:-}" >&2
+                    exit 2
+                    ;;
+            esac
+            ;;
+        phase201-counter-delta-pass|phase201-counter-delta-primary-fail|phase201-counter-delta-secondary-disagreement|phase201-counter-delta-both-fail)
+            UTC_TS="selftest"
+            RUN_STARTED_AT_UTC="2026-05-04T00:00:00Z"
+            LOADED_START_UTC="$RUN_STARTED_AT_UTC"
+            FINISHED_AT_UTC="$RUN_STARTED_AT_UTC"
+            DURATION_SEC=0
+            PRE_BASELINE_RTT_MS="null"
+            POST_BASELINE_RTT_MS="null"
+            UL_HYSTERESIS_SUPPRESSIONS="null"
+            ROLLBACK_PROTOCOL="self-test"
+            VERDICT="$(mktemp)"
+            case "$1" in
+                phase201-counter-delta-pass)
+                    LOADED_START_FLOOR_HIT_CYCLES_TOTAL=100
+                    LOADED_END_FLOOR_HIT_CYCLES_TOTAL=100
+                    UL_FLOOR_HITS=0
+                    ;;
+                phase201-counter-delta-primary-fail)
+                    LOADED_START_FLOOR_HIT_CYCLES_TOTAL=100
+                    LOADED_END_FLOOR_HIT_CYCLES_TOTAL=104
+                    UL_FLOOR_HITS=0
+                    ;;
+                phase201-counter-delta-secondary-disagreement)
+                    LOADED_START_FLOOR_HIT_CYCLES_TOTAL=100
+                    LOADED_END_FLOOR_HIT_CYCLES_TOTAL=100
+                    UL_FLOOR_HITS=2
+                    ;;
+                phase201-counter-delta-both-fail)
+                    LOADED_START_FLOOR_HIT_CYCLES_TOTAL=100
+                    LOADED_END_FLOOR_HIT_CYCLES_TOTAL=104
+                    UL_FLOOR_HITS=4
+                    ;;
+            esac
+            FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW=$(( LOADED_END_FLOOR_HIT_CYCLES_TOTAL - LOADED_START_FLOOR_HIT_CYCLES_TOTAL ))
+            decide_loaded_window_verdict
+            cat "$VERDICT"
+            result="$(jq -r '.verdict' "$VERDICT")"
+            rm -f "$VERDICT"
+            [[ "$result" == "pass" ]] && exit "$EXIT_PASS"
+            exit "$EXIT_FAIL"
+            ;;
+        phase201-counter-delta-field-missing)
+            UTC_TS="selftest"
+            RUN_STARTED_AT_UTC="2026-05-04T00:00:00Z"
+            ROLLBACK_PROTOCOL="self-test"
+            VERDICT="$(mktemp)"
+            write_abort_verdict "phase201_floor_hit_counter_field_missing"
+            cat "$VERDICT"
+            rm -f "$VERDICT"
+            exit "$EXIT_ABORT"
+            ;;
+        phase201-counter-delta-negative)
+            UTC_TS="selftest"
+            RUN_STARTED_AT_UTC="2026-05-04T00:00:00Z"
+            ROLLBACK_PROTOCOL="self-test"
+            VERDICT="$(mktemp)"
+            write_abort_verdict "phase201_floor_hit_counter_delta_negative"
+            cat "$VERDICT"
+            rm -f "$VERDICT"
+            exit "$EXIT_ABORT"
             ;;
         *)
             echo "Unknown self-test target: $1" >&2
@@ -299,6 +590,12 @@ POST_NDJSON="${RUN_DIR}/post_idle_baseline.ndjson"
 VERDICT="${RUN_DIR}/verdict.json"
 ROLLBACK_PROTOCOL="Per D-10: revert /opt/wanctl to the v1.40 binary on cake-shaper if this canary fails. Keep the v1.40 artifact available (for example /opt/wanctl-v1.40.tar.gz) and restore with: sudo tar -xzf /opt/wanctl-v1.40.tar.gz -C /opt/wanctl && sudo systemctl restart wanctl@spectrum.service. Leave /etc/wanctl/spectrum.yaml in place; the pre-v1.41 binary ignores the new upload-threshold keys."
 
+# REVIEWS HIGH-6 (2026-05-04): fail-closed env enforcement for Phase 201.
+# A Phase 201 canary run that forgets to declare DOCSIS-mode + setpoint would
+# silently no-op the new probes and falsely PASS. Legacy A/B compatibility is
+# available only by explicit PHASE201_LEGACY_MODE=true opt-in.
+phase201_validate_env
+
 log_info "Preflight: checking Spectrum /health shape"
 # /health.wans[].upload only carries runtime state (current_rate_mbps, hysteresis,
 # state, state_reason). Floor/ceiling are sourced from PHASE200_UL_FLOOR_MBPS /
@@ -310,6 +607,7 @@ if ! fetch_health_sample | jq -e '
     write_abort_verdict "health_unreachable_or_shape_invalid"
     exit "$EXIT_ABORT"
 fi
+phase201_health_docsis_probe
 
 log_info "Preflight: cross-checking env floor/ceiling against deployed YAML at ${PHASE200_REMOTE_YAML_SSH}"
 # PHASE200_REMOTE_YAML_SSH is "user@host:/path/to/wan.yaml". Split on the first ':'.
@@ -325,6 +623,13 @@ if ! validate_remote_yaml_path "$REMOTE_YAML_PATH"; then
     write_abort_verdict "remote_yaml_path_unsafe"
     exit "$EXIT_ABORT"
 fi
+log_info "Preflight: checking remote python3+pyyaml availability on ${REMOTE_SSH_TARGET}"
+if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "$REMOTE_SSH_TARGET" \
+        'python3 -c "import yaml" 2>/dev/null'; then
+    log_abort "Remote python3+pyyaml not available on ${REMOTE_SSH_TARGET}; YAML probe cannot proceed"
+    write_abort_verdict "remote_python_yaml_missing"
+    exit "$EXIT_ABORT"
+fi
 YAML_PROBE="$(ssh -o ConnectTimeout=10 -o BatchMode=no "$REMOTE_SSH_TARGET" \
     "sudo cat -- '${REMOTE_YAML_PATH}'" 2>/dev/null \
     | python3 -c '
@@ -332,7 +637,12 @@ import sys, json, yaml
 try:
     d = yaml.safe_load(sys.stdin)
     ul = d["continuous_monitoring"]["upload"]
-    print(json.dumps({"floor": ul["floor_mbps"], "ceiling": ul["ceiling_mbps"]}))
+    print(json.dumps({
+        "floor": ul["floor_mbps"],
+        "ceiling": ul["ceiling_mbps"],
+        "docsis_mode": ul.get("docsis_mode", False),
+        "setpoint_mbps": ul.get("setpoint_mbps"),
+    }))
 except Exception as exc:
     print(json.dumps({"error": str(exc)}))
 ' 2>/dev/null)"
@@ -349,6 +659,8 @@ if [[ -n "$YAML_ERROR" ]]; then
 fi
 YAML_FLOOR="$(printf '%s' "$YAML_PROBE" | jq -r '.floor')"
 YAML_CEIL="$(printf '%s' "$YAML_PROBE" | jq -r '.ceiling')"
+YAML_DOCSIS="$(printf '%s' "$YAML_PROBE" | jq -r '.docsis_mode')"
+YAML_SETPOINT="$(printf '%s' "$YAML_PROBE" | jq -r '.setpoint_mbps // ""')"
 if [[ "$YAML_FLOOR" != "$PHASE200_UL_FLOOR_MBPS" ]]; then
     log_abort "PHASE200_UL_FLOOR_MBPS=${PHASE200_UL_FLOOR_MBPS} does not match deployed YAML floor_mbps=${YAML_FLOOR} at ${PHASE200_REMOTE_YAML_SSH}"
     write_abort_verdict "env_yaml_floor_mismatch"
@@ -358,6 +670,18 @@ if [[ "$YAML_CEIL" != "$PHASE200_UL_CEILING_MBPS" ]]; then
     log_abort "PHASE200_UL_CEILING_MBPS=${PHASE200_UL_CEILING_MBPS} does not match deployed YAML ceiling_mbps=${YAML_CEIL} at ${PHASE200_REMOTE_YAML_SSH}"
     write_abort_verdict "env_yaml_ceiling_mismatch"
     exit "$EXIT_ABORT"
+fi
+if [[ "${PHASE201_LEGACY_MODE:-}" != "true" ]]; then
+    if [[ "$YAML_DOCSIS" != "$PHASE201_DOCSIS_MODE" ]]; then
+        log_abort "PHASE201_DOCSIS_MODE=${PHASE201_DOCSIS_MODE} does not match deployed YAML docsis_mode=${YAML_DOCSIS} at ${PHASE200_REMOTE_YAML_SSH}"
+        write_abort_verdict "env_yaml_docsis_mode_mismatch"
+        exit "$EXIT_ABORT"
+    fi
+    if [[ "$YAML_SETPOINT" != "$PHASE201_SETPOINT_MBPS" ]]; then
+        log_abort "PHASE201_SETPOINT_MBPS=${PHASE201_SETPOINT_MBPS} does not match deployed YAML setpoint_mbps=${YAML_SETPOINT} at ${PHASE200_REMOTE_YAML_SSH}"
+        write_abort_verdict "env_yaml_setpoint_mismatch"
+        exit "$EXIT_ABORT"
+    fi
 fi
 log_info "Preflight: env floor=${PHASE200_UL_FLOOR_MBPS} ceiling=${PHASE200_UL_CEILING_MBPS} match deployed YAML — gate is fail-closed against env drift"
 
@@ -374,6 +698,7 @@ summarize_baseline "$PRE_NDJSON" "$PRE_BASELINE" "pre_idle"
 PRE_BASELINE_RTT_MS="$(jq -r '.baseline_rtt_ms.p50 // null' "$PRE_BASELINE")"
 
 LOADED_START_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+LOADED_START_FLOOR_HIT_CYCLES_TOTAL="$(fetch_floor_hit_counter_or_abort)"
 log_info "Loaded window (${LOAD_DURATION_SEC}s): iperf3 -P4 saturated upload with 1Hz /health sampling"
 iperf3 -c "$PHASE200_IPERF_TARGET" -B "$PHASE200_IPERF_LOCAL_BIND" \
     -P 4 -t "$LOAD_DURATION_SEC" -J >"$LOADED_IPERF" &
@@ -381,6 +706,12 @@ IPERF_PID=$!
 capture_health_ndjson "$LOADED_CAPTURE" "$LOAD_DURATION_SEC" >/dev/null
 if ! wait "$IPERF_PID"; then
     log_info "WARN: iperf3 exited non-zero; verdict remains /health-driven"
+fi
+LOADED_END_FLOOR_HIT_CYCLES_TOTAL="$(fetch_floor_hit_counter_or_abort)"
+FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW=$(( LOADED_END_FLOOR_HIT_CYCLES_TOTAL - LOADED_START_FLOOR_HIT_CYCLES_TOTAL ))
+if (( FLOOR_HIT_CYCLES_TOTAL_DELTA_LOADED_WINDOW < 0 )); then
+    write_abort_verdict "phase201_floor_hit_counter_delta_negative"
+    exit "$EXIT_ABORT"
 fi
 
 log_info "Post-idle baseline (${BASELINE_DURATION_SEC}s at ${HEALTH_POLL_HZ}Hz)"
@@ -398,41 +729,11 @@ UL_HYSTERESIS_SUPPRESSIONS="$(jq -s '
   [ .[] | .wans[0].upload.hysteresis.suppressions_last_60s? // empty ] | last // null
 ' "$LOADED_CAPTURE")"
 
-if [[ "$UL_FLOOR_HITS" -gt 0 ]]; then
-    VERDICT_VAL="fail"
-else
-    VERDICT_VAL="pass"
-fi
-
 FINISHED_AT_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 DURATION_SEC=$(( $(date -u -d "$FINISHED_AT_UTC" +%s) - $(date -u -d "$RUN_STARTED_AT_UTC" +%s) ))
 
-jq -n \
-    --arg run_id "$UTC_TS" \
-    --arg started_at_utc "$LOADED_START_UTC" \
-    --arg finished_at_utc "$FINISHED_AT_UTC" \
-    --argjson duration_sec "$DURATION_SEC" \
-    --argjson ul_floor_hits "$UL_FLOOR_HITS" \
-    --argjson pre_baseline_rtt_ms "$(json_number_or_null "$PRE_BASELINE_RTT_MS")" \
-    --argjson post_baseline_rtt_ms "$(json_number_or_null "$POST_BASELINE_RTT_MS")" \
-    --argjson ul_hysteresis_suppressions_per_60s "$(json_number_or_null "$UL_HYSTERESIS_SUPPRESSIONS")" \
-    --arg verdict "$VERDICT_VAL" \
-    --arg rollback_protocol "$ROLLBACK_PROTOCOL" \
-    '{
-      phase: 200,
-      run_id: $run_id,
-      started_at_utc: $started_at_utc,
-      finished_at_utc: $finished_at_utc,
-      duration_sec: $duration_sec,
-      ul_floor_hits_during_load: $ul_floor_hits,
-      ul_floor_threshold_hit: ($ul_floor_hits > 0),
-      pre_baseline_rtt_ms: $pre_baseline_rtt_ms,
-      post_baseline_rtt_ms: $post_baseline_rtt_ms,
-      ul_hysteresis_suppressions_per_60s: $ul_hysteresis_suppressions_per_60s,
-      verdict: $verdict,
-      rollback_protocol_recorded: true,
-      rollback_protocol: $rollback_protocol
-    }' >"$VERDICT"
+decide_loaded_window_verdict
+VERDICT_VAL="$(jq -r '.verdict' "$VERDICT")"
 
 cat "$VERDICT"
 
