@@ -98,6 +98,7 @@ Use these as the primary current docs:
 
 ## Current Validation Note
 
+- v1.42 Phase 201 Plan 201-07 is in progress: the new Spectrum-scoped predeploy gate checks production `/etc/wanctl/spectrum.yaml` before deploy, fails closed on rejected v1.41 upload `target_bloat_ms` / `warn_bloat_ms`, and requires `setpoint_mbps` when `docsis_mode: true`; ATT/non-Spectrum deploy paths must skip this Spectrum-only gate.
 - v1.42 Phase 201 Plan 201-06 is complete: Spectrum repo YAML opts into DOCSIS upload mode with `setpoint_mbps: 12` as an explicit canary-validated assumption, v1.42.0 version surfaces are aligned, and CHANGELOG/CONFIGURATION document restart-required migration plus the fallback preference of 10 before 14 on setpoint-specific canary failure.
 - v1.42 Phase 201 Plan 201-05 is complete: WANController pins restart-required DOCSIS keys and per-WAN `self.logger` INFO emission; `/health.wans[].upload` exposes six additive DOCSIS runtime fields via the HealthCheckHandler rate/hysteresis builder; VALN-06 remains open for Plan 201-11 live canary proof.
 - v1.42 Phase 201 controller-core replay (Plan 201-04, complete) treats the Phase 200 Attempt 3 hold-last-expanded corpus as a safety diagnostic, not a synthetic VALN-06 proof: exact RED fast-trip plus post-bounds floor-hit accounting records 1003 floor-hit cycles. The zero-floor VALN-06 gate remains the live Plan 201-11 canary.
