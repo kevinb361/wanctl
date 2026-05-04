@@ -86,6 +86,9 @@ ceiling_mbps}`. Without this cross-check, a stale floor env value would silently
 
 ### Known Gaps
 
+- Phase 200 post-execution review still has two warning-level follow-ups:
+  quote Dockerfile pip version constraints and make the saturation canary emit
+  an abort verdict if `python3`/PyYAML is unavailable during remote YAML preflight.
 - Phase 200 Plan 07 24h regression soak was blocked because Plan 06's saturated
   Spectrum upload canary failed (`122` UL floor-collapse samples during the 900s
   loaded window) and D-10 rollback restored production to the v1.40 baseline.
