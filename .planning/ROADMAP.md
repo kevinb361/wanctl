@@ -182,7 +182,7 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 201 | DOCSIS-Aware UL Congestion Control | 3/12 | In Progress|  |
+| 201 | DOCSIS-Aware UL Congestion Control | 4/12 | Blocked on Codex pre-review amendments |  |
 
 ---
 
@@ -224,7 +224,7 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 4. The predeploy gate inspects `/etc/wanctl/spectrum.yaml` on the deploy target and either reconciles v1.41-only rejected-hypothesis keys with Phase 201's own design or fails closed before the deploy proceeds. Verified by canary preflight log evidence.
 5. `CHANGELOG.md` and `docs/CONFIGURATION.md` carry the migration note specifying that `docsis_mode`, `setpoint_mbps`, and the RTT-integral window keys require a service restart to take effect (SIGUSR1 does not reload these). Verified by greps for the keys in both files.
 
-**Plans:** 3/12 plans executed
+**Plans:** 4/12 plans executed — Plan 201-09 Codex pre-review returned BLOCK on 2026-05-04; Wave 1+ is paused until accepted amendments land for Plans 201-04, 201-05, 201-06, 201-07, and 201-08.
 
 Plans:
 - [x] 201-01-corpus-inspection-and-fixtures-PLAN.md — Wave 0 corpus audit + replay-corpus loader + synthetic-trace fixtures (resolves Open Questions 1 + 2)
@@ -235,7 +235,7 @@ Plans:
 - [ ] 201-06-spectrum-yaml-and-version-PLAN.md — configs/spectrum.yaml R5+R3 keep + R0 strip + setpoint=12; version 1.42.0; CHANGELOG + CONFIGURATION migration (D-09, D-10, RESEARCH §5)
 - [ ] 201-07-predeploy-gate-PLAN.md — scripts/phase201-predeploy-gate.sh fail-closed against rejected v1.41 keys; deploy.sh integration (D-15)
 - [ ] 201-08-canary-script-extension-PLAN.md — D-12 preflight extension: env-vs-YAML cross-check + /health DOCSIS-mode probe + WR-02 closure; max_delay_delta_us capture
-- [ ] 201-09-codex-pre-review-PLAN.md — Cross-AI pre-review checkpoint before Wave 2 implementation (D-18 first leg)
+- [x] 201-09-codex-pre-review-PLAN.md — Cross-AI pre-review checkpoint before Wave 2 implementation (D-18 first leg); verdict BLOCK, amendments required before Wave 1+ continues
 - [ ] 201-10-codex-stop-time-review-PLAN.md — Cross-AI stop-time review checkpoint before live canary (D-18 second leg)
 - [ ] 201-11-canary-execution-PLAN.md — Live 10-15 min iperf3 -P4 saturated UL canary; PRIMARY VALN-06 gate (zero floor hits); D-10 rollback on fail
 - [ ] 201-12-soak-and-closeout-PLAN.md — 24h Spectrum UL regression soak watchdog (<5/60s); 201-VERIFICATION.md + REQUIREMENTS.md + STATE.md closeout

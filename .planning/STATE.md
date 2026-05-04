@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: executing
-stopped_at: Completed 201-02-test-stubs-PLAN.md
-last_updated: "2026-05-04T21:32:15.805Z"
+stopped_at: Blocked after 201-09-codex-pre-review-PLAN.md
+last_updated: "2026-05-04T21:39:08.000Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 1
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 201-02-test-stubs-PLAN.md
+Stopped at: Blocked after 201-09-codex-pre-review-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -232,9 +232,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 201-03]: Kept setpoint_mbps required-when-docsis-mode in imperative Config validation rather than schema required=true, preserving byte-identical legacy YAML defaults.
 - [Phase 201-03]: Mirrored check-config validation separately from Config.__init__ so offline diagnostics report DOCSIS setpoint errors without relying on daemon construction.
 - [Phase 201-03]: SAFE-05 Phase 201 occurrence pins count grep-style matching lines across src/wanctl while preserving original wan_controller.py v1.41 drift pins verbatim.
+- [Phase 201-09]: Accepted Codex BLOCK verdict; Wave 1+ is paused until HIGH amendments land for floor-hit counter placement, DOCSIS YELLOW/R5+R3 semantics, replay threshold fidelity, Spectrum-only predeploy gate wiring, and fail-closed Phase 201 canary env enforcement.
+- [Phase 201-09]: Setpoint 12 remains an explicit canary-validated assumption, not a Spectrum-sweep-proven value.
 
 ## Performance Metrics
 
+- 2026-05-04: Phase 201 Plan 09 completed in 4min across 1 Codex review gate and 4 planning/tracking files; Codex returned BLOCK with 5 HIGH, 3 MED, and 1 LOW comments, all HIGH comments were accepted, and Wave 1+ is paused pending plan amendments.
 - 2026-05-04: Phase 201 Plan 03 completed in 21min across 3 tasks and 5 files; DOCSIS-mode upload schema keys, presence flags, fail-closed Config/check-config setpoint validation, SAFE-06 registration, and SAFE-05 v1.42 source occurrence pins landed; targeted schema/validator tests, SAFE-05 pin test, scoped hot-path slice, ruff, and mypy passed.
 - 2026-05-04: Phase 201 Plan 02 completed in 7min across 2 Wave 0 TDD scaffold tasks and 8 files; 18 named Phase 201 test classes now collect, hot-path baseline passed with 583 tests, and VALIDATION.md wave_0_complete flipped true.
 - 2026-05-04: Phase 200 Plan 15 completed documentation closeout in ~9min across 5 planning artifacts plus summary; status is gaps_found, VALN-06 remains blocked after Attempt 3 canary 20260504T133207Z failed with 4 UL floor hits, rollback used /opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz, and soak was skipped.
@@ -284,6 +287,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Blockers
 
+- Phase 201 Codex pre-review returned BLOCK on 2026-05-04. Accepted amendments must land before Wave 1+ continues: Plan 201-04 floor-hit counter must increment after final bounded rate; Plan 201-04 DOCSIS YELLOW/R5+R3 semantics must use existing state and clarify legacy-only unchanged behavior; Plan 201-04 replay thresholds/integral threshold framing must match runtime; Plan 201-07 deploy gate must be Spectrum-only and derive remote YAML path from deploy variables; Plan 201-08 canary env enforcement must be fail-closed with explicit legacy-mode opt-in. See `201-09-CODEX-PRE-REVIEW.md`.
 - VALN-06 inherited by Phase 201 (`docsis-aware-ul-congestion-control`) as a blocking requirement per operator escalation 2026-05-04. Phase 200 closed as `gaps_found` after gap-closure cycle 1: Plan 200-14 Attempt 3 canary `20260504T133207Z` improved loaded-window UL floor hits from 122 (Attempt 2) to 4 but did not reach the zero-hit gate; D-10 rollback restored `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`; the 24h soak was skipped fail-closed. No second Phase 200 remediation cycle was attempted; the residual failure regime is shaping-headroom dominated, which is Phase 201's scope. Production binary remains v1.40; v1.41 YAML keys remain on prod `/etc/wanctl/spectrum.yaml` and are inactive under v1.40 but MUST be reconciled before any future Spectrum deploy/restart (Phase 201 predeploy gate). See `200-VERIFICATION.md` `closure: deferred-to-phase-201`, `200-RETRO.md` `## Final Closure (2026-05-04)`, and `201-CONTEXT.md` `## Inherited Requirements`.
 - Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), `2026-04-23` (`64.40 Mbps`), `2026-04-23c` (`61.47 Mbps`), and `2026-04-24` (`70.95 Mbps`) FAIL samples against the old ATT RRUL download comparator. The `2026-04-24` run narrowed the issue because ATT tcp_12down and VoIP looked healthy and Spectrum throughput was strong, but it still did not close Phase 191. Phase 192 is allowed to proceed only under the explicit operator waiver in `192-PRECONDITION-WAIVER.md`.
 - Phase 196 remains blocked only for the deferred ATT canary because Phase 191 closure is still open; Spectrum VALN-04 and VALN-05a were closed by Phase 198 Plan 07 attempt 11 canonical promotion.
@@ -292,6 +296,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 201 (docsis-aware-ul-congestion-control) — EXECUTING
-Plan: 4 of 12
-Status: Ready to execute
+Plan: 9 of 12
+Status: Blocked on Codex pre-review amendments before Wave 1+ continuation
 Last activity: 2026-05-04
