@@ -1,8 +1,8 @@
 ---
 phase: 200-per-direction-rtt-bloat-thresholds
-verified: 2026-05-04T00:00:00Z
+verified: 2026-05-04T14:24:43Z
 status: gaps_found
-score: 3/5 roadmap criteria verified; VALN-06 remains blocked after Attempt 3
+score: 3/5 roadmap success criteria verified
 overrides_applied: 0
 requirements:
   ARB-05: satisfied
@@ -13,13 +13,17 @@ files_touched:
   src:
     - src/wanctl/autorate_config.py
     - src/wanctl/check_config_validators.py
+    - src/wanctl/queue_controller.py
     - src/wanctl/wan_controller.py
     - src/wanctl/__init__.py
   tests:
     - tests/conftest.py
     - tests/test_autorate_config.py
-    - tests/test_wan_controller.py
+    - tests/test_check_config.py
+    - tests/test_phase200_canary_script.py
     - tests/test_phase_195_replay.py
+    - tests/test_queue_controller.py
+    - tests/test_wan_controller.py
   scripts:
     - scripts/phase200-saturation-canary.sh
     - scripts/phase200-saturation-canary.env.example
@@ -31,135 +35,141 @@ files_touched:
   build:
     - pyproject.toml
     - docker/Dockerfile
+    - .dockerignore
 deploy_state: rolled-back
 canary_verdict_path: .planning/phases/200-per-direction-rtt-bloat-thresholds/canary/20260504T133207Z/verdict.json
 soak_verdict_path: null
+re_verification:
+  previous_status: gaps_found
+  previous_score: 3/5 roadmap criteria verified; VALN-06 remains blocked after Attempt 3
+  gaps_closed:
+    - "Canary baseline RTT bookends are now populated in Attempt 3 verdict (21.7 ms -> 22.23 ms)."
+    - "WR-01 CLI upload threshold ordering parity closed by Plan 200-12."
+    - "WR-02 remote YAML path validation closed for metacharacter/path traversal cases by Plan 200-11."
+    - "WR-03 Docker package layout closed by Plan 200-13 static source verification."
+  gaps_remaining:
+    - "Saturated Spectrum UL canary still failed: 4 loaded-window floor hits."
+    - "24h Spectrum regression soak was skipped because the canary failed."
+  regressions: []
 gaps:
   - truth: "The 10-15 min saturated iperf3 -P4 UL canary at 18 Mbit completes without the UL controller collapsing to the 8 Mbit floor in any cycle"
     status: failed
-    reason: "Gap-closure Attempt 3 materially improved the canary from 122 floor hits to 4, but the production canary verdict remained fail because VALN-06 allows zero loaded-window floor hits; D-10 rollback was executed."
+    reason: "Gap-closure Attempt 3 improved the canary from 122 floor hits to 4, but VALN-06 requires zero loaded-window floor hits; verdict remained fail and rollback executed."
     artifacts:
       - path: ".planning/phases/200-per-direction-rtt-bloat-thresholds/canary/20260504T133207Z/verdict.json"
-        issue: "verdict=fail, ul_floor_hits_during_load=4, ul_floor_threshold_hit=true"
-      - path: ".planning/phases/200-per-direction-rtt-bloat-thresholds/canary/20260503T215734Z/verdict.json"
-        issue: "historical Attempt 2 verdict=fail, ul_floor_hits_during_load=122"
+        issue: "verdict=fail, ul_floor_hits_during_load=4, ul_floor_threshold_hit=true, pre/post baseline RTT populated"
       - path: ".planning/phases/200-per-direction-rtt-bloat-thresholds/200-DEPLOY-LOG.md"
-        issue: "Records Attempt 3 FAIL decision and rollback at 2026-05-04T13:49:19Z using /opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz"
+        issue: "Attempt 3 rollback recorded at 2026-05-04T13:49:19Z using /opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz"
     missing:
-      - "A second-stage gap-closure implementation or operator decision that can pass a saturated Spectrum UL canary with zero floor hits."
+      - "A production canary verdict with ul_floor_hits_during_load=0 after an approved second-stage remediation or operator decision."
   - truth: "The 24h Spectrum UL regression soak after canary passes shows UL hysteresis suppression rate below 5/60s on average"
     status: failed
-    reason: "Plan 200-14 correctly skipped the soak because Attempt 3 canary failed; no gap-closure 24h soak verdict exists."
+    reason: "The 24h soak is gated on a passing canary. Attempt 3 canary failed, so the soak was skipped fail-closed and no valid soak verdict exists."
     artifacts:
       - path: ".planning/phases/200-per-direction-rtt-bloat-thresholds/200-SOAK-LOG.md"
-        issue: "Records skipped (canary-fail-branch); no soak launched after rollback."
+        issue: "Records skipped (canary-fail-branch) for Attempt 3; no 24h soak launched."
     missing:
-      - "A passed canary followed by a valid 24h v1.41 soak with mean UL hysteresis suppressions <5/60s."
+      - "A passed canary followed by a valid 24h Spectrum soak with mean UL hysteresis suppressions <5/60s."
 ---
 
 # Phase 200: Per-Direction RTT Bloat Thresholds Verification Report
 
-**Phase Goal:** Add optional `continuous_monitoring.upload.target_bloat_ms` and `continuous_monitoring.upload.warn_bloat_ms` keys so the legacy 3-state UL controller can use thresholds independent of DL thresholds, preserve byte-identical behavior when keys are absent, adopt Spectrum 42/105 ms and 18 Mbps settings, close validator silent-ignore behavior, ship a 10-15 min saturated UL canary as deploy gate, and run 24h soak as regression watchdog.
+**Phase Goal:** Add optional `continuous_monitoring.upload.target_bloat_ms` and `continuous_monitoring.upload.warn_bloat_ms` keys so the legacy 3-state UL controller can use thresholds independent of DL thresholds, preserve byte-identical behavior when keys are absent, adopt Spectrum UL settings, close validator silent-ignore behavior, ship a 10-15 min saturated UL canary as deploy gate, and run a 24h soak as regression watchdog.
 
-**Verified:** 2026-05-04T00:00:00Z  
+**Verified:** 2026-05-04T14:24:43Z  
 **Status:** gaps_found  
-**Re-verification:** No — previous `200-VERIFICATION.md` existed but did not contain structured `gaps:` frontmatter; this verification re-checks the goal against code and evidence.
+**Re-verification:** Yes — previous `200-VERIFICATION.md` already had structured gaps. Failed validation items were re-checked fully; previously passing code/docs items received regression checks.
 
 ## Goal Achievement
 
 ### Observable Truths
 
 | # | Truth | Status | Evidence |
-|---|-------|--------|----------|
-| 1 | New optional upload threshold keys are accepted, ordered, presence-tracked, and fall back to DL globals when absent. | ✓ VERIFIED | `autorate_config.py` records `_upload_target_bloat_ms_explicit = "target_bloat_ms" in ul` and `_upload_warn_bloat_ms_explicit = "warn_bloat_ms" in ul` (lines 358-366), resolves fallback values (lines 416-425), and tests cover default, override, and ordering. |
-| 2 | WANController uses per-key explicit flags so live tuning cannot silently overwrite operator-explicit UL thresholds. | ✓ VERIFIED | `_apply_threshold_param` gates `target_delta` and `warn_delta` independently (lines 111-149) with ordering guards; `WANController.__init__` copies both flags and emits the D-06 INFO line through `self.logger` (lines 420-445). Tests cover equal-to-global, per-key independence, ordering guard, and INFO emission. |
-| 3 | Startup validator warning closes silent-ignore behavior for unknown config keys. | ✓ VERIFIED | `Config._warn_unknown_continuous_monitoring_keys()` runs once at the end of `_load_specific_fields` (lines 1621-1650), reusing `check_unknown_keys`; `KNOWN_AUTORATE_PATHS` includes both new UL leaves (lines 68-69). Tests cover unknown warning and known-key silence. |
-| 4 | Spectrum adopts latency-first 18 Mbps, factor_down_yellow 0.98, and 42/105 ms UL thresholds. | ✓ VERIFIED | `configs/spectrum.yaml` upload section has `ceiling_mbps: 18`, `factor_down_yellow: 0.98`, `target_bloat_ms: 42`, `warn_bloat_ms: 105` (lines 68-76). Version surfaces are all `1.41.0`. |
-| 5 | Saturated Spectrum UL canary passes with zero floor-collapse cycles. | ✗ FAILED | Gap-closure Attempt 3 `canary/20260504T133207Z/verdict.json` has `verdict: "fail"`, `ul_floor_hits_during_load: 4`, `ul_floor_threshold_hit: true`; deploy log records D-10 rollback at `2026-05-04T13:49:19Z` using `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`. |
-| 6 | 24h soak runs after canary pass and demonstrates <5 suppressions/60s mean. | ✗ FAILED | `200-SOAK-LOG.md` records Attempt 3 `skipped (canary-fail-branch)` because the canary verdict was `fail`; no gap-closure soak verdict exists. |
+|---|---|---|---|
+| 1 | Autorate config accepts optional UL target/warn keys, validates ordering, and falls back to global thresholds when absent. | ✓ VERIFIED | `autorate_config.py` schema includes `continuous_monitoring.upload.target_bloat_ms` and `warn_bloat_ms`; `_load_upload_config()` records presence flags at lines 371-379; `_load_threshold_config()` resolves fallback and rejects `upload_target >= upload_warn` at lines 429-438. |
+| 2 | Validator emits audible warnings for unknown config keys and recognizes all Phase 200 keys. | ✓ VERIFIED | `Config._warn_unknown_continuous_monitoring_keys()` is called at config load end (`autorate_config.py:1634-1664`); `KNOWN_AUTORATE_PATHS` includes upload target/warn and `consecutive_yellow_decay_clamp` (`check_config_validators.py:68-70`). |
+| 3 | Spectrum deploy config carries v1.41/v1.41-gap settings: 18 Mbps ceiling, UL 42/105 ms thresholds, R5 hold, and R3 clamp. | ✓ VERIFIED | `configs/spectrum.yaml:70-76` has `ceiling_mbps: 18`, `factor_down_yellow: 1.0`, `target_bloat_ms: 42`, `warn_bloat_ms: 105`, and `consecutive_yellow_decay_clamp: 40`. |
+| 4 | Saturated Spectrum UL canary passes with zero floor-collapse samples. | ✗ FAILED | Attempt 3 verdict at `canary/20260504T133207Z/verdict.json` has `verdict: fail`, `ul_floor_hits_during_load: 4`, `ul_floor_threshold_hit: true`; `200-DEPLOY-LOG.md` records rollback at `2026-05-04T13:49:19Z`. |
+| 5 | 24h Spectrum regression soak runs after canary pass and mean UL hysteresis suppressions are <5/60s. | ✗ FAILED | `200-SOAK-LOG.md` records Attempt 3 `skipped (canary-fail-branch)` because upstream canary failed; no soak verdict exists. |
+| 6 | Changelog and configuration docs document the new keys and restart-required migration. | ✓ VERIFIED | `CHANGELOG.md` v1.41.0 documents upload threshold and clamp changes; `docs/CONFIGURATION.md` has “Per-Direction Upload Thresholds (v1.41+)” plus “service restart required (NOT SIGUSR1)” with `systemctl restart wanctl@<wan>.service`. |
 
-**Score:** 3/5 roadmap success criteria verified. The two validation criteria (canary and soak) still block phase goal achievement even though implementation/docs are present and the canary baseline-bookend gap was closed by Plans 200-11/200-14.
+**Score:** 3/5 roadmap success criteria verified. Implementation/config/docs criteria pass; both VALN-06 validation criteria remain blocked.
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |---|---|---|---|
-| `src/wanctl/autorate_config.py` | UL key loading, ordering, and SAFE-06 warning | ✓ VERIFIED | Presence flags, fallback resolution, ordering rejection, and startup warning helper are substantive and wired through `Config._load_specific_fields`. |
-| `src/wanctl/wan_controller.py` | Per-key live-tuning gates and D-06 INFO verification surface | ✓ VERIFIED | Per-key gates exist; deployment journal verified the INFO line after mid-plan logger fix. |
-| `src/wanctl/check_config_validators.py` | Known-key registry for new keys | ✓ VERIFIED | New paths are in `KNOWN_AUTORATE_PATHS`; unknown-key walker skips `alerting.rules.*`. |
-| `tests/test_autorate_config.py` | Config and SAFE-06 regression tests | ✓ VERIFIED | Targeted run: `213 passed`; full hot slice: `644 passed in 39.91s`. |
-| `tests/test_wan_controller.py` | Controller threshold tests | ✓ VERIFIED | Covers equal-value explicit, per-key independence, ordering guard, and INFO logger. |
-| `tests/test_phase_195_replay.py` | SAFE-05 count baseline update | ✓ VERIFIED | Warn/target counts updated with comment; hot slice passed. |
-| `configs/spectrum.yaml` | Spectrum 18 Mbps and 42/105 ms adoption | ✓ VERIFIED | Values verified with Python YAML check. |
-| `CHANGELOG.md` / `docs/CONFIGURATION.md` | Release and restart-required migration docs | ✓ VERIFIED | Both document new keys and SIGUSR1-vs-restart limitation. |
-| `scripts/phase200-saturation-canary.sh` | Fail-closed canary | ✓ VERIFIED (failed outcome) | Executable, fail-closed, and gap-closure Attempt 3 populated baseline RTT bookends (`21.7 ms` → `22.23 ms`) while correctly returning a fail verdict for 4 UL floor hits. |
-| `200-DEPLOY-LOG.md` | Deploy/canary/rollback evidence | ✓ VERIFIED | Records pre-deploy snapshot, v1.41 deploy, D-06 journal evidence, canary failure, and D-10 rollback. |
-| `200-SOAK-LOG.md` | 24h soak evidence or blocked gate | ✓ VERIFIED (blocked evidence) | Correctly records no soak launched because canary failed. |
+| `src/wanctl/autorate_config.py` | UL threshold schema, fallback, ordering, presence flags, SAFE-06 warning | ✓ VERIFIED | Lines 175-189 define schema; lines 361-379 load clamp and per-key explicit flags; lines 429-438 enforce upload threshold ordering; lines 1634-1664 emit warnings. |
+| `src/wanctl/wan_controller.py` | Per-key live-tuning gates and runtime D-06 log surface | ✓ VERIFIED | `_apply_threshold_param()` gates target/warn independently and guards ordering; `WANController._init_baseline_and_thresholds()` logs explicit UL thresholds via `self.logger`. |
+| `src/wanctl/queue_controller.py` | R3 consecutive-YELLOW clamp default-off and RED-preserving | ✓ VERIFIED | Constructor default `consecutive_yellow_decay_clamp=0`; `_compute_rate_3state()` holds after clamp and resets on RED/GREEN/non-YELLOW while RED decay stays immediate. |
+| `src/wanctl/check_config_validators.py` | Known-key registry and upload ordering preflight | ✓ VERIFIED | `KNOWN_AUTORATE_PATHS` contains new keys; `validate_cross_fields()` calls `_validate_upload_threshold_ordering()` and returns ERROR for inverted/equal upload thresholds. |
+| `scripts/phase200-saturation-canary.sh` | Fail-closed canary, baseline bookends, remote YAML validation | ✓ VERIFIED (failed outcome) | Script validates env/YAML floor/ceiling, runs iperf3 `-P 4`, writes pass/fail/abort verdicts, and Attempt 3 populated baseline RTT bookends. Review warning remains for missing explicit python/yaml dependency check before the remote YAML parse. |
+| `configs/spectrum.yaml` | Spectrum values adopted | ✓ VERIFIED | 18 Mbps ceiling, 1.0 YELLOW hold, 42/105 ms thresholds, clamp 40. |
+| `docker/Dockerfile` / `.dockerignore` | Version and package layout | ⚠️ WARNING | Package directory copy is fixed, but `200-REVIEW.md` warns unquoted shell-form pip constraints can be parsed as redirections and top usage comment still shows stale build command. |
+| `200-DEPLOY-LOG.md` | Deploy/canary/rollback evidence | ✓ VERIFIED | Records Attempt 3 deploy, D-06 journal hit, canary fail with 4 floor hits, and rollback tarball path. |
+| `200-SOAK-LOG.md` | Soak evidence or blocked gate | ✓ VERIFIED (blocked evidence) | Records skipped soak because canary failed. |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |---|---|---|---|---|
-| YAML `continuous_monitoring.upload.target_bloat_ms` / `warn_bloat_ms` | `Config` resolved UL thresholds | `_load_upload_config` raw values + presence flags, `_load_threshold_config` fallback | ✓ WIRED | Absent keys fall back; present keys set explicit flags regardless of value. |
-| `Config` explicit flags | `WANController.__init__` | `getattr(config, "_upload_*_explicit", False)` | ✓ WIRED | Controller owns both flags and uses them for tuning gates. |
-| Live tuner `target_bloat_ms` / `warn_bloat_ms` | UL `target_delta` / `warn_delta` | `_apply_threshold_param` per-key gates | ✓ WIRED | Protected fields are not overwritten; unprotected fields update only if ordering remains valid. |
-| `WANController.__init__` | Production deploy verification | `self.logger.info("phase200 explicit UL thresholds active...")` | ✓ WIRED | `200-DEPLOY-LOG.md` lines 131-135 show journal hit with 42/105 values after logger fix. |
-| `check_unknown_keys` | Daemon startup warning | `Config._warn_unknown_continuous_monitoring_keys()` | ✓ WIRED | Runs at config load and logs warnings without aborting startup. |
-| Canary verdict | Deploy decision | `verdict.json.verdict` in Plan 06 | ✓ WIRED | Verdict `fail` caused immediate rollback and Plan 07 block. |
-| Canary pass | 24h soak launch | Plan 07 gate | ✗ NOT_WIRED BY OUTCOME | Link exists conceptually, but no soak launched because upstream canary failed. |
+| YAML `continuous_monitoring.upload.target_bloat_ms` / `warn_bloat_ms` | `Config.upload_*_bloat_ms` | raw upload values + fallback in `_load_threshold_config()` | ✓ WIRED | Explicit and fallback paths exist; ordering rejection prevents inverted config. |
+| Config explicit flags | `WANController` live-tuning gates | `getattr(config, "_upload_*_explicit", False)` | ✓ WIRED | Per-key gates protect `target_delta` and `warn_delta` independently. |
+| Config `upload_consecutive_yellow_decay_clamp` | Upload `QueueController` | `WANController` constructor pass-through | ✓ WIRED | `getattr(config, "upload_consecutive_yellow_decay_clamp", 0)` passed to upload controller only. |
+| SAFE-06 registry | Startup warning | `check_unknown_keys(self.data)` in Config helper | ✓ WIRED | Warnings emitted without abort; alerting rules skipped by shared validator. |
+| Canary verdict | Deploy decision | Plan 200-14 branch | ✓ WIRED | `verdict=fail` caused D-10 rollback. |
+| Canary pass | 24h soak launch | Plan 200-14 Task 4 gate | ✗ NOT WIRED BY OUTCOME | Link exists in plan, but upstream canary failed so soak correctly did not launch. |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data Variable | Source | Produces Real Data | Status |
 |---|---|---|---|---|
-| `Config` upload thresholds | `upload_target_bloat_ms`, `upload_warn_bloat_ms` | YAML `continuous_monitoring.upload.*`, fallback to `thresholds.*` | Yes | ✓ FLOWING |
+| `Config` upload thresholds | `upload_target_bloat_ms`, `upload_warn_bloat_ms` | YAML upload keys or global fallback | Yes | ✓ FLOWING |
 | `WANController` UL thresholds | `target_delta`, `warn_delta` | `Config.upload_*` values | Yes | ✓ FLOWING |
-| D-06 journal proof | explicit UL threshold log values | `WANController` runtime `target_delta`/`warn_delta` | Yes | ✓ FLOWING |
-| Canary verdict | `ul_floor_hits_during_load` | 1Hz `/health.wans[0].upload.current_rate_mbps` loaded window compared to env/YAML floor | Yes | ✓ FLOWING (failed outcome) |
-| Canary baseline RTT fields | `pre_baseline_rtt_ms`, `post_baseline_rtt_ms` | `summarize_baseline()` jq path fixed by Plan 200-11 | Yes | ✓ FLOWING — Attempt 3 verdict recorded `21.7 ms` and `22.23 ms`. |
+| Upload clamp | `consecutive_yellow_decay_clamp` | YAML -> `Config` -> upload `QueueController` | Yes | ✓ FLOWING |
+| Canary baseline fields | `pre_baseline_rtt_ms`, `post_baseline_rtt_ms` | `/health.wans[0].baseline_rtt_ms` via `summarize_baseline()` | Yes | ✓ FLOWING — Attempt 3 verdict has `21.7` and `22.23`. |
+| Canary verdict | `ul_floor_hits_during_load` | 1Hz loaded-window `/health.wans[0].upload.current_rate_mbps` compared to YAML/env floor | Yes | ✓ FLOWING (failed outcome) |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |---|---|---|---|
-| Full hot-path regression slice | `.venv/bin/pytest -o addopts='' tests/test_cake_signal.py tests/test_queue_controller.py tests/test_wan_controller.py tests/test_health_check.py tests/test_autorate_config.py tests/test_phase_195_replay.py -q` | `644 passed in 39.91s` | ✓ PASS |
-| Phase 200 targeted config/controller tests | `.venv/bin/pytest -o addopts='' tests/test_autorate_config.py::TestLoadUploadThresholdConfig tests/test_autorate_config.py::TestSafe06UnknownKeyWarning tests/test_wan_controller.py -q` | `213 passed in 1.85s` | ✓ PASS |
-| Canary help and missing-env paths | `bash scripts/phase200-saturation-canary.sh --help`; `env -i bash scripts/phase200-saturation-canary.sh` | Help prints usage; missing env exits 2 with `ABORT: env var PHASE200_OUT_DIR is not set` | ✓ PASS |
-| Version and Spectrum YAML values | Python checks `pyproject`, `__version__`, Docker label, and YAML upload values | `1.41.0`; Spectrum `18/0.98/42/105` | ✓ PASS |
+| R3 clamp single-GREEN reset | `.venv/bin/pytest -o addopts='' tests/test_queue_controller.py -q -k 'yellow_clamp_resets_on_single_green'` | `1 passed, 137 deselected` | ✓ PASS |
+| Per-key UL explicit gates | `.venv/bin/pytest -o addopts='' tests/test_wan_controller.py -q -k 'upload_thresholds_explicit'` | `2 passed, 206 deselected` | ✓ PASS |
+| SAFE-06 + upload preflight + canary helper tests | `.venv/bin/pytest -o addopts='' tests/test_autorate_config.py::TestSafe06UnknownKeyWarning tests/test_check_config.py::TestUploadThresholdOrdering tests/test_phase200_canary_script.py -q` | `17 passed` | ✓ PASS |
+| Full suite after closeout | Recorded execution outcome | `4787 passed, 6 skipped, 2 deselected` | ✓ PASS (recorded evidence) |
+| Schema drift gate | Recorded execution outcome | `drift_detected=false` | ✓ PASS (recorded evidence) |
 
 ### Requirements Coverage
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |---|---|---|---|---|
-| ARB-05 | 200-01, 200-02, 200-08 | Per-direction UL RTT thresholds independent of DL, absent-key fallback, explicit flags protect live tuning. | ✓ SATISFIED | Code paths and tests verified; D-06 deploy journal proved 42/105 loaded on v1.41 before canary. |
-| SAFE-06 | 200-03, 200-08 | Unknown `continuous_monitoring.*` keys are audibly warned/rejected; no silent ignore. | ✓ SATISFIED | Startup warning helper and tests verified; deploy journal recorded zero unknown-key warnings for prod Spectrum YAML. |
-| VALN-06 | 200-05, 200-06, 200-07, 200-08, 200-14, 200-15 | Saturated UL canary must pass; 24h soak runs afterward as watchdog. | ✗ BLOCKED | Attempt 3 canary failed with 4 floor hits and rollback executed from `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`; no soak launched. |
-| DOCS-03 | 200-04, 200-08 | Changelog/config docs document new keys and restart-required migration. | ✓ SATISFIED | `CHANGELOG.md` 1.41.0 section and `docs/CONFIGURATION.md` per-direction upload thresholds section verified. |
+| ARB-05 | 200-01, 200-02, 200-10 | Per-direction UL thresholds independent of DL, absent-key fallback, live-tuning protection, R3 default-off clamp. | ✓ SATISFIED | Code and targeted tests verified; deploy journal showed 42/105 values live before Attempt 3. |
+| SAFE-06 | 200-03, 200-12 | Unknown keys audibly warned and upload threshold ordering caught in CLI preflight. | ✓ SATISFIED | Startup warning helper, known-key registry, `_validate_upload_threshold_ordering()`, and tests verified. |
+| VALN-06 | 200-05, 200-06, 200-07, 200-11, 200-14, 200-15 | Saturated Spectrum UL canary must pass with zero floor hits; 24h soak follows. | ✗ BLOCKED | Attempt 3 canary failed with 4 floor hits; D-10 rollback used `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`; soak skipped. |
+| DOCS-03 | 200-04, 200-10, 200-13 | Changelog/config docs document new keys and restart-required migration. | ✓ SATISFIED | Docs greps found v1.41.0, new key section, clamp guidance, SIGUSR1 warning, and restart command. |
 
-No orphaned Phase 200 requirement IDs were found in `REQUIREMENTS.md`: ARB-05, SAFE-06, VALN-06, and DOCS-03 are all mapped to Phase 200 traceability rows.
+No orphaned Phase 200 requirement IDs were found in `REQUIREMENTS.md`; ARB-05, SAFE-06, VALN-06, and DOCS-03 are all mapped to Phase 200.
 
 ### Anti-Patterns and Residual Risks Found
 
 | File | Line | Pattern | Severity | Impact |
 |---|---:|---|---|---|
-| `scripts/phase200-saturation-canary.sh` | 265 | Remote YAML path interpolated into SSH command (`sudo cat ${REMOTE_YAML_PATH}`) | ⚠️ Warning (from `200-REVIEW.md` WR-02) | Operator-supplied malformed path can become a shell-command footgun; fix before broader reuse of the canary helper. |
-| `src/wanctl/check_config_validators.py` | 305-318 | `wanctl-check-config` cross-field validation omits upload-specific target/warn ordering | ⚠️ Warning (from `200-REVIEW.md` WR-01) | Daemon rejects invalid upload ordering, but CLI preflight can still report cross-field valid; validator/daemon parity is incomplete. |
-| `docker/Dockerfile` | 56-59 | Copies loose `src/wanctl/*.py` files, not full package layout | ⚠️ Warning (from `200-REVIEW.md` WR-03) | Docker image may still fail package imports; version label is correct, but packaging quality is not fully verified. |
-| `scripts/phase200-saturation-canary.sh` | fixed in Plan 200-11 | Baseline RTT jq path now reads the live `/health` shape | ✓ Closed | Attempt 3 verdict includes pre/post baseline RTT bookends; no longer a live verification gap. |
+| `docker/Dockerfile` | 46-52 | Unquoted shell-form pip constraints (`requests>=...`) | ⚠️ Warning (`200-REVIEW.md` WR-01) | Docker builds can parse `>` as redirection; packaging correctness risk, advisory for phase goal. |
+| `scripts/phase200-saturation-canary.sh` | 328-338 | Python/PyYAML dependency not prechecked before command substitution | ⚠️ Warning (`200-REVIEW.md` WR-02) | Missing dependency may exit without writing an abort verdict; actual Attempt 3 produced a fail verdict, so this did not affect current VALN evidence. |
+| `docker/Dockerfile` | 5-7 | Stale top-level build invocation comment | ℹ️ Info (`200-REVIEW.md` IN-01) | Documentation polish; canonical command appears later in Dockerfile. |
+| `scripts/phase200-saturation-canary.env.example` | template env values | Empty assignments | ℹ️ Info | Intentional operator template; not a runtime stub. |
+| `src/wanctl/*` | various `return []` / `return {}` | Empty collections | ℹ️ Info | Existing defensive empty-result returns; not user-visible stubs and not Phase 200 blockers. |
 
 ### Human Verification Required
 
-None for the current status. The relevant production behavior was already exercised by the canary and recorded as a failed deploy gate. Future gap-closure work will need another operator-approved production canary/soak.
+None for the current status. The decisive production behavior was already exercised by the canary and recorded as a failed deploy gate with rollback. Any future closure requires a new operator-approved canary and then a 24h soak.
 
 ### Gaps Summary
 
-Phase 200 achieved the implementation, safety-warning, docs, Spectrum YAML adoption, and canary-bookend repair goals, but it did **not** achieve the production validation goal. Gap-closure Attempt 3 improved the D-07 saturated UL canary from 122 floor samples to 4 during the 900s loaded window, but any loaded-window floor hit fails VALN-06; D-10 rollback was executed and the 24h soak was correctly skipped. The phase remains `gaps_found` / blocked until a second-stage operator decision or follow-up implementation can pass the canary and then complete the 24h watchdog soak.
-
-## Gap-Closure Cycle 1 Outcome
-
-Plans 200-09 through 200-14 closed several verification-surface and implementation gaps (baseline RTT bookends, remote YAML validation, WR-01 validator parity, WR-03 Docker package copy, and the approved R5+R3 remediation), but the contracted production canary still failed. Attempt 3 at `canary/20260504T133207Z/` recorded `ul_floor_hits_during_load=4`, triggered immediate rollback from `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`, and skipped the 24h soak fail-closed. Per the revised Plan 200-15 outcome map and Codex MEDIUM review finding, Phase 200 status remains exactly `gaps_found`; `verified` requires both a passing canary and a passing 24h soak.
+Phase 200 achieved the implementation, safety-warning, docs, Spectrum config/remediation, and canary-evidence-surface goals. It did **not** achieve VALN-06. Gap-closure Attempt 3 materially improved the saturated Spectrum UL canary from 122 floor samples to 4 and fixed the baseline RTT bookends, but the deploy gate allows zero loaded-window floor hits. The canary failed, D-10 rollback executed using `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`, and the 24h soak was correctly skipped fail-closed. Phase 200 remains `gaps_found` until a second-stage remediation/operator decision produces a zero-floor-hit canary followed by a passing 24h soak.
 
 ---
 
-_Verified: 2026-05-04T00:00:00Z_  
+_Verified: 2026-05-04T14:24:43Z_  
 _Verifier: the agent (gsd-verifier)_

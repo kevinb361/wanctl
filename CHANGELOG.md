@@ -92,8 +92,9 @@ ceiling_mbps}`. Without this cross-check, a stale floor env value would silently
 - Phase 200 Plan 07 24h regression soak was blocked because Plan 06's saturated
   Spectrum upload canary failed (`122` UL floor-collapse samples during the 900s
   loaded window) and D-10 rollback restored production to the v1.40 baseline.
-  No soak capture was launched against the rolled-back binary; Plan 08 and the
-  Phase 201 gap-closure work should treat VALN-06 as failed/blocked rather than
+  Gap-closure Attempt 3 improved the failure to `4` UL floor-collapse samples
+  but still failed the zero-floor-hit VALN-06 gate, so rollback executed again
+  and no soak capture was launched. Phase 200 remains `gaps_found` rather than
   soak-satisfied.
 
 ### Migration
