@@ -22,7 +22,7 @@
 
 ### Verification (VALN)
 
-- [ ] **VALN-06**: Spectrum UL saturation gate — a 10–15 min `iperf3 -P4` saturated upload loop at the deployed UL ceiling does not collapse to the UL floor in any cycle. Verified pre/post idle baselines bookend the run. This is the deploy-gate acceptance test; it must pass before the binary is promoted to `/opt/wanctl`. A 24-hour Spectrum regression soak runs after as a watchdog, not as the verdict. **Blocked in Phase 200:** Plan 06 canary recorded 122 UL floor hits and D-10 rollback executed; see `200-VERIFICATION.md`.
+- [ ] **VALN-06**: Spectrum UL saturation gate — a 10–15 min `iperf3 -P4` saturated upload loop at the deployed UL ceiling does not collapse to the UL floor in any cycle. Verified pre/post idle baselines bookend the run. This is the deploy-gate acceptance test; it must pass before the binary is promoted to `/opt/wanctl`. A 24-hour Spectrum regression soak runs after as a watchdog, not as the verdict. **Blocked in Phase 200:** Plan 06 canary recorded 122 UL floor hits and D-10 rollback executed; see `200-VERIFICATION.md`. Plan 200-11 repaired canary baseline bookends and WR-02 path validation, but did not rerun or pass the production saturation gate.
 
 ### Documentation (DOCS)
 

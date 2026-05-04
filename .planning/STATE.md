@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: executing
-stopped_at: Completed 200-09-PLAN.md
-last_updated: "2026-05-04T01:07:19.336Z"
-last_activity: 2026-05-04 -- Phase 200 Plan 09 completed; Plan 10 ready
+stopped_at: Completed 200-11-PLAN.md
+last_updated: "2026-05-04T01:12:55.537Z"
+last_activity: 2026-05-04 -- Phase 200 Plan 11 completed; Plan 12 ready
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 15
-  completed_plans: 10
-  percent: 67
+  completed_plans: 11
+  percent: 73
 ---
 
 # Session State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 **Active parallel milestone:** v1.39 Control-Path Timing & Measurement Accounting (Phase 191 still open)
 **Next milestone:** v1.41 (to open via `/gsd-new-milestone`)
 
-Progress: [███████░░░] 67%
+Progress: [███████░░░] 73%
 
 ## Deferred Items
 
@@ -128,8 +128,8 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 200-09-PLAN.md
-Resume file: .planning/phases/200-per-direction-rtt-bloat-thresholds/200-09-SUMMARY.md
+Stopped at: Completed 200-11-PLAN.md
+Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
 ## Decisions
@@ -214,9 +214,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 200]: Rollback protocol predefined per D-10 was executed after the failed canary — /opt/wanctl was restored to v1.40 while YAML stayed in place as harmless no-op under the older binary.
 - [Phase 200]: Spectrum YAML adoption — ceiling 18 Mbit, factor_down_yellow 0.98, target_bloat_ms 42, warn_bloat_ms 105 — was implemented but failed production validation under saturated DOCSIS upload.
 - [Phase 200-09]: Operator approved R5+R3 for Plan 200-10 with factor_down_yellow=1.0 and clamp_count=40.
+- [Phase 200-11]: Canary helper tests use --self-test dispatch instead of fragile sed-range sourcing, preventing live canary env validation during unit tests.
+- [Phase 200-11]: REMOTE_YAML_PATH is restricted to absolute paths matching ^/[A-Za-z0-9._/-]+$ before SSH command construction.
 
 ## Performance Metrics
 
+- 2026-05-04: Phase 200 Plan 11 completed in 4min across 2 TDD tasks and 4 files; canary self-test coverage passed with 9 tests, shellcheck was unavailable, and the hot-path slice passed with 578 tests.
 - 2026-05-03: Phase 200 Plan 08 completed in 2min — 200-VERIFICATION.md and 200-SUMMARY.md record blocked closeout, VALN-06 failed, and gap-closure recommendation.
 - 2026-05-04: Phase 200 Plan 09 completed in 1min continuation — 200-09-HYPOTHESIS.md records operator approval for R5+R3 with factor_down_yellow=1.0 and clamp_count=40, and 200-09-SUMMARY.md hands off to Plan 200-10.
 - 2026-05-03: Phase 200 Plan 06 completed in 2h46m — production deploy plus saturation canary verdict=fail with 122 UL floor hits; D-10 rollback restored v1.40.
@@ -266,6 +269,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 200 (per-direction-rtt-bloat-thresholds) — EXECUTING
-Plan: 10 of 15
-Status: Ready to execute Plan 200-10
-Last activity: 2026-05-04 -- Phase 200 Plan 09 completed; operator approved R5+R3
+Plan: 12 of 15
+Status: Ready to execute Plan 200-12
+Last activity: 2026-05-04 -- Phase 200 Plan 11 completed; canary helper hardening closed the baseline RTT path and WR-02 remote-path gaps
