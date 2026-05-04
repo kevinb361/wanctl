@@ -120,7 +120,8 @@ def _apply_threshold_param(wc: "WANController", param: str, val: float) -> bool:
             # would invert the target<warn invariant against the (possibly
             # protected) UL warn_delta. Codex stop-hook caught this — per-key
             # gates would otherwise let live-tuning break the ordering.
-            if val < wc.warn_delta:
+            warn_delta = wc.warn_delta if isinstance(getattr(wc, "warn_delta", None), int | float) else math.inf
+            if val < warn_delta:
                 wc.target_delta = val
             else:
                 logging.getLogger(__name__).warning(
@@ -128,7 +129,7 @@ def _apply_threshold_param(wc: "WANController", param: str, val: float) -> bool:
                     "invert UL ordering (warn_delta=%s); UL target_delta "
                     "remains %s",
                     val,
-                    wc.warn_delta,
+                    warn_delta,
                     wc.target_delta,
                 )
     elif param == "warn_bloat_ms":
@@ -139,7 +140,10 @@ def _apply_threshold_param(wc: "WANController", param: str, val: float) -> bool:
             # Phase 200 D-03 ordering guard: never write a UL warn_delta that
             # would invert the target<warn invariant against the (possibly
             # protected) UL target_delta.
-            if val > wc.target_delta:
+            target_delta = (
+                wc.target_delta if isinstance(getattr(wc, "target_delta", None), int | float) else -math.inf
+            )
+            if val > target_delta:
                 wc.warn_delta = val
             else:
                 logging.getLogger(__name__).warning(
@@ -147,7 +151,7 @@ def _apply_threshold_param(wc: "WANController", param: str, val: float) -> bool:
                     "invert UL ordering (target_delta=%s); UL warn_delta "
                     "remains %s",
                     val,
-                    wc.target_delta,
+                    target_delta,
                     wc.warn_delta,
                 )
     elif param == "hard_red_bloat_ms":
