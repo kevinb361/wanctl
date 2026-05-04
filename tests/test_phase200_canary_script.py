@@ -187,6 +187,11 @@ class TestPhase201Preflight:
         assert result.returncode == 2
         assert "remote_python_yaml_missing" in result.stderr + result.stdout
 
+    def test_health_docsis_invalid_aborts(self):
+        result = _run_phase201_self_test("phase201-health", "invalid")
+        assert result.returncode == 2
+        assert "health_docsis_invalid" in result.stderr + result.stdout
+
 
 class TestPhase201EnvFailClosed:
     def test_missing_docsis_mode_env_aborts(self):
@@ -204,3 +209,48 @@ class TestPhase201EnvFailClosed:
     def test_legacy_mode_only_ok(self):
         result = _run_phase201_self_test("phase201-env", "legacy_only")
         assert result.returncode == 0
+
+
+class TestPhase201CounterDeltaVerdict:
+    def _json_for(self, name: str) -> tuple[int, dict]:
+        result = _run_phase201_self_test(name)
+        return result.returncode, json.loads(result.stdout)
+
+    def test_counter_delta_pass(self):
+        rc, verdict = self._json_for("phase201-counter-delta-pass")
+        assert rc == 0
+        assert verdict["verdict"] == "pass"
+        assert verdict["floor_hit_cycles_total_delta_loaded_window"] == 0
+        assert verdict["primary_gate"] == "floor_hit_cycles_total_delta_loaded_window"
+        assert verdict["primary_gate_value"] == 0
+
+    def test_counter_delta_primary_fail(self):
+        rc, verdict = self._json_for("phase201-counter-delta-primary-fail")
+        assert rc == 1
+        assert verdict["verdict"] == "fail"
+        assert verdict["floor_hit_cycles_total_delta_loaded_window"] == 4
+        assert verdict["reason"].startswith("primary_gate_floor_hit_cycles_delta")
+
+    def test_counter_delta_secondary_disagreement_fails(self):
+        rc, verdict = self._json_for("phase201-counter-delta-secondary-disagreement")
+        assert rc == 1
+        assert verdict["verdict"] == "fail"
+        assert verdict["reason"].startswith("secondary_gate_disagreement")
+
+    def test_counter_delta_both_fail(self):
+        rc, verdict = self._json_for("phase201-counter-delta-both-fail")
+        assert rc == 1
+        assert verdict["verdict"] == "fail"
+        assert verdict["reason"] == "ul_floor_hits_during_load_4_counter_delta_4"
+
+    def test_counter_delta_field_missing_aborts(self):
+        rc, verdict = self._json_for("phase201-counter-delta-field-missing")
+        assert rc == 2
+        assert verdict["verdict"] == "abort"
+        assert verdict["reason"] == "phase201_floor_hit_counter_field_missing"
+
+    def test_counter_delta_negative_aborts(self):
+        rc, verdict = self._json_for("phase201-counter-delta-negative")
+        assert rc == 2
+        assert verdict["verdict"] == "abort"
+        assert verdict["reason"] == "phase201_floor_hit_counter_delta_negative"
