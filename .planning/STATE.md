@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: executing
-stopped_at: Phase 200 Plan 07 blocked closeout complete; next is Plan 08 phase verification/final SUMMARY
-last_updated: "2026-05-04T00:17:22.525Z"
-last_activity: 2026-05-04 -- Phase 200 planning complete
+stopped_at: Completed 200-09-PLAN.md
+last_updated: "2026-05-04T01:07:19.336Z"
+last_activity: 2026-05-04 -- Phase 200 Plan 09 completed; Plan 10 ready
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 15
-  completed_plans: 9
-  percent: 60
+  completed_plans: 10
+  percent: 67
 ---
 
 # Session State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 **Active parallel milestone:** v1.39 Control-Path Timing & Measurement Accounting (Phase 191 still open)
 **Next milestone:** v1.41 (to open via `/gsd-new-milestone`)
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 67%
 
 ## Deferred Items
 
@@ -128,8 +128,8 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Phase 200 Plan 07 blocked closeout complete; next is Plan 08 phase verification/final SUMMARY
-Resume file: .planning/phases/200-per-direction-rtt-bloat-thresholds/200-07-SUMMARY.md
+Stopped at: Completed 200-09-PLAN.md
+Resume file: .planning/phases/200-per-direction-rtt-bloat-thresholds/200-09-SUMMARY.md
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
 ## Decisions
@@ -213,10 +213,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 200]: Saturation canary at 18 Mbit Spectrum UL is the primary deploy gate per D-07; the 24h regression soak is a watchdog and was blocked because the canary failed.
 - [Phase 200]: Rollback protocol predefined per D-10 was executed after the failed canary — /opt/wanctl was restored to v1.40 while YAML stayed in place as harmless no-op under the older binary.
 - [Phase 200]: Spectrum YAML adoption — ceiling 18 Mbit, factor_down_yellow 0.98, target_bloat_ms 42, warn_bloat_ms 105 — was implemented but failed production validation under saturated DOCSIS upload.
+- [Phase 200-09]: Operator approved R5+R3 for Plan 200-10 with factor_down_yellow=1.0 and clamp_count=40.
 
 ## Performance Metrics
 
 - 2026-05-03: Phase 200 Plan 08 completed in 2min — 200-VERIFICATION.md and 200-SUMMARY.md record blocked closeout, VALN-06 failed, and gap-closure recommendation.
+- 2026-05-04: Phase 200 Plan 09 completed in 1min continuation — 200-09-HYPOTHESIS.md records operator approval for R5+R3 with factor_down_yellow=1.0 and clamp_count=40, and 200-09-SUMMARY.md hands off to Plan 200-10.
 - 2026-05-03: Phase 200 Plan 06 completed in 2h46m — production deploy plus saturation canary verdict=fail with 122 UL floor hits; D-10 rollback restored v1.40.
 - 2026-05-03: Phase 200 Plan 01 completed with D-03 per-key presence flags, independent live-tuning gates, and UL threshold regression tests; hot-path slice passed with 614 tests.
 - 2026-05-03: Phase 200 Plan 07 completed as blocked in 2min across 1 gate outcome and 6 planning/docs/tracking files; Plan 06 verdict=fail prevented the 24h soak, no production action was taken, and the hot-path slice passed with 619 tests.
@@ -263,7 +265,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Current Position
 
-Phase: 200 (per-direction-rtt-bloat-thresholds) — BLOCKED
-Plan: 08 of 08 — verification complete
-Status: Ready to execute
-Last activity: 2026-05-04 -- Phase 200 planning complete
+Phase: 200 (per-direction-rtt-bloat-thresholds) — EXECUTING
+Plan: 10 of 15
+Status: Ready to execute Plan 200-10
+Last activity: 2026-05-04 -- Phase 200 Plan 09 completed; operator approved R5+R3
