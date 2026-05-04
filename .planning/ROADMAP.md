@@ -182,7 +182,7 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 201 | DOCSIS-Aware UL Congestion Control | 6/12 | In Progress|  |
+| 201 | DOCSIS-Aware UL Congestion Control | 7/12 | In Progress|  |
 
 ---
 
@@ -224,7 +224,7 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 4. The predeploy gate inspects `/etc/wanctl/spectrum.yaml` on the deploy target and either reconciles v1.41-only rejected-hypothesis keys with Phase 201's own design or fails closed before the deploy proceeds. Verified by canary preflight log evidence.
 5. `CHANGELOG.md` and `docs/CONFIGURATION.md` carry the migration note specifying that `docsis_mode`, `setpoint_mbps`, and the RTT-integral window keys require a service restart to take effect (SIGUSR1 does not reload these). Verified by greps for the keys in both files.
 
-**Plans:** 6/12 plans executed
+**Plans:** 7/12 plans executed
 
 Plans:
 - [x] 201-01-corpus-inspection-and-fixtures-PLAN.md — Wave 0 corpus audit + replay-corpus loader + synthetic-trace fixtures (resolves Open Questions 1 + 2)
@@ -232,7 +232,7 @@ Plans:
 - [x] 201-03-config-schema-and-validators-PLAN.md — Schema entries + presence flags + required-when-other validation; KNOWN_AUTORATE_PATHS registration; SAFE-05 v1.42 baseline (D-06, SAFE-06, D-03)
 - [x] 201-04-controller-core-PLAN.md — QueueController DOCSIS-mode internals: integral, CAKE corroborator, setpoint clamp; Attempt 3 replay revised to RED-heavy floor-hit diagnostic (Plan 201-11 remains VALN-06 gate)
 - [x] 201-05-wan-controller-and-health-PLAN.md — WANController constructor wiring + presence flags + INFO log + 5 additive /health runtime-state fields (D-16, D-08)
-- [ ] 201-06-spectrum-yaml-and-version-PLAN.md — configs/spectrum.yaml R5+R3 keep + R0 strip + setpoint=12; version 1.42.0; CHANGELOG + CONFIGURATION migration (D-09, D-10, RESEARCH §5)
+- [x] 201-06-spectrum-yaml-and-version-PLAN.md — configs/spectrum.yaml R5+R3 keep + R0 strip + setpoint=12; version 1.42.0; CHANGELOG + CONFIGURATION migration (D-09, D-10, RESEARCH §5)
 - [ ] 201-07-predeploy-gate-PLAN.md — scripts/phase201-predeploy-gate.sh fail-closed against rejected v1.41 keys; deploy.sh integration (D-15)
 - [ ] 201-08-canary-script-extension-PLAN.md — D-12 preflight extension: env-vs-YAML cross-check + /health DOCSIS-mode probe + WR-02 closure; max_delay_delta_us capture
 - [x] 201-09-codex-pre-review-PLAN.md — Cross-AI pre-review checkpoint before Wave 2 implementation (D-18 first leg); verdict BLOCK, amendments required before Wave 1+ continues
