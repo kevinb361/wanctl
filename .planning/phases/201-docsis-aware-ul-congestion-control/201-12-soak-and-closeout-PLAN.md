@@ -329,7 +329,7 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        echo "Step 1.5 complete: floor_hit_cycles_total_start=$FLOOR_HIT_T0 (source: $SOURCE) recorded in $ENV_FILE" >&2
        ```
 
-       **Why this is structured this way (lessons from rounds 1-12):**
+       **Why this is structured this way (lessons from rounds 1-13):**
        - `set -euo pipefail` so any unbound var or pipeline failure aborts; no silent partial writes.
        - `|| true` only on `ls` no-match (legitimate empty case), not on `jq`/`ssh` failures (those should propagate).
        - The `SOURCE` variable is set inside each successful branch, never inferred post-hoc from leftover state (round-6 catch).
@@ -339,7 +339,8 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        - **Cardinality + completeness validation (round-9 catch).** Each whitelisted key appears EXACTLY ONCE; in strict mode all 3 must be present. Previously `>>`-appended files where prior failed soak attempts left stale duplicates passed line-shape but represented multiple incoherent capture sessions; cardinality enforcement closes that.
        - **TRUE atomic file replacement (round-10 catch).** Step 1.5 writes to a temp file in the same directory, validates the temp file in strict mode, then `mv -f` (POSIX `rename(2)`, atomic within the same filesystem) into place. Round-9's `: > FILE` + `{ ... } > FILE` was NOT atomic — sequential writes have visibility windows. Rename(2) gives true POSIX atomicity.
        - **Abort-path stale-file defense (round-11 catch).** Round-10's trap cleans up the temp file on any failure path, but left the *prior* `$ENV_FILE` intact. Round-11 fix: at the START of Step 1.5, atomically rename any pre-existing `$ENV_FILE` to `.stale.<TS>`. Postcondition: at every moment after this block, `$ENV_FILE` either contains a valid fresh capture from THIS run, or does not exist at all.
-       - **Consumer actually exits on failure (round-12 catch).** Round-11's plan prose said "if Step 1.5 aborts, `$ENV_FILE` doesn't exist, Step 4's missing-file branch fires correctly, soak is authored as FAIL." But the previous Step 4 implementation just printed `FAIL:` to stderr and **fell through** — no exit, no return. Subsequent code called validate on a missing file (undefined behavior), then `source` on a missing file (silently leaves vars unset), then arithmetic on an unset variable. The "Continue to write soak-summary.json with verdict: fail" comment was aspirational. Round-12 fix: explicit `SOAK_VERDICT` / `SOAK_FAIL_REASON` script variables; `write_soak_summary_and_exit` helper; every failure branch calls it; consumer never falls through past a detected failure. Plus: validator early-fails on missing/unreadable file (defense-in-depth — never returns 0 for a file it couldn't read). Plus: T+24h capture validates `FLOOR_HIT_T24` is a non-negative integer before arithmetic. Plus: post-source variable-set assertions catch TOCTOU races between validation and source.
+       - **Consumer actually exits on failure (round-12 catch).** Explicit `SOAK_VERDICT` / `SOAK_FAIL_REASON` script variables; `write_soak_summary_and_exit` helper; every failure branch calls it; consumer never falls through past a detected failure. Plus: validator early-fails on missing/unreadable file. Plus: T+24h capture validates `FLOOR_HIT_T24` is a non-negative integer before arithmetic. Plus: post-source variable-set assertions catch TOCTOU races.
+       - **Helper survives shell-state-leakage between procedure steps (round-13 catch).** Step 4 may run in a separate bash invocation from Step 1.5 (operator opens a new tmux pane 24h later, or `systemd-run` executes Step 4 as a scheduled job). Variables defined inside Step 1.5's bash block are NOT visible at Step 4. Round-12's `write_soak_summary_and_exit` helper had `local out_dir="${OUT:-$PHASE_DIR/soak/...}"` — under `set -u`, unbound `$PHASE_DIR` aborted the function at the variable expansion *before* mkdir/jq/exit could run. Round-13 fix: (a) Step 4 has its own preamble that re-establishes `PHASE_DIR` and `ENV_FILE` from hardcoded literals; (b) the helper disables `set -eu` internally so no preceding failure prevents the exit; (c) hardcoded fallback for `PHASE_DIR` inside the helper if even the preamble didn't run; (d) timestamp prefers `soak_start_utc` (real soak start) over `date -u +now` (which would produce a directory name detached from the actual soak); (e) jq fallback to printf-built JSON if jq is missing; (f) operator-visible verdict mirror to stderr so a failed disk write doesn't hide the verdict. The helper's contract — "always write summary, always exit with the right code" — now actually holds across all reachable shell states.
        - **Trap-cleanup of the temp file** (`trap 'rm -f "$TMP_ENV_FILE"' EXIT`). Any exit path — success, validation failure, signal, OOM kill — removes the temp file. On successful rename, the temp path no longer exists, so the trap is a no-op. No leaked half-written files.
        - **Three-checkpoint validation (rounds 7+8+9+10).** Pre-existing-file lenient validation (informational; surfaces legacy contamination), pre-rename strict validation on the temp file (refuses to publish an invalid file), post-rename strict re-validation on the live file (catches the rare case of a concurrent writer racing our rename). All three checkpoints use the same closed-set whitelist + cardinality validator.
        - **The `SOURCE` label is itself validated against the bare-value charset before writing** (round-7 catch reinforced).
@@ -378,6 +379,14 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        Example synthesis (REQUIRED steps, not optional — operator can adapt to local tooling but the PRIMARY-gate capture commands are not skippable):
        ```bash
        set -euo pipefail
+
+       # ROUND-13 STEP-4 PREAMBLE: re-establish all variables this step needs.
+       # Step 4 may run in a separate bash invocation from Step 1.5 (e.g., the
+       # operator opens a new tmux pane 24h later, or systemd-run executes the
+       # Step 4 block as a scheduled job). Variables defined inside Step 1.5's
+       # bash block are NOT visible here — only files on disk persist across
+       # bash invocations. Hardcode all literals.
+       PHASE_DIR=.planning/phases/201-docsis-aware-ul-congestion-control
        ENV_FILE=/tmp/phase201-soak.env
 
        # ROUND-8/9 DEFENSE: Re-validate the env file BEFORE source IN STRICT MODE
@@ -466,16 +475,82 @@ Output: Soak capture + verdict; 201-VERIFICATION.md (canonical phase closure); R
        SOAK_FAIL_REASON=""
 
        write_soak_summary_and_exit() {
-           # Always write soak-summary.json (or fail-summary on early aborts)
-           # and exit with the right code. SOAK_VERDICT must be "pass" |
-           # "fail" | "abort" before this is called.
-           local out_dir="${OUT:-$PHASE_DIR/soak/$(date -u +%Y%m%dT%H%M%SZ)}"
-           mkdir -p "$out_dir"
-           jq -n \
-               --arg verdict "$SOAK_VERDICT" \
-               --arg reason  "$SOAK_FAIL_REASON" \
-               '{verdict: $verdict, reason: $reason, partial_evidence: true}' \
-               > "$out_dir/soak-summary.json"
+           # Round-13 hardening: this helper is called from EARLY-FAIL paths
+           # (missing file, contaminated env, T+24h capture failure) AS WELL
+           # AS the success path. Early-fail paths run BEFORE OUT, soak_start_utc,
+           # FLOOR_HIT_T24, etc. are set. Previous implementation aborted at
+           # `local out_dir="${OUT:-$PHASE_DIR/soak/...}"` because $PHASE_DIR
+           # might be unbound under set -u (set in Step 1.5's bash block, not
+           # this one) — and even if PHASE_DIR is set, mkdir/jq failures
+           # under set -e would abort BEFORE the explicit exit calls run.
+           #
+           # The contract: this helper ALWAYS writes a summary (best-effort)
+           # AND ALWAYS exits with the right code. Both promises must hold
+           # even when called early, even on filesystems with disk-full /
+           # permissions errors, even when /jq/ /mkdir/ are missing.
+           #
+           # Disable set -e/-u INSIDE the function so no preceding step's
+           # failure prevents the exit from running.
+           set +eu
+
+           # Resolve out_dir from progressively-weaker sources. PHASE_DIR
+           # has a hardcoded default literal in case Step 4's preamble
+           # didn't run. Timestamp prefers soak_start_utc (the actual soak
+           # start), falls back to "now".
+           local pd="${PHASE_DIR:-.planning/phases/201-docsis-aware-ul-congestion-control}"
+           local ts=""
+           if [[ -n "${soak_start_utc:-}" ]]; then
+               ts=$(date -u -d "$soak_start_utc" +%Y%m%dT%H%M%SZ 2>/dev/null)
+           fi
+           if [[ -z "$ts" ]]; then
+               ts=$(date -u +%Y%m%dT%H%M%SZ 2>/dev/null)
+           fi
+           if [[ -z "$ts" ]]; then
+               ts="unknown_$$"
+           fi
+           local out_dir="${OUT:-$pd/soak/$ts}"
+
+           # Best-effort directory creation. If mkdir fails, we still exit
+           # with the right code; the operator sees the verdict in stderr
+           # below.
+           mkdir -p "$out_dir" 2>/dev/null
+
+           # Best-effort jq write. If jq is missing or fails, fall back to
+           # a hand-built JSON via printf so we still leave forensics on disk.
+           if command -v jq >/dev/null 2>&1; then
+               jq -n \
+                   --arg verdict "$SOAK_VERDICT" \
+                   --arg reason  "$SOAK_FAIL_REASON" \
+                   --arg start_utc "${soak_start_utc:-unknown}" \
+                   --arg counter_start "${floor_hit_cycles_total_start:-unknown}" \
+                   --arg counter_source "${floor_hit_cycles_total_start_source:-unknown}" \
+                   '{verdict: $verdict, reason: $reason, partial_evidence: true,
+                     soak_start_utc: $start_utc,
+                     floor_hit_cycles_total_start: $counter_start,
+                     floor_hit_cycles_total_start_source: $counter_source}' \
+                   > "$out_dir/soak-summary.json" 2>/dev/null
+           else
+               # jq absent — emit minimal valid JSON via printf as fallback.
+               printf '{"verdict":"%s","reason":"%s","partial_evidence":true,"soak_start_utc":"%s","floor_hit_cycles_total_start":"%s","floor_hit_cycles_total_start_source":"%s","jq_unavailable":true}\n' \
+                   "$SOAK_VERDICT" \
+                   "$SOAK_FAIL_REASON" \
+                   "${soak_start_utc:-unknown}" \
+                   "${floor_hit_cycles_total_start:-unknown}" \
+                   "${floor_hit_cycles_total_start_source:-unknown}" \
+                   > "$out_dir/soak-summary.json" 2>/dev/null
+           fi
+
+           # ALWAYS mirror the verdict to stderr so the operator sees it
+           # even if the summary write failed (disk full, permissions, etc.).
+           # This is the operator-visible signal that the helper actually ran.
+           echo "==========================================" >&2
+           echo "SOAK VERDICT: $SOAK_VERDICT" >&2
+           echo "Reason:       ${SOAK_FAIL_REASON:-(none)}" >&2
+           echo "Summary path: $out_dir/soak-summary.json" >&2
+           echo "==========================================" >&2
+
+           # ALWAYS exit with the right code. These exits MUST run even if
+           # everything above failed.
            if [[ "$SOAK_VERDICT" == "pass" ]]; then
                exit 0
            elif [[ "$SOAK_VERDICT" == "abort" ]]; then
