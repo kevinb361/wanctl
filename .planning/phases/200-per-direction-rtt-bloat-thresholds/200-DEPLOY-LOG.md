@@ -226,3 +226,30 @@ export UTC_TS=20260504T132936Z
 ```
 
 If D-10 is triggered by Attempt 3 canary `fail` or `abort`, restore `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz` and restart `wanctl@spectrum.service`.
+
+## Canary Run (Attempt 3)
+
+- Env: `PHASE200_UL_FLOOR_MBPS=8`, `PHASE200_UL_CEILING_MBPS=18`, `PHASE200_IPERF_TARGET=104.200.21.31`, `PHASE200_IPERF_LOCAL_BIND=10.10.110.226`, `PHASE200_REMOTE_YAML_SSH=kevin@10.10.110.223:/etc/wanctl/spectrum.yaml`.
+- Started: `2026-05-04T13:32:07Z` (preflight + idle baseline).
+- Loaded window: `2026-05-04T13:33:08Z` → `2026-05-04T13:48:09Z` (900s requested).
+- Finished: `2026-05-04T13:49:09Z` (1022s total).
+- Run dir: `.planning/phases/200-per-direction-rtt-bloat-thresholds/canary/20260504T133207Z/`.
+- **Verdict: FAIL** — `ul_floor_hits_during_load=4` (script exit `1`).
+- Pre/post baseline RTT: `pre_baseline_rtt_ms=21.7`, `post_baseline_rtt_ms=22.23` (Plan 200-11 live baseline path verified).
+- Sample distribution (885 loaded-window samples):
+  - **18.0 Mbps (ceiling): 871 samples (98.4%)**
+  - **8.0 Mbps (floor): 4 samples (0.5%)** ← regression gate failure
+  - 8.1-17.9 Mbps (transitional): 10 samples (1.1%)
+- UL state distribution: GREEN 227 (25.6%), YELLOW 655 (74.0%), RED 3 (0.3%).
+
+## Canary Rollback (Attempt 3 — fail branch)
+
+**FAIL → D-10 rollback executed.**
+
+- Rollback command: `ssh kevin@10.10.110.223 "sudo tar -xzf /opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz -C / && sudo systemctl restart wanctl@spectrum.service"`
+- Rollback issued at: `2026-05-04T13:49:19Z`
+- Post-rollback `is-active`: `active` at `2026-05-04T13:49:26Z`.
+- Post-rollback `/health` upload: `state=GREEN`, `current_rate_mbps=18.0`, `hysteresis.suppressions_per_min=0`, `hysteresis.green_streak=694`.
+- Post-rollback `phase200 explicit UL thresholds active` count since rollback: `0` (sanity — restored snapshot no longer emits the v1.41/Attempt-3 log line after rollback).
+
+Plan 200-15 will close phase as `gaps_found` (canary regression at Attempt 3); operator decision required for a second gap-closure cycle. The canary outcome is materially improved versus Attempt 2 (4 floor samples vs 122), but VALN-06 remains fail-closed because any loaded-window floor hit fails D-07.
