@@ -2113,6 +2113,107 @@ class TestDeadbandClamp:
         assert zone == "GREEN", "Should recover when delta drops below deadband margin"
 
 
+class TestYellowDecayClamp:
+    """200-10 R3: consecutive-YELLOW decay clamp for 3-state upload logic."""
+
+    def _make_qc(self, *, clamp: int = 0) -> QueueController:
+        return QueueController(
+            name="test-Upload",
+            floor_green=8_000_000,
+            floor_yellow=8_000_000,
+            floor_soft_red=8_000_000,
+            floor_red=8_000_000,
+            ceiling=18_000_000,
+            step_up=5_000_000,
+            factor_down=0.7,
+            factor_down_yellow=0.98,
+            green_required=5,
+            dwell_cycles=1,
+            consecutive_yellow_decay_clamp=clamp,
+        )
+
+    def _yellow(self, qc: QueueController) -> int:
+        zone, rate, _ = qc.adjust(
+            baseline_rtt=20.0,
+            load_rtt=80.0,
+            target_delta=42.0,
+            warn_delta=105.0,
+        )
+        assert zone == "YELLOW"
+        return rate
+
+    def _green(self, qc: QueueController) -> int:
+        zone, rate, _ = qc.adjust(
+            baseline_rtt=20.0,
+            load_rtt=21.0,
+            target_delta=42.0,
+            warn_delta=105.0,
+        )
+        assert zone == "GREEN"
+        return rate
+
+    def test_clamp_zero_is_byte_identical_decay_sequence(self):
+        """Default clamp=0 preserves unbounded YELLOW multiplicative decay."""
+        qc = self._make_qc(clamp=0)
+
+        rates = [self._yellow(qc) for _ in range(6)]
+
+        assert rates == sorted(rates, reverse=True)
+        assert all(later < earlier for earlier, later in zip(rates, rates[1:]))
+
+    def test_clamp_holds_after_n_yellow_decays(self):
+        """After N YELLOW decays, additional consecutive YELLOW cycles hold."""
+        qc = self._make_qc(clamp=3)
+
+        rates = [self._yellow(qc) for _ in range(6)]
+
+        assert rates[2] < rates[1] < rates[0]
+        assert rates[3] == rates[2]
+        assert rates[4] == rates[2]
+        assert rates[5] == rates[2]
+
+    def test_yellow_clamp_resets_on_single_green(self):
+        """A single GREEN cycle resets the YELLOW clamp counter."""
+        qc = self._make_qc(clamp=3)
+
+        first_arm = [self._yellow(qc) for _ in range(3)]
+        green_rate = self._green(qc)
+        second_arm = [self._yellow(qc) for _ in range(3)]
+
+        assert first_arm[2] < first_arm[1] < first_arm[0]
+        assert green_rate == first_arm[2]
+        assert second_arm[2] < second_arm[1] < second_arm[0]
+
+    def test_clamp_resets_on_sustained_green_recovery(self):
+        """GREEN recovery resets the clamp so a later YELLOW run decays again."""
+        qc = self._make_qc(clamp=3)
+
+        first_arm = [self._yellow(qc) for _ in range(3)]
+        for _ in range(5):
+            self._green(qc)
+        second_arm = [self._yellow(qc) for _ in range(3)]
+
+        assert first_arm[2] < first_arm[1] < first_arm[0]
+        assert second_arm[2] < second_arm[1] < second_arm[0]
+
+    def test_red_unaffected_by_yellow_clamp(self):
+        """RED immediate decay still applies after the YELLOW clamp is armed."""
+        qc = self._make_qc(clamp=3)
+        for _ in range(4):
+            self._yellow(qc)
+        held_rate = qc.current_rate
+
+        zone, rate_after_red, _ = qc.adjust(
+            baseline_rtt=20.0,
+            load_rtt=200.0,
+            target_delta=42.0,
+            warn_delta=105.0,
+        )
+
+        assert zone == "RED"
+        assert rate_after_red == int(held_rate * 0.7)
+
+
 # =============================================================================
 # MERGED FROM test_hysteresis_config.py
 # =============================================================================

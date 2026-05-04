@@ -1371,6 +1371,7 @@ class TestExports:
             "router.host",
             "queues.download",
             "continuous_monitoring.download.ceiling_mbps",
+            "continuous_monitoring.upload.consecutive_yellow_decay_clamp",
             "continuous_monitoring.thresholds.target_bloat_ms",
         ]:
             assert required in KNOWN_AUTORATE_PATHS, f"Missing: {required}"

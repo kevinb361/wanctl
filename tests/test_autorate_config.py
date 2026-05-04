@@ -393,6 +393,65 @@ class TestLoadUploadThresholdConfig:
             Config(str(config_file))
 
 
+class TestUploadYellowDecayClampConfig:
+    """200-10 R3 config loading for consecutive YELLOW decay clamp."""
+
+    def test_consecutive_yellow_decay_clamp_default_and_explicit(
+        self, base_config_yaml_single_floor, tmp_path
+    ):
+        """Absent key disables clamp; explicit key records value and presence flag."""
+        default_config_file = tmp_path / "default.yaml"
+        default_config_file.write_text(base_config_yaml_single_floor)
+
+        default_config = Config(str(default_config_file))
+
+        assert default_config.upload_consecutive_yellow_decay_clamp == 0
+        assert default_config._upload_consecutive_yellow_decay_clamp_explicit is False
+
+        explicit_config_file = tmp_path / "explicit.yaml"
+        explicit_config_file.write_text(
+            base_config_yaml_single_floor.replace(
+                "    factor_down: 0.85\n  thresholds:",
+                "    factor_down: 0.85\n"
+                "    consecutive_yellow_decay_clamp: 40\n"
+                "  thresholds:",
+            )
+        )
+
+        explicit_config = Config(str(explicit_config_file))
+
+        assert explicit_config.upload_consecutive_yellow_decay_clamp == 40
+        assert explicit_config._upload_consecutive_yellow_decay_clamp_explicit is True
+
+    def test_consecutive_yellow_decay_clamp_is_known_safe06_path(
+        self, base_config_yaml_single_floor, tmp_path, caplog
+    ):
+        """SAFE-06: the new upload key is registered and emits no unknown-key warning."""
+        from wanctl.check_config_validators import KNOWN_AUTORATE_PATHS
+
+        assert (
+            "continuous_monitoring.upload.consecutive_yellow_decay_clamp"
+            in KNOWN_AUTORATE_PATHS
+        )
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            base_config_yaml_single_floor.replace(
+                "    factor_down: 0.85\n  thresholds:",
+                "    factor_down: 0.85\n"
+                "    consecutive_yellow_decay_clamp: 40\n"
+                "  thresholds:",
+            )
+        )
+
+        with caplog.at_level(logging.WARNING, logger="wanctl.autorate_config"):
+            Config(str(config_file))
+
+        unknown_warnings = [
+            rec for rec in caplog.records if "Unknown config key" in rec.getMessage()
+        ]
+        assert unknown_warnings == []
+
+
 class TestSafe06UnknownKeyWarning:
     """SAFE-06 (D-08): daemon must warn on unknown config keys at startup."""
 
