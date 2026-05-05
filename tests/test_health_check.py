@@ -3130,6 +3130,7 @@ class TestPhase201DiagnosticHealthFields:
         }
         if qc_overrides:
             qc_health.update(qc_overrides)
+        wan.upload.get_health_data.side_effect = None
         wan.upload.get_health_data.return_value = qc_health
         return wan
 
