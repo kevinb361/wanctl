@@ -335,6 +335,30 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     "floor_hit_cycles_total": int(
                         qc_health.get("floor_hit_cycles_total", 0)
                     ),
+                    # Original Plan 201-13 fields (rev 1):
+                    "max_delay_delta_us": int(
+                        qc_health.get("max_delay_delta_us") or 0
+                    ),
+                    "red_streak": int(qc_health.get("red_streak") or 0),
+                    "zone_trace": list(qc_health.get("zone_trace") or []),
+                    # Absorbed from Plan 201-14 rev 4 WARNING 4/6:
+                    "headroom_exhausted_streak": int(
+                        qc_health.get("headroom_exhausted_streak") or 0
+                    ),
+                    "anti_windup_cycles": int(
+                        qc_health.get("anti_windup_cycles") or 60
+                    ),
+                    "anti_windup_triggers": int(
+                        qc_health.get("anti_windup_triggers") or 0
+                    ),
+                    # REV 3 (codex MEDIUM-CODEX-3) — active-knob proof for
+                    # Plan 201-15 rev 3 canary preflight:
+                    "red_decay_step_pct": float(
+                        qc_health.get("red_decay_step_pct") or 0.02
+                    ),
+                    "red_decay_delta_max_pct": float(
+                        qc_health.get("red_decay_delta_max_pct") or 0.10
+                    ),
                 }
             )
         if direction == "download":
