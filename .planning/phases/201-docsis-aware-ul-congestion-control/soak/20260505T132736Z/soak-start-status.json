@@ -1,0 +1,26 @@
+{
+  "soak_ts": "20260505T132736Z",
+  "soak_dir": ".planning/phases/201-docsis-aware-ul-congestion-control/soak/20260505T132736Z",
+  "launched_at_utc": "2026-05-05T13:31:55+00:00",
+  "remote_host": "cake-shaper",
+  "remote_tmux_session": "wanctl-soak",
+  "remote_tmux_status": "wanctl-soak: 1 windows (created Tue May  5 08:31:12 2026)",
+  "remote_capture_dir": "/var/tmp/wanctl-soak-20260505T132736Z",
+  "remote_capture_line_count_after_start": 26,
+  "wanctl_spectrum_service_status": "active",
+  "remote_dependencies_verified": {
+    "tmux": "/usr/bin/tmux",
+    "jq": "/usr/bin/jq"
+  },
+  "operator_approval_artifact": ".planning/phases/201-docsis-aware-ul-congestion-control/201-16-OPERATOR-APPROVAL-D19.md",
+  "d19_decision": "approved",
+  "t0_baseline_artifact": "t0-baseline.json",
+  "capture_script_artifact": "soak-capture.sh",
+  "capture_host_artifact": "capture-host.txt",
+  "tmux_invocation": "ssh cake-shaper \"tmux new-session -d -s wanctl-soak \\\"bash /tmp/soak-capture.sh 20260505T132736Z 2>&1 | tee /tmp/soak-capture.log\\\"\"",
+  "deviations": [
+    "Rule 3 - Blocking dependency: installed tmux on cake-shaper because the planned tmux launch initially failed with 'tmux: command not found'.",
+    "Rule 3 - Blocking dependency: installed jq on cake-shaper because the uploaded capture script initially exited with 'jq: command not found'.",
+    "Rule 1 - Capture script health URL: switched HEALTH_URL from http://127.0.0.1:9101/health to http://10.10.110.223:9101/health because localhost health was unreachable on cake-shaper while the planned live health endpoint was reachable."
+  ]
+}
