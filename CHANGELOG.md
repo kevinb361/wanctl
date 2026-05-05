@@ -5,6 +5,13 @@ All notable changes to wanctl are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.42.1 — 2026-05-05
+
+### Fixed
+
+- Phase 201 gap-closure (rev 4): bounded-absolute RED decay + anti-windup cap-and-clamp + config validators. See Plan 201-14 / canary <RECANARY_TS>.
+- Phase 201 rev-3 evidentiary distinguishability (codex LOW/MEDIUM-NEW-3): version bumped on all surfaces (src/wanctl/__init__.py, pyproject.toml, docker/Dockerfile LABEL).
+
 ## v1.42.0 — DOCSIS-Aware UL Congestion Control
 
 **Phase 201 closes inherited blocking VALN-06 from Phase 200.**
