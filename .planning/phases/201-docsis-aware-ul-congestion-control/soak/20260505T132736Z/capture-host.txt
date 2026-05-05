@@ -1,0 +1,1 @@
+capture_host: cake-shaper (on-host tmux, codex NEW-HIGH-2 uploaded-script + positional-arg pattern)
