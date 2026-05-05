@@ -182,7 +182,7 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 201 | DOCSIS-Aware UL Congestion Control | 11/12 | Blocked — Plan 201-11 canary failed at setpoint_mbps=12 (`floor_hit_cycles_total_delta_loaded_window=1453`, `ul_floor_hits_during_load=84`); D-10 rollback complete; Plan 201-12 must not proceed without explicit operator reattempt/gap decision | 2026-05-04 |
+| 201 | DOCSIS-Aware UL Congestion Control | 12/16 | In Progress|  |
 
 ---
 
@@ -224,7 +224,7 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 4. The predeploy gate inspects `/etc/wanctl/spectrum.yaml` on the deploy target and either reconciles v1.41-only rejected-hypothesis keys with Phase 201's own design or fails closed before the deploy proceeds. Verified by canary preflight log evidence.
 5. `CHANGELOG.md` and `docs/CONFIGURATION.md` carry the migration note specifying that `docsis_mode`, `setpoint_mbps`, and the RTT-integral window keys require a service restart to take effect (SIGUSR1 does not reload these). Verified by greps for the keys in both files.
 
-**Plans:** 11/12 plans executed — Phase blocked by failed Plan 201-11 canary; Plan 201-12 is gated pending explicit operator decision.
+**Plans:** 12/16 plans executed
 
 Plans:
 - [x] 201-01-corpus-inspection-and-fixtures-PLAN.md — Wave 0 corpus audit + replay-corpus loader + synthetic-trace fixtures (resolves Open Questions 1 + 2)
@@ -239,6 +239,10 @@ Plans:
 - [x] 201-10-codex-stop-time-review-PLAN.md — Cross-AI stop-time review checkpoint before live canary (D-18 second leg); GO WITH FOLLOW-UPS, no HIGH findings
 - [x] 201-11-canary-execution-PLAN.md — Live 10-15 min iperf3 -P4 saturated UL canary FAILED at setpoint_mbps=12 (`verdict: fail`, reason `ul_floor_hits_during_load_84_counter_delta_1453`); D-10 rollback restored both binary and YAML; see `201-11-CANARY-VERDICT.md`
 - [ ] 201-12-soak-and-closeout-PLAN.md — BLOCKED after failed canary; 24h Spectrum UL regression soak must not proceed unless explicit operator decision creates a reattempt/gap path
+- [x] 201-13-health-diagnostic-extension-PLAN.md — Additive upload `/health` diagnostics for post-canary root cause: `max_delay_delta_us`, `red_streak`, bounded `zone_trace`, anti-windup counters, and red-decay runtime knob echoes; `sustained_red_cycles` remains absent
+- [ ] 201-14-control-model-amendment-PLAN.md — Gap-closure control-model amendment with bounded absolute RED decay, integral anti-windup, and red-decay config validators
+- [ ] 201-15-recanary-PLAN.md — Recanary after control-model amendment with active-knob proof, rollback fixes, and version/build identity evidence
+- [ ] 201-16-soak-and-closeout-PLAN.md — 24h Spectrum soak and closeout after a passing recanary
 
 
 ---
