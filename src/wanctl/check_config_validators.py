@@ -626,6 +626,8 @@ def _validate_red_decay_knobs(cm: dict) -> list[CheckResult]:
         setpoint = ul.get("setpoint_mbps")
         floor = ul.get("floor_mbps", ul.get("floor_red_mbps"))
         if setpoint is not None and floor is not None:
+            clamp_bps: float | None
+            floor_bps: float | None
             try:
                 setpoint_bps = float(setpoint) * 1_000_000
                 floor_bps = float(floor) * 1_000_000
