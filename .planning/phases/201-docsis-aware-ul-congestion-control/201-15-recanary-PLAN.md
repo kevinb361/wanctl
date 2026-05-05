@@ -8,52 +8,69 @@ files_modified:
   - .planning/phases/201-docsis-aware-ul-congestion-control/canary/<TIMESTAMP>/verdict.json
   - .planning/phases/201-docsis-aware-ul-congestion-control/canary/<TIMESTAMP>/loaded_capture.ndjson
   - .planning/phases/201-docsis-aware-ul-congestion-control/canary/<TIMESTAMP>/idle_capture.ndjson
+  - .planning/phases/201-docsis-aware-ul-congestion-control/canary/<TIMESTAMP>/build-identity.json
   - .planning/phases/201-docsis-aware-ul-congestion-control/201-15-CANARY-VERDICT.md
+  - src/wanctl/__init__.py
 autonomous: false
 gap_closure: true
+revision: 2  # Iteration 2 — incorporates Codex HIGH-CODEX-3, MEDIUM-CODEX-3, MEDIUM-CODEX-4 from 201-REVIEWS.md
 requirements: [VALN-06]
-tags: [phase-201, gap-closure, canary, valn-06-primary, recanary, operator-gated, fail-closed]
+tags: [phase-201, gap-closure, canary, valn-06-primary, recanary, operator-gated, fail-closed, codex-revised]
 
 must_haves:
   truths:
     - "Re-canary runs at the ORIGINAL setpoint_mbps=12 (NOT A5 fallback setpoint=10) — the operator-confirmed closure path is the control-model amendment, not the setpoint workaround"
+    - "Version is bumped to 1.42.1 in src/wanctl/__init__.py BEFORE deploy so /health.version distinguishes the failed 201-11 binary (1.42.0) from the gap-closure binary (1.42.1) — codex MEDIUM-CODEX-4 evidentiary distinguishability"
+    - "build-identity.json captures git SHA + version + build_utc at canary-time so the canary evidence binds to the exact source tree, not just the version string"
     - "Re-canary uses the existing scripts/phase200-saturation-canary.sh extended in Plan 201-08; no new harness authored"
-    - "Re-canary uses the existing scripts/phase201-predeploy-gate.sh from Plan 201-07; first run BLOCKs on residual rejected v1.41 keys, manual reconcile, second run PASSes"
-    - "Pre-deploy snapshot: /opt/wanctl binary archive AND /etc/wanctl/spectrum.yaml — REVIEWS HIGH-7 dual-snapshot pattern, identical to 201-11"
+    - "ROLLBACK SNAPSHOT IS TAKEN AFTER PREDEPLOY GATE PASSES (codex HIGH-CODEX-3) — never before. If gate's first run BLOCKs on stale rejected v1.41 keys, the operator reconciles, gate is re-run, and ONLY after gate PASS are rollback artifacts captured. The snapshot represents a known-good predeploy state, never a stale pre-reconcile state."
+    - "Pre-deploy snapshot: /opt/wanctl binary archive AND /etc/wanctl/spectrum.yaml — REVIEWS HIGH-7 dual-snapshot pattern, identical to 201-11 in shape but with corrected ordering"
     - "PRIMARY GATE: floor_hit_cycles_total_delta_loaded_window == 0 (zero-tolerance, REVIEWS HIGH-5 cycle-fidelity counter)"
     - "SECONDARY GATE: ul_floor_hits_during_load == 0 (1Hz cross-check; disagreement with primary produces FAIL with diagnostic reason, not PASS)"
-    - "Loaded-window NDJSON capture includes the three new diagnostic fields landed in Plan 201-13 (max_delay_delta_us, red_streak, zone_trace) — confirmed by jq inspection of any captured row"
-    - "On FAIL: rollback executes per D-10 / REVIEWS HIGH-7; both binary AND YAML restored; verified by post-rollback /health.version=1.39.0 AND grep counts of all new + existing Phase 201 YAML keys = 0 in /etc/wanctl/spectrum.yaml"
+    - "Loaded-window NDJSON capture includes the diagnostic fields landed in Plan 201-13 (max_delay_delta_us, red_streak, zone_trace, headroom_exhausted_streak, anti_windup_cycles, anti_windup_triggers) — confirmed by jq inspection of any captured row"
+    - "ACTIVE CONTROL KNOB ASSERTION (codex MEDIUM-CODEX-3): post-deploy /health probe explicitly asserts the new control parameters are live in the running binary. Specifically: red_decay_step_pct == 0.02 OR effective step is bounded-absolute (verifiable by zone_trace pattern), anti_windup_cycles == 60 (echoed in /health), anti_windup_triggers field present (counter, may be 0). Without these assertions the canary could PASS with stale defaults, proving nothing about the rev-3 fix."
+    - "On FAIL: rollback executes per D-10 / REVIEWS HIGH-7; both binary AND YAML restored from the post-gate-PASS snapshot; verified by post-rollback /health.version=1.39.0 AND grep counts of all new + existing Phase 201 YAML keys = 0 in /etc/wanctl/spectrum.yaml"
     - "On PASS: Plan 201-16 (24h soak) is unblocked; 201-15-CANARY-VERDICT.md records verdict=pass, primary_gate=0, captures floor_hit_cycles_total_loaded_window_end as the T+0 baseline for the soak"
-    - "Canary verdict.json schema-compatible with 201-11 verdict.json (same fields, same primary_gate identifier) so Plan 201-12-style soak harness can ingest it without modification"
+    - "Canary verdict.json schema-compatible with 201-11 verdict.json (same fields, same primary_gate identifier)"
   artifacts:
     - path: .planning/phases/201-docsis-aware-ul-congestion-control/canary/<TIMESTAMP>/verdict.json
       provides: "Canonical re-canary verdict; primary_gate value, secondary_gate value, baseline RTT bookends, env capture, rollback decision"
       contains: "primary_gate"
+    - path: .planning/phases/201-docsis-aware-ul-congestion-control/canary/<TIMESTAMP>/build-identity.json
+      provides: "Git SHA + version + build_utc — codex MEDIUM-CODEX-4 evidentiary binding"
+      contains: "git_sha"
     - path: .planning/phases/201-docsis-aware-ul-congestion-control/201-15-CANARY-VERDICT.md
-      provides: "Operator-readable verdict mirroring 201-11-CANARY-VERDICT.md format"
+      provides: "Operator-readable verdict; includes active-control-knob assertion table"
       contains: "VALN-06"
   key_links:
     - from: ".planning/phases/201-docsis-aware-ul-congestion-control/canary/<TIMESTAMP>/verdict.json"
-      to: ".planning/phases/201-docsis-aware-ul-congestion-control/201-16-soak-PLAN.md (or re-staged 201-12)"
+      to: ".planning/phases/201-docsis-aware-ul-congestion-control/201-16-soak-and-closeout-PLAN.md"
       via: "verdict=pass unblocks soak; verdict=fail blocks soak and triggers next gap-closure cycle"
       pattern: "primary_gate"
     - from: "scripts/phase201-predeploy-gate.sh"
       to: "/etc/wanctl/spectrum.yaml on cake-shaper"
-      via: "SSH probe + reconcile-or-block on residual rejected v1.41 keys"
+      via: "SSH probe + reconcile-or-block on residual rejected v1.41 keys; rollback snapshot taken AFTER PASS"
       pattern: "predeploy-gate"
 ---
 
 <objective>
-**Gap-closure Plan 3 of 4. OPERATOR-GATED CHECKPOINT.** Re-run the Phase 201 saturation canary at `setpoint_mbps=12` against the v1.42 binary that contains the Plan 201-13 diagnostic fields and the Plan 201-14 control-model amendment.
+**Gap-closure Plan 3 of 4. OPERATOR-GATED CHECKPOINT. Revision 2 — incorporates codex HIGH-CODEX-3 (snapshot ordering bug), MEDIUM-CODEX-3 (knob verification), MEDIUM-CODEX-4 (version distinguishability).**
 
-This plan is the closure proof for the primary VERIFICATION.md gap (truth-1: floor_hit_cycles_total delta = 0 over loaded window). Per the operator-confirmed closure direction (path b — control-model amendment), this re-canary tests the FIX, not the setpoint workaround. A5 fallback at setpoint=10 stays explicitly OFF the table for this attempt; if this re-canary fails, A5 is the next operator decision (recorded in CONTEXT.md `## Deferred Ideas`).
+Re-run the Phase 201 saturation canary at `setpoint_mbps=12` against the **v1.42.1** binary that contains the Plan 201-13 diagnostic fields and the Plan 201-14 rev-3 control-model amendment (bounded-absolute decay + anti-windup cap-and-clamp).
 
-Per CONTEXT.md D-11: reuse `scripts/phase200-saturation-canary.sh`. Per Plan 201-08: that script has already been extended for Phase 201 env-cross-check, /health DOCSIS-mode probe, max_delay_delta_us capture, and counter-delta verdict-decision. Per Plan 201-07: predeploy gate is in place. Per REVIEWS HIGH-7 / D-10: rollback restores both binary AND YAML.
+This plan is the closure proof for the primary VERIFICATION.md gap. Three structural changes from revision 1:
 
-The re-canary uses the EXACT same env vars as 201-11 (preserve evidentiary continuity) — only the binary on cake-shaper changes (because Plans 201-13 and 201-14 land new code). YAML can stay as in configs/spectrum.yaml at deploy time (which Plan 201-14 will update with the two new keys `sustained_red_cycles: 8`, `anti_windup_cycles: 60`).
+1. **Version bump 1.42.0 → 1.42.1** (codex MEDIUM-CODEX-4): A patch bump distinguishes the failed 201-11 binary from the gap-closure binary at `/health.version`. Without this, re-canary evidence cannot prove "different code ran." Captured in `src/wanctl/__init__.py` BEFORE deploy. Also: build-identity.json captures git SHA at canary-time so evidence binds to the exact tree, not merely the version string.
 
-Output: a `canary/<TIMESTAMP>/` directory with verdict.json, loaded_capture.ndjson, idle_capture.ndjson, and a 201-15-CANARY-VERDICT.md operator-readable summary. On PASS, Plan 201-16 (soak) proceeds. On FAIL, rollback executes and the next gap-closure planning cycle begins.
+2. **Rollback snapshot moved AFTER predeploy gate PASS** (codex HIGH-CODEX-3): Revision 1 snapshotted rollback artifacts BEFORE the predeploy gate ran. If the gate's first run BLOCKed (as it did in 201-11) and the operator then reconciled the YAML, the snapshot would point at the stale pre-reconcile YAML — restoring on FAIL would put production back into the rejected state. Revision 2 inverts the order: gate runs first, operator reconciles if needed, gate re-runs to PASS, AND THEN the snapshot is taken. Snapshot always represents a known-good predeploy state.
+
+3. **Active control knob assertion** (codex MEDIUM-CODEX-3): Post-deploy /health probe explicitly asserts the new Plan 201-14 rev-3 parameters are live, not stale defaults. The rev-3 knobs are `red_decay_step_pct=0.02`, `red_decay_delta_max_pct=0.10`, `anti_windup_cycles=60`. The `anti_windup_cycles` value and `anti_windup_triggers` counter are surfaced via /health (Plan 201-13 contract); the two `red_decay_*_pct` floats are NOT in /health (they are static YAML; we assert them via SSH grep of `/etc/wanctl/spectrum.yaml` AND inspect the live behavior pattern via the captured zone_trace post-canary). Without these assertions the canary could PASS with default factor_down=0.9 if the wiring failed silently.
+
+Per CONTEXT.md D-11: reuse `scripts/phase200-saturation-canary.sh`. Per Plan 201-08: extended for env-cross-check and counter-delta verdict-decision. Per Plan 201-07: predeploy gate is in place. Per REVIEWS HIGH-7 / D-10: rollback restores both binary AND YAML.
+
+The re-canary uses the EXACT same env vars as 201-11 (preserve evidentiary continuity) — only the binary on cake-shaper changes (Plans 201-13 + 201-14 rev 3 land new code; version becomes 1.42.1).
+
+Output: a `canary/<TIMESTAMP>/` directory with verdict.json, loaded_capture.ndjson, idle_capture.ndjson, build-identity.json, and a 201-15-CANARY-VERDICT.md operator-readable summary.
 
 This plan is `autonomous: false` because it deploys to production (cake-shaper, wanctl@spectrum.service running 24/7) and may rollback. The operator MUST approve at the predeploy checkpoint and the post-canary checkpoint.
 </objective>
@@ -66,6 +83,7 @@ This plan is `autonomous: false` because it deploys to production (cake-shaper, 
 <context>
 @.planning/phases/201-docsis-aware-ul-congestion-control/201-CONTEXT.md
 @.planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md
+@.planning/phases/201-docsis-aware-ul-congestion-control/201-REVIEWS.md
 @.planning/phases/201-docsis-aware-ul-congestion-control/201-11-CANARY-VERDICT.md
 @.planning/phases/201-docsis-aware-ul-congestion-control/canary/20260504T231334Z/verdict.json
 @.planning/phases/201-docsis-aware-ul-congestion-control/201-11-canary-execution-PLAN.md
@@ -77,7 +95,7 @@ This plan is `autonomous: false` because it deploys to production (cake-shaper, 
 <interfaces>
 <!-- The canary contract is FIXED by Plan 201-08. This plan invokes; it does not modify the script. -->
 
-Required env (from canary 20260504T231334Z evidence + Plan 201-08):
+Required env (verbatim from 201-11):
 ```
 PHASE200_OUT_DIR=.planning/phases/201-docsis-aware-ul-congestion-control
 PHASE200_SPECTRUM_HEALTH_URL=http://10.10.110.223:9101/health
@@ -88,15 +106,9 @@ PHASE200_UL_CEILING_MBPS=18
 PHASE200_REMOTE_YAML_SSH=cake-shaper:/etc/wanctl/spectrum.yaml
 PHASE201_DOCSIS_MODE=true
 PHASE201_SETPOINT_MBPS=12
-# PHASE201_LOCAL_YAML_OVERRIDE unset (per 201-11 pattern)
 ```
 
-Predeploy gate invocation (Plan 201-07 pattern):
-```
-./scripts/phase201-predeploy-gate.sh
-# First run: BLOCK on residual v1.41 keys -> operator reconciles by SCP /etc/wanctl/spectrum.yaml or copies repo configs/spectrum.yaml
-# Second run: PASS
-```
+Predeploy gate (Plan 201-07): first run may BLOCK on residual v1.41 keys → operator reconciles via SCP from `configs/spectrum.yaml` → second run PASSes. **Rollback snapshot is taken AFTER the second run PASSes (codex HIGH-CODEX-3).**
 
 Deploy invocation (201-11 verbatim):
 ```
@@ -104,25 +116,80 @@ REMOTE_SSH_TARGET=cake-shaper REMOTE_YAML_PATH=/etc/wanctl/spectrum.yaml ./scrip
 ssh cake-shaper sudo systemctl restart wanctl@spectrum.service
 ```
 
-Verdict.json primary gate field (Plan 201-08): `primary_gate: "floor_hit_cycles_total_delta_loaded_window"`, `primary_gate_value: <int>`. PASS only if `primary_gate_value == 0` AND `ul_floor_hits_during_load == 0`. Disagreement = FAIL with diagnostic reason.
+Verdict.json primary gate field (Plan 201-08): `primary_gate: "floor_hit_cycles_total_delta_loaded_window"`, `primary_gate_value: <int>`. PASS only if `primary_gate_value == 0` AND `ul_floor_hits_during_load == 0`. Disagreement = FAIL.
 
-Rollback artifacts (REVIEWS HIGH-7 / D-10): pre-deploy `tar -czf /opt/wanctl-prephase201-recanary-<TS>.tar.gz /opt/wanctl` AND `cp /etc/wanctl/spectrum.yaml /etc/wanctl/spectrum.yaml.prephase201-recanary-<TS>` BEFORE deploy. On FAIL, restore both, restart service, verify /health.version reverts to 1.39.0.
+Rollback artifacts (REVIEWS HIGH-7 / D-10): pre-deploy `tar -czf /opt/wanctl-prephase201-recanary-<TS>.tar.gz /opt/wanctl` AND `cp /etc/wanctl/spectrum.yaml /etc/wanctl/spectrum.yaml.prephase201-recanary-<TS>` AFTER predeploy gate PASS, BEFORE deploy. On FAIL, restore both, restart service, verify /health.version reverts to 1.39.0.
+
+**Active control knob assertion (codex MEDIUM-CODEX-3):** post-deploy /health must show:
+- `version == "1.42.1"` (codex MEDIUM-CODEX-4)
+- `wans[0].upload.docsis_mode_active == true`
+- `wans[0].upload.setpoint_mbps == 12.0`
+- `wans[0].upload.anti_windup_cycles == 60` (Plan 201-13 echoes this YAML key)
+- `wans[0].upload.anti_windup_triggers` is present and an int (may be 0; the field's existence proves Plan 201-13 wired it AND Plan 201-14 incremented the counter — even if it never fired during the canary)
+- `wans[0].upload.headroom_exhausted_streak` is present and an int
+
+PLUS via SSH grep of `/etc/wanctl/spectrum.yaml`: `red_decay_step_pct: 0.02` AND `red_decay_delta_max_pct: 0.10` (these are static YAML, not in /health).
 </interfaces>
 
 <tasks>
 
+<task type="auto">
+  <name>Task 1: Bump version to 1.42.1 in src/wanctl/__init__.py + commit</name>
+  <read_first>
+    - src/wanctl/__init__.py (current __version__ value)
+    - CHANGELOG.md (latest version section)
+  </read_first>
+  <files>src/wanctl/__init__.py, CHANGELOG.md</files>
+  <action>
+    Codex MEDIUM-CODEX-4 fix: distinguish the failed 201-11 binary (1.42.0) from the gap-closure binary at /health.version.
+
+    1. Locate `__version__` in `src/wanctl/__init__.py`. Bump from `"1.42.0"` to `"1.42.1"`.
+
+    2. Update CHANGELOG.md: add a `## 1.42.1` section above `## 1.42.0` with a one-line entry referencing this plan and the Plan 201-14 rev-3 control-model amendment:
+       ```markdown
+       ## 1.42.1 — 2026-05-XX
+
+       ### Fixed
+       - Phase 201 gap-closure (rev 3): bounded-absolute RED decay + anti-windup cap-and-clamp. See Plan 201-14 / canary <RECANARY_TS>.
+       ```
+
+    3. Commit: `chore(201-15): bump version to 1.42.1 for codex evidentiary distinguishability (MEDIUM-CODEX-4)`.
+
+    Run hot-path slice to confirm no test relies on the literal `"1.42.0"` string:
+    ```
+    .venv/bin/pytest -o addopts='' tests/test_health_check.py -q
+    ```
+  </action>
+  <verify>
+    <automated>grep -q '__version__ = "1.42.1"' src/wanctl/__init__.py</automated>
+    <automated>grep -q "## 1.42.1" CHANGELOG.md</automated>
+    <automated>.venv/bin/pytest -o addopts='' tests/test_health_check.py -q</automated>
+  </verify>
+  <acceptance_criteria>
+    - `src/wanctl/__init__.py` shows `__version__ = "1.42.1"`
+    - CHANGELOG.md has a `## 1.42.1` section
+    - test_health_check.py passes (no test brittle on the literal old version)
+    - Commit recorded
+  </acceptance_criteria>
+  <done>
+    Version bumped; CHANGELOG updated; binary built from this tree will report 1.42.1 in /health.
+  </done>
+</task>
+
 <task type="checkpoint:human-verify" gate="blocking">
-  <name>Task 1: Predeploy approval — verify Plans 201-13 + 201-14 landed and tests green; operator confirms re-canary go</name>
+  <name>Task 2: Predeploy approval — verify Plans 201-13 + 201-14 landed, version=1.42.1, tests green; operator confirms re-canary go</name>
   <read_first>
     - .planning/phases/201-docsis-aware-ul-congestion-control/201-13-SUMMARY.md
     - .planning/phases/201-docsis-aware-ul-congestion-control/201-14-SUMMARY.md
-    - configs/spectrum.yaml (verify sustained_red_cycles + anti_windup_cycles present)
+    - configs/spectrum.yaml (verify red_decay_step_pct + red_decay_delta_max_pct + anti_windup_cycles present; sustained_red_cycles ABSENT)
+    - src/wanctl/__init__.py (verify __version__ == "1.42.1")
   </read_first>
   <what-built>
-    Plans 201-13 and 201-14 must be complete:
-    - 201-13: /health.wans[0].upload now exposes max_delay_delta_us, red_streak, zone_trace (additive).
-    - 201-14: queue_controller has floor-anchored RED decay below setpoint, push-down setpoint clamp, and integral anti-windup. All docsis_mode-gated. SAFE-05 byte-identity preserved.
-    - configs/spectrum.yaml has explicit `sustained_red_cycles: 8` and `anti_windup_cycles: 60` under continuous_monitoring.upload.
+    Plans 201-13, 201-14 (rev 3), and Task 1 of this plan must be complete:
+    - 201-13: /health.wans[0].upload exposes max_delay_delta_us, red_streak, zone_trace, headroom_exhausted_streak, anti_windup_cycles, anti_windup_triggers (no sustained_red_cycles per rev-2 coordination).
+    - 201-14 rev 3: queue_controller has bounded-absolute RED decay (Option B), integral anti-windup cap-and-clamp with synchronous headroom_state recompute, rate-limited logging. SAFE-05 byte-identity preserved. Cycle-1-18 table test green.
+    - configs/spectrum.yaml has explicit `red_decay_step_pct: 0.02`, `red_decay_delta_max_pct: 0.10`, `anti_windup_cycles: 60` under continuous_monitoring.upload. `sustained_red_cycles` ABSENT.
+    - Version is 1.42.1 in src/wanctl/__init__.py.
   </what-built>
   <how-to-verify>
     1. Confirm summaries exist:
@@ -130,87 +197,119 @@ Rollback artifacts (REVIEWS HIGH-7 / D-10): pre-deploy `tar -czf /opt/wanctl-pre
        ls .planning/phases/201-docsis-aware-ul-congestion-control/201-13-SUMMARY.md
        ls .planning/phases/201-docsis-aware-ul-congestion-control/201-14-SUMMARY.md
        ```
-       Both must exist.
 
-    2. Confirm hot-path slice green:
+    2. Confirm version bump:
+       ```
+       grep '__version__' src/wanctl/__init__.py
+       ```
+       Must show `__version__ = "1.42.1"`.
+
+    3. Confirm hot-path slice green:
        ```
        .venv/bin/pytest -o addopts='' tests/test_cake_signal.py tests/test_queue_controller.py tests/test_wan_controller.py tests/test_health_check.py -q
        ```
-       Exit code 0.
 
-    3. Confirm new YAML keys live in repo:
+    4. Confirm new YAML keys present, deleted key absent:
        ```
-       grep -E "sustained_red_cycles|anti_windup_cycles" configs/spectrum.yaml
+       grep -E "red_decay_step_pct|red_decay_delta_max_pct|anti_windup_cycles" configs/spectrum.yaml
+       grep -E "sustained_red_cycles" configs/spectrum.yaml | grep -v '^#'
        ```
-       Must show both values (8 and 60).
+       First grep must show 3 matches; second must be empty.
 
-    4. Confirm new diagnostic fields wired:
+    5. Confirm cycle-1-18 table test green specifically:
        ```
-       grep -E '"zone_trace"|"red_streak"|"max_delay_delta_us"' src/wanctl/queue_controller.py src/wanctl/health_check.py
+       .venv/bin/pytest -o addopts='' tests/test_queue_controller.py::TestDocsisModeReplayCanary11::test_red_burst_18_cycles_explicit_table -v
        ```
-       Must show >= 6 hits across both files.
+       Exit code 0 — this is the BLOCKER fix proof.
 
-    5. Operator decides: proceed with re-canary at setpoint_mbps=12, or hold for additional review.
+    6. Operator decides: proceed with re-canary at setpoint_mbps=12, or hold for additional review.
   </how-to-verify>
-  <resume-signal>Type "approved" to proceed to Task 2 (predeploy gate + canary execution), or describe blockers.</resume-signal>
+  <resume-signal>Type "approved" to proceed to Task 3 (predeploy gate + rollback snapshot + deploy), or describe blockers.</resume-signal>
   <acceptance_criteria>
     - Operator typed "approved"
     - Both prerequisite SUMMARY files exist
+    - `__version__ == "1.42.1"`
     - Hot-path slice exits 0
-    - configs/spectrum.yaml has both new keys
+    - Cycle-1-18 table test passes
+    - configs/spectrum.yaml has new keys; `sustained_red_cycles` absent
   </acceptance_criteria>
 </task>
 
 <task type="auto">
-  <name>Task 2: Run predeploy gate, snapshot rollback artifacts, deploy v1.42, verify /health DOCSIS-mode active</name>
+  <name>Task 3: Run predeploy gate FIRST; reconcile if blocked; ONLY THEN snapshot rollback artifacts; deploy v1.42.1; verify /health version + active control knobs</name>
   <read_first>
     - scripts/phase201-predeploy-gate.sh
     - scripts/deploy.sh
     - .planning/phases/201-docsis-aware-ul-congestion-control/201-11-CANARY-VERDICT.md (Pre-deploy Reconciliation section, lines 13-19)
+    - .planning/phases/201-docsis-aware-ul-congestion-control/201-REVIEWS.md (HIGH-CODEX-3 — snapshot AFTER PASS, MEDIUM-CODEX-3 — knob verification, MEDIUM-CODEX-4 — version distinguishability)
   </read_first>
   <files>
-    /opt/wanctl-prephase201-recanary-<TS>.tar.gz (on cake-shaper, pre-deploy snapshot),
-    /etc/wanctl/spectrum.yaml.prephase201-recanary-<TS> (on cake-shaper, pre-deploy snapshot)
+    /opt/wanctl-prephase201-recanary-<TS>.tar.gz (on cake-shaper, post-gate-PASS snapshot),
+    /etc/wanctl/spectrum.yaml.prephase201-recanary-<TS> (on cake-shaper, post-gate-PASS snapshot),
+    .planning/phases/201-docsis-aware-ul-congestion-control/canary/<RECANARY_TS>/build-identity.json,
+    .planning/phases/201-docsis-aware-ul-congestion-control/201-15-CANARY-VERDICT.md
   </files>
   <action>
-    1. **Set TS variable** for this re-canary attempt:
+    1. **Set TS variable**:
        ```
        export RECANARY_TS=$(date -u +%Y%m%dT%H%M%SZ)
        echo "Re-canary timestamp: $RECANARY_TS"
        ```
 
-    2. **Snapshot rollback artifacts on cake-shaper** (REVIEWS HIGH-7 / D-10 dual-snapshot pattern; mirror 201-11):
+    2. **Capture build identity NOW** (codex MEDIUM-CODEX-4 — git SHA captured at canary-time, before any artifact is built):
        ```
-       ssh cake-shaper "sudo tar -czf /opt/wanctl-prephase201-recanary-${RECANARY_TS}.tar.gz -C / opt/wanctl"
-       ssh cake-shaper "sudo cp /etc/wanctl/spectrum.yaml /etc/wanctl/spectrum.yaml.prephase201-recanary-${RECANARY_TS}"
-       ssh cake-shaper "ls -lh /opt/wanctl-prephase201-recanary-${RECANARY_TS}.tar.gz /etc/wanctl/spectrum.yaml.prephase201-recanary-${RECANARY_TS}"
+       mkdir -p .planning/phases/201-docsis-aware-ul-congestion-control/canary/${RECANARY_TS}
+       BUILD_DIR=.planning/phases/201-docsis-aware-ul-congestion-control/canary/${RECANARY_TS}
+       cat > $BUILD_DIR/build-identity.json <<EOF
+       {
+         "git_sha": "$(git rev-parse HEAD)",
+         "git_status_clean": $(if [ -z "$(git status --porcelain)" ]; then echo true; else echo false; fi),
+         "version": "$(grep '__version__' src/wanctl/__init__.py | sed -E 's/.*= "(.*)"/\1/')",
+         "build_utc": "$(date -u -Iseconds)",
+         "recanary_ts": "${RECANARY_TS}"
+       }
+       EOF
+       cat $BUILD_DIR/build-identity.json
        ```
-       Both files must exist with non-zero size.
+       The `git_status_clean: false` value is a soft warning, not a blocker (canary still proceeds), but it's recorded for evidentiary integrity.
 
-    3. **Run predeploy gate** (Plan 201-07):
+    3. **Run predeploy gate FIRST** (codex HIGH-CODEX-3 — gate must run BEFORE rollback snapshot):
        ```
        ./scripts/phase201-predeploy-gate.sh
        ```
-       If first run BLOCKs on rejected v1.41 keys, reconcile by overwriting `/etc/wanctl/spectrum.yaml` from local `configs/spectrum.yaml`:
+       If first run BLOCKs on residual v1.41 keys, reconcile by overwriting `/etc/wanctl/spectrum.yaml`:
        ```
        scp configs/spectrum.yaml cake-shaper:/tmp/spectrum.yaml.new
        ssh cake-shaper "sudo install -o root -g wanctl -m 0640 /tmp/spectrum.yaml.new /etc/wanctl/spectrum.yaml"
        ./scripts/phase201-predeploy-gate.sh   # second run must PASS
        ```
 
-    4. **Deploy v1.42 binary** (201-11 invocation verbatim):
+       Capture both gate runs (BLOCK reason if any, then PASS) into a temporary log for inclusion in 201-15-CANARY-VERDICT.md.
+
+    4. **NOW snapshot rollback artifacts** (codex HIGH-CODEX-3 — AFTER PASS, never before):
+       ```
+       ssh cake-shaper "sudo tar -czf /opt/wanctl-prephase201-recanary-${RECANARY_TS}.tar.gz -C / opt/wanctl"
+       ssh cake-shaper "sudo cp /etc/wanctl/spectrum.yaml /etc/wanctl/spectrum.yaml.prephase201-recanary-${RECANARY_TS}"
+       ssh cake-shaper "ls -lh /opt/wanctl-prephase201-recanary-${RECANARY_TS}.tar.gz /etc/wanctl/spectrum.yaml.prephase201-recanary-${RECANARY_TS}"
+       ```
+       Both files must exist with non-zero size. The snapshotted YAML now reflects the post-reconcile state — restoring on FAIL will return production to a known-good predeploy state, NOT a stale rejected state.
+
+    5. **Deploy v1.42.1 binary**:
        ```
        REMOTE_SSH_TARGET=cake-shaper REMOTE_YAML_PATH=/etc/wanctl/spectrum.yaml ./scripts/deploy.sh spectrum cake-shaper
        ssh cake-shaper "sudo systemctl restart wanctl@spectrum.service"
        sleep 5
        ```
 
-    5. **Verify post-deploy /health**:
+    6. **Verify post-deploy /health — including ACTIVE CONTROL KNOB assertion** (codex MEDIUM-CODEX-3):
        ```
        curl -s http://10.10.110.223:9101/health | jq '{
          version: .version,
          docsis_mode_active: .wans[0].upload.docsis_mode_active,
          setpoint_mbps: .wans[0].upload.setpoint_mbps,
+         anti_windup_cycles: .wans[0].upload.anti_windup_cycles,
+         anti_windup_triggers: .wans[0].upload.anti_windup_triggers,
+         headroom_exhausted_streak: .wans[0].upload.headroom_exhausted_streak,
          floor_hit_cycles_total: .wans[0].upload.floor_hit_cycles_total,
          max_delay_delta_us: .wans[0].upload.max_delay_delta_us,
          red_streak: .wans[0].upload.red_streak,
@@ -218,42 +317,67 @@ Rollback artifacts (REVIEWS HIGH-7 / D-10): pre-deploy `tar -czf /opt/wanctl-pre
        }'
        ```
        Required values:
-       - `version` == "1.42.0" (or whatever the post-201-14 binary reports)
+       - `version` == `"1.42.1"` (codex MEDIUM-CODEX-4 — distinguishes from failed 201-11 binary)
        - `docsis_mode_active` == true
        - `setpoint_mbps` == 12.0
-       - `floor_hit_cycles_total` == 0
-       - `max_delay_delta_us` is an int (NOT null) — proves Plan 201-13 wired it
-       - `red_streak` is an int >= 0 — proves Plan 201-13 wired it
+       - `anti_windup_cycles` == 60 (codex MEDIUM-CODEX-3 — proves Plan 201-14 rev-3 knob is active, not stale default)
+       - `anti_windup_triggers` is an int (NOT null) — proves Plan 201-13 wired the counter AND Plan 201-14 initialized it
+       - `headroom_exhausted_streak` is an int — proves the streak counter is wired
+       - `floor_hit_cycles_total` is an int (== 0 fresh after restart)
+       - `max_delay_delta_us` is an int — proves Plan 201-13 wired it
+       - `red_streak` is an int >= 0
        - `zone_trace_len` >= 1 — proves the ring buffer is being filled
 
-       If ANY field is missing or wrong-typed, ABORT — do NOT proceed to Task 3. Record the failure mode in 201-15-CANARY-VERDICT.md and route back to Plan 201-13 or 201-14 for a fix.
+       PLUS — assert the static YAML knobs that don't appear in /health (codex MEDIUM-CODEX-3 supplemental):
+       ```
+       ssh cake-shaper "sudo grep -E '^[[:space:]]+(red_decay_step_pct|red_decay_delta_max_pct|anti_windup_cycles):' /etc/wanctl/spectrum.yaml"
+       ```
+       Must show all three lines with the rev-3 values: `red_decay_step_pct: 0.02`, `red_decay_delta_max_pct: 0.10`, `anti_windup_cycles: 60`.
 
-    6. **Record predeploy state** in `.planning/phases/201-docsis-aware-ul-congestion-control/201-15-CANARY-VERDICT.md` (create file with the same section structure as 201-11-CANARY-VERDICT.md). Capture:
+       If ANY of the above fails, ABORT — do NOT proceed to Task 4. Record the failure mode in 201-15-CANARY-VERDICT.md; the canary cannot proceed because the active-control-knob assertion has not been satisfied (codex MEDIUM-CODEX-3).
+
+    7. **Record predeploy state** in `.planning/phases/201-docsis-aware-ul-congestion-control/201-15-CANARY-VERDICT.md` (create file with the same section structure as 201-11-CANARY-VERDICT.md). Capture:
        - RECANARY_TS value
-       - Rollback artifact paths and sizes
-       - Predeploy gate run results (first run BLOCK reason, second run PASS)
-       - Post-deploy /health snapshot from step 5
+       - build-identity.json contents (git SHA + version + clean status)
+       - Predeploy gate run results (first run BLOCK reason if any, second run PASS) — note the ORDER: gate first, then snapshot
+       - Rollback artifact paths and sizes (with explicit note: "snapshot taken AFTER predeploy gate PASS per codex HIGH-CODEX-3")
+       - Post-deploy /health snapshot from step 6
+       - Active control knob assertion table:
+
+         | Knob | Source | Expected | Actual | Pass? |
+         |------|--------|----------|--------|-------|
+         | version | /health | 1.42.1 | <actual> | yes/no |
+         | anti_windup_cycles | /health | 60 | <actual> | yes/no |
+         | anti_windup_triggers | /health | int (any) | <actual> | yes/no |
+         | red_decay_step_pct | /etc/wanctl/spectrum.yaml | 0.02 | <actual> | yes/no |
+         | red_decay_delta_max_pct | /etc/wanctl/spectrum.yaml | 0.10 | <actual> | yes/no |
   </action>
   <verify>
+    <automated>test -f .planning/phases/201-docsis-aware-ul-congestion-control/canary/${RECANARY_TS}/build-identity.json</automated>
+    <automated>jq -e '.git_sha and .version == "1.42.1"' .planning/phases/201-docsis-aware-ul-congestion-control/canary/${RECANARY_TS}/build-identity.json</automated>
     <automated>ssh cake-shaper "ls /opt/wanctl-prephase201-recanary-${RECANARY_TS}.tar.gz /etc/wanctl/spectrum.yaml.prephase201-recanary-${RECANARY_TS}" 2>&1 | grep -c "wanctl-prephase201" | grep -qE '^[12]$'</automated>
-    <automated>curl -s http://10.10.110.223:9101/health | jq -e '.wans[0].upload.docsis_mode_active == true and .wans[0].upload.setpoint_mbps == 12.0 and (.wans[0].upload.max_delay_delta_us | type == "number") and (.wans[0].upload.red_streak | type == "number") and (.wans[0].upload.zone_trace | type == "array")'</automated>
+    <automated>curl -s http://10.10.110.223:9101/health | jq -e '.version == "1.42.1" and .wans[0].upload.docsis_mode_active == true and .wans[0].upload.setpoint_mbps == 12.0 and .wans[0].upload.anti_windup_cycles == 60 and (.wans[0].upload.anti_windup_triggers | type == "number") and (.wans[0].upload.headroom_exhausted_streak | type == "number") and (.wans[0].upload.max_delay_delta_us | type == "number") and (.wans[0].upload.red_streak | type == "number") and (.wans[0].upload.zone_trace | type == "array")'</automated>
+    <automated>ssh cake-shaper "sudo grep -cE '^[[:space:]]+(red_decay_step_pct|red_decay_delta_max_pct|anti_windup_cycles):' /etc/wanctl/spectrum.yaml" | tr -d '[:space:]' | grep -qE '^3$'</automated>
   </verify>
   <acceptance_criteria>
+    - build-identity.json captures git SHA and version 1.42.1
+    - Predeploy gate ran BEFORE rollback snapshot (verifiable from 201-15-CANARY-VERDICT.md timeline)
     - Both rollback snapshots exist on cake-shaper with non-zero size
-    - Predeploy gate exits 0 on second run
-    - /health.version reflects v1.42 binary
+    - /health.version == "1.42.1"
     - /health.wans[0].upload.docsis_mode_active == true
     - /health.wans[0].upload.setpoint_mbps == 12.0
-    - /health.wans[0].upload.{max_delay_delta_us, red_streak, zone_trace} all present and correctly typed
-    - 201-15-CANARY-VERDICT.md exists with predeploy section populated
+    - /health.wans[0].upload.anti_windup_cycles == 60 (active knob proven)
+    - /health.wans[0].upload.{anti_windup_triggers, headroom_exhausted_streak, max_delay_delta_us, red_streak, zone_trace} all present and correctly typed
+    - SSH grep of `/etc/wanctl/spectrum.yaml` shows red_decay_step_pct, red_decay_delta_max_pct, anti_windup_cycles all present
+    - 201-15-CANARY-VERDICT.md exists with predeploy section + active-control-knob assertion table populated
   </acceptance_criteria>
   <done>
-    v1.42 binary deployed with snapshots in place, /health confirms DOCSIS-mode active and all six new diagnostic fields live. Ready for canary execution.
+    v1.42.1 binary deployed with snapshots in place (taken AFTER gate PASS), /health confirms DOCSIS-mode active and all rev-3 control knobs verified active. Ready for canary execution.
   </done>
 </task>
 
 <task type="auto">
-  <name>Task 3: Execute saturation canary; capture verdict.json + loaded_capture.ndjson; consume primary gate</name>
+  <name>Task 4: Execute saturation canary; capture verdict.json + loaded_capture.ndjson; consume primary gate</name>
   <read_first>
     - scripts/phase200-saturation-canary.sh
     - scripts/phase200-saturation-canary.env.example
@@ -284,7 +408,7 @@ Rollback artifacts (REVIEWS HIGH-7 / D-10): pre-deploy `tar -czf /opt/wanctl-pre
        ```
        ./scripts/phase200-saturation-canary.sh
        ```
-       The script writes to `$PHASE200_OUT_DIR/canary/<TS>/`. Capture the actual TS the script chose (it generates its own UTC timestamp; the script's TS may differ from RECANARY_TS by a few seconds).
+       The script writes to `$PHASE200_OUT_DIR/canary/<TS>/`. The script's TS may differ from RECANARY_TS by a few seconds; if it picks the same RECANARY_TS directory we already created in Task 3, the build-identity.json will be co-located with verdict.json.
 
     3. **Locate the canary directory and read the verdict**:
        ```
@@ -300,36 +424,52 @@ Rollback artifacts (REVIEWS HIGH-7 / D-10): pre-deploy `tar -czf /opt/wanctl-pre
        }' "$CANARY_DIR/verdict.json"
        ```
 
+       If the canary chose a DIFFERENT TS directory than RECANARY_TS, manually copy the build-identity.json into the canary's chosen directory:
+       ```
+       if [ "$CANARY_DIR" != ".planning/phases/201-docsis-aware-ul-congestion-control/canary/${RECANARY_TS}/" ]; then
+         cp .planning/phases/201-docsis-aware-ul-congestion-control/canary/${RECANARY_TS}/build-identity.json "$CANARY_DIR/build-identity.json"
+       fi
+       ```
+
     4. **Confirm Plan 201-13 diagnostic fields landed in capture**:
        ```
        head -1 "$CANARY_DIR/loaded_capture.ndjson" | jq '{
          max_delay_delta_us: .wans[0].upload.max_delay_delta_us,
          red_streak: .wans[0].upload.red_streak,
-         zone_trace_len: (.wans[0].upload.zone_trace | length)
+         zone_trace_len: (.wans[0].upload.zone_trace | length),
+         anti_windup_cycles: .wans[0].upload.anti_windup_cycles,
+         anti_windup_triggers: .wans[0].upload.anti_windup_triggers,
+         headroom_exhausted_streak: .wans[0].upload.headroom_exhausted_streak
        }'
        ```
-       All three fields must be present in at least one captured row. If absent, the canary script (Plan 201-08) didn't pick them up — that's a downstream gap, not a control-model failure.
+       All six fields must be present in at least one captured row.
 
-    5. **Append canary results section to 201-15-CANARY-VERDICT.md**: capture the full verdict.json contents, key field values, and a brief inline analysis (e.g. "primary_gate_value=0; FAIL margin closed from 1453 to 0").
+    5. **Append canary results section to 201-15-CANARY-VERDICT.md**: capture the full verdict.json contents, key field values, and a brief inline analysis (e.g. "primary_gate_value=0; FAIL margin closed from 1453 to 0"). Note any anti_windup_triggers > 0 — that's informational (the safety net engaged at some point during the canary, which is fine on PASS).
   </action>
   <verify>
     <automated>ls .planning/phases/201-docsis-aware-ul-congestion-control/canary/*/verdict.json | sort -r | head -1</automated>
     <automated>jq -e '.primary_gate == "floor_hit_cycles_total_delta_loaded_window"' $(ls -t .planning/phases/201-docsis-aware-ul-congestion-control/canary/*/verdict.json | head -1)</automated>
     <automated>head -1 $(ls -t .planning/phases/201-docsis-aware-ul-congestion-control/canary/*/loaded_capture.ndjson | head -1) | jq -e '.wans[0].upload.zone_trace | type == "array"'</automated>
+    <automated>head -1 $(ls -t .planning/phases/201-docsis-aware-ul-congestion-control/canary/*/loaded_capture.ndjson | head -1) | jq -e '.wans[0].upload.anti_windup_cycles == 60'</automated>
   </verify>
   <acceptance_criteria>
     - verdict.json exists with `primary_gate == "floor_hit_cycles_total_delta_loaded_window"`
-    - loaded_capture.ndjson contains the three Plan 201-13 fields per captured row
+    - loaded_capture.ndjson contains all six Plan 201-13 fields per captured row (3 original + 3 absorbed: anti_windup_cycles, anti_windup_triggers, headroom_exhausted_streak)
+    - First captured row shows anti_windup_cycles == 60 (proves rev-3 knob propagated through capture)
     - 201-15-CANARY-VERDICT.md updated with canary results section
     - The canary completed without operator-side abort (verdict is "pass" or "fail", NOT "abort")
   </acceptance_criteria>
   <done>
-    Canary executed; verdict.json captured; diagnostic fields confirmed live in NDJSON. Ready for verdict-based decision.
+    Canary executed; verdict.json captured; diagnostic fields and rev-3 knobs confirmed live in NDJSON. Ready for verdict-based decision.
   </done>
 </task>
 
 <task type="checkpoint:decision" gate="blocking">
-  <name>Task 4: Operator verdict decision — PASS proceeds to soak; FAIL triggers rollback + re-plan</name>
+  <name>Task 5: Operator verdict decision — PASS proceeds to soak; FAIL triggers rollback + re-plan</name>
+  <read_first>
+    - .planning/phases/201-docsis-aware-ul-congestion-control/canary/&lt;RECANARY_TS&gt;/verdict.json (the verdict file written by Task 4)
+    - .planning/phases/201-docsis-aware-ul-congestion-control/201-15-CANARY-VERDICT.md (predeploy + canary results sections; the active control knob assertion table)
+  </read_first>
   <decision>
     The canary verdict.json has been written. Operator must decide the next action based on the verdict value.
   </decision>
@@ -337,7 +477,7 @@ Rollback artifacts (REVIEWS HIGH-7 / D-10): pre-deploy `tar -czf /opt/wanctl-pre
     Reading verdict.json:
     - PRIMARY GATE: `primary_gate_value` (== `floor_hit_cycles_total_delta_loaded_window`). MUST be 0 for PASS.
     - SECONDARY GATE: `ul_floor_hits_during_load`. MUST be 0 for PASS.
-    - DISAGREEMENT (one is 0 and the other is not) is automatic FAIL with a diagnostic reason — operator should still confirm the disagreement direction.
+    - DISAGREEMENT (one is 0 and the other is not) is automatic FAIL with a diagnostic reason.
 
     Read the verdict:
     ```
@@ -348,43 +488,43 @@ Rollback artifacts (REVIEWS HIGH-7 / D-10): pre-deploy `tar -czf /opt/wanctl-pre
   <options>
     <option id="pass">
       <name>PASS — primary_gate_value == 0 AND ul_floor_hits_during_load == 0</name>
-      <pros>VALN-06 primary gate met; control-model amendment is proven on production hardware; Plan 201-16 (24h soak) is unblocked</pros>
+      <pros>VALN-06 primary gate met; control-model amendment (Option B) proven on production hardware; Plan 201-16 (24h soak) is unblocked</pros>
       <cons>None — this is the goal state</cons>
     </option>
     <option id="fail">
       <name>FAIL — primary_gate_value > 0 OR ul_floor_hits_during_load > 0 OR disagreement</name>
-      <pros>Honest negative result; rollback restores production to v1.39.0 binary + pre-Phase-201 YAML; the next gap-closure planning cycle has fresh evidence</pros>
-      <cons>Phase 201 stays at gaps_found; may require A5 fallback (setpoint=10) re-canary or deeper control-model work in v1.43+</cons>
+      <pros>Honest negative result; rollback restores production from the post-gate-PASS snapshot; the next gap-closure planning cycle has fresh evidence including build-identity</pros>
+      <cons>Phase 201 stays at gaps_found; may require A5 fallback or further control-model work in v1.43+</cons>
     </option>
     <option id="abort">
-      <name>ABORT — environment failure (network unreachable, iperf3 target down, /health unreachable, etc.)</name>
-      <pros>Distinguishes environmental noise from actual control-model failure; preserves the v1.42 binary for a re-attempt</pros>
+      <name>ABORT — environment failure (network unreachable, iperf3 target down, etc.)</name>
+      <pros>Distinguishes environmental noise from actual control-model failure; preserves the v1.42.1 binary for a re-attempt</pros>
       <cons>Re-canary must be re-staged once environment is healthy</cons>
     </option>
   </options>
-  <resume-signal>Type one of: "pass", "fail", or "abort". On "fail", Task 5 (rollback) executes automatically. On "pass", proceed to Task 6 (close out the verdict file). On "abort", proceed to Task 7 (environment-failure cleanup, no rollback).</resume-signal>
+  <resume-signal>Type one of: "pass", "fail", or "abort". On "fail", Task 6 (rollback) executes automatically. On "pass", proceed to Task 7. On "abort", proceed to Task 8.</resume-signal>
   <acceptance_criteria>
     - Operator entered "pass", "fail", or "abort"
-    - Decision recorded in 201-15-CANARY-VERDICT.md "Decision" section (mirror 201-11-CANARY-VERDICT.md format)
+    - Decision recorded in 201-15-CANARY-VERDICT.md "Decision" section
   </acceptance_criteria>
 </task>
 
 <task type="auto">
-  <name>Task 5: On FAIL — execute rollback (binary + YAML); verify /health.version=1.39.0; record rollback verification</name>
+  <name>Task 6: On FAIL — execute rollback (binary + YAML from POST-GATE-PASS snapshot); verify /health.version=1.39.0</name>
   <read_first>
     - .planning/phases/201-docsis-aware-ul-congestion-control/201-11-CANARY-VERDICT.md (Rollback + Rollback Verification sections, lines 64-86)
   </read_first>
   <files>.planning/phases/201-docsis-aware-ul-congestion-control/201-15-CANARY-VERDICT.md</files>
   <action>
-    Execute ONLY if Task 4 returned "fail". Skip on "pass" or "abort".
+    Execute ONLY if Task 5 returned "fail". Skip on "pass" or "abort".
 
-    1. **Restore binary**:
+    1. **Restore binary from POST-GATE-PASS snapshot** (codex HIGH-CODEX-3 — never restore stale pre-reconcile state):
        ```
        ssh cake-shaper "sudo systemctl stop wanctl@spectrum.service"
        ssh cake-shaper "sudo tar -xzf /opt/wanctl-prephase201-recanary-${RECANARY_TS}.tar.gz -C /"
        ```
 
-    2. **Restore YAML**:
+    2. **Restore YAML from POST-GATE-PASS snapshot**:
        ```
        ssh cake-shaper "sudo cp /etc/wanctl/spectrum.yaml.prephase201-recanary-${RECANARY_TS} /etc/wanctl/spectrum.yaml"
        ssh cake-shaper "sudo chown root:wanctl /etc/wanctl/spectrum.yaml && sudo chmod 0640 /etc/wanctl/spectrum.yaml"
@@ -396,104 +536,98 @@ Rollback artifacts (REVIEWS HIGH-7 / D-10): pre-deploy `tar -czf /opt/wanctl-pre
        sleep 5
        ```
 
-    4. **Verify rollback** (REVIEWS HIGH-7 dual verification — both binary and YAML):
+    4. **Verify rollback** (REVIEWS HIGH-7 dual verification):
        ```
        curl -s http://10.10.110.223:9101/health | jq '{version, status}'
        # Expected: version="1.39.0", status="healthy"
 
-       # WARNING 5 fix: anchored per-key grep prevents false positives from YAML comments
-       # that mention these key names (e.g. comment-block prose in spectrum.yaml).
-       # Each key must be matched as a top-level YAML key (indented, followed by colon),
-       # not as a substring inside a # comment line.
-       ssh cake-shaper "sudo grep -cE '^[[:space:]]+(docsis_mode|setpoint_mbps|integral_window_seconds|integral_threshold_ms_s|cake_backlog_low_threshold_bytes|cake_delay_delta_low_threshold_us|sustained_red_cycles|anti_windup_cycles):' /etc/wanctl/spectrum.yaml"
-       # Expected: 0 (all 8 keys absent at YAML-key positions; comment text containing these names ignored)
+       # WARNING 5 fix preserved: anchored per-key grep prevents false positives from comments.
+       # Updated key list reflects rev-3 (red_decay_step_pct, red_decay_delta_max_pct;
+       # sustained_red_cycles removed since it was deleted in rev 3).
+       ssh cake-shaper "sudo grep -cE '^[[:space:]]+(docsis_mode|setpoint_mbps|integral_window_seconds|integral_threshold_ms_s|cake_backlog_low_threshold_bytes|cake_delay_delta_low_threshold_us|red_decay_step_pct|red_decay_delta_max_pct|anti_windup_cycles):' /etc/wanctl/spectrum.yaml"
+       # Expected: 0 (all 9 keys absent at YAML-key positions)
        ```
-       NOTE: this restored YAML is from the predeploy snapshot (Task 2), which itself may have been the post-201-11-rollback YAML (no Phase 201 keys). Both readings must show 0 for ALL eight Phase 201 + Phase 201-gap-closure keys.
 
-    5. **Append rollback section to 201-15-CANARY-VERDICT.md** (mirror 201-11-CANARY-VERDICT.md Rollback + Rollback Verification sections). Include the post-rollback /health.version, /health.status, and the YAML grep counts table for all 8 keys.
+    5. **Append rollback section to 201-15-CANARY-VERDICT.md**. Note explicitly: "Rollback restored from snapshot taken AFTER predeploy gate PASS (codex HIGH-CODEX-3). Snapshot did NOT contain stale rejected v1.41 keys."
   </action>
   <verify>
     <automated>curl -s http://10.10.110.223:9101/health | jq -e '.version == "1.39.0" and .status == "healthy"'</automated>
-    <automated>ssh cake-shaper "sudo grep -cE '^[[:space:]]+(docsis_mode|setpoint_mbps|integral_window_seconds|integral_threshold_ms_s|cake_backlog_low_threshold_bytes|cake_delay_delta_low_threshold_us|sustained_red_cycles|anti_windup_cycles):' /etc/wanctl/spectrum.yaml" | tr -d '[:space:]' | grep -qE '^0$'</automated>
+    <automated>ssh cake-shaper "sudo grep -cE '^[[:space:]]+(docsis_mode|setpoint_mbps|integral_window_seconds|integral_threshold_ms_s|cake_backlog_low_threshold_bytes|cake_delay_delta_low_threshold_us|red_decay_step_pct|red_decay_delta_max_pct|anti_windup_cycles):' /etc/wanctl/spectrum.yaml" | tr -d '[:space:]' | grep -qE '^0$'</automated>
   </verify>
   <acceptance_criteria>
     - /health.version == "1.39.0"
     - /health.status == "healthy"
-    - All 8 Phase 201 + gap-closure YAML keys grep count to 0 in /etc/wanctl/spectrum.yaml
-    - 201-15-CANARY-VERDICT.md Rollback section populated with verification table
+    - All 9 Phase 201 + rev-3 YAML keys grep count to 0 in /etc/wanctl/spectrum.yaml
+    - 201-15-CANARY-VERDICT.md Rollback section populated, explicitly noting post-gate-PASS snapshot lineage
   </acceptance_criteria>
   <done>
-    Production restored to pre-Phase-201 state. Phase 201 stays at gaps_found. Operator may now author the next gap-closure cycle (e.g. A5 fallback re-canary at setpoint=10) or close Phase 201 to v1.43+.
+    Production restored to pre-Phase-201 state from a known-good (post-gate-PASS) snapshot. Phase 201 stays at gaps_found.
   </done>
 </task>
 
 <task type="auto">
-  <name>Task 6: On PASS — finalize 201-15-CANARY-VERDICT.md; capture T+0 baseline for soak; unblock Plan 201-16</name>
+  <name>Task 7: On PASS — finalize 201-15-CANARY-VERDICT.md; capture T+0 baseline for soak; unblock Plan 201-16</name>
   <read_first>
-    - .planning/phases/201-docsis-aware-ul-congestion-control/201-12-soak-and-closeout-PLAN.md (Step 1.5 T+0 baseline pattern, lines 22-24 of frontmatter)
+    - .planning/phases/201-docsis-aware-ul-congestion-control/201-12-soak-and-closeout-PLAN.md (Step 1.5 T+0 baseline pattern)
   </read_first>
   <files>.planning/phases/201-docsis-aware-ul-congestion-control/201-15-CANARY-VERDICT.md</files>
   <action>
-    Execute ONLY if Task 4 returned "pass". Skip on "fail" or "abort".
+    Execute ONLY if Task 5 returned "pass". Skip on "fail" or "abort".
 
-    1. **Capture T+0 soak baseline** from the canary verdict (REVIEWS round-5 / Plan 201-12 step 1.5 pattern):
+    1. **Capture T+0 soak baseline** from the canary verdict:
        ```
        VERDICT_FILE=$(ls -t .planning/phases/201-docsis-aware-ul-congestion-control/canary/*/verdict.json | head -1)
        T0_BASELINE=$(jq -r '.floor_hit_cycles_total_loaded_window_end' "$VERDICT_FILE")
        echo "Soak T+0 baseline: $T0_BASELINE"
        ```
-       This is the floor_hit_cycles_total counter value at the end of the canary's loaded window. The 24h soak (Plan 201-16) will subtract this from the counter at soak end to compute its primary gate.
 
     2. **Append PASS verdict section to 201-15-CANARY-VERDICT.md**:
        - Verdict: PASS
+       - Build identity: contents of build-identity.json (git SHA + version 1.42.1)
+       - Active control knob assertion table (filled in from Task 3)
        - Primary gate value: 0
        - Secondary gate value: 0
        - Soak T+0 baseline: $T0_BASELINE
-       - Live /health snapshot post-canary (curl + jq filter same as Task 2 step 5)
+       - Live /health snapshot post-canary
        - Decision: proceed to Plan 201-16 (24h soak)
 
-    3. **Verify v1.42 stays deployed**:
+    3. **Verify v1.42.1 stays deployed**:
        ```
-       curl -s http://10.10.110.223:9101/health | jq -e '.version != "1.39.0"'
+       curl -s http://10.10.110.223:9101/health | jq -e '.version == "1.42.1"'
        ```
-       v1.42 binary stays in place; YAML stays as deployed. No rollback. Plan 201-16 deploys ON TOP of this binary state.
+       v1.42.1 binary stays in place; YAML stays as deployed. No rollback. Plan 201-16 deploys ON TOP of this binary state.
   </action>
   <verify>
     <automated>jq -e '.verdict == "pass" and .primary_gate_value == 0 and .ul_floor_hits_during_load == 0' $(ls -t .planning/phases/201-docsis-aware-ul-congestion-control/canary/*/verdict.json | head -1)</automated>
     <automated>grep -q "Soak T+0 baseline" .planning/phases/201-docsis-aware-ul-congestion-control/201-15-CANARY-VERDICT.md</automated>
-    <automated>curl -s http://10.10.110.223:9101/health | jq -e '.version != "1.39.0"'</automated>
+    <automated>curl -s http://10.10.110.223:9101/health | jq -e '.version == "1.42.1"'</automated>
   </verify>
   <acceptance_criteria>
     - verdict.json shows verdict=pass, primary_gate_value=0, ul_floor_hits_during_load=0
-    - 201-15-CANARY-VERDICT.md records Soak T+0 baseline value
-    - v1.42 binary remains deployed (not rolled back)
+    - 201-15-CANARY-VERDICT.md records Soak T+0 baseline value AND the active-control-knob assertion table
+    - v1.42.1 binary remains deployed
     - Plan 201-16 (24h soak) is unblocked
   </acceptance_criteria>
   <done>
-    Re-canary PASS recorded; Soak T+0 baseline captured; control-model amendment proven on production. Plan 201-16 may proceed.
+    Re-canary PASS recorded; build identity bound; Soak T+0 baseline captured; control-model amendment proven on production. Plan 201-16 may proceed.
   </done>
 </task>
 
 <task type="auto">
-  <name>Task 7: On ABORT — record environment-failure context; do NOT rollback; preserve v1.42 for re-attempt</name>
+  <name>Task 8: On ABORT — record environment-failure context; do NOT rollback; preserve v1.42.1 for re-attempt</name>
   <read_first>None additional</read_first>
   <files>.planning/phases/201-docsis-aware-ul-congestion-control/201-15-CANARY-VERDICT.md</files>
   <action>
-    Execute ONLY if Task 4 returned "abort". Skip on "pass" or "fail".
+    Execute ONLY if Task 5 returned "abort". Skip on "pass" or "fail".
 
-    1. **Record abort reason** in 201-15-CANARY-VERDICT.md "Decision" section:
-       - Verdict from verdict.json (likely "abort" or partial — script may have fail-closed before producing a verdict)
-       - Specific environment failure observed (e.g. iperf3 target unreachable, /health 502, network down)
-       - State of cake-shaper deployment: v1.42 binary stays in place, YAML stays as deployed (NO rollback for environment failures)
-
-    2. **Do NOT rollback.** Operator re-runs the canary (Tasks 3-4) once environment is healthy.
-
+    1. **Record abort reason** in 201-15-CANARY-VERDICT.md "Decision" section.
+    2. **Do NOT rollback.** Operator re-runs the canary (Tasks 4-5) once environment is healthy.
     3. **Confirm wanctl service is still healthy**:
        ```
        curl -s http://10.10.110.223:9101/health | jq '{version, status}'
        ssh cake-shaper "sudo systemctl is-active wanctl@spectrum.service"
        ```
-       Both must show healthy / active. If they don't, escalate to manual operator intervention — environment failure that took the daemon down is NOT in this plan's scope.
+       Both must show healthy / active. version should still be 1.42.1.
   </action>
   <verify>
     <automated>curl -s http://10.10.110.223:9101/health | jq -e '.status == "healthy"'</automated>
@@ -502,32 +636,35 @@ Rollback artifacts (REVIEWS HIGH-7 / D-10): pre-deploy `tar -czf /opt/wanctl-pre
   <acceptance_criteria>
     - 201-15-CANARY-VERDICT.md records abort reason
     - wanctl@spectrum.service still active
-    - /health responding healthy on v1.42 binary
+    - /health responding healthy on v1.42.1 binary
     - No rollback executed
   </acceptance_criteria>
   <done>
-    Environment failure documented; v1.42 binary preserved; Tasks 3-4 may be re-run after environment recovery.
+    Environment failure documented; v1.42.1 binary preserved; Tasks 4-5 may be re-run after environment recovery.
   </done>
 </task>
 
 </tasks>
 
 <verification>
-End-of-plan state varies by Task 4 verdict:
+End-of-plan state varies by Task 5 verdict:
 
-- **PASS**: Plan 201-16 unblocked; v1.42 binary deployed; 201-15-CANARY-VERDICT.md records pass + T+0 baseline
-- **FAIL**: Production rolled back to v1.39.0; YAML clean of all Phase 201 keys; 201-15-CANARY-VERDICT.md records fail + rollback verification table
-- **ABORT**: v1.42 binary preserved; no rollback; 201-15-CANARY-VERDICT.md records abort reason
+- **PASS**: Plan 201-16 unblocked; v1.42.1 binary deployed; 201-15-CANARY-VERDICT.md records pass + T+0 baseline + active-control-knob assertion table + build identity
+- **FAIL**: Production rolled back to v1.39.0 from POST-GATE-PASS snapshot (HIGH-CODEX-3); YAML clean of all rev-3 + Phase 201 keys; 201-15-CANARY-VERDICT.md records fail + rollback verification table
+- **ABORT**: v1.42.1 binary preserved; no rollback; 201-15-CANARY-VERDICT.md records abort reason
 </verification>
 
 <success_criteria>
 - 201-15-CANARY-VERDICT.md exists with predeploy + canary + decision sections populated
 - canary/<TS>/verdict.json exists, schema-compatible with 201-11 verdict.json
-- canary/<TS>/loaded_capture.ndjson contains the three Plan 201-13 diagnostic fields
+- canary/<TS>/build-identity.json exists with git SHA + version 1.42.1 (codex MEDIUM-CODEX-4)
+- canary/<TS>/loaded_capture.ndjson contains all six Plan 201-13 diagnostic fields
+- Predeploy gate ran BEFORE rollback snapshot (codex HIGH-CODEX-3)
+- Active control knob assertion table populated, all five knobs verified live (codex MEDIUM-CODEX-3)
 - Operator decision (pass/fail/abort) recorded
-- One of three downstream paths executed correctly (PASS unblocks soak; FAIL rolls back; ABORT preserves)
+- One of three downstream paths executed correctly
 </success_criteria>
 
 <output>
-After completion, create `.planning/phases/201-docsis-aware-ul-congestion-control/201-15-SUMMARY.md` per the standard template. Include: re-canary timestamp, verdict, primary_gate_value, ul_floor_hits_during_load, decision taken, downstream effect (soak unblocked / rollback complete / re-attempt staged).
+After completion, create `.planning/phases/201-docsis-aware-ul-congestion-control/201-15-SUMMARY.md` per the standard template. Include: re-canary timestamp, build identity (git SHA + version 1.42.1), verdict, primary_gate_value, ul_floor_hits_during_load, active control knob assertion outcome, snapshot ordering confirmation (post-gate-PASS), decision taken, downstream effect (soak unblocked / rollback complete / re-attempt staged), codex review findings closed (HIGH-CODEX-3, MEDIUM-CODEX-3, MEDIUM-CODEX-4).
 </output>
