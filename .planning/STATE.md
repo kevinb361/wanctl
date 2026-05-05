@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: executing
-stopped_at: Completed 201-13-health-diagnostic-extension-PLAN.md
-last_updated: "2026-05-05T11:20:18.986Z"
+stopped_at: Completed 201-14-control-model-amendment-PLAN.md
+last_updated: "2026-05-05T11:36:30.123Z"
 last_activity: 2026-05-05
 progress:
   total_phases: 1
   completed_phases: 1
   total_plans: 16
-  completed_plans: 12
-  percent: 100
+  completed_plans: 13
+  percent: 81
 ---
 
 # Session State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-04-23)
 **Active parallel milestone:** v1.39 Control-Path Timing & Measurement Accounting (Phase 191 still open)
 **Next milestone:** v1.41 (to open via `/gsd-new-milestone`)
 
-Progress: [██████████] 100%
+Progress: [████████░░] 81%
 
 ## Deferred Items
 
@@ -249,9 +249,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 201-11]: Plan 201-12 must not proceed after the failed canary unless an explicit operator decision creates a setpoint_mbps=10 reattempt path or gap-closure planning.
 - [Phase 201-13]: Upload `/health` diagnostics now expose `zone_trace`, `max_delay_delta_us`, anti-windup counters, and red-decay runtime knob echoes without DOCSIS gating.
 - [Phase 201-13]: `sustained_red_cycles` remains absent from serialization to preserve Plan 201-14 rev 4 Option B coordination.
+- [Phase 201-14]: Bounded-absolute RED decay holds at a validator-proven clamp above floor under DOCSIS mode; legacy docsis_mode=false remains multiplicative and byte-identical.
+- [Phase 201-14]: Red-decay config now fails closed when step/delta ordering is unsafe or DOCSIS clamp is at/below floor.
 
 ## Performance Metrics
 
+- 2026-05-05: Phase 201 Plan 14 completed in ~11min across 4 tasks and 10 plan-scoped files; DOCSIS RED now uses bounded-absolute setpoint-relative decay with an 18-cycle floor-hit-free replay, anti-windup caps stuck integrals below threshold, daemon/check-config validators reject unsafe red-decay knobs, plan regression slice passed with 833 tests, and package mypy passed.
 - 2026-05-05: Phase 201 Plan 13 completed in ~18min across 2 TDD tasks and 4 source/test files; upload health diagnostics now expose zone_trace, max_delay_delta_us, red_streak, anti-windup counters, and red_decay_* runtime knob echoes; QueueController diagnostics passed with 13 tests, health payload diagnostics passed with 10 tests, and hot-path slice passed with 635 tests.
 - 2026-05-04: Phase 201 Plan 11 completed as blocked/failed after live canary `20260504T231334Z`; predeploy reconciliation/deploy succeeded, but the 1022s loaded canary failed VALN-06 with floor_hit_cycles_total_delta_loaded_window=1453 and ul_floor_hits_during_load=84; D-10 rollback restored binary and YAML to predeploy snapshots and post-rollback health reported version 1.39.0.
 - 2026-05-04: Phase 201 Plan 10 completed in 11min across 1 Codex stop-time review gate and 5 planning/context files; Codex returned GO WITH FOLLOW-UPS with no HIGH findings, full suite passed with 4864 tests, and Plan 201-11 may proceed after confirming PHASE201_LOCAL_YAML_OVERRIDE is unset.
@@ -317,6 +320,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 201 (docsis-aware-ul-congestion-control) — EXECUTING
-Plan: 14 of 16
-Status: Ready to execute Plan 201-14
-Last activity: 2026-05-05 -- Completed Plan 201-13 health diagnostic extension
+Plan: 15 of 16
+Status: Ready to execute Plan 201-15
+Last activity: 2026-05-05 -- Completed Plan 201-14 control model amendment
