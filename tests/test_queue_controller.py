@@ -3651,6 +3651,22 @@ class TestDocsisModeDiagnosticHealth:
         assert health["red_streak"] >= 0
         assert health["max_delay_delta_us"] == 4321
 
+    def test_zone_trace_health_never_exceeds_200_entries(self):
+        ctrl = _make_docsis_controller()
+
+        for _ in range(250):
+            ctrl.adjust(22.0, 23.0, target_delta=5.0, warn_delta=75.0)
+
+        assert len(ctrl.get_health_data()["zone_trace"]) == 200
+
+    def test_zone_trace_entries_are_zone_strings(self):
+        ctrl = _make_docsis_controller()
+
+        for delta in (1.0, 10.0, 100.0):
+            ctrl.adjust(22.0, 22.0 + delta, target_delta=5.0, warn_delta=75.0)
+
+        assert set(ctrl.get_health_data()["zone_trace"]) <= {"GREEN", "YELLOW", "RED"}
+
     def test_max_delay_delta_cold_start_defaults_to_zero(self):
         ctrl = _make_docsis_controller()
 
@@ -3700,6 +3716,17 @@ class TestDocsisModeDiagnosticHealth:
         assert isinstance(health["anti_windup_cycles"], int)
         assert isinstance(health["anti_windup_triggers"], int)
 
+    def test_absorbed_counter_runtime_state_echoes_existing_attributes(self):
+        ctrl = _make_docsis_controller()
+        ctrl._headroom_exhausted_streak = 7
+        ctrl._anti_windup_cycles = 45
+        ctrl._anti_windup_triggers = 3
+        health = ctrl.get_health_data()
+
+        assert health["headroom_exhausted_streak"] == 7
+        assert health["anti_windup_cycles"] == 45
+        assert health["anti_windup_triggers"] == 3
+
     def test_active_knob_defaults_are_serialized_as_floats(self):
         ctrl = _make_docsis_controller()
         health = ctrl.get_health_data()
@@ -3718,6 +3745,11 @@ class TestDocsisModeDiagnosticHealth:
 
         assert health["red_decay_step_pct"] == pytest.approx(0.05)
         assert health["red_decay_delta_max_pct"] == pytest.approx(0.15)
+
+    def test_sustained_red_cycles_is_not_serialized(self):
+        ctrl = _make_docsis_controller()
+
+        assert "sustained_red_cycles" not in ctrl.get_health_data()
 
 
 class TestDocsisModeByteIdentity:
