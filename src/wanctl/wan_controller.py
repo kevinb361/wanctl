@@ -120,7 +120,11 @@ def _apply_threshold_param(wc: "WANController", param: str, val: float) -> bool:
             # would invert the target<warn invariant against the (possibly
             # protected) UL warn_delta. Codex stop-hook caught this — per-key
             # gates would otherwise let live-tuning break the ordering.
-            warn_delta = wc.warn_delta if isinstance(getattr(wc, "warn_delta", None), int | float) else math.inf
+            warn_delta = (
+                wc.warn_delta
+                if isinstance(getattr(wc, "warn_delta", None), int | float)
+                else math.inf
+            )
             if val < warn_delta:
                 wc.target_delta = val
             else:
@@ -141,7 +145,9 @@ def _apply_threshold_param(wc: "WANController", param: str, val: float) -> bool:
             # would invert the target<warn invariant against the (possibly
             # protected) UL target_delta.
             target_delta = (
-                wc.target_delta if isinstance(getattr(wc, "target_delta", None), int | float) else -math.inf
+                wc.target_delta
+                if isinstance(getattr(wc, "target_delta", None), int | float)
+                else -math.inf
             )
             if val > target_delta:
                 wc.warn_delta = val
@@ -446,9 +452,7 @@ class WANController:
                 else 5000
             ),
             red_decay_step_pct=float(getattr(config, "red_decay_step_pct", 0.02)),
-            red_decay_delta_max_pct=float(
-                getattr(config, "red_decay_delta_max_pct", 0.10)
-            ),
+            red_decay_delta_max_pct=float(getattr(config, "red_decay_delta_max_pct", 0.10)),
             anti_windup_cycles=int(getattr(config, "anti_windup_cycles", 60)),
         )
 
@@ -473,9 +477,7 @@ class WANController:
         # Phase 201 D-03 mirror: presence-based per-key flags. NEVER value-derived.
         # Codex pre-review caught the value-derived flag regression in Phase 200.
         self._docsis_mode_explicit = getattr(config, "_docsis_mode_explicit", False) is True
-        self._setpoint_mbps_explicit = (
-            getattr(config, "_setpoint_mbps_explicit", False) is True
-        )
+        self._setpoint_mbps_explicit = getattr(config, "_setpoint_mbps_explicit", False) is True
         self._red_decay_step_pct_explicit = (
             getattr(config, "_red_decay_step_pct_explicit", False) is True
         )

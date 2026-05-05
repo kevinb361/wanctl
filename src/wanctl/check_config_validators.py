@@ -359,10 +359,21 @@ def _validate_download_floors(cm: dict) -> list[CheckResult]:
 
     try:
         validate_bandwidth_order(
-            name="download", floor_red=floor_red, floor_soft_red=floor_soft_red,
-            floor_yellow=floor_yellow, floor_green=floor_green, ceiling=ceiling,
+            name="download",
+            floor_red=floor_red,
+            floor_soft_red=floor_soft_red,
+            floor_yellow=floor_yellow,
+            floor_green=floor_green,
+            ceiling=ceiling,
         )
-        return [CheckResult("Cross-field Checks", "download.floors", Severity.PASS, "Download floor ordering: valid")]
+        return [
+            CheckResult(
+                "Cross-field Checks",
+                "download.floors",
+                Severity.PASS,
+                "Download floor ordering: valid",
+            )
+        ]
     except ConfigValidationError as e:
         return [CheckResult("Cross-field Checks", "download.floors", Severity.ERROR, str(e))]
 
@@ -391,10 +402,17 @@ def _validate_upload_floors(cm: dict) -> list[CheckResult]:
 
     try:
         validate_bandwidth_order(
-            name="upload", floor_red=floor_red, floor_yellow=floor_yellow,
-            floor_green=floor_green, ceiling=ceiling,
+            name="upload",
+            floor_red=floor_red,
+            floor_yellow=floor_yellow,
+            floor_green=floor_green,
+            ceiling=ceiling,
         )
-        return [CheckResult("Cross-field Checks", "upload.floors", Severity.PASS, "Upload floor ordering: valid")]
+        return [
+            CheckResult(
+                "Cross-field Checks", "upload.floors", Severity.PASS, "Upload floor ordering: valid"
+            )
+        ]
     except ConfigValidationError as e:
         return [CheckResult("Cross-field Checks", "upload.floors", Severity.ERROR, str(e))]
 
@@ -411,9 +429,15 @@ def _validate_threshold_ordering(cm: dict) -> list[CheckResult]:
 
     try:
         validate_threshold_order(
-            target_bloat_ms=float(target), warn_bloat_ms=float(warn), hard_red_bloat_ms=float(hard_red),
+            target_bloat_ms=float(target),
+            warn_bloat_ms=float(warn),
+            hard_red_bloat_ms=float(hard_red),
         )
-        return [CheckResult("Cross-field Checks", "thresholds", Severity.PASS, "Threshold ordering: valid")]
+        return [
+            CheckResult(
+                "Cross-field Checks", "thresholds", Severity.PASS, "Threshold ordering: valid"
+            )
+        ]
     except ConfigValidationError as e:
         return [CheckResult("Cross-field Checks", "thresholds", Severity.ERROR, str(e))]
 
@@ -442,28 +466,34 @@ def _validate_upload_threshold_ordering(cm: dict) -> list[CheckResult]:
         target_f = float(target)
         warn_f = float(warn)
     except (TypeError, ValueError):
-        return [CheckResult(
+        return [
+            CheckResult(
+                "Cross-field Checks",
+                "continuous_monitoring.upload.thresholds",
+                Severity.ERROR,
+                f"upload target_bloat_ms or warn_bloat_ms is non-numeric: target={target!r} warn={warn!r}",
+            )
+        ]
+
+    if target_f < warn_f:
+        return [
+            CheckResult(
+                "Cross-field Checks",
+                "continuous_monitoring.upload.thresholds",
+                Severity.PASS,
+                "Upload threshold ordering: valid",
+            )
+        ]
+    return [
+        CheckResult(
             "Cross-field Checks",
             "continuous_monitoring.upload.thresholds",
             Severity.ERROR,
-            f"upload target_bloat_ms or warn_bloat_ms is non-numeric: target={target!r} warn={warn!r}",
-        )]
-
-    if target_f < warn_f:
-        return [CheckResult(
-            "Cross-field Checks",
-            "continuous_monitoring.upload.thresholds",
-            Severity.PASS,
-            "Upload threshold ordering: valid",
-        )]
-    return [CheckResult(
-        "Cross-field Checks",
-        "continuous_monitoring.upload.thresholds",
-        Severity.ERROR,
-        "upload threshold ordering invalid: "
-        f"target_bloat_ms ({target}) must be less than warn_bloat_ms ({warn}); "
-        "upload target_bloat_ms must be less than upload warn_bloat_ms",
-    )]
+            "upload threshold ordering invalid: "
+            f"target_bloat_ms ({target}) must be less than warn_bloat_ms ({warn}); "
+            "upload target_bloat_ms must be less than upload warn_bloat_ms",
+        )
+    ]
 
 
 def _validate_docsis_mode_setpoint(cm: dict) -> list[CheckResult]:
@@ -486,51 +516,61 @@ def _validate_docsis_mode_setpoint(cm: dict) -> list[CheckResult]:
     floor = ul.get("floor_mbps", ul.get("floor_red_mbps"))
     ceiling = ul.get("ceiling_mbps")
     if setpoint is None:
-        return [CheckResult(
-            "Cross-field Checks",
-            _DOCSIS_SETPOINT_PATH,
-            Severity.ERROR,
-            "docsis_mode: true requires setpoint_mbps (D-06; validator fails closed)",
-        )]
+        return [
+            CheckResult(
+                "Cross-field Checks",
+                _DOCSIS_SETPOINT_PATH,
+                Severity.ERROR,
+                "docsis_mode: true requires setpoint_mbps (D-06; validator fails closed)",
+            )
+        ]
     try:
         sp = float(setpoint)
     except (TypeError, ValueError):
-        return [CheckResult(
-            "Cross-field Checks",
-            _DOCSIS_SETPOINT_PATH,
-            Severity.ERROR,
-            f"setpoint_mbps must be numeric, got {setpoint!r}",
-        )]
+        return [
+            CheckResult(
+                "Cross-field Checks",
+                _DOCSIS_SETPOINT_PATH,
+                Severity.ERROR,
+                f"setpoint_mbps must be numeric, got {setpoint!r}",
+            )
+        ]
     if floor is not None:
         try:
             fl = float(floor)
         except (TypeError, ValueError):
             fl = None
         if fl is not None and not (fl < sp):
-            return [CheckResult(
-                "Cross-field Checks",
-                _DOCSIS_SETPOINT_PATH,
-                Severity.ERROR,
-                f"setpoint_mbps ({sp}) must be > floor_mbps ({fl})",
-            )]
+            return [
+                CheckResult(
+                    "Cross-field Checks",
+                    _DOCSIS_SETPOINT_PATH,
+                    Severity.ERROR,
+                    f"setpoint_mbps ({sp}) must be > floor_mbps ({fl})",
+                )
+            ]
     if ceiling is not None:
         try:
             ce = float(ceiling)
         except (TypeError, ValueError):
             ce = None
         if ce is not None and not (sp < ce):
-            return [CheckResult(
-                "Cross-field Checks",
-                _DOCSIS_SETPOINT_PATH,
-                Severity.ERROR,
-                f"setpoint_mbps ({sp}) must be < ceiling_mbps ({ce})",
-            )]
-    return [CheckResult(
-        "Cross-field Checks",
-        _DOCSIS_SETPOINT_PATH,
-        Severity.PASS,
-        f"DOCSIS-mode setpoint ordering valid: floor < {sp} < ceiling",
-    )]
+            return [
+                CheckResult(
+                    "Cross-field Checks",
+                    _DOCSIS_SETPOINT_PATH,
+                    Severity.ERROR,
+                    f"setpoint_mbps ({sp}) must be < ceiling_mbps ({ce})",
+                )
+            ]
+    return [
+        CheckResult(
+            "Cross-field Checks",
+            _DOCSIS_SETPOINT_PATH,
+            Severity.PASS,
+            f"DOCSIS-mode setpoint ordering valid: floor < {sp} < ceiling",
+        )
+    ]
 
 
 def _validate_red_decay_knobs(cm: dict) -> list[CheckResult]:
@@ -545,34 +585,42 @@ def _validate_red_decay_knobs(cm: dict) -> list[CheckResult]:
         step = float(step_raw)
         delta_max = float(delta_raw)
     except (TypeError, ValueError):
-        return [CheckResult(
-            "Cross-field Checks",
-            "continuous_monitoring.upload.red_decay_step_pct",
-            Severity.ERROR,
-            f"red_decay_step_pct or red_decay_delta_max_pct is non-numeric: step={step_raw!r} delta_max={delta_raw!r}",
-        )]
+        return [
+            CheckResult(
+                "Cross-field Checks",
+                "continuous_monitoring.upload.red_decay_step_pct",
+                Severity.ERROR,
+                f"red_decay_step_pct or red_decay_delta_max_pct is non-numeric: step={step_raw!r} delta_max={delta_raw!r}",
+            )
+        ]
 
     if step <= 0:
-        results.append(CheckResult(
-            "Cross-field Checks",
-            "continuous_monitoring.upload.red_decay_step_pct",
-            Severity.ERROR,
-            f"continuous_monitoring.upload.red_decay_step_pct ({step}) must be > 0",
-        ))
+        results.append(
+            CheckResult(
+                "Cross-field Checks",
+                "continuous_monitoring.upload.red_decay_step_pct",
+                Severity.ERROR,
+                f"continuous_monitoring.upload.red_decay_step_pct ({step}) must be > 0",
+            )
+        )
     if delta_max >= 1.0:
-        results.append(CheckResult(
-            "Cross-field Checks",
-            "continuous_monitoring.upload.red_decay_delta_max_pct",
-            Severity.ERROR,
-            f"continuous_monitoring.upload.red_decay_delta_max_pct ({delta_max}) must be < 1.0",
-        ))
+        results.append(
+            CheckResult(
+                "Cross-field Checks",
+                "continuous_monitoring.upload.red_decay_delta_max_pct",
+                Severity.ERROR,
+                f"continuous_monitoring.upload.red_decay_delta_max_pct ({delta_max}) must be < 1.0",
+            )
+        )
     if step > delta_max:
-        results.append(CheckResult(
-            "Cross-field Checks",
-            "continuous_monitoring.upload.red_decay_step_pct",
-            Severity.ERROR,
-            f"continuous_monitoring.upload.red_decay_step_pct ({step}) must be <= red_decay_delta_max_pct ({delta_max})",
-        ))
+        results.append(
+            CheckResult(
+                "Cross-field Checks",
+                "continuous_monitoring.upload.red_decay_step_pct",
+                Severity.ERROR,
+                f"continuous_monitoring.upload.red_decay_step_pct ({step}) must be <= red_decay_delta_max_pct ({delta_max})",
+            )
+        )
 
     if ul.get("docsis_mode") is True:
         setpoint = ul.get("setpoint_mbps")
@@ -585,23 +633,27 @@ def _validate_red_decay_knobs(cm: dict) -> list[CheckResult]:
             except (TypeError, ValueError):
                 clamp_bps = floor_bps = None
             if clamp_bps is not None and floor_bps is not None and clamp_bps <= floor_bps + 1e-6:
-                results.append(CheckResult(
-                    "Cross-field Checks",
-                    "continuous_monitoring.upload.red_decay_delta_max_pct",
-                    Severity.ERROR,
-                    "continuous_monitoring.upload.docsis_mode requires "
-                    "setpoint_mbps * (1 - red_decay_delta_max_pct) > floor_mbps; "
-                    f"got clamp={clamp_bps / 1_000_000:.2f} Mbps <= floor={floor_bps / 1_000_000:.2f} Mbps. "
-                    "Either reduce red_decay_delta_max_pct or raise setpoint_mbps.",
-                ))
+                results.append(
+                    CheckResult(
+                        "Cross-field Checks",
+                        "continuous_monitoring.upload.red_decay_delta_max_pct",
+                        Severity.ERROR,
+                        "continuous_monitoring.upload.docsis_mode requires "
+                        "setpoint_mbps * (1 - red_decay_delta_max_pct) > floor_mbps; "
+                        f"got clamp={clamp_bps / 1_000_000:.2f} Mbps <= floor={floor_bps / 1_000_000:.2f} Mbps. "
+                        "Either reduce red_decay_delta_max_pct or raise setpoint_mbps.",
+                    )
+                )
     if results:
         return results
-    return [CheckResult(
-        "Cross-field Checks",
-        "continuous_monitoring.upload.red_decay_delta_max_pct",
-        Severity.PASS,
-        "red decay safety invariants valid",
-    )]
+    return [
+        CheckResult(
+            "Cross-field Checks",
+            "continuous_monitoring.upload.red_decay_delta_max_pct",
+            Severity.PASS,
+            "red decay safety invariants valid",
+        )
+    ]
 
 
 def _validate_transport_consistency(data: dict) -> list[CheckResult]:
@@ -611,19 +663,27 @@ def _validate_transport_consistency(data: dict) -> list[CheckResult]:
 
     linux_cake_transports = ("linux-cake", "linux-cake-netlink")
     if has_cake_params and transport not in linux_cake_transports:
-        return [CheckResult(
-            "Cross-field Checks", "transport_mismatch", Severity.ERROR,
-            f"cake_params section present but transport is '{transport}' (not linux-cake). "
-            "CAKE qdiscs will NOT be created at startup. Set router.transport to 'linux-cake' or 'linux-cake-netlink'.",
-            suggestion="Change router.transport to 'linux-cake' or 'linux-cake-netlink' in YAML config",
-        )]
+        return [
+            CheckResult(
+                "Cross-field Checks",
+                "transport_mismatch",
+                Severity.ERROR,
+                f"cake_params section present but transport is '{transport}' (not linux-cake). "
+                "CAKE qdiscs will NOT be created at startup. Set router.transport to 'linux-cake' or 'linux-cake-netlink'.",
+                suggestion="Change router.transport to 'linux-cake' or 'linux-cake-netlink' in YAML config",
+            )
+        ]
     if transport in linux_cake_transports and not has_cake_params:
-        return [CheckResult(
-            "Cross-field Checks", "transport_mismatch", Severity.ERROR,
-            "transport is 'linux-cake' but cake_params section is missing. "
-            "CAKE qdiscs cannot be initialized without interface names.",
-            suggestion="Add cake_params with download_interface and upload_interface",
-        )]
+        return [
+            CheckResult(
+                "Cross-field Checks",
+                "transport_mismatch",
+                Severity.ERROR,
+                "transport is 'linux-cake' but cake_params section is missing. "
+                "CAKE qdiscs cannot be initialized without interface names.",
+                suggestion="Add cake_params with download_interface and upload_interface",
+            )
+        ]
     return []
 
 
@@ -689,10 +749,15 @@ def _check_parent_dir(key: str, path_str: str) -> CheckResult:
     """Check if a path's parent directory exists."""
     parent = Path(path_str).parent
     if parent.exists():
-        return CheckResult("File Paths", key, Severity.PASS, f"{key}: parent directory exists ({parent})")
+        return CheckResult(
+            "File Paths", key, Severity.PASS, f"{key}: parent directory exists ({parent})"
+        )
     return CheckResult(
-        "File Paths", key, Severity.ERROR,
-        f"{key}: parent directory missing ({parent})", suggestion=f"mkdir -p {parent}",
+        "File Paths",
+        key,
+        Severity.ERROR,
+        f"{key}: parent directory missing ({parent})",
+        suggestion=f"mkdir -p {parent}",
     )
 
 
@@ -723,20 +788,42 @@ def _check_ssh_key_path(data: dict, transport: str) -> list[CheckResult]:
     key_path = Path(ssh_key)
     if not key_path.exists():
         if transport == "rest":
-            return [CheckResult(
-                "File Paths", "router.ssh_key", Severity.PASS,
-                f"router.ssh_key: not found ({ssh_key}) -- REST transport, SSH key optional",
-            )]
-        return [CheckResult("File Paths", "router.ssh_key", Severity.ERROR, f"router.ssh_key: file not found ({ssh_key})")]
+            return [
+                CheckResult(
+                    "File Paths",
+                    "router.ssh_key",
+                    Severity.PASS,
+                    f"router.ssh_key: not found ({ssh_key}) -- REST transport, SSH key optional",
+                )
+            ]
+        return [
+            CheckResult(
+                "File Paths",
+                "router.ssh_key",
+                Severity.ERROR,
+                f"router.ssh_key: file not found ({ssh_key})",
+            )
+        ]
 
     mode = key_path.stat().st_mode
     if mode & (stat.S_IRWXG | stat.S_IRWXO):
-        return [CheckResult(
-            "File Paths", "router.ssh_key", Severity.WARN,
-            f"router.ssh_key: insecure permissions ({oct(mode & 0o777)})",
-            suggestion=f"chmod 600 {ssh_key}",
-        )]
-    return [CheckResult("File Paths", "router.ssh_key", Severity.PASS, "router.ssh_key: exists with secure permissions")]
+        return [
+            CheckResult(
+                "File Paths",
+                "router.ssh_key",
+                Severity.WARN,
+                f"router.ssh_key: insecure permissions ({oct(mode & 0o777)})",
+                suggestion=f"chmod 600 {ssh_key}",
+            )
+        ]
+    return [
+        CheckResult(
+            "File Paths",
+            "router.ssh_key",
+            Severity.PASS,
+            "router.ssh_key: exists with secure permissions",
+        )
+    ]
 
 
 def _walk_string_values(data: dict, prefix: str = "") -> list[tuple[str, str]]:
@@ -853,7 +940,6 @@ def check_deprecated_params(data: dict) -> list[CheckResult]:
             )
 
     return results
-
 
 
 # =============================================================================

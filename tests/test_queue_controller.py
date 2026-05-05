@@ -1091,9 +1091,9 @@ class TestBaselineFreezeInvariant:
 
         # Baseline should NOT have drifted significantly
         # With proper freeze, baseline stays at 25.0
-        assert controller.baseline_rtt == pytest.approx(
-            original_baseline, abs=0.1
-        ), f"Baseline drifted from {original_baseline} to {controller.baseline_rtt}"
+        assert controller.baseline_rtt == pytest.approx(original_baseline, abs=0.1), (
+            f"Baseline drifted from {original_baseline} to {controller.baseline_rtt}"
+        )
 
     def test_baseline_updates_when_idle(self):
         """Low delta allows baseline EWMA update."""
@@ -1781,9 +1781,7 @@ class TestTransitionReasonsDuringHysteresis:
                 warn_delta=self.WARN_DELTA,
             )
             assert zone == "GREEN"
-            assert (
-                transition_reason is None
-            ), f"Cycle {i + 1}: no transition_reason during dwell"
+            assert transition_reason is None, f"Cycle {i + 1}: no transition_reason during dwell"
 
     def test_transition_reason_after_dwell(self, controller_3state_hysteresis):
         """When dwell expires and YELLOW entered, transition_reason is emitted."""
@@ -2103,9 +2101,7 @@ class TestDeadbandClamp:
 
         # Delta at 10ms: below target (12) but within deadband (12-3=9) — should STAY YELLOW
         zone, _, _ = qc.adjust(baseline, baseline + 10.0, target_delta, warn_delta)
-        assert (
-            zone == "YELLOW"
-        ), "Deadband should keep YELLOW when delta is within margin"
+        assert zone == "YELLOW", "Deadband should keep YELLOW when delta is within margin"
 
         # Delta at 8ms: below deadband threshold (9) — should recover to GREEN
         for _ in range(5):
@@ -2160,9 +2156,7 @@ class TestYellowDecayClamp:
         rates = [self._yellow(qc) for _ in range(6)]
 
         assert rates == sorted(rates, reverse=True)
-        assert all(
-            later < earlier for earlier, later in zip(rates, rates[1:], strict=False)
-        )
+        assert all(later < earlier for earlier, later in zip(rates, rates[1:], strict=False))
 
     def test_clamp_holds_after_n_yellow_decays(self):
         """After N YELLOW decays, additional consecutive YELLOW cycles hold."""
@@ -2281,12 +2275,8 @@ class TestHysteresisConfigParsing:
 
     def test_explicit_values(self, tmp_path, hysteresis_autorate_config_dict):
         """Config with dwell_cycles=5, deadband_ms=4.0 in YAML."""
-        hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"][
-            "dwell_cycles"
-        ] = 5
-        hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"][
-            "deadband_ms"
-        ] = 4.0
+        hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"]["dwell_cycles"] = 5
+        hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"]["deadband_ms"] = 4.0
         config = _make_hysteresis_config(tmp_path, hysteresis_autorate_config_dict)
         assert config.dwell_cycles == 5
         assert config.deadband_ms == 4.0
@@ -2295,15 +2285,11 @@ class TestHysteresisConfigParsing:
         """Config with no dwell_cycles/deadband_ms uses defaults per CONF-03."""
         assert (
             "dwell_cycles"
-            not in hysteresis_autorate_config_dict["continuous_monitoring"][
-                "thresholds"
-            ]
+            not in hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"]
         )
         assert (
             "deadband_ms"
-            not in hysteresis_autorate_config_dict["continuous_monitoring"][
-                "thresholds"
-            ]
+            not in hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"]
         )
         config = _make_hysteresis_config(tmp_path, hysteresis_autorate_config_dict)
         assert config.dwell_cycles == 3
@@ -2311,12 +2297,8 @@ class TestHysteresisConfigParsing:
 
     def test_zero_disables_hysteresis(self, tmp_path, hysteresis_autorate_config_dict):
         """dwell_cycles=0, deadband_ms=0.0 accepted (backward compat escape hatch)."""
-        hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"][
-            "dwell_cycles"
-        ] = 0
-        hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"][
-            "deadband_ms"
-        ] = 0.0
+        hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"]["dwell_cycles"] = 0
+        hysteresis_autorate_config_dict["continuous_monitoring"]["thresholds"]["deadband_ms"] = 0.0
         config = _make_hysteresis_config(tmp_path, hysteresis_autorate_config_dict)
         assert config.dwell_cycles == 0
         assert config.deadband_ms == 0.0
@@ -2454,8 +2436,8 @@ def _make_hysteresis_reload_controller(
     controller.upload.dwell_cycles = initial_dwell
     controller.upload.deadband_ms = initial_deadband
 
-    controller._reload_hysteresis_config = (
-        WANController._reload_hysteresis_config.__get__(controller, WANController)
+    controller._reload_hysteresis_config = WANController._reload_hysteresis_config.__get__(
+        controller, WANController
     )
 
     return controller
@@ -2468,11 +2450,7 @@ class TestReloadHysteresisConfig:
         """YAML has dwell_cycles=5, deadband_ms=4.0. After reload, both DL+UL updated."""
         ctrl = _make_hysteresis_reload_controller(
             tmp_path,
-            {
-                "continuous_monitoring": {
-                    "thresholds": {"dwell_cycles": 5, "deadband_ms": 4.0}
-                }
-            },
+            {"continuous_monitoring": {"thresholds": {"dwell_cycles": 5, "deadband_ms": 4.0}}},
         )
 
         ctrl._reload_hysteresis_config()
@@ -2502,11 +2480,7 @@ class TestReloadHysteresisConfig:
         """dwell_cycles=0 and deadband_ms=0.0 are valid (disables hysteresis)."""
         ctrl = _make_hysteresis_reload_controller(
             tmp_path,
-            {
-                "continuous_monitoring": {
-                    "thresholds": {"dwell_cycles": 0, "deadband_ms": 0.0}
-                }
-            },
+            {"continuous_monitoring": {"thresholds": {"dwell_cycles": 0, "deadband_ms": 0.0}}},
         )
 
         ctrl._reload_hysteresis_config()
@@ -2520,11 +2494,7 @@ class TestReloadHysteresisConfig:
         """dwell_cycles=-1 is rejected. Current value preserved. Warning logged."""
         ctrl = _make_hysteresis_reload_controller(
             tmp_path,
-            {
-                "continuous_monitoring": {
-                    "thresholds": {"dwell_cycles": -1, "deadband_ms": 3.0}
-                }
-            },
+            {"continuous_monitoring": {"thresholds": {"dwell_cycles": -1, "deadband_ms": 3.0}}},
             initial_dwell=5,
         )
 
@@ -2539,11 +2509,7 @@ class TestReloadHysteresisConfig:
         """dwell_cycles='bad' is rejected. Current value preserved. Warning logged."""
         ctrl = _make_hysteresis_reload_controller(
             tmp_path,
-            {
-                "continuous_monitoring": {
-                    "thresholds": {"dwell_cycles": "bad", "deadband_ms": 3.0}
-                }
-            },
+            {"continuous_monitoring": {"thresholds": {"dwell_cycles": "bad", "deadband_ms": 3.0}}},
             initial_dwell=5,
         )
 
@@ -2558,11 +2524,7 @@ class TestReloadHysteresisConfig:
         """dwell_cycles=25 exceeds max 20. Current value preserved. Warning logged."""
         ctrl = _make_hysteresis_reload_controller(
             tmp_path,
-            {
-                "continuous_monitoring": {
-                    "thresholds": {"dwell_cycles": 25, "deadband_ms": 3.0}
-                }
-            },
+            {"continuous_monitoring": {"thresholds": {"dwell_cycles": 25, "deadband_ms": 3.0}}},
             initial_dwell=5,
         )
 
@@ -2577,11 +2539,7 @@ class TestReloadHysteresisConfig:
         """deadband_ms=-1.0 is rejected. Current value preserved. Warning logged."""
         ctrl = _make_hysteresis_reload_controller(
             tmp_path,
-            {
-                "continuous_monitoring": {
-                    "thresholds": {"dwell_cycles": 3, "deadband_ms": -1.0}
-                }
-            },
+            {"continuous_monitoring": {"thresholds": {"dwell_cycles": 3, "deadband_ms": -1.0}}},
             initial_deadband=5.0,
         )
 
@@ -2596,11 +2554,7 @@ class TestReloadHysteresisConfig:
         """deadband_ms=True is rejected (bool excluded). Current value preserved."""
         ctrl = _make_hysteresis_reload_controller(
             tmp_path,
-            {
-                "continuous_monitoring": {
-                    "thresholds": {"dwell_cycles": 3, "deadband_ms": True}
-                }
-            },
+            {"continuous_monitoring": {"thresholds": {"dwell_cycles": 3, "deadband_ms": True}}},
             initial_deadband=5.0,
         )
 
@@ -2647,11 +2601,7 @@ class TestReloadHysteresisConfig:
         """When values change, WARNING log contains 'dwell_cycles=X->Y' format."""
         ctrl = _make_hysteresis_reload_controller(
             tmp_path,
-            {
-                "continuous_monitoring": {
-                    "thresholds": {"dwell_cycles": 5, "deadband_ms": 4.0}
-                }
-            },
+            {"continuous_monitoring": {"thresholds": {"dwell_cycles": 5, "deadband_ms": 4.0}}},
             initial_dwell=3,
             initial_deadband=3.0,
         )
@@ -2666,11 +2616,7 @@ class TestReloadHysteresisConfig:
         """When values don't change, log contains '(unchanged)' marker."""
         ctrl = _make_hysteresis_reload_controller(
             tmp_path,
-            {
-                "continuous_monitoring": {
-                    "thresholds": {"dwell_cycles": 3, "deadband_ms": 3.0}
-                }
-            },
+            {"continuous_monitoring": {"thresholds": {"dwell_cycles": 3, "deadband_ms": 3.0}}},
             initial_dwell=3,
             initial_deadband=3.0,
         )
@@ -2753,9 +2699,7 @@ class TestCakeDropBypass:
     SOFT_RED_THRESHOLD = 45.0
     HARD_RED_THRESHOLD = 80.0
 
-    def test_drop_rate_above_threshold_bypasses_dwell_4state(
-        self, controller_cake_dwell
-    ):
+    def test_drop_rate_above_threshold_bypasses_dwell_4state(self, controller_cake_dwell):
         """High drop rate + YELLOW delta -> immediate YELLOW (no dwell needed)."""
         snap = _make_cake_snapshot(drop_rate=15.0)
         zone, _, _ = controller_cake_dwell.adjust_4state(
@@ -2867,9 +2811,7 @@ class TestCakeBacklogSuppression:
     SOFT_RED_THRESHOLD = 45.0
     HARD_RED_THRESHOLD = 80.0
 
-    def test_backlog_above_threshold_suppresses_green_streak_4state(
-        self, controller_cake_dwell
-    ):
+    def test_backlog_above_threshold_suppresses_green_streak_4state(self, controller_cake_dwell):
         """High backlog in GREEN -> zone is GREEN but green_streak is 0."""
         snap = _make_cake_snapshot(backlog_bytes=15000)
         zone, _, _ = controller_cake_dwell.adjust_4state(
@@ -2883,9 +2825,7 @@ class TestCakeBacklogSuppression:
         assert zone == "GREEN"
         assert controller_cake_dwell.green_streak == 0
 
-    def test_backlog_below_threshold_normal_green_streak_4state(
-        self, controller_cake_dwell
-    ):
+    def test_backlog_below_threshold_normal_green_streak_4state(self, controller_cake_dwell):
         """Low backlog in GREEN -> green_streak increments normally."""
         snap = _make_cake_snapshot(backlog_bytes=5000)
         zone, _, _ = controller_cake_dwell.adjust_4state(
@@ -3086,9 +3026,9 @@ class TestExponentialProbing:
                 steps.append(rate_after - rate_before)
 
         assert len(steps) >= 2, f"Expected at least 2 recovery steps, got {len(steps)}"
-        assert (
-            steps[1] > steps[0]
-        ), f"Second step ({steps[1]}) should be larger than first ({steps[0]})"
+        assert steps[1] > steps[0], (
+            f"Second step ({steps[1]}) should be larger than first ({steps[0]})"
+        )
 
     def test_probe_step_grows_exponentially_3state(self, controller_probe_3state):
         """Consecutive GREEN recovery steps grow exponentially for 3-state (upload)."""
@@ -3107,9 +3047,9 @@ class TestExponentialProbing:
                 steps.append(rate_after - rate_before)
 
         assert len(steps) >= 2, f"Expected at least 2 recovery steps, got {len(steps)}"
-        assert (
-            steps[1] > steps[0]
-        ), f"Second step ({steps[1]}) should be larger than first ({steps[0]})"
+        assert steps[1] > steps[0], (
+            f"Second step ({steps[1]}) should be larger than first ({steps[0]})"
+        )
 
     def test_probe_no_growth_when_factor_1(self, controller_probe_4state):
         """With probe_multiplier_factor=1.0, all recovery steps are equal."""
@@ -3130,9 +3070,9 @@ class TestExponentialProbing:
                 steps.append(rate_after - rate_before)
 
         assert len(steps) >= 2
-        assert all(
-            s == steps[0] for s in steps
-        ), f"All steps should be equal with factor=1.0, got {steps}"
+        assert all(s == steps[0] for s in steps), (
+            f"All steps should be equal with factor=1.0, got {steps}"
+        )
 
 
 class TestProbeLinearFallback:
@@ -3160,9 +3100,9 @@ class TestProbeLinearFallback:
 
         # The rate should have stepped up by exactly step_up_bps
         expected = int(ctrl.ceiling_bps * 0.91) + ctrl.step_up_bps
-        assert (
-            ctrl.current_rate == expected
-        ), f"Expected linear step to {expected}, got {ctrl.current_rate}"
+        assert ctrl.current_rate == expected, (
+            f"Expected linear step to {expected}, got {ctrl.current_rate}"
+        )
 
     def test_exponential_below_ceiling_pct_4state(self, controller_probe_4state):
         """Below 90% ceiling, step should be larger than step_up_bps after first recovery."""
@@ -3189,9 +3129,9 @@ class TestProbeLinearFallback:
                 hard_red_threshold=self.HARD_RED,
             )
         second_step = ctrl.current_rate - first_rate
-        assert (
-            second_step > ctrl.step_up_bps
-        ), f"Second step ({second_step}) should exceed step_up_bps ({ctrl.step_up_bps})"
+        assert second_step > ctrl.step_up_bps, (
+            f"Second step ({second_step}) should exceed step_up_bps ({ctrl.step_up_bps})"
+        )
 
 
 class TestProbeMultiplierReset:

@@ -354,9 +354,7 @@ class Config(BaseConfig):
         self.queue_down = self.validate_identifier(
             self.data["queues"]["download"], "queues.download"
         )
-        self.queue_up = self.validate_identifier(
-            self.data["queues"]["upload"], "queues.upload"
-        )
+        self.queue_up = self.validate_identifier(self.data["queues"]["upload"], "queues.upload")
 
     def _load_download_config(self, cm: dict) -> None:
         """Load download parameters with state-based floors and validation."""
@@ -415,9 +413,7 @@ class Config(BaseConfig):
         self.upload_factor_down = ul["factor_down"]
         # Upload YELLOW decay (gentler than download, default 0.94 = 6% per cycle)
         self.upload_factor_down_yellow = ul.get("factor_down_yellow", 0.94)
-        self.upload_consecutive_yellow_decay_clamp = ul.get(
-            "consecutive_yellow_decay_clamp", 0
-        )
+        self.upload_consecutive_yellow_decay_clamp = ul.get("consecutive_yellow_decay_clamp", 0)
         self._upload_consecutive_yellow_decay_clamp_explicit = (
             "consecutive_yellow_decay_clamp" in ul
         )
@@ -446,18 +442,10 @@ class Config(BaseConfig):
         self._integral_window_seconds_explicit = "integral_window_seconds" in ul
         self.integral_threshold_ms_s = ul.get("integral_threshold_ms_s", 30.0)
         self._integral_threshold_ms_s_explicit = "integral_threshold_ms_s" in ul
-        self.cake_backlog_low_threshold_bytes = ul.get(
-            "cake_backlog_low_threshold_bytes", 5000
-        )
-        self._cake_backlog_low_threshold_bytes_explicit = (
-            "cake_backlog_low_threshold_bytes" in ul
-        )
-        self.cake_delay_delta_low_threshold_us = ul.get(
-            "cake_delay_delta_low_threshold_us", 5000
-        )
-        self._cake_delay_delta_low_threshold_us_explicit = (
-            "cake_delay_delta_low_threshold_us" in ul
-        )
+        self.cake_backlog_low_threshold_bytes = ul.get("cake_backlog_low_threshold_bytes", 5000)
+        self._cake_backlog_low_threshold_bytes_explicit = "cake_backlog_low_threshold_bytes" in ul
+        self.cake_delay_delta_low_threshold_us = ul.get("cake_delay_delta_low_threshold_us", 5000)
+        self._cake_delay_delta_low_threshold_us_explicit = "cake_delay_delta_low_threshold_us" in ul
         self.red_decay_step_pct = float(ul.get("red_decay_step_pct", 0.02))
         self._red_decay_step_pct_explicit = "red_decay_step_pct" in ul
         self.red_decay_delta_max_pct = float(ul.get("red_decay_delta_max_pct", 0.10))
@@ -481,9 +469,7 @@ class Config(BaseConfig):
         thresh = cm["thresholds"]
         self.target_bloat_ms = thresh["target_bloat_ms"]  # GREEN -> YELLOW (15ms)
         self.warn_bloat_ms = thresh["warn_bloat_ms"]  # YELLOW -> SOFT_RED (45ms)
-        self.hard_red_bloat_ms = thresh.get(
-            "hard_red_bloat_ms", DEFAULT_HARD_RED_BLOAT_MS
-        )
+        self.hard_red_bloat_ms = thresh.get("hard_red_bloat_ms", DEFAULT_HARD_RED_BLOAT_MS)
 
         # EWMA alpha from time constants (with legacy deprecation)
         self._load_ewma_alpha_config(thresh)
@@ -513,9 +499,7 @@ class Config(BaseConfig):
             logger=logging.getLogger(__name__),
         )
 
-        self.upload_target_bloat_ms = (
-            self._upload_target_bloat_ms_raw or self.target_bloat_ms
-        )
+        self.upload_target_bloat_ms = self._upload_target_bloat_ms_raw or self.target_bloat_ms
         self.upload_warn_bloat_ms = self._upload_warn_bloat_ms_raw or self.warn_bloat_ms
         if self.upload_target_bloat_ms >= self.upload_warn_bloat_ms:
             raise ValueError(
@@ -600,9 +584,7 @@ class Config(BaseConfig):
             thresh["load_time_constant_sec"] = _tc_from_load
 
         # Resolve baseline alpha
-        self.alpha_baseline = self._resolve_alpha(
-            thresh, "baseline", cycle_interval, logger
-        )
+        self.alpha_baseline = self._resolve_alpha(thresh, "baseline", cycle_interval, logger)
         # Resolve load alpha
         self.alpha_load = self._resolve_alpha(thresh, "load", cycle_interval, logger)
 
@@ -655,9 +637,7 @@ class Config(BaseConfig):
     def _load_timeout_config(self) -> None:
         """Load timeout settings with defaults."""
         timeouts = self.data.get("timeouts", {})
-        self.timeout_ssh_command = timeouts.get(
-            "ssh_command", DEFAULT_AUTORATE_SSH_TIMEOUT
-        )
+        self.timeout_ssh_command = timeouts.get("ssh_command", DEFAULT_AUTORATE_SSH_TIMEOUT)
         self.timeout_ping = timeouts.get("ping", DEFAULT_AUTORATE_PING_TIMEOUT)
         # Source IP for ICMP pings (multi-WAN VM: different source IPs route through different WANs)
         self.ping_source_ip: str | None = self.data.get("ping_source_ip", None)
@@ -789,14 +769,10 @@ class Config(BaseConfig):
         }
         logger.info(f"Alerting: enabled ({len(rules)} rules configured)")
 
-    def _validate_alerting_defaults(
-        self, alerting: dict, logger: logging.Logger
-    ) -> dict | None:
+    def _validate_alerting_defaults(self, alerting: dict, logger: logging.Logger) -> dict | None:
         """Validate alerting cooldown and sustained duration. Returns None on failure."""
         default_cooldown_sec = alerting.get("default_cooldown_sec", 300)
-        if not isinstance(default_cooldown_sec, int) or isinstance(
-            default_cooldown_sec, bool
-        ):
+        if not isinstance(default_cooldown_sec, int) or isinstance(default_cooldown_sec, bool):
             logger.warning(
                 f"alerting.default_cooldown_sec must be int, got {type(default_cooldown_sec).__name__}; "
                 "disabling alerting"
@@ -812,9 +788,7 @@ class Config(BaseConfig):
             return None
 
         default_sustained_sec = alerting.get("default_sustained_sec", 60)
-        if not isinstance(default_sustained_sec, int) or isinstance(
-            default_sustained_sec, bool
-        ):
+        if not isinstance(default_sustained_sec, int) or isinstance(default_sustained_sec, bool):
             logger.warning(
                 f"alerting.default_sustained_sec must be int, "
                 f"got {type(default_sustained_sec).__name__}; disabling alerting"
@@ -831,9 +805,7 @@ class Config(BaseConfig):
 
         return {"cooldown": default_cooldown_sec, "sustained": default_sustained_sec}
 
-    def _validate_alerting_rules(
-        self, alerting: dict, logger: logging.Logger
-    ) -> dict | None:
+    def _validate_alerting_rules(self, alerting: dict, logger: logging.Logger) -> dict | None:
         """Validate alerting rules map and per-rule severity. Returns None on failure."""
         rules = alerting.get("rules", {})
         if not isinstance(rules, dict):
@@ -846,9 +818,7 @@ class Config(BaseConfig):
         valid_severities = {"info", "warning", "critical"}
         for rule_name, rule in rules.items():
             if not isinstance(rule, dict):
-                logger.warning(
-                    f"alerting.rules.{rule_name} must be a map; disabling alerting"
-                )
+                logger.warning(f"alerting.rules.{rule_name} must be a map; disabling alerting")
                 self.alerting_config = None
                 return None
             severity = rule.get("severity")
@@ -867,9 +837,7 @@ class Config(BaseConfig):
                 return None
         return rules
 
-    def _load_alerting_delivery_config(
-        self, alerting: dict, logger: logging.Logger
-    ) -> dict:
+    def _load_alerting_delivery_config(self, alerting: dict, logger: logging.Logger) -> dict:
         """Load webhook URL, mention settings, and rate limiting for alerting."""
         webhook_url = alerting.get("webhook_url", "")
         # Expand ${ENV_VAR} references (same pattern as router password)
@@ -921,11 +889,7 @@ class Config(BaseConfig):
 
         # Validate and extract hampel parameters
         window_size = hampel.get("window_size", 7)
-        if (
-            not isinstance(window_size, int)
-            or isinstance(window_size, bool)
-            or window_size < 3
-        ):
+        if not isinstance(window_size, int) or isinstance(window_size, bool) or window_size < 3:
             logger.warning(
                 f"signal_processing.hampel.window_size must be int >= 3, "
                 f"got {window_size!r}; defaulting to 7"
@@ -945,23 +909,15 @@ class Config(BaseConfig):
             sigma_threshold = 3.0
 
         # Validate EWMA time constants
-        jitter_tc = (
-            sp.get("jitter_time_constant_sec", 2.0) if isinstance(sp, dict) else 2.0
-        )
-        if (
-            not isinstance(jitter_tc, (int, float))
-            or isinstance(jitter_tc, bool)
-            or jitter_tc <= 0
-        ):
+        jitter_tc = sp.get("jitter_time_constant_sec", 2.0) if isinstance(sp, dict) else 2.0
+        if not isinstance(jitter_tc, (int, float)) or isinstance(jitter_tc, bool) or jitter_tc <= 0:
             logger.warning(
                 f"signal_processing.jitter_time_constant_sec must be positive number, "
                 f"got {jitter_tc!r}; defaulting to 2.0"
             )
             jitter_tc = 2.0
 
-        variance_tc = (
-            sp.get("variance_time_constant_sec", 5.0) if isinstance(sp, dict) else 5.0
-        )
+        variance_tc = sp.get("variance_time_constant_sec", 5.0) if isinstance(sp, dict) else 5.0
         if (
             not isinstance(variance_tc, (int, float))
             or isinstance(variance_tc, bool)
@@ -996,35 +952,22 @@ class Config(BaseConfig):
         irtt = self.data.get("irtt", {})
 
         if not isinstance(irtt, dict):
-            logger.warning(
-                f"irtt config must be dict, got {type(irtt).__name__}; using defaults"
-            )
+            logger.warning(f"irtt config must be dict, got {type(irtt).__name__}; using defaults")
             irtt = {}
 
         enabled = irtt.get("enabled", False)
         if not isinstance(enabled, bool):
-            logger.warning(
-                f"irtt.enabled must be bool, got {enabled!r}; defaulting to false"
-            )
+            logger.warning(f"irtt.enabled must be bool, got {enabled!r}; defaulting to false")
             enabled = False
 
         server = irtt.get("server")
         if server is not None and not isinstance(server, str):
-            logger.warning(
-                f"irtt.server must be str, got {server!r}; defaulting to None"
-            )
+            logger.warning(f"irtt.server must be str, got {server!r}; defaulting to None")
             server = None
 
         port = irtt.get("port", 2112)
-        if (
-            not isinstance(port, int)
-            or isinstance(port, bool)
-            or port < 1
-            or port > 65535
-        ):
-            logger.warning(
-                f"irtt.port must be int 1-65535, got {port!r}; defaulting to 2112"
-            )
+        if not isinstance(port, int) or isinstance(port, bool) or port < 1 or port > 65535:
+            logger.warning(f"irtt.port must be int 1-65535, got {port!r}; defaulting to 2112")
             port = 2112
 
         duration_sec = irtt.get("duration_sec", 1.0)
@@ -1040,11 +983,7 @@ class Config(BaseConfig):
             duration_sec = 1.0
 
         interval_ms = irtt.get("interval_ms", 100)
-        if (
-            not isinstance(interval_ms, int)
-            or isinstance(interval_ms, bool)
-            or interval_ms < 1
-        ):
+        if not isinstance(interval_ms, int) or isinstance(interval_ms, bool) or interval_ms < 1:
             logger.warning(
                 f"irtt.interval_ms must be positive int, got {interval_ms!r}; defaulting to 100"
             )
@@ -1143,11 +1082,7 @@ class Config(BaseConfig):
         min_score = max(0.0, min(1.0, float(min_score)))
 
         window_size = rq.get("window_size", 50)
-        if (
-            not isinstance(window_size, int)
-            or isinstance(window_size, bool)
-            or window_size < 10
-        ):
+        if not isinstance(window_size, int) or isinstance(window_size, bool) or window_size < 10:
             logger.warning(
                 f"reflector_quality.window_size must be int >= 10, got {window_size!r}; "
                 "defaulting to 50"
@@ -1259,8 +1194,7 @@ class Config(BaseConfig):
             or damping_factor > 1.0
         ):
             logger.warning(
-                "asymmetry_gate.damping_factor must be float [0.0, 1.0], "
-                "got %r; defaulting to 0.5",
+                "asymmetry_gate.damping_factor must be float [0.0, 1.0], got %r; defaulting to 0.5",
                 damping_factor,
             )
             damping_factor = 0.5
@@ -1272,8 +1206,7 @@ class Config(BaseConfig):
             or min_ratio < 1.0
         ):
             logger.warning(
-                "asymmetry_gate.min_ratio must be float >= 1.0, "
-                "got %r; defaulting to 3.0",
+                "asymmetry_gate.min_ratio must be float >= 1.0, got %r; defaulting to 3.0",
                 min_ratio,
             )
             min_ratio = 3.0
@@ -1286,8 +1219,7 @@ class Config(BaseConfig):
             or confirm_readings > 10
         ):
             logger.warning(
-                "asymmetry_gate.confirm_readings must be int [1, 10], "
-                "got %r; defaulting to 3",
+                "asymmetry_gate.confirm_readings must be int [1, 10], got %r; defaulting to 3",
                 confirm_readings,
             )
             confirm_readings = 3
@@ -1341,9 +1273,7 @@ class Config(BaseConfig):
             f"healing.recover_threshold={healing['recover_threshold']}"
         )
 
-    def _validate_fusion_base(
-        self, fusion: dict, logger: logging.Logger
-    ) -> tuple[float, bool]:
+    def _validate_fusion_base(self, fusion: dict, logger: logging.Logger) -> tuple[float, bool]:
         """Validate fusion icmp_weight and enabled flag. Returns (icmp_weight, enabled)."""
         icmp_weight = fusion.get("icmp_weight", 0.7)
         if (
@@ -1441,9 +1371,7 @@ class Config(BaseConfig):
             or isinstance(value, bool)
             or not (0.0 <= value <= 1.0)
         ):
-            logger.warning(
-                f"fusion.healing.{key} invalid ({value!r}); defaulting to {default}"
-            )
+            logger.warning(f"fusion.healing.{key} invalid ({value!r}); defaulting to {default}")
             return default
         return float(value)
 
@@ -1457,14 +1385,8 @@ class Config(BaseConfig):
     ) -> float:
         """Validate a fusion healing window duration (must be >= minimum)."""
         value = healing.get(key, default)
-        if (
-            not isinstance(value, (int, float))
-            or isinstance(value, bool)
-            or value < minimum
-        ):
-            logger.warning(
-                f"fusion.healing.{key} invalid ({value!r}); defaulting to {default}"
-            )
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or value < minimum:
+            logger.warning(f"fusion.healing.{key} invalid ({value!r}); defaulting to {default}")
             return default
         return float(value)
 
@@ -1524,9 +1446,7 @@ class Config(BaseConfig):
             f"min_confidence={core['min_confidence']:.2f}, {len(bounds)} bounds{exclude_msg})"
         )
 
-    def _validate_tuning_core(
-        self, tuning: dict, logger: logging.Logger
-    ) -> dict | None:
+    def _validate_tuning_core(self, tuning: dict, logger: logging.Logger) -> dict | None:
         """Validate tuning cadence, lookback, warmup, and max_step_pct. Returns None on failure."""
         cadence_sec = self._validate_tuning_int_param(
             tuning, "cadence_sec", 3600, 600, None, logger
@@ -1538,9 +1458,7 @@ class Config(BaseConfig):
         )
         if lookback_hours is None:
             return None
-        warmup_hours = self._validate_tuning_int_param(
-            tuning, "warmup_hours", 1, 1, 24, logger
-        )
+        warmup_hours = self._validate_tuning_int_param(tuning, "warmup_hours", 1, 1, 24, logger)
         if warmup_hours is None:
             return None
 
@@ -1561,9 +1479,7 @@ class Config(BaseConfig):
             return None
 
         min_confidence = tuning.get("min_confidence", 0.3)
-        if not isinstance(min_confidence, (int, float)) or isinstance(
-            min_confidence, bool
-        ):
+        if not isinstance(min_confidence, (int, float)) or isinstance(min_confidence, bool):
             logger.warning(
                 f"tuning.min_confidence must be number, got {type(min_confidence).__name__}; "
                 "disabling tuning"
@@ -1605,9 +1521,7 @@ class Config(BaseConfig):
             return None
         if value < min_val or (max_val is not None and value > max_val):
             range_str = f">= {min_val}" if max_val is None else f"{min_val}-{max_val}"
-            logger.warning(
-                f"tuning.{key} must be {range_str}, got {value}; disabling tuning"
-            )
+            logger.warning(f"tuning.{key} must be {range_str}, got {value}; disabling tuning")
             self.tuning_config = None
             return None
         return value
@@ -1676,19 +1590,14 @@ class Config(BaseConfig):
             self.tuning_config = None
             return None
 
-        if not isinstance(min_val, (int, float)) or not isinstance(
-            max_val, (int, float)
-        ):
-            logger.warning(
-                f"tuning.bounds.{param_name} min/max must be numeric; disabling tuning"
-            )
+        if not isinstance(min_val, (int, float)) or not isinstance(max_val, (int, float)):
+            logger.warning(f"tuning.bounds.{param_name} min/max must be numeric; disabling tuning")
             self.tuning_config = None
             return None
 
         if min_val > max_val:
             logger.warning(
-                f"tuning.bounds.{param_name} min ({min_val}) > max ({max_val}); "
-                "disabling tuning"
+                f"tuning.bounds.{param_name} min ({min_val}) > max ({max_val}); disabling tuning"
             )
             self.tuning_config = None
             return None
