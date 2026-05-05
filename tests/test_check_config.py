@@ -1429,3 +1429,66 @@ class TestDocsisModeValidation:
             if "docsis" in r.field.lower() or "docsis" in r.message.lower()
         ]
         assert docsis_rows == []
+
+
+class TestCheckConfigRedDecayValidators:
+    def _errors_for_upload(self, upload_updates: dict) -> list[CheckResult]:
+        data = _valid_config_data()
+        data["continuous_monitoring"]["upload"].update(upload_updates)
+        return [r for r in validate_cross_fields(data) if r.severity == Severity.ERROR]
+
+    def test_step_pct_must_be_positive(self):
+        for value in (0.0, -0.01):
+            errors = self._errors_for_upload(
+                {"red_decay_step_pct": value, "red_decay_delta_max_pct": 0.10}
+            )
+            assert any("red_decay_step_pct" in r.message and "> 0" in r.message for r in errors)
+        assert not self._errors_for_upload(
+            {"red_decay_step_pct": 0.01, "red_decay_delta_max_pct": 0.10}
+        )
+
+    def test_step_pct_must_be_le_delta_max(self):
+        assert not self._errors_for_upload(
+            {"red_decay_step_pct": 0.05, "red_decay_delta_max_pct": 0.05}
+        )
+        errors = self._errors_for_upload(
+            {"red_decay_step_pct": 0.06, "red_decay_delta_max_pct": 0.05}
+        )
+        assert any("red_decay_step_pct" in r.message and "red_decay_delta_max_pct" in r.message for r in errors)
+        assert not self._errors_for_upload(
+            {"red_decay_step_pct": 0.04, "red_decay_delta_max_pct": 0.05}
+        )
+
+    def test_delta_max_must_be_lt_one(self):
+        for value in (1.0, 1.5):
+            errors = self._errors_for_upload(
+                {"red_decay_step_pct": 0.02, "red_decay_delta_max_pct": value}
+            )
+            assert any("red_decay_delta_max_pct" in r.message and "< 1.0" in r.message for r in errors)
+        assert not self._errors_for_upload(
+            {"red_decay_step_pct": 0.02, "red_decay_delta_max_pct": 0.999}
+        )
+
+    def test_docsis_mode_clamp_must_exceed_floor(self):
+        errors = self._errors_for_upload(
+            {"docsis_mode": True, "setpoint_mbps": 12, "floor_mbps": 8, "red_decay_delta_max_pct": 1 / 3}
+        )
+        assert any("clamp" in r.message and "floor" in r.message for r in errors)
+        assert not self._errors_for_upload(
+            {"docsis_mode": True, "setpoint_mbps": 12, "floor_mbps": 8, "red_decay_delta_max_pct": 0.30}
+        )
+        errors = self._errors_for_upload(
+            {"docsis_mode": True, "setpoint_mbps": 10, "floor_mbps": 8, "red_decay_delta_max_pct": 0.20}
+        )
+        assert any("clamp" in r.message and "floor" in r.message for r in errors)
+
+    def test_docsis_mode_false_skips_clamp_invariant(self):
+        assert not self._errors_for_upload(
+            {"docsis_mode": False, "setpoint_mbps": 12, "floor_mbps": 8, "red_decay_delta_max_pct": 0.99}
+        )
+
+    def test_at_equality_clamp_equals_floor_rejects(self):
+        errors = self._errors_for_upload(
+            {"docsis_mode": True, "setpoint_mbps": 10, "floor_mbps": 8, "red_decay_delta_max_pct": 0.20}
+        )
+        assert any("clamp" in r.message and "floor" in r.message for r in errors)

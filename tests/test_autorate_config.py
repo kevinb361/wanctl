@@ -363,6 +363,107 @@ class TestSafe06Phase201KeysKnown:
         assert expected <= KNOWN_AUTORATE_PATHS
 
 
+class TestRedDecayValidators:
+    def _write_with_upload(self, tmp_path, base_config_yaml_single_floor: str, upload_lines: str):
+        cfg_path = tmp_path / "test.yaml"
+        cfg_path.write_text(
+            base_config_yaml_single_floor.replace(
+                "    factor_down: 0.85\n",
+                "    factor_down: 0.85\n" + upload_lines,
+            )
+        )
+        return cfg_path
+
+    def _load_with_upload(self, tmp_path, base_config_yaml_single_floor: str, upload_lines: str):
+        return Config(str(self._write_with_upload(tmp_path, base_config_yaml_single_floor, upload_lines)))
+
+    def test_step_pct_must_be_positive(self, tmp_path, base_config_yaml_single_floor):
+        for value in (0.0, -0.01):
+            with pytest.raises(ValueError, match="red_decay_step_pct.*> 0"):
+                self._load_with_upload(
+                    tmp_path,
+                    base_config_yaml_single_floor,
+                    f"    red_decay_step_pct: {value}\n    red_decay_delta_max_pct: 0.10\n",
+                )
+        cfg = self._load_with_upload(
+            tmp_path,
+            base_config_yaml_single_floor,
+            "    red_decay_step_pct: 0.01\n    red_decay_delta_max_pct: 0.10\n",
+        )
+        assert cfg.red_decay_step_pct == pytest.approx(0.01)
+
+    def test_step_pct_must_be_le_delta_max(self, tmp_path, base_config_yaml_single_floor):
+        cfg = self._load_with_upload(
+            tmp_path,
+            base_config_yaml_single_floor,
+            "    red_decay_step_pct: 0.05\n    red_decay_delta_max_pct: 0.05\n",
+        )
+        assert cfg.red_decay_delta_max_pct == pytest.approx(0.05)
+        with pytest.raises(ValueError, match="red_decay_step_pct.*<=.*red_decay_delta_max_pct"):
+            self._load_with_upload(
+                tmp_path,
+                base_config_yaml_single_floor,
+                "    red_decay_step_pct: 0.06\n    red_decay_delta_max_pct: 0.05\n",
+            )
+        cfg = self._load_with_upload(
+            tmp_path,
+            base_config_yaml_single_floor,
+            "    red_decay_step_pct: 0.04\n    red_decay_delta_max_pct: 0.05\n",
+        )
+        assert cfg.red_decay_step_pct == pytest.approx(0.04)
+
+    def test_delta_max_must_be_lt_one(self, tmp_path, base_config_yaml_single_floor):
+        for value in (1.0, 1.5):
+            with pytest.raises(ValueError, match="red_decay_delta_max_pct.*< 1.0"):
+                self._load_with_upload(
+                    tmp_path,
+                    base_config_yaml_single_floor,
+                    f"    red_decay_step_pct: 0.02\n    red_decay_delta_max_pct: {value}\n",
+                )
+        cfg = self._load_with_upload(
+            tmp_path,
+            base_config_yaml_single_floor,
+            "    red_decay_step_pct: 0.02\n    red_decay_delta_max_pct: 0.999\n",
+        )
+        assert cfg.red_decay_delta_max_pct == pytest.approx(0.999)
+
+    def test_docsis_mode_clamp_must_exceed_floor(self, tmp_path, base_config_yaml_single_floor):
+        with pytest.raises(ValueError, match="clamp.*floor"):
+            self._load_with_upload(
+                tmp_path,
+                base_config_yaml_single_floor,
+                "    docsis_mode: true\n    setpoint_mbps: 12\n    floor_mbps: 8\n    red_decay_delta_max_pct: 0.3333333333333333\n",
+            )
+        cfg = self._load_with_upload(
+            tmp_path,
+            base_config_yaml_single_floor,
+            "    docsis_mode: true\n    setpoint_mbps: 12\n    floor_mbps: 8\n    red_decay_delta_max_pct: 0.30\n",
+        )
+        assert cfg.setpoint_mbps == 12
+        with pytest.raises(ValueError, match="clamp.*floor"):
+            self._load_with_upload(
+                tmp_path,
+                base_config_yaml_single_floor,
+                "    docsis_mode: true\n    setpoint_mbps: 10\n    floor_mbps: 8\n    red_decay_delta_max_pct: 0.20\n",
+            )
+
+    def test_docsis_mode_false_skips_clamp_invariant(self, tmp_path, base_config_yaml_single_floor):
+        cfg = self._load_with_upload(
+            tmp_path,
+            base_config_yaml_single_floor,
+            "    docsis_mode: false\n    setpoint_mbps: 12\n    floor_mbps: 8\n    red_decay_delta_max_pct: 0.99\n",
+        )
+        assert cfg.docsis_mode is False
+
+    def test_at_equality_clamp_equals_floor_rejects(self, tmp_path, base_config_yaml_single_floor):
+        with pytest.raises(ValueError, match="clamp.*floor"):
+            self._load_with_upload(
+                tmp_path,
+                base_config_yaml_single_floor,
+                "    docsis_mode: true\n    setpoint_mbps: 10\n    floor_mbps: 8\n    red_decay_delta_max_pct: 0.20\n",
+            )
+
+
 class TestLoadUploadConfig:
     """Tests for Config._load_upload_config method."""
 

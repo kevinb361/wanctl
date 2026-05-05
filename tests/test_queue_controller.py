@@ -8,6 +8,7 @@ Coverage target: autorate_continuous.py lines 611-760 (QueueController class)
 """
 
 import logging
+import random
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -3469,6 +3470,9 @@ def _make_docsis_controller(
     integral_threshold_ms_s: float = 30.0,
     cake_backlog_low_threshold_bytes: int = 5000,
     cake_delay_delta_low_threshold_us: int = 5000,
+    red_decay_step_pct: float = 0.02,
+    red_decay_delta_max_pct: float = 0.10,
+    anti_windup_cycles: int = 60,
 ):
     """Construct a QueueController with Phase 201 DOCSIS-mode kwargs.
 
@@ -3497,6 +3501,9 @@ def _make_docsis_controller(
         integral_threshold_ms_s=integral_threshold_ms_s,
         cake_backlog_low_threshold_bytes=cake_backlog_low_threshold_bytes,
         cake_delay_delta_low_threshold_us=cake_delay_delta_low_threshold_us,
+        red_decay_step_pct=red_decay_step_pct,
+        red_decay_delta_max_pct=red_decay_delta_max_pct,
+        anti_windup_cycles=anti_windup_cycles,
     )
 
 
@@ -3571,12 +3578,179 @@ class TestDocsisModeSetpointClamp:
         rate = ctrl._compute_rate_3state("GREEN")
         assert rate <= 12_000_000
 
-    def test_red_decay_takes_rate_below_setpoint(self):
+    def test_red_decay_at_setpoint_bounded_step(self):
+        """Canary 20260504T231334Z / codex MEDIUM-CODEX-1: first RED at
+        setpoint applies bounded-absolute step, not multiplicative cascade.
+        """
         ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
         ctrl.current_rate = 12_000_000
         ctrl.red_streak = 1
         rate = ctrl._compute_rate_3state("RED")
-        assert rate < 12_000_000
+        assert rate == 11_760_000
+
+
+class TestDocsisModeBoundedAbsoluteDecay:
+    def test_regime_a_at_setpoint_steps_down_240k(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 12_000_000
+        ctrl.red_streak = 1
+        assert ctrl._compute_rate_3state("RED") == 11_760_000
+
+    def test_regime_a_above_setpoint_steps_down_240k(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 15_000_000
+        ctrl.red_streak = 1
+        assert ctrl._compute_rate_3state("RED") == 14_760_000
+
+    def test_regime_a_clamps_at_setpoint_minus_delta_max(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 10_900_000
+        ctrl.red_streak = 1
+        assert ctrl._compute_rate_3state("RED") == 10_800_000
+
+    def test_regime_a_holds_at_clamp(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 10_800_000
+        ctrl.red_streak = 1
+        assert ctrl._compute_rate_3state("RED") == 10_800_000
+
+    def test_regime_b_below_band_falls_through_to_factor_down(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 10_500_000
+        ctrl.red_streak = 1
+        assert ctrl._compute_rate_3state("RED") == int(10_500_000 * ctrl.factor_down)
+
+    def test_regime_c_legacy_mode_unchanged(self):
+        ctrl = _make_docsis_controller(docsis_mode=False, setpoint_bps=12_000_000)
+        ctrl.current_rate = 12_000_000
+        ctrl.red_streak = 1
+        assert ctrl._compute_rate_3state("RED") == int(12_000_000 * ctrl.factor_down)
+
+    def test_no_setpoint_falls_through_to_legacy(self):
+        ctrl = _make_docsis_controller(docsis_mode=True, setpoint_bps=None)
+        ctrl.current_rate = 12_000_000
+        ctrl.red_streak = 1
+        assert ctrl._compute_rate_3state("RED") == int(12_000_000 * ctrl.factor_down)
+
+
+class TestDocsisModeRedNonIncreaseProperty:
+    def test_red_never_increases_rate_docsis_mode(self):
+        rng = random.Random(20114)
+        for _ in range(1200):
+            setpoint = rng.randint(8_100_000, 30_000_000)
+            rate = rng.randint(1, 40_000_000)
+            ctrl = _make_docsis_controller(setpoint_bps=setpoint)
+            ctrl.current_rate = rate
+            ctrl.red_streak = rng.randint(1, 25)
+            assert ctrl._compute_rate_3state("RED") <= rate
+
+    def test_red_never_increases_rate_legacy_mode(self):
+        rng = random.Random(201140)
+        for _ in range(1200):
+            rate = rng.randint(1, 40_000_000)
+            ctrl = _make_docsis_controller(docsis_mode=False, setpoint_bps=None)
+            ctrl.current_rate = rate
+            ctrl.red_streak = rng.randint(1, 25)
+            assert ctrl._compute_rate_3state("RED") == int(rate * ctrl.factor_down)
+
+
+class TestDocsisModeIntegralAntiWindup:
+    def _drive_exhausted_at_floor(self, ctrl):
+        ctrl.current_rate = ctrl.floor_red_bps
+        for _ in range(ctrl._anti_windup_cycles):
+            ctrl.adjust(22.0, 22.0 + 100.0, target_delta=5.0, warn_delta=15.0)
+
+    def test_headroom_exhausted_streak_increments(self):
+        ctrl = _make_docsis_controller(anti_windup_cycles=60)
+        for _ in range(40):
+            ctrl.adjust(22.0, 122.0, target_delta=5.0, warn_delta=15.0)
+        assert ctrl._headroom_exhausted_streak > 0
+
+    def test_headroom_exhausted_streak_resets_on_available(self):
+        ctrl = _make_docsis_controller(anti_windup_cycles=60)
+        ctrl._headroom_exhausted_streak = 7
+        for _ in range(40):
+            ctrl.adjust(22.0, 22.0, target_delta=5.0, warn_delta=15.0)
+        assert ctrl._headroom_exhausted_streak == 0
+
+    def test_anti_windup_caps_integral_below_threshold(self):
+        ctrl = _make_docsis_controller(anti_windup_cycles=5)
+        self._drive_exhausted_at_floor(ctrl)
+        assert abs(ctrl._last_integral_ms_s - (ctrl._integral_threshold_ms_s - 1.0)) < 0.01
+
+    def test_anti_windup_recomputes_headroom_state_synchronously(self):
+        ctrl = _make_docsis_controller(anti_windup_cycles=5)
+        self._drive_exhausted_at_floor(ctrl)
+        assert ctrl._headroom_state == "AVAILABLE"
+
+    def test_anti_windup_triggers_counter_increments(self):
+        ctrl = _make_docsis_controller(anti_windup_cycles=5)
+        self._drive_exhausted_at_floor(ctrl)
+        assert ctrl._anti_windup_triggers == 1
+
+    def test_anti_windup_log_rate_limited(self, caplog):
+        ctrl = _make_docsis_controller(anti_windup_cycles=5)
+        with caplog.at_level(logging.INFO):
+            self._drive_exhausted_at_floor(ctrl)
+            self._drive_exhausted_at_floor(ctrl)
+        messages = [r.message for r in caplog.records if "ANTI-WINDUP" in r.message]
+        assert len(messages) == 1
+
+    def test_anti_windup_does_not_fire_above_floor(self):
+        ctrl = _make_docsis_controller(anti_windup_cycles=5)
+        ctrl.current_rate = ctrl.floor_red_bps + 1_000_000
+        for _ in range(5):
+            ctrl.adjust(22.0, 122.0, target_delta=5.0, warn_delta=15.0)
+        assert ctrl._anti_windup_triggers == 0
+
+    def test_anti_windup_legacy_mode_no_op(self):
+        ctrl = _make_docsis_controller(docsis_mode=False, setpoint_bps=None, anti_windup_cycles=5)
+        ctrl.current_rate = ctrl.floor_red_bps
+        ctrl._headroom_exhausted_streak = 5
+        ctrl.adjust(22.0, 122.0, target_delta=5.0, warn_delta=15.0)
+        assert not hasattr(ctrl, "_anti_windup_triggers") or ctrl._anti_windup_triggers == 0
+
+
+class TestDocsisModeReplayCanary11:
+    """Cycles 1-5 = immediate bounded decrease (240k step); cycles 6-18 =
+    hold at clamp above floor (10.8M > 8M floor). The at-clamp hold is by
+    design and is NOT a violation of the rate-decrease spine; validator (d)
+    ensures clamp > floor.
+    """
+
+    EXPECTED_BY_CYCLE = {
+        1: 11_760_000,
+        2: 11_520_000,
+        3: 11_280_000,
+        4: 11_040_000,
+        5: 10_800_000,
+        **{cycle: 10_800_000 for cycle in range(6, 19)},
+    }
+
+    def test_red_burst_18_cycles_explicit_table(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 12_000_000
+        observed = {}
+        for cycle in range(1, 19):
+            ctrl.red_streak = cycle
+            ctrl.current_rate = ctrl._compute_rate_3state("RED")
+            observed[cycle] = ctrl.current_rate
+        assert observed == self.EXPECTED_BY_CYCLE
+
+    def test_red_burst_18_cycles_no_floor_hits_via_adjust(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        for _ in range(18):
+            zone, rate, _ = ctrl.adjust(22.0, 122.0, target_delta=5.0, warn_delta=15.0)
+            assert zone == "RED"
+            assert rate > ctrl.floor_red_bps
+        assert ctrl.floor_hit_cycles == 0
+
+    def test_below_band_overload_falls_through_legacy(self):
+        ctrl = _make_docsis_controller(setpoint_bps=12_000_000)
+        ctrl.current_rate = 10_500_000
+        zone, rate, _ = ctrl.adjust(22.0, 122.0, target_delta=5.0, warn_delta=15.0)
+        assert zone == "RED"
+        assert rate == int(10_500_000 * ctrl.factor_down)
 
 
 class TestDocsisModeCakeCorroborator:
@@ -3781,11 +3955,24 @@ class TestDocsisModeByteIdentity:
 
 
 class TestRedFastTripUnchangedDocsisMode:
-    def test_red_immediate_decay_regardless_of_integral_state(self):
+    def test_red_immediate_bounded_decay_under_docsis_mode(self):
+        """Immediate bounded decrease on first RED cycle (pre-clamp regime).
+
+        Cycles 6+ would HOLD at clamp 10.8M; that is the at-clamp regime,
+        not a violation of the spine — see TestDocsisModeReplayCanary11 for
+        the full table.
+        """
         ctrl = _make_docsis_controller()
         ctrl.current_rate = 12_000_000
         ctrl._headroom_state = "AVAILABLE"
         ctrl._cake_aligned = True
+        zone, rate, _ = ctrl.adjust(22.0, 22.0 + 50.0, target_delta=5.0, warn_delta=15.0)
+        assert zone == "RED"
+        assert rate == 11_760_000
+
+    def test_red_immediate_decay_legacy_mode_unchanged(self):
+        ctrl = _make_docsis_controller(docsis_mode=False, setpoint_bps=None)
+        ctrl.current_rate = 12_000_000
         zone, rate, _ = ctrl.adjust(22.0, 22.0 + 50.0, target_delta=5.0, warn_delta=15.0)
         assert zone == "RED"
         assert rate == int(12_000_000 * ctrl.factor_down)
