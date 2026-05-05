@@ -1,162 +1,106 @@
 ---
 phase: 201
-slug: docsis-aware-ul-congestion-control
 reviewers: [codex]
-reviewed_at: 2026-05-04T19:07:22Z
+reviewed_at: 2026-05-05T00:41:37Z
 plans_reviewed:
-  - 201-01-corpus-inspection-and-fixtures-PLAN.md
-  - 201-02-test-stubs-PLAN.md
-  - 201-03-config-schema-and-validators-PLAN.md
-  - 201-04-controller-core-PLAN.md
-  - 201-05-wan-controller-and-health-PLAN.md
-  - 201-06-spectrum-yaml-and-version-PLAN.md
-  - 201-07-predeploy-gate-PLAN.md
-  - 201-08-canary-script-extension-PLAN.md
-  - 201-09-codex-pre-review-PLAN.md
-  - 201-10-codex-stop-time-review-PLAN.md
-  - 201-11-canary-execution-PLAN.md
-  - 201-12-soak-and-closeout-PLAN.md
+  - 201-13-health-diagnostic-extension-PLAN.md
+  - 201-14-control-model-amendment-PLAN.md
+  - 201-15-recanary-PLAN.md
+  - 201-16-soak-and-closeout-PLAN.md
+scope: gap-closure plans authored after 201-11 canary FAIL
+prior_review: 201-REVIEWS-pre-canary.md (preserved historical HIGH-1..7 from before canary)
 ---
 
-# Cross-AI Plan Review — Phase 201
+# Cross-AI Plan Review — Phase 201 Gap Closure
 
-**Verdict:** PASS WITH BLOCKING AMENDMENTS (per Codex)
-**Reviewers invoked:** codex (codex-cli 0.125.0, default model)
-**Concerns surfaced:** 7 HIGH, 6 MEDIUM, 1 LOW
-
-To incorporate this feedback into the plans:
-
-```
-/gsd-plan-phase 201 --reviews
-```
-
-The replanner will read this file, replan against the locked decisions in CONTEXT.md, and address the HIGH/MEDIUM concerns where they don't conflict with locked decisions. Concerns that contradict locked decisions become explicit deferred-or-overruled notes.
-
----
+Adversarial review of the four NEW plans (201-13 → 201-16) authored to close gaps from the failed 201-11 canary. The plans already passed local plan-checker verification (2 iterations); this review provides a second opinion from a different model family (codex / GPT-5).
 
 ## Codex Review
 
 **Summary**
-
-The plan set is strong and unusually explicit about production safety, Phase 200 lessons, and fail-closed deployment. I would rate it **PASS WITH BLOCKING AMENDMENTS**. The main design is plausible, but several plan-level issues can either fail open or make the evidence look stronger than it is: Plan 03 is not gated by the required Codex pre-review, Plans 04 and 05 are not truly parallel-safe, Wave 0 uses skips in places that should be RED contracts, and the canary/soak evidence may not prove “no 50ms-cycle floor hits” if it relies on 1 Hz health samples.
+The gap-closure sequence is directionally strong: 201-13 improves observability before changing control behavior, 201-15/16 keep production actions operator-gated, and the plans preserve the right fail-closed posture. The main blocker is Plan 201-14: the proposed RED math does not actually satisfy its own 18-cycle replay claim, and it weakens the “rate decreases are immediate” invariant while saying it preserves it. I would not run 201-15 until 201-14 is amended and re-reviewed.
 
 **Strengths**
-
-- Clear additive YAML opt-in with legacy default behavior preserved.
-- Good attention to Phase 200 landmines: presence-based flags, `self.logger`, additive `/health`, env-vs-YAML checks.
-- Conservative control-path scope: no new transport, no SNMP dependency, no DL changes.
-- Good fail-closed intent for config validation, deploy gate, canary aborts, and rollback.
-- Strong documentation and traceability discipline across requirements, validation, canary, soak, and closeout.
-- Plan 07 correctly identifies and fixes the Bash `if ! cmd; then $?` gotcha by requiring `cmd || gate_rc=$?`.
+- 201-13 is well scoped and additive. Adding `max_delay_delta_us`, `red_streak`, and `zone_trace` directly addresses the diagnostic blind spots from 201-11.
+- Non-DOCSIS gating is mostly clean: behavior changes are planned behind `docsis_mode`, with optional YAML keys and legacy tests.
+- 201-15 correctly re-canaries at `setpoint_mbps=12` in principle. If the fix is a control-model amendment, retesting the failed setpoint is the clean proof; setpoint=10 would confound the result.
+- 201-15 and 201-16 are appropriately `autonomous: false` for production deploy/canary/24h soak work.
+- The canary gate remains honest: `floor_hit_cycles_total_delta_loaded_window == 0` plus 1Hz floor snapshot cross-check.
 
 **Concerns**
+- **HIGH: Plan 201-14 does not pass its own 18-cycle RED replay math.** With the proposed algorithm:
+  - cycles 1-7: `current_rate=12M`, `red_streak<8`, clamp holds at `12M`
+  - cycle 8: factor-down resumes, `12M * 0.90 = 10.8M`
+  - cycle 9: `9.72M`
+  - cycle 10: `8.748M`
+  - cycle 11: `7.873M`, then `enforce_rate_bounds()` clamps to floor `8M`
+  - cycles 11-18 all count as floor hits
+  So `RED_BURST_CYCLES=18` will still produce floor hits post-fix. This directly contradicts `TestDocsisModeReplayCanary11` and means 201-15 is likely to fail again.
 
-- **HIGH - Plan 03 bypasses required pre-review.** Plan 09 says Codex pre-review must occur before Wave 1, but Plan 03 depends only on `[02]`. Make Plan 03 depend on `[02, 09]`.
+- **HIGH: “Rate decreases are immediate” is not preserved as written.** The non-increase invariant is preserved if the condition is exactly `current_rate >= setpoint_bps`, but first RED at `current_rate == setpoint` returns `12M`, not a decrease. That may be an acceptable DOCSIS-mode exception, but the plan must state it honestly and get explicit approval.
 
-- **HIGH - Plans 04 and 05 are not parallel-safe.** Both modify `tests/test_phase_195_replay.py`, and Plan 05 passes new kwargs to `QueueController` that only exist after Plan 04. Either make Plan 05 depend on Plan 04 or split SAFE-05 rebaselining into a serial follow-up.
+- **HIGH: 201-15 snapshots rollback artifacts before the predeploy gate reconciliation.** If the first gate run blocks on stale rejected upload keys, then rollback can restore the stale pre-reconcile YAML. Snapshot the known-good rollback YAML after reconciliation/gate PASS, or keep two snapshots and define which one is restored on FAIL.
 
-- **HIGH - Wave 0 anti-shallow gate is weakened by skipped tests.** Plan 02 allows several important tests to `pytest.skip()`. Skipped tests do not enforce implementation. Use strict `xfail`, explicit `pytest.fail`, or later acceptance criteria that grep for and remove every “Wave 0 stub” skip before claiming green.
+- **MEDIUM: Existing tests will conflict with the new behavior.** Current tests expect DOCSIS RED at setpoint to decay below setpoint, e.g. [tests/test_queue_controller.py](/home/kevin/projects/wanctl/tests/test_queue_controller.py:3574) and the red fast-trip test around [tests/test_queue_controller.py](/home/kevin/projects/wanctl/tests/test_queue_controller.py:3639). Plan 201-14 should explicitly update or replace these with rationale.
 
-- **HIGH - Replay does not model the 50ms loop.** Plan 04 replays 1 Hz samples as if each sample were one controller cycle, so a 2s integral window becomes roughly 40s. Expand each 1 Hz sample into 20 synthetic cycles or downgrade the replay claim from “synthetic VALN-06 closure” to “coarse regression only.”
+- **MEDIUM: Anti-windup is too weak for the observed range.** Halving a 100-155 ms*s integral still leaves it above the 30 ms*s threshold, so recovery can remain gated. It also does not update `headroom_state` until the next `_update_integral()` cycle. INFO logging every trigger can become log spam under sustained floor.
 
-- **HIGH - Canary and soak may not prove zero cycle-level floor hits.** VALN-06 says no loaded cycle reaches floor, but 1 Hz `/health` polling can miss 50ms floor touches. Add an internal floor-hit counter, rate-apply log parsing, or a 20Hz/near-cycle capture for the canary and soak gates.
+- **MEDIUM: 201-15 does not verify the new control knobs.** It verifies `max_delay_delta_us`, `red_streak`, and `zone_trace`, but should also assert `/health.upload.sustained_red_cycles == 8`, `anti_windup_cycles == 60`, and `anti_windup_triggers` is present. Otherwise the canary may not prove the intended Plan 201-14 parameters were active.
 
-- **HIGH - Phase 201 canary checks are optional if env vars are omitted.** Plan 08 gates DOCSIS `/health` validation on `PHASE201_DOCSIS_MODE=true`. For Phase 201 runs, missing `PHASE201_DOCSIS_MODE` or `PHASE201_SETPOINT_MBPS` should abort unless an explicit legacy mode flag is set.
+- **MEDIUM: Same `1.42.0` version for failed and amended binaries weakens evidence.** If `/health.version` remains `1.42.0`, the re-canary evidence cannot distinguish failed 201-11 code from gap-closure code without commit/build metadata. Add a patch bump or capture git SHA/build ID.
 
-- **HIGH - Rollback does not clearly restore YAML.** Plan 11 restores `/opt/wanctl` but may leave v1.42 YAML keys under an older binary. Rollback should also restore `/etc/wanctl/spectrum.yaml.prephase201`, or prove the old binary tolerates the new keys safely.
-
-- **MEDIUM - Plan 07 deploy-gate testing is underspecified.** The plan requires integration tests for gate exit-code propagation, but does not clearly add a test file or a testable gate override. If `deploy.sh` assigns `PREDEPLOY_GATE=...` unconditionally, fault injection via env override will not work. Use `: "${PREDEPLOY_GATE:=...}"`.
-
-- **MEDIUM - Plan 07 gate message references a non-existent reconcile script.** It suggests `scripts/phase201-reconcile-yaml.sh --strip-rejected`, but no plan creates that script. Either create it or remove that remediation path.
-
-- **MEDIUM - Plan 07 script comments mention default YAML path, but code requires env.** Either default `REMOTE_YAML_PATH=/etc/wanctl/spectrum.yaml` or ensure `deploy.sh` always passes it.
-
-- **MEDIUM - Setpoint clamp may not pull down from above setpoint during YELLOW.** With `factor_down_yellow=1.0`, a controller that has pushed above setpoint can hold there in YELLOW. Add tests for `current_rate > setpoint`, headroom exhausted, YELLOW sustained.
-
-- **MEDIUM - Plan 06 YAML grep checks are not path-aware.** `grep '^    target_bloat_ms:' configs/spectrum.yaml` may catch download keys too. Use a Python/YAML path check for `continuous_monitoring.upload`.
-
-- **MEDIUM - Plan 08 Task 2 may need `wan_controller.py` but does not own it.** If `max_delay_delta_us` is not serialized, the task expands outside `files_modified`. Decide before execution and add the file/test ownership explicitly.
-
-- **LOW - Health field semantics need clearer naming.** `setpoint_mbps` read from `self.upload._setpoint_bps` is still the active configured setpoint, not the current rate. That is fine, but tests should not imply it changes when `current_rate` changes.
-
-**Per-Plan Notes**
-
-| Plan | Assessment |
-|---|---|
-| 201-01 | Good fixture foundation. Make primary corpus parsing fail loud on malformed Attempt 3 lines instead of silently dropping JSON errors. |
-| 201-02 | Good coverage map, but skip-based stubs weaken the RED contract. This needs tightening before implementation. |
-| 201-03 | Schema shape is good. Add dependency on Plan 09 and ensure Config hard-fail does not prevent check-config diagnostics where expected. |
-| 201-04 | Good augment-not-replace direction. Main gaps are replay timing fidelity, hardcoded thresholds, literal `0.05`, and above-setpoint YELLOW behavior. |
-| 201-05 | Good `/health` additive intent. Must depend on Plan 04 or avoid new kwargs until Plan 04 lands. Clarify runtime-state semantics. |
-| 201-06 | Correct Spectrum R0/R5/R3 disposition. Use path-aware YAML validation and avoid declaring VALN-06 closed before canary/soak evidence exists. |
-| 201-07 | Strong fail-closed design. The `gate_rc` fix is correct. Add real deploy-gate tests, env-overridable gate path, defaults, and remove nonexistent script reference. |
-| 201-08 | Correct reuse of Phase 200 canary. Make Phase 201 env/probe required for Phase 201 runs and make self-test additions concrete. |
-| 201-09 | Valuable checkpoint. Not actually enforced for Plan 03 yet. |
-| 201-10 | Good stop-time review shape. Add explicit verification of the amended fail-open concerns above. |
-| 201-11 | Good live gate and rollback intent. Needs cycle-level floor-hit evidence and YAML rollback clarity. |
-| 201-12 | Good closeout structure. Soak summarization should be a concrete script or exact pipeline, not operator-supplied. Avoid requiring a globally clean worktree if unrelated user changes exist. |
+- **LOW/MEDIUM: 201-16 adds a stricter 24h zero-floor-hit primary gate.** The original soak success criterion was suppression rate `<5/60s`; zero floor hits over 24h is stronger. That may be right, but it should be recorded as an explicit operator-approved tightening.
 
 **Suggestions**
-
-- Amend dependencies: `03 -> [02,09]`; `05 -> [04]`; move SAFE-05 count rebasing to one serial plan after both 04 and 05.
-- Replace skip-only Wave 0 stubs with strict RED contracts, and add acceptance criteria that no implemented Phase 201 test remains skipped.
-- Add a controller/runtime counter for UL floor-hit cycles and use counter deltas for canary and soak verdicts.
-- Expand replay samples to 20 cycles per second, or explicitly label replay as coarse and non-verdict.
-- Add tests for above-setpoint YELLOW behavior and for startup/restored-state behavior where current/applied rate may be above setpoint.
-- Make Phase 201 canary mode fail closed when `PHASE201_DOCSIS_MODE` or `PHASE201_SETPOINT_MBPS` is missing.
-- Make rollback restore both binary and YAML, or document and test old-binary tolerance for v1.42 YAML keys.
-- Add a focused deploy-gate test harness that verifies exit propagation for gate exit `1`, exit `2`, and missing/non-executable gate.
+- Revise 201-14 before implementation. Either increase `sustained_red_cycles` beyond the tested burst length, or better, make the sustained-RED path use bounded absolute decay below setpoint instead of immediately returning to `factor_down=0.90`.
+- Add a mandatory cycle table to the replay test comments and assert the exact expected post-fix rates for cycles 1-18.
+- Add a RED property test: for docsis and legacy modes, `new_rate <= current_rate` for all sampled current rates, red streaks, and setpoints.
+- Make anti-windup cap or clear the integral to a value below threshold, recompute `_headroom_state` immediately, and rate-limit or downgrade logs; rely on `anti_windup_triggers` for observability.
+- In 201-15, snapshot rollback YAML after predeploy PASS, verify all seven new health fields plus the two active params, and capture build identity.
+- In 201-16, run the soak capture as a supervised script on `cake-shaper`, use monotonic timestamps for sample coverage, and compute suppression windows from timestamps rather than raw line count alone.
 
 **Risk Assessment**
-
-Overall risk is **HIGH until the blocking amendments are made**, mainly because this is a production 50ms-loop controller and the current plan has evidence gaps around cycle-level floor hits and execution-order gaps around review and parallel plans. After fixing the dependency, anti-shallow, deploy-gate, rollback, and measurement-resolution issues, the risk drops to **MEDIUM**: the control change is still production-sensitive, but the plan would have the right fail-closed gates and validation shape.
+Overall risk is **HIGH** until Plan 201-14 is corrected. The observability and operator-gated execution plans are mostly solid, but the primary behavioral fix currently does not prevent floor hits for the very 18-cycle RED burst corpus it proposes. After fixing that math, tightening rollback snapshot ordering, and verifying active control parameters in 201-15, the risk drops to **MEDIUM**: still production-control work, but with good gates and rollback discipline.
 
 ---
 
 ## Consensus Summary
 
-(Single-reviewer run. The "consensus" is Codex's findings only; cross-reviewer triangulation requires running additional reviewers via `/gsd-review --gemini` or `/gsd-review --claude` against the same plans.)
+Codex was the sole reviewer this round (single-CLI invocation: `/gsd-review --codex`). Findings are reported as codex-only; treat them as one model's view, not consensus across multiple models.
 
-### Top HIGH Concerns (must address before execute-phase)
+### Codex-Only Concerns Worth Action
 
-1. **Plan 03 bypasses required Codex pre-review** — Plan 09 (Codex pre-review checkpoint) is meant to gate Wave 1 implementation, but Plan 03 only declares `depends_on: [02]`. Without `[02, 09]`, the schema layer can land before the cross-AI gate runs. **Fix:** add `09` to Plan 03's `depends_on`.
+**HIGH-CODEX-1 — Plan 201-14 still fails its own 18-cycle replay post-fix.** The post-fix arithmetic in 201-14 only traces cycles 1-7. At cycle 8, `red_streak >= sustained_red_cycles=8` so REGIME A no longer engages; control falls through to legacy `factor_down=0.9` and cascades `12M → 10.8M → 9.72M → 8.748M → floor=8M` by cycle 11. Cycles 11-18 are floor hits. `TestDocsisModeReplayCanary11` would FAIL post-fix. **This is a real BLOCKER missed by the local plan-checker — different defect than the one fixed in iteration 1, same plan.**
 
-2. **Plans 04 and 05 are not parallel-safe** — both modify `tests/test_phase_195_replay.py` (SAFE-05 count rebasing), and Plan 05 passes new kwargs to `QueueController` that only exist after Plan 04 lands. The current wave assignment runs them in parallel within Wave 2, which will collide. **Fix:** either declare `05 depends_on: [04]` (serializing within Wave 2) or move SAFE-05 rebasing into a single serial follow-up plan that runs after both 04 and 05.
+**HIGH-CODEX-2 — Asymmetric-response invariant not honestly stated.** First RED cycle at `current_rate == setpoint` returns `new_rate = 12M` (no decrease). Strict CLAUDE.md reading: "rate decreases are immediate" is violated. May be an acceptable DOCSIS-mode exception, but the plan must state it explicitly and get operator approval, not bury it in math.
 
-3. **Wave 0 RED contracts use `pytest.skip()`** — skipped tests do not enforce implementation. The "no production code before tests exist" anti-shallow rule is weakened because Plan 02's stubs allow skip-paths. **Fix:** convert to `xfail(strict=True)` or `pytest.fail("Wave 0 stub — implement in Plan NN")`, AND add an acceptance criterion to the implementing plan that asserts no Phase 201 test remains skipped.
+**HIGH-CODEX-3 — 201-15 rollback snapshot ordering bug.** Plan 201-15 snapshots rollback YAML BEFORE the predeploy gate reconciliation. If the first gate run rejects stale keys (as happened in 201-11), rollback restores stale pre-reconcile YAML. Fix: snapshot rollback YAML AFTER predeploy PASS, OR keep two snapshots and define which restores on FAIL.
 
-4. **Replay test does not model the 50ms control loop** — Plan 04's replay treats 1 Hz `/health` samples as if each sample were one controller cycle, so a 2-second integral window stretches to ~40 seconds in replay-time. The `floor_hits == 0` assertion against this synthesized timing isn't a true VALN-06 closure signal. **Fix:** either expand each 1 Hz sample into 20 synthetic cycles (cycle-fidelity replay) OR explicitly downgrade the replay claim to "coarse regression only, not a VALN-06 closure proof."
+**MEDIUM-CODEX-1 — Existing test conflicts not addressed.** `tests/test_queue_controller.py:3574` and `:3639` currently expect DOCSIS RED at setpoint to decay below setpoint. New behavior holds at setpoint. Plan 201-14 must explicitly update/replace these tests with rationale, not silently break them.
 
-5. **Canary and soak may not detect cycle-level floor hits** — VALN-06 says "no loaded cycle reaches floor." 1 Hz `/health` polling can miss 50ms floor touches. Current canary verdict logic depends on `/health` snapshots. **Fix:** add an internal floor-hit counter (`self.upload.floor_hit_cycles`) incremented on every controller cycle that hits floor; canary and soak verdicts compare counter deltas, not snapshot rates. Alternatively: 20 Hz capture, or rate-apply log parsing.
+**MEDIUM-CODEX-2 — Anti-windup halving is too weak.** Halving a 100-155 ms*s integral still leaves it above the 30 ms*s threshold, so recovery remains gated. Also does not update `headroom_state` until the next `_update_integral()` cycle. Fix: cap or clear integral to a value below threshold, recompute `_headroom_state` immediately, downgrade logging to rely on the `anti_windup_triggers` counter for observability.
 
-6. **Phase 201 canary checks become optional when env vars are missing** — Plan 08 gates DOCSIS `/health` validation on `PHASE201_DOCSIS_MODE=true`. If the operator forgets to export it, Phase 201 verifications silently no-op while the canary still claims PASS. **Fix:** for Phase 201 runs, missing `PHASE201_DOCSIS_MODE` or `PHASE201_SETPOINT_MBPS` should ABORT unless an explicit `PHASE201_LEGACY_MODE=true` flag is set (mutually-exclusive with DOCSIS mode).
+**MEDIUM-CODEX-3 — 201-15 canary doesn't verify the new control knobs are active.** It checks the new `/health` diagnostic fields exist but doesn't assert `sustained_red_cycles == 8`, `anti_windup_cycles == 60`, or that `anti_windup_triggers` is present. Canary may pass with stale or default knob values, proving nothing about the intended fix.
 
-7. **Rollback does not restore YAML** — Plan 11 rollback restores `/opt/wanctl` (the v1.40 binary) but may leave v1.42 YAML keys (`docsis_mode`, `setpoint_mbps`) in place under the older binary. v1.40 will either fail validation, silent-drop, or behave undefined. **Fix:** rollback must also restore `/etc/wanctl/spectrum.yaml.prephase201` (snapshot taken in Plan 11 step 1), OR Plan 03 must explicitly test that v1.40 tolerates the new keys (which contradicts SAFE-06).
+**MEDIUM-CODEX-4 — Same `1.42.0` version for failed (201-11) and amended (201-15) binaries.** `/health.version` won't distinguish them. Add a patch bump (1.42.1) or capture git SHA / build ID in canary evidence.
 
-### Top MEDIUM Concerns
+**LOW/MEDIUM-CODEX-5 — 201-16 stricter soak gate vs original.** Phase 201 success criterion was suppression `<5/60s`; 201-16 demands zero floor hits over 24h. Tightening may be correct but should be recorded as an explicit operator-approved gate change, not a silent escalation.
 
-- **Plan 07 deploy-gate test override** — `PREDEPLOY_GATE=...` is currently assigned unconditionally in deploy.sh; fault injection via env override won't work. Switch to `: "${PREDEPLOY_GATE:=...}"`.
-- **Plan 07 references non-existent reconcile script** — gate's BLOCK message suggests `scripts/phase201-reconcile-yaml.sh --strip-rejected`, but no plan creates that script. Either create it or remove the suggestion.
-- **Plan 07 default-vs-env mismatch** — script comments mention default YAML path, but code requires `REMOTE_YAML_PATH` env. Either default `REMOTE_YAML_PATH=/etc/wanctl/spectrum.yaml` or ensure `deploy.sh` always passes it.
-- **Setpoint clamp + above-setpoint YELLOW** — with `factor_down_yellow=1.0`, a controller that has pushed above setpoint can hold there in YELLOW. Add tests for `current_rate > setpoint AND headroom exhausted AND YELLOW sustained` → expect rate to pull back down to setpoint.
-- **Plan 06 YAML grep is not path-aware** — `grep '^    target_bloat_ms:' configs/spectrum.yaml` may match download keys too. Use Python/YAML path check for `continuous_monitoring.upload`.
-- **Plan 08-T2 may modify `wan_controller.py` outside its `files_modified`** — if `max_delay_delta_us` isn't serialized into `/health`, the task expands. Decide before execution and update `files_modified` explicitly.
+### Codex Suggestions (Adopt as Revision Targets)
 
-### Top LOW Concerns
+- Revise 201-14: either bump `sustained_red_cycles` past tested burst length, OR replace fall-through-to-factor_down with a bounded absolute decay below setpoint.
+- Add a cycle table (cycles 1-18, expected post-fix rate per cycle) to 201-14 replay test comments. Assert exact expected rates.
+- Add a RED property test: `new_rate <= current_rate` for all sampled current_rate × red_streak × setpoint combinations, in BOTH docsis and legacy modes.
+- Make anti-windup cap/clear integral below threshold, recompute headroom state, rate-limit logs.
+- In 201-15: snapshot rollback YAML AFTER predeploy PASS; verify all 7 new /health fields PLUS the 2 active control params; capture build identity (git SHA or 1.42.1 bump).
+- In 201-16: run soak capture as supervised script on `cake-shaper` itself; use monotonic timestamps for sample coverage; compute suppression windows from timestamps, not raw line count.
 
-- `/health.upload.setpoint_mbps` reads from `self.upload._setpoint_bps` (active configured setpoint). That's runtime state by design, but tests should not imply it changes when `current_rate` changes. Naming/docstring tightening.
+### Codex Risk Assessment
 
-### Strongest Plan (per Codex)
+**HIGH** until Plan 201-14 is corrected. After fixing the cycle-8+ cascade, tightening rollback snapshot ordering (HIGH-CODEX-3), and verifying active control params in 201-15: drops to **MEDIUM** — still production-control work, but with good gates and rollback discipline.
 
-The plan set as a whole is "unusually explicit about production safety, Phase 200 lessons, and fail-closed deployment." Plan 07 was singled out for correctly identifying and fixing the Bash `if ! cmd; then $?` gotcha (with `cmd || gate_rc=$?`).
+## Recommended Action
 
-### Notes on Locked Decisions vs Concerns
+Re-plan via `/gsd-plan-phase 201 --reviews` to incorporate codex feedback into a third revision of 201-14, plus targeted updates to 201-15 (rollback snapshot ordering, knob verification, version-distinguishability) and 201-16 (gate change documentation, on-host capture).
 
-These Codex concerns may bump against locked CONTEXT.md decisions:
-
-- **Concern 5 (cycle-level floor-hit counter)** intersects D-16 (`/health` additive only). Adding a `floor_hit_cycles` runtime field is consistent with D-16; this is an enrichment, not a contradiction.
-- **Concern 4 (replay timing fidelity)** is a research-level question — RESEARCH.md A4/A5 framework anticipated low-medium confidence on the replay corpus. Codex's recommendation to either upsample-or-downgrade-the-claim is an addition, not a contradiction.
-- **Concern 7 (rollback restores YAML)** is consistent with the inherited Phase 200 fail-closed rollback model; Plan 11's rollback step needs explicit YAML-restore semantics.
-
-No concerns contradict locked D-N decisions; replanner can address them all on `/gsd-plan-phase 201 --reviews`.
-
+Alternatively, address HIGH-CODEX-1..3 by hand and skip the planner cycle if the user prefers a manual surgical fix to the math defect.
