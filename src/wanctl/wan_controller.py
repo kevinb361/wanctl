@@ -445,6 +445,11 @@ class WANController:
                 if isinstance(getattr(config, "cake_delay_delta_low_threshold_us", None), int)
                 else 5000
             ),
+            red_decay_step_pct=float(getattr(config, "red_decay_step_pct", 0.02)),
+            red_decay_delta_max_pct=float(
+                getattr(config, "red_decay_delta_max_pct", 0.10)
+            ),
+            anti_windup_cycles=int(getattr(config, "anti_windup_cycles", 60)),
         )
 
         # Thresholds (Phase 2A: 4-state for download, 3-state for upload)
@@ -470,6 +475,15 @@ class WANController:
         self._docsis_mode_explicit = getattr(config, "_docsis_mode_explicit", False) is True
         self._setpoint_mbps_explicit = (
             getattr(config, "_setpoint_mbps_explicit", False) is True
+        )
+        self._red_decay_step_pct_explicit = (
+            getattr(config, "_red_decay_step_pct_explicit", False) is True
+        )
+        self._red_decay_delta_max_pct_explicit = (
+            getattr(config, "_red_decay_delta_max_pct_explicit", False) is True
+        )
+        self._anti_windup_cycles_explicit = (
+            getattr(config, "_anti_windup_cycles_explicit", False) is True
         )
         # Phase 200 D-06: one-shot INFO log emission when operator explicitly
         # set either UL threshold. Plan 06 deploy verification reads this via
