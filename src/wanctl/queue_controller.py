@@ -50,6 +50,9 @@ class QueueController:
         integral_threshold_ms_s: float = 30.0,
         cake_backlog_low_threshold_bytes: int = 5000,
         cake_delay_delta_low_threshold_us: int = 5000,
+        red_decay_step_pct: float = 0.02,
+        red_decay_delta_max_pct: float = 0.10,
+        anti_windup_cycles: int = 60,
     ):
         self.name = name
         self.floor_green_bps = floor_green
@@ -118,6 +121,13 @@ class QueueController:
         self._headroom_state: str = "EXHAUSTED"
         self._cake_aligned: bool = False
         self._last_integral_ms_s: float = 0.0
+        self._red_decay_step_pct: float = red_decay_step_pct
+        self._red_decay_delta_max_pct: float = red_decay_delta_max_pct
+        self._anti_windup_cycles: int = anti_windup_cycles
+        self._headroom_exhausted_streak: int = 0
+        self._anti_windup_triggers: int = 0
+        self._last_anti_windup_log_cycle: int = -(10**9)
+        self._cycle_count: int = 0
         # REVIEWS HIGH-5: cycle-fidelity floor-hit counter (monotonic, daemon lifetime).
         self.floor_hit_cycles: int = 0
         # Phase 201 gap-closure: diagnostic fields for /health serialization.
@@ -162,6 +172,8 @@ class QueueController:
         if self._docsis_mode:
             self._last_integral_ms_s, self._headroom_state = self._update_integral(delta)
             self._cake_aligned = self._is_cake_aligned_for_pushup(cake_snapshot)
+            self._cycle_count += 1
+            self._apply_anti_windup_if_needed()
         zone = self._classify_zone_3state(delta, target_delta, warn_delta, cake_snapshot)
         self._zone_trace.append(zone)
         if cake_snapshot is not None:
@@ -257,10 +269,55 @@ class QueueController:
         integral_ms_s = sum(self._integral_window) * 0.05
         self._last_integral_ms_s = integral_ms_s
         if len(self._integral_window) < (self._integral_window.maxlen or 0):
+            self._headroom_exhausted_streak += 1
             return integral_ms_s, "EXHAUSTED"
         if integral_ms_s <= self._integral_threshold_ms_s:
+            self._headroom_exhausted_streak = 0
             return integral_ms_s, "AVAILABLE"
+        self._headroom_exhausted_streak += 1
         return integral_ms_s, "EXHAUSTED"
+
+    def _recompute_headroom_state(self) -> None:
+        """Synchronously recompute headroom_state from the integral window."""
+        self._last_integral_ms_s = sum(self._integral_window) * 0.05
+        if len(self._integral_window) < (self._integral_window.maxlen or 0):
+            self._headroom_state = "EXHAUSTED"
+        elif self._last_integral_ms_s <= self._integral_threshold_ms_s:
+            self._headroom_state = "AVAILABLE"
+        else:
+            self._headroom_state = "EXHAUSTED"
+
+    def _apply_anti_windup_if_needed(self) -> None:
+        """Cap stuck DOCSIS integral after canary 20260504T231334Z floor cycles.
+
+        VERIFICATION.md identified 1453 floor cycles with integral stuck in the
+        30-155 ms*s range. Codex MEDIUM-CODEX-2 requires cap-and-clamp below
+        threshold (not halve) and immediate headroom recompute.
+        """
+        if not self._docsis_mode:
+            return
+        if self._headroom_exhausted_streak < self._anti_windup_cycles:
+            return
+        if self.current_rate != self.floor_red_bps:
+            return
+        target_ms_s = max(0.0, self._integral_threshold_ms_s - 1.0)
+        maxlen = self._integral_window.maxlen or 1
+        per_sample = (target_ms_s / 0.05) / maxlen
+        self._integral_window.clear()
+        for _ in range(maxlen):
+            self._integral_window.append(per_sample)
+        self._last_integral_ms_s = sum(self._integral_window) * 0.05
+        self._recompute_headroom_state()
+        self._headroom_exhausted_streak = 0
+        self._anti_windup_triggers += 1
+        if self._cycle_count - self._last_anti_windup_log_cycle >= self._anti_windup_cycles:
+            self._logger.info(
+                "[ANTI-WINDUP] %s integral capped to %.2f ms*s after %d EXHAUSTED cycles at floor",
+                self.name,
+                target_ms_s,
+                self._anti_windup_cycles,
+            )
+            self._last_anti_windup_log_cycle = self._cycle_count
 
     def _is_cake_aligned_for_pushup(
         self, cake: CakeSignalSnapshot | None
@@ -308,6 +365,18 @@ class QueueController:
         if self.red_streak >= 1:
             # 200-10 R3: RED decay remains immediate and resets YELLOW clamp state.
             self._yellow_decay_streak = 0
+            if self._docsis_mode and self._setpoint_bps is not None:
+                delta_max_bps = max(1, int(self._setpoint_bps * self._red_decay_delta_max_pct))
+                clamp_bps = self._setpoint_bps - delta_max_bps
+                if self.current_rate >= clamp_bps:
+                    # REGIME A: bounded-absolute decay (codex HIGH-CODEX-1 Option B).
+                    # Rev-4 invariant (HIGH-CODEX-2): immediate bounded decrease on every
+                    # RED cycle until clamp, then hold at clamp above floor. Pre-clamp
+                    # cycles decrease by step_bps; at-clamp cycles hold (MEDIUM-NEW-2
+                    # validator proves clamp > floor). Canary 20260504T231334Z cycle
+                    # table cycles 1-18 has floor_hit_cycles=0.
+                    step_bps = max(1, int(self._setpoint_bps * self._red_decay_step_pct))
+                    return max(int(self.current_rate - step_bps), clamp_bps)
             return int(self.current_rate * self.factor_down)
         if self.green_streak >= self.green_required:
             # 200-10 R3: sustained GREEN recovery resets the YELLOW clamp state.

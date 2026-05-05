@@ -76,6 +76,9 @@ KNOWN_AUTORATE_PATHS: set[str] = {
     "continuous_monitoring.upload.integral_threshold_ms_s",
     "continuous_monitoring.upload.cake_backlog_low_threshold_bytes",
     "continuous_monitoring.upload.cake_delay_delta_low_threshold_us",
+    "continuous_monitoring.upload.red_decay_step_pct",
+    "continuous_monitoring.upload.red_decay_delta_max_pct",
+    "continuous_monitoring.upload.anti_windup_cycles",
     "continuous_monitoring.upload.green_required",
     "continuous_monitoring.upload.floor_mbps",
     "continuous_monitoring.upload.floor_green_mbps",
@@ -325,6 +328,7 @@ def validate_cross_fields(data: dict) -> list[CheckResult]:
     results.extend(_validate_threshold_ordering(cm))
     results.extend(_validate_upload_threshold_ordering(cm))
     results.extend(_validate_docsis_mode_setpoint(cm))
+    results.extend(_validate_red_decay_knobs(cm))
     results.extend(_validate_transport_consistency(data))
 
     return results
@@ -526,6 +530,77 @@ def _validate_docsis_mode_setpoint(cm: dict) -> list[CheckResult]:
         _DOCSIS_SETPOINT_PATH,
         Severity.PASS,
         f"DOCSIS-mode setpoint ordering valid: floor < {sp} < ceiling",
+    )]
+
+
+def _validate_red_decay_knobs(cm: dict) -> list[CheckResult]:
+    """Validate Phase 201 rev-4 bounded RED decay safety invariants."""
+    ul = cm.get("upload", {})
+    if not isinstance(ul, dict):
+        return []
+    results: list[CheckResult] = []
+    step_raw = ul.get("red_decay_step_pct", 0.02)
+    delta_raw = ul.get("red_decay_delta_max_pct", 0.10)
+    try:
+        step = float(step_raw)
+        delta_max = float(delta_raw)
+    except (TypeError, ValueError):
+        return [CheckResult(
+            "Cross-field Checks",
+            "continuous_monitoring.upload.red_decay_step_pct",
+            Severity.ERROR,
+            f"red_decay_step_pct or red_decay_delta_max_pct is non-numeric: step={step_raw!r} delta_max={delta_raw!r}",
+        )]
+
+    if step <= 0:
+        results.append(CheckResult(
+            "Cross-field Checks",
+            "continuous_monitoring.upload.red_decay_step_pct",
+            Severity.ERROR,
+            f"continuous_monitoring.upload.red_decay_step_pct ({step}) must be > 0",
+        ))
+    if delta_max >= 1.0:
+        results.append(CheckResult(
+            "Cross-field Checks",
+            "continuous_monitoring.upload.red_decay_delta_max_pct",
+            Severity.ERROR,
+            f"continuous_monitoring.upload.red_decay_delta_max_pct ({delta_max}) must be < 1.0",
+        ))
+    if step > delta_max:
+        results.append(CheckResult(
+            "Cross-field Checks",
+            "continuous_monitoring.upload.red_decay_step_pct",
+            Severity.ERROR,
+            f"continuous_monitoring.upload.red_decay_step_pct ({step}) must be <= red_decay_delta_max_pct ({delta_max})",
+        ))
+
+    if ul.get("docsis_mode") is True:
+        setpoint = ul.get("setpoint_mbps")
+        floor = ul.get("floor_mbps", ul.get("floor_red_mbps"))
+        if setpoint is not None and floor is not None:
+            try:
+                setpoint_bps = float(setpoint) * 1_000_000
+                floor_bps = float(floor) * 1_000_000
+                clamp_bps = setpoint_bps * (1.0 - delta_max)
+            except (TypeError, ValueError):
+                clamp_bps = floor_bps = None
+            if clamp_bps is not None and floor_bps is not None and clamp_bps <= floor_bps + 1e-6:
+                results.append(CheckResult(
+                    "Cross-field Checks",
+                    "continuous_monitoring.upload.red_decay_delta_max_pct",
+                    Severity.ERROR,
+                    "continuous_monitoring.upload.docsis_mode requires "
+                    "setpoint_mbps * (1 - red_decay_delta_max_pct) > floor_mbps; "
+                    f"got clamp={clamp_bps / 1_000_000:.2f} Mbps <= floor={floor_bps / 1_000_000:.2f} Mbps. "
+                    "Either reduce red_decay_delta_max_pct or raise setpoint_mbps.",
+                ))
+    if results:
+        return results
+    return [CheckResult(
+        "Cross-field Checks",
+        "continuous_monitoring.upload.red_decay_delta_max_pct",
+        Severity.PASS,
+        "red decay safety invariants valid",
     )]
 
 

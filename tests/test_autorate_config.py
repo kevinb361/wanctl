@@ -368,8 +368,8 @@ class TestRedDecayValidators:
         cfg_path = tmp_path / "test.yaml"
         cfg_path.write_text(
             base_config_yaml_single_floor.replace(
-                "    factor_down: 0.85\n",
-                "    factor_down: 0.85\n" + upload_lines,
+                "  upload:\n    floor_mbps: 25\n    ceiling_mbps: 40\n    step_up_mbps: 1\n    factor_down: 0.85\n",
+                "  upload:\n    floor_mbps: 25\n    ceiling_mbps: 40\n    step_up_mbps: 1\n    factor_down: 0.85\n" + upload_lines,
             )
         )
         return cfg_path

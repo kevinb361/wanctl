@@ -233,6 +233,23 @@ class Config(BaseConfig):
             "max": 1_000_000,
         },
         {
+            "path": "continuous_monitoring.upload.red_decay_step_pct",
+            "type": (int, float),
+            "required": False,
+        },
+        {
+            "path": "continuous_monitoring.upload.red_decay_delta_max_pct",
+            "type": (int, float),
+            "required": False,
+        },
+        {
+            "path": "continuous_monitoring.upload.anti_windup_cycles",
+            "type": int,
+            "required": False,
+            "min": 1,
+            "max": 1000,
+        },
+        {
             "path": "continuous_monitoring.upload.green_required",
             "type": int,
             "required": False,
@@ -441,6 +458,12 @@ class Config(BaseConfig):
         self._cake_delay_delta_low_threshold_us_explicit = (
             "cake_delay_delta_low_threshold_us" in ul
         )
+        self.red_decay_step_pct = float(ul.get("red_decay_step_pct", 0.02))
+        self._red_decay_step_pct_explicit = "red_decay_step_pct" in ul
+        self.red_decay_delta_max_pct = float(ul.get("red_decay_delta_max_pct", 0.10))
+        self._red_decay_delta_max_pct_explicit = "red_decay_delta_max_pct" in ul
+        self.anti_windup_cycles = int(ul.get("anti_windup_cycles", 60))
+        self._anti_windup_cycles_explicit = "anti_windup_cycles" in ul
 
         # Validate upload floor ordering: red <= yellow <= green <= ceiling
         validate_bandwidth_order(
@@ -519,6 +542,33 @@ class Config(BaseConfig):
                     f"floor_mbps < setpoint_mbps < ceiling_mbps "
                     f"(floor_red_bps={self.upload_floor_red}, "
                     f"ceiling_bps={self.upload_ceiling})"
+                )
+        if self.red_decay_step_pct <= 0:
+            raise ValueError(
+                "continuous_monitoring.upload.red_decay_step_pct "
+                f"({self.red_decay_step_pct}) must be > 0"
+            )
+        if self.red_decay_delta_max_pct >= 1.0:
+            raise ValueError(
+                "continuous_monitoring.upload.red_decay_delta_max_pct "
+                f"({self.red_decay_delta_max_pct}) must be < 1.0"
+            )
+        if self.red_decay_step_pct > self.red_decay_delta_max_pct:
+            raise ValueError(
+                "continuous_monitoring.upload.red_decay_step_pct "
+                f"({self.red_decay_step_pct}) must be <= red_decay_delta_max_pct "
+                f"({self.red_decay_delta_max_pct})"
+            )
+        if self.docsis_mode and self.setpoint_mbps is not None:
+            setpoint_bps = float(self.setpoint_mbps) * MBPS_TO_BPS
+            clamp_bps = setpoint_bps * (1.0 - self.red_decay_delta_max_pct)
+            if clamp_bps <= self.upload_floor_red + 1e-6:
+                raise ValueError(
+                    "continuous_monitoring.upload.docsis_mode requires "
+                    "setpoint_mbps * (1 - red_decay_delta_max_pct) > floor_mbps; "
+                    f"got clamp={clamp_bps / MBPS_TO_BPS:.2f} Mbps <= "
+                    f"floor={self.upload_floor_red / MBPS_TO_BPS:.2f} Mbps. "
+                    "Either reduce red_decay_delta_max_pct or raise setpoint_mbps."
                 )
 
     def _load_ewma_alpha_config(self, thresh: dict) -> None:

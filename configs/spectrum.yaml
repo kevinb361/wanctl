@@ -86,6 +86,16 @@ continuous_monitoring:
     # backlog winner = 5000 bytes; delay-delta low = 5ms (deadband_ms analog).
     cake_backlog_low_threshold_bytes: 5000
     cake_delay_delta_low_threshold_us: 5000
+    # Phase 201 gap-closure rev 4 (Codex Option B for HIGH-CODEX-1; rev-4 wording for HIGH-CODEX-2):
+    # Bounded-absolute RED decay. Pre-clamp cycles 1-5: immediate bounded decrease
+    # (step=2% of setpoint = 240k for setpoint=12M). At-clamp cycles 6+: hold at
+    # clamp = setpoint - delta_max where delta_max=10% (clamp=10.8M for setpoint=12M).
+    # Validator (d) ensures clamp > floor (codex MEDIUM-NEW-2): 10.8M > 8M floor.
+    # floor_hit_cycles=0 across the canary 20260504T231334Z 18-cycle RED burst.
+    red_decay_step_pct: 0.02
+    red_decay_delta_max_pct: 0.10
+    # 60 cycles = 3s; cap-and-clamp integral STRICTLY BELOW threshold (codex MEDIUM-CODEX-2).
+    anti_windup_cycles: 60
     green_required: 3 # linux-cake confirmed 2026-04-02 (unchanged from REST)
 
   # RTT thresholds (Phase 2A: 4-state for download)
