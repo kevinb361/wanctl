@@ -3608,6 +3608,118 @@ class TestDocsisModeCakeCorroborator:
         assert ctrl._is_cake_aligned_for_pushup(None) is False
 
 
+class TestDocsisModeDiagnosticHealth:
+    def test_zone_trace_is_bounded_to_200_entries(self):
+        ctrl = _make_docsis_controller()
+
+        assert ctrl._zone_trace.maxlen == 200
+
+    def test_zone_trace_records_last_200_adjust_zones_in_fifo_order(self):
+        ctrl = _make_docsis_controller()
+        zones = []
+
+        for idx in range(250):
+            delta = 1.0 if idx % 3 == 0 else 10.0 if idx % 3 == 1 else 100.0
+            zone, _rate, _reason = ctrl.adjust(
+                baseline_rtt=22.0,
+                load_rtt=22.0 + delta,
+                target_delta=5.0,
+                warn_delta=75.0,
+                cake_snapshot=_cake_snapshot(max_delay_delta_us=idx),
+            )
+            zones.append(zone)
+
+        assert len(ctrl._zone_trace) == 200
+        assert list(ctrl._zone_trace) == zones[-200:]
+        assert ctrl.get_health_data()["zone_trace"] == zones[-200:]
+
+    def test_health_exposes_zone_trace_as_list_red_streak_and_max_delay(self):
+        ctrl = _make_docsis_controller()
+
+        zone, _rate, _reason = ctrl.adjust(
+            baseline_rtt=22.0,
+            load_rtt=122.0,
+            target_delta=5.0,
+            warn_delta=75.0,
+            cake_snapshot=_cake_snapshot(max_delay_delta_us=4321),
+        )
+        health = ctrl.get_health_data()
+
+        assert health["zone_trace"] == [zone]
+        assert isinstance(health["zone_trace"], list)
+        assert health["red_streak"] == ctrl.red_streak
+        assert health["red_streak"] >= 0
+        assert health["max_delay_delta_us"] == 4321
+
+    def test_max_delay_delta_cold_start_defaults_to_zero(self):
+        ctrl = _make_docsis_controller()
+
+        assert ctrl.get_health_data()["max_delay_delta_us"] == 0
+
+    def test_none_cake_snapshot_retains_previous_max_delay_delta(self):
+        ctrl = _make_docsis_controller()
+
+        ctrl.adjust(
+            baseline_rtt=22.0,
+            load_rtt=23.0,
+            target_delta=5.0,
+            warn_delta=75.0,
+            cake_snapshot=_cake_snapshot(max_delay_delta_us=9876),
+        )
+        ctrl.adjust(
+            baseline_rtt=22.0,
+            load_rtt=23.0,
+            target_delta=5.0,
+            warn_delta=75.0,
+            cake_snapshot=None,
+        )
+
+        assert ctrl.get_health_data()["max_delay_delta_us"] == 9876
+
+    def test_zone_trace_records_legacy_mode_cycles_too(self):
+        ctrl = _make_docsis_controller(docsis_mode=False, setpoint_bps=None)
+
+        for idx in range(5):
+            ctrl.adjust(
+                baseline_rtt=22.0,
+                load_rtt=22.0 + idx,
+                target_delta=5.0,
+                warn_delta=75.0,
+            )
+
+        assert len(ctrl.get_health_data()["zone_trace"]) == 5
+
+    def test_absorbed_counters_default_fallbacks_are_serialized(self):
+        ctrl = _make_docsis_controller()
+        health = ctrl.get_health_data()
+
+        assert health["headroom_exhausted_streak"] == 0
+        assert health["anti_windup_cycles"] == 60
+        assert health["anti_windup_triggers"] == 0
+        assert isinstance(health["headroom_exhausted_streak"], int)
+        assert isinstance(health["anti_windup_cycles"], int)
+        assert isinstance(health["anti_windup_triggers"], int)
+
+    def test_active_knob_defaults_are_serialized_as_floats(self):
+        ctrl = _make_docsis_controller()
+        health = ctrl.get_health_data()
+
+        assert health["red_decay_step_pct"] == pytest.approx(0.02)
+        assert health["red_decay_delta_max_pct"] == pytest.approx(0.10)
+        assert isinstance(health["red_decay_step_pct"], float)
+        assert isinstance(health["red_decay_delta_max_pct"], float)
+
+    def test_active_knob_runtime_state_echoes_controller_attributes(self):
+        ctrl = _make_docsis_controller()
+        ctrl._red_decay_step_pct = 0.05
+        ctrl._red_decay_delta_max_pct = 0.15
+
+        health = ctrl.get_health_data()
+
+        assert health["red_decay_step_pct"] == pytest.approx(0.05)
+        assert health["red_decay_delta_max_pct"] == pytest.approx(0.15)
+
+
 class TestDocsisModeByteIdentity:
     def test_legacy_path_unchanged_when_docsis_disabled(self):
         legacy = QueueController(
