@@ -369,13 +369,16 @@ class TestRedDecayValidators:
         cfg_path.write_text(
             base_config_yaml_single_floor.replace(
                 "  upload:\n    floor_mbps: 25\n    ceiling_mbps: 40\n    step_up_mbps: 1\n    factor_down: 0.85\n",
-                "  upload:\n    floor_mbps: 25\n    ceiling_mbps: 40\n    step_up_mbps: 1\n    factor_down: 0.85\n" + upload_lines,
+                "  upload:\n    floor_mbps: 25\n    ceiling_mbps: 40\n    step_up_mbps: 1\n    factor_down: 0.85\n"
+                + upload_lines,
             )
         )
         return cfg_path
 
     def _load_with_upload(self, tmp_path, base_config_yaml_single_floor: str, upload_lines: str):
-        return Config(str(self._write_with_upload(tmp_path, base_config_yaml_single_floor, upload_lines)))
+        return Config(
+            str(self._write_with_upload(tmp_path, base_config_yaml_single_floor, upload_lines))
+        )
 
     def test_step_pct_must_be_positive(self, tmp_path, base_config_yaml_single_floor):
         for value in (0.0, -0.01):
@@ -616,9 +619,7 @@ class TestUploadYellowDecayClampConfig:
         explicit_config_file.write_text(
             base_config_yaml_single_floor.replace(
                 "    factor_down: 0.85\n  thresholds:",
-                "    factor_down: 0.85\n"
-                "    consecutive_yellow_decay_clamp: 40\n"
-                "  thresholds:",
+                "    factor_down: 0.85\n    consecutive_yellow_decay_clamp: 40\n  thresholds:",
             )
         )
 
@@ -633,17 +634,12 @@ class TestUploadYellowDecayClampConfig:
         """SAFE-06: the new upload key is registered and emits no unknown-key warning."""
         from wanctl.check_config_validators import KNOWN_AUTORATE_PATHS
 
-        assert (
-            "continuous_monitoring.upload.consecutive_yellow_decay_clamp"
-            in KNOWN_AUTORATE_PATHS
-        )
+        assert "continuous_monitoring.upload.consecutive_yellow_decay_clamp" in KNOWN_AUTORATE_PATHS
         config_file = tmp_path / "config.yaml"
         config_file.write_text(
             base_config_yaml_single_floor.replace(
                 "    factor_down: 0.85\n  thresholds:",
-                "    factor_down: 0.85\n"
-                "    consecutive_yellow_decay_clamp: 40\n"
-                "  thresholds:",
+                "    factor_down: 0.85\n    consecutive_yellow_decay_clamp: 40\n  thresholds:",
             )
         )
 
@@ -665,9 +661,7 @@ class TestSafe06UnknownKeyWarning:
         """Synthetic unknown key produces a WARNING containing its path."""
         unknown_key_yaml = base_config_yaml_single_floor.replace(
             "    factor_down: 0.85\n  thresholds:",
-            "    factor_down: 0.85\n"
-            "    target_bloat_ms_typo: 42\n"
-            "  thresholds:",
+            "    factor_down: 0.85\n    target_bloat_ms_typo: 42\n  thresholds:",
         )
         config_file = tmp_path / "config.yaml"
         config_file.write_text(unknown_key_yaml)
@@ -692,10 +686,7 @@ class TestSafe06UnknownKeyWarning:
         """Valid YAML produces zero unknown-key WARNINGs."""
         yaml_text = base_config_yaml_single_floor.replace(
             "    factor_down: 0.85\n  thresholds:",
-            "    factor_down: 0.85\n"
-            "    target_bloat_ms: 42\n"
-            "    warn_bloat_ms: 105\n"
-            "  thresholds:",
+            "    factor_down: 0.85\n    target_bloat_ms: 42\n    warn_bloat_ms: 105\n  thresholds:",
         )
         config_file = tmp_path / "config.yaml"
         config_file.write_text(yaml_text)
@@ -707,8 +698,7 @@ class TestSafe06UnknownKeyWarning:
             rec for rec in caplog.records if "Unknown config key" in rec.getMessage()
         ]
         assert unknown_warnings == [], (
-            f"Expected zero unknown-key warnings, got: "
-            f"{[r.getMessage() for r in unknown_warnings]}"
+            f"Expected zero unknown-key warnings, got: {[r.getMessage() for r in unknown_warnings]}"
         )
 
 
@@ -1630,9 +1620,7 @@ lock_timeout: 300
 
         assert config.cake_stats_cadence_sec == pytest.approx(1.0)
 
-    def test_cake_stats_cadence_sec_warns_and_caps_on_absurdly_large_value(
-        self, tmp_path, caplog
-    ):
+    def test_cake_stats_cadence_sec_warns_and_caps_on_absurdly_large_value(self, tmp_path, caplog):
         for value_literal in ("10.1", "100", "99999"):
             caplog.clear()
             with caplog.at_level(logging.WARNING, logger="wanctl.autorate_config"):

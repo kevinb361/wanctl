@@ -252,18 +252,38 @@ Enable per deployment by setting:
         integral_threshold_ms_s: 30.0         # 1.0..1000.0
         cake_backlog_low_threshold_bytes: 5000
         cake_delay_delta_low_threshold_us: 5000
+        red_decay_step_pct: 0.02
+        red_decay_delta_max_pct: 0.10
+        anti_windup_cycles: 60
 
 When `docsis_mode: true`, the upload controller:
 
 - Runs `setpoint_mbps` as the operating point (NOT the ceiling).
 - Uses a windowed RTT integral as the headroom probe.
 - AND-gates push-toward-ceiling on CAKE backlog/delay-delta low.
+- In RED, uses bounded-absolute decay while in the setpoint band: decrease by
+  `red_decay_step_pct × setpoint_mbps` until reaching
+  `setpoint_mbps × (1 - red_decay_delta_max_pct)`, then hold at that clamp
+  above floor. Below that band, or with `docsis_mode: false`, legacy
+  multiplicative RED decay applies.
+- When stuck at floor with exhausted headroom for `anti_windup_cycles`, caps the
+  integral strictly below threshold and recomputes `headroom_state`
+  synchronously so recovery is not gated on a stale saturated window.
 
 For Spectrum v1.42, `setpoint_mbps: 12` is an assumed starting point rather than a sweep-proven optimum. Treat a setpoint-specific canary failure as a parameter branch first; prefer testing `10` before `14`.
 
 When `docsis_mode: false` or absent, behavior is byte-identical to v1.41.
 
 **Required ordering:** `floor_mbps < setpoint_mbps < ceiling_mbps` (strict; validator fails closed on violation).
+
+**Red-decay validation (config load + `wanctl check-config`):**
+
+- `red_decay_step_pct` must be `> 0` (default `0.02`).
+- `red_decay_step_pct` must be `≤ red_decay_delta_max_pct`.
+- `red_decay_delta_max_pct` must be `< 1.0` (default `0.10`).
+- When `docsis_mode: true`, `setpoint_mbps × (1 − red_decay_delta_max_pct) > floor_mbps` (strict; at-equality rejects). Example: with `setpoint_mbps: 12` and `floor_mbps: 8`, the max safe `red_decay_delta_max_pct` is `< 1/3 = 0.333…`.
+
+`anti_windup_cycles` defaults to `60` cycles (3 seconds at the production 50ms loop).
 
 **Service restart required.** SIGUSR1 does NOT reload these keys. Apply changes with:
 

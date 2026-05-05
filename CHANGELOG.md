@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `setpoint_mbps: 12` is `[ASSUMED]`, not sweep-proven. Phase 201 canary validates it; if setpoint-specific canary failure occurs, the next branch should prefer `10` before testing `14`.
 - Upload `QueueController.adjust()` augmented with optional integral path + setpoint clamp. Legacy path byte-identical when `docsis_mode` absent.
 
+### Fixed
+
+- **Phase 201 gap-closure (rev 4, Codex round-2 driven):** DOCSIS-aware UL mode no longer cascades `current_rate` from setpoint to floor under sustained RED. Replaces multiplicative `factor_down=0.9` with **bounded-absolute decay** (codex Option B): step 2% of setpoint per cycle, clamped at setpoint − 10%. Invariant (rev-4 wording, codex HIGH-CODEX-2): immediate bounded decrease on every RED cycle until clamp, then hold at clamp above floor. Cycle 1-18 expected rates explicitly tabled and asserted. Adds integral anti-windup with cap-and-clamp (strictly below threshold, not halve) and synchronous `headroom_state` recompute. Adds config-load validators (codex MEDIUM-NEW-2) that reject unsafe red-decay knobs: `0 < step_pct`, `step_pct ≤ delta_max_pct < 1.0`, and (under `docsis_mode`) clamp must be strictly > floor. All control changes gated on `continuous_monitoring.upload.docsis_mode: true`. Non-DOCSIS deployments are byte-identical. Closes the 1453-floor-cycle margin from canary 20260504T231334Z.
+
 ### Migration
 
 **Service restart required** for the new keys. SIGUSR1 does NOT reload them. Apply with: `sudo systemctl restart wanctl@<wan>.service`.

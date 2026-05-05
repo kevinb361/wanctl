@@ -319,9 +319,7 @@ class QueueController:
             )
             self._last_anti_windup_log_cycle = self._cycle_count
 
-    def _is_cake_aligned_for_pushup(
-        self, cake: CakeSignalSnapshot | None
-    ) -> bool:
+    def _is_cake_aligned_for_pushup(self, cake: CakeSignalSnapshot | None) -> bool:
         """Categorical AND-gate: backlog low AND max_delay_delta_us low.
 
         Phase 197 mirror — never µs/ms ratio (Phase 200 RETRO Codex pushback).
@@ -344,9 +342,7 @@ class QueueController:
         self._yellow_dwell += 1
         _dir = "DL" if self.name == "download" else "UL"
         if self._yellow_dwell >= self.dwell_cycles:
-            self._logger.info(
-                "[HYSTERESIS] %s dwell expired, GREEN->YELLOW confirmed", _dir
-            )
+            self._logger.info("[HYSTERESIS] %s dwell expired, GREEN->YELLOW confirmed", _dir)
             return "YELLOW"
 
         # Hold GREEN during dwell, rates hold steady (D-01)
@@ -431,7 +427,9 @@ class QueueController:
         # RECOV-01: Exponential probing
         step = int(self.step_up_bps * self._probe_multiplier)
         self._probe_multiplier *= self._probe_multiplier_factor
-        max_multiplier = max(1.0, (self.ceiling_bps - self.floor_red_bps) / max(1, self.step_up_bps))
+        max_multiplier = max(
+            1.0, (self.ceiling_bps - self.floor_red_bps) / max(1, self.step_up_bps)
+        )
         self._probe_multiplier = min(self._probe_multiplier, max_multiplier)
         self._probe_step_count += 1
         return step
@@ -504,7 +502,9 @@ class QueueController:
         self._dwell_bypassed_this_cycle = False
         self._backlog_suppressed_this_cycle = False
         delta = load_rtt - baseline_rtt
-        zone = self._classify_zone_4state(delta, green_threshold, soft_red_threshold, hard_red_threshold, cake_snapshot)
+        zone = self._classify_zone_4state(
+            delta, green_threshold, soft_red_threshold, hard_red_threshold, cake_snapshot
+        )
 
         # Track congestion during window (Phase 136: HYST-01)
         if zone in ("YELLOW", "SOFT_RED", "RED"):
@@ -515,7 +515,11 @@ class QueueController:
         self.current_rate = new_rate
 
         transition_reason = self._build_transition_reason(
-            zone, delta, target=green_threshold, soft_red=soft_red_threshold, hard_red=hard_red_threshold
+            zone,
+            delta,
+            target=green_threshold,
+            soft_red=soft_red_threshold,
+            hard_red=hard_red_threshold,
         )
         return zone, new_rate, transition_reason
 
@@ -682,12 +686,11 @@ class QueueController:
                 "probe_multiplier_factor": self._probe_multiplier_factor,
                 "probe_ceiling_pct": self._probe_ceiling_pct,
                 "probe_step_count": self._probe_step_count,
-                "above_ceiling_pct": self.current_rate >= self.ceiling_bps * self._probe_ceiling_pct,
+                "above_ceiling_pct": self.current_rate
+                >= self.ceiling_bps * self._probe_ceiling_pct,
             },
             "docsis_mode_active": bool(self._docsis_mode),
-            "setpoint_mbps": (
-                (self._setpoint_bps / 1_000_000) if self._setpoint_bps else None
-            ),
+            "setpoint_mbps": ((self._setpoint_bps / 1_000_000) if self._setpoint_bps else None),
             "headroom_state": self._headroom_state,
             "rtt_integral_ms_s": round(self._last_integral_ms_s, 3),
             "cake_aligned": bool(self._cake_aligned),
@@ -698,15 +701,11 @@ class QueueController:
             "zone_trace": list(self._zone_trace),
             # Absorbed from Plan 201-14 rev 4 WARNING 4/6. Fallbacks tolerate
             # pre-201-14 controller state for wave-ordering safety.
-            "headroom_exhausted_streak": int(
-                getattr(self, "_headroom_exhausted_streak", 0)
-            ),
+            "headroom_exhausted_streak": int(getattr(self, "_headroom_exhausted_streak", 0)),
             "anti_windup_cycles": int(getattr(self, "_anti_windup_cycles", 60)),
             "anti_windup_triggers": int(getattr(self, "_anti_windup_triggers", 0)),
             # REV 3 (codex MEDIUM-CODEX-3 active-knob proof) — runtime-state
             # echoes, NOT YAML re-reads.
             "red_decay_step_pct": float(getattr(self, "_red_decay_step_pct", 0.02)),
-            "red_decay_delta_max_pct": float(
-                getattr(self, "_red_decay_delta_max_pct", 0.10)
-            ),
+            "red_decay_delta_max_pct": float(getattr(self, "_red_decay_delta_max_pct", 0.10)),
         }
