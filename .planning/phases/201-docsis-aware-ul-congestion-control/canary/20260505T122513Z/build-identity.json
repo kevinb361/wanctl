@@ -1,0 +1,9 @@
+{
+  "git_sha": "311c9a484abbc1fd66e0adb3b8fba1d701b7b02e",
+  "git_status_clean": false,
+  "version_init_py": "1.42.1",
+  "version_pyproject": "1.42.1",
+  "version_dockerfile": "1.42.1",
+  "build_utc": "2026-05-05T12:21:30+00:00",
+  "recanary_ts": "20260505T122130Z"
+}

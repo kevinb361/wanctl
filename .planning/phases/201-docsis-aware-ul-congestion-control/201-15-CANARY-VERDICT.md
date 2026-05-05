@@ -1,7 +1,7 @@
 # Phase 201 Plan 15 — Re-Canary Verdict (VALN-06 Primary Gate)
 
 **Re-canary timestamp:** `20260505T122130Z`  
-**Status:** predeploy/deploy complete; canary pending  
+**Status:** canary complete; awaiting operator verdict decision  
 **Capture path:** `.planning/phases/201-docsis-aware-ul-congestion-control/canary/20260505T122130Z/`
 
 ## Build Identity
@@ -86,8 +86,44 @@ Full Task 3 log: `.planning/phases/201-docsis-aware-ul-congestion-control/canary
 
 ## Canary Results
 
-Pending Task 4.
+**Canary run ID:** `20260505T122513Z`  
+**Canonical verdict:** `.planning/phases/201-docsis-aware-ul-congestion-control/canary/20260505T122513Z/verdict.json`
+
+```json
+{
+  "verdict": "pass",
+  "reason": "floor_hit_cycles_total_delta_zero_and_snapshot_zero",
+  "primary_gate": "floor_hit_cycles_total_delta_loaded_window",
+  "primary_gate_value": 0,
+  "floor_hit_cycles_total_loaded_window_start": 0,
+  "floor_hit_cycles_total_loaded_window_end": 0,
+  "floor_hit_cycles_total_delta_loaded_window": 0,
+  "ul_floor_hits_during_load": 0,
+  "duration_sec": 1022,
+  "pre_baseline_rtt_ms": 21.83,
+  "post_baseline_rtt_ms": 22.19
+}
+```
+
+### Loaded Capture Diagnostic Field Check
+
+First captured loaded row contains all eight Plan 201-13 rev 3 fields and the rev-4 active knobs:
+
+```json
+{
+  "max_delay_delta_us": 501,
+  "red_streak": 0,
+  "zone_trace_len": 200,
+  "anti_windup_cycles": 60,
+  "anti_windup_triggers": 0,
+  "headroom_exhausted_streak": 0,
+  "red_decay_step_pct": 0.02,
+  "red_decay_delta_max_pct": 0.1
+}
+```
+
+**Inline analysis:** primary gate closed from Plan 201-11's `1453` loaded-window floor-hit cycles to `0`; the 1Hz secondary cross-check also closed from `84` floor samples to `0`. The PASS is schema-compatible with the 201-11 verdict shape and uses the same `primary_gate` identifier.
 
 ## Decision
 
-Pending Task 5 operator verdict decision after canary execution.
+Pending Task 5 operator verdict decision after canary execution. The objective canary data supports selecting `pass` because `primary_gate_value == 0` and `ul_floor_hits_during_load == 0`.
