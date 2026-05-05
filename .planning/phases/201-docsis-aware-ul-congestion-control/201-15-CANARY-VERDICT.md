@@ -1,7 +1,7 @@
 # Phase 201 Plan 15 — Re-Canary Verdict (VALN-06 Primary Gate)
 
 **Re-canary timestamp:** `20260505T122130Z`  
-**Status:** canary complete; awaiting operator verdict decision  
+**Status:** PASS — Plan 201-16 soak unblocked  
 **Capture path:** `.planning/phases/201-docsis-aware-ul-congestion-control/canary/20260505T122130Z/`
 
 ## Build Identity
@@ -126,4 +126,49 @@ First captured loaded row contains all eight Plan 201-13 rev 3 fields and the re
 
 ## Decision
 
-Pending Task 5 operator verdict decision after canary execution. The objective canary data supports selecting `pass` because `primary_gate_value == 0` and `ul_floor_hits_during_load == 0`.
+- [x] PASS — operator selected `pass`; proceed to Plan 201-16 (24h soak).
+- [ ] FAIL — rollback from Snapshot A (rollback-clean) was not executed because both gates passed.
+- [ ] ABORT — not selected.
+
+The PASS decision is supported by both canary gates:
+
+| Gate | Required | Actual | Result |
+|---|---:|---:|---|
+| Primary: `floor_hit_cycles_total_delta_loaded_window` | 0 | 0 | PASS |
+| Secondary: `ul_floor_hits_during_load` | 0 | 0 | PASS |
+
+## PASS Closeout / Soak Handoff
+
+- Verdict: **PASS**.
+- Primary gate value: `0`.
+- Secondary gate value: `0`.
+- Soak T+0 baseline: `0` (`floor_hit_cycles_total_loaded_window_end` from `verdict.json`).
+- Plan 201-16 is unblocked and must use the T+0 baseline above for the 24h soak window.
+- Snapshot A and Snapshot B are both retained on `cake-shaper` for evidence; no rollback was performed.
+- Soak runs against the deployed v1.42.1 binary and reconciled Phase 201 Spectrum YAML.
+
+## Post-Canary /health Snapshot
+
+```json
+{
+  "version": "1.42.1",
+  "status": "healthy",
+  "upload": {
+    "docsis_mode_active": true,
+    "setpoint_mbps": 12.0,
+    "floor_hit_cycles_total": 0,
+    "anti_windup_cycles": 60,
+    "red_decay_step_pct": 0.02,
+    "red_decay_delta_max_pct": 0.1,
+    "anti_windup_triggers": 0,
+    "headroom_exhausted_streak": 0,
+    "max_delay_delta_us": 449,
+    "red_streak": 0,
+    "zone_trace_len": 200
+  }
+}
+```
+
+## Downstream Effect
+
+Plan 201-15 closes the VALN-06 re-canary gate for the amended v1.42.1 control model: the Plan 201-11 failure margin (`primary_gate_value=1453`, secondary `84`) is reduced to `0` / `0`. Proceed to Plan 201-16 for the 24h soak watchdog; do not rollback while the PASS path remains selected and `/health.version` stays `1.42.1`.
