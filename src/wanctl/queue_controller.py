@@ -120,6 +120,10 @@ class QueueController:
         self._last_integral_ms_s: float = 0.0
         # REVIEWS HIGH-5: cycle-fidelity floor-hit counter (monotonic, daemon lifetime).
         self.floor_hit_cycles: int = 0
+        # Phase 201 gap-closure: diagnostic fields for /health serialization.
+        # Bounded ring buffer; 200 entries = 10s of cycles @ 50ms.
+        self._zone_trace: deque[str] = deque(maxlen=200)
+        self._last_max_delay_delta_us: int = 0
         # DOCSIS-mode current_rate seed (RESEARCH §4 recommendation): avoid a
         # 1-cycle ceiling-touch at daemon start by initializing at setpoint.
         if self._docsis_mode and self._setpoint_bps is not None:
@@ -159,6 +163,9 @@ class QueueController:
             self._last_integral_ms_s, self._headroom_state = self._update_integral(delta)
             self._cake_aligned = self._is_cake_aligned_for_pushup(cake_snapshot)
         zone = self._classify_zone_3state(delta, target_delta, warn_delta, cake_snapshot)
+        self._zone_trace.append(zone)
+        if cake_snapshot is not None:
+            self._last_max_delay_delta_us = int(cake_snapshot.max_delay_delta_us)
 
         # Track congestion during window (Phase 136: HYST-01)
         if zone in ("YELLOW", "RED"):
@@ -616,4 +623,21 @@ class QueueController:
             "rtt_integral_ms_s": round(self._last_integral_ms_s, 3),
             "cake_aligned": bool(self._cake_aligned),
             "floor_hit_cycles_total": int(self.floor_hit_cycles),
+            # Original Plan 201-13 fields (rev 1):
+            "max_delay_delta_us": int(self._last_max_delay_delta_us),
+            "red_streak": int(self.red_streak),
+            "zone_trace": list(self._zone_trace),
+            # Absorbed from Plan 201-14 rev 4 WARNING 4/6. Fallbacks tolerate
+            # pre-201-14 controller state for wave-ordering safety.
+            "headroom_exhausted_streak": int(
+                getattr(self, "_headroom_exhausted_streak", 0)
+            ),
+            "anti_windup_cycles": int(getattr(self, "_anti_windup_cycles", 60)),
+            "anti_windup_triggers": int(getattr(self, "_anti_windup_triggers", 0)),
+            # REV 3 (codex MEDIUM-CODEX-3 active-knob proof) — runtime-state
+            # echoes, NOT YAML re-reads.
+            "red_decay_step_pct": float(getattr(self, "_red_decay_step_pct", 0.02)),
+            "red_decay_delta_max_pct": float(
+                getattr(self, "_red_decay_delta_max_pct", 0.10)
+            ),
         }
