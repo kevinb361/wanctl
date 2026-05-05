@@ -3065,6 +3065,182 @@ class TestDwellBypassedCountSurfacing:
         assert "dwell_bypassed_count" not in data["wans"][0]["upload"]["hysteresis"]
 
 
+class TestPhase201DiagnosticHealthFields:
+    """Tests for Plan 201-13 additive upload diagnostic health fields."""
+
+    def _make_wan(self, *, docsis_mode_active: bool = True, qc_overrides=None):
+        wan = MagicMock()
+        wan.baseline_rtt = 22.0
+        wan.load_rtt = 23.0
+        for qc, rate in ((wan.download, 800_000_000), (wan.upload, 12_000_000)):
+            qc.current_rate = rate
+            qc.red_streak = 0
+            qc.soft_red_streak = 0
+            qc.soft_red_required = 3
+            qc.green_streak = 5
+            qc.green_required = 5
+            qc._yellow_dwell = 0
+            qc.dwell_cycles = 3
+            qc.deadband_ms = 3.0
+            qc._transitions_suppressed = 0
+            qc._window_suppressions = 0
+            qc._window_start_time = 1712345000.0
+        wan.router_connectivity.is_reachable = True
+        wan.router_connectivity.to_dict.return_value = {
+            "is_reachable": True,
+            "consecutive_failures": 0,
+            "last_failure_type": None,
+            "last_failure_time": None,
+        }
+        wan._last_signal_result = None
+        wan._irtt_thread = None
+        wan._irtt_correlation = None
+        wan._last_asymmetry_result = None
+        wan._fusion_enabled = False
+        wan._fusion_icmp_weight = 0.7
+        wan._last_fused_rtt = None
+        wan._last_icmp_filtered_rtt = None
+        wan._fusion_healer = None
+        _configure_wan_health_data(wan)
+
+        qc_health = {
+            "hysteresis": {
+                "dwell_counter": wan.upload._yellow_dwell,
+                "dwell_cycles": wan.upload.dwell_cycles,
+                "deadband_ms": wan.upload.deadband_ms,
+                "transitions_suppressed": wan.upload._transitions_suppressed,
+                "suppressions_per_min": wan.upload._window_suppressions,
+                "window_start_epoch": wan.upload._window_start_time,
+            },
+            "cake_detection": {},
+            "docsis_mode_active": docsis_mode_active,
+            "setpoint_mbps": 12.0 if docsis_mode_active else None,
+            "headroom_state": "EXHAUSTED",
+            "rtt_integral_ms_s": 42.125,
+            "cake_aligned": False,
+            "floor_hit_cycles_total": 123,
+            "max_delay_delta_us": 4321,
+            "red_streak": 2,
+            "zone_trace": ["GREEN", "YELLOW", "RED"],
+            "headroom_exhausted_streak": 9,
+            "anti_windup_cycles": 60,
+            "anti_windup_triggers": 4,
+            "red_decay_step_pct": 0.03,
+            "red_decay_delta_max_pct": 0.15,
+        }
+        if qc_overrides:
+            qc_health.update(qc_overrides)
+        wan.upload.get_health_data.return_value = qc_health
+        return wan
+
+    def _payload_for_wan(self, wan):
+        upload = HealthCheckHandler._build_rate_hysteresis_section(
+            HealthCheckHandler,
+            wan.upload,
+            {"suppression_alert": {"threshold": 20}},
+            "upload",
+        )
+        return {"wans": [{"upload": upload}]}
+
+    def test_upload_contains_original_three_diagnostics_with_types(self):
+        upload = self._payload_for_wan(self._make_wan())["wans"][0]["upload"]
+
+        assert isinstance(upload["max_delay_delta_us"], int)
+        assert isinstance(upload["red_streak"], int)
+        assert upload["zone_trace"] == ["GREEN", "YELLOW", "RED"]
+
+    def test_zone_trace_entries_are_known_zone_strings(self):
+        upload = self._payload_for_wan(self._make_wan())["wans"][0]["upload"]
+
+        assert set(upload["zone_trace"]) <= {"GREEN", "YELLOW", "RED"}
+
+    def test_upload_contains_absorbed_counter_fields_with_types(self):
+        upload = self._payload_for_wan(self._make_wan())["wans"][0]["upload"]
+
+        assert isinstance(upload["headroom_exhausted_streak"], int)
+        assert isinstance(upload["anti_windup_cycles"], int)
+        assert isinstance(upload["anti_windup_triggers"], int)
+
+    def test_upload_contains_active_knob_fields_with_types(self):
+        upload = self._payload_for_wan(self._make_wan())["wans"][0]["upload"]
+
+        assert upload["red_decay_step_pct"] == pytest.approx(0.03)
+        assert upload["red_decay_delta_max_pct"] == pytest.approx(0.15)
+        assert isinstance(upload["red_decay_step_pct"], float)
+        assert isinstance(upload["red_decay_delta_max_pct"], float)
+
+    def test_active_knob_passthrough_reflects_qc_health_values(self):
+        wan = self._make_wan(
+            qc_overrides={"red_decay_step_pct": 0.07, "red_decay_delta_max_pct": 0.20}
+        )
+        upload = self._payload_for_wan(wan)["wans"][0]["upload"]
+
+        assert upload["red_decay_step_pct"] == pytest.approx(0.07)
+        assert upload["red_decay_delta_max_pct"] == pytest.approx(0.20)
+
+    def test_existing_phase201_upload_fields_remain_present_and_typed(self):
+        upload = self._payload_for_wan(self._make_wan())["wans"][0]["upload"]
+
+        assert isinstance(upload["docsis_mode_active"], bool)
+        assert isinstance(upload["setpoint_mbps"], float)
+        assert isinstance(upload["headroom_state"], str)
+        assert isinstance(upload["rtt_integral_ms_s"], float)
+        assert isinstance(upload["cake_aligned"], bool)
+        assert isinstance(upload["floor_hit_cycles_total"], int)
+
+    def test_new_fields_present_when_docsis_mode_false(self):
+        upload = self._payload_for_wan(self._make_wan(docsis_mode_active=False))["wans"][0]["upload"]
+
+        for field in (
+            "max_delay_delta_us",
+            "red_streak",
+            "zone_trace",
+            "headroom_exhausted_streak",
+            "anti_windup_cycles",
+            "anti_windup_triggers",
+            "red_decay_step_pct",
+            "red_decay_delta_max_pct",
+        ):
+            assert field in upload
+
+    def test_new_fields_use_defaults_when_qc_health_omits_values(self):
+        upload = self._payload_for_wan(
+            self._make_wan(
+                qc_overrides={
+                    "max_delay_delta_us": None,
+                    "red_streak": None,
+                    "zone_trace": None,
+                    "headroom_exhausted_streak": None,
+                    "anti_windup_cycles": None,
+                    "anti_windup_triggers": None,
+                    "red_decay_step_pct": None,
+                    "red_decay_delta_max_pct": None,
+                }
+            )
+        )["wans"][0]["upload"]
+
+        assert upload["max_delay_delta_us"] == 0
+        assert upload["red_streak"] == 0
+        assert upload["zone_trace"] == []
+        assert upload["headroom_exhausted_streak"] == 0
+        assert upload["anti_windup_cycles"] == 60
+        assert upload["anti_windup_triggers"] == 0
+        assert upload["red_decay_step_pct"] == pytest.approx(0.02)
+        assert upload["red_decay_delta_max_pct"] == pytest.approx(0.10)
+
+    def test_sustained_red_cycles_absent_from_upload_payload(self):
+        upload = self._payload_for_wan(self._make_wan())["wans"][0]["upload"]
+
+        assert "sustained_red_cycles" not in upload
+
+    def test_upload_diagnostic_payload_is_json_serializable(self):
+        data = self._payload_for_wan(self._make_wan())
+
+        encoded = json.dumps(data["wans"][0]["upload"])
+
+        assert "red_decay_step_pct" in encoded
+
+
 class TestCycleBudgetStatus:
     """Tests for cycle budget status field computation (Phase 132: PERF-03, D-06)."""
 
