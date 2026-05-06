@@ -126,3 +126,90 @@ class TestCompletedWindowOracle:
         ), f"mean {mean} drifted from codex oracle {ORACLE_PEAK_MEAN_APPROX}"
         assert _percentile(window_counts, 95) == ORACLE_P95
         assert max(window_counts) == ORACLE_MAX
+
+
+class TestRecordSuppressionSyntheticTrace:
+    def _make_qc(self):
+        from wanctl.queue_controller import QueueController
+
+        return QueueController(
+            name="upload",
+            floor_green=8_000_000,
+            floor_yellow=8_000_000,
+            floor_soft_red=8_000_000,
+            floor_red=8_000_000,
+            ceiling=18_000_000,
+            step_up=5_000_000,
+            factor_down=0.90,
+            factor_down_yellow=1.0,
+            green_required=3,
+            dwell_cycles=3,
+            deadband_ms=3.0,
+            consecutive_yellow_decay_clamp=40,
+        )
+
+    def test_first_window_snapshot(self) -> None:
+        qc = self._make_qc()
+        for _ in range(11):
+            qc._record_suppression("dwell_hold")
+        for _ in range(4):
+            qc._record_suppression("backlog_recovery")
+        assert qc._window_suppressions_by_cause == {
+            "dwell_hold": 11,
+            "backlog_recovery": 4,
+            "other": 0,
+        }
+        assert qc._lifetime_suppressions_by_cause == {
+            "dwell_hold": 11,
+            "backlog_recovery": 4,
+            "other": 0,
+        }
+        assert qc._last_completed_window_total == 0
+        ret = qc.reset_window()
+        # Q1: helper does NOT advance _window_suppressions; only the
+        # dwell-hold callsite advances the legacy live counter, and this
+        # synthetic trace exercises the helper directly.
+        assert ret == 0
+        assert qc._last_completed_window_total == 15
+        assert qc._last_completed_window_by_cause == {
+            "dwell_hold": 11,
+            "backlog_recovery": 4,
+            "other": 0,
+        }
+        assert qc._window_suppressions_by_cause == {
+            "dwell_hold": 0,
+            "backlog_recovery": 0,
+            "other": 0,
+        }
+        assert qc._lifetime_suppressions_by_cause == {
+            "dwell_hold": 11,
+            "backlog_recovery": 4,
+            "other": 0,
+        }
+
+    def test_second_window_lifetime_is_monotonic(self) -> None:
+        qc = self._make_qc()
+        # First window: 11 dwell + 4 backlog.
+        for _ in range(11):
+            qc._record_suppression("dwell_hold")
+        for _ in range(4):
+            qc._record_suppression("backlog_recovery")
+        qc.reset_window()
+
+        # Second window: 3 dwell + 2 backlog.
+        for _ in range(3):
+            qc._record_suppression("dwell_hold")
+        for _ in range(2):
+            qc._record_suppression("backlog_recovery")
+        qc.reset_window()
+        assert qc._last_completed_window_total == 5
+        assert qc._last_completed_window_by_cause == {
+            "dwell_hold": 3,
+            "backlog_recovery": 2,
+            "other": 0,
+        }
+        assert qc._lifetime_suppressions_by_cause == {
+            "dwell_hold": 14,
+            "backlog_recovery": 6,
+            "other": 0,
+        }
