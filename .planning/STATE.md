@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
 status: executing
-stopped_at: Completed 201-17-closeout-PLAN.md (Phase 201 closed gaps_found via operator Route B 2026-05-06)
-last_updated: "2026-05-06T20:54:22.609Z"
-last_activity: 2026-05-06 -- Phase 202 execution started
+stopped_at: Completed 202-02-replay-fixture-completed-window-oracle-PLAN.md
+last_updated: "2026-05-06T21:05:28Z"
+last_activity: 2026-05-06 -- Phase 202 Plan 02 completed
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 12
-  completed_plans: 1
-  percent: 8
+  completed_plans: 2
+  percent: 17
 ---
 
 # Session State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 **Recently archived:** v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
 **Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration (scoped 2026-05-06; roadmap pending requirements + roadmapper pass)
 
-Progress: [█░░░░░░░░░] 8% (executing)
+Progress: [██░░░░░░░░] 17% (executing)
 
 ## Deferred Items
 
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 201-17-closeout-PLAN.md (Phase 201 closed gaps_found via operator Route B 2026-05-06)
+Stopped at: Completed 202-02-replay-fixture-completed-window-oracle-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -255,9 +255,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 201]: Plan 201-15 validated the two-snapshot rollback strategy: Snapshot A is rollback-clean before reconcile; Snapshot B is post-gate deploy evidence only.
 - [Phase 201]: Plan 201-16 24h soak `20260505T132736Z` failed because plan-defined gates disagreed: D-19 primary gate passed with `floor_hit_cycles_total_delta_soak_window=0`, but preserved D-14 secondary watchdog failed with `ul_hysteresis_suppression_rate_per_60s_mean=6.466842364880155` against `<5.0`. D-19 approval was captured pre-soak in `201-16-OPERATOR-APPROVAL-D19.md`; next action requires operator decision between A5-style reattempt and v1.43+ follow-up.
 - [Phase 201 closure 2026-05-06]: Operator Route B selected. Phase 201 closes gaps_found; D-19 primary VALN-06 floor-hit gate PASSED on canary 20260505T122513Z and 24h soak 20260505T132736Z (v1.42.1 in production). D-14 secondary suppression watchdog FAIL classified as metric_semantics_and_recalibration on the YELLOW-edge dwell-hold path (queue_controller.py:348), unrelated to bounded RED decay (queue_controller.py:361-376). D-14 deferred to v1.43+ as four ordered backlog items: SEED-002 (suppression-counter metric semantics fix), SEED-003 (D-14 successor recalibration), SEED-004 (target-edge churn instrumentation), SEED-005 (conservative tuning sweep, gated). Order is load-bearing — items 1-3 are prerequisites to item 4. No production binary or YAML change in Plan 201-17. Milestone v1.42 ready for /gsd-complete-milestone.
+- [Phase 202-02]: METRIC-03 replay oracle uses strict reset-boundary detection over the v1.42 `suppressions_per_min` snapshots; the observable completed-window distribution is 1,331 windows with mean 13.890308039068369/min, p95 41, and max 124.
+- [Phase 202-02]: `suppression-stats.json::window_count=1439` is treated as a nominal elapsed-window count, not the observable reset-boundary count, because zero-suppression windows do not create a decreasing edge in the live counter snapshots.
 
 ## Performance Metrics
 
+- 2026-05-06: Phase 202 Plan 02 completed in ~2min across 3 tasks and 1 new test file; `tests/test_phase_202_replay.py` passed with 9 tests, the v1.42 oracle computed 84,117 samples, 1,331 observable completed windows, mean 13.890308039068369/min, p95 41.0, max 124, the hot-path slice passed with 667 tests, and SAFE-07 source diff was 0 lines under src/wanctl.
 - 2026-05-05: Phase 201 Plan 15 completed the re-canary PASS path in ~30min active continuation over a ~1h30m deploy/canary evidence window; v1.42.1 was deployed with all version surfaces aligned, Snapshot A rollback-clean and Snapshot B deploy-evidence were validated, the saturation canary `20260505T122513Z` passed with `primary_gate_value=0` and `ul_floor_hits_during_load=0`, and Plan 201-16 is unblocked with T+0 floor-hit baseline 0.
 - 2026-05-06: Phase 201 Plan 16 completed the 24h soak evidence computation for `20260505T132736Z`; 84,117 samples were copied back from cake-shaper with 0.973584 coverage, D-19 primary floor-hit delta passed at 0, D-14 secondary suppression mean failed at 6.466842364880155 per 60s, anti-windup trigger delta was 0, and Phase 201 remains gaps_found pending operator next-action decision.
 - 2026-05-05: Phase 201 Plan 14 completed in ~11min across 4 tasks and 10 plan-scoped files; DOCSIS RED now uses bounded-absolute setpoint-relative decay with an 18-cycle floor-hit-free replay, anti-windup caps stuck integrals below threshold, daemon/check-config validators reject unsafe red-decay knobs, plan regression slice passed with 833 tests, and package mypy passed.
