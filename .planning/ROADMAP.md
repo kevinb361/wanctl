@@ -182,7 +182,7 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 201 | DOCSIS-Aware UL Congestion Control | 14/16 | In Progress|  |
+| 201 | DOCSIS-Aware UL Congestion Control | 16/16 | Closed (gaps_found) — D-19 primary VALN-06 PASS shipped on v1.42.1; D-14 suppression watchdog deferred to v1.43+ as metric_semantics_and_recalibration; Plan 201-12 superseded by Plan 201-16 (17 PLAN.md files materialized total) | 2026-05-06 |
 
 ---
 
@@ -219,12 +219,12 @@ Single-phase milestone. Phase 200 is the only deliverable; no inter-phase orderi
 
 **Success Criteria:**
 1. The autorate config schema accepts `docsis_mode`, `setpoint_mbps`, and the windowed RTT-integral keys; enforces `setpoint_mbps` REQUIRED when `docsis_mode: true` (validator fails closed if missing); preserves byte-identical legacy 3-state UL behavior when `docsis_mode` is absent or `false`. Verified by new tests covering defaults, opt-in, missing-required validator failure, and key ordering.
-2. The 10–15 min saturated `iperf3 -P4` UL canary at the deployed Spectrum ceiling completes with `ul_floor_hits_during_load=0` (zero loaded-window floor-hit cycles); pre/post idle baselines bookend the run; canary fails if any single loaded cycle reaches floor; same fail-closed rollback to v1.40 on canary fail. Direct evidence Phase 201 must improve upon: `.planning/phases/200-per-direction-rtt-bloat-thresholds/canary/20260504T133207Z/verdict.json` (`verdict: fail`, `ul_floor_hits_during_load: 4`).
-3. The 24h Spectrum UL regression soak after canary passes shows UL hysteresis suppression rate drops below 5/60s on average. Soak watchdog gates closure; failure rolls back. **Plan 201-16 result:** D-19 primary floor-hit delta passed at `0`, but the preserved D-14 secondary watchdog failed with `ul_hysteresis_suppression_rate_per_60s_mean=6.466842364880155`; Phase 201 remains gaps_found pending operator next-action decision.
+2. The 10–15 min saturated `iperf3 -P4` UL canary at the deployed Spectrum ceiling completes with `ul_floor_hits_during_load=0` (zero loaded-window floor-hit cycles); pre/post idle baselines bookend the run; canary fails if any single loaded cycle reaches floor; same fail-closed rollback to v1.40 on canary fail. Direct evidence Phase 201 must improve upon: `.planning/phases/200-per-direction-rtt-bloat-thresholds/canary/20260504T133207Z/verdict.json` (`verdict: fail`, `ul_floor_hits_during_load: 4`). **(SATISFIED 2026-05-05 — recanary `20260505T122513Z` PASSED with `verdict=pass`, `primary_gate_value=0`, `ul_floor_hits_during_load=0`. Phase-goal D-19 primary VALN-06 closure evidence on v1.42.1.)**
+3. The 24h Spectrum UL regression soak after canary passes shows UL hysteresis suppression rate drops below 5/60s on average. Soak watchdog gates closure; failure rolls back. **Plan 201-16 result:** D-19 primary floor-hit delta passed at `0`, but the preserved D-14 secondary watchdog failed with `ul_hysteresis_suppression_rate_per_60s_mean=6.466842364880155`; Phase 201 remains gaps_found pending operator next-action decision. **(Closed Route B 2026-05-06 — operator decision: D-19 primary PASS satisfies the dominant phase-goal proof; D-14 secondary deferred to v1.43+ as `metric_semantics_and_recalibration`. See `201-RETRO.md`.)**
 4. The predeploy gate inspects `/etc/wanctl/spectrum.yaml` on the deploy target and either reconciles v1.41-only rejected-hypothesis keys with Phase 201's own design or fails closed before the deploy proceeds. Verified by canary preflight log evidence.
 5. `CHANGELOG.md` and `docs/CONFIGURATION.md` carry the migration note specifying that `docsis_mode`, `setpoint_mbps`, and the RTT-integral window keys require a service restart to take effect (SIGUSR1 does not reload these). Verified by greps for the keys in both files.
 
-**Plans:** 15/16 plans executed; Plan 201-16 executed and recorded soak FAIL
+**Plans:** 16/16 active plans complete (Plan 201-12 superseded by Plan 201-16; 17 PLAN.md files materialized total) — Phase 201 closed as `gaps_found` 2026-05-06 via operator Route B. D-19 primary VALN-06 floor-hit gate PASSED on canary `20260505T122513Z` and 24h soak `20260505T132736Z` (production binary v1.42.1 with rollback evidence at `canary/20260505T122513Z/` and `soak/20260505T132736Z/`). D-14 secondary suppression watchdog FAILED at `6.466842364880155/60s` mean (vs `<5.0`); FAIL is on the YELLOW-edge dwell-hold path (`queue_controller.py:348`), unrelated to the bounded RED decay path Plan 201-14 fixed (`queue_controller.py:361-376`), and the original threshold was never soak-calibrated against the post-fix control surface. D-14 work deferred to v1.43 as four ordered backlog items (`SEED-002`..`SEED-005`). See `201-RETRO.md` and `201-VERIFICATION.md` `closure_route` block.
 
 Plans:
 - [x] 201-01-corpus-inspection-and-fixtures-PLAN.md — Wave 0 corpus audit + replay-corpus loader + synthetic-trace fixtures (resolves Open Questions 1 + 2)
@@ -238,11 +238,12 @@ Plans:
 - [x] 201-09-codex-pre-review-PLAN.md — Cross-AI pre-review checkpoint before Wave 2 implementation (D-18 first leg); verdict BLOCK, amendments required before Wave 1+ continues
 - [x] 201-10-codex-stop-time-review-PLAN.md — Cross-AI stop-time review checkpoint before live canary (D-18 second leg); GO WITH FOLLOW-UPS, no HIGH findings
 - [x] 201-11-canary-execution-PLAN.md — Live 10-15 min iperf3 -P4 saturated UL canary FAILED at setpoint_mbps=12 (`verdict: fail`, reason `ul_floor_hits_during_load_84_counter_delta_1453`); D-10 rollback restored both binary and YAML; see `201-11-CANARY-VERDICT.md`
-- [ ] 201-12-soak-and-closeout-PLAN.md — Superseded by revised Plan 201-16 after Plan 201-15 re-canary PASS; do not execute this stale soak path
+- [ ] 201-12-soak-and-closeout-PLAN.md — (superseded) Superseded by revised Plan 201-16 after Plan 201-15 re-canary PASS; do not execute this stale soak path
 - [x] 201-13-health-diagnostic-extension-PLAN.md — Additive upload `/health` diagnostics for post-canary root cause: `max_delay_delta_us`, `red_streak`, bounded `zone_trace`, anti-windup counters, and red-decay runtime knob echoes; `sustained_red_cycles` remains absent
 - [x] 201-14-control-model-amendment-PLAN.md — Gap-closure control-model amendment with bounded absolute RED decay, integral anti-windup, and red-decay config validators
 - [x] 201-15-recanary-PLAN.md — Re-canary PASS after control-model amendment: `primary_gate_value=0`, `ul_floor_hits_during_load=0`, T+0 soak baseline `0`, active-knob proof, two-snapshot rollback evidence, and version/build identity evidence
 - [x] 201-16-soak-and-closeout-PLAN.md — 24h Spectrum soak after passing recanary; verdict FAIL because D-19 primary gate passed but D-14 secondary suppression watchdog failed (`soak/20260505T132736Z/soak-summary.json`)
+- [x] 201-17-closeout-PLAN.md — Phase 201 closeout per operator Route B 2026-05-06: documentation-state correction (REQUIREMENTS/ROADMAP/STATE/CONTEXT/VERIFICATION), 201-RETRO.md authored, four v1.43 backlog seeds opened in priority order; NO production binary or YAML change
 
 
 ---
