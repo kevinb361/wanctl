@@ -1,35 +1,35 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.41
-milestone_name: Per-Direction Control Surfaces
-status: executing
-stopped_at: Phase 201 closed gaps_found via operator Route B 2026-05-06; D-19 primary VALN-06 PASS shipped on v1.42.1, D-14 deferred to v1.43+ as SEED-002..SEED-005
-last_updated: "2026-05-06T15:14:08.000Z"
+milestone: v1.43
+milestone_name: TBD (backlog-seeded only)
+status: idle
+stopped_at: Three-milestone backfill archive complete 2026-05-06 (v1.39 / v1.41 / v1.42). v1.42.1 in production. v1.43 backlog seeded but not scoped — open with /gsd-new-milestone.
+last_updated: "2026-05-06T00:00:00.000Z"
 last_activity: 2026-05-06
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 16
-  completed_plans: 16
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-23)
+See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 201 — docsis-aware-ul-congestion-control
+**Current focus:** v1.43 not yet scoped. Open with `/gsd-new-milestone` when ready.
 
 ## Position
 
-**Last shipped milestone:** v1.40 Ordering Rationale (archived 2026-05-03; verdict `tech_debt`)
-**Active parallel milestone:** v1.39 Control-Path Timing & Measurement Accounting (Phase 191 still open)
-**Next milestone:** v1.41 (to open via `/gsd-new-milestone`)
+**Last shipped milestone:** v1.42 DOCSIS-Aware UL Congestion Control (shipped 2026-05-06; verdict `gaps_found` Route B)
+**Recently archived:** v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
+**Next milestone:** v1.43 (backlog seeded `SEED-002`..`SEED-005`; roadmap not authored — open via `/gsd-new-milestone`)
 
-Progress: [█████████░] 88%
+Progress: [░░░░░░░░░░] 0% (v1.43 not scoped)
 
 ## Deferred Items
 
