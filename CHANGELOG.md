@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `suppressions_completed_window_by_cause` — the same completed-window value broken down by cause: `dwell_hold`, `backlog_recovery`, and `other`.
   - `suppressions_lifetime_by_cause` — monotonic per-cause counters since process start.
 - Suppression accounting is exposed symmetrically on upload and download. The `QueueController` counter surface is direction-agnostic; download retains its existing `dwell_bypassed_count` field, and upload retains its existing v1.42 runtime-state fields.
+- **Soak harness:** `scripts/soak-capture.sh` and `scripts/soak_summary_aggregate.py` are promoted from inline-jq evidence into versioned, tested scripts. The capture script requires `HEALTH_URL` via environment variable, with no hardcoded host. The aggregator is stdlib-only Python with replay coverage in `tests/test_phase_203_capture_projection.py` and `tests/test_phase_203_replay.py`. (OBSV-05, OBSV-06, OBSV-07)
+- **NDJSON capture schema:** soak rows now include seven target-edge fields: `load_rtt_ms`, `baseline_rtt_ms`, `load_rtt_delta_us` (integer microseconds; null when either source is null), `last_zone`, `ul_suppressions_completed_window_count`, `ul_suppressions_completed_window_by_cause`, and `ul_suppressions_lifetime_by_cause`. (OBSV-05)
+- **`soak-summary.json` schema:** `diagnostic_distribution.load_rtt_delta_us` now reports p50/p95/p99/max plus a histogram with explicit `buckets_us`, and the top-level `load_rtt_delta_us_by_zone_cause` matrix reports upload-zone × cause histograms for `GREEN`, `YELLOW`, `SOFT_RED`, and `RED`. Empty cells emit zeroed histogram objects. (OBSV-06)
+- **Documentation:** `docs/SOAK_HARNESS.md` documents the capture schema, summary schema, histogram bucket interpretation, cause-attribution rule, upload-only zone axis, and harness-only invariant. (OBSV-08)
+- **SAFE-07 verification:** `scripts/check-safe07-source-diff.sh` automates the cross-cutting no-control-path-source-diff check between Phase 202 close and any later commit. (SAFE-07)
 
 ### Changed
 
@@ -23,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `suppressions_per_min` is a live counter sampled at request time and fed only by the dwell-hold callsite. It is NOT a rate. Use `suppressions_completed_window_count` for watchdog gating; see `docs/CONFIGURATION.md` "Suppression metric semantics (v1.43)".
 - `backlog_recovery` accounting is per-cycle: the suppression fires on every 50ms cycle the backlog condition holds, so a 60s window at 20Hz can produce up to ~1,200 `backlog_recovery` counts per cause per window. This is by design, not a regression.
+- **Cause-attribution policy is dual.** A row whose `ul_suppressions_lifetime_by_cause` lifetime counter increments for multiple causes within a single 50ms cycle contributes to every affected `(zone, cause)` cell. Counts may exceed `total_samples`; the summary records this in `phase_203_metadata.attribution_policy`. See `docs/SOAK_HARNESS.md`.
+- **Harness-only invariant.** Phase 203 added zero lines to `src/wanctl/`. The SAFE-07 invariant is verified by `scripts/check-safe07-source-diff.sh` and by the unchanged SAFE-05 pin block in `tests/test_phase_195_replay.py`.
+- **Spectrum-only deltas.** `load_rtt_delta_us` uses raw `load_rtt_ms`, not an asymmetry-gate-attenuated effective RTT. On the v1.43 Spectrum baseline where the gate is disabled, values are exact; future gate-enabled deployments would over-state deltas during gate-active windows.
 
 ## 1.42.1 — 2026-05-05
 
