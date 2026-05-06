@@ -1,8 +1,8 @@
 ---
 phase: 201-docsis-aware-ul-congestion-control
-verified: 2026-05-04T23:57:07Z
+verified: 2026-05-06T13:40:36Z
 status: gaps_found
-score: 4/9 must-haves verified
+score: 6/9 must-haves verified; 24h soak secondary gate failed
 overrides_applied: 0
 gaps:
   - truth: "Spectrum UL canary at the deployed ceiling completes with ul_floor_hits_during_load=0 and floor_hit_cycles_total_delta_loaded_window=0 (VALN-06 primary gate)"
@@ -21,12 +21,14 @@ gaps:
       - "Cycle-fidelity diagnostic of the actual zone sequence during canary: the loaded_capture.ndjson does NOT include zone or red_streak per 50ms cycle, so the failure mode (RED-pulsing vs YELLOW-stuck) cannot be confirmed from evidence alone. Add a per-cycle zone counter or low-rate replay capture to /health for closure-cycle root cause."
   - truth: "VALN-06 24h Spectrum UL regression soak watchdog passes (suppression rate < 5/60s mean)"
     status: failed
-    reason: "Plan 201-12 was authored but never executed; soak is not deferred to a later phase — it is a Phase 201 success-criterion #3 in the ROADMAP. Per the canary FAIL it could not run, so the goal is unmet for this phase."
+    reason: "Plan 201-16 superseded the blocked Plan 201-12 path and completed a 24h soak (`20260505T132736Z`) against v1.42.1. The stricter operator-approved D-19 primary gate passed with floor_hit_cycles_total_delta_soak_window=0, but the preserved D-14 secondary watchdog failed: timestamp-windowed suppressions_per_min_mean=6.466842364880155, above the `<5/60s` threshold. Overall soak verdict remains FAIL because the plan-defined gates disagree."
     artifacts:
-      - path: ".planning/phases/201-docsis-aware-ul-congestion-control/201-12-soak-and-closeout-PLAN.md"
-        issue: "Plan exists but was never executed. STATE.md confirms blocked; no soak summary exists."
+      - path: ".planning/phases/201-docsis-aware-ul-congestion-control/soak/20260505T132736Z/soak-summary.json"
+        issue: "verdict=fail; reason=soak_gates_disagreement_primary_pass_secondary_fail; primary_gate=pass; secondary_gate=fail"
+      - path: ".planning/phases/201-docsis-aware-ul-congestion-control/201-16-SOAK-VERDICT.md"
+        issue: "Operator-readable verdict preserving both D-19 primary PASS and D-14 secondary FAIL."
     missing:
-      - "Soak cannot run until the canary passes. Closure must come via a re-canary path (A5 fallback at setpoint_mbps=10 or different control-model amendment) followed by 24h soak."
+      - "Operator decision for the next gap-closure route: A5-style controlled reattempt or v1.43+ control-model/suppression-watchdog follow-up."
   - truth: "A5 fallback re-canary at setpoint_mbps=10 was authorized as a post-FAIL operator decision and produces a clean PASS or directs the next plan"
     status: failed
     reason: "Re-canary at setpoint_mbps=10 was explicitly authorized (REVIEWS HIGH-? / 201-11-CANARY-VERDICT 'A5 fallback availability'), but was not executed during this continuation. The phase is closed at FAIL with no fallback evidence either confirming or rejecting that setpoint=10 would close VALN-06."
@@ -276,5 +278,18 @@ What did not work is the **control behavior under saturated load.** The setpoint
 
 ---
 
-_Verified: 2026-05-04T23:57:07Z_
+## 2026-05-06 Re-Verification — Plan 201-16 Soak FAIL
+
+Plan 201-16 completed the revised 24h soak path against the v1.42.1 binary and copied the remote NDJSON evidence back from `cake-shaper:/var/tmp/wanctl-soak-20260505T132736Z/soak-capture.ndjson`.
+
+| Gate | Required | Actual | Result | Evidence |
+|---|---:|---:|---|---|
+| D-19 primary: `floor_hit_cycles_total_delta_soak_window` | `0` | `0` | PASS | `soak/20260505T132736Z/soak-summary.json` |
+| D-14 secondary: `ul_hysteresis_suppression_rate_per_60s_mean` | `<5.0` | `6.466842364880155` | FAIL | `soak/20260505T132736Z/suppression-stats.json` |
+
+Overall verdict remains **gaps_found** / **FAIL** because both plan-defined gates must pass. The primary D-19 gate tightening was explicitly operator-approved before the soak in `201-16-OPERATOR-APPROVAL-D19.md`; the failure is not an approval or evidence-collection failure. It is a preserved D-14 watchdog failure.
+
+---
+
+_Verified: 2026-05-06T13:40:36Z_
 _Verifier: Claude (gsd-verifier)_

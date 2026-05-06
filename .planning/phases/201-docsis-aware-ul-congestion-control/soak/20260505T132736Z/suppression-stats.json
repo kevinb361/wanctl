@@ -1,0 +1,11 @@
+{
+  "samples_total": 84117,
+  "t_start": 0,
+  "t_end": 86398.3,
+  "window_count": 1439,
+  "suppressions_per_min_mean": 6.466842364880155,
+  "suppressions_per_min_p95": 21.10169491525424,
+  "suppressions_per_min_max": 69.91379310344827,
+  "expected_samples_at_1hz": 86398,
+  "sample_coverage_ratio": 0.9735842767244641
+}

@@ -1,0 +1,51 @@
+{
+  "phase": 201,
+  "plan": 16,
+  "soak_ts": "20260505T132736Z",
+  "supersedes": "201-12 (failed-canary path)",
+  "v_binary": "1.42.1",
+  "duration_sec": 86400,
+  "capture_host": "capture_host: cake-shaper (on-host tmux, codex NEW-HIGH-2 uploaded-script + positional-arg pattern)",
+  "capture_method": "uploaded script + positional SOAK_TS arg + verbatim tmux (codex NEW-HIGH-2)",
+  "sample_coverage_ratio": 0.9735842767244641,
+  "sample_coverage_warning": null,
+  "primary_gate": {
+    "name": "floor_hit_cycles_total_delta_soak_window",
+    "threshold": "== 0 (operator-approved D-19, see 201-16-OPERATOR-APPROVAL-D19.md)",
+    "t0": 0,
+    "t24": 0,
+    "delta": 0,
+    "verdict": "pass",
+    "reason": null
+  },
+  "secondary_gate": {
+    "name": "ul_hysteresis_suppression_rate_per_60s_mean",
+    "computation": "timestamp-windowed 60s sliding mean (codex NEW-HIGH-3 fix: $rows binding inside reduce)",
+    "value": 6.466842364880155,
+    "p95": 21.10169491525424,
+    "max": 69.91379310344827,
+    "threshold": 5.0,
+    "verdict": "fail"
+  },
+  "diagnostic_distribution": {
+    "rtt_integral_ms_s": {
+      "mean": 5.144822223807321,
+      "max": 270.569
+    },
+    "max_delay_delta_us": {
+      "mean": 810.3376368629409,
+      "max": 161281
+    },
+    "red_streak": {
+      "mean": 0.005872772447899949,
+      "max": 101
+    },
+    "headroom_exhausted_samples": 469,
+    "total_samples": 84117
+  },
+  "anti_windup_triggers_delta": 0,
+  "anti_windup_log_count": 0,
+  "verdict": "fail",
+  "reason": "soak_gates_disagreement_primary_pass_secondary_fail",
+  "operator_approval_d19": ".planning/phases/201-docsis-aware-ul-congestion-control/201-16-OPERATOR-APPROVAL-D19.md"
+}

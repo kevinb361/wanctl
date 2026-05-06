@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: executing
-stopped_at: Completed 201-15-recanary-PLAN.md
-last_updated: "2026-05-05T12:55:35.645Z"
-last_activity: 2026-05-05
+stopped_at: Phase 201 Plan 16 soak FAIL — awaiting operator next-action decision
+last_updated: "2026-05-06T13:40:36.000Z"
+last_activity: 2026-05-06
 progress:
   total_phases: 1
   completed_phases: 1
@@ -253,10 +253,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 201-14]: Red-decay config now fails closed when step/delta ordering is unsafe or DOCSIS clamp is at/below floor.
 - [Phase 201]: Plan 201-15 PASS selected; re-canary primary_gate_value=0 and ul_floor_hits_during_load=0, unblocking Plan 201-16 with T+0 floor-hit baseline 0.
 - [Phase 201]: Plan 201-15 validated the two-snapshot rollback strategy: Snapshot A is rollback-clean before reconcile; Snapshot B is post-gate deploy evidence only.
+- [Phase 201]: Plan 201-16 24h soak `20260505T132736Z` failed because plan-defined gates disagreed: D-19 primary gate passed with `floor_hit_cycles_total_delta_soak_window=0`, but preserved D-14 secondary watchdog failed with `ul_hysteresis_suppression_rate_per_60s_mean=6.466842364880155` against `<5.0`. D-19 approval was captured pre-soak in `201-16-OPERATOR-APPROVAL-D19.md`; next action requires operator decision between A5-style reattempt and v1.43+ follow-up.
 
 ## Performance Metrics
 
 - 2026-05-05: Phase 201 Plan 15 completed the re-canary PASS path in ~30min active continuation over a ~1h30m deploy/canary evidence window; v1.42.1 was deployed with all version surfaces aligned, Snapshot A rollback-clean and Snapshot B deploy-evidence were validated, the saturation canary `20260505T122513Z` passed with `primary_gate_value=0` and `ul_floor_hits_during_load=0`, and Plan 201-16 is unblocked with T+0 floor-hit baseline 0.
+- 2026-05-06: Phase 201 Plan 16 completed the 24h soak evidence computation for `20260505T132736Z`; 84,117 samples were copied back from cake-shaper with 0.973584 coverage, D-19 primary floor-hit delta passed at 0, D-14 secondary suppression mean failed at 6.466842364880155 per 60s, anti-windup trigger delta was 0, and Phase 201 remains gaps_found pending operator next-action decision.
 - 2026-05-05: Phase 201 Plan 14 completed in ~11min across 4 tasks and 10 plan-scoped files; DOCSIS RED now uses bounded-absolute setpoint-relative decay with an 18-cycle floor-hit-free replay, anti-windup caps stuck integrals below threshold, daemon/check-config validators reject unsafe red-decay knobs, plan regression slice passed with 833 tests, and package mypy passed.
 - 2026-05-05: Phase 201 Plan 13 completed in ~18min across 2 TDD tasks and 4 source/test files; upload health diagnostics now expose zone_trace, max_delay_delta_us, red_streak, anti-windup counters, and red_decay_* runtime knob echoes; QueueController diagnostics passed with 13 tests, health payload diagnostics passed with 10 tests, and hot-path slice passed with 635 tests.
 - 2026-05-04: Phase 201 Plan 11 completed as blocked/failed after live canary `20260504T231334Z`; predeploy reconciliation/deploy succeeded, but the 1022s loaded canary failed VALN-06 with floor_hit_cycles_total_delta_loaded_window=1453 and ul_floor_hits_during_load=84; D-10 rollback restored binary and YAML to predeploy snapshots and post-rollback health reported version 1.39.0.
@@ -314,7 +316,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Blockers
 
-- Phase 201 Plan 201-15 re-canary passed at setpoint_mbps=12 with both floor-hit gates at zero (`floor_hit_cycles_total_delta_loaded_window=0`, `ul_floor_hits_during_load=0`, reason `floor_hit_cycles_total_delta_zero_and_snapshot_zero`). Plan 201-16 is unblocked and must use T+0 baseline `floor_hit_cycles_total_loaded_window_end=0`; Plan 201-12 remains superseded by the revised Plan 201-16 soak path.
+- Phase 201 Plan 201-16 soak failed after the re-canary pass: D-19 primary floor-hit delta remained zero over the 24h soak, but D-14 secondary suppression-rate mean was `6.466842364880155` (threshold `<5.0`). Plan 201-12 remains superseded by the revised Plan 201-16 soak path. Operator decision required for next action: A5-style controlled reattempt or v1.43+ follow-up.
 - VALN-06 inherited by Phase 201 (`docsis-aware-ul-congestion-control`) as a blocking requirement per operator escalation 2026-05-04. Phase 200 closed as `gaps_found` after gap-closure cycle 1: Plan 200-14 Attempt 3 canary `20260504T133207Z` improved loaded-window UL floor hits from 122 (Attempt 2) to 4 but did not reach the zero-hit gate; D-10 rollback restored `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`; the 24h soak was skipped fail-closed. No second Phase 200 remediation cycle was attempted; the residual failure regime is shaping-headroom dominated, which is Phase 201's scope. Production binary remains v1.40; v1.41 YAML keys remain on prod `/etc/wanctl/spectrum.yaml` and are inactive under v1.40 but MUST be reconciled before any future Spectrum deploy/restart (Phase 201 predeploy gate). See `200-VERIFICATION.md` `closure: deferred-to-phase-201`, `200-RETRO.md` `## Final Closure (2026-05-04)`, and `201-CONTEXT.md` `## Inherited Requirements`.
 - Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), `2026-04-23` (`64.40 Mbps`), `2026-04-23c` (`61.47 Mbps`), and `2026-04-24` (`70.95 Mbps`) FAIL samples against the old ATT RRUL download comparator. The `2026-04-24` run narrowed the issue because ATT tcp_12down and VoIP looked healthy and Spectrum throughput was strong, but it still did not close Phase 191. Phase 192 is allowed to proceed only under the explicit operator waiver in `192-PRECONDITION-WAIVER.md`.
 - Phase 196 remains blocked only for the deferred ATT canary because Phase 191 closure is still open; Spectrum VALN-04 and VALN-05a were closed by Phase 198 Plan 07 attempt 11 canonical promotion.
@@ -324,5 +326,5 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 Phase: 201 (docsis-aware-ul-congestion-control) — EXECUTING
 Plan: 16 of 16
-Status: Ready to execute
-Last activity: 2026-05-05
+Status: Soak FAIL — awaiting operator next-action decision
+Last activity: 2026-05-06
