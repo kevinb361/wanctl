@@ -90,6 +90,25 @@ class QueueController:
         self._window_start_time: float = time.time()
         self._window_had_congestion: bool = False
 
+        # Phase 202: per-cause window + lifetime counters (METRIC-01, METRIC-02; Q1/Q2/Q3).
+        # _window_suppressions above is preserved as the dwell-hold-only legacy counter (Q1).
+        self._window_suppressions_by_cause: dict[str, int] = {
+            "dwell_hold": 0,
+            "backlog_recovery": 0,
+            "other": 0,
+        }
+        self._lifetime_suppressions_by_cause: dict[str, int] = {
+            "dwell_hold": 0,
+            "backlog_recovery": 0,
+            "other": 0,
+        }
+        self._last_completed_window_total: int = 0
+        self._last_completed_window_by_cause: dict[str, int] = {
+            "dwell_hold": 0,
+            "backlog_recovery": 0,
+            "other": 0,
+        }
+
         # CAKE signal detection thresholds (Phase 160: DETECT-01, DETECT-02)
         self._drop_rate_threshold: float = drop_rate_threshold
         self._backlog_threshold_bytes: int = backlog_threshold_bytes
@@ -254,6 +273,7 @@ class QueueController:
             self._probe_multiplier = 1.0
             self._backlog_suppressed_count += 1
             self._backlog_suppressed_this_cycle = True
+            self._record_suppression("backlog_recovery")  # METRIC-02
 
         return "GREEN"
 
@@ -331,6 +351,25 @@ class QueueController:
         delay_low = cake.max_delay_delta_us <= self._cake_delay_delta_low_threshold_us
         return bool(backlog_low and delay_low)
 
+    def _record_suppression(self, cause: str) -> None:
+        """Record a suppression event under a cause tag (METRIC-02, Q1/Q2/Q3).
+
+        Updates per-cause window and lifetime counters. Does NOT touch
+        self._window_suppressions — that is preserved as the dwell-hold-only
+        live counter for backward compatibility (METRIC-01, Q1). Callsites
+        that need to advance the legacy live counter must do so explicitly
+        on their own line.
+
+        Causes:
+            dwell_hold       — _apply_dwell_logic suppression (queue_controller.py:349)
+            backlog_recovery — DETECT-02 backlog-suppress green_streak (lines 255, 599)
+            other            — reserved fallback bucket; no callsite fires this today
+        """
+        if cause not in self._window_suppressions_by_cause:
+            cause = "other"
+        self._window_suppressions_by_cause[cause] += 1
+        self._lifetime_suppressions_by_cause[cause] += 1
+
     def _apply_dwell_logic(self) -> str:
         """Apply dwell timer for GREEN->YELLOW transition (HYST-01).
 
@@ -348,6 +387,7 @@ class QueueController:
         # Hold GREEN during dwell, rates hold steady (D-01)
         self._transitions_suppressed += 1
         self._window_suppressions += 1
+        self._record_suppression("dwell_hold")  # METRIC-02
         self._logger.debug(
             "[HYSTERESIS] %s transition suppressed, dwell %d/%d",
             _dir,
@@ -598,6 +638,7 @@ class QueueController:
             self._probe_multiplier = 1.0
             self._backlog_suppressed_count += 1
             self._backlog_suppressed_this_cycle = True
+            self._record_suppression("backlog_recovery")  # METRIC-02
 
         return "GREEN"
 
@@ -653,7 +694,13 @@ class QueueController:
         Phase 136: HYST-01, per D-01/D-02.
         """
         count = self._window_suppressions
+        # Phase 202: snapshot the just-completed window for /health emission.
+        # Total is the sum across ALL three cause buckets — distinct population
+        # from `count` (which is dwell-hold-only per Q1).
+        self._last_completed_window_total = sum(self._window_suppressions_by_cause.values())
+        self._last_completed_window_by_cause = dict(self._window_suppressions_by_cause)
         self._window_suppressions = 0
+        self._window_suppressions_by_cause = {k: 0 for k in self._window_suppressions_by_cause}
         self._window_start_time = time.time()
         self._window_had_congestion = False
         return count
