@@ -19,6 +19,9 @@ re_verification:
   gaps_remaining:
     - "Truth 7: D-14 secondary suppression watchdog FAIL @ 6.47/60s mean (vs <5.0). Classified by operator Route B as metric_semantics + recalibration, deferred to v1.43+."
   regressions: []
+  closeout_recorded: 2026-05-06
+  closeout_artifact: ".planning/phases/201-docsis-aware-ul-congestion-control/201-RETRO.md"
+  closeout_note: "Plan 201-17 closeout completed per operator Route B 2026-05-06; D-19 primary VALN-06 PASS shipped on v1.42.1, D-14 secondary deferred to v1.43+ as SEED-002..SEED-005. See 201-RETRO.md."
 gaps:
   - truth: "VALN-06 24h Spectrum UL regression soak watchdog passes (D-14 secondary `<5/60s` mean)"
     status: failed
@@ -45,6 +48,8 @@ human_verification:
   - test: "Plan 201-17 closeout authoring: refresh CONTEXT.md/ROADMAP.md to mark Phase 201 `gaps_found` with explicit baton-pass to v1.43, write 201-RETRO.md, and open the four v1.43 backlog items in priority order (semantics → recalibrate → distribution → tune)."
     expected: "Closeout artifacts committed; v1.43 milestone scoped with the four ordered work items from the operator decision memory."
     why_human: "Closeout planning shape is operator-authored; verifier can confirm artifacts exist after the planner produces them but cannot author the milestone-scoping decisions."
+    resolved: 2026-05-06
+    resolved_evidence: "Plan 201-17 executed; see closeout_recorded above and 201-RETRO.md."
 ---
 
 # Phase 201: DOCSIS-Aware UL Congestion Control — Verification Report
