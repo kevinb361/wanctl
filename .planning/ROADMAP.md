@@ -80,7 +80,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 202. METRIC — UL Suppression Metric Semantics | 0/4 | Not started | - |
+| 202. METRIC — UL Suppression Metric Semantics | 1/4 | In Progress | - |
 | 203. OBSV — Target-Edge Churn Instrumentation | 0/3 | Not started | - |
 | 204. CALIB — D-14 Successor Recalibration | 0/5 | Not started | - |
 
