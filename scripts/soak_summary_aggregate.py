@@ -93,11 +93,12 @@ def histogram(values: Iterable[int | float], buckets: list[int]) -> list[int]:
     sorted_buckets = sorted(buckets)
     counts = [0] * (len(sorted_buckets) + 1)
     for value in values:
-        idx = bisect.bisect_right(sorted_buckets, value) - 1
+        if value >= sorted_buckets[-1]:
+            idx = len(sorted_buckets)
+        else:
+            idx = bisect.bisect_right(sorted_buckets, value) - 1
         if idx < 0:
             idx = 0
-        elif idx >= len(sorted_buckets):
-            idx = len(sorted_buckets)
         counts[idx] += 1
     return counts
 
