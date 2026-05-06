@@ -203,6 +203,17 @@ Ship a DOCSIS-aware UL congestion control mode that holds Spectrum DOCSIS upload
 
 - v1.42 milestone home for Phase 201 (per Phase 200 RETRO "Lessons for v1.42"). Whether v1.42 is solo-phase (Phase 201 + closure only) or includes the deferred ATT VALN-05b is a `/gsd-new-milestone` decision, not a Phase 201 decision.
 
+### Deferred to v1.43+ via Route B Closure (2026-05-06)
+
+The Plan 201-16 24h soak D-14 watchdog FAIL at 6.466842364880155/60s mean (vs <5.0) was classified by Codex re-aggregation as `metric_semantics_and_recalibration` on the YELLOW-edge dwell-hold path (`_apply_dwell_logic` at `queue_controller.py:348`), unrelated to the bounded RED decay path Plan 201-14 fixed (`queue_controller.py:361-376`). The underlying counter `suppressions_per_min` (queue_controller.py:649,668) is a 60s reset counter rather than a true rate; the published 6.47 mean is the mean of live-counter snapshots, and the `<5/60s` threshold was inherited from Phase 200's qualitative "31/60s degraded → near-zero" framing without ever being soak-calibrated against the post-Plan-201-14 control surface.
+
+Operator Route B (2026-05-06) defers D-14 successor work to v1.43+ as **four ordered backlog items**. The order is load-bearing: items 1–3 are prerequisites to item 4. Tracked at `.planning/seeds/SEED-002..SEED-005`.
+
+1. **SEED-002 — UL suppression-counter metric-semantics fix.** Add completed-window UL suppression counts + cause tags (dwell-hold vs backlog-recovery vs other) to `/health`. Additive only — preserve the existing `suppressions_per_min` field. Required prerequisite for items 2–4.
+2. **SEED-003 — D-14 successor recalibration.** Replace D-14's `<5/60s` with a soak-derived threshold from a clean 24h baseline of the post-201-14 binary, using completed-window counts (item 1) instead of live-counter-snapshot means. Depends on item 1.
+3. **SEED-004 — target-edge churn instrumentation.** Add per-sample `load_rtt - baseline_rtt` distribution capture to soak schema. Current soak has integral and zone trace but not per-sample delta. Required before any `target_bloat_ms` tune.
+4. **SEED-005 — Conservative tuning sweep (gated).** Only after items 1–3 land. Candidates: `dwell_cycles: 5 → 4` and/or modest `upload_target_bloat_ms` bump above 15ms. Standard canary + 24h soak + rollback gate (`floor_hit_cycles_total_delta > 0` OR completed-window suppression worsens → roll back).
+
 </deferred>
 
 ---
