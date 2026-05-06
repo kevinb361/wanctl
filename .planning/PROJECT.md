@@ -392,7 +392,7 @@ thresholds or steering behavior.
 
 **v1.43 UL Suppression Metrics & Gate Calibration:**
 
-- [ ] METRIC-01 — UL suppression-counter metric-semantics fix (additive `/health` schema with completed-window counts and cause tags, `suppressions_per_min` preserved) — SEED-002
+- [x] METRIC-01 — UL suppression-counter metric-semantics fix (additive `/health` schema with completed-window counts and cause tags, `suppressions_per_min` preserved) — SEED-002; validated in Phase 202 (METRIC-01..05, SAFE-07 additive-only check)
 - [ ] OBSV-05 — Target-edge churn instrumentation (per-sample `load_rtt_delta_us` in soak NDJSON + histogram aggregation in `soak-summary.json` by zone and cause tag) — SEED-004
 - [ ] CALIB-01 — D-14 successor recalibration (clean 24h Spectrum baseline soak under post-201-14 production with new metric live; operator-approved threshold with documented rationale; verify VALN-06 D-14 successor closes) — SEED-003
 - [ ] SAFE-07 — Milestone-closeout invariant: no controller tuning permitted within v1.43; SEED-005 named for v1.44
