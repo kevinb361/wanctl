@@ -6,9 +6,9 @@ status: planning
 last_updated: "2026-05-06T19:07:10.682Z"
 last_activity: 2026-05-06
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
-  total_plans: 0
+  total_plans: 12
   completed_plans: 0
   percent: 0
 ---
