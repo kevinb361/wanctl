@@ -5,10 +5,9 @@ landed in Plan 201-04 Tasks 1-2.
 
 Checkpoint revision (2026-05-04): the cycle-fidelity Attempt 3 replay is a
 safety diagnostic/regression for legacy byte-identity and replay mechanics, not
-a synthetic VALN-06 closure proof. The 20x hold-last expansion intentionally
-preserves RED fast-trip behavior and post-bounds floor-hit accounting, so the
-RED-heavy corpus records floor hits instead of asserting zero. Live canary Plan
-201-11 remains the primary VALN-06 closure gate.
+a synthetic VALN-06 closure proof. Plan 201-14 later superseded the original
+1003-floor-hit diagnostic with bounded-absolute RED decay, so the replay now
+pins the post-fix zero-floor-hit invariant.
 """
 
 from __future__ import annotations
@@ -16,7 +15,7 @@ from __future__ import annotations
 from wanctl.cake_signal import CakeSignalSnapshot
 from wanctl.queue_controller import QueueController
 
-EXPECTED_ATTEMPT3_CYCLE_FIDELITY_FLOOR_HITS = 1003
+EXPECTED_ATTEMPT3_CYCLE_FIDELITY_FLOOR_HITS = 0
 
 
 def _make_docsis_controller(*, setpoint_bps: int = 12_000_000) -> QueueController:
@@ -115,18 +114,15 @@ class TestAttempt3ReplayWithDocsisMode:
     # them away.
     CYCLES_PER_SAMPLE = 20  # 1 Hz NDJSON -> 20 Hz controller cadence (1/0.05)
 
-    def test_red_heavy_floor_hits_recorded_with_setpoint_12_cycle_fidelity(
+    def test_red_heavy_replay_holds_above_floor_after_bounded_decay(
         self, phase201_attempt3_trace
     ) -> None:
         """Cycle-fidelity replay safety diagnostic for Attempt 3.
 
-        The original Plan 201-04 contract expected zero floor hits here. That
-        contradicted two accepted safety decisions: RED fast-trip must remain
-        exact/immediate, and `floor_hit_cycles` must increment after the final
-        post-bounds clamp. Under those semantics the RED-heavy 20x hold-last
-        corpus records floor-hit cycles. This test pins that outcome so future
-        changes cannot hide floor hits by weakening RED decay or floor-hit
-        counter semantics.
+        Plan 201-14 replaced the earlier multiplicative RED decay with
+        bounded-absolute decay that holds above the floor under DOCSIS mode.
+        Keep RED-heavy replay coverage while pinning the final post-fix
+        invariant: no floor-hit cycles.
         """
         assert phase201_attempt3_trace, "Attempt 3 trace empty — corpus loader missing"
 
