@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
 status: executing
-stopped_at: Completed 203-01-PLAN.md
-last_updated: "2026-05-06T22:43:28.052Z"
+stopped_at: Completed 203-02-PLAN.md
+last_updated: "2026-05-06T22:50:38.322Z"
 last_activity: 2026-05-06
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 12
-  completed_plans: 5
-  percent: 42
+  completed_plans: 6
+  percent: 50
 ---
 
 # Session State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 **Recently archived:** v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
 **Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration (scoped 2026-05-06; roadmap pending requirements + roadmapper pass)
 
-Progress: [████░░░░░░] 42% (executing)
+Progress: [█████░░░░░] 50% (executing)
 
 ## Deferred Items
 
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 203-01-PLAN.md
+Stopped at: Completed 203-02-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -262,9 +262,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 202-04]: Chose `v1.43-dev` for the CHANGELOG heading, placed `Suppression metric semantics (v1.43)` under DOCSIS-aware UL control docs, and corrected active fixture references to the canonical `.planning/milestones/v1.42-phases/201-docsis-aware-ul-congestion-control/soak/20260505T132736Z/soak-capture.ndjson` path.
 - [Phase 203-01]: Promoted the v1.42 evidence-only soak capture script into a public-safe, versioned harness requiring HEALTH_URL from the operator environment.
 - [Phase 203-01]: Capture-projection tests extract the jq object literal from `scripts/soak-capture.sh` before running synthesized `/health` payloads, keeping the script as the single projection source of truth.
+- [Phase 203-02]: Used Option (b) for Phase 202 helper handling: compatible helper logic now exists in `scripts/soak_summary_aggregate.py`, while `tests/test_phase_202_replay.py` remains unchanged to minimize replay-canary churn.
+- [Phase 203-02]: Kept the new aggregator diagnostic-only: `diagnostic_distribution.load_rtt_delta_us` and `load_rtt_delta_us_by_zone_cause` landed, while secondary-gate computation remains Phase 204/CALIB-03 territory.
 
 ## Performance Metrics
 
+- 2026-05-06: Phase 203 Plan 02 completed in ~4min across 4 tasks and 5 new/modified files; `scripts/soak_summary_aggregate.py` now emits `diagnostic_distribution.load_rtt_delta_us` plus upload zone × cause histograms, `tests/test_phase_203_replay.py` passed with 12 tests, Phase 202 replay stayed green, the hot-path slice passed with 667 tests, and `git diff b72b463 -- src/wanctl/` stayed empty.
 - 2026-05-06: Phase 203 Plan 01 completed in ~2min across 3 tasks and 2 new files; `scripts/soak-capture.sh` now emits the seven v1.43 target-edge churn NDJSON fields, `tests/test_phase_203_capture_projection.py` passed with 10 tests, the hot-path slice passed with 667 tests, SAFE-05 pin check passed, and `git diff b72b463 -- src/wanctl/` stayed empty.
 - 2026-05-06: Phase 202 Plan 02 completed in ~2min across 3 tasks and 1 new test file; `tests/test_phase_202_replay.py` passed with 9 tests, the v1.42 oracle computed 84,117 samples, 1,331 observable completed windows, mean 13.890308039068369/min, p95 41.0, max 124, the hot-path slice passed with 667 tests, and SAFE-07 source diff was 0 lines under src/wanctl.
 - 2026-05-06: Phase 202 Plan 03 completed in ~2min across 4 tasks and 1 modified test file; `tests/test_phase_195_replay.py` passed with 25 tests, the hot-path slice passed with 667 tests, only `tests/test_phase_195_replay.py` changed since Plan 202-02, and `src/wanctl/wan_controller.py` diff stayed 0 lines.
@@ -337,6 +340,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 203 (Target-Edge Churn Instrumentation (OBSV)) — EXECUTING
-Plan: 2 of 3
-Status: Completed Phase 203 Plan 01; ready for Plan 02
-Last activity: 2026-05-06 -- Phase 203 Plan 01 completed with capture harness and projection tests
+Plan: 3 of 3
+Status: Ready to execute
+Last activity: 2026-05-06
