@@ -61,26 +61,28 @@
 
 ## Traceability
 
-(Populated by `gsd-roadmapper` once ROADMAP.md is created — every REQ-ID maps to exactly one phase.)
+Every v1.43 REQ-ID maps to exactly one phase except SAFE-07 which is cross-cutting across all three phases (verified at each phase close: SAFE-05 control-path pins unchanged; no control-path source diff between Phase 201 close and v1.43 close).
 
 | REQ-ID | Phase | Plan |
 |--------|-------|------|
-| METRIC-01 | TBD | TBD |
-| METRIC-02 | TBD | TBD |
-| METRIC-03 | TBD | TBD |
-| METRIC-04 | TBD | TBD |
-| METRIC-05 | TBD | TBD |
-| OBSV-05 | TBD | TBD |
-| OBSV-06 | TBD | TBD |
-| OBSV-07 | TBD | TBD |
-| OBSV-08 | TBD | TBD |
-| CALIB-01 | TBD | TBD |
-| CALIB-02 | TBD | TBD |
-| CALIB-03 | TBD | TBD |
-| CALIB-04 | TBD | TBD |
-| CALIB-05 | TBD | TBD |
-| SAFE-07 | TBD (cross-cutting) | TBD |
+| METRIC-01 | Phase 202 | TBD |
+| METRIC-02 | Phase 202 | TBD |
+| METRIC-03 | Phase 202 | TBD |
+| METRIC-04 | Phase 202 | TBD |
+| METRIC-05 | Phase 202 | TBD |
+| OBSV-05 | Phase 203 | TBD |
+| OBSV-06 | Phase 203 | TBD |
+| OBSV-07 | Phase 203 | TBD |
+| OBSV-08 | Phase 203 | TBD |
+| CALIB-01 | Phase 204 | TBD |
+| CALIB-02 | Phase 204 | TBD |
+| CALIB-03 | Phase 204 | TBD |
+| CALIB-04 | Phase 204 | TBD |
+| CALIB-05 | Phase 204 | TBD |
+| SAFE-07 | Phases 202, 203, 204 (cross-cutting) | TBD (verified at each phase close) |
+
+**Coverage:** 14/14 v1.43 REQ-IDs mapped + SAFE-07 cross-cutting. No orphans, no duplicates.
 
 ---
 
-_Last updated: 2026-05-06 — initial v1.43 requirements drafted from joint Claude+Codex scope decision; traceability table populated by roadmapper._
+_Last updated: 2026-05-06 — traceability table populated by roadmapper. Phase order 202 (METRIC) → 203 (OBSV) → 204 (CALIB) reflects the joint Claude+Codex scope decision: per-sample `load_rtt_delta_us` from OBSV-05 must be live in the soak harness before the CALIB-01 24h baseline soak fires, so a single 24h run produces both the recalibration baseline and the target-edge distribution._
