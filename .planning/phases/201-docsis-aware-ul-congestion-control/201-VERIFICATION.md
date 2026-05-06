@@ -1,6 +1,6 @@
 ---
 phase: 201-docsis-aware-ul-congestion-control
-verified: 2026-05-06T14:35:00Z
+verified: 2026-05-06T15:27:25Z
 status: gaps_found
 score: 8/9 must-haves verified; D-14 suppression watchdog deferred to v1.43+ via operator Route B
 overrides_applied: 0
@@ -44,19 +44,13 @@ deferred:
   - truth: "D-14 secondary suppression watchdog recalibration"
     addressed_in: "v1.43+ (Route B operator decision 2026-05-06)"
     evidence: "Operator memory `~/.claude/projects/-home-kevin-projects-wanctl/memory/project_phase_201_closure.md`; codex re-aggregation classified D-14 FAIL as YELLOW-edge dwell churn (`_apply_dwell_logic`), not the RED-bounded-decay path (`_compute_rate_3state`); D-14 threshold inherited from Phase 200 qualitative framing, not soak-calibrated against post-201-14 surface."
-human_verification:
-  - test: "Plan 201-17 closeout authoring: refresh CONTEXT.md/ROADMAP.md to mark Phase 201 `gaps_found` with explicit baton-pass to v1.43, write 201-RETRO.md, and open the four v1.43 backlog items in priority order (semantics → recalibrate → distribution → tune)."
-    expected: "Closeout artifacts committed; v1.43 milestone scoped with the four ordered work items from the operator decision memory."
-    why_human: "Closeout planning shape is operator-authored; verifier can confirm artifacts exist after the planner produces them but cannot author the milestone-scoping decisions."
-    resolved: 2026-05-06
-    resolved_evidence: "Plan 201-17 executed; see closeout_recorded above and 201-RETRO.md."
 ---
 
 # Phase 201: DOCSIS-Aware UL Congestion Control — Verification Report
 
 **Phase Goal:** Ship a DOCSIS-aware UL congestion control mode that holds Spectrum DOCSIS upload off the floor under saturated load, closing VALN-06 with `floor_hit_cycles_total_delta_loaded_window=0` and `ul_floor_hits_during_load=0`, followed by a 24h soak watchdog at `<5/60s` UL hysteresis suppression rate.
 
-**Verified:** 2026-05-06T14:35:00Z (refreshed; supersedes 2026-05-06T13:40:36Z and the original 2026-05-04T23:57:07Z verification)
+**Verified:** 2026-05-06T15:27:25Z (refreshed after Plan 201-17 closeout; supersedes 2026-05-06T14:35:00Z, 2026-05-06T13:40:36Z, and the original 2026-05-04T23:57:07Z verification)
 **Status:** gaps_found
 **Re-verification:** Yes — refreshed against shipped Plans 201-13/14/15/16
 **Closure route:** Route B (operator decision 2026-05-06) — close `gaps_found`, defer D-14 watchdog to v1.43+ as metric_semantics + recalibration
@@ -137,8 +131,10 @@ The phase-goal control behavior (truths 1-6, 8) is achieved on shipped v1.42.1 p
 | Red-decay validator boundary suite | `tests/test_autorate_config.py` + `tests/test_check_config.py` Plan 201-14 validator classes | 12 passed | PASS |
 | SAFE-05 legacy byte-identity | Plan 201-14 SAFE-05 slice | 13 passed | PASS |
 | Hot-path regression slice | `.venv/bin/pytest -o addopts='' tests/test_cake_signal.py tests/test_queue_controller.py tests/test_wan_controller.py tests/test_health_check.py tests/test_autorate_config.py tests/test_check_config.py -q` | 833 passed (Plan 201-14 verification) | PASS |
+| Focused re-verification test slice | `.venv/bin/pytest -q tests/test_queue_controller.py::TestDocsisModeReplayCanary11::test_red_burst_18_cycles_explicit_table tests/test_autorate_config.py::TestPhase201Schema tests/test_check_config.py::TestDocsisModeValidation` | 10 passed in 0.37s on 2026-05-06T15:27Z | PASS |
 | `sustained_red_cycles` deliberately absent | `grep -n sustained_red_cycles src/wanctl/queue_controller.py src/wanctl/health_check.py` | no matches | PASS (intentional per Plan 201-13 / 201-14 rev-4 coordination) |
 | Recanary verdict.json valid JSON with PASS verdict | `jq '.verdict' canary/20260505T122513Z/verdict.json` | `"pass"` | PASS |
+| Canonical canary/soak JSON gates | Python JSON assertion against `canary/20260505T122513Z/verdict.json` and `soak/20260505T132736Z/soak-summary.json` | `canary_pass=1 soak_primary_pass=1 soak_secondary_fail=1` on 2026-05-06T15:27Z | PASS for expected closure shape |
 | Live /health reports DOCSIS-mode active during recanary | Plan 201-15 spot-check | docsis_mode_active=true, setpoint_mbps=12.0, anti_windup_cycles=60, red_decay_step_pct=0.02, red_decay_delta_max_pct=0.10 | PASS |
 | 24h soak floor-hit delta | `jq '.primary_gate.delta' soak/20260505T132736Z/soak-summary.json` | `0` | PASS |
 | 24h soak suppression mean | `jq '.secondary_gate.value' soak/20260505T132736Z/soak-summary.json` | `6.466842364880155` (vs threshold 5.0) | FAIL — deferred to v1.43+ via operator Route B |
@@ -239,12 +235,10 @@ The original verification's diagnostic gap (`max_delay_delta_us` not serialized;
 
 ## Human Verification Required
 
-See `human_verification` block in frontmatter. The original two items have been resolved:
+No unresolved human verification remains. The original items have been resolved:
 
 1. ~~Operator decision on closure path~~ — **resolved 2026-05-06 as Route B (close `gaps_found`, defer D-14 to v1.43+)**.
 2. ~~Cycle-level zone trace during a re-canary attempt~~ — **resolved by Plan 201-13** which added a 200-element bounded zone-trace deque to `/health.wans[].upload.zone_trace`; the recanary loaded capture and 24h soak capture both contain it.
-
-One remaining item:
 
 ### 1. Plan 201-17 closeout authored — resolved 2026-05-06
 
@@ -258,6 +252,8 @@ One remaining item:
 **Expected:** Closeout artifacts committed; v1.43 milestone scoped with the four ordered work items.
 
 **Why human:** Closeout planning shape is operator-authored; verifier can confirm artifacts exist after the planner produces them but cannot author the milestone-scoping decisions.
+
+**Resolved evidence:** Plan 201-17 executed; `201-RETRO.md` exists; `.planning/seeds/SEED-002..SEED-005` exist in priority order; `REQUIREMENTS.md`, `ROADMAP.md`, `STATE.md`, `201-CONTEXT.md`, and this verification file carry Route B / v1.43 deferral language.
 
 ---
 
@@ -273,7 +269,7 @@ The single remaining open item is the D-14 secondary suppression watchdog at 6.4
 
 ## 2026-05-06 Re-Verification Refresh — Promotions and Score Reconciliation
 
-This refresh supersedes the previous verification dated 2026-05-06T13:40:36Z (whose frontmatter score `6/9` disagreed with the inline table `4/9` because the document had been edited piecemeal). Every truth row was re-walked against the live code and shipped evidence files.
+This refresh supersedes the previous verification dated 2026-05-06T14:35:00Z and confirms Plan 201-17 closeout artifacts after Route B was recorded. The earlier 2026-05-06T13:40:36Z verification had a frontmatter score `6/9` that disagreed with the inline table `4/9` because the document had been edited piecemeal. Every truth row was re-walked against the live code and shipped evidence files.
 
 **Promotions since the original 2026-05-04T23:57:07Z verification:**
 
@@ -296,9 +292,11 @@ This refresh supersedes the previous verification dated 2026-05-06T13:40:36Z (wh
 - integral anti-windup → Plan 201-14 (cap-and-clamp helper) ✓
 - recovery from floor independent of green_streak → Plan 201-14 (bounded decay holds at clamp above floor; floor never reached) ✓
 
+**Plan 201-17 closeout re-check (2026-05-06T15:27Z):** `gsd-sdk verify.artifacts` passed all 5 closeout artifacts; `gsd-sdk verify.key-links` could not resolve descriptor-style source labels (`.planning/REQUIREMENTS.md VALN-06 row`, `.planning/ROADMAP.md Phase 201 entry`, `.planning/STATE.md stopped_at`) but manual checks verified those links in `REQUIREMENTS.md`, `ROADMAP.md`, and `STATE.md`. Focused pytest slice passed 10/10 and canonical canary/soak JSON assertions confirmed the expected closure shape: canary PASS, soak D-19 primary PASS, D-14 secondary FAIL.
+
 **Net score:** **8/9** (was disputed `6/9` frontmatter / `4/9` inline; both stale). Single remaining FAIL is Truth 7 D-14, classified by operator as metric_semantics + recalibration deferred to v1.43+.
 
 ---
 
-_Verified: 2026-05-06T14:35:00Z (refresh; supersedes 2026-05-06T13:40:36Z)_
+_Verified: 2026-05-06T15:27:25Z (refresh after Plan 201-17 closeout; supersedes 2026-05-06T14:35:00Z)_
 _Verifier: Claude (gsd-verifier)_
