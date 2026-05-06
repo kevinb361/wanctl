@@ -16,7 +16,7 @@
 - [x] **METRIC-02** — Operator can decompose suppressions by cause from `/health.wans[].upload`. Each suppression increment is classified as `dwell_hold` (from `_apply_dwell_logic` at `queue_controller.py:348`), `backlog_recovery`, or `other`; per-cause counts are surfaced as additive `/health` fields. (Plan 202-01)
 - [x] **METRIC-03** — Replay test confirms completed-window counts match the codex re-aggregation values from `.planning/milestones/v1.42-phases/201-docsis-aware-ul-congestion-control/soak/20260505T132736Z/soak-capture.ndjson` (peak mean ~13.9/min, p95=41, max=124). (Plan 202-02)
 - [x] **METRIC-04** — SAFE-05 v1.43 baseline occurrence pins re-established for new metric keys; existing pins unchanged. (Plan 202-03)
-- [ ] **METRIC-05** — `CHANGELOG.md` and `docs/CONFIGURATION.md` document the additive `/health` fields and the metric-semantics framing (live counter vs completed-window).
+- [x] **METRIC-05** — `CHANGELOG.md` and `docs/CONFIGURATION.md` document the additive `/health` fields and the metric-semantics framing (live counter vs completed-window). (Plan 202-04)
 
 ### OBSV — Target-edge churn instrumentation (SEED-004)
 
@@ -69,7 +69,7 @@ Every v1.43 REQ-ID maps to exactly one phase except SAFE-07 which is cross-cutti
 | METRIC-02 | Phase 202 | 202-01 |
 | METRIC-03 | Phase 202 | 202-02 |
 | METRIC-04 | Phase 202 | 202-03 |
-| METRIC-05 | Phase 202 | TBD |
+| METRIC-05 | Phase 202 | 202-04 |
 | OBSV-05 | Phase 203 | TBD |
 | OBSV-06 | Phase 203 | TBD |
 | OBSV-07 | Phase 203 | TBD |

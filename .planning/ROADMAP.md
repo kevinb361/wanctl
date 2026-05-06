@@ -30,7 +30,7 @@
 
 ## Phases
 
-- [ ] **Phase 202: UL Suppression Metric Semantics (METRIC)** — Additive `/health` completed-window suppression counters with cause tags (dwell_hold / backlog_recovery / other); `suppressions_per_min` preserved.
+- [x] **Phase 202: UL Suppression Metric Semantics (METRIC)** — Additive `/health` completed-window suppression counters with cause tags (dwell_hold / backlog_recovery / other); `suppressions_per_min` preserved.
 - [ ] **Phase 203: Target-Edge Churn Instrumentation (OBSV)** — Per-sample `load_rtt_delta_us` in soak NDJSON + histogram aggregation in `soak-summary.json` broken down by zone × cause-tag.
 - [ ] **Phase 204: D-14 Successor Recalibration (CALIB)** — Clean 24h Spectrum baseline soak with new metric live, operator-approved successor threshold, verification 24h soak passing dual gate (D-19 stays 0, D-14-successor passes).
 
@@ -47,7 +47,7 @@
   3. Replay test against `.planning/milestones/v1.42-phases/201-docsis-aware-ul-congestion-control/soak/20260505T132736Z/soak-capture.ndjson` confirms completed-window counts match the codex re-aggregation values (peak mean ~13.9/min, p95=41, max=124).
   4. SAFE-05 v1.43 occurrence pins are re-established for the new metric keys; existing v1.42 control-path pins remain byte-identical (SAFE-07 verification).
   5. `CHANGELOG.md` and `docs/CONFIGURATION.md` document the additive `/health` field set and the metric-semantics framing (live counter vs completed-window).
-**Plans**: TBD (estimated 4-5 plans: schema + counter accounting; cause-tag classification; replay-fixture test; SAFE-05 pin update + docs)
+**Plans**: 4/4 complete (202-01 schema + counter accounting; 202-02 replay-fixture test; 202-03 SAFE-05 pin update; 202-04 docs)
 
 ### Phase 203: Target-Edge Churn Instrumentation (OBSV)
 **Goal**: Operators can read per-sample `load_rtt_delta_us` directly from soak NDJSON and a zone × cause-tag histogram from `soak-summary.json`, so future plans can read the target-edge distribution directly instead of inferring from RTT-integral and zone-trace surfaces.
@@ -80,7 +80,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 202. METRIC — UL Suppression Metric Semantics | 3/4 | In Progress | - |
+| 202. METRIC — UL Suppression Metric Semantics | 4/4 | Complete | 2026-05-06 |
 | 203. OBSV — Target-Edge Churn Instrumentation | 0/3 | Not started | - |
 | 204. CALIB — D-14 Successor Recalibration | 0/5 | Not started | - |
 
