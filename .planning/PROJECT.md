@@ -14,26 +14,40 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Tests:** v1.42 closed `gaps_found` Route B — D-19 primary VALN-06 floor-hit gate PASS shipped on v1.42.1; D-14 secondary suppression watchdog deferred to v1.43+ as `metric_semantics_and_recalibration`.
 **LOC:** ~37,900+ Python (src/)
 **Milestones:** 43 shipped (v1.0-v1.42), all archived in `.planning/milestones/`
-**Active milestone:** v1.43 — backlog seeded only (`SEED-002`..`SEED-005` D-14 successor work); roadmap not yet authored.
+**Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration — scoped 2026-05-06 via joint Claude+Codex scope decision; roadmap pending requirements + roadmapper pass.
 
 **Latest:** v1.42 DOCSIS-Aware UL Congestion Control — Spectrum upload now runs a YAML setpoint clamp (`docsis_mode: true`, `setpoint_mbps: 12`) with windowed RTT-integral classifier and CAKE-backlog secondary corroborator; bounded absolute RED decay and integral anti-windup landed in Plan 201-14; recanary `20260505T122513Z` PASSED with `ul_floor_hits_during_load=0`; 24h soak `20260505T132736Z` D-19 floor-hit delta `0` on production v1.42.1.
 **Previous:** v1.41 Per-Direction Control Surfaces — UL/DL threshold split shipped behind per-key presence flags (ARB-05); validator now WARNs on unknown `continuous_monitoring.*` keys (SAFE-06); `CHANGELOG.md` and `docs/CONFIGURATION.md` carry restart-required migration semantics (DOCS-03); VALN-06 deferred-and-closed via Phase 201 Route B.
 **Older:** v1.40 Ordering Rationale — DL queue-primary arbitration with confidence-gated RTT demotion; v1.39 Control-Path Timing & Measurement Accounting — netlink overlap instrumentation + reflector scorer blackout-awareness; v1.38 Measurement Resilience Under Load — machine-readable degraded measurement truth.
 
-## Next Milestone: v1.43 (TBD — backlog-seeded only)
+## Current Milestone: v1.43 UL Suppression Metrics & Gate Calibration
 
-**Status:** Seeds only. No roadmap, no requirements file. Open `/gsd-new-milestone` when ready to scope.
+**Goal:** Repair the metric contract behind the failed D-14 secondary watchdog from Phase 201, capture target-edge evidence in the same baseline soak, and recalibrate a soak-grounded D-14 successor gate — without changing controller behavior.
 
-**Seeded backlog (from v1.42 Phase 201 D-14 closeout):**
-- `SEED-002`..`SEED-005` — four ordered items addressing the YELLOW-edge dwell-hold suppression watchdog (`queue_controller.py:348`) metric-semantics + recalibration; FAIL was at `ul_hysteresis_suppression_rate_per_60s_mean=6.466842364880155` vs `<5.0`. Original threshold was never soak-calibrated against the post-Plan-201-14 RED decay path.
+**Target features (in execution order):**
+- **Metric semantics fix** (SEED-002) — additive `/health` schema with completed-window suppression counts and dwell-hold/backlog-recovery cause tags; `suppressions_per_min` preserved for backward compat.
+- **Target-edge churn instrumentation** (SEED-004) — additive soak-NDJSON per-sample `load_rtt_delta_us` field plus histogram + p50/p95/p99/max aggregation in `soak-summary.json`, broken down by zone and cause tag.
+- **D-14 successor recalibration** (SEED-003) — clean 24h Spectrum baseline soak under post-Plan-201-14 production with the new metric live, derive a soak-calibrated successor threshold (operator-approved with documented rationale), and verify VALN-06 D-14 successor closes cleanly.
+
+**Scope invariant (closeout rule):**
+- v1.43 closes ONLY after observability ships (SEED-002 + SEED-004) AND a recalibrated gate (SEED-003) passes a clean soak. **No controller tuning permitted within v1.43.** SEED-005 conservative UL tuning sweep is named for v1.44, not v1.43.
+
+**Phase order rationale:**
+- 002 → 004 → 003 (not the seed-priority order 002 → 003 → 004). The clean baseline soak is the milestone's most expensive evidence-gathering primitive (operator approval + 24h wall clock + production risk); SEED-004's per-sample delta should be live before that soak fires so a single 24h run produces both the recalibration baseline and the target-edge distribution.
 
 **Inherited deferrals still open at v1.43 boundary:**
-- **VALN-05b** (ATT cake-primary canary) — administratively deferred since v1.40; v1.39 closure `gaps_found` flipped the gating phrase from technical to historical. Tracks `.planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md`.
+- **VALN-05b** (ATT cake-primary canary) — administratively deferred since v1.40; v1.39 closure `gaps_found` flipped the gating phrase from technical to historical. Disposition unchanged for v1.43; resolution requires its own ADR. Tracks `.planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md`.
+
+**Dormant seeds (not in v1.43 scope):**
+- **SEED-001** — Spectrum topology-correct CAKE mode (920Mbit besteffort wash). Triggers on cake_signal.py / EXCLUDED_PARAMS / CAKE-mode work, none of which the 002/003/004 chain touches. Pulling SEED-001 into v1.43 would confound the D-14 evidence chain; remains dormant for a future CAKE-mode milestone.
+- **SEED-005** — Conservative UL tuning sweep (gated). Named for v1.44; structurally barred from v1.43 by the closeout invariant.
 
 **Key context:**
 - Production binary at archive: v1.42.1 on cake-shaper. Spectrum YAML carries `docsis_mode: true`, `setpoint_mbps: 12`, ceiling 18 Mbit, floor 8 Mbit, with bounded RED decay knobs from Plan 201-14.
+- D-14 FAIL framing: Codex re-aggregation localized the FAIL to metric semantics, not control regression — `suppressions_per_min` at `queue_controller.py:649,668` is a 60s reset counter sampled as if it were a rate; threshold inherited from Phase 200 qualitative framing without soak calibration against post-Plan-201-14 control surface.
 - Priority remains: stability > safety > clarity > elegance.
 - Three-milestone backfill (v1.39 / v1.41 / v1.42) executed 2026-05-06; ROADMAP.md / REQUIREMENTS.md collapsed; phase dirs moved to `milestones/v1.X-phases/`.
+- Joint scope decision recorded with Codex `gpt-5.5 xhigh` 2026-05-06; Codex's order-flip (002 → 004 → 003 instead of 002 → 003 → 004) and SEED-005 v1.44 deferral were accepted.
 
 <details>
 <summary>Archived v1.40 milestone goals (collapsed for brevity)</summary>
@@ -76,12 +90,6 @@ as healthy current measurement; replayable regression evidence and operator
 guidance close the milestone contract; and the later backfill/traceability
 phases repaired the final audit bookkeeping without reopening controller
 thresholds or steering behavior.
-
-## Next Milestone Goals
-
-- Decide whether the next milestone should build on v1.38 with alerting/history follow-up (`ALRT-01`, `ANLY-01`) or pivot to a different operational priority.
-- Define fresh milestone-scoped requirements instead of carrying v1.38 traceability files forward.
-- Keep the next roadmap explicit about whether it requires live production validation or can close on replayable proof.
 
 ## Requirements
 
@@ -382,7 +390,12 @@ thresholds or steering behavior.
 
 ### Active
 
-(None — v1.43 not yet scoped; see Next Milestone section above for seeded backlog.)
+**v1.43 UL Suppression Metrics & Gate Calibration:**
+
+- [ ] METRIC-01 — UL suppression-counter metric-semantics fix (additive `/health` schema with completed-window counts and cause tags, `suppressions_per_min` preserved) — SEED-002
+- [ ] OBSV-05 — Target-edge churn instrumentation (per-sample `load_rtt_delta_us` in soak NDJSON + histogram aggregation in `soak-summary.json` by zone and cause tag) — SEED-004
+- [ ] CALIB-01 — D-14 successor recalibration (clean 24h Spectrum baseline soak under post-201-14 production with new metric live; operator-approved threshold with documented rationale; verify VALN-06 D-14 successor closes) — SEED-003
+- [ ] SAFE-07 — Milestone-closeout invariant: no controller tuning permitted within v1.43; SEED-005 named for v1.44
 
 ### Deferred
 
@@ -390,8 +403,9 @@ thresholds or steering behavior.
 - [ ] CAKE stats caching — Not needed, flash wear protection working
 - [ ] Prometheus/Grafana export (OBSV-01 through OBSV-04) — Infrastructure not yet deployed, deferred from v1.23
 - [ ] v1.39 measurement-validation gates (TIME-03/04, MEAS-06, VALN-02/03) — superseded by v1.40+ measurement axis; not retroactively retargetable
-- [ ] VALN-05b ATT cake-primary canary — administratively deferred since v1.40; gating phrase historical
-- [ ] D-14 UL hysteresis suppression watchdog recalibration — `SEED-002`..`SEED-005` for v1.43
+- [ ] VALN-05b ATT cake-primary canary — administratively deferred since v1.40; gating phrase historical; disposition unchanged at v1.43 boundary, requires its own ADR for resolution
+- [ ] SEED-005 — Conservative UL tuning sweep (gated). Named for v1.44; structurally barred from v1.43 by SAFE-07 invariant. Prereqs: METRIC-01 + OBSV-05 + CALIB-01 all live in production with clean baseline soak.
+- [ ] SEED-001 — Spectrum topology-correct CAKE mode (920Mbit besteffort wash). Dormant; triggers on cake_signal.py / EXCLUDED_PARAMS / CAKE-mode work.
 
 ### Out of Scope
 
@@ -697,6 +711,9 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | nftables create-then-delete for idempotent reload | flush fails on first boot (table doesn't exist) | ✓ Safe on boot and reload | 2026-04-04 |
 | Bridge DSCP via conntrack marks (not direct DSCP set) | nftables bridge hooks can't set DSCP directly on forwarded packets | ✓ Voice/Bulk/BE tin separation | 2026-04-04 |
 | Measurement degradation must be explicit, not inferred from cached RTT | Production `tcp_12down` can show catastrophic latency while autorate still reports healthy/GREEN | — Pending | 2026-04-15 |
+| v1.43 phase order 002 → 004 → 003 (not seed-priority order) | The 24h Spectrum soak is the milestone's most expensive evidence primitive; SEED-004 per-sample delta must be live before that soak fires so one run produces both recalibration baseline and target-edge distribution | ✓ Encoded in ROADMAP (joint Codex+Claude scope decision) | 2026-05-06 |
+| v1.43 closeout invariant: no controller tuning | SEED-005 conservative UL tuning sweep is structurally barred from v1.43 to keep the observe/calibrate/tune boundary clean; v1.42 RETRO Lesson #1 was metric-semantics framing, and tuning under unverified observability would re-confound the evidence | ✓ Encoded as SAFE-07 milestone invariant | 2026-05-06 |
+| Decisions made jointly with Codex are explicitly recorded | Avoids re-deriving same decisions in future sessions; Codex's reasoning over the seed dependency DAG and soak economics belongs in project memory | ✓ Joint Claude+Codex scope decision row added | 2026-05-06 |
 
 ## Evolution
 
@@ -719,4 +736,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-05-06 — three-milestone backfill archive (v1.39 / v1.41 / v1.42). v1.42.1 in production. v1.43 carries forward only the D-14 successor backlog and the historical VALN-05b deferral._
+_Last updated: 2026-05-06 — v1.43 UL Suppression Metrics & Gate Calibration scoped via joint Claude+Codex decision; SEED-005 deferred to v1.44 by milestone-closeout invariant. v1.42.1 in production. VALN-05b ATT canary disposition unchanged._
