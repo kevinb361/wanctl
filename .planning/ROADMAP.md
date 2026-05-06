@@ -31,7 +31,7 @@
 ## Phases
 
 - [x] **Phase 202: UL Suppression Metric Semantics (METRIC)** — Additive `/health` completed-window suppression counters with cause tags (dwell_hold / backlog_recovery / other); `suppressions_per_min` preserved.
-- [ ] **Phase 203: Target-Edge Churn Instrumentation (OBSV)** — Per-sample `load_rtt_delta_us` in soak NDJSON + histogram aggregation in `soak-summary.json` broken down by zone × cause-tag.
+- [x] **Phase 203: Target-Edge Churn Instrumentation (OBSV)** — Per-sample `load_rtt_delta_us` in soak NDJSON + histogram aggregation in `soak-summary.json` broken down by zone × cause-tag. (completed 2026-05-06)
 - [ ] **Phase 204: D-14 Successor Recalibration (CALIB)** — Clean 24h Spectrum baseline soak with new metric live, operator-approved successor threshold, verification 24h soak passing dual gate (D-19 stays 0, D-14-successor passes).
 
 ## Phase Details
@@ -59,7 +59,7 @@
   2. `soak-summary.json` aggregates `load_rtt_delta_us` as histogram + p50/p95/p99/max over the soak window, broken down by zone (GREEN/YELLOW/SOFT_RED/RED) and by cause-tag (from Phase 202's METRIC-02).
   3. Golden-fixture replay test confirms the new field is populated and aggregated correctly against a known-good capture; SAFE-05 control-path pins remain unchanged (SAFE-07 verification).
   4. Soak harness README and `CHANGELOG.md` document the new field, the zone × cause-tag breakdown contract, and the no-control-path-change invariant.
-**Plans**: 2/3 complete (203-01 soak capture script + projection test; 203-02 soak-summary aggregator + replay fixtures; 203-03 docs + SAFE-07 verification pending)
+**Plans**: 3/3 complete (203-01 soak capture script + projection test; 203-02 soak-summary aggregator + replay fixtures; 203-03 docs + SAFE-07 verification)
 
 ### Phase 204: D-14 Successor Recalibration (CALIB)
 **Goal**: A clean 24h Spectrum baseline soak under post-Plan-201-14 production yields a soak-calibrated D-14 successor threshold with explicit operator rationale, and a verification 24h soak passes the dual gate cleanly — closing the metric watchdog without any control-path change.
@@ -81,7 +81,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 202. METRIC — UL Suppression Metric Semantics | 4/4 | Complete | 2026-05-06 |
-| 203. OBSV — Target-Edge Churn Instrumentation | 2/3 | In Progress | |
+| 203. OBSV — Target-Edge Churn Instrumentation | 3/3 | Complete   | 2026-05-06 |
 | 204. CALIB — D-14 Successor Recalibration | 0/5 | Not started | - |
 
 **Coverage:** 14/14 v1.43 REQ-IDs mapped + SAFE-07 cross-cutting across all three phases. No orphans.

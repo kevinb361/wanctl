@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
-status: executing
-stopped_at: Completed 203-02-PLAN.md
-last_updated: "2026-05-06T22:50:38.322Z"
+status: verifying
+stopped_at: Completed 203-03-PLAN.md
+last_updated: "2026-05-06T23:00:46.492Z"
 last_activity: 2026-05-06
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 12
-  completed_plans: 6
-  percent: 50
+  completed_plans: 7
+  percent: 58
 ---
 
 # Session State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 **Recently archived:** v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
 **Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration (scoped 2026-05-06; roadmap pending requirements + roadmapper pass)
 
-Progress: [█████░░░░░] 50% (executing)
+Progress: [██████░░░░] 58% (verifying)
 
 ## Deferred Items
 
@@ -264,10 +264,13 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 203-01]: Capture-projection tests extract the jq object literal from `scripts/soak-capture.sh` before running synthesized `/health` payloads, keeping the script as the single projection source of truth.
 - [Phase 203-02]: Used Option (b) for Phase 202 helper handling: compatible helper logic now exists in `scripts/soak_summary_aggregate.py`, while `tests/test_phase_202_replay.py` remains unchanged to minimize replay-canary churn.
 - [Phase 203-02]: Kept the new aggregator diagnostic-only: `diagnostic_distribution.load_rtt_delta_us` and `load_rtt_delta_us_by_zone_cause` landed, while secondary-gate computation remains Phase 204/CALIB-03 territory.
+- [Phase 203-03]: Documented the soak harness in `docs/SOAK_HARNESS.md` with the full NDJSON row schema, `soak-summary.json` schema, histogram bucket semantics, dual-attribution policy, upload-only zone axis, and harness-only SAFE-07 invariant.
+- [Phase 203-03]: Added `scripts/check-safe07-source-diff.sh` as the reusable SAFE-07 gate. It defaults to Phase 202 close ref `b72b463`, supports CLI and `PHASE_202_CLOSE` overrides, and uses `c8a506d` as the known-violating sanity ref in the current repo graph.
 
 ## Performance Metrics
 
 - 2026-05-06: Phase 203 Plan 02 completed in ~4min across 4 tasks and 5 new/modified files; `scripts/soak_summary_aggregate.py` now emits `diagnostic_distribution.load_rtt_delta_us` plus upload zone × cause histograms, `tests/test_phase_203_replay.py` passed with 12 tests, Phase 202 replay stayed green, the hot-path slice passed with 667 tests, and `git diff b72b463 -- src/wanctl/` stayed empty.
+- 2026-05-06: Phase 203 Plan 03 completed in ~7min across 4 tasks and 3 new/modified files; `docs/SOAK_HARNESS.md` documents the soak harness schema and SAFE-07 invariant, `CHANGELOG.md` v1.43-dev now lists Phase 203 additions, `scripts/check-safe07-source-diff.sh` passed against `b72b463`, the hot-path slice passed with 667 tests, the phase-scoped slice passed with 56 tests, and the full suite passed with 4962 tests, 6 skipped, 2 deselected.
 - 2026-05-06: Phase 203 Plan 01 completed in ~2min across 3 tasks and 2 new files; `scripts/soak-capture.sh` now emits the seven v1.43 target-edge churn NDJSON fields, `tests/test_phase_203_capture_projection.py` passed with 10 tests, the hot-path slice passed with 667 tests, SAFE-05 pin check passed, and `git diff b72b463 -- src/wanctl/` stayed empty.
 - 2026-05-06: Phase 202 Plan 02 completed in ~2min across 3 tasks and 1 new test file; `tests/test_phase_202_replay.py` passed with 9 tests, the v1.42 oracle computed 84,117 samples, 1,331 observable completed windows, mean 13.890308039068369/min, p95 41.0, max 124, the hot-path slice passed with 667 tests, and SAFE-07 source diff was 0 lines under src/wanctl.
 - 2026-05-06: Phase 202 Plan 03 completed in ~2min across 4 tasks and 1 modified test file; `tests/test_phase_195_replay.py` passed with 25 tests, the hot-path slice passed with 667 tests, only `tests/test_phase_195_replay.py` changed since Plan 202-02, and `src/wanctl/wan_controller.py` diff stayed 0 lines.
@@ -341,5 +344,5 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 Phase: 203 (Target-Edge Churn Instrumentation (OBSV)) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-06
