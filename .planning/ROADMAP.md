@@ -44,7 +44,7 @@
 **Success Criteria** (what must be TRUE):
   1. Operator can read `suppressions_completed_window_count` from `/health.wans[].upload` with values that emit only at 60s window boundaries; the live `suppressions_per_min` field is preserved untouched at the same path.
   2. Each suppression increment is classified at source (dwell-hold from `queue_controller.py:348`, backlog-recovery, or other) and surfaced as additive per-cause `/health.wans[].upload` count fields.
-  3. Replay test against `soak/20260505T132736Z/soak-capture.ndjson` confirms completed-window counts match the codex re-aggregation values (peak mean ~13.9/min, p95=41, max=124).
+  3. Replay test against `.planning/milestones/v1.42-phases/201-docsis-aware-ul-congestion-control/soak/20260505T132736Z/soak-capture.ndjson` confirms completed-window counts match the codex re-aggregation values (peak mean ~13.9/min, p95=41, max=124).
   4. SAFE-05 v1.43 occurrence pins are re-established for the new metric keys; existing v1.42 control-path pins remain byte-identical (SAFE-07 verification).
   5. `CHANGELOG.md` and `docs/CONFIGURATION.md` document the additive `/health` field set and the metric-semantics framing (live counter vs completed-window).
 **Plans**: TBD (estimated 4-5 plans: schema + counter accounting; cause-tag classification; replay-fixture test; SAFE-05 pin update + docs)
