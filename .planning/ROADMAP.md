@@ -81,7 +81,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 202. METRIC — UL Suppression Metric Semantics | 4/4 | Complete | 2026-05-06 |
-| 203. OBSV — Target-Edge Churn Instrumentation | 0/3 | Not started | - |
+| 203. OBSV — Target-Edge Churn Instrumentation | 1/3 | In Progress | |
 | 204. CALIB — D-14 Successor Recalibration | 0/5 | Not started | - |
 
 **Coverage:** 14/14 v1.43 REQ-IDs mapped + SAFE-07 cross-cutting across all three phases. No orphans.

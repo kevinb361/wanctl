@@ -20,9 +20,9 @@
 
 ### OBSV — Target-edge churn instrumentation (SEED-004)
 
-- [ ] **OBSV-05** — Soak NDJSON captures per-sample `load_rtt_delta_us` (= `effective_ul_load_rtt - baseline_rtt_ms` in microseconds) on every sample.
+- [x] **OBSV-05** — Soak NDJSON captures per-sample `load_rtt_delta_us` (= `effective_ul_load_rtt - baseline_rtt_ms` in microseconds) on every sample.
 - [ ] **OBSV-06** — `soak-summary.json` aggregates `load_rtt_delta_us` as histogram + p50/p95/p99/max over the soak window, broken down by zone (GREEN/YELLOW/SOFT_RED/RED) and by cause-tag from METRIC-02.
-- [ ] **OBSV-07** — Golden-fixture replay test confirms the new field is populated and aggregated correctly against a known-good capture.
+- [x] **OBSV-07** — Golden-fixture replay test confirms the new field is populated and aggregated correctly against a known-good capture.
 - [ ] **OBSV-08** — Soak harness README and `CHANGELOG.md` updated for the new field and aggregation contract.
 
 ### CALIB — D-14 successor recalibration (SEED-003)
@@ -35,7 +35,7 @@
 
 ### SAFE — Milestone-closeout invariant
 
-- [ ] **SAFE-07** — No controller tuning is permitted within v1.43. SEED-005 is structurally barred (not soft-deferred); any in-milestone proposal to tune `dwell_cycles`, `upload_target_bloat_ms`, `factor_down_yellow`, or any control-path knob must be rejected and routed to v1.44 scoping. Verification: SAFE-05 occurrence pins for v1.42 control-path values remain unchanged at v1.43 close; no control-path source diff between Phase 201 close and v1.43 close.
+- [x] **SAFE-07** — No controller tuning is permitted within v1.43. SEED-005 is structurally barred (not soft-deferred); any in-milestone proposal to tune `dwell_cycles`, `upload_target_bloat_ms`, `factor_down_yellow`, or any control-path knob must be rejected and routed to v1.44 scoping. Verification: SAFE-05 occurrence pins for v1.42 control-path values remain unchanged at v1.43 close; no control-path source diff between Phase 201 close and v1.43 close.
 
 ---
 
