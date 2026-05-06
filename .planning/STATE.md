@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
 status: executing
-stopped_at: Completed 202-03-safe05-v143-pin-extension-PLAN.md
-last_updated: "2026-05-06T21:09:27Z"
-last_activity: 2026-05-06 -- Phase 202 Plan 03 completed
+stopped_at: Completed 202-04-docs-changelog-and-fixture-path-fix-PLAN.md
+last_updated: "2026-05-06T21:13:42Z"
+last_activity: 2026-05-06 -- Phase 202 Plan 04 completed
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 12
-  completed_plans: 3
-  percent: 25
+  completed_plans: 4
+  percent: 33
 ---
 
 # Session State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 **Recently archived:** v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
 **Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration (scoped 2026-05-06; roadmap pending requirements + roadmapper pass)
 
-Progress: [███░░░░░░░] 25% (executing)
+Progress: [███░░░░░░░] 33% (executing)
 
 ## Deferred Items
 
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 202-03-safe05-v143-pin-extension-PLAN.md
+Stopped at: Completed 202-04-docs-changelog-and-fixture-path-fix-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -259,11 +259,13 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 202-02]: `suppression-stats.json::window_count=1439` is treated as a nominal elapsed-window count, not the observable reset-boundary count, because zero-suppression windows do not create a decreasing edge in the live counter snapshots.
 - [Phase 202-03]: Corrected Phase 201 SAFE-05 expected counts to the shipped `v1.42` tag values before adding v1.43 pins: docsis_mode=36, setpoint_mbps=35, integral_window_seconds=10, integral_threshold_ms_s=13, cake_backlog_low_threshold_bytes=10, cake_delay_delta_low_threshold_us=10.
 - [Phase 202-03]: METRIC-04 v1.43 SAFE-05 pins were established line-by-line across `src/wanctl/**/*.py`: _record_suppression=4, _window_suppressions_by_cause=6, _lifetime_suppressions_by_cause=3, _last_completed_window_total=3, _last_completed_window_by_cause=3, suppressions_completed_window_count=3, suppressions_completed_window_by_cause=3, suppressions_lifetime_by_cause=3.
+- [Phase 202-04]: Chose `v1.43-dev` for the CHANGELOG heading, placed `Suppression metric semantics (v1.43)` under DOCSIS-aware UL control docs, and corrected active fixture references to the canonical `.planning/milestones/v1.42-phases/201-docsis-aware-ul-congestion-control/soak/20260505T132736Z/soak-capture.ndjson` path.
 
 ## Performance Metrics
 
 - 2026-05-06: Phase 202 Plan 02 completed in ~2min across 3 tasks and 1 new test file; `tests/test_phase_202_replay.py` passed with 9 tests, the v1.42 oracle computed 84,117 samples, 1,331 observable completed windows, mean 13.890308039068369/min, p95 41.0, max 124, the hot-path slice passed with 667 tests, and SAFE-07 source diff was 0 lines under src/wanctl.
 - 2026-05-06: Phase 202 Plan 03 completed in ~2min across 4 tasks and 1 modified test file; `tests/test_phase_195_replay.py` passed with 25 tests, the hot-path slice passed with 667 tests, only `tests/test_phase_195_replay.py` changed since Plan 202-02, and `src/wanctl/wan_controller.py` diff stayed 0 lines.
+- 2026-05-06: Phase 202 Plan 04 completed in ~2min across 5 tasks and 5 docs/planning files; CHANGELOG.md and docs/CONFIGURATION.md now document the v1.43 additive suppression metric fields, watchdog-gate warning, and per-cycle backlog-recovery accounting, active fixture paths were corrected, the hot-path slice passed with 667 tests, and this plan introduced 0 `src/wanctl/**` diff lines.
 - 2026-05-05: Phase 201 Plan 15 completed the re-canary PASS path in ~30min active continuation over a ~1h30m deploy/canary evidence window; v1.42.1 was deployed with all version surfaces aligned, Snapshot A rollback-clean and Snapshot B deploy-evidence were validated, the saturation canary `20260505T122513Z` passed with `primary_gate_value=0` and `ul_floor_hits_during_load=0`, and Plan 201-16 is unblocked with T+0 floor-hit baseline 0.
 - 2026-05-06: Phase 201 Plan 16 completed the 24h soak evidence computation for `20260505T132736Z`; 84,117 samples were copied back from cake-shaper with 0.973584 coverage, D-19 primary floor-hit delta passed at 0, D-14 secondary suppression mean failed at 6.466842364880155 per 60s, anti-windup trigger delta was 0, and Phase 201 remains gaps_found pending operator next-action decision.
 - 2026-05-05: Phase 201 Plan 14 completed in ~11min across 4 tasks and 10 plan-scoped files; DOCSIS RED now uses bounded-absolute setpoint-relative decay with an 18-cycle floor-hit-free replay, anti-windup caps stuck integrals below threshold, daemon/check-config validators reject unsafe red-decay knobs, plan regression slice passed with 833 tests, and package mypy passed.
