@@ -679,12 +679,12 @@ class TestPhase195SourceGuards:
         # bumped for the QueueController surface; this is the second bump for
         # the WAN/controller health surface while preserving v1.41 pins above.
         phase201_expected_counts = {
-            "docsis_mode": 30,
-            "setpoint_mbps": 29,
+            "docsis_mode": 36,
+            "setpoint_mbps": 35,
             "integral_window_seconds": 10,
-            "integral_threshold_ms_s": 11,
-            "cake_backlog_low_threshold_bytes": 12,
-            "cake_delay_delta_low_threshold_us": 12,
+            "integral_threshold_ms_s": 13,
+            "cake_backlog_low_threshold_bytes": 10,
+            "cake_delay_delta_low_threshold_us": 10,
         }
 
         for name, expected_count in phase201_expected_counts.items():
