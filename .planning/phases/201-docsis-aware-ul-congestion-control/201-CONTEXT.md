@@ -58,6 +58,11 @@ Ship a DOCSIS-aware UL congestion control mode that holds Spectrum DOCSIS upload
 - **D-13:** **Zero-floor-hit gate preserved.** No relaxation. `ul_floor_hits_during_load=0` is the canary verdict pass condition. Same fail-closed rollback (D-10 from Phase 200) on canary fail.
 - **D-14:** **24h soak watchdog at `<5/60s` UL hysteresis suppression rate** (unchanged from Phase 200 inherited closure shape). Tighter threshold (`<2/60s`) was discussed and rejected for Phase 201 - DOCSIS-aware mode should produce far less suppression than the rejected hypothesis, but tightening the watchdog before the canary first proves zero-floor-hit is premature. v1.43+ may tighten if Phase 201 soak data supports it.
 
+### Soak Closure Gate (gap-closure path b, 2026-05-05)
+
+- **D-19 (operator-approved gate tightening):** Phase 201 closure adds a STRICTER PRIMARY soak gate beyond the original D-14 secondary watchdog: `floor_hit_cycles_total_delta_soak_window == 0`. Original D-14 `<5/60s` suppression-rate threshold STAYS as SECONDARY gate. Tightening aligns the soak's primary metric with the canary's primary metric. **Operator approval captured pre-soak in `201-16-OPERATOR-APPROVAL-D19.md`** (codex 201-REVIEWS round-2 LOW-CODEX-5: distinct operator-approval checkpoint required, not a planner-written claim in a verdict file).
+- **Plan 201-16 outcome (2026-05-06):** D-19 primary gate passed (`delta=0`), but D-14 secondary gate failed (`suppressions_per_min_mean=6.466842364880155` vs `<5.0`). Phase 201 remains `gaps_found`; see `201-16-SOAK-VERDICT.md` and `soak/20260505T132736Z/soak-summary.json`.
+
 ### Predeploy Gate (Inherited from Seed - Mandatory)
 
 - **D-15:** Phase 201's PLAN MUST include a predeploy gate that inspects `/etc/wanctl/spectrum.yaml` for v1.41-only keys (`continuous_monitoring.upload.target_bloat_ms`, `warn_bloat_ms`, `consecutive_yellow_decay_clamp`, `factor_down_yellow=1.0` if those values reflect the rejected hypothesis) and either reconciles them with Phase 201's own design choices or fails closed. Action shape (auto-strip vs operator-manual reconcile) is a planner-level decision; seed's "reconcile or fail closed" language gives both flavors latitude.

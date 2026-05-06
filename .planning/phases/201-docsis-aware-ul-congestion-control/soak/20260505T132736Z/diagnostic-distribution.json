@@ -1,0 +1,16 @@
+{
+  "rtt_integral_ms_s": {
+    "mean": 5.144822223807321,
+    "max": 270.569
+  },
+  "max_delay_delta_us": {
+    "mean": 810.3376368629409,
+    "max": 161281
+  },
+  "red_streak": {
+    "mean": 0.005872772447899949,
+    "max": 101
+  },
+  "headroom_exhausted_samples": 469,
+  "total_samples": 84117
+}
