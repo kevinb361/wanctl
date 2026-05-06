@@ -655,6 +655,11 @@ class TestPhase195SourceGuards:
         # strings and do NOT add incidental occurrences of v1.41 thresholds.
         # If a v1.41 pin drifts during a future change, treat that drift as a
         # real signal and reconcile manually (do not auto-bump).
+        #
+        # v1.43 SAFE-07 closeout invariant (Phase 202-03): the v1.40/v1.41 dict
+        # below AND the v1.42 dict further down MUST remain byte-identical to
+        # their state at v1.42 close. Plan 202 only adds a third
+        # `phase202_expected_counts` dict; it does NOT modify these two.
         expected_counts = {
             "factor_down": 17,
             "step_up": 12,
