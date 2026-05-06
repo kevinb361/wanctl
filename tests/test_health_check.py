@@ -24,6 +24,7 @@ from wanctl.health_check import (
 )
 from wanctl.irtt_measurement import IRTTResult
 from wanctl.perf_profiler import OperationProfiler
+from wanctl.queue_controller import QueueController
 from wanctl.signal_processing import SignalResult
 from wanctl.storage.writer import MetricsWriter
 
@@ -35,6 +36,15 @@ def _configure_qc_health_data(qc_mock: MagicMock) -> None:
     allowing tests to modify private attrs after fixture setup.
     """
     def _qc_health_data():
+        completed_by_cause = getattr(qc_mock, "_last_completed_window_by_cause", None)
+        if not isinstance(completed_by_cause, dict):
+            completed_by_cause = {"dwell_hold": 0, "backlog_recovery": 0, "other": 0}
+        lifetime_by_cause = getattr(qc_mock, "_lifetime_suppressions_by_cause", None)
+        if not isinstance(lifetime_by_cause, dict):
+            lifetime_by_cause = {"dwell_hold": 0, "backlog_recovery": 0, "other": 0}
+        completed_total = getattr(qc_mock, "_last_completed_window_total", 0)
+        if not isinstance(completed_total, int):
+            completed_total = 0
         return {
             "hysteresis": {
                 "dwell_counter": qc_mock._yellow_dwell,
@@ -43,6 +53,9 @@ def _configure_qc_health_data(qc_mock: MagicMock) -> None:
                 "transitions_suppressed": qc_mock._transitions_suppressed,
                 "suppressions_per_min": qc_mock._window_suppressions,
                 "window_start_epoch": qc_mock._window_start_time,
+                "suppressions_completed_window_count": completed_total,
+                "suppressions_completed_window_by_cause": dict(completed_by_cause),
+                "suppressions_lifetime_by_cause": dict(lifetime_by_cause),
             },
             "cake_detection": {
                 "dwell_bypassed_count": getattr(qc_mock, "_dwell_bypassed_count", 0),
@@ -2867,6 +2880,9 @@ class TestHysteresisHealth:
                 "dwell_counter", "dwell_cycles", "deadband_ms", "transitions_suppressed",
                 "suppressions_per_min", "window_start_epoch", "alert_threshold_per_min",
                 "green_streak", "green_required", "last_zone",
+                "suppressions_completed_window_count",
+                "suppressions_completed_window_by_cause",
+                "suppressions_lifetime_by_cause",
             }
             expected_download_keys = expected_upload_keys | {"dwell_bypassed_count"}
             dl_keys = set(data["wans"][0]["download"]["hysteresis"].keys())
@@ -3054,6 +3070,9 @@ class TestDwellBypassedCountSurfacing:
             "green_required",
             "last_zone",
             "dwell_bypassed_count",
+            "suppressions_completed_window_count",
+            "suppressions_completed_window_by_cause",
+            "suppressions_lifetime_by_cause",
         }
 
         assert set(data["wans"][0]["download"]["hysteresis"].keys()) == expected_keys
@@ -3063,6 +3082,93 @@ class TestDwellBypassedCountSurfacing:
         data = self._get_health_payload(mock_wan_with_dwell_bypass)
 
         assert "dwell_bypassed_count" not in data["wans"][0]["upload"]["hysteresis"]
+
+
+class TestPhase202SuppressionHealthSchema:
+    """Phase 202 additive suppression metric keys in QueueController and /health."""
+
+    @staticmethod
+    def _make_qc(name: str = "upload") -> QueueController:
+        return QueueController(
+            name=name,
+            floor_green=8_000_000,
+            floor_yellow=8_000_000,
+            floor_soft_red=8_000_000,
+            floor_red=8_000_000,
+            ceiling=18_000_000,
+            step_up=1_000_000,
+            factor_down=0.85,
+            factor_down_yellow=0.96,
+            green_required=5,
+        )
+
+    @staticmethod
+    def _rate_section(qc: QueueController, direction: str) -> dict:
+        return HealthCheckHandler._build_rate_hysteresis_section(
+            HealthCheckHandler,
+            qc,
+            {"suppression_alert": {"threshold": 20}},
+            direction,
+        )
+
+    def test_completed_window_get_health_data_shape_initial(self):
+        """QueueController exposes completed-window and lifetime suppression keys."""
+        hyst = self._make_qc().get_health_data()["hysteresis"]
+
+        assert hyst["suppressions_completed_window_count"] == 0
+        assert hyst["suppressions_completed_window_by_cause"] == {
+            "dwell_hold": 0,
+            "backlog_recovery": 0,
+            "other": 0,
+        }
+        assert hyst["suppressions_lifetime_by_cause"] == {
+            "dwell_hold": 0,
+            "backlog_recovery": 0,
+            "other": 0,
+        }
+        assert hyst["suppressions_per_min"] == 0
+
+    def test_completed_window_by_cause_round_trips_to_upload_and_download(self):
+        """Completed-window total and per-cause dict copy through symmetrically."""
+        expected = {"dwell_hold": 5, "backlog_recovery": 2, "other": 0}
+        upload = self._make_qc("upload")
+        download = self._make_qc("download")
+        for qc in (upload, download):
+            qc._window_suppressions_by_cause = dict(expected)
+            qc.reset_window()
+
+        upload_hyst = self._rate_section(upload, "upload")["hysteresis"]
+        download_hyst = self._rate_section(download, "download")["hysteresis"]
+
+        assert upload_hyst["suppressions_completed_window_count"] == 7
+        assert download_hyst["suppressions_completed_window_count"] == 7
+        assert upload_hyst["suppressions_completed_window_by_cause"] == expected
+        assert download_hyst["suppressions_completed_window_by_cause"] == expected
+
+    def test_lifetime_by_cause_is_monotonic_across_reset(self):
+        """Lifetime cause counters survive reset_window and copy through /health."""
+        qc = self._make_qc("upload")
+        for cause in ("dwell_hold", "backlog_recovery", "backlog_recovery", "other"):
+            qc._record_suppression(cause)
+        qc.reset_window()
+
+        hyst = self._rate_section(qc, "upload")["hysteresis"]
+
+        assert hyst["suppressions_lifetime_by_cause"] == {
+            "dwell_hold": 1,
+            "backlog_recovery": 2,
+            "other": 1,
+        }
+
+    def test_suppressions_per_min_unchanged_by_backlog_recovery_cause_counts(self):
+        """Backlog-recovery per-cause counts do not bleed into suppressions_per_min."""
+        qc = self._make_qc("upload")
+        qc._window_suppressions_by_cause["backlog_recovery"] = 11
+        qc._window_suppressions = 0
+
+        hyst = self._rate_section(qc, "upload")["hysteresis"]
+
+        assert hyst["suppressions_per_min"] == 0
 
 
 class TestPhase201DiagnosticHealthFields:
