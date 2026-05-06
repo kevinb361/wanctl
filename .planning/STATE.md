@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
-status: executing
-stopped_at: Completed 202-04-docs-changelog-and-fixture-path-fix-PLAN.md
-last_updated: "2026-05-06T21:13:42Z"
-last_activity: 2026-05-06 -- Phase 202 Plan 04 completed
+status: completed
+stopped_at: Phase 203 plans created and verified
+last_updated: "2026-05-06T22:34:17.147Z"
+last_activity: 2026-05-06 -- Phase 202 Plan 01 completed with additive suppression metrics
 progress:
   total_phases: 3
   completed_phases: 0
@@ -128,8 +128,8 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 202-04-docs-changelog-and-fixture-path-fix-PLAN.md
-Resume file: None
+Stopped at: Phase 203 plans created and verified
+Resume file: .planning/milestones/v1.43-phases/203-target-edge-churn-instrumentation-obsv/
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
 ## Decisions
