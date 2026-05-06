@@ -246,7 +246,7 @@ See `human_verification` block in frontmatter. The original two items have been 
 
 One remaining item:
 
-### 1. Plan 201-17 closeout authoring
+### 1. Plan 201-17 closeout authored — resolved 2026-05-06
 
 **Test:** Author Plan 201-17 (gap closure) to refresh `CONTEXT.md`/`ROADMAP.md` marking Phase 201 `gaps_found` with explicit baton-pass to v1.43, write `201-RETRO.md`, and open the four v1.43 backlog items in priority order:
 
