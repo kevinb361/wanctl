@@ -14,10 +14,11 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Tests:** v1.42 closed `gaps_found` Route B — D-19 primary VALN-06 floor-hit gate PASS shipped on v1.42.1; D-14 secondary suppression watchdog deferred to v1.43+ as `metric_semantics_and_recalibration`.
 **LOC:** ~37,900+ Python (src/)
 **Milestones:** 43 shipped (v1.0-v1.42), all archived in `.planning/milestones/`
-**Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration — scoped 2026-05-06 via joint Claude+Codex scope decision; roadmap pending requirements + roadmapper pass.
+**Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration — Phase 202 and Phase 203 complete; Phase 204 CALIB is next.
 
-**Latest:** v1.42 DOCSIS-Aware UL Congestion Control — Spectrum upload now runs a YAML setpoint clamp (`docsis_mode: true`, `setpoint_mbps: 12`) with windowed RTT-integral classifier and CAKE-backlog secondary corroborator; bounded absolute RED decay and integral anti-windup landed in Plan 201-14; recanary `20260505T122513Z` PASSED with `ul_floor_hits_during_load=0`; 24h soak `20260505T132736Z` D-19 floor-hit delta `0` on production v1.42.1.
-**Previous:** v1.41 Per-Direction Control Surfaces — UL/DL threshold split shipped behind per-key presence flags (ARB-05); validator now WARNs on unknown `continuous_monitoring.*` keys (SAFE-06); `CHANGELOG.md` and `docs/CONFIGURATION.md` carry restart-required migration semantics (DOCS-03); VALN-06 deferred-and-closed via Phase 201 Route B.
+**Latest:** v1.43 Phase 203 Target-Edge Churn Instrumentation — soak capture now emits per-sample `load_rtt_delta_us`, `soak_summary_aggregate.py` produces target-edge histograms by upload zone × suppression cause, and SAFE-07 remains clean with no `src/wanctl/**` changes.
+**Previous:** v1.42 DOCSIS-Aware UL Congestion Control — Spectrum upload now runs a YAML setpoint clamp (`docsis_mode: true`, `setpoint_mbps: 12`) with windowed RTT-integral classifier and CAKE-backlog secondary corroborator; bounded absolute RED decay and integral anti-windup landed in Plan 201-14; recanary `20260505T122513Z` PASSED with `ul_floor_hits_during_load=0`; 24h soak `20260505T132736Z` D-19 floor-hit delta `0` on production v1.42.1.
+**Older:** v1.41 Per-Direction Control Surfaces — UL/DL threshold split shipped behind per-key presence flags (ARB-05); validator now WARNs on unknown `continuous_monitoring.*` keys (SAFE-06); `CHANGELOG.md` and `docs/CONFIGURATION.md` carry restart-required migration semantics (DOCS-03); VALN-06 deferred-and-closed via Phase 201 Route B.
 **Older:** v1.40 Ordering Rationale — DL queue-primary arbitration with confidence-gated RTT demotion; v1.39 Control-Path Timing & Measurement Accounting — netlink overlap instrumentation + reflector scorer blackout-awareness; v1.38 Measurement Resilience Under Load — machine-readable degraded measurement truth.
 
 ## Current Milestone: v1.43 UL Suppression Metrics & Gate Calibration
