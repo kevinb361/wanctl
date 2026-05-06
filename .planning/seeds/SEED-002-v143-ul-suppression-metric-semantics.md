@@ -38,7 +38,7 @@ This seed is the **first item** in the v1.43 backlog and is a **prerequisite for
 1. **Completed-window counter:** add a 60s rolling-window counter that emits values only at window boundaries (not on every sample). Surface as `suppressions_completed_window_count` in `/health.wans[].upload`.
 2. **Cause tags:** when incrementing the suppression counter, classify by cause (dwell-hold vs backlog-recovery vs other) and surface counts per cause as additive `/health` fields.
 3. **Preserve `suppressions_per_min`** untouched for backward compatibility.
-4. Tests: golden-fixture replay confirming completed-window counts match codex re-aggregation values from `soak/20260505T132736Z/soak-capture.ndjson`.
+4. Tests: golden-fixture replay confirming completed-window counts match codex re-aggregation values from `.planning/milestones/v1.42-phases/201-docsis-aware-ul-congestion-control/soak/20260505T132736Z/soak-capture.ndjson`.
 5. SAFE-05 v1.43 baseline counts re-established for new keys.
 6. Migration note in CHANGELOG / docs/CONFIGURATION.md.
 
