@@ -1,10 +1,9 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.43
-milestone_name: TBD (backlog-seeded only)
-status: idle
-stopped_at: Three-milestone backfill archive complete 2026-05-06 (v1.39 / v1.41 / v1.42). v1.42.1 in production. v1.43 backlog seeded but not scoped — open with /gsd-new-milestone.
-last_updated: "2026-05-06T00:00:00.000Z"
+milestone_name: UL Suppression Metrics & Gate Calibration
+status: planning
+last_updated: "2026-05-06T19:07:10.682Z"
 last_activity: 2026-05-06
 progress:
   total_phases: 0
@@ -21,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** v1.43 not yet scoped. Open with `/gsd-new-milestone` when ready.
+**Current focus:** v1.43 UL Suppression Metrics & Gate Calibration — METRIC-01 → OBSV-05 → CALIB-01 (SEED-002 → SEED-004 → SEED-003); SAFE-07 closeout invariant: no controller tuning in v1.43.
 
 ## Position
 
 **Last shipped milestone:** v1.42 DOCSIS-Aware UL Congestion Control (shipped 2026-05-06; verdict `gaps_found` Route B)
 **Recently archived:** v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
-**Next milestone:** v1.43 (backlog seeded `SEED-002`..`SEED-005`; roadmap not authored — open via `/gsd-new-milestone`)
+**Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration (scoped 2026-05-06; roadmap pending requirements + roadmapper pass)
 
-Progress: [░░░░░░░░░░] 0% (v1.43 not scoped)
+Progress: [░░░░░░░░░░] 0% (planning)
 
 ## Deferred Items
 
@@ -325,7 +324,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Current Position
 
-Phase: 201 (docsis-aware-ul-congestion-control) — CLOSED gaps_found
-Plan: 16 of 16 active plans complete (Plan 201-12 superseded by Plan 201-16; 17 PLAN.md files materialized total)
-Status: D-19 primary VALN-06 PASS shipped on v1.42.1; D-14 deferred to v1.43+ as SEED-002..SEED-005; milestone v1.42 ready for `/gsd-complete-milestone`
-Last activity: 2026-05-06
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-06 — Milestone v1.43 started
