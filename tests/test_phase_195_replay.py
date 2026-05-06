@@ -690,6 +690,24 @@ class TestPhase195SourceGuards:
         for name, expected_count in phase201_expected_counts.items():
             assert sum(1 for line in phase201_src.splitlines() if name in line) == expected_count
 
+        # v1.43 baseline (Plan 202-01 — METRIC-01/METRIC-02 additive surface).
+        # Phase 202 introduces per-cause completed-window counters and the
+        # _record_suppression helper. Pinned line-by-line across all src/wanctl
+        # to detect silent attribute-rename drift in future changes.
+        phase202_expected_counts = {
+            "_record_suppression": 4,
+            "_window_suppressions_by_cause": 6,
+            "_lifetime_suppressions_by_cause": 3,
+            "_last_completed_window_total": 3,
+            "_last_completed_window_by_cause": 3,
+            "suppressions_completed_window_count": 3,
+            "suppressions_completed_window_by_cause": 3,
+            "suppressions_lifetime_by_cause": 3,
+        }
+
+        for name, expected_count in phase202_expected_counts.items():
+            assert sum(1 for line in phase201_src.splitlines() if name in line) == expected_count
+
     def test_no_absolute_disagreement_literal_remains(self) -> None:
         src = Path("src/wanctl/wan_controller.py").read_text()
 
