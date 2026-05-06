@@ -16,6 +16,7 @@ files_modified:
   - .planning/seeds/SEED-003-v143-d14-watchdog-recalibration.md
   - .planning/seeds/SEED-004-v143-target-edge-churn-instrumentation.md
   - .planning/seeds/SEED-005-v143-conservative-ul-tuning-sweep.md
+  - .planning/phases/201-docsis-aware-ul-congestion-control/201-17-SUMMARY.md
 autonomous: false
 requirements: [VALN-06]
 tags: [closeout, gap_closure, retrospective, v1.43-baton]
@@ -118,6 +119,18 @@ The four v1.43 items are LOAD-BEARING in this order. Items 1–3 are prerequisit
     - `.planning/phases/201-docsis-aware-ul-congestion-control/201-16-SOAK-VERDICT.md` (canonical numbers)
   </read_first>
   <action>
+**Edit A — Top requirements list checkbox annotation (REQUIREMENTS.md line 25, the `- [x] VALN-06: ...` entry).**
+
+Codex closeout review flagged that a future reader scanning the top requirements list would read `[x] VALN-06` as "fully satisfied" — only the v1.41 traceability row currently carries the deferral language.
+
+Append a parenthetical clarifier directly after the existing line text (do NOT change `[x]`; the bracket means "tracked requirement exists", not "fully closed"). Example after-edit shape:
+
+`- [x] VALN-06: ... existing text ... (Phase 201 closed gaps_found 2026-05-06 via operator Route B; D-19 primary floor-hit gate PASS shipped on v1.42.1; D-14 secondary deferred to v1.43+ — see v1.41 traceability row below)`
+
+Use whatever exact wording is needed to preserve the existing line's grammar. The clarifier must mention `gaps_found`, `Route B`, `v1.43`, and point to the traceability row.
+
+**Edit B — v1.41 Traceability table VALN-06 row.**
+
 Edit the v1.41 Traceability table VALN-06 row (currently `| VALN-06 | Phase 200 (deferred to Phase 201) | Deferred -> Phase 201 (inherited blocking requirement) (...). → Phase 201 gap-closure soak FAIL ... Next action: operator decision between A5-style controlled reattempt and v1.43+ control-model/suppression-watchdog follow-up. |`).
 
 Append (do NOT replace) closure language that mirrors the existing arrow-prefixed continuation style:
@@ -129,17 +142,18 @@ Preserve the existing `Status` cell content (the `Deferred -> Phase 201 (inherit
 Do NOT change ARB-05, SAFE-06, or DOCS-03 rows. Do NOT touch v1.39 traceability.
   </action>
   <acceptance_criteria>
-    - `grep -E 'VALN-06.*gaps_found.*v1\.43' .planning/REQUIREMENTS.md` returns the updated VALN-06 row
-    - `grep -c 'VALN-06' .planning/REQUIREMENTS.md` count is unchanged from before the edit (only the existing row was extended; no new row added)
-    - `grep -F 'metric_semantics_and_recalibration' .planning/REQUIREMENTS.md` returns the new wording
+    - `grep -E '\[x\] VALN-06.*gaps_found' .planning/REQUIREMENTS.md` matches (Edit A — top checkbox carries the closure clarifier)
+    - `grep -E 'VALN-06.*gaps_found.*v1\.43' .planning/REQUIREMENTS.md` returns the updated VALN-06 row (Edit B — traceability)
+    - `grep -c 'VALN-06' .planning/REQUIREMENTS.md` count is unchanged from before the edit (no new row added; both lines are existing — line 25 checkbox + traceability row)
+    - `grep -F 'metric_semantics_and_recalibration' .planning/REQUIREMENTS.md` returns the new wording (traceability)
     - `grep -F '20260505T132736Z' .planning/REQUIREMENTS.md` returns the soak-evidence reference
     - The existing `Deferred -> Phase 201 (inherited blocking requirement)` text is still present (additive edit, not replacement)
     - ARB-05, SAFE-06, DOCS-03 rows are byte-identical to before
   </acceptance_criteria>
   <verify>
-    <automated>grep -E 'VALN-06.*gaps_found.*v1\.43' .planning/REQUIREMENTS.md && grep -F 'metric_semantics_and_recalibration' .planning/REQUIREMENTS.md && grep -F 'Deferred -> Phase 201 (inherited blocking requirement)' .planning/REQUIREMENTS.md && [ "$(grep -c 'VALN-06' .planning/REQUIREMENTS.md)" = "2" ]</automated>
+    <automated>grep -E '\[x\] VALN-06.*gaps_found' .planning/REQUIREMENTS.md && grep -E 'VALN-06.*gaps_found.*v1\.43' .planning/REQUIREMENTS.md && grep -F 'metric_semantics_and_recalibration' .planning/REQUIREMENTS.md && grep -F 'Deferred -> Phase 201 (inherited blocking requirement)' .planning/REQUIREMENTS.md && [ "$(grep -c 'VALN-06' .planning/REQUIREMENTS.md)" = "2" ]</automated>
   </verify>
-  <done>VALN-06 row carries the partial-closure status with explicit v1.43 deferral, preserving the existing inherited-blocking trail.</done>
+  <done>VALN-06 row + top checkbox both carry the partial-closure status with explicit v1.43 deferral, preserving the existing inherited-blocking trail. Future readers scanning the top checkbox list will see the deferral clarifier.</done>
 </task>
 
 <task type="auto">
@@ -157,7 +171,7 @@ Three coordinated edits to ROADMAP.md, ALL within the v1.42 / Phase 201 region:
 
 **Edit A — Phase Summary table row (line 185).** Replace the cell `| 201 | DOCSIS-Aware UL Congestion Control | 14/16 | In Progress|  |` with:
 
-`| 201 | DOCSIS-Aware UL Congestion Control | 16/16 | Closed (gaps_found) — D-19 primary VALN-06 PASS shipped on v1.42.1; D-14 suppression watchdog deferred to v1.43+ as metric_semantics_and_recalibration | 2026-05-06 |`
+`| 201 | DOCSIS-Aware UL Congestion Control | 16/16 | Closed (gaps_found) — D-19 primary VALN-06 PASS shipped on v1.42.1; D-14 suppression watchdog deferred to v1.43+ as metric_semantics_and_recalibration; Plan 201-12 superseded by Plan 201-16 (17 PLAN.md files materialized total) | 2026-05-06 |`
 
 **Edit B — Success Criteria annotations (lines 220-225).** On Success Criteria #2 and #3, append closure annotations mirroring the Phase 200 pattern (where SC#3 and SC#4 carry `**(Deferred to Phase 201 — see `200-RETRO.md`. ...)**` parenthetical updates).
 
@@ -173,7 +187,7 @@ Update the Plans-summary line currently at line 227:
 `**Plans:** 15/16 plans executed; Plan 201-16 executed and recorded soak FAIL`
 
 Replace with:
-`**Plans:** 16/16 plans complete — Phase 201 closed as `gaps_found` 2026-05-06 via operator Route B. D-19 primary VALN-06 floor-hit gate PASSED on canary `20260505T122513Z` and 24h soak `20260505T132736Z` (production binary v1.42.1 with rollback evidence at `canary/20260505T122513Z/` and `soak/20260505T132736Z/`). D-14 secondary suppression watchdog FAILED at `6.466842364880155/60s` mean (vs `<5.0`); FAIL is on the YELLOW-edge dwell-hold path (`queue_controller.py:348`), unrelated to the bounded RED decay path Plan 201-14 fixed (`queue_controller.py:361-376`), and the original threshold was never soak-calibrated against the post-fix control surface. D-14 work deferred to v1.43 as four ordered backlog items (`SEED-002`..`SEED-005`). See `201-RETRO.md` and `201-VERIFICATION.md` `closure_route` block.`
+`**Plans:** 16/16 active plans complete (Plan 201-12 superseded by Plan 201-16; 17 PLAN.md files materialized total) — Phase 201 closed as `gaps_found` 2026-05-06 via operator Route B. D-19 primary VALN-06 floor-hit gate PASSED on canary `20260505T122513Z` and 24h soak `20260505T132736Z` (production binary v1.42.1 with rollback evidence at `canary/20260505T122513Z/` and `soak/20260505T132736Z/`). D-14 secondary suppression watchdog FAILED at `6.466842364880155/60s` mean (vs `<5.0`); FAIL is on the YELLOW-edge dwell-hold path (`queue_controller.py:348`), unrelated to the bounded RED decay path Plan 201-14 fixed (`queue_controller.py:361-376`), and the original threshold was never soak-calibrated against the post-fix control surface. D-14 work deferred to v1.43 as four ordered backlog items (`SEED-002`..`SEED-005`). See `201-RETRO.md` and `201-VERIFICATION.md` `closure_route` block.`
 
 Then in the Plans checklist (line 230 onward), strike the stale Plan 12 line if it is currently `[ ]` (inspect: `- [ ] 201-12-soak-and-closeout-PLAN.md — Superseded by revised Plan 201-16...`). Leave the line in place but mark it `[~]` (or whatever marker is already used for superseded plans elsewhere — if no convention exists, add `(superseded)` parenthetical and leave checkbox `[ ]`; do NOT mark it `[x]`).
 
@@ -183,8 +197,9 @@ Append a new line at the end of the Plans checklist (after the Plan 16 entry at 
 Do NOT touch v1.41, v1.40, v1.39, or any other milestone region.
   </action>
   <acceptance_criteria>
-    - `grep -E 'Phase 201.*Closed \(gaps_found\)' .planning/ROADMAP.md` returns the Phase Summary row
-    - `grep -F 'D-14 deferred' .planning/ROADMAP.md` matches (via `D-14 ... deferred to v1.43+` or equivalent in any of the three edits)
+    - `grep -E '^\| 201 \|.*Closed \(gaps_found\)' .planning/ROADMAP.md` matches the Phase Summary table row (anchored on table cell — codex closeout review caught that `Phase 201.*Closed` does not match the `| 201 | ... |` table format)
+    - `grep -F 'Plan 201-12 superseded' .planning/ROADMAP.md` matches (plan-count convention is consistent: `16/16 active; Plan 201-12 superseded; 17 materialized`)
+    - `grep -E 'D-14.*deferred' .planning/ROADMAP.md` matches (via `D-14 ... deferred to v1.43+` or equivalent in any of the three edits)
     - `grep -F 'canary/20260505T122513Z/' .planning/ROADMAP.md` returns the rollback-evidence reference
     - `grep -F 'soak/20260505T132736Z/' .planning/ROADMAP.md` returns the rollback-evidence reference
     - `grep -F 'v1.42.1' .planning/ROADMAP.md` returns the production binary reference
@@ -193,7 +208,7 @@ Do NOT touch v1.41, v1.40, v1.39, or any other milestone region.
     - Phase 200 region (lines 114-170) unchanged; v1.39 / v1.40 / archived regions unchanged
   </acceptance_criteria>
   <verify>
-    <automated>grep -E 'Phase 201.*Closed \(gaps_found\)' .planning/ROADMAP.md && grep -F 'D-14' .planning/ROADMAP.md | grep -E 'deferred|defer' && grep -F '20260505T122513Z' .planning/ROADMAP.md && grep -F '20260505T132736Z' .planning/ROADMAP.md && grep -F '201-17-closeout-PLAN.md' .planning/ROADMAP.md</automated>
+    <automated>grep -E '^\| 201 \|.*Closed \(gaps_found\)' .planning/ROADMAP.md && grep -F 'Plan 201-12 superseded' .planning/ROADMAP.md && grep -E 'D-14.*deferred' .planning/ROADMAP.md && grep -F '20260505T122513Z' .planning/ROADMAP.md && grep -F '20260505T132736Z' .planning/ROADMAP.md && grep -F '201-17-closeout-PLAN.md' .planning/ROADMAP.md</automated>
   </verify>
   <done>ROADMAP.md Phase 201 row, success criteria, plans-summary, and plan checklist all reflect Route B closure with v1.42.1 production binary and v1.43 baton-pass; mirrors Phase 200 closure formatting.</done>
 </task>
@@ -258,8 +273,8 @@ Create `.planning/phases/201-docsis-aware-ul-congestion-control/201-RETRO.md` wi
 # Phase 201 Retrospective: DOCSIS-Aware UL Congestion Control
 
 **Phase outcome:** D-19 primary VALN-06 floor-hit gate PASSED on production v1.42.1; D-14 secondary suppression watchdog FAILED, classified as metric_semantics_and_recalibration on the YELLOW-edge dwell-hold path (independent of the bounded RED decay fix). Closed `gaps_found` via operator Route B 2026-05-06; D-14 successor work deferred to v1.43+.
-**Plans completed:** 16 of 16 (Plan 12 superseded by Plan 16 mid-flight after Plan 15 re-canary PASS).
-**Time-on-phase:** ~3 days planning + ~14 days executing (2026-05-04 → 2026-05-06).
+**Plans completed:** 16 of 16 active plans (17 PLAN.md files materialized; Plan 201-12 superseded by Plan 201-16 mid-flight after Plan 201-15 re-canary PASS).
+**Time-on-phase:** ~3 calendar days end-to-end (2026-05-04 CONTEXT → 2026-05-06 closeout); compressed across canary FAIL, replan, control-model amendment, recanary PASS, 24h soak, and gap-closure.
 
 ## What Was Built
 
@@ -405,7 +420,7 @@ Use the exact section ordering and headline phrasings above. Numerical values, f
     - `.planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md` lines 1-48 (frontmatter; the `re_verification:` block is at lines 8-21)
   </read_first>
   <action>
-Add a single annotation field to the existing `re_verification:` frontmatter block. Locate the block:
+**Edit A — re_verification annotation (additive).** Add a closeout annotation to the existing `re_verification:` frontmatter block. Locate the block:
 
 ```yaml
 re_verification:
@@ -426,25 +441,46 @@ After the `regressions: []` line, add (still inside the `re_verification:` block
   closeout_note: "Plan 201-17 closeout completed per operator Route B 2026-05-06; D-19 primary VALN-06 PASS shipped on v1.42.1, D-14 secondary deferred to v1.43+ as SEED-002..SEED-005. See 201-RETRO.md."
 ```
 
-Do NOT modify:
-- The `closure_route` block (lines 7)
-- The truth table or Goal Achievement section (refreshed 2026-05-06T14:35:00Z)
-- The `gaps:` list, `deferred:` list, or `human_verification:` list
-- Anything in the body of the document below the frontmatter
+**Edit B — resolve the `human_verification:` "Plan 201-17 closeout authoring" row (codex closeout review HIGH).**
 
-The edit is a single 3-line addition inside the existing `re_verification:` block.
+The existing `human_verification:` block carries a row with `test: "Plan 201-17 closeout authoring"` (or equivalent wording from the 2026-05-06T14:35:00Z verifier refresh). After Plan 17 ships, that row goes stale and contradicts `closeout_recorded`. Mark it resolved IN PLACE — do NOT delete the row, do NOT change other rows.
+
+Two acceptable forms:
+
+(a) Append a `resolved:` and `resolved_evidence:` field to the existing row:
+```yaml
+human_verification:
+  - test: "Plan 201-17 closeout authoring..."
+    expected: "..."
+    why_human: "..."
+    resolved: 2026-05-06
+    resolved_evidence: "Plan 201-17 executed; see closeout_recorded above and 201-RETRO.md."
+```
+
+(b) OR if other rows exist that are also resolved, group them under a `resolved:` true marker — but DO NOT mutate other rows that carry their own status.
+
+The intent: a future reader reading `human_verification:` should not see "Plan 201-17 closeout authoring" listed as still-required after closeout. Only that specific row gets the `resolved:` annotation; any other rows (e.g., the original closure-path-decision and cycle-level-zone-trace rows already noted as resolved in the verifier refresh) keep their existing notes intact.
+
+**Do NOT modify:**
+- The `closure_route` block (top of frontmatter)
+- The truth table or Goal Achievement section (refreshed 2026-05-06T14:35:00Z)
+- The `gaps:` list, `deferred:` list
+- Other rows in `human_verification:` that already carry resolution notes
+- Anything in the body of the document below the frontmatter
   </action>
   <acceptance_criteria>
-    - `grep -F 'closeout_recorded: 2026-05-06' .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md` matches
+    - `grep -F 'closeout_recorded: 2026-05-06' .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md` matches (Edit A — re_verification annotation)
     - `grep -F '201-RETRO.md' .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md` matches in the closeout_artifact line
     - `grep -F 'closure_route:' .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md` still matches (unchanged closure_route block preserved)
+    - `grep -E 'resolved:.*2026-05-06' .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md` matches (Edit B — human_verification "Plan 201-17 closeout authoring" row marked resolved per codex closeout review HIGH finding)
+    - No `human_verification:` row carries the unqualified phrase "Plan 201-17 closeout authoring" without an adjacent `resolved:` marker (post-edit `grep -B2 -A4 'Plan 201-17 closeout authoring' .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md` shows the resolved annotation)
     - The truth table line for Truth 7 still says `FAILED` (no body change)
-    - YAML frontmatter still parses (closing `---` still present, `re_verification:` block well-formed)
+    - YAML frontmatter still parses (closing `---` still present, `re_verification:` and `human_verification:` blocks well-formed)
   </acceptance_criteria>
   <verify>
-    <automated>grep -F 'closeout_recorded: 2026-05-06' .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md && grep -F 'closure_route:' .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md && grep -F 'closeout_artifact:' .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md && python3 -c "import yaml; yaml.safe_load(open('.planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md').read().split('---')[1])"</automated>
+    <automated>grep -F 'closeout_recorded: 2026-05-06' .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md && grep -F 'closure_route:' .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md && grep -F 'closeout_artifact:' .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md && grep -E 'resolved:.*2026-05-06' .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md && python3 -c "import yaml; yaml.safe_load(open('.planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md').read().split('---')[1])"</automated>
   </verify>
-  <done>201-VERIFICATION.md re_verification block carries the Plan 17 closeout annotation; closure_route and truth table unchanged.</done>
+  <done>201-VERIFICATION.md re_verification block carries the Plan 17 closeout annotation, the `human_verification:` row for "Plan 201-17 closeout authoring" is marked resolved, and the closure_route + truth table remain unchanged.</done>
 </task>
 
 <task type="auto">
@@ -466,7 +502,13 @@ with:
 
 **Edit B — frontmatter `last_updated` and `last_activity`.** Update both to `2026-05-06` (or current ISO timestamp for `last_updated`; date-only for `last_activity`). The executor should set `last_updated` to the actual time of the edit (e.g., `"2026-05-06T<HH:MM:SS>.000Z"`), preserving the existing string format.
 
-**Edit C — frontmatter `progress.completed_plans`.** Increment from `14` to `16` (Plans 201-15, 201-16, 201-17 all complete; Plan 201-12 superseded but counted in total). Recompute `percent` = `completed_plans / total_plans * 100` rounded — with `completed_plans=16` and `total_plans=16` this is `100`. (If executor judges that Plan 12 superseded should not be counted, leave `total_plans=16` and bump `completed_plans` to `15`; document the choice in the commit message. Default: `16/16 = 100%`.)
+**Edit C — frontmatter `progress.completed_plans`.** Bump from `14` to `16`. Convention is **`16 active plans complete; Plan 201-12 superseded; 17 PLAN.md files materialized total`** — apply this consistently with the ROADMAP edits in Task 2 (codex closeout review MEDIUM-1).
+
+- `total_plans: 16` (active plans counted; the convention used in the existing frontmatter)
+- `completed_plans: 16`
+- `percent: 100`
+
+Plan 201-12 (superseded) is not counted in `total_plans` to keep `percent` semantically clean. The 17-PLAN.md-files-on-disk reality is captured in the ROADMAP plan-summary line and in Edit E below — STATE frontmatter stays with the active-plans convention.
 
 **Edit D — Session Continuity (line 131).** Replace:
 `Stopped at: Completed 201-15-recanary-PLAN.md`
@@ -483,10 +525,12 @@ Last activity: 2026-05-06
 with:
 ```
 Phase: 201 (docsis-aware-ul-congestion-control) — CLOSED gaps_found
-Plan: 17 of 17 (closeout complete)
+Plan: 16 of 16 active plans complete (Plan 201-12 superseded by Plan 201-16; 17 PLAN.md files materialized total)
 Status: D-19 primary VALN-06 PASS shipped on v1.42.1; D-14 deferred to v1.43+ as SEED-002..SEED-005; milestone v1.42 ready for `/gsd-complete-milestone`
 Last activity: 2026-05-06
 ```
+
+(Codex closeout review MEDIUM-1: plan-count convention is consistent across ROADMAP `16/16 active`, STATE frontmatter `total_plans: 16`, and this Current Position line. Plan 201-12 superseded is called out explicitly each place the count appears.)
 
 **Edit F — Add Decisions entry.** Append at the end of the `## Decisions` section (after the line at 256 currently ending "...next action requires operator decision between A5-style reattempt and v1.43+ follow-up."):
 
@@ -504,9 +548,11 @@ Do NOT modify the v1.41 VALN-06 inheritance blocker (line 320), the Phase 191 cl
     - `grep 'stopped_at:' .planning/STATE.md` does NOT contain `awaiting operator`
     - `grep 'stopped_at:' .planning/STATE.md` contains `gaps_found` and `Route B`
     - `grep -E 'Phase: 201.*CLOSED gaps_found' .planning/STATE.md` matches
+    - `grep -F 'Plan 201-12 superseded' .planning/STATE.md` matches in the Current Position block (plan-count convention consistent with ROADMAP)
     - `grep -F '[Phase 201 closure 2026-05-06]' .planning/STATE.md` matches
     - `grep -cE 'SEED-00[2-5]' .planning/STATE.md` >= 4
     - `grep -F 'last_activity: 2026-05-06' .planning/STATE.md` matches
+    - `grep -E '^  total_plans: 16$' .planning/STATE.md` matches AND `grep -E '^  completed_plans: 16$' .planning/STATE.md` matches AND `grep -E '^  percent: 100$' .planning/STATE.md` matches (frontmatter convention preserved)
     - YAML frontmatter still parses
     - Phase 191 closure blocker line still present (not accidentally edited)
   </acceptance_criteria>
@@ -602,6 +648,8 @@ Body content:
 ```
 # SEED-003: D-14 successor recalibration
 
+> **This seed must not be executed before SEED-002 lands** — recalibration depends on completed-window suppression counts being live in production for a clean baseline soak. Reading this seed alone, do not start work until SEED-002's `/health` schema additions are deployed and a 24h baseline of post-201-14 production has been captured under the new metric.
+
 ## Why This Matters
 
 Phase 201's D-14 secondary watchdog at `<5/60s` UL hysteresis suppression rate FAILED on the Plan 201-16 24h soak (mean = 6.47, see SEED-002 for why this number is metric-semantically ambiguous). The threshold's basis was Phase 200's qualitative "drop from degraded 31/60s to near-zero" framing — never soak-calibrated against the post-Plan-201-14 control surface.
@@ -614,7 +662,7 @@ This addresses Lesson #2 of `201-RETRO.md` (threshold-basis hygiene). Use the D-
 
 ## When to Surface
 
-**Trigger:** v1.43 milestone planning, AFTER SEED-002 has shipped completed-window counts to production, AND after a clean 24h baseline soak of post-201-14 production has captured at least one full week of completed-window count distributions.
+**Trigger:** v1.43 milestone planning, AFTER SEED-002 has shipped completed-window counts to production, AND after a clean 24h baseline soak of post-201-14 production has captured a representative completed-window count distribution under the new metric.
 
 This seed is the **second item** in the v1.43 backlog. **Prerequisite: SEED-002.**
 
@@ -643,6 +691,8 @@ Body content:
 
 ```
 # SEED-004: target-edge churn instrumentation
+
+> **This seed must not be executed before SEED-002 lands** — the additive `/health` and soak-schema precedent established by SEED-002 is the pattern this seed mirrors. Reading this seed alone, defer to SEED-002 for the schema-extension conventions before adding new fields.
 
 ## Why This Matters
 
@@ -684,6 +734,8 @@ Body content:
 
 ```
 # SEED-005: Conservative UL tuning sweep (gated)
+
+> **This seed must not be executed before SEED-002, SEED-003, AND SEED-004 have all landed** — the rollback gate, success gate, and pre-deploy effect prediction all depend on those three seeds' artifacts being live in production. Reading this seed alone: do not start any tune work without the completed-window suppression counts (SEED-002), the soak-calibrated D-14 successor threshold (SEED-003), AND the per-sample `load_rtt - baseline_rtt` distribution capture (SEED-004) all in place.
 
 ## Why This Matters
 
@@ -757,7 +809,17 @@ Each file is self-contained — they cross-reference each other but each can be 
 3. **Read 201-RETRO.md** — confirm structural shape mirrors `200-RETRO.md`: section ordering, table style, bullet density. Confirm Final Closure (2026-05-06) section reads cleanly. Confirm the three durable lessons (metric semantics, threshold hygiene, diagnostic seams) and the four-item Lessons-for-v1.43 list are coherent.
 4. **Spot-check STATE.md** — `grep stopped_at .planning/STATE.md` no longer says `awaiting operator`. `grep -A4 'Current Position' .planning/STATE.md` shows `CLOSED gaps_found` and the milestone-ready note.
 5. **Read each SEED-002..SEED-005 file** — confirm priority field, prerequisites field, priority_rationale field, and Why/When/Scope sections are present. Confirm SEED-002 calls out the `queue_controller.py:649,668` counter-vs-rate semantics. Confirm SEED-005 lists all three prerequisites.
-6. **Confirm no code/config drift:** `git diff --stat` should show ONLY:
+6. **Confirm no code/config drift (codex closeout review MEDIUM-3 hardening).**
+
+   The original drift check used `git diff --name-only HEAD`, which misses untracked files. Replacement check covers tracked AND untracked paths:
+
+   ```bash
+   { git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sort -u | grep -E '^(src/|configs/|tests/|scripts/|deploy/|docker/|pyproject\.toml|Makefile)' && echo "FAIL: production paths touched" || echo "PASS: no production paths"
+   ```
+
+   Expected: PASS line. If a production path appears, the plan was misexecuted.
+
+   The expected modified/added planning files are:
    - `.planning/REQUIREMENTS.md`
    - `.planning/ROADMAP.md`
    - `.planning/STATE.md`
@@ -765,11 +827,32 @@ Each file is self-contained — they cross-reference each other but each can be 
    - `.planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md`
    - `.planning/phases/201-docsis-aware-ul-congestion-control/201-RETRO.md` (new)
    - `.planning/phases/201-docsis-aware-ul-congestion-control/201-17-closeout-PLAN.md` (new — this plan)
+   - `.planning/phases/201-docsis-aware-ul-congestion-control/201-17-SUMMARY.md` (new — see `<output>`)
    - `.planning/seeds/SEED-002-*.md` (new)
    - `.planning/seeds/SEED-003-*.md` (new)
    - `.planning/seeds/SEED-004-*.md` (new)
    - `.planning/seeds/SEED-005-*.md` (new)
-   No files under `src/wanctl/`, `configs/`, `tests/`, `scripts/`, or `deploy/` should appear. If any do, the plan was misexecuted — flag it.
+
+   **NOTE — pre-existing dirt:** `.planning/phases/200-per-direction-rtt-bloat-thresholds/200-REVIEWS.md` may already be modified in the working tree before this plan starts (codex closeout review MEDIUM-3). That is unrelated to Plan 201-17 and should be left alone — do NOT include it in the Plan 201-17 commit. Use targeted `git add` of only the files this plan modifies.
+
+7. **Closure-coherence stale-phrase scan (codex closeout review suggestion).**
+
+   Detect stale phrases that should not survive closeout:
+
+   ```bash
+   for phrase in "awaiting operator" "Plan 201-17 closeout authoring"; do
+     hits=$(grep -rF "$phrase" .planning/ 2>/dev/null \
+       | grep -vE '\.planning/(seeds|history|archived|phases/200-)' \
+       | grep -vE '201-RETRO|201-REVIEWS-closeout|201-VERIFICATION\.md.*resolved' \
+       || true)
+     if [ -n "$hits" ]; then
+       echo "FAIL: stale phrase '$phrase' still appears outside historical/resolved contexts:"
+       echo "$hits"
+     fi
+   done
+   ```
+
+   Expected: no FAIL lines. The `human_verification:` row in 201-VERIFICATION.md MAY still contain "Plan 201-17 closeout authoring" provided it carries an adjacent `resolved:` annotation (Task 5 Edit B); the third grep above filters that case out.
   </how-to-verify>
   <resume-signal>Type "approved" to allow project-finalizer + commit, or describe issues to fix.</resume-signal>
 </task>
@@ -781,30 +864,47 @@ After all tasks complete, run:
 
 ```bash
 # Documentation-state coherence checks
+grep -E '\[x\] VALN-06.*gaps_found' .planning/REQUIREMENTS.md
 grep -E 'VALN-06.*gaps_found.*v1\.43' .planning/REQUIREMENTS.md
-grep -E 'Phase 201.*Closed \(gaps_found\)' .planning/ROADMAP.md
+grep -E '^\| 201 \|.*Closed \(gaps_found\)' .planning/ROADMAP.md
+grep -F 'Plan 201-12 superseded' .planning/ROADMAP.md
 grep -F '201-17-closeout-PLAN.md' .planning/ROADMAP.md
 grep -F 'closeout_recorded: 2026-05-06' .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md
+grep -E 'resolved:.*2026-05-06' .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md
 test -f .planning/phases/201-docsis-aware-ul-congestion-control/201-RETRO.md
 grep -F 'Final Closure (2026-05-06)' .planning/phases/201-docsis-aware-ul-congestion-control/201-RETRO.md
 ! grep 'stopped_at:' .planning/STATE.md | grep -q 'awaiting operator'
+grep -F 'Plan 201-12 superseded' .planning/STATE.md
 
 # Backlog seeds in priority order
 for n in 2 3 4 5; do test -f .planning/seeds/SEED-00${n}-v143-*.md || echo "MISSING SEED-00${n}"; done
 grep -q 'priority: 1' .planning/seeds/SEED-002-v143-ul-suppression-metric-semantics.md
 grep -q 'priority: 4' .planning/seeds/SEED-005-v143-conservative-ul-tuning-sweep.md
 grep -q 'prerequisites: \[SEED-002, SEED-003, SEED-004\]' .planning/seeds/SEED-005-v143-conservative-ul-tuning-sweep.md
+# Each downstream seed carries a "must not be executed before X" preamble (codex closeout review suggestion)
+grep -q 'must not be executed before SEED-002' .planning/seeds/SEED-003-v143-d14-watchdog-recalibration.md
+grep -q 'must not be executed before SEED-002' .planning/seeds/SEED-004-v143-target-edge-churn-instrumentation.md
+grep -q 'must not be executed before SEED-002, SEED-003, AND SEED-004' .planning/seeds/SEED-005-v143-conservative-ul-tuning-sweep.md
 
 # YAML frontmatter integrity
 for f in .planning/STATE.md .planning/phases/201-docsis-aware-ul-congestion-control/201-VERIFICATION.md .planning/seeds/SEED-002-v143-*.md .planning/seeds/SEED-003-v143-*.md .planning/seeds/SEED-004-v143-*.md .planning/seeds/SEED-005-v143-*.md; do
   python3 -c "import yaml; yaml.safe_load(open('$f').read().split('---')[1])" || echo "BAD YAML: $f"
 done
 
-# Negative check: no production code/config touched
-git diff --name-only HEAD | grep -E '^(src/|configs/|tests/|scripts/|deploy/|docker/|pyproject\.toml|Makefile)' && echo "FAIL: production files touched" || echo "PASS: no production files touched"
+# Negative check: no production code/config touched (covers tracked AND untracked — codex closeout review MEDIUM-3)
+{ git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sort -u | grep -E '^(src/|configs/|tests/|scripts/|deploy/|docker/|pyproject\.toml|Makefile)' && echo "FAIL: production files touched" || echo "PASS: no production files touched"
+
+# Closure-coherence stale-phrase scan (codex closeout review suggestion)
+for phrase in "awaiting operator" "Plan 201-17 closeout authoring"; do
+  hits=$(grep -rF "$phrase" .planning/ 2>/dev/null \
+    | grep -vE '\.planning/(seeds|history|archived|phases/200-)' \
+    | grep -vE '201-RETRO|201-REVIEWS-closeout|201-VERIFICATION\.md.*resolved' \
+    || true)
+  if [ -n "$hits" ]; then echo "FAIL: stale phrase '$phrase' still present outside historical/resolved contexts"; echo "$hits"; fi
+done
 ```
 
-All checks must pass. The negative check (`git diff --name-only`) is load-bearing — if any production file appears, the plan was misexecuted.
+All checks must pass. The negative check (combined `git diff` + `git ls-files --others`) is load-bearing — if any production file appears, the plan was misexecuted. Pre-existing dirt at `.planning/phases/200-per-direction-rtt-bloat-thresholds/200-REVIEWS.md` is acknowledged and should not be included in this plan's commit (use targeted `git add` paths only).
 </verification>
 
 <success_criteria>
