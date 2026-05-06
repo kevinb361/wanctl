@@ -10,31 +10,30 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.40 (Ordering Rationale — Queue-Primary Signal Arbitration) — shipped 2026-05-03
-**Tests:** v1.40 audit `tech_debt`; 9/9 actionable requirements satisfied; VALN-05b deferred-by-design pending v1.39 Phase 191 closure
+**Version:** v1.42.1 (DOCSIS-Aware UL Congestion Control) — shipped 2026-05-06 (Phase 201 Route B closeout)
+**Tests:** v1.42 closed `gaps_found` Route B — D-19 primary VALN-06 floor-hit gate PASS shipped on v1.42.1; D-14 secondary suppression watchdog deferred to v1.43+ as `metric_semantics_and_recalibration`.
 **LOC:** ~37,900+ Python (src/)
-**Milestones:** 40 shipped (v1.0-v1.40), 197 phases, ~423 plans
-**Active parallel milestone:** v1.39 Control-Path Timing & Measurement Accounting (Phase 191 still open)
+**Milestones:** 43 shipped (v1.0-v1.42), all archived in `.planning/milestones/`
+**Active milestone:** v1.43 — backlog seeded only (`SEED-002`..`SEED-005` D-14 successor work); roadmap not yet authored.
 
-**Latest:** v1.40 Ordering Rationale — DL distress classification now consumes kernel-local CAKE queue delay (`avg_delay_us - base_delay_us`) as the primary signal under load; RTT demoted to confidence-gated secondary; fusion healer bypass requires sustained queue + RTT distress for 6 cycles; Spectrum cake-primary recovers DOCSIS throughput (Phase 198 attempt 11: MoM 674 Mbps vs 532 acceptance); UL byte-identical to v1.39 (SAFE-05). OBS-02 spec/impl/doc lockstep closed in Phase 199.
-**Previous:** v1.38 Measurement Resilience Under Load — measurement degradation surfaced via machine-readable health signals, bounded stale-cache safety, operator guidance, and closed milestone traceability.
+**Latest:** v1.42 DOCSIS-Aware UL Congestion Control — Spectrum upload now runs a YAML setpoint clamp (`docsis_mode: true`, `setpoint_mbps: 12`) with windowed RTT-integral classifier and CAKE-backlog secondary corroborator; bounded absolute RED decay and integral anti-windup landed in Plan 201-14; recanary `20260505T122513Z` PASSED with `ul_floor_hits_during_load=0`; 24h soak `20260505T132736Z` D-19 floor-hit delta `0` on production v1.42.1.
+**Previous:** v1.41 Per-Direction Control Surfaces — UL/DL threshold split shipped behind per-key presence flags (ARB-05); validator now WARNs on unknown `continuous_monitoring.*` keys (SAFE-06); `CHANGELOG.md` and `docs/CONFIGURATION.md` carry restart-required migration semantics (DOCS-03); VALN-06 deferred-and-closed via Phase 201 Route B.
+**Older:** v1.40 Ordering Rationale — DL queue-primary arbitration with confidence-gated RTT demotion; v1.39 Control-Path Timing & Measurement Accounting — netlink overlap instrumentation + reflector scorer blackout-awareness; v1.38 Measurement Resilience Under Load — machine-readable degraded measurement truth.
 
-## Current Milestone: v1.41 Per-Direction Control Surfaces
+## Next Milestone: v1.43 (TBD — backlog-seeded only)
 
-**Goal:** Decouple UL and DL control thresholds so latency-first UL configurations are possible on deployments where UL saturation under DL-shared thresholds causes oscillation. Headline phase resolves the Spectrum UL collapse-to-floor pattern observed in production 2026-04-29 (live UL hysteresis storm visible at 5 → 15 → 31 suppressions/60s while DL=0).
+**Status:** Seeds only. No roadmap, no requirements file. Open `/gsd-new-milestone` when ready to scope.
 
-**Target features:**
-- Per-direction (UL-specific) RTT bloat thresholds — `continuous_monitoring.upload.target_bloat_ms` / `warn_bloat_ms` keys, optional with global fallback
-- Validator hard-fail (or audible warn) on unknown `continuous_monitoring.*` keys — closes the silent-ignore "config-leads-code" gap that allowed prod /etc/wanctl/spectrum.yaml to carry 4 unrecognized keys for 3 days
-- Saturation canary as the deploy gate — 10–15 min `iperf3 -P4` saturated loop replaces 24h soak as primary acceptance test; soak runs after as regression watchdog
-- Restart-required migration documentation — SIGUSR1 does not reload these threshold keys
+**Seeded backlog (from v1.42 Phase 201 D-14 closeout):**
+- `SEED-002`..`SEED-005` — four ordered items addressing the YELLOW-edge dwell-hold suppression watchdog (`queue_controller.py:348`) metric-semantics + recalibration; FAIL was at `ul_hysteresis_suppression_rate_per_60s_mean=6.466842364880155` vs `<5.0`. Original threshold was never soak-calibrated against the post-Plan-201-14 RED decay path.
+
+**Inherited deferrals still open at v1.43 boundary:**
+- **VALN-05b** (ATT cake-primary canary) — administratively deferred since v1.40; v1.39 closure `gaps_found` flipped the gating phrase from technical to historical. Tracks `.planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md`.
 
 **Key context:**
-- Phase 200 working-tree diff already drafted before milestone open (7 files, +125/-6) but contains a real bug Codex pre-review caught: `_upload_thresholds_explicit` is value-derived; must become per-key presence-based to handle the case where operator coincidentally sets UL thresholds equal to DL globals
-- Production is **currently degraded** waiting on the Phase 200 fix — `cake-shaper:/etc/wanctl/spectrum.yaml` carries the 4 new UL keys but `/opt/wanctl` Python doesn't recognize them, so the controller is using DL globals (15/45 ms) for UL and oscillating
-- Cross-milestone deferral inherited from v1.40: VALN-05b (ATT cake-primary canary) gated on v1.39 Phase 191 closure
-- Priority: stability > safety > clarity > elegance. Per-direction split is additive — non-Spectrum deployments (cable, ATT, fiber) remain byte-identical when the new keys are absent
-- Version bump: 1.41.0 across `pyproject.toml`, `src/wanctl/__init__.py`, `docker/Dockerfile`
+- Production binary at archive: v1.42.1 on cake-shaper. Spectrum YAML carries `docsis_mode: true`, `setpoint_mbps: 12`, ceiling 18 Mbit, floor 8 Mbit, with bounded RED decay knobs from Plan 201-14.
+- Priority remains: stability > safety > clarity > elegance.
+- Three-milestone backfill (v1.39 / v1.41 / v1.42) executed 2026-05-06; ROADMAP.md / REQUIREMENTS.md collapsed; phase dirs moved to `milestones/v1.X-phases/`.
 
 <details>
 <summary>Archived v1.40 milestone goals (collapsed for brevity)</summary>
@@ -61,15 +60,11 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 </details>
 
-## In Progress: v1.39 Control-Path Timing & Measurement Accounting
+## Recently Archived: v1.39, v1.41, v1.42
 
-**Status:** Pending closure. Runs in parallel with v1.40 implementation; Spectrum soak calendar is serialized (no concurrent soaks).
-
-**Remaining work:**
-- Phase 191 closure — ATT RRUL rerun in normal weather to confirm timing changes meet TIME-03/TIME-04 comparator
-- Phase 192 — Reflector scorer blackout-awareness + log hygiene, plus MEAS-06/VALN-03 24h Spectrum soak (must complete before v1.40 Phase 196 soak)
-
-**Sequencing:** v1.40 Phase 193 (observability-only) → 194 (DL classification) → v1.39 Phase 192 (scorer + 24h soak) → v1.40 Phase 195 (RTT demotion builds on corrected scorer) → v1.40 Phase 196 (2×24h Spectrum A/B + ATT canary after 191 closes).
+- **v1.42 DOCSIS-Aware UL Congestion Control** (shipped 2026-05-06, gaps_found Route B) — `.planning/milestones/v1.42-ROADMAP.md`
+- **v1.41 Per-Direction Control Surfaces** (closed 2026-05-04, gaps_found, VALN-06 deferred-then-closed via v1.42) — `.planning/milestones/v1.41-ROADMAP.md`
+- **v1.39 Control-Path Timing & Measurement Accounting** (effectively shipped 2026-04-24 under operator waiver, archived 2026-05-06 gaps_found) — `.planning/milestones/v1.39-ROADMAP.md`
 
 ## Completed Milestone: v1.38 Measurement Resilience Under Load
 
@@ -363,19 +358,40 @@ thresholds or steering behavior.
 - ✓ RTT delta is demoted behind `rtt_confidence`, with RTT unable to override queue-GREEN unless confidence and queue direction agree — Phase 195
 - ✓ Fusion healer bypass requires sustained queue distress and confident RTT distress in the same worsening-or-held direction for 6 cycles; single-path flips do not bypass — Phase 195
 
+**v1.39 Control-Path Timing & Measurement Accounting (effectively shipped 2026-04-24 under operator waiver):**
+
+- ✓ Reflector scorer treats all-host zero-success cycles as path-wide blackouts (`reflector_scorer.py` blackout gate) — Phase 192
+- ✓ "Protocol deprioritization detected" INFO logs are rate-limited / demoted when fusion is suspended/disabled (OPER-02; soak ±0.3% drift on both WANs) — Phase 192
+- ✓ `cake_stats_thread` cadence is YAML-configurable at daemon start (`cake_stats_cadence_sec`); netlink overlap fields exposed in `/health.signal_arbitration` and slow-apply enrichment logs — Phase 191
+- ◐ TIME-03/04, MEAS-06, VALN-02/03 measurement-validation gates against v1.38.0 baseline NOT closed; superseded by v1.40+ measurement evidence — see `.planning/milestones/v1.39-MILESTONE-AUDIT.md`
+
+**v1.41 Per-Direction Control Surfaces (closed 2026-05-04 gaps_found):**
+
+- ✓ Per-direction UL RTT bloat thresholds with per-key presence flags (`continuous_monitoring.upload.target_bloat_ms`, `continuous_monitoring.upload.warn_bloat_ms`) — ARB-05, Phase 200
+- ✓ Autorate validator emits audible WARNING for unknown `continuous_monitoring.*` keys at startup — SAFE-06, Phase 200
+- ✓ `CHANGELOG.md` and `docs/CONFIGURATION.md` carry restart-required migration semantics for the new UL threshold keys (SIGUSR1 does not reload them) — DOCS-03, Phase 200
+- ◐ VALN-06 saturation canary deferred-then-closed via v1.42 Phase 201 Route B
+
+**v1.42 DOCSIS-Aware UL Congestion Control (shipped 2026-05-06, gaps_found Route B):**
+
+- ✓ DOCSIS-mode UL control (setpoint clamp + windowed RTT-integral classifier + CAKE backlog secondary corroborator) with bounded absolute RED decay and integral anti-windup — Phase 201, Plans 201-04 / 201-14
+- ✓ VALN-06 D-19 primary floor-hit gate PASSED on canary `20260505T122513Z` and 24h soak `20260505T132736Z` — production v1.42.1
+- ✓ Five additive `/health.upload.*` runtime-state fields: `setpoint_mbps`, `headroom_mbps`, `rtt_integral_ms_s`, `docsis_state`, `docsis_mode_active`
+- ✓ Predeploy gate (`scripts/phase201-predeploy-gate.sh`) reconciles or fails closed against v1.41-rejected-hypothesis YAML keys before any Spectrum deploy
+- ◐ D-14 secondary suppression watchdog FAIL on YELLOW-edge dwell-hold path deferred to v1.43+ as `metric_semantics_and_recalibration` (`SEED-002`..`SEED-005`)
+
 ### Active
 
-- [ ] Netlink `tc dump` vs `tc change` overlap is measurable in production health/metrics.
-- [ ] `cake_stats_thread` cadence is tunable at runtime and its effect on Slow CAKE apply p99 is A/B-verified.
-- [ ] Cycle overrun rate per hour drops measurably on both Spectrum and ATT vs v1.38.0 baseline.
-- [ ] Reflector scorer treats all-host zero-success cycles as path-wide blackouts and does not decrement individual host scores.
-- [ ] "Protocol deprioritization detected" INFO logs are rate-limited or demoted when fusion is suspended/disabled.
+(None — v1.43 not yet scoped; see Next Milestone section above for seeded backlog.)
 
 ### Deferred
 
 - [ ] SSH connection pooling — Low ROI, REST API already optimal
 - [ ] CAKE stats caching — Not needed, flash wear protection working
 - [ ] Prometheus/Grafana export (OBSV-01 through OBSV-04) — Infrastructure not yet deployed, deferred from v1.23
+- [ ] v1.39 measurement-validation gates (TIME-03/04, MEAS-06, VALN-02/03) — superseded by v1.40+ measurement axis; not retroactively retargetable
+- [ ] VALN-05b ATT cake-primary canary — administratively deferred since v1.40; gating phrase historical
+- [ ] D-14 UL hysteresis suppression watchdog recalibration — `SEED-002`..`SEED-005` for v1.43
 
 ### Out of Scope
 
@@ -703,4 +719,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-27 — Phase 197 completed queue-primary refractory semantics; v1.40 Phase 196 soak remains blocked alongside v1.39 Phase 191 closure work_
+_Last updated: 2026-05-06 — three-milestone backfill archive (v1.39 / v1.41 / v1.42). v1.42.1 in production. v1.43 carries forward only the D-14 successor backlog and the historical VALN-05b deferral._

@@ -1,5 +1,38 @@
 # Project Milestones: wanctl
 
+## v1.42 DOCSIS-Aware UL Congestion Control (Shipped: 2026-05-06)
+
+**Phases completed:** 1 phase (201), 16/16 active plans (Plan 201-12 superseded by 201-16; 17 PLAN.md files materialized total)
+
+**Key accomplishments:**
+
+- Shipped DOCSIS-aware UL control mode: YAML setpoint clamp (`continuous_monitoring.upload.docsis_mode: true`, `setpoint_mbps: 12`), windowed RTT-integral classifier, and CAKE backlog secondary corroborator landed in `queue_controller.py` with bounded absolute RED decay and integral anti-windup (Plans 201-04, 201-13, 201-14).
+- Closed v1.41-inherited blocking VALN-06 via D-19 primary floor-hit gate: recanary `20260505T122513Z` `verdict=pass`, `primary_gate_value=0`, `ul_floor_hits_during_load=0`; 24h soak `20260505T132736Z` D-19 floor-hit delta `0` on production v1.42.1.
+- Five additive `/health.upload.*` runtime-state fields landed: `setpoint_mbps`, `headroom_mbps`, `rtt_integral_ms_s`, `docsis_state`, `docsis_mode_active` — runtime semantics, not config echoes (Phase 200 RETRO lesson absorbed).
+- Predeploy gate (`scripts/phase201-predeploy-gate.sh`) reconciles or fails closed against v1.41-rejected-hypothesis YAML keys (`target_bloat_ms`, `warn_bloat_ms`, `consecutive_yellow_decay_clamp`, `factor_down_yellow=1.0`) before any Spectrum deploy proceeds.
+- Two cross-AI Codex review checkpoints (pre-implementation BLOCK with amendments; stop-time GO WITH FOLLOW-UPS, no HIGH findings) became required gates per Phase 200 RETRO discipline.
+- Version bumps `1.42.0` → `1.42.1` propagated across `pyproject.toml`, `src/wanctl/__init__.py`, `docker/Dockerfile`; CHANGELOG and `docs/CONFIGURATION.md` carry restart-required migration semantics for `docsis_mode`/`setpoint_mbps`/RTT-integral keys.
+
+**Closure verdict:** `gaps_found` (operator Route B 2026-05-06). D-19 primary VALN-06 floor-hit gate PASS shipped on v1.42.1. D-14 secondary suppression watchdog FAILED at `ul_hysteresis_suppression_rate_per_60s_mean=6.466842364880155` (vs `<5.0`); FAIL traced to YELLOW-edge dwell-hold path (`queue_controller.py:348`), unrelated to bounded RED decay path Plan 201-14 fixed (`queue_controller.py:361-376`). Original threshold never soak-calibrated against post-fix control surface — classified `metric_semantics_and_recalibration` and deferred to v1.43+ as four ordered backlog items (`SEED-002`..`SEED-005`). VALN-06 phase-goal control behavior achieved. See `201-RETRO.md`, `201-VERIFICATION.md` `closure_route` block.
+
+---
+
+## v1.41 Per-Direction Control Surfaces (Closed: 2026-05-04, gaps_found)
+
+**Phases completed:** 1 phase (200), 16/16 plans
+
+**Key accomplishments:**
+
+- Per-direction UL RTT bloat threshold schema landed with per-key presence flags (`_upload_target_bloat_ms_explicit`, `_upload_warn_bloat_ms_explicit`) — UL writes gated independently of DL, byte-identical fallback to DL globals when keys absent (ARB-05). Codex pre-review D-11 caught the value-derived bug pre-merge.
+- Autorate validator now emits an audible WARNING for any unknown `continuous_monitoring.*` key on startup — closes the v1.40-era silent-ignore gap that masked 4 unrecognized prod keys for 3 days (SAFE-06).
+- Migration documentation in `CHANGELOG.md` and `docs/CONFIGURATION.md` makes restart-required semantics explicit (SIGUSR1 reload scope is dwell/deadband only — not these keys) (DOCS-03).
+- Three operator evidence-trail notes (`spectrum-*-2026-04-29.md`) anchored the per-direction hypothesis as a falsifiable claim against the live Spectrum UL hysteresis storm at 5 → 15 → 31 suppressions/60s with DL=0.
+- Plan 200-14 Attempt 3 canary improved Spectrum loaded-window UL floor hits 122 → 4, narrowing the residual failure regime to shaping-headroom (not threshold) — direct seed for v1.42 Phase 201's DOCSIS-aware design.
+
+**Closure verdict:** `gaps_found` with operator-escalated VALN-06 deferral 2026-05-04. ARB-05/SAFE-06/DOCS-03 satisfied. VALN-06 zero-floor-hit gate not reached under per-direction-thresholds hypothesis; D-10 rollback used `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`; soak watchdog skipped fail-closed; binary held at v1.40 through this milestone. VALN-06 inherited as blocking requirement to v1.42 Phase 201 (closed Route B 2026-05-06).
+
+---
+
 ## v1.40 Ordering Rationale — Queue-Primary Signal Arbitration (Shipped: 2026-05-03)
 
 **Phases completed:** 7 phases (193–199), 28 plans, 30 SUMMARYs (Phase 198 had multiple attempts canonicalized at attempt 11)
@@ -18,6 +51,22 @@
 **Known deferred items at close:** 21 (1 debug session, 11 quick tasks, 1 thread, 5 todos, 1 seed, 2 UAT gaps) — see STATE.md `## Deferred Items`.
 
 **Tech debt acknowledged:** `make ci` coverage 89.64% (0.36% under 90% threshold), 9 vulture dead-code findings at 60% confidence, Nyquist VALIDATION.md gaps in phases 193 (by-design replay-equivalence) and 195 (production UAT substituted).
+
+---
+
+## v1.39 Control-Path Timing & Measurement Accounting (Effectively shipped 2026-04-24 under operator waiver; archived 2026-05-06 gaps_found)
+
+**Phases completed:** 3 phases (191, 191.1 inserted closure, 192), 11 plans
+
+**Key accomplishments:**
+
+- Apply-path overlap instrumentation now visible in `/health.signal_arbitration` and slow-apply enrichment logs; `cake_stats_cadence_sec` YAML knob honored at daemon start (TIME-01/TIME-02 PARTIAL — code shipped; A/B vs v1.38.0 baseline never closed).
+- Reflector scorer no longer decrements per-host quality during all-host-blackout cycles (`reflector_scorer.py` blackout gate; MEAS-05).
+- Fusion-aware INFO-log cooldown trims `Protocol deprioritization detected` volume during `disabled`/`healer_suspended` (OPER-02 satisfied — soak ±0.3% drift on both WANs).
+- Phase 191.1 (inserted) established the phase-local SAFE-03 comparator as the authoritative closure rule for narrow phase scopes (D-05/D-06/D-07).
+- Production v1.39.0 deployed 2026-04-24 to cake-shaper from clean `git archive` of HEAD `663d468...`; subsequent v1.40/v1.41/v1.42 milestones built on top of it.
+
+**Closure verdict:** `gaps_found` (strict). 9 of 11 requirements (TIME-01/02/03/04, MEAS-05/06, SAFE-04, VALN-02/03) never closed against the v1.38.0 measurement baseline they referenced — superseded by v1.40 cake-primary arbitration and v1.42 DOCSIS-aware UL evidence before strict closure could be captured. Phase 192 closed under explicit operator waiver (`192-PRECONDITION-WAIVER.md`); Phase 191 VALN-02 ATT RRUL FAIL preserved as contextual debt. See `.planning/milestones/v1.39-MILESTONE-AUDIT.md`.
 
 ---
 
