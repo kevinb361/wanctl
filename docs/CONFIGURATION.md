@@ -291,6 +291,31 @@ When `docsis_mode: false` or absent, behavior is byte-identical to v1.41.
 
 The predeploy gate (`scripts/phase201-predeploy-gate.sh`) inspects `/etc/wanctl/spectrum.yaml` on the deploy target and aborts the deploy with operator-actionable instructions if v1.41-only rejected-hypothesis keys (`target_bloat_ms`, `warn_bloat_ms` under `continuous_monitoring.upload`) are present.
 
+### Suppression metric semantics (v1.43)
+
+The `/health.wans[].{upload,download}.hysteresis` payload exposes both the legacy live suppression counter and the v1.43 completed-window counters. These fields answer different questions and are not interchangeable.
+
+| Field | Population | Updates | Use for |
+|-------|------------|---------|---------|
+| `suppressions_per_min` | dwell-hold only | every cycle (live) | qualitative trend at request time; NOT a rate |
+| `suppressions_completed_window_count` | all causes summed | only at 60s window boundary | watchdog gating, alerts, soak-harness rate computation |
+| `suppressions_completed_window_by_cause` | per-cause, last completed window | only at 60s window boundary | post-hoc decomposition |
+| `suppressions_lifetime_by_cause` | per-cause, monotonic since process start | every cycle (live) | operator delta math across long windows |
+
+Cause taxonomy:
+
+- `dwell_hold` — `_apply_dwell_logic` suppression of a GREEN→YELLOW transition while the dwell timer is active. Fires once per 50ms cycle while the dwell counter advances.
+- `backlog_recovery` — green-streak suppression while `cake_snapshot.backlog_bytes > backlog_threshold_bytes` (DETECT-02). Fires every 50ms cycle the condition holds.
+- `other` — reserved fallback bucket. No current callsite fires this; it is forward-compatible space for future suppression conditions.
+
+Both `dwell_hold` and `backlog_recovery` are per-cycle increments, not per-event counters. At the 50ms cycle interval (20 Hz), a sustained backlog condition can produce up to ~1,200 `backlog_recovery` suppressions per cause per 60s window. This is by design: the metric measures cycle-time suppression effort, not transition events. Do not interpret high `backlog_recovery` counts as a regression without comparing against your link's baseline distribution.
+
+> **Warning:** Use `suppressions_completed_window_count` for any watchdog or alert that thinks in “rate per minute”. Do NOT use `suppressions_per_min` for that purpose — it is a 60s reset counter sampled at request time, not a rate, and sampling it produces a number weighted toward partial windows. This is the metric-semantics misread that drove the Phase 201 D-14 secondary watchdog failure; the v1.43 field set repairs the contract.
+
+Backward compatibility: `suppressions_per_min` remains byte-compatible with v1.42 traces and is fed only by the dwell-hold callsite. The new per-cause and completed-window counters are independent of it; `suppressions_completed_window_count` is NOT equal to `suppressions_per_min × 60` by design because the fields use different populations and update timing.
+
+Reference soak fixture: the v1.42 `soak-capture.ndjson` lives at `.planning/milestones/v1.42-phases/201-docsis-aware-ul-congestion-control/soak/20260505T132736Z/soak-capture.ndjson`. Codex re-aggregation of the dwell-hold completed-window distribution against this fixture produced peak mean ~13.9/min, p95=41, and max=124; this is mechanically pinned by `tests/test_phase_202_replay.py`.
+
 ### EWMA Time Constants
 
 - baseline_time_constant_sec (2.5-5.0): Higher = slower baseline tracking
