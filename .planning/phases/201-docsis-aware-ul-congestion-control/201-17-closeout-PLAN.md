@@ -841,10 +841,11 @@ Each file is self-contained — they cross-reference each other but each can be 
 
    ```bash
    for phrase in "awaiting operator" "Plan 201-17 closeout authoring"; do
-     hits=$(grep -rF "$phrase" .planning/ 2>/dev/null \
-       | grep -vE '\.planning/(seeds|history|archived|phases/200-)' \
-       | grep -vE '201-RETRO|201-REVIEWS-closeout|201-VERIFICATION\.md.*resolved' \
-       || true)
+      hits=$(grep -rF "$phrase" .planning/ 2>/dev/null \
+        | grep -vE '201-17-closeout-PLAN\.md' \
+        | grep -vE '\.planning/(seeds|history|archived|phases/200-)' \
+        | grep -vE '201-RETRO|201-REVIEWS-closeout|201-VERIFICATION\.md.*resolved' \
+        || true)
      if [ -n "$hits" ]; then
        echo "FAIL: stale phrase '$phrase' still appears outside historical/resolved contexts:"
        echo "$hits"
@@ -897,6 +898,7 @@ done
 # Closure-coherence stale-phrase scan (codex closeout review suggestion)
 for phrase in "awaiting operator" "Plan 201-17 closeout authoring"; do
   hits=$(grep -rF "$phrase" .planning/ 2>/dev/null \
+    | grep -vE '201-17-closeout-PLAN\.md' \
     | grep -vE '\.planning/(seeds|history|archived|phases/200-)' \
     | grep -vE '201-RETRO|201-REVIEWS-closeout|201-VERIFICATION\.md.*resolved' \
     || true)
