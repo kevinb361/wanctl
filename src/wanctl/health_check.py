@@ -317,6 +317,18 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "green_streak": qc.green_streak,
                 "green_required": qc.green_required,
                 "last_zone": last_zone,
+                # Phase 202: METRIC-01, METRIC-02 additive (Q2 — symmetric across both directions).
+                "suppressions_completed_window_count": int(
+                    hyst.get("suppressions_completed_window_count", 0) or 0
+                ),
+                "suppressions_completed_window_by_cause": dict(
+                    hyst.get("suppressions_completed_window_by_cause")
+                    or {"dwell_hold": 0, "backlog_recovery": 0, "other": 0}
+                ),
+                "suppressions_lifetime_by_cause": dict(
+                    hyst.get("suppressions_lifetime_by_cause")
+                    or {"dwell_hold": 0, "backlog_recovery": 0, "other": 0}
+                ),
             },
         }
         if direction == "upload":
