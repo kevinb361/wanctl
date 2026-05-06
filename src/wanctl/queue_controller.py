@@ -719,6 +719,12 @@ class QueueController:
                 "transitions_suppressed": self._transitions_suppressed,
                 "suppressions_per_min": self._window_suppressions,
                 "window_start_epoch": self._window_start_time,
+                # Phase 202: METRIC-01, METRIC-02 additive surface (Q1/Q2/Q3).
+                "suppressions_completed_window_count": self._last_completed_window_total,
+                "suppressions_completed_window_by_cause": dict(
+                    self._last_completed_window_by_cause
+                ),
+                "suppressions_lifetime_by_cause": dict(self._lifetime_suppressions_by_cause),
             },
             "cake_detection": {
                 "drop_rate_threshold": self._drop_rate_threshold,
