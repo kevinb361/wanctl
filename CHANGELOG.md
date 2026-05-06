@@ -5,6 +5,25 @@ All notable changes to wanctl are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.43-dev
+
+### Added
+
+- `/health.wans[].upload.hysteresis` and `/health.wans[].download.hysteresis` now expose three additive fields for completed-window suppression accounting (METRIC-01, METRIC-02):
+  - `suppressions_completed_window_count` — total suppressions from the most recently completed 60s window, summed across all causes. Updates only at window boundaries and remains `0` before the first completed boundary.
+  - `suppressions_completed_window_by_cause` — the same completed-window value broken down by cause: `dwell_hold`, `backlog_recovery`, and `other`.
+  - `suppressions_lifetime_by_cause` — monotonic per-cause counters since process start.
+- Suppression accounting is exposed symmetrically on upload and download. The `QueueController` counter surface is direction-agnostic; download retains its existing `dwell_bypassed_count` field, and upload retains its existing v1.42 runtime-state fields.
+
+### Changed
+
+- None. v1.43 Phase 202 is additive-only by the SAFE-07 closeout invariant; the legacy `suppressions_per_min` distribution remains byte-compatible with v1.42 traces.
+
+### Notes
+
+- `suppressions_per_min` is a live counter sampled at request time and fed only by the dwell-hold callsite. It is NOT a rate. Use `suppressions_completed_window_count` for watchdog gating; see `docs/CONFIGURATION.md` "Suppression metric semantics (v1.43)".
+- `backlog_recovery` accounting is per-cycle: the suppression fires on every 50ms cycle the backlog condition holds, so a 60s window at 20Hz can produce up to ~1,200 `backlog_recovery` counts per cause per window. This is by design, not a regression.
+
 ## 1.42.1 — 2026-05-05
 
 ### Fixed
