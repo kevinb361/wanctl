@@ -2691,6 +2691,135 @@ def controller_cake_3state():
     )
 
 
+class TestPhase202SuppressionCauseAccounting:
+    """Phase 202 METRIC-01/METRIC-02 per-cause suppression accounting."""
+
+    BASELINE = 25.0
+    GREEN_THRESHOLD = 15.0
+    SOFT_RED_THRESHOLD = 45.0
+    HARD_RED_THRESHOLD = 80.0
+
+    def test_record_suppression_updates_per_cause_only(self, controller_cake_3state):
+        """Helper advances per-cause counters without touching legacy counters."""
+        controller_cake_3state._record_suppression("dwell_hold")
+
+        assert controller_cake_3state._window_suppressions_by_cause["dwell_hold"] == 1
+        assert controller_cake_3state._lifetime_suppressions_by_cause["dwell_hold"] == 1
+        assert controller_cake_3state._window_suppressions == 0
+        assert controller_cake_3state._transitions_suppressed == 0
+        assert controller_cake_3state._backlog_suppressed_count == 0
+
+    def test_record_suppression_unknown_cause_falls_back_to_other(
+        self, controller_cake_3state
+    ):
+        """Unknown cause tags are forward-compatible and bucketed as other."""
+        controller_cake_3state._record_suppression("not_a_real_cause")
+
+        assert controller_cake_3state._window_suppressions_by_cause["other"] == 1
+        assert controller_cake_3state._lifetime_suppressions_by_cause["other"] == 1
+
+    def test_window_suppressions_by_cause_dwell_hold_callsite_preserves_legacy_counter(
+        self, controller_cake_3state
+    ):
+        """Dwell-hold still advances suppressions_per_min and now tags dwell_hold."""
+        zone, _, _ = controller_cake_3state.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE + 20.0,
+            target_delta=self.GREEN_THRESHOLD,
+            warn_delta=self.HARD_RED_THRESHOLD,
+            cake_snapshot=_make_cake_snapshot(),
+        )
+
+        assert zone == "GREEN"
+        assert controller_cake_3state._window_suppressions == 1
+        assert controller_cake_3state._window_suppressions_by_cause["dwell_hold"] == 1
+        assert controller_cake_3state._lifetime_suppressions_by_cause["dwell_hold"] == 1
+
+    def test_window_suppressions_by_cause_backlog_recovery_3state_not_legacy_counter(
+        self, controller_cake_3state
+    ):
+        """3-state backlog recovery is tagged without changing suppressions_per_min."""
+        zone, _, _ = controller_cake_3state.adjust(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE - 1.0,
+            target_delta=self.GREEN_THRESHOLD,
+            warn_delta=self.HARD_RED_THRESHOLD,
+            cake_snapshot=_make_cake_snapshot(backlog_bytes=15000),
+        )
+
+        assert zone == "GREEN"
+        assert controller_cake_3state._backlog_suppressed_count == 1
+        assert controller_cake_3state._backlog_suppressed_this_cycle is True
+        assert controller_cake_3state._window_suppressions_by_cause["backlog_recovery"] == 1
+        assert controller_cake_3state._window_suppressions == 0
+        assert controller_cake_3state._lifetime_suppressions_by_cause["backlog_recovery"] == 1
+
+    def test_window_suppressions_by_cause_backlog_recovery_4state_not_legacy_counter(
+        self, controller_cake_dwell
+    ):
+        """4-state backlog recovery is tagged without changing suppressions_per_min."""
+        zone, _, _ = controller_cake_dwell.adjust_4state(
+            baseline_rtt=self.BASELINE,
+            load_rtt=self.BASELINE - 1.0,
+            green_threshold=self.GREEN_THRESHOLD,
+            soft_red_threshold=self.SOFT_RED_THRESHOLD,
+            hard_red_threshold=self.HARD_RED_THRESHOLD,
+            cake_snapshot=_make_cake_snapshot(backlog_bytes=15000),
+        )
+
+        assert zone == "GREEN"
+        assert controller_cake_dwell._backlog_suppressed_count == 1
+        assert controller_cake_dwell._backlog_suppressed_this_cycle is True
+        assert controller_cake_dwell._window_suppressions_by_cause["backlog_recovery"] == 1
+        assert controller_cake_dwell._window_suppressions == 0
+        assert controller_cake_dwell._lifetime_suppressions_by_cause["backlog_recovery"] == 1
+
+    def test_reset_window_snapshot_semantics(self, controller_cake_3state):
+        """reset_window publishes completed-window cause snapshot before zeroing live state."""
+        controller_cake_3state._window_suppressions_by_cause = {
+            "dwell_hold": 7,
+            "backlog_recovery": 3,
+            "other": 0,
+        }
+        controller_cake_3state._lifetime_suppressions_by_cause = {
+            "dwell_hold": 9,
+            "backlog_recovery": 4,
+            "other": 1,
+        }
+        controller_cake_3state._window_suppressions = 7
+
+        count = controller_cake_3state.reset_window()
+
+        assert count == 7
+        assert isinstance(count, int)
+        assert controller_cake_3state._last_completed_window_total == 10
+        assert controller_cake_3state._last_completed_window_by_cause == {
+            "dwell_hold": 7,
+            "backlog_recovery": 3,
+            "other": 0,
+        }
+        assert controller_cake_3state._window_suppressions == 0
+        assert controller_cake_3state._window_suppressions_by_cause == {
+            "dwell_hold": 0,
+            "backlog_recovery": 0,
+            "other": 0,
+        }
+        assert controller_cake_3state._lifetime_suppressions_by_cause == {
+            "dwell_hold": 9,
+            "backlog_recovery": 4,
+            "other": 1,
+        }
+
+    def test_last_completed_window_initial_state(self, controller_cake_3state):
+        """New controllers expose a zero completed-window snapshot before first reset."""
+        assert controller_cake_3state._last_completed_window_total == 0
+        assert controller_cake_3state._last_completed_window_by_cause == {
+            "dwell_hold": 0,
+            "backlog_recovery": 0,
+            "other": 0,
+        }
+
+
 class TestCakeDropBypass:
     """Tests for DETECT-01: drop rate above threshold bypasses dwell timer."""
 
