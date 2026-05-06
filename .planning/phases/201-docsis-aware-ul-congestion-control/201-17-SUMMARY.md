@@ -110,7 +110,7 @@ Each task was committed atomically:
 - CONTEXT greps: Deferred to v1.43+ section, `SEED-002`, `SEED-005`, `load-bearing`, and pre-existing modem-SNMP deferred item all present; single `</deferred>` tag.
 - RETRO greps: `Route B`, `metric_semantics_and_recalibration`, `Lessons for v1.43`, `Final Closure (2026-05-06)`, SEED references, queue_controller line refs, `v1.42.1`, `20260505T132736Z`, and ≥8 H2 headings all present.
 - VERIFICATION greps/YAML: `closeout_recorded`, `closeout_artifact`, `closure_route`, resolved date, and YAML frontmatter parse passed.
-- STATE greps/YAML: `stopped_at` no longer contains `awaiting operator`; Route B/gaps_found, closed current position, plan-count convention, SEED references, and Phase 191 blocker preservation all verified; YAML frontmatter parse passed.
+- STATE greps/YAML: `stopped_at` no longer contains the stale operator-awaiting phrase; Route B/gaps_found, closed current position, plan-count convention, SEED references, and Phase 191 blocker preservation all verified; YAML frontmatter parse passed.
 - SEED validation: all four seed files exist, frontmatter parses, priorities/prerequisites/rationales match, and downstream seeds carry "must not be executed before..." preambles.
 - Negative drift check: `{ git diff --name-only HEAD; git ls-files --others --exclude-standard; } | ... production-path grep` → `PASS: no production files touched`.
 - Closure stale-phrase scan: no FAIL lines after excluding active `201-17-closeout-PLAN.md` self-references and resolved verification contexts.
