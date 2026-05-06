@@ -14,9 +14,10 @@ import json
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-ATTEMPT3_NDJSON_PATH = REPO_ROOT / ".planning/phases/200-per-direction-rtt-bloat-thresholds/canary/20260504T133207Z/loaded_capture.ndjson"
-ATTEMPT3_VERDICT_PATH = REPO_ROOT / ".planning/phases/200-per-direction-rtt-bloat-thresholds/canary/20260504T133207Z/verdict.json"
-ATTEMPT2_NDJSON_PATH = REPO_ROOT / ".planning/phases/200-per-direction-rtt-bloat-thresholds/canary/20260503T215734Z/loaded_capture.ndjson"
+PHASE200_ARCHIVE = REPO_ROOT / ".planning/milestones/v1.41-phases/200-per-direction-rtt-bloat-thresholds"
+ATTEMPT3_NDJSON_PATH = PHASE200_ARCHIVE / "canary/20260504T133207Z/loaded_capture.ndjson"
+ATTEMPT3_VERDICT_PATH = PHASE200_ARCHIVE / "canary/20260504T133207Z/verdict.json"
+ATTEMPT2_NDJSON_PATH = PHASE200_ARCHIVE / "canary/20260503T215734Z/loaded_capture.ndjson"
 
 
 @dataclass(frozen=True)
