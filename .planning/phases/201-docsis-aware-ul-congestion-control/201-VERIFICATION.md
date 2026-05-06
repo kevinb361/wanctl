@@ -1,85 +1,73 @@
 ---
 phase: 201-docsis-aware-ul-congestion-control
-verified: 2026-05-06T13:40:36Z
+verified: 2026-05-06T14:35:00Z
 status: gaps_found
-score: 6/9 must-haves verified; 24h soak secondary gate failed
+score: 8/9 must-haves verified; D-14 suppression watchdog deferred to v1.43+ via operator Route B
 overrides_applied: 0
+closure_route: "Route B — defer to v1.43+. D-19 primary VALN-06 floor-hit gate PASSED; D-14 secondary suppression watchdog FAIL classified as metric_semantics_and_recalibration, NOT control_regression. Bounded RED decay + anti-windup (Plans 201-13/14) shipped and held under 24h saturation; the FAIL is on the YELLOW-edge dwell-hold code path (`_apply_dwell_logic` at queue_controller.py:348), not the bounded RED decay path (queue_controller.py:361-376). See `~/.claude/projects/-home-kevin-projects-wanctl/memory/project_phase_201_closure.md` for the recorded rationale."
+re_verification:
+  previous_status: gaps_found
+  previous_score: "6/9 frontmatter / 4/9 inline (disagreed; both stale)"
+  gaps_closed:
+    - "Truth 6: VALN-06 canary primary gate — recanary 20260505T122513Z PASSED with primary_gate_value=0 and ul_floor_hits_during_load=0 (Plan 201-15)"
+    - "Truth 9: A5 fallback OR explicit operator close-out decision — operator decision recorded 2026-05-06 as Route B (close gaps_found, defer D-14 to v1.43+)"
+    - "Sub-truth: max_delay_delta_us serialization — Plan 201-13 added 8 additive /health diagnostic fields including max_delay_delta_us, zone_trace, red_streak, headroom_exhausted_streak, anti_windup_cycles, anti_windup_triggers, red_decay_step_pct, red_decay_delta_max_pct"
+    - "Sub-truth: per-cycle zone trace — Plan 201-13 zone_trace bounded deque (maxlen=200) records every adjust() cycle"
+    - "Sub-truth: control-model RED-decay-to-floor cascade — Plan 201-14 replaced multiplicative cascade with bounded-absolute decay clamp (queue_controller.py:361-376); cycle-table proof: cycles 1-5 step down 240k each, cycles 6-18 hold at 10.8M above 8M floor"
+    - "Sub-truth: integral anti-windup — Plan 201-14 added cap-and-clamp anti-windup helper at queue_controller.py:290-320 with synchronous headroom_state recompute"
+    - "Sub-truth: red-decay safety validators — Plan 201-14 added daemon (autorate_config.py:530-555) and offline (check_config_validators.py:576-654) validators that fail closed on unsafe step/clamp/floor ordering"
+  gaps_remaining:
+    - "Truth 7: D-14 secondary suppression watchdog FAIL @ 6.47/60s mean (vs <5.0). Classified by operator Route B as metric_semantics + recalibration, deferred to v1.43+."
+  regressions: []
 gaps:
-  - truth: "Spectrum UL canary at the deployed ceiling completes with ul_floor_hits_during_load=0 and floor_hit_cycles_total_delta_loaded_window=0 (VALN-06 primary gate)"
+  - truth: "VALN-06 24h Spectrum UL regression soak watchdog passes (D-14 secondary `<5/60s` mean)"
     status: failed
-    reason: "Live canary 20260504T231334Z FAILED at setpoint_mbps=12 with floor_hit_cycles_total_delta_loaded_window=1453 over a 1022s loaded window and ul_floor_hits_during_load=84 on the 1Hz secondary cross-check. This is the inherited blocking VALN-06 requirement and the dominant phase-goal signal."
-    artifacts:
-      - path: ".planning/phases/201-docsis-aware-ul-congestion-control/canary/20260504T231334Z/verdict.json"
-        issue: "verdict=fail; reason=ul_floor_hits_during_load_84_counter_delta_1453"
-      - path: "src/wanctl/queue_controller.py:299-340"
-        issue: "DOCSIS-mode rate-decision path has no anti-collapse mechanism under sustained saturation; RED branch (line 304) applies factor_down=0.90 unconditionally and the setpoint clamp only governs push-up (line 313). After 6-8 RED cycles current_rate * 0.90^N reaches floor_red_bps. See evidence below."
-      - path: "src/wanctl/queue_controller.py:241-256"
-        issue: "Integral window stays EXHAUSTED throughout the loaded window; canary samples observe rtt_integral_ms_s in 30-155 range vs 30 ms*s threshold, locking the push-up gate closed even when current_rate is at floor and there is in fact headroom available below setpoint."
-    missing:
-      - "Anti-collapse / anti-windup: when docsis_mode=true and current_rate <= setpoint, the multiplicative RED decay must not cascade to floor over consecutive RED cycles. Options: (a) decay_floor = setpoint when in docsis_mode and saturated, (b) shape factor_down per-direction with docsis_mode-specific gentler value (e.g. 0.95) gated on rate <= setpoint, (c) integral-aware decay that holds rate when integral is non-decreasing for N cycles."
-      - "Recovery-from-floor path independent of green_streak >= green_required: under sustained iperf3 saturation, GREEN cycles are rare; the controller cannot climb back from floor on the existing recovery path. A floor-anchored recovery (e.g. step toward setpoint after K floor-stuck cycles regardless of green_streak) is needed."
-      - "Cycle-fidelity diagnostic of the actual zone sequence during canary: the loaded_capture.ndjson does NOT include zone or red_streak per 50ms cycle, so the failure mode (RED-pulsing vs YELLOW-stuck) cannot be confirmed from evidence alone. Add a per-cycle zone counter or low-rate replay capture to /health for closure-cycle root cause."
-  - truth: "VALN-06 24h Spectrum UL regression soak watchdog passes (suppression rate < 5/60s mean)"
-    status: failed
-    reason: "Plan 201-16 superseded the blocked Plan 201-12 path and completed a 24h soak (`20260505T132736Z`) against v1.42.1. The stricter operator-approved D-19 primary gate passed with floor_hit_cycles_total_delta_soak_window=0, but the preserved D-14 secondary watchdog failed: timestamp-windowed suppressions_per_min_mean=6.466842364880155, above the `<5/60s` threshold. Overall soak verdict remains FAIL because the plan-defined gates disagree."
+    classification: "metric_semantics_and_recalibration (NOT control_regression)"
+    reason: "Plan 201-16 24h soak (run 20260505T132736Z, v1.42.1) reported D-19 primary floor-hit delta = 0 (PASS) but D-14 secondary `ul_hysteresis_suppression_rate_per_60s_mean = 6.466842364880155` against the inherited Phase 200 `<5/60s` threshold (FAIL). Codex re-aggregation confirmed the FAIL is on the YELLOW-edge dwell-hold path (`_apply_dwell_logic` at queue_controller.py:348), unrelated to Plan 201-14's bounded RED decay fix at queue_controller.py:361-376. The published 6.47 mean is the mean of live-counter snapshots; `suppressions_per_min` at queue_controller.py:649,668 is a 60s-reset counter, not a true rate. The `<5/60s` threshold was inherited from Phase 200's qualitative '31/60s degraded → near-zero' framing and was never soak-calibrated against the post-Plan-201-14 control surface."
     artifacts:
       - path: ".planning/phases/201-docsis-aware-ul-congestion-control/soak/20260505T132736Z/soak-summary.json"
-        issue: "verdict=fail; reason=soak_gates_disagreement_primary_pass_secondary_fail; primary_gate=pass; secondary_gate=fail"
+        issue: "verdict=fail; reason=soak_gates_disagreement_primary_pass_secondary_fail; primary_gate.verdict=pass (delta=0); secondary_gate.verdict=fail (value=6.467 vs threshold=5.0)"
       - path: ".planning/phases/201-docsis-aware-ul-congestion-control/201-16-SOAK-VERDICT.md"
-        issue: "Operator-readable verdict preserving both D-19 primary PASS and D-14 secondary FAIL."
+        issue: "Operator-readable verdict preserving D-19 primary PASS and D-14 secondary FAIL together honestly."
     missing:
-      - "Operator decision for the next gap-closure route: A5-style controlled reattempt or v1.43+ control-model/suppression-watchdog follow-up."
-  - truth: "A5 fallback re-canary at setpoint_mbps=10 was authorized as a post-FAIL operator decision and produces a clean PASS or directs the next plan"
-    status: failed
-    reason: "Re-canary at setpoint_mbps=10 was explicitly authorized (REVIEWS HIGH-? / 201-11-CANARY-VERDICT 'A5 fallback availability'), but was not executed during this continuation. The phase is closed at FAIL with no fallback evidence either confirming or rejecting that setpoint=10 would close VALN-06."
-    artifacts:
-      - path: ".planning/phases/201-docsis-aware-ul-congestion-control/201-11-CANARY-VERDICT.md"
-        issue: "Records 'A5 fallback availability: re-canary at setpoint_mbps=10 is allowed as a future operator decision ... It was NOT started during this execution.' Decision is open, not executed."
-    missing:
-      - "Operator decision: either run A5 fallback re-canary at setpoint_mbps=10 (and capture verdict.json) OR plan a control-model amendment (anti-collapse + anti-windup, see truth-1 missing items) before any new canary attempt. Note: the canary evidence above suggests setpoint=10 alone may not close the gap because the failure mechanism is RED-decay-to-floor, not setpoint-too-aggressive — the controller still hits RED at 10 Mbit on saturated DOCSIS upload."
-  - truth: "REVIEWS HIGH-5 evidence (cycle-fidelity floor-hit counter using 50ms-resolution counter delta, not 1Hz snapshot) is operationally honest"
-    status: partial
-    reason: "Counter is implemented (queue_controller.py:122,170 increments floor_hit_cycles every cycle that lands on floor_red_bps; surfaced via /health.upload.floor_hit_cycles_total at line 618; canary verdict consumes counter delta as primary gate). But the counter is monotonic-since-daemon-restart, not per-canary-window, and its delta is only as accurate as the bookend snapshots — both of which are 1Hz health pulls subject to ±1s sample jitter. The 1453 counter delta is honest but the start/end timing is not cycle-aligned, so per-cycle floor-hit attribution within the window is approximate."
-    artifacts:
-      - path: "src/wanctl/queue_controller.py:122,170,618"
-        issue: "Counter present and wired; correct semantics."
-    missing:
-      - "Optional follow-up (NOT a Phase 201 closure blocker): emit per-cycle zone+rate to a debug ring buffer or downsampled (e.g. 5Hz) /health field so the failure-mode replay can attribute floor hits to specific RED-pulses. Without this, root-cause diagnosis stays inferential."
-  - truth: "REVIEWS HIGH-7 YAML rollback restores production to pre-Phase-201 state on canary FAIL"
-    status: verified_failed_path_only
-    reason: "Rollback was executed and verified (see 201-11-CANARY-VERDICT.md). post-rollback /health.version=1.39.0 and all six Phase 201 YAML keys (docsis_mode, setpoint_mbps, integral_window_seconds, integral_threshold_ms_s, cake_backlog_low_threshold_bytes, cake_delay_delta_low_threshold_us) report count 0 in /etc/wanctl/spectrum.yaml. This is the only reason production is recoverable. Marking VERIFIED for the rollback path; the upstream goal (canary PASS) is FAILED separately."
-    artifacts:
-      - path: ".planning/phases/201-docsis-aware-ul-congestion-control/201-11-CANARY-VERDICT.md"
-        issue: "Rollback section confirms binary archive `/opt/wanctl-prephase201-20260504T231220Z.tar.gz` and YAML snapshot `/etc/wanctl/spectrum.yaml.prephase201-20260504T231220Z` were both restored."
-    missing: []
-  - truth: "max_delay_delta_us is publicly serialized through /health for post-canary diagnosis (REVIEWS LOW finding deferred in 201-10)"
-    status: failed
-    reason: "Per STATE.md decision 201-10: 'Deferred the max_delay_delta_us public /health serialization gap as non-blocking for VALN-06 because the live canary gate uses floor_hit_cycles_total_delta_loaded_window plus ul_floor_hits_during_load, not max_delay_delta_us.' Now that the canary FAILED and root-cause diagnosis is the dominant closure activity, the absence of this field in /health is actively harmful — the canary loaded_capture.ndjson cannot answer 'was CAKE backlog high during the floor hits, or only RTT integral?' without it."
-    artifacts:
-      - path: "src/wanctl/wan_controller.py:4510-4511"
-        issue: "/health upload payload uses self._ul_cake_snapshot which contains max_delay_delta_us in the dataclass but is not part of the serialized public health field; the canary capture confirms cake_aligned: false but does not surface the underlying max_delay_delta_us value driving that boolean."
-    missing:
-      - "Serialize max_delay_delta_us into /health.wans[].upload (and download for symmetry) as an additive field. This is now blocking: gap-closure planning needs to know whether it was the integral or the CAKE corroborator (or both) that pinned the controller — current evidence only shows headroom_state=EXHAUSTED + cake_aligned=false simultaneously."
+      - "Fix metric semantics first (v1.43+ Plan A): completed-window UL suppression counts + cause tags (dwell vs backlog) on /health, additive only, so future soaks can compute a true 60s rate instead of mean-of-counter-snapshots."
+      - "Recalibrate D-14 (v1.43+ Plan B): re-derive a soak-calibrated threshold from completed-window counts on the post-Plan-201-14 baseline; the original `<5/60s` was qualitative and does not survive the post-fix control surface."
+      - "Capture per-sample `load_rtt - baseline_rtt` distribution before any `target_bloat_ms` tune (v1.43+ Plan C) so the dwell churn root cause is data-driven."
+      - "Conservative tuning candidates (`dwell_cycles: 5→4` or modest target_bloat_ms bump) ONLY after the three preceding items, with canary+soak+rollback gates (v1.43+ Plan D)."
 deferred:
   - truth: "ATT cake-primary canary VALN-05b"
     addressed_in: "v1.39 Phase 191 closure (cross-milestone)"
     evidence: "201-CONTEXT.md Deferred Ideas; .planning/todos/pending/2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md"
+  - truth: "D-14 secondary suppression watchdog recalibration"
+    addressed_in: "v1.43+ (Route B operator decision 2026-05-06)"
+    evidence: "Operator memory `~/.claude/projects/-home-kevin-projects-wanctl/memory/project_phase_201_closure.md`; codex re-aggregation classified D-14 FAIL as YELLOW-edge dwell churn (`_apply_dwell_logic`), not the RED-bounded-decay path (`_compute_rate_3state`); D-14 threshold inherited from Phase 200 qualitative framing, not soak-calibrated against post-201-14 surface."
 human_verification:
-  - test: "Operator decision on closure path"
-    expected: "One of: (a) authorize A5 fallback re-canary at setpoint_mbps=10 with full predeploy/canary/rollback flow; (b) authorize a control-model amendment phase (anti-collapse + anti-windup + diagnostic /health serialization) before any new canary; (c) close Phase 201 as gaps_found and re-roadmap into v1.43+."
-    why_human: "Production network change-policy in CLAUDE.md ('stability > safety > clarity > elegance') makes this an operator-only call. Verifier evidence supports option (b): the failure mechanism is structural (RED-decay-to-floor under saturated DOCSIS, no anti-collapse), not parameter-tuning, so option (a) at setpoint=10 has high a-priori risk of repeating the FAIL with smaller magnitude."
-  - test: "Cycle-level zone trace during a re-canary attempt"
-    expected: "If a re-canary runs, capture per-cycle zone (RED/YELLOW/GREEN), red_streak, _last_integral_ms_s, _cake_aligned, current_rate at the same 50ms cadence as the controller. This is the only way to confirm the failure mechanism inferred above (RED-pulsing collapsing rate to floor)."
-    why_human: "Requires a code change (e.g. debug ring buffer or downsampled health field) and a coordinated re-canary; not something the verifier can produce."
+  - test: "Plan 201-17 closeout authoring: refresh CONTEXT.md/ROADMAP.md to mark Phase 201 `gaps_found` with explicit baton-pass to v1.43, write 201-RETRO.md, and open the four v1.43 backlog items in priority order (semantics → recalibrate → distribution → tune)."
+    expected: "Closeout artifacts committed; v1.43 milestone scoped with the four ordered work items from the operator decision memory."
+    why_human: "Closeout planning shape is operator-authored; verifier can confirm artifacts exist after the planner produces them but cannot author the milestone-scoping decisions."
 ---
 
 # Phase 201: DOCSIS-Aware UL Congestion Control — Verification Report
 
 **Phase Goal:** Ship a DOCSIS-aware UL congestion control mode that holds Spectrum DOCSIS upload off the floor under saturated load, closing VALN-06 with `floor_hit_cycles_total_delta_loaded_window=0` and `ul_floor_hits_during_load=0`, followed by a 24h soak watchdog at `<5/60s` UL hysteresis suppression rate.
 
-**Verified:** 2026-05-04T23:57:07Z
+**Verified:** 2026-05-06T14:35:00Z (refreshed; supersedes 2026-05-06T13:40:36Z and the original 2026-05-04T23:57:07Z verification)
 **Status:** gaps_found
-**Re-verification:** No — initial verification
+**Re-verification:** Yes — refreshed against shipped Plans 201-13/14/15/16
+**Closure route:** Route B (operator decision 2026-05-06) — close `gaps_found`, defer D-14 watchdog to v1.43+ as metric_semantics + recalibration
+
+---
+
+## Closure Route — Read This First
+
+Phase 201 closes as `gaps_found` per **Route B** (operator decision recorded 2026-05-06):
+
+- **D-19 primary VALN-06 floor-hit gate: PASS.** Bounded RED decay + anti-windup (Plans 201-13/14) shipped on v1.42.1; canary `20260505T122513Z` and 24h soak `20260505T132736Z` both report `floor_hit_cycles_total_delta=0`. The original phase-goal control behavior is achieved.
+- **D-14 secondary suppression watchdog: FAIL @ 6.47/min vs `<5.0`** — classified as **metric_semantics + threshold_recalibration**, **NOT** a control regression. The FAIL is on the YELLOW-edge dwell-hold path (`_apply_dwell_logic` at `queue_controller.py:348`), unrelated to the bounded RED decay path (`_compute_rate_3state` at `queue_controller.py:361-376`) that Plan 201-14 fixed. Codex re-aggregation of `soak-capture.ndjson` confirmed `red_streak>0` in 0.023% of samples and YELLOW tails in 1.52%, with suppression correlating 0.72 with YELLOW samples and 0.01 with `max_delay_delta_us`.
+- **Metric-semantics surprise (load-bearing for the deferral):** `suppressions_per_min` at `queue_controller.py:649,668` is a 60s-reset counter, not a true rate. The published 6.47 mean is the mean of live-counter snapshots; the completed-window peak mean is ~13.9/min (p95=41, max=124). The `<5/60s` threshold was inherited from Phase 200's qualitative "31/60s degraded → near-zero" framing and was never soak-calibrated against the post-Plan-201-14 control surface.
+- **v1.43 baton:** four ordered work items (fix semantics → recalibrate → capture distribution → conservative tune), each with canary+soak+rollback gates. See operator memory `~/.claude/projects/-home-kevin-projects-wanctl/memory/project_phase_201_closure.md`.
+
+**Future readers: do not interpret the D-14 FAIL as a regression in bounded RED decay.** The two code paths are independent and the saturation evidence (D-19 PASS over 24h) is the load-bearing proof of the original phase-goal fix.
 
 ---
 
@@ -89,104 +77,116 @@ human_verification:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | DOCSIS-aware mode is YAML opt-in keyed off `continuous_monitoring.upload.docsis_mode: true`; absent or false is byte-identical to legacy | VERIFIED | `queue_controller.py:47,109,158` (gate); `tests/test_queue_controller.py::TestDocsisModeByteIdentity` collected; `configs/spectrum.yaml:79` shows `docsis_mode: true`; non-Spectrum YAMLs untouched per D-17 |
-| 2 | Schema accepts `docsis_mode`, `setpoint_mbps`, integral window keys; `setpoint_mbps` REQUIRED when `docsis_mode: true`; ordering check honored | VERIFIED | `autorate_config.py` schema present; `check_config_validators.py` `KNOWN_AUTORATE_PATHS` updated (per 201-03 SUMMARY); `tests/test_autorate_config.py::TestPhase201Schema` and `tests/test_check_config.py::TestDocsisModeValidation` collected |
-| 3 | RTT-integral classifier and CAKE corroborator wired into `_classify_zone_3state`/`_compute_rate_3state` | VERIFIED | `queue_controller.py:155-161, 241-270, 311-323` — code reads correctly: integral updates from `delta`, CAKE alignment categorical AND, setpoint clamp on push-up only |
-| 4 | `/health` carries additive runtime-state fields: `docsis_mode_active`, `setpoint_mbps`, `headroom_state`, `rtt_integral_ms_s`, `cake_aligned`, `floor_hit_cycles_total` | VERIFIED | `queue_controller.py:611-619`; canary `loaded_capture.ndjson` confirms all six fields populated per 1Hz sample |
-| 5 | Predeploy gate inspects `/etc/wanctl/spectrum.yaml` and either reconciles v1.41 rejected-hypothesis keys or fails closed | VERIFIED | `scripts/phase201-predeploy-gate.sh` exists; canary record confirms first run BLOCK on `target_bloat_ms`/`warn_bloat_ms`, reconcile-by-copy applied, second run PASS; `tests/test_phase201_predeploy_gate.py` exists |
-| 6 | Spectrum canary primary gate is `floor_hit_cycles_total_delta_loaded_window=0` AND `ul_floor_hits_during_load=0` (cycle-fidelity, REVIEWS HIGH-5) | FAILED | `verdict.json` reports `floor_hit_cycles_total_delta_loaded_window=1453`, `ul_floor_hits_during_load=84`; verdict=fail. **Phase goal not achieved.** |
-| 7 | 24h Spectrum UL regression soak passes (`<5/60s` mean) — VALN-06 watchdog | FAILED | Plan 201-12 was authored but never ran. STATE.md confirms blocked; no soak summary exists. |
-| 8 | YAML rollback on canary FAIL restores production to pre-Phase-201 binary AND YAML state (REVIEWS HIGH-7) | VERIFIED | post-rollback `/health.version=1.39.0`; all six Phase 201 YAML keys count `0` in `/etc/wanctl/spectrum.yaml` |
-| 9 | A5 fallback path (re-canary at setpoint_mbps=10) was executed OR an explicit operator close-out decision was recorded | FAILED | Per `201-11-CANARY-VERDICT.md`, A5 was authorized as a "future operator decision" but was not executed. No closure decision recorded; phase is left at canary FAIL with rollback complete and Plan 201-12 blocked. |
+| 1 | DOCSIS-aware mode is YAML opt-in keyed off `continuous_monitoring.upload.docsis_mode: true`; absent or false is byte-identical to legacy | VERIFIED | `queue_controller.py:47,109,111-138` (gate + initialized-but-unused defaults); `tests/test_queue_controller.py::TestDocsisModeByteIdentity` collected; `configs/spectrum.yaml` shows `docsis_mode: true`; non-Spectrum YAMLs untouched per D-17. Plan 201-14 SAFE-05 byte-identity slice: 13 passed. |
+| 2 | Schema accepts `docsis_mode`, `setpoint_mbps`, integral window keys, AND Plan 201-14 red-decay/anti-windup keys; `setpoint_mbps` REQUIRED when `docsis_mode: true`; cross-field validators fail closed on unsafe ordering | VERIFIED | `autorate_config.py:196,236-246,437-454,511-555` (all keys + validators); `check_config_validators.py:73-81,330-331,499-654` (mirrored offline validation); `tests/test_autorate_config.py::TestPhase201Schema` and `tests/test_check_config.py::TestDocsisModeValidation` collected; Plan 201-14 added 12 validator tests covering boundary semantics including 1/3 floating-point at-equality rejection. |
+| 3 | RTT-integral classifier, CAKE corroborator, **bounded-absolute RED decay clamp**, and **integral anti-windup** are wired into `_classify_zone_3state`/`_compute_rate_3state` | VERIFIED | `queue_controller.py:155-180` (zone classification + zone_trace + max_delay_delta_us snapshot retention); `queue_controller.py:241-270` (integral); `queue_controller.py:290-320` (anti-windup helper); `queue_controller.py:361-376` (**bounded-absolute RED decay** under DOCSIS — replaces the original multiplicative cascade-to-floor identified as the root defect in the original verification); `queue_controller.py:381-386` (setpoint clamp on push-up only, byte-identical to legacy when `docsis_mode=false`). Plan 201-14 cycle-table test `TestDocsisModeReplayCanary11::test_red_burst_18_cycles_explicit_table` proves cycles 1-5 step down 240k each from 12M to 10.8M, cycles 6-18 hold at 10.8M above the 8M floor → `floor_hit_cycles=0` over the 18-cycle window. |
+| 4 | `/health` carries the original 6 additive runtime-state fields PLUS Plan 201-13's 8 diagnostic fields (`max_delay_delta_us`, `red_streak`, `zone_trace`, `headroom_exhausted_streak`, `anti_windup_cycles`, `anti_windup_triggers`, `red_decay_step_pct`, `red_decay_delta_max_pct`); `sustained_red_cycles` deliberately absent per Plan 201-14 rev 4 | VERIFIED | `queue_controller.py:692-710` (get_health_data); `health_check.py:339-360` (passthrough into `/health.wans[].upload`); recanary `loaded_capture.ndjson` 20260505T122513Z first row contains all 14 fields; soak `soak-capture.ndjson` 20260505T132736Z 84117 rows confirm field stability over 24h. `grep sustained_red_cycles src/wanctl/queue_controller.py src/wanctl/health_check.py` returns no matches. |
+| 5 | Predeploy gate inspects `/etc/wanctl/spectrum.yaml` and either reconciles v1.41 rejected-hypothesis keys or fails closed | VERIFIED | `scripts/phase201-predeploy-gate.sh` exists; recanary `201-15-CANARY-VERDICT.md` confirms first run BLOCK on `target_bloat_ms`/`warn_bloat_ms`, reconcile-by-copy applied, second run PASS; `tests/test_phase201_predeploy_gate.py` exists. The two-snapshot rollback strategy (Snapshot A rollback-clean, Snapshot B post-gate candidate) was validated end-to-end on the recanary path. |
+| 6 | Spectrum canary primary gate is `floor_hit_cycles_total_delta_loaded_window=0` AND `ul_floor_hits_during_load=0` (cycle-fidelity, REVIEWS HIGH-5; VALN-06 primary) | VERIFIED | **Recanary `20260505T122513Z` PASSED** (Plan 201-15): `verdict.json` reports `verdict=pass`, `primary_gate_value=0`, `ul_floor_hits_during_load=0`, `floor_hit_cycles_total_delta_loaded_window=0`, 1022s loaded window, pre/post baseline RTT 21.83/22.19 ms. **Phase goal D-19 primary achieved.** Supersedes the failed canary `20260504T231334Z` from the original verification. |
+| 7 | 24h Spectrum UL regression soak passes (`<5/60s` D-14 secondary watchdog) | FAILED | Plan 201-16 24h soak `20260505T132736Z` against v1.42.1: D-19 primary `floor_hit_cycles_total_delta_soak_window=0` (PASS, operator-approved gate tightening per `201-16-OPERATOR-APPROVAL-D19.md`), D-14 secondary `ul_hysteresis_suppression_rate_per_60s_mean=6.467` against `<5.0` threshold (FAIL). Anti-windup trigger delta=0 over 24h (no anti-windup activations needed). Operator Route B 2026-05-06 classifies this as metric_semantics + recalibration, deferred to v1.43+. See "Closure Route" above. |
+| 8 | YAML rollback on canary FAIL restores production to pre-Phase-201 binary AND YAML state (REVIEWS HIGH-7) | VERIFIED | Original canary FAIL path validated rollback (post-rollback `/health.version=1.39.0`; all six Phase 201 YAML keys count `0`). Recanary PASS path did not require rollback but the two-snapshot evidence (`Snapshot A` rollback-clean count=0, `Snapshot B` post-gate count=5) confirms the rollback target remains correct and uncontaminated. |
+| 9 | A5 fallback path executed OR explicit operator close-out decision recorded | VERIFIED | **Operator Route B decision recorded 2026-05-06** in `~/.claude/projects/-home-kevin-projects-wanctl/memory/project_phase_201_closure.md`: close Phase 201 as `gaps_found`, ship Plans 201-13/14/15 (D-19 primary VALN-06 PASS), defer D-14 watchdog to v1.43+ as metric_semantics + recalibration. Codex second-opinion (saved at `/tmp/codex-201-prompt.md` / `/tmp/codex-201-response.log` 2026-05-06) recommended Route B; operator (Kevin) selected. |
 
-**Score:** 4/9 truths verified (5 failed, 0 uncertain)
+**Score:** 8/9 truths verified (1 failed, 0 uncertain). The single failed truth is Truth 7, classified by operator Route B as metric_semantics + recalibration deferred to v1.43+, NOT a control regression.
 
-The phase implementation landed (truths 1-5,8) but the phase goal (truth 6) is not achieved. Truths 7, 9 are downstream consequences of 6.
+The phase-goal control behavior (truths 1-6, 8) is achieved on shipped v1.42.1 production. The single remaining FAIL is on a code path independent of the phase-goal fix; deferral to v1.43+ is the recorded operator closure shape.
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `src/wanctl/queue_controller.py` | DOCSIS-mode internals: integral, CAKE corroborator, setpoint clamp, floor-hit counter | EXISTS, SUBSTANTIVE, WIRED | All wired; design defect is in the *behavior* under saturated load, not artifact integrity. See "Floor-Pegging Root Cause" below. |
-| `src/wanctl/wan_controller.py` | Constructor wiring + presence flags + INFO log + 5-6 additive /health fields | EXISTS, SUBSTANTIVE, WIRED | Wired per 201-05 SUMMARY; canary capture confirms /health fields live |
-| `src/wanctl/autorate_config.py` | Schema for `docsis_mode`, `setpoint_mbps`, integral window keys, ordering check | EXISTS, SUBSTANTIVE, WIRED | YAML-load path confirms keys parse and validate |
-| `src/wanctl/check_config_validators.py` | KNOWN_AUTORATE_PATHS registers Phase 201 keys (SAFE-06) | EXISTS, SUBSTANTIVE, WIRED | Predeploy gate first run BLOCK on rejected v1.41 keys confirms registry-driven rejection works |
-| `configs/spectrum.yaml` | docsis_mode=true, setpoint_mbps=12, integral_window_seconds=2.0, integral_threshold_ms_s=30.0, cake_backlog_low_threshold_bytes=5000, cake_delay_delta_low_threshold_us=5000 | EXISTS, SUBSTANTIVE | All six keys present at expected values |
-| `scripts/phase200-saturation-canary.sh` | D-12 preflight extension + counter-delta primary gate (HIGH-5) + fail-closed env enforcement (HIGH-6) | EXISTS, SUBSTANTIVE, WIRED | verdict.json shape confirms primary gate is counter delta, not 1Hz snapshot |
-| `scripts/phase201-predeploy-gate.sh` | Fail-closed reconcile-or-block on rejected v1.41 keys before deploy | EXISTS, SUBSTANTIVE, WIRED | Live canary confirms first-run BLOCK + manual reconcile + second-run PASS path |
-| `.planning/phases/201-docsis-aware-ul-congestion-control/201-12-soak-and-closeout-PLAN.md` | Plan authored, executed, soak summary captured | EXISTS, NOT EXECUTED | Plan exists; no soak summary; STATE.md confirms blocked |
-| `canary/20260504T231334Z/verdict.json` | verdict=pass with both floor-hit gates at 0 | EXISTS, FAILED | verdict=fail; primary gate value 1453 |
-| `tests/test_phase_201_replay.py` | Replay corpus loader + Attempt 3 replay floor_hits=0 + legacy byte-identity | EXISTS, SUBSTANTIVE | Per STATE.md decision 201-04: 20x hold-last replay records 1003 RED-heavy floor-hit cycles under exact RED fast-trip and post-bounds floor-hit accounting; treated as safety diagnostic, not synthetic VALN-06 closure. **The replay model itself was a known-coarse approximation; live canary is the gate, and it failed.** |
+| `src/wanctl/queue_controller.py` | DOCSIS-mode internals: integral, CAKE corroborator, setpoint clamp, floor-hit counter, **bounded-absolute RED decay**, **anti-windup**, **zone trace**, **diagnostic /health fields** | EXISTS, SUBSTANTIVE, WIRED | All wired. The control-model defect identified in the original verification (multiplicative RED decay cascading to floor) was fixed by Plan 201-14 with a bounded-absolute clamp at lines 361-376; integral anti-windup at lines 290-320; zone trace and max-delay snapshot retention at 178-181. |
+| `src/wanctl/wan_controller.py` | Constructor wiring + presence flags + INFO log + 5-6 additive /health fields + Plan 201-14 red-decay/anti-windup constructor wiring | EXISTS, SUBSTANTIVE, WIRED | Wired per 201-05 + 201-14 SUMMARYs; recanary capture confirms /health fields live including the 8 Plan 201-13 diagnostic fields. |
+| `src/wanctl/autorate_config.py` | Schema for `docsis_mode`, `setpoint_mbps`, integral window keys, **red-decay/anti-windup keys**, ordering check, and Plan 201-14 cross-field validators | EXISTS, SUBSTANTIVE, WIRED | All keys parse, validate, and fail closed on unsafe combinations (lines 511-555). |
+| `src/wanctl/check_config_validators.py` | KNOWN_AUTORATE_PATHS registers Phase 201 keys (SAFE-06) + offline mirror of red-decay safety validation | EXISTS, SUBSTANTIVE, WIRED | Recanary predeploy gate first run BLOCK on rejected v1.41 keys confirms registry-driven rejection works; offline validator mirror at lines 576-654. |
+| `src/wanctl/health_check.py` | Passthrough of QueueController diagnostic fields into `/health.wans[].upload` | EXISTS, SUBSTANTIVE, WIRED | Plan 201-13 added 8 diagnostic fields with JSON-safe defaults (lines 339-360); Plan 201-14 mypy clean. |
+| `configs/spectrum.yaml` | docsis_mode=true, setpoint_mbps=12, integral window keys, **red_decay_step_pct=0.02, red_decay_delta_max_pct=0.10, anti_windup_cycles=60** | EXISTS, SUBSTANTIVE | All Phase 201 keys present at expected values; Plan 201-14 added rev-4 red-decay defaults and anti-windup cycles. |
+| `scripts/phase200-saturation-canary.sh` | D-12 preflight extension + counter-delta primary gate (HIGH-5) + fail-closed env enforcement (HIGH-6) | EXISTS, SUBSTANTIVE, WIRED | Recanary `verdict.json` shape confirms primary gate is counter delta and PASS path with delta=0. |
+| `scripts/phase201-predeploy-gate.sh` | Fail-closed reconcile-or-block on rejected v1.41 keys before deploy | EXISTS, SUBSTANTIVE, WIRED | Recanary confirms first-run BLOCK + manual reconcile + second-run PASS path. |
+| `canary/20260505T122513Z/verdict.json` | verdict=pass with both floor-hit gates at 0 | EXISTS, PASS | verdict=pass; primary_gate_value=0; ul_floor_hits_during_load=0. **Phase-goal D-19 primary VALN-06 closure evidence.** |
+| `canary/20260505T122513Z/loaded_capture.ndjson` | 1022s loaded window with all 14 /health diagnostic fields | EXISTS, SUBSTANTIVE | First row confirmed to contain max_delay_delta_us, red_streak, zone_trace, anti_windup_cycles, anti_windup_triggers, headroom_exhausted_streak, red_decay_step_pct, red_decay_delta_max_pct. |
+| `soak/20260505T132736Z/soak-summary.json` | 24h soak verdict with primary + secondary gates | EXISTS, MIXED | D-19 primary PASS (delta=0); D-14 secondary FAIL (6.467 vs <5.0). Overall verdict=fail per plan-defined gate-AND semantics. Operator Route B defers D-14 to v1.43+. |
+| `soak/20260505T132736Z/soak-capture.ndjson` | 24h NDJSON capture (~86k rows expected) | EXISTS, SUBSTANTIVE | 84117 rows; sample coverage ratio 0.974 (above the 0.95 warning threshold); diagnostic distributions captured for RTT integral, CAKE delay delta, red streak, headroom. |
+| `201-16-OPERATOR-APPROVAL-D19.md` | D-19 stricter primary soak gate operator approval, dated, captured BEFORE soak start | EXISTS | Approved 2026-05-05T13:15:37+00:00; references recanary PASS as justification. |
+| `201-15-CANARY-VERDICT.md` | Operator-readable recanary PASS verdict + two-snapshot timeline + active knob proof | EXISTS, SUBSTANTIVE | All seven sections present; build identity binds to git SHA `311c9a4` and v1.42.1. |
+| `201-16-SOAK-VERDICT.md` | Operator-readable soak verdict preserving D-19 PASS and D-14 FAIL together honestly | EXISTS, SUBSTANTIVE | Honest gate-disagreement preservation per codex NEW-HIGH-3 / LOW-CODEX-5. |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|----|--------|---------|
-| `wan_controller.py` upload cycle | `queue_controller.adjust(..., cake_snapshot=ul_cake)` | direct call at `wan_controller.py:2978-2984` | WIRED | CAKE snapshot reaches DOCSIS-mode integral+corroborator |
-| `queue_controller.adjust` | `floor_hit_cycles` increment | `queue_controller.py:170` `if new_rate == self.floor_red_bps: self.floor_hit_cycles += 1` | WIRED | Counter increments per cycle that lands on floor |
-| `queue_controller.get_health_data` | `/health.wans[].upload.floor_hit_cycles_total` | `wan_controller.py` health builder | WIRED | Canary capture confirms field populated |
-| canary script | counter-delta primary verdict | `verdict.json.primary_gate=floor_hit_cycles_total_delta_loaded_window` | WIRED | verdict.json schema confirms cycle-fidelity gate |
-| Predeploy gate | `deploy.sh` exit propagation | `\|\| gate_rc=$?` pattern (REVIEWS plan 07 fix) | WIRED | Live canary confirms gate exit propagates correctly |
+| `wan_controller.py` upload cycle | `queue_controller.adjust(..., cake_snapshot=ul_cake)` | direct call | WIRED | CAKE snapshot reaches DOCSIS-mode integral + corroborator + max-delay-delta-snapshot retention (Plan 201-13) |
+| `queue_controller.adjust` | `floor_hit_cycles` increment | `queue_controller.py` `if new_rate == self.floor_red_bps: self.floor_hit_cycles += 1` | WIRED | Counter increments per cycle that lands on floor; recanary delta=0 over 1022s loaded window proves the bounded RED decay clamp at line 367-375 holds rate above floor. |
+| `queue_controller._compute_rate_3state` (RED branch) | bounded-absolute decay + clamp-hold | `queue_controller.py:361-376` | WIRED | Plan 201-14 cycle-table test proves cycles 1-5 step down 240k each, cycles 6-18 hold at clamp 10.8M above 8M floor. **Replaces the multiplicative-cascade defect identified in original verification.** |
+| `queue_controller._apply_anti_windup_if_needed` | integral cap + synchronous headroom recompute | `queue_controller.py:290-320` | WIRED | Anti-windup trigger counter exposed via /health; soak shows trigger delta=0 over 24h (no activations needed under bounded-decay regime). |
+| `queue_controller.get_health_data` | `/health.wans[].upload.{14 diagnostic fields}` | `health_check.py:339-360` | WIRED | Recanary capture confirms all 14 fields populated; soak capture confirms 24h stability. |
+| canary script | counter-delta primary verdict | `verdict.json.primary_gate=floor_hit_cycles_total_delta_loaded_window` | WIRED | Recanary verdict.json confirms cycle-fidelity gate at PASS (value=0). |
+| Predeploy gate | `deploy.sh` exit propagation | `\|\| gate_rc=$?` pattern | WIRED | Recanary confirms gate exit propagates correctly through Snapshot A → BLOCK → reconcile → PASS → Snapshot B → deploy. |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Test suite for Phase 201 surfaces collects | `.venv/bin/pytest -o addopts='' <Phase 201 slice> --collect-only -q` | Per VALIDATION.md and 201-02 SUMMARY: 18 named test classes collect cleanly | PASS |
-| Canary verdict.json valid JSON with FAIL verdict | `jq '.verdict' canary/20260504T231334Z/verdict.json` | `"fail"` | PASS (verdict captured), but the verdict value itself is FAIL — phase goal unmet |
-| Live /health reports DOCSIS-mode active during canary | Post-deploy spot check captured in CANARY-VERDICT.md | `docsis_mode_active=true`, `setpoint_mbps=12.0`, `floor_hit_cycles_total=0` initially | PASS (deployment integrity), then FAIL (load behavior) |
-| Loaded capture rate distribution shows oscillation between setpoint and floor | `python3 ...` (verifier ad-hoc) | Counter: `12.0`: 778 samples, `8.0` (floor): 84 samples, `18.0`: 7 samples (post-rollback boundary), intermediates 9.7/10.8: 16 samples | OBSERVED — confirms floor-pegging dynamics |
+| Bounded-decay cycle-table proof | `TestDocsisModeReplayCanary11::test_red_burst_18_cycles_explicit_table` | cycles 1-5 = 11.76M/11.52M/11.28M/11.04M/10.80M; cycles 6-18 = 10.80M (hold); floor_hit_cycles=0 across the window | PASS (Plan 201-14) |
+| Anti-windup property suite | `tests/test_queue_controller.py` Plan 201-14 anti-windup tests | 20 passed | PASS |
+| Red-decay validator boundary suite | `tests/test_autorate_config.py` + `tests/test_check_config.py` Plan 201-14 validator classes | 12 passed | PASS |
+| SAFE-05 legacy byte-identity | Plan 201-14 SAFE-05 slice | 13 passed | PASS |
+| Hot-path regression slice | `.venv/bin/pytest -o addopts='' tests/test_cake_signal.py tests/test_queue_controller.py tests/test_wan_controller.py tests/test_health_check.py tests/test_autorate_config.py tests/test_check_config.py -q` | 833 passed (Plan 201-14 verification) | PASS |
+| `sustained_red_cycles` deliberately absent | `grep -n sustained_red_cycles src/wanctl/queue_controller.py src/wanctl/health_check.py` | no matches | PASS (intentional per Plan 201-13 / 201-14 rev-4 coordination) |
+| Recanary verdict.json valid JSON with PASS verdict | `jq '.verdict' canary/20260505T122513Z/verdict.json` | `"pass"` | PASS |
+| Live /health reports DOCSIS-mode active during recanary | Plan 201-15 spot-check | docsis_mode_active=true, setpoint_mbps=12.0, anti_windup_cycles=60, red_decay_step_pct=0.02, red_decay_delta_max_pct=0.10 | PASS |
+| 24h soak floor-hit delta | `jq '.primary_gate.delta' soak/20260505T132736Z/soak-summary.json` | `0` | PASS |
+| 24h soak suppression mean | `jq '.secondary_gate.value' soak/20260505T132736Z/soak-summary.json` | `6.466842364880155` (vs threshold 5.0) | FAIL — deferred to v1.43+ via operator Route B |
 
 ---
 
-## Floor-Pegging Root Cause Analysis
+## Floor-Pegging Root Cause — RESOLVED
 
-The phase delivered the artifacts but not the behavior. Reading the canary capture (`loaded_capture.ndjson`, 885 1Hz samples over the 1022s loaded window) and the controller code together produces a specific defect identification:
+The original verification identified the dominant defect as multiplicative RED decay cascading current_rate from setpoint to floor in 6-8 cycles whenever the CMTS upstream queue refilled. Plan 201-14 replaced that path with a **bounded-absolute decay clamp** under DOCSIS mode:
 
-**Observed dynamics (1Hz snapshots during loaded window, ad-hoc verifier inspection):**
+**Before (multiplicative cascade):**
+```python
+if self.red_streak >= 1:
+    self._yellow_decay_streak = 0
+    return int(self.current_rate * self.factor_down)  # 0.90^N cascades to floor
+```
 
-| Sample | rate_mbps | floor_hit_cycles_total | rtt_integral_ms_s | headroom_state | cake_aligned |
-|---|---|---|---|---|---|
-| #0 | 18.0 | 0 | 2.7 | AVAILABLE | true |
-| #100 | 12.0 | 135 | 84.9 | EXHAUSTED | false |
-| #300 | 12.0 | 240 | 41.0 | EXHAUSTED | false |
-| #500 | 12.0 | 424 | 69.6 | EXHAUSTED | false |
-| #700 | 12.0 | 954 | 30.9 | EXHAUSTED | false |
-| #880 | 8.0 | 1402 | 155.6 | EXHAUSTED | false |
+**After (Plan 201-14, queue_controller.py:361-376):**
+```python
+if self.red_streak >= 1:
+    self._yellow_decay_streak = 0
+    if self._docsis_mode and self._setpoint_bps is not None:
+        delta_max_bps = max(1, int(self._setpoint_bps * self._red_decay_delta_max_pct))
+        clamp_bps = self._setpoint_bps - delta_max_bps
+        if self.current_rate >= clamp_bps:
+            # Bounded-absolute decay until clamp, then HOLD above floor.
+            step_bps = max(1, int(self._setpoint_bps * self._red_decay_step_pct))
+            return max(int(self.current_rate - step_bps), clamp_bps)
+    return int(self.current_rate * self.factor_down)  # legacy preserved
+```
 
-Floor-hit increments per 1Hz sample average **~15.5 cycles** (mean of 94 non-zero deltas), with max 21 — i.e. for ~1s windows the controller is pegged at floor for the *entire window*.
+With Spectrum's `setpoint_mbps=12`, `red_decay_step_pct=0.02`, `red_decay_delta_max_pct=0.10`:
+- step_bps = 240,000 (240k)
+- clamp_bps = 10,800,000 (10.8M, comfortably above 8M floor)
+- cycles 1-5 step from 12M to 10.8M; cycles 6-18 hold at 10.8M
 
-**Mechanism (specific code paths):**
+The validator at `autorate_config.py:546-555` and `check_config_validators.py:625-654` fails closed when `setpoint_mbps * (1 - red_decay_delta_max_pct) <= floor_mbps` (with floating-point tolerance), so the at-clamp hold is **safe by construction** — production cannot start with a configuration that would cascade to floor.
 
-1. **RED multiplicative decay drives current_rate to floor in 6-8 cycles.** `queue_controller.py:301-304`:
-   ```python
-   if self.red_streak >= 1:
-       self._yellow_decay_streak = 0
-       return int(self.current_rate * self.factor_down)  # factor_down=0.90 for Spectrum UL
-   ```
-   Starting at setpoint=12 Mbit, six consecutive RED cycles reach `12 * 0.9^6 = 6.37 Mbit`, which is below floor (8 Mbit), so `enforce_rate_bounds` clamps to floor. Floor pegs.
+Integral anti-windup at `queue_controller.py:290-320` provides the recovery-from-stuck-EXHAUSTED path:
+- when headroom has been EXHAUSTED for ≥ `anti_windup_cycles` (default 60),
+- cap the integral window to `threshold - 1.0`,
+- recompute `headroom_state` synchronously,
+- increment a counter exposed via `/health`,
+- rate-limit the log so it does not flood.
 
-2. **Integral remains EXHAUSTED throughout.** `queue_controller.py:241-256`. Under saturated iperf3, `delta = load_rtt - baseline_rtt` is consistently > 0; integral over 2s window stays well above 30 ms·s threshold (observed 30-155 in capture). `_headroom_state` stays "EXHAUSTED" for the full loaded window.
+24h soak evidence: anti-windup trigger delta=0 — bounded decay alone was sufficient under saturated load and anti-windup never had to engage.
 
-3. **Setpoint clamp does NOT prevent collapse.** `queue_controller.py:309-313`:
-   ```python
-   if self._docsis_mode and self._setpoint_bps is not None:
-       if not (self._headroom_state == "AVAILABLE" and self._cake_aligned):
-           return min(raw_rate, self._setpoint_bps)
-   ```
-   This branch only fires when `green_streak >= green_required`. It governs *push-up*, not *push-down*. Once RED takes the rate below setpoint, the setpoint clamp is silent.
+**Live evidence the fix held:**
+- Recanary `20260505T122513Z`: 0 floor-hit cycles in 1022s loaded window (vs 1453 in the original FAILED canary)
+- 24h soak `20260505T132736Z`: 0 floor-hit cycles across 84117 captured samples (~86400s)
+- Diagnostic distributions: `red_streak.mean=0.006`, `red_streak.max=101`, `headroom_exhausted_samples=469/84117` (0.56%) — RED is rare and bounded when it does fire
 
-4. **Recovery from floor is gated on green_streak ≥ 3 (Spectrum YAML), and GREEN cycles are starved under sustained load.** Once at floor, the iperf3 saturation reduces (because shaping is more aggressive) and RTT eventually relaxes. But by the time enough GREEN cycles accumulate, the controller has pulsed RED again from upstream queue refills. The capture shows the controller recovering to setpoint=12 (778 samples) but each recovery is followed by another RED-collapse to floor (84 floor-1Hz samples ≈ 84 collapse events × 15-20 cycles each = ~1453 floor cycles).
-
-5. **The "DOCSIS-aware" mode is ASYMMETRIC ONLY ON THE PUSH-UP SIDE.** It adds a setpoint clamp on the recovery branch but introduces no anti-collapse mechanism on the RED branch. Yet the failure mode is on the RED branch.
-
-**Architectural diagnosis (consistent with 201-CONTEXT.md):** The Phase 200 RETRO correctly identified that the residual failure regime is "shaping-headroom dominated, not threshold dominated." Phase 201 added a setpoint to create *headroom on the push-up boundary* but did not add a corresponding *floor-anchor on the push-down boundary*. Under saturated DOCSIS, the CMTS upstream queue refills as fast as wanctl can shape it down — RED keeps firing — and `factor_down=0.90` cascades current_rate to floor. The headroom intervention is on the wrong side of the asymmetric controller.
-
-**Specific defect locations:**
-
-- `src/wanctl/queue_controller.py:301-304` — RED branch unconditionally applies factor_down, no docsis_mode anti-collapse
-- `src/wanctl/queue_controller.py:309-314` — setpoint clamp governs push-up only
-- `src/wanctl/queue_controller.py:241-256` — integral has no anti-windup; once EXHAUSTED, stays EXHAUSTED for the full 2s window after RTT actually decays, slowing recovery further
+The phase-goal control behavior is achieved.
 
 ---
 
@@ -194,102 +194,106 @@ Floor-hit increments per 1Hz sample average **~15.5 cycles** (mean of 94 non-zer
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |---|---|---|---|---|
-| VALN-06 (inherited blocking from Phase 200) | ROADMAP Phase 201 SC#2-#4; REQUIREMENTS.md | Spectrum UL saturation gate canary `ul_floor_hits_during_load=0` AND 24h soak `<5/60s` | BLOCKED | Canary FAIL at 84 floor hits / 1453 cycles; soak never ran |
-| VALN-06 schema portion | ROADMAP Phase 201 SC#1 | Schema accepts new keys, `setpoint_mbps` required when `docsis_mode=true`, byte-identical legacy fallback | SATISFIED | Plan 201-03 SUMMARY confirms; tests collect; canary deploy validated YAML loads |
-| VALN-06 predeploy gate | ROADMAP Phase 201 SC#4 | Predeploy gate inspects /etc/wanctl/spectrum.yaml and reconciles or fails closed | SATISFIED | Plan 201-07 SUMMARY confirms; live canary confirms first-run BLOCK + reconcile + second-run PASS |
-| VALN-06 docs | ROADMAP Phase 201 SC#5 | CHANGELOG.md and docs/CONFIGURATION.md migration note | SATISFIED | Per Plan 201-06 SUMMARY (D-12/DOCS-03 applied) |
+| VALN-06 D-19 primary (canary + soak floor-hit) | ROADMAP Phase 201 SC#2-#4; REQUIREMENTS.md; `201-16-OPERATOR-APPROVAL-D19.md` | Spectrum UL saturation gate canary `floor_hit_cycles_total_delta=0` AND 24h soak `floor_hit_cycles_total_delta_soak_window=0` | SATISFIED | Recanary PASS + 24h soak primary PASS — both at zero |
+| VALN-06 D-14 secondary (suppression watchdog) | ROADMAP Phase 201 SC#3 | 24h soak `ul_hysteresis_suppression_rate_per_60s_mean < 5.0` | DEFERRED to v1.43+ | Soak FAIL @ 6.467; operator Route B classifies as metric_semantics + recalibration on YELLOW-edge dwell-hold path, independent of bounded RED decay fix |
+| VALN-06 schema portion | ROADMAP Phase 201 SC#1 | Schema accepts new keys, `setpoint_mbps` required when `docsis_mode=true`, byte-identical legacy fallback, Plan 201-14 cross-field validators | SATISFIED | Plan 201-03 + 201-14 SUMMARYs; tests collect; recanary deploy validated YAML loads |
+| VALN-06 predeploy gate | ROADMAP Phase 201 SC#4 | Predeploy gate inspects /etc/wanctl/spectrum.yaml and reconciles or fails closed | SATISFIED | Plan 201-07 SUMMARY; recanary confirms first-run BLOCK + reconcile + second-run PASS path |
+| VALN-06 docs | ROADMAP Phase 201 SC#5 | CHANGELOG.md and docs/CONFIGURATION.md migration note | SATISFIED | Plan 201-06 SUMMARY (D-12/DOCS-03 applied); Plan 201-14 documented rev-4 invariant wording and restart-required validator semantics |
 
-VALN-06 is the single phase requirement and it is BLOCKED — closure shape requires both canary PASS *and* soak watchdog PASS, neither of which were achieved.
-
----
-
-## REVIEWS HIGH-Item Coverage
-
-Codex pre-review (`201-09-CODEX-PRE-REVIEW.md`) flagged 7 HIGH items. Per STATE.md decision 201-09 ("All HIGH amendments accepted"), each was addressed in plan amendments. Verifying actual implementation:
-
-| HIGH | Concern | Implementation Status | Evidence |
-|---|---|---|---|
-| HIGH-1 | Plan 03 must depend on Plan 09 (Codex pre-review) | RESOLVED | Plan 09 ran before Wave 1; STATE.md timeline confirms |
-| HIGH-2 | Plans 04 and 05 not parallel-safe | RESOLVED | VALIDATION.md notes Wave 5 split; Plan 05 moved to Wave 3 after Plan 04 |
-| HIGH-3 | Wave 0 skip-only stubs weaken RED contract | RESOLVED | STATE.md decision 201-02: "Importable Phase 201 stubs use strict xfail or natural missing-symbol failures rather than skip-only placeholders"; only the absent predeploy shell uses function-level skips |
-| HIGH-4 | Replay does not model the 50ms loop | PARTIALLY RESOLVED — disclosed | STATE.md decision 201-04: replay revised to "20x hold-last replay records 1003 RED-heavy floor-hit cycles ... safety diagnostic rather than synthetic VALN-06 closure; Plan 201-11 live canary remains the closure gate." Live canary subsequently FAILED, so the replay's coarseness was correctly disclosed but the canary did NOT compensate. |
-| HIGH-5 | Canary may not detect cycle-level floor hits (1Hz polling) | RESOLVED ARTIFACT, FAILED OUTCOME | `floor_hit_cycles` counter (queue_controller.py:122,170) increments every 50ms cycle; canary primary gate uses counter delta. The cycle-fidelity gate worked as designed and detected 1453 floor-cycles where the 1Hz snapshot saw only 84 samples at floor. **The HIGH-5 resolution was load-bearing for catching this failure honestly.** |
-| HIGH-6 | Canary checks fail-OPEN if env vars missing | RESOLVED | STATE.md decision 201-08: "Phase 201 canary mode is fail-closed unless PHASE201_DOCSIS_MODE=true and PHASE201_SETPOINT_MBPS=12 are set"; tests/test_phase200_canary_script.py::TestPhase201EnvFailClosed |
-| HIGH-7 | Rollback does not restore YAML | RESOLVED + EXECUTED | YAML snapshot taken predeploy; rollback restored both binary and YAML; verified by post-rollback grep counts (all 6 keys = 0) |
-
-**REVIEWS HIGH summary:** All 7 HIGH items resolved at the artifact level. HIGH-5 and HIGH-7 actively load-bearing during the canary FAIL — without the cycle-fidelity counter the 1Hz gate would have read 84 floor samples / 1022s = "8% loaded floor presence" and the verdict shape would have been weaker; without HIGH-7 the rollback would have left v1.42 YAML keys under the v1.40 binary in an undefined state.
+VALN-06 closes on the D-19 primary gate (the dominant phase-goal proof); the D-14 secondary gate is the one remaining open item, deferred to v1.43+ via operator Route B.
 
 ---
 
-## Pre-Deploy / Config-Schema Gap
+## REVIEWS HIGH-Item Coverage (Refreshed)
 
-The canary record shows the predeploy gate first run BLOCKED on `target_bloat_ms` and `warn_bloat_ms` keys (rejected v1.41 hypothesis keys still on production `/etc/wanctl/spectrum.yaml` from Phase 200's failed gap-closure cycle). Reconciliation was applied by copying the repo YAML over.
+All seven original HIGH items resolved at the artifact level. The original verification noted HIGH-5 and HIGH-7 were load-bearing during the canary FAIL; the recanary PASS path additionally validates:
 
-This is **NOT a Phase 201 gap** — it is the predeploy gate doing its job, exactly as designed (D-15). It validates that the SAFE-06 unknown-key warning + Phase 201 fail-closed gate together prevent production from running with stale/rejected config. Surface this as a SAFE-06 success, not a config-schema failure.
+- **HIGH-5 (cycle-fidelity counter)** continues to be the load-bearing gate; recanary delta=0 and 24h soak delta=0 prove the counter is the right contract.
+- **HIGH-7 (binary + YAML rollback)** validated end-to-end via two-snapshot strategy on the recanary; PASS path skipped rollback execution but Snapshot A / Snapshot B verification is recorded.
+- **MEDIUM-CODEX-3 (active-knob proof)** Plan 201-13 added live attribute echoes for `red_decay_step_pct` and `red_decay_delta_max_pct` so the recanary could prove constructor wiring without grepping YAML text.
+- **HIGH-CODEX-1 / HIGH-CODEX-2 (rev-4 invariant)** Plan 201-14 implemented the codex-amended bounded-absolute decay with the rev-4 invariant comment in code (`queue_controller.py:368-373`).
+- **NEW-HIGH-1 (two-snapshot rollback)** Plan 201-15 captured Snapshot A rollback-clean (count=0) before any reconcile and Snapshot B post-gate (count=5) only as deploy evidence.
+- **NEW-HIGH-2 / NEW-HIGH-3 (verbatim soak script + $rows-bound jq)** Plan 201-16 implemented both; `soak-summary.json.secondary_gate.computation` documents the $rows-binding fix.
+- **LOW-CODEX-5 (D-19 approval as distinct artifact)** `201-16-OPERATOR-APPROVAL-D19.md` exists as a separate artifact, not silently written into the verdict file.
+
+---
+
+## Pre-Deploy / Config-Schema Behavior
+
+The recanary record again shows the predeploy gate first run BLOCKED on `target_bloat_ms` and `warn_bloat_ms` keys. Reconciliation by copy applied; second run PASS. This is **NOT a Phase 201 gap** — it is the SAFE-06 unknown-key warning + Phase 201 fail-closed gate together preventing production from running with stale/rejected config. Surface this as a SAFE-06 success.
 
 ---
 
 ## Anti-Patterns Found
 
-None of the standard stub anti-patterns. Code is substantive, tests are not skip-stubs, /health is wired through real fields. The failure is behavioral, not artifactual.
+None of the standard stub anti-patterns. Code is substantive, tests are not skip-stubs, /health is wired through real fields with the Plan 201-13 diagnostic extension, and the bounded-decay control logic is guarded by Plan 201-14 fail-closed validators.
 
-One observation: `queue_controller.py` line 1453 reflects a tight cycle without per-zone instrumentation — the loaded_capture lacks a `current_zone` field per sample (verified: `zone=None` for all sampled rows in the inspection above). This is not a defect per the contract (the contract is `floor_hit_cycles_total`), but it is a diagnostic gap that compounds with the deferred `max_delay_delta_us` serialization.
+The original verification's diagnostic gap (`max_delay_delta_us` not serialized; no per-cycle zone trace) is closed by Plan 201-13. The original control-model defect (multiplicative RED decay cascading to floor) is closed by Plan 201-14.
 
 ---
 
 ## Human Verification Required
 
-See `human_verification` block in frontmatter. Two items:
+See `human_verification` block in frontmatter. The original two items have been resolved:
 
-### 1. Operator decision on closure path
+1. ~~Operator decision on closure path~~ — **resolved 2026-05-06 as Route B (close `gaps_found`, defer D-14 to v1.43+)**.
+2. ~~Cycle-level zone trace during a re-canary attempt~~ — **resolved by Plan 201-13** which added a 200-element bounded zone-trace deque to `/health.wans[].upload.zone_trace`; the recanary loaded capture and 24h soak capture both contain it.
 
-**Test:** Operator picks one of:
-- (a) authorize A5 fallback re-canary at `setpoint_mbps=10` with full predeploy/canary/rollback flow
-- (b) authorize a control-model amendment phase (anti-collapse on RED branch + anti-windup on integral + diagnostic /health serialization for `max_delay_delta_us` and zone trace) before any new canary
-- (c) close Phase 201 as `gaps_found` and re-roadmap into v1.43+ as a control-model redesign milestone
+One remaining item:
 
-**Expected:** Operator records decision; the `/gsd-plan-phase 201 --gaps` flow plans against that decision.
+### 1. Plan 201-17 closeout authoring
 
-**Why human:** Production network change-policy in CLAUDE.md (`stability > safety > clarity > elegance`) makes this an operator-only call. **Verifier evidence supports option (b)**: the failure mechanism is structural (RED-decay-to-floor under saturated DOCSIS, no anti-collapse), not parameter-tuning, so option (a) at setpoint=10 has high a-priori risk of repeating the FAIL with smaller magnitude. setpoint=10 still saturates a 20 Mbit DOCSIS upstream and leaves wanctl's CAKE qdisc with 10 Mbit shaping headroom — better than 6 Mbit at setpoint=12, but the RED-to-floor cascade mechanism remains identical.
+**Test:** Author Plan 201-17 (gap closure) to refresh `CONTEXT.md`/`ROADMAP.md` marking Phase 201 `gaps_found` with explicit baton-pass to v1.43, write `201-RETRO.md`, and open the four v1.43 backlog items in priority order:
 
-### 2. Cycle-level zone trace during a re-canary attempt
+1. Fix metric semantics first: completed-window UL suppression counts + cause tags (dwell vs backlog) on `/health`, additive only.
+2. Recalibrate D-14 against completed-window counts and a clean post-201-14 baseline soak.
+3. Capture per-sample `load_rtt - baseline_rtt` distribution before any `target_bloat_ms` tune.
+4. Conservative tuning candidates (`dwell_cycles: 5→4` or modest `target_bloat_ms` bump) only after items 1-3, with canary+soak+rollback gates.
 
-**Test:** If a re-canary runs, capture per-cycle `zone` (RED/YELLOW/GREEN), `red_streak`, `_last_integral_ms_s`, `_cake_aligned`, `current_rate` at the same 50ms cadence as the controller, either via debug ring buffer in `/var/log/wanctl/spectrum_debug.log` or as an additional `/health` endpoint sampled at 5-20 Hz.
+**Expected:** Closeout artifacts committed; v1.43 milestone scoped with the four ordered work items.
 
-**Expected:** Per-cycle data confirms or refutes the inferred RED-pulsing-to-floor mechanism.
-
-**Why human:** Requires a code change (e.g. debug ring buffer or downsampled health field) and a coordinated re-canary; not something the verifier can produce.
+**Why human:** Closeout planning shape is operator-authored; verifier can confirm artifacts exist after the planner produces them but cannot author the milestone-scoping decisions.
 
 ---
 
 ## Gaps Summary
 
-The phase **delivered every artifact it promised** but **failed the goal it was meant to achieve.** The DOCSIS-aware UL controller exists in code, is YAML-opt-in, is byte-identical when off, has a cycle-fidelity floor-hit counter, has fail-closed predeploy gate, has fail-closed canary env enforcement, has both binary-and-YAML rollback. All of that worked.
+The phase **delivered the artifacts AND achieved the dominant phase-goal control behavior**. Plan 201-13 added the `/health` diagnostic surface (8 additive fields including the previously-deferred `max_delay_delta_us`). Plan 201-14 replaced the multiplicative RED decay cascade-to-floor with a bounded-absolute decay clamp proven safe by construction via fail-closed validators. Plan 201-15 deployed v1.42.1 and the recanary `20260505T122513Z` PASSED with both floor-hit gates at zero. Plan 201-16 ran a 24h soak; the operator-approved D-19 primary floor-hit gate held at zero across 84117 samples.
 
-What did not work is the **control behavior under saturated load.** The setpoint mechanism creates push-up headroom but does nothing about the existing asymmetric RED-decay path that drives current_rate from setpoint to floor in 6-8 cycles whenever the CMTS queue refills. Adding a setpoint without adding floor-anchored anti-collapse is treating the symptom (rate above setpoint causes bloat) without addressing the disease (RED multiplicative decay collapses rate to floor when the pipe stays saturated).
+The single remaining open item is the D-14 secondary suppression watchdog at 6.47/min vs `<5.0`. This is **not a control regression** — codex re-aggregation localized the FAIL to the YELLOW-edge dwell-hold path (`_apply_dwell_logic` at `queue_controller.py:348`), independent of the RED-bounded-decay fix at `queue_controller.py:361-376`. The `<5/60s` threshold itself was inherited from Phase 200's qualitative framing and was never soak-calibrated against the post-Plan-201-14 control surface, and the underlying counter (`suppressions_per_min` at `queue_controller.py:649,668`) is a 60s-reset counter rather than a true rate, making the "mean of suppressions_per_min snapshots" framing semantically slippery. Operator Route B closes Phase 201 as `gaps_found` and defers the D-14 work to v1.43+ as ordered metric_semantics → recalibration → distribution → tuning items.
 
-**The dominant gap is BLOCKER-severity:** VALN-06 is unmet by a 1453-cycle margin (vs zero-tolerance gate). The 24h soak is structurally unmet because it never ran. The A5 fallback is an open operator decision. Without operator authorization to re-canary or re-plan, Phase 201 is closed at FAIL with rollback complete and inheritance to a future milestone unavoidable.
-
-**Suggested closure direction (for `/gsd-plan-phase 201 --gaps`):** Plan a control-model amendment that adds:
-1. `factor_down_floor_anchor` (or equivalent): when `docsis_mode=true` and `current_rate <= setpoint_bps`, use a gentler factor_down (e.g. 0.95) OR clamp the per-cycle decay to `max(setpoint_bps * 0.9, current_rate * factor_down)` so the controller cannot cascade below setpoint absent a sustained-RED multi-cycle escalation.
-2. Integral anti-windup: when `_headroom_state` has been EXHAUSTED for ≥ N cycles AND current_rate is at floor, halve the integral or reset the window so the recovery path is not gated on a stuck signal.
-3. Diagnostic serialization: add `max_delay_delta_us`, `red_streak`, and a downsampled per-cycle zone trace to `/health.wans[].upload` so the next canary attempt can be root-caused without inference.
-4. Re-canary at the same setpoint=12 (or A5 fallback setpoint=10) AFTER the above amendments. setpoint-tuning-only path has high re-FAIL risk per the analysis above.
+**Suggested closure direction (for `/gsd-plan-phase 201 --gaps`):** Plan 201-17 closeout — refresh `CONTEXT.md`/`ROADMAP.md`, write `201-RETRO.md`, and open the four v1.43 backlog items in priority order.
 
 ---
 
-## 2026-05-06 Re-Verification — Plan 201-16 Soak FAIL
+## 2026-05-06 Re-Verification Refresh — Promotions and Score Reconciliation
 
-Plan 201-16 completed the revised 24h soak path against the v1.42.1 binary and copied the remote NDJSON evidence back from `cake-shaper:/var/tmp/wanctl-soak-20260505T132736Z/soak-capture.ndjson`.
+This refresh supersedes the previous verification dated 2026-05-06T13:40:36Z (whose frontmatter score `6/9` disagreed with the inline table `4/9` because the document had been edited piecemeal). Every truth row was re-walked against the live code and shipped evidence files.
 
-| Gate | Required | Actual | Result | Evidence |
-|---|---:|---:|---|---|
-| D-19 primary: `floor_hit_cycles_total_delta_soak_window` | `0` | `0` | PASS | `soak/20260505T132736Z/soak-summary.json` |
-| D-14 secondary: `ul_hysteresis_suppression_rate_per_60s_mean` | `<5.0` | `6.466842364880155` | FAIL | `soak/20260505T132736Z/suppression-stats.json` |
+**Promotions since the original 2026-05-04T23:57:07Z verification:**
 
-Overall verdict remains **gaps_found** / **FAIL** because both plan-defined gates must pass. The primary D-19 gate tightening was explicitly operator-approved before the soak in `201-16-OPERATOR-APPROVAL-D19.md`; the failure is not an approval or evidence-collection failure. It is a preserved D-14 watchdog failure.
+| # | Original Status | New Status | Driver |
+|---|----|----|----|
+| 1 | VERIFIED | VERIFIED | unchanged |
+| 2 | VERIFIED | VERIFIED | scope expanded by Plan 201-14 (red-decay/anti-windup keys + cross-field validators); still verified |
+| 3 | VERIFIED | VERIFIED | scope expanded by Plan 201-14 (bounded-absolute RED decay + anti-windup helper); still verified, now also covers the original control-model defect |
+| 4 | VERIFIED | VERIFIED | scope expanded by Plan 201-13 (8 additive diagnostic fields including `max_delay_delta_us`, `zone_trace`); still verified |
+| 5 | VERIFIED | VERIFIED | unchanged; recanary re-validated end-to-end |
+| 6 | **FAILED** | **VERIFIED** | Plan 201-15 recanary `20260505T122513Z` PASS (`primary_gate_value=0`, `ul_floor_hits_during_load=0`) |
+| 7 | FAILED (never ran) | **FAILED (D-14 only)** | Plan 201-16 24h soak ran; D-19 primary PASS, D-14 secondary FAIL @ 6.467; deferred to v1.43+ via operator Route B |
+| 8 | VERIFIED | VERIFIED | recanary two-snapshot strategy re-validated rollback target integrity |
+| 9 | FAILED | **VERIFIED** | operator Route B decision recorded 2026-05-06 (close `gaps_found`, defer D-14 to v1.43+) |
+
+**Sub-truths (originally listed in `gaps[*].missing` of the previous frontmatter) closed by Plans 201-13/14:**
+- max_delay_delta_us /health serialization → Plan 201-13 ✓
+- per-cycle zone trace → Plan 201-13 (zone_trace deque) ✓
+- anti-collapse on RED branch → Plan 201-14 (bounded-absolute decay clamp) ✓
+- integral anti-windup → Plan 201-14 (cap-and-clamp helper) ✓
+- recovery from floor independent of green_streak → Plan 201-14 (bounded decay holds at clamp above floor; floor never reached) ✓
+
+**Net score:** **8/9** (was disputed `6/9` frontmatter / `4/9` inline; both stale). Single remaining FAIL is Truth 7 D-14, classified by operator as metric_semantics + recalibration deferred to v1.43+.
 
 ---
 
-_Verified: 2026-05-06T13:40:36Z_
+_Verified: 2026-05-06T14:35:00Z (refresh; supersedes 2026-05-06T13:40:36Z)_
 _Verifier: Claude (gsd-verifier)_
