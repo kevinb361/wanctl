@@ -23,7 +23,7 @@
 - [x] **OBSV-05** — Soak NDJSON captures per-sample `load_rtt_delta_us` (= `effective_ul_load_rtt - baseline_rtt_ms` in microseconds) on every sample.
 - [x] **OBSV-06** — `soak-summary.json` aggregates `load_rtt_delta_us` as histogram + p50/p95/p99/max over the soak window, broken down by zone (GREEN/YELLOW/SOFT_RED/RED) and by cause-tag from METRIC-02.
 - [x] **OBSV-07** — Golden-fixture replay test confirms the new field is populated and aggregated correctly against a known-good capture.
-- [ ] **OBSV-08** — Soak harness README and `CHANGELOG.md` updated for the new field and aggregation contract.
+- [x] **OBSV-08** — Soak harness README and `CHANGELOG.md` updated for the new field and aggregation contract.
 
 ### CALIB — D-14 successor recalibration (SEED-003)
 
@@ -73,16 +73,16 @@ Every v1.43 REQ-ID maps to exactly one phase except SAFE-07 which is cross-cutti
 | OBSV-05 | Phase 203 | 203-01 |
 | OBSV-06 | Phase 203 | 203-02 |
 | OBSV-07 | Phase 203 | 203-01, 203-02 |
-| OBSV-08 | Phase 203 | TBD |
+| OBSV-08 | Phase 203 | 203-03 |
 | CALIB-01 | Phase 204 | TBD |
 | CALIB-02 | Phase 204 | TBD |
 | CALIB-03 | Phase 204 | TBD |
 | CALIB-04 | Phase 204 | TBD |
 | CALIB-05 | Phase 204 | TBD |
-| SAFE-07 | Phases 202, 203, 204 (cross-cutting) | TBD (verified at each phase close) |
+| SAFE-07 | Phases 202, 203, 204 (cross-cutting) | 202-04, 203-03; 204 TBD (verified at each phase close) |
 
 **Coverage:** 14/14 v1.43 REQ-IDs mapped + SAFE-07 cross-cutting. No orphans, no duplicates.
 
 ---
 
-_Last updated: 2026-05-06 — traceability table populated by roadmapper. Phase order 202 (METRIC) → 203 (OBSV) → 204 (CALIB) reflects the joint Claude+Codex scope decision: per-sample `load_rtt_delta_us` from OBSV-05 must be live in the soak harness before the CALIB-01 24h baseline soak fires, so a single 24h run produces both the recalibration baseline and the target-edge distribution._
+_Last updated: 2026-05-06 — OBSV-08 and Phase 203 SAFE-07 traceability closed after 203-VERIFICATION.md passed. Phase order 202 (METRIC) → 203 (OBSV) → 204 (CALIB) reflects the joint Claude+Codex scope decision: per-sample `load_rtt_delta_us` from OBSV-05 must be live in the soak harness before the CALIB-01 24h baseline soak fires, so a single 24h run produces both the recalibration baseline and the target-edge distribution._

@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
-status: verifying
-stopped_at: Completed 203-03-PLAN.md
-last_updated: "2026-05-06T23:00:46.492Z"
+status: ready
+stopped_at: Phase 203 verified and complete; Phase 204 is next
+last_updated: "2026-05-06T23:08:44Z"
 last_activity: 2026-05-06
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 2
   total_plans: 12
   completed_plans: 7
   percent: 58
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 203 — Target-Edge Churn Instrumentation (OBSV)
+**Current focus:** Phase 204 — D-14 Successor Recalibration (CALIB)
 
 ## Position
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 **Recently archived:** v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
 **Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration (scoped 2026-05-06; roadmap pending requirements + roadmapper pass)
 
-Progress: [██████░░░░] 58% (verifying)
+Progress: [██████░░░░] 58% (Phase 203 complete; ready for Phase 204)
 
 ## Deferred Items
 
@@ -266,9 +266,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 203-02]: Kept the new aggregator diagnostic-only: `diagnostic_distribution.load_rtt_delta_us` and `load_rtt_delta_us_by_zone_cause` landed, while secondary-gate computation remains Phase 204/CALIB-03 territory.
 - [Phase 203-03]: Documented the soak harness in `docs/SOAK_HARNESS.md` with the full NDJSON row schema, `soak-summary.json` schema, histogram bucket semantics, dual-attribution policy, upload-only zone axis, and harness-only SAFE-07 invariant.
 - [Phase 203-03]: Added `scripts/check-safe07-source-diff.sh` as the reusable SAFE-07 gate. It defaults to Phase 202 close ref `b72b463`, supports CLI and `PHASE_202_CLOSE` overrides, and uses `c8a506d` as the known-violating sanity ref in the current repo graph.
+- [Phase 203]: Phase verification passed 8/8 must-haves; `load_rtt_delta_us` capture, summary aggregation, deterministic replay fixtures, docs, changelog, and SAFE-07 gate are implemented without `src/wanctl/**` changes.
+- [Phase 203]: Code review warnings WR-01 and WR-02 are non-blocking residual risks: harden `scripts/check-safe07-source-diff.sh` for staged/unstaged `src/wanctl/` diffs and make `scripts/soak-capture.sh` resilient to transient per-sample fetch/projection failures before unattended production soaks.
 
 ## Performance Metrics
 
+- 2026-05-06: Phase 203 verified complete with 8/8 must-haves satisfied; `203-VERIFICATION.md` passed, SAFE-07 was clean against `b72b463`, and the verifier re-ran the phase-scoped slice with 56 passed plus hot-path regression with 667 passed.
 - 2026-05-06: Phase 203 Plan 02 completed in ~4min across 4 tasks and 5 new/modified files; `scripts/soak_summary_aggregate.py` now emits `diagnostic_distribution.load_rtt_delta_us` plus upload zone × cause histograms, `tests/test_phase_203_replay.py` passed with 12 tests, Phase 202 replay stayed green, the hot-path slice passed with 667 tests, and `git diff b72b463 -- src/wanctl/` stayed empty.
 - 2026-05-06: Phase 203 Plan 03 completed in ~7min across 4 tasks and 3 new/modified files; `docs/SOAK_HARNESS.md` documents the soak harness schema and SAFE-07 invariant, `CHANGELOG.md` v1.43-dev now lists Phase 203 additions, `scripts/check-safe07-source-diff.sh` passed against `b72b463`, the hot-path slice passed with 667 tests, the phase-scoped slice passed with 56 tests, and the full suite passed with 4962 tests, 6 skipped, 2 deselected.
 - 2026-05-06: Phase 203 Plan 01 completed in ~2min across 3 tasks and 2 new files; `scripts/soak-capture.sh` now emits the seven v1.43 target-edge churn NDJSON fields, `tests/test_phase_203_capture_projection.py` passed with 10 tests, the hot-path slice passed with 667 tests, SAFE-05 pin check passed, and `git diff b72b463 -- src/wanctl/` stayed empty.
@@ -342,7 +345,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Current Position
 
-Phase: 203 (Target-Edge Churn Instrumentation (OBSV)) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
+Phase: 204 (D-14 Successor Recalibration (CALIB)) — READY
+Plan: not planned yet
+Status: Phase 203 verified complete; ready to discuss/plan Phase 204
 Last activity: 2026-05-06
