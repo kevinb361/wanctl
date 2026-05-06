@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.41
 milestone_name: Per-Direction Control Surfaces
 status: executing
-stopped_at: Phase 201 Plan 16 soak FAIL — awaiting operator next-action decision
-last_updated: "2026-05-06T13:40:36.000Z"
+stopped_at: Phase 201 closed gaps_found via operator Route B 2026-05-06; D-19 primary VALN-06 PASS shipped on v1.42.1, D-14 deferred to v1.43+ as SEED-002..SEED-005
+last_updated: "2026-05-06T15:14:08.000Z"
 last_activity: 2026-05-06
 progress:
   total_phases: 1
   completed_phases: 1
   total_plans: 16
-  completed_plans: 14
-  percent: 88
+  completed_plans: 16
+  percent: 100
 ---
 
 # Session State
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 201-15-recanary-PLAN.md
+Stopped at: Completed 201-17-closeout-PLAN.md (Phase 201 closed gaps_found via operator Route B 2026-05-06)
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -254,6 +254,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 201]: Plan 201-15 PASS selected; re-canary primary_gate_value=0 and ul_floor_hits_during_load=0, unblocking Plan 201-16 with T+0 floor-hit baseline 0.
 - [Phase 201]: Plan 201-15 validated the two-snapshot rollback strategy: Snapshot A is rollback-clean before reconcile; Snapshot B is post-gate deploy evidence only.
 - [Phase 201]: Plan 201-16 24h soak `20260505T132736Z` failed because plan-defined gates disagreed: D-19 primary gate passed with `floor_hit_cycles_total_delta_soak_window=0`, but preserved D-14 secondary watchdog failed with `ul_hysteresis_suppression_rate_per_60s_mean=6.466842364880155` against `<5.0`. D-19 approval was captured pre-soak in `201-16-OPERATOR-APPROVAL-D19.md`; next action requires operator decision between A5-style reattempt and v1.43+ follow-up.
+- [Phase 201 closure 2026-05-06]: Operator Route B selected. Phase 201 closes gaps_found; D-19 primary VALN-06 floor-hit gate PASSED on canary 20260505T122513Z and 24h soak 20260505T132736Z (v1.42.1 in production). D-14 secondary suppression watchdog FAIL classified as metric_semantics_and_recalibration on the YELLOW-edge dwell-hold path (queue_controller.py:348), unrelated to bounded RED decay (queue_controller.py:361-376). D-14 deferred to v1.43+ as four ordered backlog items: SEED-002 (suppression-counter metric semantics fix), SEED-003 (D-14 successor recalibration), SEED-004 (target-edge churn instrumentation), SEED-005 (conservative tuning sweep, gated). Order is load-bearing — items 1-3 are prerequisites to item 4. No production binary or YAML change in Plan 201-17. Milestone v1.42 ready for /gsd-complete-milestone.
 
 ## Performance Metrics
 
@@ -316,7 +317,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Blockers
 
-- Phase 201 Plan 201-16 soak failed after the re-canary pass: D-19 primary floor-hit delta remained zero over the 24h soak, but D-14 secondary suppression-rate mean was `6.466842364880155` (threshold `<5.0`). Plan 201-12 remains superseded by the revised Plan 201-16 soak path. Operator decision required for next action: A5-style controlled reattempt or v1.43+ follow-up.
+- ~~Phase 201 Plan 201-16 soak failed after the re-canary pass~~ — RESOLVED 2026-05-06 via operator Route B: D-19 primary PASS shipped, D-14 deferred to v1.43+ (SEED-002..SEED-005). See 201-RETRO.md and Decisions entry [Phase 201 closure 2026-05-06]. The remaining VALN-06 partial-closure trail is now in v1.41 traceability under REQUIREMENTS.md.
 - VALN-06 inherited by Phase 201 (`docsis-aware-ul-congestion-control`) as a blocking requirement per operator escalation 2026-05-04. Phase 200 closed as `gaps_found` after gap-closure cycle 1: Plan 200-14 Attempt 3 canary `20260504T133207Z` improved loaded-window UL floor hits from 122 (Attempt 2) to 4 but did not reach the zero-hit gate; D-10 rollback restored `/opt/wanctl-prephase200-gap-20260504T132936Z.tar.gz`; the 24h soak was skipped fail-closed. No second Phase 200 remediation cycle was attempted; the residual failure regime is shaping-headroom dominated, which is Phase 201's scope. Production binary remains v1.40; v1.41 YAML keys remain on prod `/etc/wanctl/spectrum.yaml` and are inactive under v1.40 but MUST be reconciled before any future Spectrum deploy/restart (Phase 201 predeploy gate). See `200-VERIFICATION.md` `closure: deferred-to-phase-201`, `200-RETRO.md` `## Final Closure (2026-05-04)`, and `201-CONTEXT.md` `## Inherited Requirements`.
 - Phase 191 closure remains blocked: restored ATT config rerun history now contains `2026-04-20` (`63.83 Mbps`), `2026-04-21` (`74.03 Mbps`), `2026-04-21b` (`67.83 Mbps`), `2026-04-23` (`64.40 Mbps`), `2026-04-23c` (`61.47 Mbps`), and `2026-04-24` (`70.95 Mbps`) FAIL samples against the old ATT RRUL download comparator. The `2026-04-24` run narrowed the issue because ATT tcp_12down and VoIP looked healthy and Spectrum throughput was strong, but it still did not close Phase 191. Phase 192 is allowed to proceed only under the explicit operator waiver in `192-PRECONDITION-WAIVER.md`.
 - Phase 196 remains blocked only for the deferred ATT canary because Phase 191 closure is still open; Spectrum VALN-04 and VALN-05a were closed by Phase 198 Plan 07 attempt 11 canonical promotion.
@@ -324,7 +325,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Current Position
 
-Phase: 201 (docsis-aware-ul-congestion-control) — EXECUTING
-Plan: 16 of 16
-Status: Soak FAIL — awaiting operator next-action decision
+Phase: 201 (docsis-aware-ul-congestion-control) — CLOSED gaps_found
+Plan: 16 of 16 active plans complete (Plan 201-12 superseded by Plan 201-16; 17 PLAN.md files materialized total)
+Status: D-19 primary VALN-06 PASS shipped on v1.42.1; D-14 deferred to v1.43+ as SEED-002..SEED-005; milestone v1.42 ready for `/gsd-complete-milestone`
 Last activity: 2026-05-06
