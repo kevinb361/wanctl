@@ -174,6 +174,75 @@ def aggregate_load_rtt_delta(
     return cell
 
 
+def _completed_window_boundaries(values: list[int]) -> list[int]:
+    """Return completed-window count values, one per monotonic boundary.
+
+    ``ul_suppressions_completed_window_count`` is monotonic non-decreasing within
+    a daemon lifetime with discrete jumps at each completed-window boundary.
+    Equality means the same completed-window snapshot persisted across another
+    sample and must not be double-counted. A decrease signals daemon restart;
+    reset the baseline and do not bridge counts across lifetimes.
+
+    This intentionally does not reuse ``aggregate_completed_windows()`` because
+    that helper detects reset-to-zero boundaries in the legacy
+    ``suppressions_per_min`` live counter.
+    """
+    boundaries: list[int] = []
+    prev: int | None = None
+    for value in values:
+        if prev is None:
+            prev = value
+            continue
+        if value < prev:
+            prev = value
+            continue
+        if value > prev:
+            boundaries.append(value - prev)
+            prev = value
+    return boundaries
+
+
+def _distribution_from_boundaries(boundaries: list[int]) -> dict[str, Any]:
+    """Build the CALIB-01 scalar distribution shape from window counts."""
+    return {
+        "mean": statistics.fmean(boundaries) if boundaries else 0.0,
+        "p50": percentile(boundaries, 50),
+        "p95": percentile(boundaries, 95),
+        "p99": percentile(boundaries, 99),
+        "max": max(boundaries) if boundaries else 0,
+        "window_count": len(boundaries),
+    }
+
+
+def aggregate_completed_window_distribution(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """CALIB-01 stats from ``ul_suppressions_completed_window_count``.
+
+    Returns the total completed-window suppression-count distribution plus a
+    per-cause breakdown from ``ul_suppressions_completed_window_by_cause``. The
+    per-cause slice is included so Plan 204-03 can make the dwell-hold-vs-total
+    gate decision from evidence rather than assumption.
+    """
+    col = [
+        int(row["ul_suppressions_completed_window_count"])
+        for row in rows
+        if "ul_suppressions_completed_window_count" in row
+        and row["ul_suppressions_completed_window_count"] is not None
+    ]
+    boundaries = _completed_window_boundaries(col)
+    result = _distribution_from_boundaries(boundaries)
+
+    by_cause: dict[str, dict[str, Any]] = {}
+    for cause in CAUSES:
+        cause_col: list[int] = []
+        for row in rows:
+            blob = row.get("ul_suppressions_completed_window_by_cause")
+            if isinstance(blob, dict) and cause in blob and blob[cause] is not None:
+                cause_col.append(int(blob[cause]))
+        by_cause[cause] = _distribution_from_boundaries(_completed_window_boundaries(cause_col))
+    result["by_cause"] = by_cause
+    return result
+
+
 def aggregate_by_zone_cause(
     rows: list[dict[str, Any]], buckets: list[int] | None = None
 ) -> dict[str, dict[str, dict[str, Any]]]:
@@ -251,6 +320,9 @@ def aggregate_soak(ndjson_path: Path, buckets: list[int] | None = None) -> dict[
     return {
         "diagnostic_distribution": diagnostic,
         "load_rtt_delta_us_by_zone_cause": aggregate_by_zone_cause(rows, buckets),
+        "suppressions_completed_window_count_distribution": aggregate_completed_window_distribution(
+            rows
+        ),
         "phase_203_metadata": {
             "attribution_policy": "dual",
             "attribution_note": "Counts may exceed total_samples because multi-cause rows are dual-attributed.",
