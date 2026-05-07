@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
-status: ready
-stopped_at: Phase 203 verified and complete; Phase 204 is next
-last_updated: "2026-05-06T23:08:44Z"
-last_activity: 2026-05-06
+status: executing
+stopped_at: Completed 203-02-PLAN.md
+last_updated: "2026-05-07T01:15:47.242Z"
+last_activity: 2026-05-07
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 12
-  completed_plans: 7
-  percent: 58
+  completed_phases: 0
+  total_plans: 6
+  completed_plans: 1
+  percent: 17
 ---
 
 # Session State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 204 — D-14 Successor Recalibration (CALIB)
+**Current focus:** Phase 204 — d-14-successor-recalibration-calib
 
 ## Position
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 **Recently archived:** v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
 **Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration (scoped 2026-05-06; roadmap pending requirements + roadmapper pass)
 
-Progress: [██████░░░░] 58% (Phase 203 complete; ready for Phase 204)
+Progress: [██░░░░░░░░] 17%
 
 ## Deferred Items
 
@@ -268,6 +268,8 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 203-03]: Added `scripts/check-safe07-source-diff.sh` as the reusable SAFE-07 gate. It defaults to Phase 202 close ref `b72b463`, supports CLI and `PHASE_202_CLOSE` overrides, and uses `c8a506d` as the known-violating sanity ref in the current repo graph.
 - [Phase 203]: Phase verification passed 8/8 must-haves; `load_rtt_delta_us` capture, summary aggregation, deterministic replay fixtures, docs, changelog, and SAFE-07 gate are implemented without `src/wanctl/**` changes.
 - [Phase 203]: Code review warnings WR-01 and WR-02 are non-blocking residual risks: harden `scripts/check-safe07-source-diff.sh` for staged/unstaged `src/wanctl/` diffs and make `scripts/soak-capture.sh` resilient to transient per-sample fetch/projection failures before unattended production soaks.
+- [Phase 204-01]: Deploy 1 used Spectrum-bound health endpoint http://10.10.110.223:9101/health because this deployment does not bind /health to localhost.
+- [Phase 204-01]: SAFE-07 allows only the exact planned src/wanctl/__init__.py version bump from 1.42.1 to 1.43.0; all other src/wanctl diffs remain violations.
 
 ## Performance Metrics
 
@@ -345,7 +347,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Current Position
 
-Phase: 204 (D-14 Successor Recalibration (CALIB)) — READY
-Plan: not planned yet
-Status: Phase 203 verified complete; ready to discuss/plan Phase 204
-Last activity: 2026-05-06
+Phase: 204 (d-14-successor-recalibration-calib) — EXECUTING
+Plan: 2 of 6
+Status: Ready to execute
+Last activity: 2026-05-07
