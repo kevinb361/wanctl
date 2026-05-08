@@ -28,7 +28,7 @@
 ### CALIB — D-14 successor recalibration (SEED-003)
 
 - [x] **CALIB-01** — Operator runs a clean 24h Spectrum baseline soak under post-Plan-201-14 production with METRIC-01 + OBSV-05 live; produces a representative completed-window suppression-count distribution (mean, p50, p95, p99, max).
-- [ ] **CALIB-02** — Operator-approved D-14 successor threshold is recorded with explicit rationale in a distinct approval artifact (`CALIB-02-OPERATOR-APPROVAL.md` pattern), referencing CALIB-01's distribution.
+- [x] **CALIB-02** — Operator-approved D-14 successor threshold is recorded with explicit rationale in a distinct approval artifact (`CALIB-02-OPERATOR-APPROVAL.md` pattern), referencing CALIB-01's distribution.
 - [ ] **CALIB-03** — Soak harness updated: live-counter-snapshot mean replaced by completed-window count statistic in the watchdog computation; harness emits both legacy and new metric for one transition cycle, then drops legacy in a follow-up commit.
 - [ ] **CALIB-04** — Verification 24h soak under the recalibrated threshold passes cleanly: D-19 primary gate stays at 0 floor hits, D-14-successor gate passes at the new threshold.
 - [ ] **CALIB-05** — RETRO references threshold-basis hygiene as a durable lesson: thresholds inherited from qualitative framing must be soak-calibrated against the actual control surface before they become gates.
@@ -75,7 +75,7 @@ Every v1.43 REQ-ID maps to exactly one phase except SAFE-07 which is cross-cutti
 | OBSV-07 | Phase 203 | 203-01, 203-02 |
 | OBSV-08 | Phase 203 | 203-03 |
 | CALIB-01 | Phase 204 | 204-02 |
-| CALIB-02 | Phase 204 | TBD |
+| CALIB-02 | Phase 204 | 204-03 |
 | CALIB-03 | Phase 204 | TBD |
 | CALIB-04 | Phase 204 | TBD |
 | CALIB-05 | Phase 204 | TBD |
@@ -85,4 +85,4 @@ Every v1.43 REQ-ID maps to exactly one phase except SAFE-07 which is cross-cutti
 
 ---
 
-_Last updated: 2026-05-06 — OBSV-08 and Phase 203 SAFE-07 traceability closed after 203-VERIFICATION.md passed. Phase order 202 (METRIC) → 203 (OBSV) → 204 (CALIB) reflects the joint Claude+Codex scope decision: per-sample `load_rtt_delta_us` from OBSV-05 must be live in the soak harness before the CALIB-01 24h baseline soak fires, so a single 24h run produces both the recalibration baseline and the target-edge distribution._
+_Last updated: 2026-05-08 — CALIB-02 traceability closed after Plan 204-03 captured the operator-approved D-14 successor threshold in `204-CALIB-02-OPERATOR-APPROVAL.md` and `scripts/calib_02_threshold.json`. Phase order 202 (METRIC) → 203 (OBSV) → 204 (CALIB) reflects the joint Claude+Codex scope decision: per-sample `load_rtt_delta_us` from OBSV-05 must be live in the soak harness before the CALIB-01 24h baseline soak fires, so a single 24h run produces both the recalibration baseline and the target-edge distribution._
