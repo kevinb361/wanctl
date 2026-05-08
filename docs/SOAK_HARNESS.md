@@ -165,6 +165,53 @@ when the source rows contain the required keys:
 It does not compute the Phase 201 D-14 watchdog verdict. Phase 204 owns the
 successor watchdog computation.
 
+## Watchdog computation transition (CALIB-03)
+
+Phase 204 introduces a dual-emission watchdog in `soak-summary.json`. Both
+blocks are emitted side-by-side for **one transition cycle = the v1.43
+milestone**; the legacy block drops in a v1.44 follow-up commit.
+
+### `secondary_gate_legacy` (informational only — drops in v1.44)
+
+```json
+"secondary_gate_legacy": {
+  "name": "ul_hysteresis_suppression_rate_per_60s_mean (legacy live-counter-snapshot mean)",
+  "computation": "Mean of live-counter snapshots within each 60s window, then mean across windows. Verbatim port of v1.42 Plan 201-16 jq pipeline. PRESERVED FOR ONE TRANSITION CYCLE - drops in v1.44.",
+  "value": 6.466842364880155,
+  "threshold": 5.0,
+  "window_count": 1439,
+  "verdict": "fail",
+  "note": "This metric is metric-semantically broken; see Phase 201 RETRO Lesson #1. Use secondary_gate_completed_window for actual gating."
+}
+```
+
+### `secondary_gate_completed_window` (the real gate)
+
+```json
+"secondary_gate_completed_window": {
+  "name": "ul_suppressions_completed_window_count_<statistic>",
+  "value": 70.25999999999999,
+  "threshold": 125,
+  "statistic": "p99",
+  "headroom_factor": 1.5,
+  "gate_column": "by_cause.dwell_hold",
+  "verdict": "pass",
+  "operator_approval": ".planning/phases/204-d-14-successor-recalibration-calib/204-CALIB-02-OPERATOR-APPROVAL.md"
+}
+```
+
+The CALIB-04 verification soak (Plan 204-05) passes iff both
+`primary_gate.verdict == "pass"` and
+`secondary_gate_completed_window.verdict == "pass"`. The
+`secondary_gate_legacy` block is not part of the pass criterion.
+
+### Operator-approved constants
+
+`scripts/calib_02_threshold.json` is the machine-readable mirror of
+`204-CALIB-02-OPERATOR-APPROVAL.md`. It provides `statistic`, `threshold`,
+`headroom_factor`, and `gate_column` (open-Q2 slice-vs-total decision). The
+aggregator loads it via `load_calib_02_constants()` at `aggregate_soak()` time.
+
 ## Histogram Bucket Interpretation
 
 Default bucket boundaries are expressed in microseconds:
