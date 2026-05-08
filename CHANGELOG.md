@@ -25,7 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- None. v1.43 Phase 202 is additive-only by the SAFE-07 closeout invariant; the legacy `suppressions_per_min` distribution remains byte-compatible with v1.42 traces.
+- CALIB-03: soak-harness watchdog computation now reads the completed-window count statistic from `scripts/calib_02_threshold.json`; the legacy live-counter-snapshot mean is preserved alongside as `secondary_gate_legacy` for one transition cycle (drops in v1.44).
+- Operator-approved D-14 successor threshold (CALIB-02): see `.planning/phases/204-d-14-successor-recalibration-calib/204-CALIB-02-OPERATOR-APPROVAL.md`.
+
+### Deploy notes
+
+- Deploy 1 (Plan 204-01): METRIC-01 + OBSV-05 binary on cake-shaper at version 1.43.0; full Plan 201-15 two-snapshot rollback ritual.
+- Deploy 2 (Plan 204-04): harness-only — git commit, no production binary change. See "Why Deploy 2 Looks Different" in `.planning/phases/204-d-14-successor-recalibration-calib/204-04-calib03-watchdog-aggregator-and-deploy-2-PLAN.md`.
 
 ### Notes
 
