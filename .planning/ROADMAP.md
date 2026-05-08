@@ -74,9 +74,9 @@
   3. Soak harness watchdog computation now uses the completed-window count statistic; legacy live-counter-snapshot mean is emitted alongside for one transition cycle, then dropped in a follow-up commit.
   4. Verification 24h soak under the recalibrated threshold passes the dual gate cleanly: D-19 primary stays at 0 floor hits AND D-14-successor passes at the new threshold.
   5. RETRO captures threshold-basis hygiene as a durable lesson: thresholds inherited from qualitative framing must be soak-calibrated against the actual post-fix control surface before they become gates. SAFE-05 control-path pins remain byte-identical at v1.43 close (SAFE-07 verification).
-**Plans**: 6/6 planned (0/6 complete):
+**Plans**: 6/6 planned (2/6 complete):
 - [x] 204-01-predeploy-gate-and-deploy-1-PLAN.md — Bump version to 1.43.0 and deploy METRIC-01 + OBSV-05 binary on cake-shaper via Plan 201-15 two-snapshot rollback ritual
-- [ ] 204-02-calib01-baseline-soak-and-distribution-PLAN.md — CALIB-01 24h baseline soak + extend aggregator with completed-window distribution math
+- [x] 204-02-calib01-baseline-soak-and-distribution-PLAN.md — CALIB-01 24h baseline soak + extend aggregator with completed-window distribution math
 - [ ] 204-03-calib02-threshold-and-operator-approval-PLAN.md — Operator session: lock statistic + threshold + headroom + slice-vs-total; write 204-CALIB-02-OPERATOR-APPROVAL.md and scripts/calib_02_threshold.json
 - [ ] 204-04-calib03-watchdog-aggregator-and-deploy-2-PLAN.md — Add aggregate_watchdog() with dual emission; v1.42 oracle regression; Deploy 2 (harness-only git commit)
 - [ ] 204-05-calib04-verification-soak-PLAN.md — CALIB-04 24h verification soak under recalibrated threshold; dual-gate verdict
@@ -88,7 +88,7 @@
 |-------|----------------|--------|-----------|
 | 202. METRIC — UL Suppression Metric Semantics | 4/4 | Complete | 2026-05-06 |
 | 203. OBSV — Target-Edge Churn Instrumentation | 3/3 | Complete   | 2026-05-06 |
-| 204. CALIB — D-14 Successor Recalibration | 1/6 | In Progress|  |
+| 204. CALIB — D-14 Successor Recalibration | 2/6 | In Progress|  |
 
 **Coverage:** 14/14 v1.43 REQ-IDs mapped + SAFE-07 cross-cutting across all three phases. No orphans.
 
