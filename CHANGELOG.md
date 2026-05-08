@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SAFE-07 verification:** `scripts/check-safe07-source-diff.sh` automates the cross-cutting no-control-path-source-diff check between Phase 202 close and any later commit. (SAFE-07)
 - **CALIB-03 test coverage:** Phase 204 adds watchdog replay coverage for the v1.42 legacy suppression oracle and synthetic pass/fail branches for the completed-window D-14 successor gate.
 - **CALIB-03 watchdog aggregator:** `scripts/soak_summary_aggregate.py` now exposes `load_calib_02_constants()` and `aggregate_watchdog()` so `soak-summary.json` can emit both the transition-only legacy gate and the completed-window D-14 successor gate.
+- **CALIB-03 replay fixtures:** Phase 203 and Phase 204 synthetic `soak-summary.json` fixtures include the two new watchdog blocks, preserving replay coverage across the schema extension.
 
 ### Changed
 
