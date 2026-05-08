@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`soak-summary.json` schema:** `diagnostic_distribution.load_rtt_delta_us` now reports p50/p95/p99/max plus a histogram with explicit `buckets_us`, and the top-level `load_rtt_delta_us_by_zone_cause` matrix reports upload-zone × cause histograms for `GREEN`, `YELLOW`, `SOFT_RED`, and `RED`. Empty cells emit zeroed histogram objects. (OBSV-06)
 - **Documentation:** `docs/SOAK_HARNESS.md` documents the capture schema, summary schema, histogram bucket interpretation, cause-attribution rule, upload-only zone axis, and harness-only invariant. (OBSV-08)
 - **SAFE-07 verification:** `scripts/check-safe07-source-diff.sh` automates the cross-cutting no-control-path-source-diff check between Phase 202 close and any later commit. (SAFE-07)
+- **CALIB-03 test coverage:** Phase 204 adds watchdog replay coverage for the v1.42 legacy suppression oracle and synthetic pass/fail branches for the completed-window D-14 successor gate.
 
 ### Changed
 
