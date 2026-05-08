@@ -286,9 +286,13 @@ same matrix for download, it should add a separate field such as
 
 ## No-Control-Path-Change Invariant (Harness-Only)
 
-Phase 203 is harness-only. The deliverables read existing `/health` fields and
-analyze captured rows; they do not modify `src/wanctl/`, controller timing,
-state transitions, thresholds, queue writes, or router behavior.
+Phase 203 and the Phase 204 Deploy 2 harness update are harness-only. The
+deliverables read existing `/health` fields and analyze captured rows; they do
+not modify `src/wanctl/`, controller timing, state transitions, thresholds,
+queue writes, or router behavior. Deploy 2 is intentionally just the git commit
+that lands `aggregate_watchdog()` plus the operator-approved JSON constants; the
+capture script is unchanged because Phase 203 already emitted every column the
+watchdog needs.
 
 The SAFE-07 invariant is verified mechanically with:
 
