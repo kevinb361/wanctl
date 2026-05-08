@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
 status: executing
-stopped_at: Completed 204-03-PLAN.md
-last_updated: "2026-05-08T15:49:44.024Z"
+stopped_at: Completed 204-04-PLAN.md
+last_updated: "2026-05-08T16:01:28.396Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 6
-  completed_plans: 3
-  percent: 50
+  completed_plans: 4
+  percent: 67
 ---
 
 # Session State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 **Recently archived:** v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
 **Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration (scoped 2026-05-06; roadmap pending requirements + roadmapper pass)
 
-Progress: [█████░░░░░] 50%
+Progress: [███████░░░] 67%
 
 ## Deferred Items
 
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 204-03-PLAN.md
+Stopped at: Completed 204-04-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -274,9 +274,13 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 204-02]: CALIB-01 distribution handoff values are top-level p99=82.0, dwell_hold_p99=70.25999999999999, backlog_recovery_p99=75.77, max=119, window_count=669 for Plan 204-03.
 - [Phase 204-03]: CALIB-02 approved p99 with threshold 125, headroom_factor 1.5, rounding_policy ceil_to_nearest_25, and gate_column by_cause.dwell_hold.
 - [Phase 204-03]: The open-Q2 slice-vs-total decision gates against by_cause.dwell_hold to preserve the original D-14 dwell-hold watchdog semantics while total/backlog remain informational.
+- [Phase 204]: Plan 204-04 Deploy 2 is harness-only: git commits only, with no production binary, YAML, or capture-script change.
+- [Phase 204]: Plan 204-04 CALIB-03 gates the D-14 successor on scripts/calib_02_threshold.json values: p99 threshold 125 against by_cause.dwell_hold.
+- [Phase 204]: Plan 204-04 v1.43 emits both secondary_gate_legacy and secondary_gate_completed_window; legacy is informational and drops in v1.44 follow-up.
 
 ## Performance Metrics
 
+- 2026-05-08: Phase 204 Plan 04 completed in ~7min across 4 tasks and 8 plan-scoped files; `aggregate_watchdog()` and `load_calib_02_constants()` landed, v1.42 legacy oracle replay passed at `6.466842364880155`, CALIB-02 constants (`p99`, threshold `125`, `gate_column=by_cause.dwell_hold`) now drive `secondary_gate_completed_window`, Phase 202/203/204 replay tests passed with 60 tests, hot-path passed with 667 tests, SAFE-05 pin passed, SAFE-07 stayed clean, and `scripts/soak-capture.sh` remained unchanged for harness-only Deploy 2.
 - 2026-05-08: Phase 204 Plan 03 completed in ~4min active continuation after the operator checkpoint; CALIB-02 approved `p99`, threshold `125`, headroom_factor `1.5`, rounding_policy `ceil_to_nearest_25`, and gate_column `by_cause.dwell_hold`; the approval artifact and `scripts/calib_02_threshold.json` mirror were committed, artifact/JSON cross-check passed, SAFE-07 stayed clean, and the hot-path slice passed with 667 tests.
 - 2026-05-08: Phase 204 Plan 02 completed over a 24h wall-clock CALIB-01 baseline soak plus ~35min active execution; `aggregate_completed_window_distribution()` and Phase 204 replay fixtures landed, 84,098 samples were accepted with documented operator deviation from the 86,000 line proxy after full-wall-clock/zero-parse/zero-missing-minute checks passed, top-level p99=82.0 with dwell_hold_p99=70.25999999999999 and backlog_recovery_p99=75.77, floor-hit delta stayed 0, the phase replay slice passed with 26 tests, hot-path passed with 667 tests, and SAFE-07 stayed clean.
 - 2026-05-06: Phase 203 verified complete with 8/8 must-haves satisfied; `203-VERIFICATION.md` passed, SAFE-07 was clean against `b72b463`, and the verifier re-ran the phase-scoped slice with 56 passed plus hot-path regression with 667 passed.
@@ -354,6 +358,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 204 (d-14-successor-recalibration-calib) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-05-08
