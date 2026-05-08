@@ -74,7 +74,7 @@ Every v1.43 REQ-ID maps to exactly one phase except SAFE-07 which is cross-cutti
 | OBSV-06 | Phase 203 | 203-02 |
 | OBSV-07 | Phase 203 | 203-01, 203-02 |
 | OBSV-08 | Phase 203 | 203-03 |
-| CALIB-01 | Phase 204 | TBD |
+| CALIB-01 | Phase 204 | 204-02 |
 | CALIB-02 | Phase 204 | TBD |
 | CALIB-03 | Phase 204 | TBD |
 | CALIB-04 | Phase 204 | TBD |

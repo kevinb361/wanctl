@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
 status: executing
-stopped_at: Completed 203-02-PLAN.md
-last_updated: "2026-05-07T01:15:47.242Z"
-last_activity: 2026-05-07
+stopped_at: Completed 204-02-PLAN.md
+last_updated: "2026-05-08T15:43:10.490Z"
+last_activity: 2026-05-08
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 6
-  completed_plans: 1
-  percent: 17
+  completed_plans: 2
+  percent: 33
 ---
 
 # Session State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 **Recently archived:** v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
 **Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration (scoped 2026-05-06; roadmap pending requirements + roadmapper pass)
 
-Progress: [██░░░░░░░░] 17%
+Progress: [███░░░░░░░] 33%
 
 ## Deferred Items
 
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 203-02-PLAN.md
+Stopped at: Completed 204-02-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -270,9 +270,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 203]: Code review warnings WR-01 and WR-02 are non-blocking residual risks: harden `scripts/check-safe07-source-diff.sh` for staged/unstaged `src/wanctl/` diffs and make `scripts/soak-capture.sh` resilient to transient per-sample fetch/projection failures before unattended production soaks.
 - [Phase 204-01]: Deploy 1 used Spectrum-bound health endpoint http://10.10.110.223:9101/health because this deployment does not bind /health to localhost.
 - [Phase 204-01]: SAFE-07 allows only the exact planned src/wanctl/__init__.py version bump from 1.42.1 to 1.43.0; all other src/wanctl diffs remain violations.
+- [Phase 204-02]: Accepted CALIB-01 line count 84098 < 86000 as a documented deviation because operator approved no extension and stronger quality checks passed: full 86400s wall-clock, zero parse errors, zero missing minute buckets, 97.335648% coverage, 1343 completed-window value changes, and floor-hit delta 0.
+- [Phase 204-02]: CALIB-01 distribution handoff values are top-level p99=82.0, dwell_hold_p99=70.25999999999999, backlog_recovery_p99=75.77, max=119, window_count=669 for Plan 204-03.
 
 ## Performance Metrics
 
+- 2026-05-08: Phase 204 Plan 02 completed over a 24h wall-clock CALIB-01 baseline soak plus ~35min active execution; `aggregate_completed_window_distribution()` and Phase 204 replay fixtures landed, 84,098 samples were accepted with documented operator deviation from the 86,000 line proxy after full-wall-clock/zero-parse/zero-missing-minute checks passed, top-level p99=82.0 with dwell_hold_p99=70.25999999999999 and backlog_recovery_p99=75.77, floor-hit delta stayed 0, the phase replay slice passed with 26 tests, hot-path passed with 667 tests, and SAFE-07 stayed clean.
 - 2026-05-06: Phase 203 verified complete with 8/8 must-haves satisfied; `203-VERIFICATION.md` passed, SAFE-07 was clean against `b72b463`, and the verifier re-ran the phase-scoped slice with 56 passed plus hot-path regression with 667 passed.
 - 2026-05-06: Phase 203 Plan 02 completed in ~4min across 4 tasks and 5 new/modified files; `scripts/soak_summary_aggregate.py` now emits `diagnostic_distribution.load_rtt_delta_us` plus upload zone × cause histograms, `tests/test_phase_203_replay.py` passed with 12 tests, Phase 202 replay stayed green, the hot-path slice passed with 667 tests, and `git diff b72b463 -- src/wanctl/` stayed empty.
 - 2026-05-06: Phase 203 Plan 03 completed in ~7min across 4 tasks and 3 new/modified files; `docs/SOAK_HARNESS.md` documents the soak harness schema and SAFE-07 invariant, `CHANGELOG.md` v1.43-dev now lists Phase 203 additions, `scripts/check-safe07-source-diff.sh` passed against `b72b463`, the hot-path slice passed with 667 tests, the phase-scoped slice passed with 56 tests, and the full suite passed with 4962 tests, 6 skipped, 2 deselected.
@@ -348,6 +351,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 204 (d-14-successor-recalibration-calib) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
-Last activity: 2026-05-07
+Last activity: 2026-05-08
