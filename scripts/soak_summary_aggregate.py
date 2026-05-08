@@ -47,6 +47,27 @@ DEFAULT_BUCKETS_US = [
 ]
 ZONES = ("GREEN", "YELLOW", "SOFT_RED", "RED")
 CAUSES = ("dwell_hold", "backlog_recovery", "other")
+CALIB_02_DEFAULTS_PATH = Path(__file__).parent / "calib_02_threshold.json"
+
+
+def load_calib_02_constants() -> dict[str, Any]:
+    """Load CALIB-02 operator-approved watchdog constants.
+
+    The fallback is intentionally fail-closed for pre-approval/test states:
+    ``threshold=0`` makes a missing approval file loud in the generated verdict
+    instead of silently accepting an unapproved D-14 successor gate.
+    """
+    if CALIB_02_DEFAULTS_PATH.exists():
+        return json.loads(CALIB_02_DEFAULTS_PATH.read_text(encoding="utf-8"))
+    return {
+        "statistic": "p99",
+        "threshold": 0,
+        "headroom_factor": 1.0,
+        "rounding_policy": "none",
+        "approval_artifact": "(none — pre-approval state)",
+        "calib_01_distribution_reference": "(none)",
+        "gate_column": "suppressions_completed_window_count_distribution",
+    }
 
 
 def aggregate_completed_windows(snapshots: list[int]) -> list[int]:
@@ -243,6 +264,96 @@ def aggregate_completed_window_distribution(rows: list[dict[str, Any]]) -> dict[
     return result
 
 
+def aggregate_watchdog(
+    rows: list[dict[str, Any]],
+    *,
+    new_threshold: int,
+    legacy_threshold: float = 5.0,
+    statistic: str = "p99",
+    gate_column: str = "suppressions_completed_window_count_distribution",
+    headroom_factor: float | None = None,
+) -> dict[str, Any]:
+    """Compute the CALIB-03 D-14-successor watchdog gate.
+
+    Emits both the legacy live-counter mean and the completed-window successor
+    gate for one transition cycle (v1.43). The legacy half is a direct Python
+    port of the v1.42 Plan 201-16 inline-jq 60s-window mean computation.
+    """
+    if not rows:
+        legacy_mean: float | None = None
+        legacy_window_count = 0
+    else:
+        sorted_rows = sorted(rows, key=lambda r: float(r.get("t_monotonic", 0.0)))
+        t_start = float(sorted_rows[0].get("t_monotonic", 0.0))
+        t_end = float(sorted_rows[-1].get("t_monotonic", 0.0))
+        window_count = int((t_end - t_start) / 60.0)
+        window_sums = [0.0] * window_count
+        window_counts = [0] * window_count
+        for row in sorted_rows:
+            tm = float(row.get("t_monotonic", -1.0))
+            window = int((tm - t_start) / 60.0)
+            if 0 <= window < window_count:
+                window_sums[window] += float(row.get("suppressions_per_min") or 0)
+                window_counts[window] += 1
+        window_means = [
+            total / count for total, count in zip(window_sums, window_counts, strict=True) if count
+        ]
+        legacy_window_count = len(window_means)
+        legacy_mean = sum(window_means) / len(window_means) if window_means else None
+
+    legacy_value = legacy_mean if legacy_mean is not None else 0.0
+    legacy_block = {
+        "name": "ul_hysteresis_suppression_rate_per_60s_mean (legacy live-counter-snapshot mean)",
+        "computation": (
+            "Mean of live-counter snapshots within each 60s window, then mean across "
+            "windows. Verbatim port of v1.42 Plan 201-16 jq pipeline. PRESERVED FOR "
+            "ONE TRANSITION CYCLE - drops in v1.44."
+        ),
+        "value": legacy_value,
+        "threshold": legacy_threshold,
+        "window_count": legacy_window_count,
+        "verdict": "pass" if legacy_value <= legacy_threshold else "fail",
+        "note": (
+            "This metric is metric-semantically broken; see Phase 201 RETRO Lesson #1. "
+            "Use secondary_gate_completed_window for actual gating."
+        ),
+    }
+
+    dist = aggregate_completed_window_distribution(rows)
+    if gate_column == "suppressions_completed_window_count_distribution":
+        cell = dist
+    elif gate_column.startswith("by_cause."):
+        cause = gate_column.split(".", 1)[1]
+        cell = dist.get("by_cause", {}).get(cause, {})
+    else:
+        cell = {}
+
+    new_value = float(cell.get(statistic, 0.0)) if cell else 0.0
+    new_block = {
+        "name": f"ul_suppressions_completed_window_count_{statistic}",
+        "computation": (
+            f"{statistic} of per-completed-window suppression counts over the soak "
+            f"window (gate_column={gate_column}). Replaces secondary_gate_legacy "
+            "at v1.44."
+        ),
+        "value": new_value,
+        "threshold": new_threshold,
+        "statistic": statistic,
+        "headroom_factor": headroom_factor,
+        "gate_column": gate_column,
+        "verdict": "pass" if new_value <= new_threshold else "fail",
+        "operator_approval": (
+            ".planning/phases/204-d-14-successor-recalibration-calib/"
+            "204-CALIB-02-OPERATOR-APPROVAL.md"
+        ),
+    }
+
+    return {
+        "secondary_gate_legacy": legacy_block,
+        "secondary_gate_completed_window": new_block,
+    }
+
+
 def aggregate_by_zone_cause(
     rows: list[dict[str, Any]], buckets: list[int] | None = None
 ) -> dict[str, dict[str, dict[str, Any]]]:
@@ -305,7 +416,12 @@ def aggregate_v142_diagnostic_distribution(
     }
 
 
-def aggregate_soak(ndjson_path: Path, buckets: list[int] | None = None) -> dict[str, Any]:
+def aggregate_soak(
+    ndjson_path: Path,
+    buckets: list[int] | None = None,
+    *,
+    watchdog_constants: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Build the Phase 203 summary fragment from an NDJSON soak capture.
 
     v1.42 closeout fields requiring operator context are not computed here. This
@@ -317,12 +433,23 @@ def aggregate_soak(ndjson_path: Path, buckets: list[int] | None = None) -> dict[
     rows = load_ndjson(ndjson_path)
     diagnostic = aggregate_v142_diagnostic_distribution(rows)
     diagnostic["load_rtt_delta_us"] = aggregate_load_rtt_delta(rows, buckets)
+    constants = watchdog_constants or load_calib_02_constants()
+    watchdog = aggregate_watchdog(
+        rows,
+        legacy_threshold=5.0,
+        new_threshold=int(constants["threshold"]),
+        statistic=str(constants["statistic"]),
+        gate_column=str(constants["gate_column"]),
+        headroom_factor=float(constants.get("headroom_factor", 1.0)),
+    )
     return {
         "diagnostic_distribution": diagnostic,
         "load_rtt_delta_us_by_zone_cause": aggregate_by_zone_cause(rows, buckets),
         "suppressions_completed_window_count_distribution": aggregate_completed_window_distribution(
             rows
         ),
+        "secondary_gate_legacy": watchdog["secondary_gate_legacy"],
+        "secondary_gate_completed_window": watchdog["secondary_gate_completed_window"],
         "phase_203_metadata": {
             "attribution_policy": "dual",
             "attribution_note": "Counts may exceed total_samples because multi-cause rows are dual-attributed.",
