@@ -1,0 +1,7 @@
+{
+  "floor_hit_cycles_total_t0": 0,
+  "health_url": "http://10.10.110.223:9101/health",
+  "soak_ts": "20260508T161146Z",
+  "t0_captured_at_utc": "2026-05-08T16:11:46+00:00",
+  "version": "1.43.0"
+}

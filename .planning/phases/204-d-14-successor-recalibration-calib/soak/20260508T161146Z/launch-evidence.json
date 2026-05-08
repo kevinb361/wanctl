@@ -1,0 +1,19 @@
+{
+  "calib_02_constants": {
+    "gate_column": "by_cause.dwell_hold",
+    "headroom_factor": 1.5,
+    "statistic": "p99",
+    "threshold": 125
+  },
+  "floor_hit_cycles_total_t0": 0,
+  "health_url": "http://10.10.110.223:9101/health",
+  "local_soak_dir": ".planning/phases/204-d-14-successor-recalibration-calib/soak/20260508T161146Z",
+  "remote_capture": "cake-shaper:/var/tmp/wanctl-soak-20260508T161146Z/soak-capture.ndjson",
+  "remote_initial_line_count": 5,
+  "remote_tmux_session": "wanctl-soak",
+  "soak_ts": "20260508T161146Z",
+  "status": "running_24h_soak",
+  "systemd_run_cleanup_output": "Running timer as unit: run-p2537581-i6731849.timer\nWill run service as unit: run-p2537581-i6731849.service",
+  "t0_captured_at_utc": "2026-05-08T16:11:46+00:00",
+  "version": "1.43.0"
+}
