@@ -3,6 +3,9 @@ id: SEED-001
 status: dormant
 planted: 2026-04-24
 planted_during: v1.40 Queue-Primary Signal Arbitration (Phase 195 planning)
+v1_44_spine_candidate: true
+v1_44_spine_flagged: 2026-05-09
+v1_44_spine_flagged_during: v1.43 Phase 204 soak idle; thesis draft at .planning/v1.44-THESIS-DRAFT.md; activate this seed (status → active) at /gsd-new-milestone v1.44
 trigger_when: during v1.41 milestone planning OR when cake_signal.py / EXCLUDED_PARAMS / CAKE mode is touched (v1.40 is already in flight with Phase 196 committed to A/B soak — defer migration)
 scope: Medium
 ---
