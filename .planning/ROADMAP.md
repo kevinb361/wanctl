@@ -79,7 +79,7 @@
 - [x] 204-02-calib01-baseline-soak-and-distribution-PLAN.md — CALIB-01 24h baseline soak + extend aggregator with completed-window distribution math
 - [x] 204-03-calib02-threshold-and-operator-approval-PLAN.md — Operator session: lock statistic + threshold + headroom + slice-vs-total; write 204-CALIB-02-OPERATOR-APPROVAL.md and scripts/calib_02_threshold.json
 - [x] 204-04-calib03-watchdog-aggregator-and-deploy-2-PLAN.md — Add aggregate_watchdog() with dual emission; v1.42 oracle regression; Deploy 2 (harness-only git commit)
-- [ ] 204-05-calib04-verification-soak-PLAN.md — CALIB-04 24h verification soak under recalibrated threshold; dual-gate verdict
+- [x] 204-05-calib04-verification-soak-PLAN.md — CALIB-04 24h verification soak under recalibrated threshold; dual-gate verdict
 - [ ] 204-06-retro-and-safe07-closeout-PLAN.md — 204-RETRO.md (CALIB-05 threshold-basis hygiene); SAFE-07 closeout checklist; v1.43 milestone close; v1.44 follow-up TODO
 
 ## Progress
@@ -88,7 +88,7 @@
 |-------|----------------|--------|-----------|
 | 202. METRIC — UL Suppression Metric Semantics | 4/4 | Complete | 2026-05-06 |
 | 203. OBSV — Target-Edge Churn Instrumentation | 3/3 | Complete   | 2026-05-06 |
-| 204. CALIB — D-14 Successor Recalibration | 4/6 | In Progress|  |
+| 204. CALIB — D-14 Successor Recalibration | 5/6 | In Progress|  |
 
 **Coverage:** 14/14 v1.43 REQ-IDs mapped + SAFE-07 cross-cutting across all three phases. No orphans.
 
