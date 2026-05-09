@@ -22,12 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CALIB-03 test coverage:** Phase 204 adds watchdog replay coverage for the v1.42 legacy suppression oracle and synthetic pass/fail branches for the completed-window D-14 successor gate.
 - **CALIB-03 watchdog aggregator:** `scripts/soak_summary_aggregate.py` now exposes `load_calib_02_constants()` and `aggregate_watchdog()` so `soak-summary.json` can emit both the transition-only legacy gate and the completed-window D-14 successor gate.
 - **CALIB-03 replay fixtures:** Phase 203 and Phase 204 synthetic `soak-summary.json` fixtures include the two new watchdog blocks, preserving replay coverage across the schema extension.
+- **Soak harness boundary marker:** `scripts/soak-capture.sh` now records `ul_hysteresis_window_start_epoch` so completed-window aggregation can use explicit 60s boundaries instead of inferring from per-window snapshot values.
 
 ### Changed
 
 - CALIB-03: soak-harness watchdog computation now reads the completed-window count statistic from `scripts/calib_02_threshold.json`; the legacy live-counter-snapshot mean is preserved alongside as `secondary_gate_legacy` for one transition cycle (drops in v1.44).
 - Operator-approved D-14 successor threshold (CALIB-02): see `.planning/phases/204-d-14-successor-recalibration-calib/204-CALIB-02-OPERATOR-APPROVAL.md`.
 - CALIB-04 verification soak `20260508T161146Z` passed the dual gate: primary floor-hit delta `0`, completed-window p99 dwell-hold value `68.0` <= threshold `125`; the `84079 < 86000` line-count proxy miss was operator-accepted based on stronger 24h quality checks.
+- Code review correction: completed-window watchdog aggregation now fails closed when the capture lacks `ul_hysteresis_window_start_epoch`. The earlier CALIB-01/CALIB-04 captures predate this boundary marker and must be rerun before final Phase 204 verification can honestly pass.
 
 ### Deploy notes
 

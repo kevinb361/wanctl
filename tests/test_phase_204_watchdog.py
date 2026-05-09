@@ -46,30 +46,34 @@ def aggregator() -> ModuleType:
 def _make_rows(boundary_jumps: list[int]) -> list[dict]:
     """Construct synthetic rows producing the given completed-window jumps."""
     rows = []
-    running = 0
+    completed = 0
     t = 0.0
+    epoch = 0.0
     for jump in boundary_jumps:
         rows.append(
             {
                 "t_monotonic": t,
-                "ul_suppressions_completed_window_count": running,
+                "ul_hysteresis_window_start_epoch": epoch,
+                "ul_suppressions_completed_window_count": completed,
                 "suppressions_per_min": 0,
                 "ul_suppressions_completed_window_by_cause": {
-                    "dwell_hold": running,
+                    "dwell_hold": completed,
                     "backlog_recovery": 0,
                     "other": 0,
                 },
             }
         )
         t += 60.0
-        running += jump
+        epoch = t
+        completed = jump
         rows.append(
             {
                 "t_monotonic": t,
-                "ul_suppressions_completed_window_count": running,
+                "ul_hysteresis_window_start_epoch": epoch,
+                "ul_suppressions_completed_window_count": completed,
                 "suppressions_per_min": 0,
                 "ul_suppressions_completed_window_by_cause": {
-                    "dwell_hold": running,
+                    "dwell_hold": completed,
                     "backlog_recovery": 0,
                     "other": 0,
                 },

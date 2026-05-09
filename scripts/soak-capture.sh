@@ -52,6 +52,7 @@ while [ "$(date +%s)" -lt "$SOAK_END" ]; do
           end
         ),
         last_zone: .wans[0].upload.hysteresis.last_zone,
+        ul_hysteresis_window_start_epoch: .wans[0].upload.hysteresis.window_start_epoch,
         ul_suppressions_completed_window_count: .wans[0].upload.hysteresis.suppressions_completed_window_count,
         ul_suppressions_completed_window_by_cause: .wans[0].upload.hysteresis.suppressions_completed_window_by_cause,
         ul_suppressions_lifetime_by_cause: .wans[0].upload.hysteresis.suppressions_lifetime_by_cause

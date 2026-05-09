@@ -174,7 +174,7 @@
     },
     "RED": {
       "backlog_recovery": {
-        "count": 1,
+        "count": 0,
         "histogram": {
           "buckets_us": [
             0,
@@ -191,7 +191,7 @@
             250000
           ],
           "counts": [
-            1,
+            0,
             0,
             0,
             0,
@@ -212,7 +212,7 @@
         "p99": 0
       },
       "dwell_hold": {
-        "count": 0,
+        "count": 1,
         "histogram": {
           "buckets_us": [
             0,
@@ -229,7 +229,7 @@
             250000
           ],
           "counts": [
-            0,
+            1,
             0,
             0,
             0,
@@ -290,7 +290,7 @@
     },
     "SOFT_RED": {
       "backlog_recovery": {
-        "count": 1,
+        "count": 0,
         "histogram": {
           "buckets_us": [
             0,
@@ -307,7 +307,7 @@
             250000
           ],
           "counts": [
-            1,
+            0,
             0,
             0,
             0,
@@ -406,7 +406,7 @@
     },
     "YELLOW": {
       "backlog_recovery": {
-        "count": 1,
+        "count": 2,
         "histogram": {
           "buckets_us": [
             0,
@@ -423,7 +423,7 @@
             250000
           ],
           "counts": [
-            1,
+            2,
             0,
             0,
             0,
@@ -444,7 +444,7 @@
         "p99": 0
       },
       "dwell_hold": {
-        "count": 1,
+        "count": 2,
         "histogram": {
           "buckets_us": [
             0,
@@ -461,7 +461,7 @@
             250000
           ],
           "counts": [
-            1,
+            2,
             0,
             0,
             0,
@@ -546,9 +546,10 @@
     "headroom_factor": 1.5,
     "name": "ul_suppressions_completed_window_count_p99",
     "operator_approval": ".planning/phases/204-d-14-successor-recalibration-calib/204-CALIB-02-OPERATOR-APPROVAL.md",
+    "reason": null,
     "statistic": "p99",
     "threshold": 125,
-    "value": 14.94,
+    "value": 69.88,
     "verdict": "pass"
   },
   "secondary_gate_legacy": {
@@ -561,37 +562,49 @@
     "window_count": 1
   },
   "suppressions_completed_window_count_distribution": {
+    "boundary_source": "ul_hysteresis_window_start_epoch",
     "by_cause": {
       "backlog_recovery": {
-        "max": 8,
-        "mean": 5.666666666666667,
-        "p50": 5.0,
-        "p95": 7.699999999999999,
-        "p99": 7.9399999999999995,
-        "window_count": 3
+        "boundary_source": "ul_hysteresis_window_start_epoch",
+        "max": 50,
+        "mean": 8.285714285714286,
+        "p50": 0.0,
+        "p95": 37.39999999999997,
+        "p99": 47.479999999999976,
+        "reason": null,
+        "valid": true,
+        "window_count": 7
       },
       "dwell_hold": {
-        "max": 15,
-        "mean": 10.0,
-        "p50": 12.0,
-        "p95": 14.7,
-        "p99": 14.94,
-        "window_count": 3
+        "boundary_source": "ul_hysteresis_window_start_epoch",
+        "max": 70,
+        "mean": 40.857142857142854,
+        "p50": 68.0,
+        "p95": 69.4,
+        "p99": 69.88,
+        "reason": null,
+        "valid": true,
+        "window_count": 7
       },
       "other": {
+        "boundary_source": "ul_hysteresis_window_start_epoch",
         "max": 25,
-        "mean": 25.0,
-        "p50": 25.0,
-        "p95": 25.0,
-        "p99": 25.0,
-        "window_count": 1
+        "mean": 3.5714285714285716,
+        "p50": 0.0,
+        "p95": 17.499999999999982,
+        "p99": 23.499999999999986,
+        "reason": null,
+        "valid": true,
+        "window_count": 7
       }
     },
-    "max": 25,
-    "mean": 10.285714285714286,
-    "p50": 8.0,
-    "p95": 21.999999999999993,
-    "p99": 24.399999999999995,
+    "max": 120,
+    "mean": 52.714285714285715,
+    "p50": 68.0,
+    "p95": 104.39999999999996,
+    "p99": 116.87999999999997,
+    "reason": null,
+    "valid": true,
     "window_count": 7
   }
 }
