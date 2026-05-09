@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - CALIB-03: soak-harness watchdog computation now reads the completed-window count statistic from `scripts/calib_02_threshold.json`; the legacy live-counter-snapshot mean is preserved alongside as `secondary_gate_legacy` for one transition cycle (drops in v1.44).
 - Operator-approved D-14 successor threshold (CALIB-02): see `.planning/phases/204-d-14-successor-recalibration-calib/204-CALIB-02-OPERATOR-APPROVAL.md`.
-- CALIB-04 verification soak `20260508T161146Z` passed the dual gate: primary floor-hit delta `0`, completed-window p99 dwell-hold value `68.0` <= threshold `125`; the `84079 < 86000` line-count proxy miss was operator-accepted based on stronger 24h quality checks.
+- CALIB-04 verification soak `20260508T161146Z` originally passed under pre-review aggregation, but code-review remediation found that the capture lacked the new `ul_hysteresis_window_start_epoch` boundary marker. Under current code it fails closed and must be rerun before final v1.43 closeout.
 - Code review correction: completed-window watchdog aggregation now fails closed when the capture lacks `ul_hysteresis_window_start_epoch`. The earlier CALIB-01/CALIB-04 captures predate this boundary marker and must be rerun before final Phase 204 verification can honestly pass.
 
 ### Deploy notes
@@ -43,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Cause-attribution policy is dual.** A row whose `ul_suppressions_lifetime_by_cause` lifetime counter increments for multiple causes within a single 50ms cycle contributes to every affected `(zone, cause)` cell. Counts may exceed `total_samples`; the summary records this in `phase_203_metadata.attribution_policy`. See `docs/SOAK_HARNESS.md`.
 - **Harness-only invariant.** Phase 203 added zero lines to `src/wanctl/`. The SAFE-07 invariant is verified by `scripts/check-safe07-source-diff.sh` and by the unchanged SAFE-05 pin block in `tests/test_phase_195_replay.py`.
 - **Spectrum-only deltas.** `load_rtt_delta_us` uses raw `load_rtt_ms`, not an asymmetry-gate-attenuated effective RTT. On the v1.43 Spectrum baseline where the gate is disabled, values are exact; future gate-enabled deployments would over-state deltas during gate-active windows.
-- **Closeout verification.** Phase 204 closeout re-ran SAFE-07, SAFE-05 pins, the hot-path slice, the phase-scoped slice, and the full suite before marking the milestone ready to ship. The retrospective records `threshold-basis hygiene`, captures the v1.44 follow-up to drop `secondary_gate_legacy`, and leaves v1.43 ready for milestone archival.
+- **Closeout status.** Phase 204 re-verification is `gaps_found` after the boundary-marker remediation. The retrospective records `threshold-basis hygiene`, but v1.43 is not ready for archival until CALIB-01/CALIB-04 are rerun with corrected-boundary captures and CALIB-02 is revisited against the corrected baseline.
 
 ## 1.42.1 — 2026-05-05
 

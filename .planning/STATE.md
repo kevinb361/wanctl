@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
-status: completed
-stopped_at: Completed 204-06-PLAN.md
+status: gaps_found
+stopped_at: Phase 204 re-verification found invalidated CALIB-01/CALIB-04 soak evidence after boundary-marker remediation
 last_updated: "2026-05-09T16:46:38.867Z"
 last_activity: 2026-05-09
 progress:
   total_phases: 3
-  completed_phases: 3
+  completed_phases: 2
   total_plans: 13
   completed_plans: 13
-  percent: 100
+  percent: 67
 ---
 
 # Session State
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** v1.43 closeout complete — ready for `/gsd-complete-milestone`
+**Current focus:** Phase 204 gap closure — rerun corrected-boundary CALIB-01/CALIB-04 soak evidence
 
 ## Position
 
-**Last shipped milestone:** v1.43 UL Suppression Metrics & Gate Calibration (shipped 2026-05-09)
+**Last shipped milestone:** v1.42 DOCSIS-Aware UL Congestion Control (shipped 2026-05-06; verdict `gaps_found` Route B)
 **Recently archived:** v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
-**Active milestone:** None — v1.43 is complete and ready for archival
+**Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration (Phase 204 gaps_found after code-review remediation)
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 67% (Phase 204 evidence gaps remain)
 
 ## Deferred Items
 
@@ -281,11 +281,13 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 204]: CALIB-04 PASS used primary_gate.delta=0 plus secondary_gate_completed_window p99 dwell-hold value 68.0 <= threshold 125; legacy secondary gate remains informational only.
 - [Phase 204]: Plan 204-06 closed CALIB-05 by recording threshold-basis hygiene in `204-RETRO.md` and created the v1.44 follow-up TODO to drop `secondary_gate_legacy` and consider CALIB-02 YAML promotion.
 - [Phase 204]: SAFE-07 closeout checklist passed at v1.43 ship: SAFE-07 source diff, SAFE-05 pin block, hot-path slice, phase-scoped slice, and full suite all green.
+- [Phase 204 re-verification 2026-05-09]: Code-review remediation commit `d44e2fd` fixed completed-window aggregation by requiring `ul_hysteresis_window_start_epoch`; this invalidated pre-fix CALIB-01 (`20260507T131911Z`) and CALIB-04 (`20260508T161146Z`) captures because they lack the boundary marker. `204-VERIFICATION.md` is now `gaps_found`; rerun corrected-boundary CALIB-01, revisit CALIB-02, and rerun CALIB-04 before v1.43 archive.
 
 ## Performance Metrics
 
 - 2026-05-09: Phase 204 Plan 05 completed over a 24h CALIB-04 verification soak plus active aggregation/verdict work; soak `20260508T161146Z` produced 84,079 lines accepted by operator deviation after full-wall-clock/zero-parse/1441-minute-bucket/1361-completed-window-change checks passed, primary floor-hit delta stayed 0, secondary completed-window p99 dwell-hold value was 68.0 against threshold 125, dual-gate verdict was PASS, SAFE-07 stayed clean, and the hot-path slice passed with 667 tests.
 - 2026-05-09: Phase 204 Plan 06 completed milestone closeout; `204-VERIFICATION.md`, `204-VALIDATION.md`, `204-RETRO.md`, and the v1.44 follow-up TODO were written; SAFE-07 source diff passed, SAFE-05 pin block passed, hot-path passed with 667 tests, phase-scoped slice passed with 70 tests, and the full suite passed with 4976 passed / 6 skipped / 2 deselected.
+- 2026-05-09: Phase 204 re-verification after code review found gaps: the corrected aggregator fails closed on old CALIB-01/CALIB-04 captures without `ul_hysteresis_window_start_epoch`. Remediation tests passed with 71 phase/regression tests and hot-path passed with 667 tests; production evidence must be recaptured.
 - 2026-05-08: Phase 204 Plan 04 completed in ~7min across 4 tasks and 8 plan-scoped files; `aggregate_watchdog()` and `load_calib_02_constants()` landed, v1.42 legacy oracle replay passed at `6.466842364880155`, CALIB-02 constants (`p99`, threshold `125`, `gate_column=by_cause.dwell_hold`) now drive `secondary_gate_completed_window`, Phase 202/203/204 replay tests passed with 60 tests, hot-path passed with 667 tests, SAFE-05 pin passed, SAFE-07 stayed clean, and `scripts/soak-capture.sh` remained unchanged for harness-only Deploy 2.
 - 2026-05-08: Phase 204 Plan 03 completed in ~4min active continuation after the operator checkpoint; CALIB-02 approved `p99`, threshold `125`, headroom_factor `1.5`, rounding_policy `ceil_to_nearest_25`, and gate_column `by_cause.dwell_hold`; the approval artifact and `scripts/calib_02_threshold.json` mirror were committed, artifact/JSON cross-check passed, SAFE-07 stayed clean, and the hot-path slice passed with 667 tests.
 - 2026-05-08: Phase 204 Plan 02 completed over a 24h wall-clock CALIB-01 baseline soak plus ~35min active execution; `aggregate_completed_window_distribution()` and Phase 204 replay fixtures landed, 84,098 samples were accepted with documented operator deviation from the 86,000 line proxy after full-wall-clock/zero-parse/zero-missing-minute checks passed, top-level p99=82.0 with dwell_hold_p99=70.25999999999999 and backlog_recovery_p99=75.77, floor-hit delta stayed 0, the phase replay slice passed with 26 tests, hot-path passed with 667 tests, and SAFE-07 stayed clean.
