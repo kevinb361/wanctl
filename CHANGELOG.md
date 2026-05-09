@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Cause-attribution policy is dual.** A row whose `ul_suppressions_lifetime_by_cause` lifetime counter increments for multiple causes within a single 50ms cycle contributes to every affected `(zone, cause)` cell. Counts may exceed `total_samples`; the summary records this in `phase_203_metadata.attribution_policy`. See `docs/SOAK_HARNESS.md`.
 - **Harness-only invariant.** Phase 203 added zero lines to `src/wanctl/`. The SAFE-07 invariant is verified by `scripts/check-safe07-source-diff.sh` and by the unchanged SAFE-05 pin block in `tests/test_phase_195_replay.py`.
 - **Spectrum-only deltas.** `load_rtt_delta_us` uses raw `load_rtt_ms`, not an asymmetry-gate-attenuated effective RTT. On the v1.43 Spectrum baseline where the gate is disabled, values are exact; future gate-enabled deployments would over-state deltas during gate-active windows.
+- **Closeout verification.** Phase 204 closeout re-ran SAFE-07, SAFE-05 pins, the hot-path slice, the phase-scoped slice, and the full suite before marking the milestone ready to ship.
 
 ## 1.42.1 — 2026-05-05
 
