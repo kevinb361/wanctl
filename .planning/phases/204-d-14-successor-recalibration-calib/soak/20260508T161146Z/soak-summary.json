@@ -1,0 +1,606 @@
+{
+  "diagnostic_distribution": {
+    "headroom_exhausted_samples": 2007,
+    "load_rtt_delta_us": {
+      "count": 84079,
+      "histogram": {
+        "buckets_us": [
+          0,
+          1000,
+          3000,
+          6000,
+          10000,
+          15000,
+          20000,
+          30000,
+          45000,
+          60000,
+          100000,
+          250000
+        ],
+        "counts": [
+          46599,
+          20392,
+          7448,
+          4044,
+          2436,
+          1045,
+          866,
+          649,
+          437,
+          123,
+          28,
+          0,
+          12
+        ]
+      },
+      "max": 474690,
+      "p50": 700,
+      "p95": 12290,
+      "p99": 39640,
+      "samples_filtered_null": 0,
+      "samples_total": 84079
+    },
+    "max_delay_delta_us": {
+      "max": 241670,
+      "mean": 880.284375
+    },
+    "red_streak": {
+      "max": 87,
+      "mean": 0.011787
+    },
+    "rtt_integral_ms_s": {
+      "max": 839.457,
+      "mean": 5.699025
+    },
+    "total_samples": 84079
+  },
+  "load_rtt_delta_us_by_zone_cause": {
+    "GREEN": {
+      "backlog_recovery": {
+        "count": 287,
+        "histogram": {
+          "buckets_us": [
+            0,
+            1000,
+            3000,
+            6000,
+            10000,
+            15000,
+            20000,
+            30000,
+            45000,
+            60000,
+            100000,
+            250000
+          ],
+          "counts": [
+            117,
+            61,
+            42,
+            29,
+            28,
+            8,
+            2,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "max": 26830,
+        "p50": 1750,
+        "p95": 14613,
+        "p99": 18608
+      },
+      "dwell_hold": {
+        "count": 6481,
+        "histogram": {
+          "buckets_us": [
+            0,
+            1000,
+            3000,
+            6000,
+            10000,
+            15000,
+            20000,
+            30000,
+            45000,
+            60000,
+            100000,
+            250000
+          ],
+          "counts": [
+            2033,
+            1236,
+            884,
+            729,
+            515,
+            654,
+            314,
+            90,
+            16,
+            10,
+            0,
+            0,
+            0
+          ]
+        },
+        "max": 74910,
+        "p50": 2929,
+        "p95": 22070,
+        "p99": 35629
+      },
+      "other": {
+        "count": 0,
+        "histogram": {
+          "buckets_us": [
+            0,
+            1000,
+            3000,
+            6000,
+            10000,
+            15000,
+            20000,
+            30000,
+            45000,
+            60000,
+            100000,
+            250000
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "max": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      }
+    },
+    "RED": {
+      "backlog_recovery": {
+        "count": 1,
+        "histogram": {
+          "buckets_us": [
+            0,
+            1000,
+            3000,
+            6000,
+            10000,
+            15000,
+            20000,
+            30000,
+            45000,
+            60000,
+            100000,
+            250000
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0
+          ]
+        },
+        "max": 115490,
+        "p50": 115490,
+        "p95": 115490,
+        "p99": 115490
+      },
+      "dwell_hold": {
+        "count": 17,
+        "histogram": {
+          "buckets_us": [
+            0,
+            1000,
+            3000,
+            6000,
+            10000,
+            15000,
+            20000,
+            30000,
+            45000,
+            60000,
+            100000,
+            250000
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            10,
+            6,
+            0,
+            1
+          ]
+        },
+        "max": 346159,
+        "p50": 94440,
+        "p95": 234526,
+        "p99": 323832
+      },
+      "other": {
+        "count": 0,
+        "histogram": {
+          "buckets_us": [
+            0,
+            1000,
+            3000,
+            6000,
+            10000,
+            15000,
+            20000,
+            30000,
+            45000,
+            60000,
+            100000,
+            250000
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "max": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      }
+    },
+    "SOFT_RED": {
+      "backlog_recovery": {
+        "count": 0,
+        "histogram": {
+          "buckets_us": [
+            0,
+            1000,
+            3000,
+            6000,
+            10000,
+            15000,
+            20000,
+            30000,
+            45000,
+            60000,
+            100000,
+            250000
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "max": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "dwell_hold": {
+        "count": 0,
+        "histogram": {
+          "buckets_us": [
+            0,
+            1000,
+            3000,
+            6000,
+            10000,
+            15000,
+            20000,
+            30000,
+            45000,
+            60000,
+            100000,
+            250000
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "max": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "other": {
+        "count": 0,
+        "histogram": {
+          "buckets_us": [
+            0,
+            1000,
+            3000,
+            6000,
+            10000,
+            15000,
+            20000,
+            30000,
+            45000,
+            60000,
+            100000,
+            250000
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "max": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      }
+    },
+    "YELLOW": {
+      "backlog_recovery": {
+        "count": 12,
+        "histogram": {
+          "buckets_us": [
+            0,
+            1000,
+            3000,
+            6000,
+            10000,
+            15000,
+            20000,
+            30000,
+            45000,
+            60000,
+            100000,
+            250000
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            2,
+            3,
+            6,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "max": 31839,
+        "p50": 20249,
+        "p95": 27335,
+        "p99": 30938
+      },
+      "dwell_hold": {
+        "count": 1119,
+        "histogram": {
+          "buckets_us": [
+            0,
+            1000,
+            3000,
+            6000,
+            10000,
+            15000,
+            20000,
+            30000,
+            45000,
+            60000,
+            100000,
+            250000
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            114,
+            337,
+            395,
+            181,
+            72,
+            20,
+            0,
+            0,
+            0
+          ]
+        },
+        "max": 73530,
+        "p50": 21959,
+        "p95": 50386,
+        "p99": 66769
+      },
+      "other": {
+        "count": 0,
+        "histogram": {
+          "buckets_us": [
+            0,
+            1000,
+            3000,
+            6000,
+            10000,
+            15000,
+            20000,
+            30000,
+            45000,
+            60000,
+            100000,
+            250000
+          ],
+          "counts": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "max": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      }
+    }
+  },
+  "phase_203_metadata": {
+    "attribution_note": "Counts may exceed total_samples because multi-cause rows are dual-attributed.",
+    "attribution_policy": "dual",
+    "buckets_us": [
+      0,
+      1000,
+      3000,
+      6000,
+      10000,
+      15000,
+      20000,
+      30000,
+      45000,
+      60000,
+      100000,
+      250000
+    ],
+    "zone_axis": "upload"
+  },
+  "primary_gate": {
+    "delta": 0,
+    "name": "floor_hit_cycles_total_delta_soak_window",
+    "reason": null,
+    "t0": 0,
+    "t24": 0,
+    "threshold": 0,
+    "verdict": "pass"
+  },
+  "secondary_gate_completed_window": {
+    "computation": "p99 of per-completed-window suppression counts over the soak window (gate_column=by_cause.dwell_hold). Replaces secondary_gate_legacy at v1.44.",
+    "gate_column": "by_cause.dwell_hold",
+    "headroom_factor": 1.5,
+    "name": "ul_suppressions_completed_window_count_p99",
+    "operator_approval": ".planning/phases/204-d-14-successor-recalibration-calib/204-CALIB-02-OPERATOR-APPROVAL.md",
+    "statistic": "p99",
+    "threshold": 125,
+    "value": 68.0,
+    "verdict": "pass"
+  },
+  "secondary_gate_legacy": {
+    "computation": "Mean of live-counter snapshots within each 60s window, then mean across windows. Verbatim port of v1.42 Plan 201-16 jq pipeline. PRESERVED FOR ONE TRANSITION CYCLE - drops in v1.44.",
+    "name": "ul_hysteresis_suppression_rate_per_60s_mean (legacy live-counter-snapshot mean)",
+    "note": "This metric is metric-semantically broken; see Phase 201 RETRO Lesson #1. Use secondary_gate_completed_window for actual gating.",
+    "threshold": 5.0,
+    "value": 7.568669442712299,
+    "verdict": "fail",
+    "window_count": 1439
+  },
+  "suppressions_completed_window_count_distribution": {
+    "by_cause": {
+      "backlog_recovery": {
+        "max": 112,
+        "mean": 24.444444444444443,
+        "p50": 20.0,
+        "p95": 54.0,
+        "p99": 74.61999999999998,
+        "window_count": 90
+      },
+      "dwell_hold": {
+        "max": 96,
+        "mean": 11.157099697885196,
+        "p50": 6.0,
+        "p95": 40.94999999999993,
+        "p99": 68.0,
+        "window_count": 662
+      },
+      "other": {
+        "max": 0,
+        "mean": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0,
+        "window_count": 0
+      }
+    },
+    "max": 122,
+    "mean": 13.428355957767723,
+    "p50": 7.0,
+    "p95": 49.0,
+    "p99": 72.75999999999999,
+    "window_count": 663
+  }
+}
