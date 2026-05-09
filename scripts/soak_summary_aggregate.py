@@ -195,32 +195,42 @@ def aggregate_load_rtt_delta(
     return cell
 
 
-def _completed_window_boundaries(values: list[int]) -> list[int]:
-    """Return completed-window count values, one per monotonic boundary.
+def _completed_window_snapshots(
+    rows: list[dict[str, Any]],
+) -> tuple[list[int], dict[str, list[int]], str | None]:
+    """Return completed-window snapshots using an explicit window boundary marker.
 
-    ``ul_suppressions_completed_window_count`` is monotonic non-decreasing within
-    a daemon lifetime with discrete jumps at each completed-window boundary.
-    Equality means the same completed-window snapshot persisted across another
-    sample and must not be double-counted. A decrease signals daemon restart;
-    reset the baseline and do not bridge counts across lifetimes.
-
-    This intentionally does not reuse ``aggregate_completed_windows()`` because
-    that helper detects reset-to-zero boundaries in the legacy
-    ``suppressions_per_min`` live counter.
+    ``ul_suppressions_completed_window_count`` is the most recently completed
+    60s window value, not a cumulative counter. A new completed-window snapshot
+    is therefore observed when ``ul_hysteresis_window_start_epoch`` changes; the
+    row with the new epoch carries the previous window's completed totals.
     """
-    boundaries: list[int] = []
-    prev: int | None = None
-    for value in values:
-        if prev is None:
-            prev = value
-            continue
-        if value < prev:
-            prev = value
-            continue
-        if value > prev:
-            boundaries.append(value - prev)
-            prev = value
-    return boundaries
+    rows_with_count = [
+        row
+        for row in rows
+        if row.get("ul_suppressions_completed_window_count") is not None
+    ]
+    if not rows_with_count:
+        return [], {cause: [] for cause in CAUSES}, None
+    if any(row.get("ul_hysteresis_window_start_epoch") is None for row in rows_with_count):
+        return (
+            [],
+            {cause: [] for cause in CAUSES},
+            "completed-window aggregation requires ul_hysteresis_window_start_epoch",
+        )
+
+    values: list[int] = []
+    by_cause: dict[str, list[int]] = {cause: [] for cause in CAUSES}
+    prev_epoch: float | None = None
+    for row in sorted(rows_with_count, key=lambda r: float(r.get("t_monotonic", 0.0))):
+        epoch = float(row["ul_hysteresis_window_start_epoch"])
+        if prev_epoch is not None and epoch != prev_epoch:
+            values.append(int(row.get("ul_suppressions_completed_window_count") or 0))
+            blob = row.get("ul_suppressions_completed_window_by_cause") or {}
+            for cause in CAUSES:
+                by_cause[cause].append(int(blob.get(cause, 0) or 0))
+        prev_epoch = epoch
+    return values, by_cause, None
 
 
 def _distribution_from_boundaries(boundaries: list[int]) -> dict[str, Any]:
@@ -235,6 +245,21 @@ def _distribution_from_boundaries(boundaries: list[int]) -> dict[str, Any]:
     }
 
 
+def _failed_completed_window_distribution(reason: str) -> dict[str, Any]:
+    result = _distribution_from_boundaries([])
+    result["valid"] = False
+    result["boundary_source"] = "missing"
+    result["reason"] = reason
+    result["by_cause"] = {
+        cause: _distribution_from_boundaries([]) for cause in CAUSES
+    }
+    for cell in result["by_cause"].values():
+        cell["valid"] = False
+        cell["boundary_source"] = "missing"
+        cell["reason"] = reason
+    return result
+
+
 def aggregate_completed_window_distribution(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """CALIB-01 stats from ``ul_suppressions_completed_window_count``.
 
@@ -243,23 +268,21 @@ def aggregate_completed_window_distribution(rows: list[dict[str, Any]]) -> dict[
     per-cause slice is included so Plan 204-03 can make the dwell-hold-vs-total
     gate decision from evidence rather than assumption.
     """
-    col = [
-        int(row["ul_suppressions_completed_window_count"])
-        for row in rows
-        if "ul_suppressions_completed_window_count" in row
-        and row["ul_suppressions_completed_window_count"] is not None
-    ]
-    boundaries = _completed_window_boundaries(col)
+    boundaries, cause_boundaries, error = _completed_window_snapshots(rows)
+    if error is not None:
+        return _failed_completed_window_distribution(error)
+
     result = _distribution_from_boundaries(boundaries)
+    result["valid"] = True
+    result["boundary_source"] = "ul_hysteresis_window_start_epoch"
+    result["reason"] = None
 
     by_cause: dict[str, dict[str, Any]] = {}
     for cause in CAUSES:
-        cause_col: list[int] = []
-        for row in rows:
-            blob = row.get("ul_suppressions_completed_window_by_cause")
-            if isinstance(blob, dict) and cause in blob and blob[cause] is not None:
-                cause_col.append(int(blob[cause]))
-        by_cause[cause] = _distribution_from_boundaries(_completed_window_boundaries(cause_col))
+        by_cause[cause] = _distribution_from_boundaries(cause_boundaries[cause])
+        by_cause[cause]["valid"] = True
+        by_cause[cause]["boundary_source"] = "ul_hysteresis_window_start_epoch"
+        by_cause[cause]["reason"] = None
     result["by_cause"] = by_cause
     return result
 
@@ -328,7 +351,8 @@ def aggregate_watchdog(
     else:
         cell = {}
 
-    new_value = float(cell.get(statistic, 0.0)) if cell else 0.0
+    dist_valid = bool(dist.get("valid", True))
+    new_value = float(cell.get(statistic, 0.0)) if cell and dist_valid else 0.0
     new_block = {
         "name": f"ul_suppressions_completed_window_count_{statistic}",
         "computation": (
@@ -341,7 +365,8 @@ def aggregate_watchdog(
         "statistic": statistic,
         "headroom_factor": headroom_factor,
         "gate_column": gate_column,
-        "verdict": "pass" if new_value <= new_threshold else "fail",
+        "verdict": "pass" if dist_valid and new_value <= new_threshold else "fail",
+        "reason": None if dist_valid else dist.get("reason"),
         "operator_approval": (
             ".planning/phases/204-d-14-successor-recalibration-calib/"
             "204-CALIB-02-OPERATOR-APPROVAL.md"

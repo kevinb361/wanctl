@@ -546,10 +546,11 @@
     "headroom_factor": 1.5,
     "name": "ul_suppressions_completed_window_count_p99",
     "operator_approval": ".planning/phases/204-d-14-successor-recalibration-calib/204-CALIB-02-OPERATOR-APPROVAL.md",
+    "reason": "completed-window aggregation requires ul_hysteresis_window_start_epoch",
     "statistic": "p99",
     "threshold": 125,
-    "value": 1.0,
-    "verdict": "pass"
+    "value": 0.0,
+    "verdict": "fail"
   },
   "secondary_gate_legacy": {
     "computation": "Mean of live-counter snapshots within each 60s window, then mean across windows. Verbatim port of v1.42 Plan 201-16 jq pipeline. PRESERVED FOR ONE TRANSITION CYCLE - drops in v1.44.",
@@ -561,37 +562,49 @@
     "window_count": 0
   },
   "suppressions_completed_window_count_distribution": {
+    "boundary_source": "missing",
     "by_cause": {
       "backlog_recovery": {
-        "max": 1,
-        "mean": 1.0,
-        "p50": 1.0,
-        "p95": 1.0,
-        "p99": 1.0,
-        "window_count": 13
+        "boundary_source": "missing",
+        "max": 0,
+        "mean": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0,
+        "reason": "completed-window aggregation requires ul_hysteresis_window_start_epoch",
+        "valid": false,
+        "window_count": 0
       },
       "dwell_hold": {
-        "max": 1,
-        "mean": 1.0,
-        "p50": 1.0,
-        "p95": 1.0,
-        "p99": 1.0,
-        "window_count": 14
+        "boundary_source": "missing",
+        "max": 0,
+        "mean": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0,
+        "reason": "completed-window aggregation requires ul_hysteresis_window_start_epoch",
+        "valid": false,
+        "window_count": 0
       },
       "other": {
-        "max": 1,
-        "mean": 1.0,
-        "p50": 1.0,
-        "p95": 1.0,
-        "p99": 1.0,
-        "window_count": 12
+        "boundary_source": "missing",
+        "max": 0,
+        "mean": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0,
+        "reason": "completed-window aggregation requires ul_hysteresis_window_start_epoch",
+        "valid": false,
+        "window_count": 0
       }
     },
-    "max": 2,
-    "mean": 1.0263157894736843,
-    "p50": 1.0,
-    "p95": 1.0,
-    "p99": 1.6300000000000026,
-    "window_count": 38
+    "max": 0,
+    "mean": 0.0,
+    "p50": 0.0,
+    "p95": 0.0,
+    "p99": 0.0,
+    "reason": "completed-window aggregation requires ul_hysteresis_window_start_epoch",
+    "valid": false,
+    "window_count": 0
   }
 }

@@ -60,7 +60,8 @@ appended for target-edge churn analysis.
 | `baseline_rtt_ms` | float/null | `.wans[0].baseline_rtt_ms` | **Phase 203 addition.** Current baseline RTT in milliseconds. |
 | `load_rtt_delta_us` | int/null | computed from `load_rtt_ms` and `baseline_rtt_ms` | **Phase 203 addition.** `floor((load_rtt_ms - baseline_rtt_ms) * 1000)`. Null when either source is null. |
 | `last_zone` | string | `.wans[0].upload.hysteresis.last_zone` | **Phase 203 addition.** Upload-side zone for the sample: `GREEN`, `YELLOW`, `SOFT_RED`, or `RED`. |
-| `ul_suppressions_completed_window_count` | int | `.wans[0].upload.hysteresis.suppressions_completed_window_count` | **Phase 203 addition.** Completed 60s-window suppression total from Phase 202. |
+| `ul_hysteresis_window_start_epoch` | float | `.wans[0].upload.hysteresis.window_start_epoch` | **Phase 204 review fix.** Explicit boundary marker for completed-window aggregation. Required for the D-14 successor gate; captures without this field fail closed for `secondary_gate_completed_window`. |
+| `ul_suppressions_completed_window_count` | int | `.wans[0].upload.hysteresis.suppressions_completed_window_count` | **Phase 203 addition.** Most recently completed 60s-window suppression total from Phase 202. This is a per-window snapshot, not a cumulative counter. |
 | `ul_suppressions_completed_window_by_cause` | object | `.wans[0].upload.hysteresis.suppressions_completed_window_by_cause` | **Phase 203 addition.** Completed-window suppression total by cause. |
 | `ul_suppressions_lifetime_by_cause` | object | `.wans[0].upload.hysteresis.suppressions_lifetime_by_cause` | **Phase 203 addition.** Monotonic per-cause lifetime counters since process start. |
 
@@ -204,6 +205,12 @@ The CALIB-04 verification soak (Plan 204-05) passes iff both
 `primary_gate.verdict == "pass"` and
 `secondary_gate_completed_window.verdict == "pass"`. The
 `secondary_gate_legacy` block is not part of the pass criterion.
+
+Completed-window aggregation is boundary-driven. The aggregator uses
+`ul_hysteresis_window_start_epoch` to detect when a new 60s window has completed
+and then reads the current row's completed-window snapshot. If that boundary
+marker is absent, `secondary_gate_completed_window` fails closed instead of
+guessing from value changes in `ul_suppressions_completed_window_count`.
 
 ### Operator-approved constants
 
