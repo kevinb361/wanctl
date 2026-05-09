@@ -2,7 +2,7 @@
 
 ## Milestones
 
-- ✅ **v1.43 UL Suppression Metrics & Gate Calibration** — shipped 2026-05-09 (3 phases: 202 METRIC → 203 OBSV → 204 CALIB; SAFE-07 cross-cutting closeout invariant satisfied) — ready for milestone archive
+- ◆ **v1.43 UL Suppression Metrics & Gate Calibration** — gaps_found after Phase 204 code-review remediation (3 phases: 202 METRIC → 203 OBSV complete; 204 CALIB needs corrected-boundary soak reruns before archive)
 - ✅ **v1.42 DOCSIS-Aware UL Congestion Control** — shipped 2026-05-06 (gaps_found Route B; D-19 PASS / D-14 deferred to v1.43) — `milestones/v1.42-ROADMAP.md`
 - ✅ **v1.41 Per-Direction Control Surfaces** — closed 2026-05-04 (gaps_found; ARB-05/SAFE-06/DOCS-03 satisfied; VALN-06 deferred-and-closed via v1.42) — `milestones/v1.41-ROADMAP.md`
 - ✅ **v1.40 Queue-Primary Signal Arbitration** — shipped 2026-05-03 — `milestones/v1.40-ROADMAP.md`
@@ -11,7 +11,7 @@
 
 ---
 
-## Completed Milestone: v1.43 UL Suppression Metrics & Gate Calibration
+## Active Milestone: v1.43 UL Suppression Metrics & Gate Calibration
 
 **Goal:** Repair the metric contract behind the failed D-14 secondary watchdog from Phase 201, capture target-edge evidence in the same baseline soak, and recalibrate a soak-grounded D-14 successor gate — without changing controller behavior.
 
@@ -32,7 +32,7 @@
 
 - [x] **Phase 202: UL Suppression Metric Semantics (METRIC)** — Additive `/health` completed-window suppression counters with cause tags (dwell_hold / backlog_recovery / other); `suppressions_per_min` preserved.
 - [x] **Phase 203: Target-Edge Churn Instrumentation (OBSV)** — Per-sample `load_rtt_delta_us` in soak NDJSON + histogram aggregation in `soak-summary.json` broken down by zone × cause-tag. (completed 2026-05-06)
-- [x] **Phase 204: D-14 Successor Recalibration (CALIB)** — Clean 24h Spectrum baseline soak with new metric live, operator-approved successor threshold, verification 24h soak passing dual gate (D-19 stays 0, D-14-successor passes). (completed 2026-05-09)
+- [ ] **Phase 204: D-14 Successor Recalibration (CALIB)** — gaps_found after code-review remediation: completed-window aggregation now requires `ul_hysteresis_window_start_epoch`, invalidating the pre-fix CALIB-01/CALIB-04 captures. Rerun corrected-boundary soaks before closeout.
 
 ## Phase Details
 
@@ -74,7 +74,7 @@
   3. Soak harness watchdog computation now uses the completed-window count statistic; legacy live-counter-snapshot mean is emitted alongside for one transition cycle, then dropped in a follow-up commit.
   4. Verification 24h soak under the recalibrated threshold passes the dual gate cleanly: D-19 primary stays at 0 floor hits AND D-14-successor passes at the new threshold.
   5. RETRO captures threshold-basis hygiene as a durable lesson: thresholds inherited from qualitative framing must be soak-calibrated against the actual post-fix control surface before they become gates. SAFE-05 control-path pins remain byte-identical at v1.43 close (SAFE-07 verification).
-**Plans**: 6/6 complete (204-01 Deploy 1; 204-02 CALIB-01; 204-03 CALIB-02; 204-04 CALIB-03; 204-05 CALIB-04; 204-06 RETRO + closeout):
+**Plans**: 6/6 executed; verification status `gaps_found` (204-01 Deploy 1; 204-02 CALIB-01; 204-03 CALIB-02; 204-04 CALIB-03; 204-05 CALIB-04; 204-06 RETRO + closeout):
 - [x] 204-01-predeploy-gate-and-deploy-1-PLAN.md — Bump version to 1.43.0 and deploy METRIC-01 + OBSV-05 binary on cake-shaper via Plan 201-15 two-snapshot rollback ritual
 - [x] 204-02-calib01-baseline-soak-and-distribution-PLAN.md — CALIB-01 24h baseline soak + extend aggregator with completed-window distribution math
 - [x] 204-03-calib02-threshold-and-operator-approval-PLAN.md — Operator session: lock statistic + threshold + headroom + slice-vs-total; write 204-CALIB-02-OPERATOR-APPROVAL.md and scripts/calib_02_threshold.json
@@ -88,7 +88,7 @@
 |-------|----------------|--------|-----------|
 | 202. METRIC — UL Suppression Metric Semantics | 4/4 | Complete | 2026-05-06 |
 | 203. OBSV — Target-Edge Churn Instrumentation | 3/3 | Complete   | 2026-05-06 |
-| 204. CALIB — D-14 Successor Recalibration | 6/6 | Complete   | 2026-05-09 |
+| 204. CALIB — D-14 Successor Recalibration | 6/6 | Gaps Found | — |
 
 **Coverage:** 14/14 v1.43 REQ-IDs mapped + SAFE-07 cross-cutting across all three phases. No orphans.
 

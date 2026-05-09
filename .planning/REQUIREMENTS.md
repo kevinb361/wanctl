@@ -27,10 +27,10 @@
 
 ### CALIB — D-14 successor recalibration (SEED-003)
 
-- [x] **CALIB-01** — Operator runs a clean 24h Spectrum baseline soak under post-Plan-201-14 production with METRIC-01 + OBSV-05 live; produces a representative completed-window suppression-count distribution (mean, p50, p95, p99, max). (Plan 204-02)
-- [x] **CALIB-02** — Operator-approved D-14 successor threshold is recorded with explicit rationale in a distinct approval artifact (`CALIB-02-OPERATOR-APPROVAL.md` pattern), referencing CALIB-01's distribution. (Plan 204-03)
+- [ ] **CALIB-01** — Operator runs a clean 24h Spectrum baseline soak under post-Plan-201-14 production with METRIC-01 + OBSV-05 live; produces a representative completed-window suppression-count distribution (mean, p50, p95, p99, max). (Plan 204-02; current pre-boundary-marker capture invalid under `204-VERIFICATION.md`)
+- [ ] **CALIB-02** — Operator-approved D-14 successor threshold is recorded with explicit rationale in a distinct approval artifact (`CALIB-02-OPERATOR-APPROVAL.md` pattern), referencing CALIB-01's distribution. (Plan 204-03; approval basis must be revisited after corrected CALIB-01)
 - [x] **CALIB-03** — Soak harness updated: live-counter-snapshot mean replaced by completed-window count statistic in the watchdog computation; harness emits both legacy and new metric for one transition cycle, then drops legacy in a follow-up commit. (Plan 204-04)
-- [x] **CALIB-04** — Verification 24h soak under the recalibrated threshold passes cleanly: D-19 primary gate stays at 0 floor hits, D-14-successor gate passes at the new threshold. (Plan 204-05)
+- [ ] **CALIB-04** — Verification 24h soak under the recalibrated threshold passes cleanly: D-19 primary gate stays at 0 floor hits, D-14-successor gate passes at the new threshold. (Plan 204-05; current pre-boundary-marker capture fails closed under current aggregator)
 - [x] **CALIB-05** — RETRO references threshold-basis hygiene as a durable lesson: thresholds inherited from qualitative framing must be soak-calibrated against the actual control surface before they become gates. (Plan 204-06)
 
 ### SAFE — Milestone-closeout invariant
@@ -85,4 +85,4 @@ Every v1.43 REQ-ID maps to exactly one phase except SAFE-07 which is cross-cutti
 
 ---
 
-_Last updated: 2026-05-09 — Phase 204 closeout satisfied CALIB-05 and SAFE-07 in Plan 204-06. `204-RETRO.md` records threshold-basis hygiene as the durable lesson, SAFE-07 closeout checklist passed, and v1.43 is ready to ship with CALIB-01..05 + SAFE-07 all satisfied._
+_Last updated: 2026-05-09 — Phase 204 re-verification is `gaps_found` after the completed-window boundary-marker remediation. CALIB-03, CALIB-05, and SAFE-07 are satisfied; CALIB-01, CALIB-02, and CALIB-04 require corrected-boundary soak evidence before v1.43 can ship._
