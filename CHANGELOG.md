@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - CALIB-03: soak-harness watchdog computation now reads the completed-window count statistic from `scripts/calib_02_threshold.json`; the legacy live-counter-snapshot mean is preserved alongside as `secondary_gate_legacy` for one transition cycle (drops in v1.44).
 - Operator-approved D-14 successor threshold (CALIB-02): see `.planning/phases/204-d-14-successor-recalibration-calib/204-CALIB-02-OPERATOR-APPROVAL.md`.
+- CALIB-04 verification soak `20260508T161146Z` passed the dual gate: primary floor-hit delta `0`, completed-window p99 dwell-hold value `68.0` <= threshold `125`; the `84079 < 86000` line-count proxy miss was operator-accepted based on stronger 24h quality checks.
 
 ### Deploy notes
 
