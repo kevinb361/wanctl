@@ -1,8 +1,10 @@
 ---
 id: SEED-002
-status: dormant
+status: completed
 planted: 2026-05-06
 planted_during: Phase 201 closeout (Plan 201-17) per operator Route B
+completed: 2026-05-09
+completed_during: v1.43 Phase 204 backlog triage; underlying work shipped via Phase 202 (UL suppression metric semantics) — Phase 202 verification 11/11 with /health completed-window counts, cause tags, and replay-oracle tests landed
 trigger_when: v1.43 milestone planning, OR any time work touches src/wanctl/queue_controller.py:649,668 (suppressions_per_min counter), OR any /health.wans[].upload field addition
 scope: Small
 priority: 1
