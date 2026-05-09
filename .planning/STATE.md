@@ -4,7 +4,7 @@ milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
 status: completed
 stopped_at: Completed 204-06-PLAN.md
-last_updated: "2026-05-09T16:35:34Z"
+last_updated: "2026-05-09T16:46:38.867Z"
 last_activity: 2026-05-09
 progress:
   total_phases: 3
@@ -365,5 +365,5 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 Phase: 204 (d-14-successor-recalibration-calib) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-09

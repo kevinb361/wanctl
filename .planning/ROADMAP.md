@@ -88,7 +88,7 @@
 |-------|----------------|--------|-----------|
 | 202. METRIC — UL Suppression Metric Semantics | 4/4 | Complete | 2026-05-06 |
 | 203. OBSV — Target-Edge Churn Instrumentation | 3/3 | Complete   | 2026-05-06 |
-| 204. CALIB — D-14 Successor Recalibration | 6/6 | Complete | 2026-05-09 |
+| 204. CALIB — D-14 Successor Recalibration | 6/6 | Complete   | 2026-05-09 |
 
 **Coverage:** 14/14 v1.43 REQ-IDs mapped + SAFE-07 cross-cutting across all three phases. No orphans.
 
