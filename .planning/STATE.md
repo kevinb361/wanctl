@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
-status: gaps_found
-stopped_at: Phase 204 re-verification found invalidated CALIB-01/CALIB-04 soak evidence after boundary-marker remediation
-last_updated: "2026-05-09T16:46:38.867Z"
-last_activity: 2026-05-09
+status: executing
+stopped_at: CALIB-01 rerun 20260509T183037Z running; awaiting Task 2 pull/aggregate after T+24h
+last_updated: "2026-05-09T18:30:37Z"
+last_activity: 2026-05-09 -- Phase 204 Plan 204-07 Task 1 launched corrected-boundary CALIB-01 rerun
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 13
-  completed_plans: 13
-  percent: 67
+  completed_phases: 0
+  total_plans: 10
+  completed_plans: 6
+  percent: 60
 ---
 
 # Session State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 204 gap closure — rerun corrected-boundary CALIB-01/CALIB-04 soak evidence
+**Current focus:** Phase 204 gap closure — corrected-boundary CALIB-01 rerun is running as soak `20260509T183037Z`
 
 ## Position
 
@@ -282,6 +282,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 204]: Plan 204-06 closed CALIB-05 by recording threshold-basis hygiene in `204-RETRO.md` and created the v1.44 follow-up TODO to drop `secondary_gate_legacy` and consider CALIB-02 YAML promotion.
 - [Phase 204]: SAFE-07 closeout checklist passed at v1.43 ship: SAFE-07 source diff, SAFE-05 pin block, hot-path slice, phase-scoped slice, and full suite all green.
 - [Phase 204 re-verification 2026-05-09]: Code-review remediation commit `d44e2fd` fixed completed-window aggregation by requiring `ul_hysteresis_window_start_epoch`; this invalidated pre-fix CALIB-01 (`20260507T131911Z`) and CALIB-04 (`20260508T161146Z`) captures because they lack the boundary marker. `204-VERIFICATION.md` is now `gaps_found`; rerun corrected-boundary CALIB-01, revisit CALIB-02, and rerun CALIB-04 before v1.43 archive.
+- [Phase 204-07]: Launched corrected-boundary CALIB-01 rerun soak `20260509T183037Z` on cake-shaper using `HEALTH_URL=http://10.10.110.223:9101/health`; pre-soak `floor_hit_cycles_total=0`, version `1.43.0`, and first rows included `ul_hysteresis_window_start_epoch`.
 
 ## Performance Metrics
 
@@ -366,6 +367,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 204 (d-14-successor-recalibration-calib) — EXECUTING
-Plan: 6 of 6
-Status: Phase complete — ready for verification
-Last activity: 2026-05-09
+Plan: 7 of 10
+Status: CALIB-01 rerun `20260509T183037Z` running; Task 2 should pull and aggregate after the 24h soak window completes
+Last activity: 2026-05-09 -- Phase 204 Plan 204-07 Task 1 launched corrected-boundary CALIB-01 rerun
