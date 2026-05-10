@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CALIB-04 verification soak `20260508T161146Z` originally passed under pre-review aggregation, but code-review remediation found that the capture lacked the new `ul_hysteresis_window_start_epoch` boundary marker. Under current code it fails closed and must be rerun before final v1.43 closeout.
 - Code review correction: completed-window watchdog aggregation now fails closed when the capture lacks `ul_hysteresis_window_start_epoch`. The earlier CALIB-01/CALIB-04 captures predate this boundary marker and must be rerun before final Phase 204 verification can honestly pass.
 - CALIB-01 rerun `20260509T183037Z` produced corrected-boundary evidence under current code: missing boundary-marker rows `0`, distribution `valid=true`, `window_count=1440`, top-level p99 `105.2199999999998`, and dwell-hold p99 `95.2199999999998`. CALIB-02 must be revisited against this corrected baseline before CALIB-04 is rerun.
+- CALIB-02 re-evaluation selected Branch B after the corrected-boundary dwell-hold p99 moved the approved p99 × 1.5 ceil-to-nearest-25 gate from `125` to `150`; `scripts/calib_02_threshold.json` now points at `soak/20260509T183037Z/soak-summary.json` and mirrors the re-approved threshold.
 
 ### Deploy notes
 
