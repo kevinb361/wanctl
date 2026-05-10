@@ -1,9 +1,9 @@
 {
   "statistic": "p99",
-  "threshold": 125,
+  "threshold": 150,
   "headroom_factor": 1.5,
   "rounding_policy": "ceil_to_nearest_25",
   "approval_artifact": ".planning/phases/204-d-14-successor-recalibration-calib/204-CALIB-02-OPERATOR-APPROVAL.md",
-  "calib_01_distribution_reference": ".planning/phases/204-d-14-successor-recalibration-calib/soak/20260507T131911Z/soak-summary.json",
+  "calib_01_distribution_reference": ".planning/phases/204-d-14-successor-recalibration-calib/soak/20260509T183037Z/soak-summary.json",
   "gate_column": "by_cause.dwell_hold"
 }
