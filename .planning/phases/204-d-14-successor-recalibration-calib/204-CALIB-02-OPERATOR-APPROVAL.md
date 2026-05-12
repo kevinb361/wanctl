@@ -1,20 +1,26 @@
 # Phase 204 — CALIB-02 Operator Approval (D-14 Successor Threshold)
 
-timestamp: 2026-05-10T20:23:27+00:00
+timestamp: 2026-05-12T00:40:56+00:00
 decision: approved
 statistic: p99
-threshold: 150
+threshold: 175
 headroom_factor: 1.5
 gate_column: by_cause.dwell_hold
 rounding_policy: ceil_to_nearest_25
 operator_justification: |
-  Corrected-boundary CALIB-01 at 20260509T183037Z moved dwell_hold p99 from 70.26 to 95.22, causing the approved p99 × 1.5 ceil-to-nearest-25 gate to move from 125 to 150. backlog_recovery.mean dropped to 2.43 versus dwell_hold.mean 14.70, so the prior slice-vs-total rationale materially changed; keep gate_column=by_cause.dwell_hold to preserve D-14 dwell-hold semantics.
+  FAIL-A branch continuation after Plan 204-09: corrected-boundary CALIB-04 rerun 20260510T203642Z passed the primary gate with primary_gate_delta=0 but failed the completed-window secondary gate just over the prior threshold: secondary_gate_value=151.0 versus secondary_gate_threshold=150. Operator approved the next ceil-to-nearest-25 threshold above the observed 151.0, giving 175, while preserving statistic=p99, headroom_factor=1.5, rounding_policy=ceil_to_nearest_25, and gate_column=by_cause.dwell_hold. The prior threshold 150 remains superseded context from the Plan 204-08 Branch B reapproval.
 
 ---
 
 ## CALIB-02 Statement (Approved)
 
-**CALIB-02 (D-14 successor threshold, soak-grounded):** Phase 204 closure replaces the inherited Phase 201 D-14 `<5/60s` live-counter-snapshot mean threshold with a soak-calibrated successor based on the post-Plan-201-14 production control surface. The threshold is `p99` of the per-completed-window suppression-count distribution observed in the corrected-boundary CALIB-01 24h baseline soak (gated against `by_cause.dwell_hold`), multiplied by a `1.5` safety margin and rounded per `ceil_to_nearest_25`, giving a final gate value of `150`. The legacy `<5/60s` framing is acknowledged as metric-semantically ambiguous (Phase 201 RETRO Lesson #1) and is emitted alongside the new statistic for one transition cycle (CALIB-03), then dropped in a v1.44 follow-up. This approval references the CALIB-01 distribution by file path; the statistic + headroom + threshold + gate-column slice are operator decisions captured here as a distinct pre-deploy artifact, NOT silently written into a verdict file. Operator-approved 2026-05-10.
+**CALIB-02 (D-14 successor threshold, soak-grounded):** Phase 204 closure replaces the inherited Phase 201 D-14 `<5/60s` live-counter-snapshot mean threshold with a soak-calibrated successor based on the post-Plan-201-14 production control surface. The threshold remains a `p99` completed-window suppression-count gate against `by_cause.dwell_hold`, with `1.5` headroom and `ceil_to_nearest_25` rounding. After the corrected-boundary CALIB-04 rerun at `soak/20260510T203642Z/` produced a FAIL-A just-over result (`primary_gate_delta=0`, `secondary_gate_value=151.0`, prior `secondary_gate_threshold=150`), the operator re-approved the next ceil-to-nearest-25 threshold above the observed value: `175`. The legacy `<5/60s` framing is acknowledged as metric-semantically ambiguous (Phase 201 RETRO Lesson #1) and is emitted alongside the new statistic for one transition cycle (CALIB-03), then dropped in a v1.44 follow-up. This approval references the corrected-boundary CALIB-01 distribution by file path and the Plan 204-09 FAIL-A result as the reapproval trigger; the statistic + headroom + threshold + gate-column slice are operator decisions captured here as a distinct artifact, NOT silently written into a verdict file. Operator-approved 2026-05-12.
+
+## Superseded Threshold Context
+
+- `125` — original Plan 204-03 approval from invalidated pre-boundary CALIB-01 evidence (`20260507T131911Z`), retained in git history and superseded by corrected-boundary evidence.
+- `150` — Plan 204-08 Branch B reapproval from corrected-boundary CALIB-01 (`20260509T183037Z`), superseded by Plan 204-09 FAIL-A just-over evidence: completed-window p99 dwell-hold `151.0` exceeded threshold `150` by `1.0` while the primary gate passed with delta `0`.
+- `175` — current operator-approved FAIL-A continuation threshold: next `ceil_to_nearest_25` threshold above observed `151.0`, preserving `statistic=p99`, `headroom_factor=1.5`, `rounding_policy=ceil_to_nearest_25`, and `gate_column=by_cause.dwell_hold`.
 
 ---
 
@@ -51,4 +57,6 @@ The corrected-boundary CALIB-01 distribution shows `by_cause.backlog_recovery.me
 - Phase 201 RETRO Lesson #2 (threshold-basis hygiene): same.
 - 201-16-OPERATOR-APPROVAL-D19.md (precedent format)
 - CALIB-01 baseline soak summary: `.planning/phases/204-d-14-successor-recalibration-calib/soak/20260509T183037Z/soak-summary.json`
-- Captures operator approval BEFORE Deploy 2 (Plan 204-04) + CALIB-04 verification soak (Plan 204-05) begins; gates the verification plan.
+- CALIB-04 FAIL-A just-over verdict: `.planning/phases/204-d-14-successor-recalibration-calib/204-05-CALIB-04-SOAK-VERDICT.md`
+- CALIB-04 FAIL-A summary: `.planning/phases/204-d-14-successor-recalibration-calib/204-09-SUMMARY.md`
+- Captures operator approval before the FAIL-A branch continuation CALIB-04 rerun begins; gates the next verification launch.
