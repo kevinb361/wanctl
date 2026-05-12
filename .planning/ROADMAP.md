@@ -32,7 +32,7 @@
 
 - [x] **Phase 202: UL Suppression Metric Semantics (METRIC)** — Additive `/health` completed-window suppression counters with cause tags (dwell_hold / backlog_recovery / other); `suppressions_per_min` preserved.
 - [x] **Phase 203: Target-Edge Churn Instrumentation (OBSV)** — Per-sample `load_rtt_delta_us` in soak NDJSON + histogram aggregation in `soak-summary.json` broken down by zone × cause-tag. (completed 2026-05-06)
-- [ ] **Phase 204: D-14 Successor Recalibration (CALIB)** — gaps_found after code-review remediation: completed-window aggregation now requires `ul_hysteresis_window_start_epoch`, invalidating the pre-fix CALIB-01/CALIB-04 captures. Rerun corrected-boundary soaks before closeout.
+- [ ] **Phase 204: D-14 Successor Recalibration (CALIB)** — gaps_found after code-review remediation: completed-window aggregation now requires `ul_hysteresis_window_start_epoch`, invalidating the pre-fix CALIB-01/CALIB-04 captures. Corrected CALIB-04 rerun returned FAIL-A just-over (`151.0` vs threshold `150`); Branch A threshold reapproval/rerun remains before closeout.
 
 ## Phase Details
 
@@ -74,7 +74,7 @@
   3. Soak harness watchdog computation now uses the completed-window count statistic; legacy live-counter-snapshot mean is emitted alongside for one transition cycle, then dropped in a follow-up commit.
   4. Verification 24h soak under the recalibrated threshold passes the dual gate cleanly: D-19 primary stays at 0 floor hits AND D-14-successor passes at the new threshold.
   5. RETRO captures threshold-basis hygiene as a durable lesson: thresholds inherited from qualitative framing must be soak-calibrated against the actual post-fix control surface before they become gates. SAFE-05 control-path pins remain byte-identical at v1.43 close (SAFE-07 verification).
-**Plans**: 8/10 executed; verification status `gaps_found` gap-closure in progress (204-07 corrected CALIB-01 rerun and 204-08 CALIB-02 reapproval complete; 204-09 CALIB-04 rerun and 204-10 closeout refresh remain):
+**Plans**: 9/10 executed; verification status `gaps_found` gap-closure in progress (204-09 CALIB-04 rerun complete with FAIL-A just-over: secondary `151.0` > threshold `150`; Branch A threshold reapproval/rerun remains before closeout refresh):
 - [x] 204-01-predeploy-gate-and-deploy-1-PLAN.md — Bump version to 1.43.0 and deploy METRIC-01 + OBSV-05 binary on cake-shaper via Plan 201-15 two-snapshot rollback ritual
 - [x] 204-02-calib01-baseline-soak-and-distribution-PLAN.md — CALIB-01 24h baseline soak + extend aggregator with completed-window distribution math
 - [x] 204-03-calib02-threshold-and-operator-approval-PLAN.md — Operator session: lock statistic + threshold + headroom + slice-vs-total; write 204-CALIB-02-OPERATOR-APPROVAL.md and scripts/calib_02_threshold.json
@@ -83,7 +83,7 @@
 - [x] 204-06-retro-and-safe07-closeout-PLAN.md — 204-RETRO.md (CALIB-05 threshold-basis hygiene); SAFE-07 closeout checklist; v1.43 milestone close; v1.44 follow-up TODO
 - [x] 204-07-calib01-rerun-baseline-PLAN.md — Corrected-boundary CALIB-01 rerun under current aggregator, producing valid 20260509T183037Z distribution
 - [x] 204-08-calib02-reevaluate-threshold-PLAN.md — Branch B material-change reapproval, updating CALIB-02 threshold from 125 to 150 against by_cause.dwell_hold
-- [ ] 204-09-calib04-rerun-verification-PLAN.md — Rerun CALIB-04 verification under corrected threshold/reference
+- [x] 204-09-calib04-rerun-verification-PLAN.md — Rerun CALIB-04 verification under corrected threshold/reference; FAIL-A just-over (`151.0` vs `150`)
 - [ ] 204-10-closeout-refresh-PLAN.md — Refresh closeout artifacts after corrected CALIB-04 verification
 
 ## Progress
@@ -92,7 +92,7 @@
 |-------|----------------|--------|-----------|
 | 202. METRIC — UL Suppression Metric Semantics | 4/4 | Complete | 2026-05-06 |
 | 203. OBSV — Target-Edge Churn Instrumentation | 3/3 | Complete   | 2026-05-06 |
-| 204. CALIB — D-14 Successor Recalibration | 8/10 | In Progress|  |
+| 204. CALIB — D-14 Successor Recalibration | 9/10 | In Progress|  |
 
 **Coverage:** 14/14 v1.43 REQ-IDs mapped + SAFE-07 cross-cutting across all three phases. No orphans.
 
