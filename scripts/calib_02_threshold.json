@@ -1,6 +1,6 @@
 {
   "statistic": "p99",
-  "threshold": 150,
+  "threshold": 175,
   "headroom_factor": 1.5,
   "rounding_policy": "ceil_to_nearest_25",
   "approval_artifact": ".planning/phases/204-d-14-successor-recalibration-calib/204-CALIB-02-OPERATOR-APPROVAL.md",
