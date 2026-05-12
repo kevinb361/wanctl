@@ -4,14 +4,14 @@ milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
 status: executing
 stopped_at: Completed 204-08-PLAN.md
-last_updated: "2026-05-10T20:26:12.321Z"
-last_activity: 2026-05-10
+last_updated: "2026-05-12T00:23:22.161Z"
+last_activity: 2026-05-12
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 10
-  completed_plans: 8
-  percent: 80
+  completed_plans: 9
+  percent: 90
 ---
 
 # Session State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 204 gap closure — corrected-boundary CALIB-02 reapproval is complete; Plan 204-09 CALIB-04 verification rerun is next with threshold `150`
+**Current focus:** Phase 204 gap closure — Plan 204-09 corrected-boundary CALIB-04 rerun completed with FAIL-A just-over (`151.0` vs threshold `150`); Branch A next action is CALIB-02 re-approval at a higher threshold and another CALIB-04 rerun.
 
 ## Position
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 **Recently archived:** v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
 **Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration (Phase 204 gaps_found after code-review remediation)
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 90%
 
 ## Deferred Items
 
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 204-08-PLAN.md
+Stopped at: Completed 204-09-PLAN.md (FAIL-A just-over; Branch A next action)
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -287,9 +287,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 204-07]: Plan 204-08 should re-evaluate CALIB-02 from corrected values: top-level p99=105.2199999999998, dwell_hold_p99=95.2199999999998, dwell_hold_mean=14.702083333333333, backlog_recovery_mean=2.4298611111111112.
 - [Phase 204]: Branch B selected for CALIB-02 after corrected-boundary CALIB-01 materially changed the threshold basis; threshold re-approved at p99 × 1.5 ceil-to-nearest-25 = 150 against by_cause.dwell_hold. — Tests 1, 2, and 3 failed: recomputed gate moved to 150, backlog/dwell mean ratio fell to 0.165, and dwell_hold p99 moved by 35.5%.
 - [Phase 204]: scripts/calib_02_threshold.json now points at corrected CALIB-01 soak 20260509T183037Z and mirrors the approval artifact values. — Plan 204-09 must consume current Branch B constants: statistic=p99, threshold=150, headroom_factor=1.5, gate_column=by_cause.dwell_hold.
+- [Phase 204-09]: CALIB-04 rerun `20260510T203642Z` completed with corrected boundary markers and operator accepted the 84,097-row proxy miss; boundary-marker missing rows were 0, primary_gate.delta=0, and secondary_gate_completed_window p99 dwell-hold was 151.0 against threshold 150.
+- [Phase 204-09]: Operator verdict recorded exactly as FAIL-A just-over (`secondary_value=151.0`, `secondary_threshold=150`); next action is Branch A — re-approve CALIB-02 at a higher threshold and rerun CALIB-04.
 
 ## Performance Metrics
 
+- 2026-05-12: Phase 204 Plan 09 completed corrected-boundary CALIB-04 rerun `20260510T203642Z`; 84,097 rows were accepted despite the >=86,000 proxy miss, boundary-marker missing rows were 0, primary_gate.delta=0, secondary_gate_completed_window value was 151.0 vs threshold 150, verdict FAIL-A just-over was recorded in `204-05-CALIB-04-SOAK-VERDICT.md`, SAFE-07 passed, and the hot-path slice passed with 667 tests.
 - 2026-05-10: Phase 204 Plan 08 completed CALIB-02 Branch B re-evaluation after corrected-boundary CALIB-01 `20260509T183037Z`; material-change tests 1/2/3 failed, threshold was re-approved from 125 to 150 using p99 × 1.5 ceil-to-nearest-25 against `by_cause.dwell_hold`, artifact/JSON mirror passed, SAFE-07 passed, and the hot-path slice passed with 667 tests.
 - 2026-05-10: Phase 204 Plan 07 completed over the corrected-boundary CALIB-01 rerun soak `20260509T183037Z`; 84,100 rows were accepted after continuation approval despite the >=86,000 proxy miss because parse errors were 0, missing boundary-marker rows were 0, the current aggregator returned `valid=true` with `window_count=1440`, top-level p99 was 105.2199999999998, dwell_hold p99 was 95.2199999999998, SAFE-07 passed, and the hot-path slice passed with 667 tests.
 - 2026-05-09: Phase 204 Plan 05 completed over a 24h CALIB-04 verification soak plus active aggregation/verdict work; soak `20260508T161146Z` produced 84,079 lines accepted by operator deviation after full-wall-clock/zero-parse/1441-minute-bucket/1361-completed-window-change checks passed, primary floor-hit delta stayed 0, secondary completed-window p99 dwell-hold value was 68.0 against threshold 125, dual-gate verdict was PASS, SAFE-07 stayed clean, and the hot-path slice passed with 667 tests.
@@ -373,6 +376,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 204 (d-14-successor-recalibration-calib) — EXECUTING
-Plan: 9 of 10
+Plan: 10 of 10
 Status: Ready to execute
-Last activity: 2026-05-10
+Last activity: 2026-05-12

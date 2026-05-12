@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Code review correction: completed-window watchdog aggregation now fails closed when the capture lacks `ul_hysteresis_window_start_epoch`. The earlier CALIB-01/CALIB-04 captures predate this boundary marker and must be rerun before final Phase 204 verification can honestly pass.
 - CALIB-01 rerun `20260509T183037Z` produced corrected-boundary evidence under current code: missing boundary-marker rows `0`, distribution `valid=true`, `window_count=1440`, top-level p99 `105.2199999999998`, and dwell-hold p99 `95.2199999999998`. CALIB-02 must be revisited against this corrected baseline before CALIB-04 is rerun.
 - CALIB-02 re-evaluation selected Branch B after the corrected-boundary dwell-hold p99 moved the approved p99 × 1.5 ceil-to-nearest-25 gate from `125` to `150`; `scripts/calib_02_threshold.json` now points at `soak/20260509T183037Z/soak-summary.json` and mirrors the re-approved threshold.
+- CALIB-04 rerun `20260510T203642Z` produced corrected-boundary evidence with missing boundary-marker rows `0` and primary floor-hit delta `0`, but the completed-window p99 dwell-hold gate was `151.0` against threshold `150`; the operator verdict is FAIL-A just-over and Branch A requires threshold re-approval plus another CALIB-04 rerun before archive.
 
 ### Deploy notes
 
