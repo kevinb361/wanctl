@@ -10,13 +10,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.42.1 (DOCSIS-Aware UL Congestion Control) — shipped 2026-05-06 (Phase 201 Route B closeout)
-**Tests:** v1.42 closed `gaps_found` Route B — D-19 primary VALN-06 floor-hit gate PASS shipped on v1.42.1; D-14 secondary suppression watchdog deferred to v1.43+ as `metric_semantics_and_recalibration`.
+**Version:** v1.43.0 (UL Suppression Metrics & Gate Calibration) — shipped 2026-05-13 after Phase 204 gap closure.
+**Tests:** v1.43 Phase 204 re-verification passed — corrected-boundary CALIB-01/CALIB-04 soaks and CALIB-02 threshold `175` close the D-14 successor gate; full suite passed with 4977 tests.
 **LOC:** ~37,900+ Python (src/)
-**Milestones:** 43 shipped (v1.0-v1.42), all archived in `.planning/milestones/`
-**Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration — Phase 202 and Phase 203 complete; Phase 204 CALIB is next.
+**Milestones:** 44 shipped (v1.0-v1.43), prior milestones archived in `.planning/milestones/`; v1.43 is archive-ready.
+**Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration — complete; next milestone planning can begin.
 
-**Latest:** v1.43 Phase 203 Target-Edge Churn Instrumentation — soak capture now emits per-sample `load_rtt_delta_us`, `soak_summary_aggregate.py` produces target-edge histograms by upload zone × suppression cause, and SAFE-07 remains clean with no `src/wanctl/**` changes.
+**Latest:** v1.43 Phase 204 D-14 Successor Recalibration — completed-window suppression metrics, target-edge soak harness, CALIB-02 threshold `175`, and CALIB-04 rerun `20260512T004208Z` passed the dual gate while SAFE-07 remained clean.
 **Previous:** v1.42 DOCSIS-Aware UL Congestion Control — Spectrum upload now runs a YAML setpoint clamp (`docsis_mode: true`, `setpoint_mbps: 12`) with windowed RTT-integral classifier and CAKE-backlog secondary corroborator; bounded absolute RED decay and integral anti-windup landed in Plan 201-14; recanary `20260505T122513Z` PASSED with `ul_floor_hits_during_load=0`; 24h soak `20260505T132736Z` D-19 floor-hit delta `0` on production v1.42.1.
 **Older:** v1.41 Per-Direction Control Surfaces — UL/DL threshold split shipped behind per-key presence flags (ARB-05); validator now WARNs on unknown `continuous_monitoring.*` keys (SAFE-06); `CHANGELOG.md` and `docs/CONFIGURATION.md` carry restart-required migration semantics (DOCS-03); VALN-06 deferred-and-closed via Phase 201 Route B.
 **Older:** v1.40 Ordering Rationale — DL queue-primary arbitration with confidence-gated RTT demotion; v1.39 Control-Path Timing & Measurement Accounting — netlink overlap instrumentation + reflector scorer blackout-awareness; v1.38 Measurement Resilience Under Load — machine-readable degraded measurement truth.
@@ -737,4 +737,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-05-06 — v1.43 UL Suppression Metrics & Gate Calibration scoped via joint Claude+Codex decision; SEED-005 deferred to v1.44 by milestone-closeout invariant. v1.42.1 in production. VALN-05b ATT canary disposition unchanged._
+_Last updated: 2026-05-13 — v1.43 UL Suppression Metrics & Gate Calibration complete after Phase 204 post-d44e2fd gap closure; v1.43.0 archive-ready. SEED-005 remains deferred to v1.44 by milestone-closeout invariant. VALN-05b ATT canary disposition unchanged._
