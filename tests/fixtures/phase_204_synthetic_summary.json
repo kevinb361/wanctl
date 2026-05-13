@@ -548,7 +548,7 @@
     "operator_approval": ".planning/phases/204-d-14-successor-recalibration-calib/204-CALIB-02-OPERATOR-APPROVAL.md",
     "reason": null,
     "statistic": "p99",
-    "threshold": 125,
+    "threshold": 175,
     "value": 69.88,
     "verdict": "pass"
   },

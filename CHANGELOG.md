@@ -5,7 +5,7 @@ All notable changes to wanctl are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v1.43.0 — 2026-05-09
+## v1.43.0 — 2026-05-13
 
 ### Added
 
@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CALIB-02 re-evaluation selected Branch B after the corrected-boundary dwell-hold p99 moved the approved p99 × 1.5 ceil-to-nearest-25 gate from `125` to `150`; `scripts/calib_02_threshold.json` now points at `soak/20260509T183037Z/soak-summary.json` and mirrors the re-approved threshold.
 - CALIB-04 rerun `20260510T203642Z` produced corrected-boundary evidence with missing boundary-marker rows `0` and primary floor-hit delta `0`, but the completed-window p99 dwell-hold gate was `151.0` against threshold `150`; the operator verdict is FAIL-A just-over and Branch A requires threshold re-approval plus another CALIB-04 rerun before archive.
 - CALIB-04 Branch A continuation rerun `20260512T004208Z` passed the dual gate after operator re-approved threshold `175`: primary floor-hit delta `0`, completed-window p99 dwell-hold `135.6199999999999 <= 175`, missing boundary-marker rows `0`, and `204-05-CALIB-04-SOAK-VERDICT.md` now records `verdict: pass` while preserving superseded soak provenance.
+- Gap closure (2026-05-13): re-ran CALIB-01/04 24h soaks on cake-shaper after the d44e2fd boundary-marker remediation invalidated the original captures; `204-05-CALIB-04-SOAK-VERDICT.md` overwritten with the post-fix dual-gate PASS at `soak/20260512T004208Z/`. Production binary unchanged — soak harness and aggregator only. SAFE-07 invariant verified clean at v1.43 ship.
 
 ### Deploy notes
 
@@ -47,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Cause-attribution policy is dual.** A row whose `ul_suppressions_lifetime_by_cause` lifetime counter increments for multiple causes within a single 50ms cycle contributes to every affected `(zone, cause)` cell. Counts may exceed `total_samples`; the summary records this in `phase_203_metadata.attribution_policy`. See `docs/SOAK_HARNESS.md`.
 - **Harness-only invariant.** Phase 203 added zero lines to `src/wanctl/`. The SAFE-07 invariant is verified by `scripts/check-safe07-source-diff.sh` and by the unchanged SAFE-05 pin block in `tests/test_phase_195_replay.py`.
 - **Spectrum-only deltas.** `load_rtt_delta_us` uses raw `load_rtt_ms`, not an asymmetry-gate-attenuated effective RTT. On the v1.43 Spectrum baseline where the gate is disabled, values are exact; future gate-enabled deployments would over-state deltas during gate-active windows.
-- **Closeout status.** Phase 204 re-verification entered `gaps_found` after the boundary-marker remediation. Corrected-boundary CALIB-01/CALIB-04 reruns and CALIB-02 reapproval now have PASS evidence through the `20260512T004208Z` Branch A continuation; v1.43 still requires the separate Plan 204-10 closeout refresh before archival.
+- **Closeout status.** Phase 204 re-verification is `satisfied` after Plans 204-07..10 rebuilt the post-d44e2fd evidence chain. Corrected-boundary CALIB-01/CALIB-04 reruns and CALIB-02 reapproval have PASS evidence through the `20260512T004208Z` Branch A continuation; v1.43 is ready for archival.
 
 ## 1.42.1 — 2026-05-05
 

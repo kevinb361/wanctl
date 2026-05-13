@@ -74,3 +74,18 @@
 *Phase: 204-d-14-successor-recalibration-calib*
 *Retro written: 2026-05-09*
 *Status: closed satisfied; v1.43 milestone ready for completion*
+
+---
+
+## Gap Closure (Post-d44e2fd Remediation, 2026-05-13)
+
+**Trigger:** A code-review remediation (commit `d44e2fd`) made `aggregate_completed_window_distribution()` and `aggregate_watchdog()` fail-closed when completed-window rows lack `ul_hysteresis_window_start_epoch`. The two production soaks used to close Phase 204 (CALIB-01 at `soak/20260507T131911Z/`, CALIB-04 at `soak/20260508T161146Z/`) predate the boundary-marker projection, so the prior `verdict: pass` claims rested on a now-invalid distribution.
+
+**Plans executed (gap closure):**
+
+- Plan 204-07: CALIB-01 rerun on cake-shaper at `soak/20260509T183037Z/` with the current capture script. Boundary-marker invariant (zero rows missing `ul_hysteresis_window_start_epoch`) verified.
+- Plan 204-08: CALIB-02 re-evaluation. Branch B chosen via the four-part material-change criterion; `scripts/calib_02_threshold.json::calib_01_distribution_reference` updated to point at the new soak and threshold re-approved at `150`.
+- Plan 204-09: CALIB-04 corrected-boundary rerun at `soak/20260510T203642Z/` produced FAIL-A just-over (`151.0 > 150`); Branch A continuation re-approved threshold `175` and reran CALIB-04 at `soak/20260512T004208Z/`. The threshold-175 rerun PASSED (`primary_gate.delta=0`, completed-window p99 dwell-hold `135.6199999999999 <= 175`). `204-05-CALIB-04-SOAK-VERDICT.md` was overwritten with `verdict: pass`, `superseded_soak_ts: 20260508T161146Z`, and `superseded_fail_a_soak_ts: 20260510T203642Z` provenance.
+- Plan 204-10: this closeout refresh.
+
+**Durable lesson (gap-closure addendum):** Code-review remediations of evidence pipelines must trigger re-validation of all consumer artifacts produced before the remediation. The d44e2fd fix was correct; the gap was that the prior CALIB-01/04 captures predated it, and the prior `204-VERIFICATION.md status=satisfied` claim did not stress-test the captured evidence under the post-fix code. Henceforth: every aggregator/parser fix that touches an existing pipeline gets a one-shot recompute against representative committed evidence in the same commit, with a verdict diff in the commit body. The `tests/test_phase_203_capture_projection.py` complete-set assertion now includes `ul_hysteresis_window_start_epoch` so the projection contract is regression-bound at the test layer (closes the warning-level item from `204-VERIFICATION.md` anti-patterns table).

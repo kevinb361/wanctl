@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
-status: executing
-stopped_at: 204-09 FAIL-A Branch A continuation — CALIB-04 rerun 20260512T004208Z passed dual gate at threshold 175; Plan 204-10 closeout refresh ready but not executed
-last_updated: "2026-05-13T03:59:36Z"
+status: satisfied
+stopped_at: null
+last_updated: "2026-05-13T04:05:11Z"
 last_activity: 2026-05-13
 progress:
   total_phases: 3
-  completed_phases: 0
-  total_plans: 10
-  completed_plans: 9
-  percent: 90
+  completed_phases: 3
+  total_plans: 17
+  completed_plans: 17
+  percent: 100
 ---
 
 # Session State
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 204 gap closure — Plan 204-09 Branch A continuation CALIB-04 rerun `20260512T004208Z` passed the dual gate at threshold `175` (`primary_gate.delta=0`, completed-window p99 dwell-hold `135.6199999999999 <= 175`). Plan 204-10 closeout refresh is ready but not executed or marked complete.
+**Current focus:** v1.43 closeout / next milestone planning — Plan 204-10 refreshed closeout artifacts after the threshold-175 CALIB-04 rerun `20260512T004208Z` passed the dual gate (`primary_gate.delta=0`, completed-window p99 dwell-hold `135.6199999999999 <= 175`).
 
 ## Position
 
 **Last shipped milestone:** v1.42 DOCSIS-Aware UL Congestion Control (shipped 2026-05-06; verdict `gaps_found` Route B)
 **Recently archived:** v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
-**Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration (Phase 204 gap closure evidence ready for Plan 204-10 closeout refresh)
+**Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration (shipped 2026-05-13)
 
-Progress: [█████████░] 90%
+Progress: [██████████] 100%
 
 ## Deferred Items
 
@@ -128,7 +128,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: 204-09 FAIL-A Branch A continuation — CALIB-04 rerun `20260512T004208Z` passed dual gate at threshold `175`; Plan 204-10 is ready to run separately
+Stopped at: None — Plan 204-10 closeout refresh complete; v1.43 is ready for milestone archive / next milestone planning
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 

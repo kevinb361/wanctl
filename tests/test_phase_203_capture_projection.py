@@ -1,6 +1,6 @@
 """Phase 203 capture-projection contract tests (OBSV-05, OBSV-07 capture side).
 
-Validates that scripts/soak-capture.sh's jq projection emits the seven new
+Validates that scripts/soak-capture.sh's jq projection emits the eight new
 Phase 203 keys with correct values when fed a synthesized /health payload.
 Does NOT require a live daemon, a soak fixture, or network access.
 
@@ -64,6 +64,7 @@ SYNTHETIC_HEALTHY = {
                 "hysteresis": {
                     "suppressions_per_min": 17,
                     "last_zone": "GREEN",
+                    "window_start_epoch": 1730000000,
                     "suppressions_completed_window_count": 13,
                     "suppressions_completed_window_by_cause": {
                         "dwell_hold": 13,
@@ -112,7 +113,7 @@ def _run_projection(health_payload: dict) -> dict:
 
 
 class TestNewFieldsProjection:
-    """OBSV-05: the seven new Phase 203 keys are emitted with correct values."""
+    """OBSV-05: the eight new Phase 203 keys are emitted with correct values."""
 
     def test_load_rtt_delta_us_computed_correctly(self) -> None:
         row = _run_projection(SYNTHETIC_HEALTHY)
@@ -143,13 +144,14 @@ class TestNewFieldsProjection:
         }
 
     def test_new_fields_present_complete_set(self) -> None:
-        """All seven new keys appear on every row."""
+        """All eight new keys appear on every row (boundary marker added post-d44e2fd)."""
         row = _run_projection(SYNTHETIC_HEALTHY)
         for key in (
             "load_rtt_ms",
             "baseline_rtt_ms",
             "load_rtt_delta_us",
             "last_zone",
+            "ul_hysteresis_window_start_epoch",
             "ul_suppressions_completed_window_count",
             "ul_suppressions_completed_window_by_cause",
             "ul_suppressions_lifetime_by_cause",

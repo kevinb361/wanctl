@@ -548,7 +548,7 @@
     "operator_approval": ".planning/phases/204-d-14-successor-recalibration-calib/204-CALIB-02-OPERATOR-APPROVAL.md",
     "reason": "completed-window aggregation requires ul_hysteresis_window_start_epoch",
     "statistic": "p99",
-    "threshold": 125,
+    "threshold": 175,
     "value": 0.0,
     "verdict": "fail"
   },
