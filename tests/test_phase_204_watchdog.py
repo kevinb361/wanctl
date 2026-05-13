@@ -108,7 +108,7 @@ class TestWatchdogMath:
     def test_new_block_loads_from_calib_02(self, aggregator: ModuleType) -> None:
         result = aggregator.aggregate_soak(SYNTHETIC_NDJSON)
         block = result["secondary_gate_completed_window"]
-        assert block["threshold"] == 125
+        assert block["threshold"] == 175
         assert block["statistic"] == "p99"
         assert block["headroom_factor"] == 1.5
         assert block["gate_column"] == "by_cause.dwell_hold"
@@ -138,7 +138,7 @@ class TestWatchdogMath:
     def test_loader_returns_operator_approved_constants(self, aggregator: ModuleType) -> None:
         constants = aggregator.load_calib_02_constants()
         assert constants["statistic"] == "p99"
-        assert constants["threshold"] == 125
+        assert constants["threshold"] == 175
         assert constants["gate_column"] == "by_cause.dwell_hold"
 
 
