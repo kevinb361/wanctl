@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CALIB-01 rerun `20260509T183037Z` produced corrected-boundary evidence under current code: missing boundary-marker rows `0`, distribution `valid=true`, `window_count=1440`, top-level p99 `105.2199999999998`, and dwell-hold p99 `95.2199999999998`. CALIB-02 must be revisited against this corrected baseline before CALIB-04 is rerun.
 - CALIB-02 re-evaluation selected Branch B after the corrected-boundary dwell-hold p99 moved the approved p99 × 1.5 ceil-to-nearest-25 gate from `125` to `150`; `scripts/calib_02_threshold.json` now points at `soak/20260509T183037Z/soak-summary.json` and mirrors the re-approved threshold.
 - CALIB-04 rerun `20260510T203642Z` produced corrected-boundary evidence with missing boundary-marker rows `0` and primary floor-hit delta `0`, but the completed-window p99 dwell-hold gate was `151.0` against threshold `150`; the operator verdict is FAIL-A just-over and Branch A requires threshold re-approval plus another CALIB-04 rerun before archive.
+- CALIB-04 Branch A continuation rerun `20260512T004208Z` passed the dual gate after operator re-approved threshold `175`: primary floor-hit delta `0`, completed-window p99 dwell-hold `135.6199999999999 <= 175`, missing boundary-marker rows `0`, and `204-05-CALIB-04-SOAK-VERDICT.md` now records `verdict: pass` while preserving superseded soak provenance.
 
 ### Deploy notes
 
@@ -46,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Cause-attribution policy is dual.** A row whose `ul_suppressions_lifetime_by_cause` lifetime counter increments for multiple causes within a single 50ms cycle contributes to every affected `(zone, cause)` cell. Counts may exceed `total_samples`; the summary records this in `phase_203_metadata.attribution_policy`. See `docs/SOAK_HARNESS.md`.
 - **Harness-only invariant.** Phase 203 added zero lines to `src/wanctl/`. The SAFE-07 invariant is verified by `scripts/check-safe07-source-diff.sh` and by the unchanged SAFE-05 pin block in `tests/test_phase_195_replay.py`.
 - **Spectrum-only deltas.** `load_rtt_delta_us` uses raw `load_rtt_ms`, not an asymmetry-gate-attenuated effective RTT. On the v1.43 Spectrum baseline where the gate is disabled, values are exact; future gate-enabled deployments would over-state deltas during gate-active windows.
-- **Closeout status.** Phase 204 re-verification is `gaps_found` after the boundary-marker remediation. The retrospective records `threshold-basis hygiene`, but v1.43 is not ready for archival until CALIB-01/CALIB-04 are rerun with corrected-boundary captures and CALIB-02 is revisited against the corrected baseline.
+- **Closeout status.** Phase 204 re-verification entered `gaps_found` after the boundary-marker remediation. Corrected-boundary CALIB-01/CALIB-04 reruns and CALIB-02 reapproval now have PASS evidence through the `20260512T004208Z` Branch A continuation; v1.43 still requires the separate Plan 204-10 closeout refresh before archival.
 
 ## 1.42.1 — 2026-05-05
 

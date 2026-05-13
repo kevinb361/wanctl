@@ -12,6 +12,7 @@ requires:
 provides:
   - Corrected-boundary CALIB-04 rerun evidence for soak 20260510T203642Z
   - Dual-gate FAIL-A verdict with secondary_value=151.0 and secondary_threshold=150
+  - Branch A continuation CALIB-04 PASS evidence for soak 20260512T004208Z at threshold 175
   - Updated 204-05-CALIB-04-SOAK-VERDICT.md superseding stale pre-boundary evidence
 affects: [204-10-closeout-refresh, CALIB-04, SAFE-07, v1.43-closeout]
 
@@ -36,6 +37,7 @@ key-decisions:
 
 patterns-established:
   - "Pre-boundary CALIB-04 evidence remains historical; corrected-boundary reruns overwrite the operator verdict with superseded_soak_ts and rerun_reason fields."
+  - "FAIL-A continuation evidence is appended to this plan summary without marking Plan 204-10 complete; closeout remains a separate plan."
 
 requirements-completed: []
 
@@ -192,7 +194,76 @@ None — no external service configuration required.
 
 ## Next Phase Readiness
 
-Plan 204-10 closeout refresh is not unblocked for PASS closeout. The next action is Branch A: operator re-approves CALIB-02 at a higher threshold, then reruns CALIB-04.
+Plan 204-10 closeout refresh is now unblocked by the Branch A continuation PASS verdict, but it has not been executed or marked complete by this continuation.
+
+## Branch A Continuation Addendum — 20260512T004208Z
+
+After the original Plan 204-09 FAIL-A just-over verdict, the operator re-approved CALIB-02 at threshold `175` and launched a second corrected-boundary CALIB-04 rerun at `20260512T004208Z`.
+
+### Continuation Evidence
+
+| Check | Result |
+|-------|--------|
+| Capture path | `.planning/phases/204-d-14-successor-recalibration-calib/soak/20260512T004208Z/soak-capture.ndjson` |
+| Summary path | `.planning/phases/204-d-14-successor-recalibration-calib/soak/20260512T004208Z/soak-summary.json` |
+| Row count | `84099` |
+| Strict row proxy | `false` (`84099 < 86000`) |
+| Parse errors | `0` |
+| Wall-clock span | `23:59:59` |
+| Boundary span | `23:59:54.820912` |
+| Boundary-marker missing rows | `0` |
+| Threshold / gate column | `175` / `by_cause.dwell_hold` |
+
+### Continuation Gate Blocks
+
+#### primary_gate
+
+```json
+{
+  "name": "floor_hit_cycles_total_delta_soak_window",
+  "threshold": 0,
+  "t0": 0,
+  "t24": 0,
+  "delta": 0,
+  "verdict": "pass",
+  "reason": null
+}
+```
+
+#### secondary_gate_completed_window
+
+```json
+{
+  "name": "ul_suppressions_completed_window_count_p99",
+  "value": 135.6199999999999,
+  "threshold": 175,
+  "statistic": "p99",
+  "headroom_factor": 1.5,
+  "gate_column": "by_cause.dwell_hold",
+  "verdict": "pass",
+  "reason": null
+}
+```
+
+#### secondary_gate_legacy
+
+```json
+{
+  "name": "ul_hysteresis_suppression_rate_per_60s_mean (legacy live-counter-snapshot mean)",
+  "value": 9.413257363280515,
+  "threshold": 5.0,
+  "verdict": "fail",
+  "window_count": 1439
+}
+```
+
+### Continuation Verdict
+
+- **Verdict:** `pass`
+- **Dual gate:** PASS (`primary_gate.delta == 0` and completed-window secondary value `135.6199999999999 <= 175`)
+- **Verdict artifact updated:** `204-05-CALIB-04-SOAK-VERDICT.md` now cites `soak_ts: 20260512T004208Z` and preserves both superseded original soak `20260508T161146Z` and prior corrected-boundary FAIL-A soak `20260510T203642Z` provenance.
+- **Line-count proxy deviation:** The continuation prompt disclosed the `84099` row count and authorized continuing; the verdict records the row-proxy miss with stronger quality checks.
+- **Verification:** SAFE-07 passed; hot-path slice passed with `667 passed in 40.48s`.
 
 ## Self-Check: PASSED
 
