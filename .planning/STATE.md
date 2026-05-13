@@ -2,7 +2,7 @@
 gsd_state_version: 1.0
 milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
-status: satisfied
+status: milestone_complete
 stopped_at: null
 last_updated: "2026-05-13T04:15:32.589Z"
 last_activity: 2026-05-13
@@ -382,7 +382,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Current Position
 
-Phase: 204 (d-14-successor-recalibration-calib) — EXECUTING
-Plan: 10 of 10
-Status: Phase complete — ready for verification
+Phase: 204
+Plan: Not started
+Status: Milestone complete
 Last activity: 2026-05-13

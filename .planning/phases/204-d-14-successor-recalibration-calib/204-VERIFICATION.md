@@ -1,115 +1,125 @@
 ---
 phase: 204-d-14-successor-recalibration-calib
-verified: 2026-05-13T04:05:11Z
-status: satisfied
+verified: 2026-05-13T04:26:19Z
+status: passed
 score: 6/6 must-haves verified
 overrides_applied: 0
-gaps_remaining: []
 re_verification:
-  previous_status: gaps_found
-  previous_score: 3/6
+  previous_status: satisfied
+  previous_score: 6/6
   gaps_closed:
-    - "CALIB-01 baseline distribution evidence refreshed by corrected-boundary rerun 20260509T183037Z."
-    - "CALIB-02 threshold basis refreshed after corrected CALIB-01; Branch B approved threshold 150, then FAIL-A Branch A re-approved threshold 175."
-    - "CALIB-04 verification evidence refreshed by corrected-boundary threshold-175 rerun 20260512T004208Z with verdict: pass."
+    - "Prior post-d44e2fd evidence gaps remain closed: corrected CALIB-01 rerun 20260509T183037Z, CALIB-02 threshold 175, corrected CALIB-04 pass rerun 20260512T004208Z."
   gaps_remaining: []
   regressions: []
 ---
 
 # Phase 204: D-14 Successor Recalibration (CALIB) Verification Report
 
-**Phase Goal:** A clean 24h Spectrum baseline soak under post-Plan-201-14 production yields a soak-calibrated D-14 successor threshold with explicit operator rationale, and a verification 24h soak passes the dual gate cleanly — closing the metric watchdog without any control-path change.
-**Verified:** 2026-05-13T04:05:11Z
-**Status:** satisfied
-**Re-verification:** Yes — this replaces the 2026-05-09 `gaps_found` report after Plans 204-07..10 rebuilt the evidence chain under the post-d44e2fd boundary-marker contract.
+**Phase Goal:** D-14 successor recalibration / CALIB closeout for v1.43 with post-d44e2fd evidence validity.
+**Verified:** 2026-05-13T04:26:19Z
+**Status:** passed
+**Re-verification:** Yes — refreshed from the prior `satisfied` report to canonical verifier status `passed`, and rechecked the actual evidence/code paths.
 
 ## Goal Achievement
 
-Phase 204 is satisfied under current code. Commit `d44e2fd` correctly made completed-window aggregation fail closed when rows lack `ul_hysteresis_window_start_epoch`; the original CALIB-01 (`20260507T131911Z`) and CALIB-04 (`20260508T161146Z`) captures are retained only as superseded provenance. The valid closeout evidence is now:
+Phase 204 achieved its goal. The valid closeout chain is the post-d44e2fd chain, not the superseded pre-boundary-marker evidence:
 
-- CALIB-01 corrected-boundary baseline rerun: `soak/20260509T183037Z/`, `missing_boundary=0`, `valid=true`, `window_count=1440`.
-- CALIB-02 corrected-threshold path: Branch B raised threshold to `150` from the corrected CALIB-01 p99 basis; FAIL-A Branch A then re-approved threshold `175` after the first corrected CALIB-04 rerun observed `151.0 > 150`.
-- CALIB-04 corrected-boundary verification rerun: `soak/20260512T004208Z/`, `verdict: pass`, primary delta `0`, completed-window p99 dwell-hold `135.6199999999999 <= 175`, missing boundary markers `0`.
+- CALIB-01 corrected baseline rerun: `soak/20260509T183037Z/` has 84,100 rows, parse errors `0`, missing boundary markers `0`, completed-window distribution `valid=true`, `window_count=1440`, top-level p99 `105.2199999999998`, and dwell-hold p99 `95.2199999999998`.
+- CALIB-02 final approved threshold: `175`, captured in `204-CALIB-02-OPERATOR-APPROVAL.md` and mirrored in `scripts/calib_02_threshold.json`.
+- CALIB-04 final passing rerun: `soak/20260512T004208Z/` has 84,099 rows, parse errors `0`, missing boundary markers `0`, primary gate delta `0`, and completed-window p99 dwell-hold `135.6199999999999 <= 175` with verdict `pass`.
+- SAFE-07 holds at close: the helper returned `SAFE-07 OK: only planned src/wanctl/__init__.py version bump vs b72b463`; an additional worktree/staged `src/wanctl/` diff check was clean.
 
-## Observable Truths
+### Observable Truths
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | 24h baseline soak produces a representative completed-window distribution for threshold derivation. | ✓ VERIFIED | Corrected CALIB-01 rerun `soak/20260509T183037Z/soak-summary.json` has `suppressions_completed_window_count_distribution.valid=true`, `boundary_source=ul_hysteresis_window_start_epoch`, `window_count=1440`, top-level p99 `105.2199999999998`, and dwell-hold p99 `95.2199999999998`. |
-| 2 | Operator-approved D-14 successor threshold has explicit rationale tied to CALIB-01 distribution. | ✓ VERIFIED | Plan 204-08 selected Branch B and updated `204-CALIB-02-OPERATOR-APPROVAL.md` / `scripts/calib_02_threshold.json` to corrected CALIB-01 evidence. Plan 204-09 Branch A continuation then re-approved threshold `175`; `scripts/calib_02_threshold.json` now records `threshold: 175`, `statistic: p99`, `headroom_factor: 1.5`, and `gate_column: by_cause.dwell_hold`. |
-| 3 | Soak harness watchdog uses completed-window statistic and emits legacy alongside for one transition cycle. | ✓ VERIFIED | `scripts/soak_summary_aggregate.py` emits `secondary_gate_completed_window` and `secondary_gate_legacy`; latest `soak/20260512T004208Z/soak-summary.json` includes both blocks. |
-| 4 | Verification 24h soak passes dual gate cleanly under recalibrated threshold. | ✓ VERIFIED | `204-05-CALIB-04-SOAK-VERDICT.md` shows `verdict: pass`, `soak_ts: 20260512T004208Z`, primary gate delta `0`, completed-window value `135.6199999999999`, threshold `175`; summary reports zero missing boundary markers. |
-| 5 | RETRO captures threshold-basis hygiene as durable lesson. | ✓ VERIFIED | `204-RETRO.md` contains the original threshold-basis hygiene lesson and the Plan 204-10 Gap Closure addendum covering the d44e2fd revalidation lesson. |
-| 6 | SAFE-07 no-controller-tuning invariant holds at close. | ✓ VERIFIED | `bash scripts/check-safe07-source-diff.sh` returned `SAFE-07 OK: only planned src/wanctl/__init__.py version bump vs b72b463`; final hot-path, phase-scoped, and full suite checks passed in Plan 204-10. |
+| 1 | 24h baseline soak on production Spectrum under post-Plan-201-14 binary + new metric live produces a representative completed-window suppression-count distribution. | ✓ VERIFIED | `soak/20260509T183037Z/soak-summary.json` reports `valid=true`, `boundary_source=ul_hysteresis_window_start_epoch`, `window_count=1440`, mean `17.131944444444443`, p50 `9.0`, p95 `63.0`, p99 `105.2199999999998`, max `147`; boundary check over NDJSON found `missing_boundary=0`. |
+| 2 | Operator-approved D-14 successor threshold is recorded with explicit rationale tied to valid CALIB-01 evidence and post-fix control surface. | ✓ VERIFIED | `204-CALIB-02-OPERATOR-APPROVAL.md` records `decision: approved`, `statistic: p99`, `threshold: 175`, `headroom_factor: 1.5`, `gate_column: by_cause.dwell_hold`, with rationale for the FAIL-A continuation and corrected CALIB-01 reference `20260509T183037Z`; `scripts/calib_02_threshold.json` mirrors these values. |
+| 3 | Soak harness watchdog uses the completed-window statistic and emits legacy alongside for one transition cycle. | ✓ VERIFIED | `scripts/soak_summary_aggregate.py` defines `load_calib_02_constants()` and `aggregate_watchdog()`, returns both `secondary_gate_legacy` and `secondary_gate_completed_window`, and `aggregate_soak()` emits both top-level blocks. `tests/test_phase_204_watchdog.py` verifies the v1.42 legacy oracle and active CALIB-02 constants. |
+| 4 | Verification 24h soak under the recalibrated threshold passes the dual gate cleanly: D-19 primary 0 floor hits and D-14 successor passes. | ✓ VERIFIED | `204-05-CALIB-04-SOAK-VERDICT.md` records `verdict: pass`, `soak_ts: 20260512T004208Z`, `primary_gate_delta: 0`, `secondary_gate_value: 135.6199999999999`, `secondary_gate_threshold: 175`; `soak-summary.json` has `primary_gate.verdict=pass`, `primary_gate.delta=0`, and `secondary_gate_completed_window.verdict=pass`. |
+| 5 | RETRO captures threshold-basis hygiene as a durable lesson. | ✓ VERIFIED | `204-RETRO.md` Key Lesson #1 contains “threshold-basis hygiene”; the post-d44e2fd Gap Closure addendum records the evidence-pipeline revalidation lesson. |
+| 6 | SAFE-07 no-controller-tuning invariant holds at v1.43 close. | ✓ VERIFIED | `bash scripts/check-safe07-source-diff.sh` passed; additional `git diff -- src/wanctl/` and `git diff --cached -- src/wanctl/` checks were clean. Phase 204 has only the planned `src/wanctl/__init__.py` version bump vs `b72b463`. |
 
 **Score:** 6/6 truths verified
 
-## Required Artifacts
+### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |---|---|---|---|
-| `scripts/soak-capture.sh` | Capture boundary marker needed by current aggregator. | ✓ VERIFIED | Projects `ul_hysteresis_window_start_epoch`; test complete-set assertion now includes the field. |
-| `scripts/soak_summary_aggregate.py` | Completed-window distribution + dual watchdog gate. | ✓ VERIFIED | Current summaries for `20260509T183037Z` and `20260512T004208Z` are valid with explicit boundary source. |
-| `tests/test_phase_204_distribution.py` | Tests current distribution semantics. | ✓ VERIFIED | Phase-scoped slice passed in Plan 204-10. |
-| `tests/test_phase_204_watchdog.py` | Tests loader, legacy oracle, new gate pass/fail. | ✓ VERIFIED | Phase-scoped slice passed in Plan 204-10. |
-| `tests/test_phase_203_capture_projection.py` | Projection test for capture fields. | ✓ VERIFIED | Complete-set assertion now includes `ul_hysteresis_window_start_epoch`; focused test passed. |
-| `soak/20260509T183037Z/soak-capture.ndjson` | Corrected CALIB-01 24h baseline evidence. | ✓ VERIFIED | Missing boundary-marker rows `0`; line-count proxy miss accepted with stronger evidence. |
-| `soak/20260509T183037Z/soak-summary.json` | Current-code CALIB-01 distribution. | ✓ VERIFIED | Distribution valid, `window_count=1440`, dwell-hold p99 `95.2199999999998`. |
-| `204-CALIB-02-OPERATOR-APPROVAL.md` | Approval based on valid CALIB-01 distribution / approved continuation threshold. | ✓ VERIFIED | Corrected in Plan 204-08 and carried forward through Plan 204-09 Branch A threshold `175`. |
-| `scripts/calib_02_threshold.json` | Machine-readable approved constants. | ✓ VERIFIED | Current threshold `175`, gate column `by_cause.dwell_hold`, reference `soak/20260509T183037Z/soak-summary.json`. |
-| `soak/20260512T004208Z/soak-capture.ndjson` | Corrected CALIB-04 24h verification evidence. | ✓ VERIFIED | Row count `84099`; missing boundary markers `0`; wall-clock span `23:59:59`. |
-| `soak/20260512T004208Z/soak-summary.json` | Current-code dual-gate verdict source. | ✓ VERIFIED | `primary_gate.verdict=pass`, completed-window gate `pass`, threshold `175`, value `135.6199999999999`. |
-| `204-05-CALIB-04-SOAK-VERDICT.md` | Verdict from current summary. | ✓ VERIFIED | `verdict: pass`, `soak_ts: 20260512T004208Z`, supersedes both stale pre-boundary and prior FAIL-A corrected-boundary soaks. |
-| `204-RETRO.md` | CALIB-05 and gap-closure lessons. | ✓ VERIFIED | Contains threshold-basis hygiene plus post-d44e2fd Gap Closure addendum. |
+| `scripts/soak-capture.sh` | Capture target-edge and boundary-marker fields. | ✓ VERIFIED | Projects `ul_hysteresis_window_start_epoch` at line 55 plus completed-window and lifetime suppression fields. |
+| `scripts/soak_summary_aggregate.py` | Completed-window distribution and dual watchdog gates. | ✓ VERIFIED | Defines explicit boundary-marker aggregation, fail-closed missing-boundary behavior, `aggregate_watchdog()`, and JSON constants loader. |
+| `tests/test_phase_203_capture_projection.py` | Projection regression includes boundary marker. | ✓ VERIFIED | Complete-set assertion includes `ul_hysteresis_window_start_epoch`; phase-scoped pytest slice passed. |
+| `tests/test_phase_204_distribution.py` | Distribution semantics regression coverage. | ✓ VERIFIED | Included in phase-scoped slice: 48 total tests passed across selected phase files. |
+| `tests/test_phase_204_watchdog.py` | Watchdog loader, legacy oracle, and pass/fail coverage. | ✓ VERIFIED | Asserts active threshold `175`, v1.42 legacy oracle value, and synthetic pass/fail branches. |
+| `soak/20260509T183037Z/soak-capture.ndjson` | Corrected-boundary CALIB-01 raw evidence. | ✓ VERIFIED | 84,100 rows; parse errors `0`; missing boundary markers `0`; span ~86,399.6s. Row-count proxy miss accepted by stronger quality evidence. |
+| `soak/20260509T183037Z/soak-summary.json` | CALIB-01 current-code distribution. | ✓ VERIFIED | `valid=true`, `window_count=1440`, dwell-hold p99 `95.2199999999998`. |
+| `204-CALIB-02-OPERATOR-APPROVAL.md` | Distinct final operator approval artifact. | ✓ VERIFIED | Records final threshold `175` and explicit FAIL-A continuation rationale. |
+| `scripts/calib_02_threshold.json` | Machine-readable CALIB-02 constants. | ✓ VERIFIED | Valid JSON with `threshold: 175`, `statistic: p99`, `headroom_factor: 1.5`, `gate_column: by_cause.dwell_hold`, and corrected CALIB-01 reference. |
+| `soak/20260512T004208Z/soak-capture.ndjson` | Corrected-boundary CALIB-04 raw evidence. | ✓ VERIFIED | 84,099 rows; parse errors `0`; missing boundary markers `0`; span ~86,398.19s. Row-count proxy miss accepted by stronger quality evidence. |
+| `soak/20260512T004208Z/soak-summary.json` | Current-code CALIB-04 dual-gate verdict source. | ✓ VERIFIED | `primary_gate.delta=0`, completed-window p99 dwell-hold `135.6199999999999`, threshold `175`, verdict `pass`. |
+| `204-05-CALIB-04-SOAK-VERDICT.md` | Operator-readable verdict from current summary. | ✓ VERIFIED | `verdict: pass`, cites superseded pre-boundary and FAIL-A runs as provenance. |
+| `204-RETRO.md` | CALIB-05 lesson and gap-closure addendum. | ✓ VERIFIED | Contains threshold-basis hygiene and post-d44e2fd revalidation lesson. |
 
-## Key Link Verification
+### Key Link Verification
 
 | From | To | Via | Status | Details |
 |---|---|---|---|---|
-| `scripts/soak-capture.sh` | `ul_hysteresis_window_start_epoch` capture column | jq projection | ✓ WIRED | Current projection and `tests/test_phase_203_capture_projection.py` enforce the boundary-marker field. |
-| `_completed_window_snapshots()` | explicit boundary marker | `row.get("ul_hysteresis_window_start_epoch")` | ✓ WIRED | Corrected rerun summaries use `boundary_source=ul_hysteresis_window_start_epoch`. |
-| `aggregate_watchdog()` | completed-window distribution | `aggregate_completed_window_distribution(rows)` | ✓ WIRED | Latest CALIB-04 summary passes the completed-window gate with no fail-closed boundary reason. |
-| `scripts/calib_02_threshold.json` | `aggregate_soak()` watchdog constants | `load_calib_02_constants()` | ✓ WIRED | Current JSON threshold is `175`; latest summary threshold matches. |
-| CALIB-01 corrected summary | CALIB-02 approval | file path citation | ✓ VERIFIED | Corrected reference is `soak/20260509T183037Z/soak-summary.json`. |
-| CALIB-04 corrected summary | CALIB-04 verdict | cited pass fields | ✓ VERIFIED | Verdict cites `soak/20260512T004208Z/soak-summary.json`, primary delta `0`, secondary `135.6199999999999 <= 175`. |
+| `scripts/soak-capture.sh` | NDJSON boundary-marker field | jq projection | ✓ WIRED | `ul_hysteresis_window_start_epoch` projected from `/health.wans[0].upload.hysteresis.window_start_epoch`; projection test enforces it. |
+| NDJSON boundary marker | `_completed_window_snapshots()` | `row.get("ul_hysteresis_window_start_epoch")` | ✓ WIRED | Missing marker causes fail-closed distribution; corrected CALIB-01/04 captures have zero missing markers. |
+| `aggregate_soak()` | completed-window watchdog blocks | `aggregate_watchdog()` + `load_calib_02_constants()` | ✓ WIRED | Latest CALIB-04 summary threshold/value match `scripts/calib_02_threshold.json`. |
+| `scripts/calib_02_threshold.json` | `aggregate_watchdog()` constants | loader reads JSON at runtime | ✓ WIRED | Active threshold `175`, statistic `p99`, gate column `by_cause.dwell_hold` reflected in test and latest summary. |
+| CALIB-01 corrected summary | CALIB-02 approval | file citation and numeric rationale | ✓ VERIFIED | Approval references `soak/20260509T183037Z/soak-summary.json` and its dwell-hold distribution. |
+| CALIB-04 corrected summary | verdict file | copied gate fields | ✓ VERIFIED | Verdict cites `20260512T004208Z` pass with primary `0` and secondary `135.6199999999999 <= 175`. |
+| SAFE-07 helper | v1.43 close | git diff vs `b72b463` | ✓ VERIFIED | Helper passed; staged/unstaged `src/wanctl/` diffs additionally checked clean to compensate for advisory WR-01. |
 
-## Behavioral Spot-Checks
+### Data-Flow Trace (Level 4)
+
+| Artifact | Data Variable | Source | Produces Real Data | Status |
+|---|---|---|---|---|
+| `scripts/soak-capture.sh` | `ul_hysteresis_window_start_epoch` | Live `/health` response at cake-shaper | Yes — captured rows in `20260509T183037Z` and `20260512T004208Z` include non-null boundary markers. | ✓ FLOWING |
+| `scripts/soak_summary_aggregate.py` | `suppressions_completed_window_count_distribution` | NDJSON rows + boundary marker transitions | Yes — current summaries contain non-empty valid distributions (`window_count=1440` / `1439`). | ✓ FLOWING |
+| `scripts/calib_02_threshold.json` | threshold/statistic/gate column | Operator approval artifact | Yes — JSON mirrors final approval (`175`, `p99`, `by_cause.dwell_hold`) and is consumed by `aggregate_soak()`. | ✓ FLOWING |
+| `204-05-CALIB-04-SOAK-VERDICT.md` | pass/fail verdict fields | `soak/20260512T004208Z/soak-summary.json` | Yes — numeric fields match summary and latest evidence. | ✓ FLOWING |
+
+### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |---|---|---|---|
-| Latest verdict is PASS. | `grep -E "^verdict: (pass|fail)$" 204-05-CALIB-04-SOAK-VERDICT.md` | `verdict: pass`; `soak_ts: 20260512T004208Z`; superseded original soak retained. | ✓ PASS |
-| Focused capture projection test. | `.venv/bin/pytest tests/test_phase_203_capture_projection.py -v` | Passed in Plan 204-10. | ✓ PASS |
-| Phase-scoped slice. | `.venv/bin/pytest tests/test_phase_204_distribution.py tests/test_phase_204_watchdog.py tests/test_phase_203_capture_projection.py tests/test_phase_195_replay.py -v` | Passed in Plan 204-10. | ✓ PASS |
-| Hot-path regression slice. | `.venv/bin/pytest -o addopts='' tests/test_cake_signal.py tests/test_queue_controller.py tests/test_wan_controller.py tests/test_health_check.py -q` | Passed in Plan 204-10. | ✓ PASS |
-| Full suite. | `.venv/bin/pytest tests/ -q` | Passed in Plan 204-10. | ✓ PASS |
-| SAFE-07 source diff invariant holds. | `bash scripts/check-safe07-source-diff.sh` | `SAFE-07 OK: only planned src/wanctl/__init__.py version bump vs b72b463`. | ✓ PASS |
+| Corrected soak evidence has boundary markers and expected gate values. | `python` verifier script over `soak/20260509T183037Z` and `soak/20260512T004208Z` NDJSON/summary files | CALIB-01: 84,100 rows, `missing_boundary=0`, `valid=true`, `window_count=1440`; CALIB-04: 84,099 rows, `missing_boundary=0`, `primary.delta=0`, secondary `135.6199999999999 <= 175`. | ✓ PASS |
+| SAFE-07 source-diff invariant holds, including uncommitted source changes. | `bash scripts/check-safe07-source-diff.sh; test -z "$(git diff -- src/wanctl/)"; test -z "$(git diff --cached -- src/wanctl/)"` | `SAFE-07 OK: only planned src/wanctl/__init__.py version bump vs b72b463`; `working-tree-src-clean`. | ✓ PASS |
+| Phase-scoped regression slice passes. | `.venv/bin/pytest tests/test_phase_203_capture_projection.py tests/test_phase_204_distribution.py tests/test_phase_204_watchdog.py tests/test_phase_195_replay.py -q` | `48 passed in 2.94s`. | ✓ PASS |
+| Orchestrator full-suite regression after closeout. | `.venv/bin/pytest tests/ -q` | Documented latest closeout gate: `4977 passed, 6 skipped, 2 deselected in 196.02s` (also corroborated by `204-10-SUMMARY.md`, 197.72s). Not rerun here to keep verification fast. | ✓ PASS |
 
-## Requirements Coverage
+### Requirements Coverage
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |---|---|---|---|---|
-| CALIB-01 | 204-02, refreshed 204-07 | Clean 24h baseline soak produces representative completed-window distribution. | ✓ SATISFIED | Corrected-boundary CALIB-01 rerun `20260509T183037Z`. |
-| CALIB-02 | 204-03, refreshed 204-08/204-09 Branch A | Operator-approved threshold with rationale referencing CALIB-01 distribution. | ✓ SATISFIED | Branch B threshold `150`, then Branch A threshold `175`; JSON mirror current. |
-| CALIB-03 | 204-04 | Harness uses completed-window statistic and emits legacy alongside. | ✓ SATISFIED | Watchdog blocks present and tested. |
-| CALIB-04 | 204-05, refreshed 204-09 Branch A | Verification soak passes D-19 primary and D-14-successor gate. | ✓ SATISFIED | `20260512T004208Z` PASS verdict. |
-| CALIB-05 | 204-06, refreshed 204-10 | RETRO captures threshold-basis hygiene and gap-closure revalidation lesson. | ✓ SATISFIED | `204-RETRO.md` lessons. |
-| SAFE-07 | 204-01/04/06/10 | No v1.43 controller tuning; source diff clean. | ✓ SATISFIED | SAFE-07 helper passed at final closeout. |
+| CALIB-01 | 204-01, 204-02, refreshed 204-07, closeout 204-10 | Clean 24h Spectrum baseline soak produces representative completed-window distribution. | ✓ SATISFIED | Corrected CALIB-01 rerun `20260509T183037Z`: `valid=true`, `window_count=1440`, p99 fields present, boundary markers valid. |
+| CALIB-02 | 204-03, refreshed 204-08/204-09, closeout 204-10 | Operator-approved threshold with explicit rationale referencing CALIB-01 distribution. | ✓ SATISFIED | Final approval artifact and JSON record threshold `175`, with corrected CALIB-01 reference and FAIL-A continuation rationale. |
+| CALIB-03 | 204-04 | Watchdog computation uses completed-window statistic and emits legacy alongside. | ✓ SATISFIED | Aggregator functions and latest summary expose `secondary_gate_completed_window` and `secondary_gate_legacy`; tests cover loader/oracle/pass/fail paths. |
+| CALIB-04 | 204-05, refreshed 204-09, closeout 204-10 | Verification 24h soak passes D-19 primary and D-14 successor gate. | ✓ SATISFIED | `204-05-CALIB-04-SOAK-VERDICT.md` and `20260512T004208Z/soak-summary.json` show pass with primary delta `0` and secondary `135.6199999999999 <= 175`. |
+| CALIB-05 | 204-06 | RETRO captures threshold-basis hygiene. | ✓ SATISFIED | `204-RETRO.md` Key Lesson #1 and Gap Closure addendum. |
+| SAFE-07 | 204-01, 204-04, 204-06, 204-10 (cross-cutting) | No controller tuning within v1.43; only planned version bump allowed. | ✓ SATISFIED | SAFE-07 helper passed; manual staged/unstaged `src/wanctl/` checks clean; REQUIREMENTS/ROADMAP record v1.43 no-controller-tuning invariant. |
 
-No orphaned Phase 204 requirement IDs were found in `.planning/REQUIREMENTS.md`; CALIB-01..05 and SAFE-07 all map to Phase 204.
+All requested IDs are accounted for: CALIB-01, CALIB-02, CALIB-03, CALIB-04, CALIB-05, and SAFE-07. `.planning/REQUIREMENTS.md` maps exactly these Phase 204 IDs; no Phase 204 orphan requirement was found.
 
-## Anti-Patterns Found
+### Anti-Patterns Found
 
-None remaining. The prior warning that `tests/test_phase_203_capture_projection.py` omitted `ul_hysteresis_window_start_epoch` from the complete-set assertion was closed in Plan 204-10.
+| File | Line | Pattern | Severity | Impact |
+|---|---:|---|---|---|
+| `scripts/soak_summary_aggregate.py` | 76, 214 | `return []` empty-data paths | ℹ️ Info | Legitimate empty-input/fail-closed helper paths; not user-visible stub data and not a Phase 204 goal blocker. |
+| `204-REVIEW.md` | 42-99 | WR-01/WR-02/WR-03 advisory warnings | ⚠️ Warning | Non-blocking for this verification: WR-01 compensated by explicit worktree/staged source checks; WR-02 does not affect valid active constants; WR-03 did not invalidate completed soaks. These should be considered future hardening, not must-have gaps. |
+| `204-RETRO.md` / `204-10-SUMMARY.md` | various | TODO references | ℹ️ Info | Intentional v1.44 follow-up tracking for dropping legacy gate / YAML promotion; not an unimplemented v1.43 must-have. |
 
-## Human Verification Required
+### Human Verification Required
 
-None. The latest PASS verdict and verifier refresh are programmatic/documented closeout evidence.
+None. The phase goal is evidence/artifact based and was verified programmatically from committed artifacts, JSON summaries, tests, and SAFE-07 diff checks.
 
-## Gaps Summary
+### Gaps Summary
 
-No gaps remain. Phase 204 is **satisfied** and v1.43 is archive-ready after Plan 204-10 metadata commit.
+No blocking gaps remain. The post-d44e2fd evidence chain is valid, the final threshold is explicitly approved at `175`, the final CALIB-04 rerun passes the dual gate, and SAFE-07 remains clean. Phase 204 goal achieved.
 
 ---
 
-_Verified: 2026-05-13T04:05:11Z_
-_Verifier: Plan 204-10 closeout refresh_
+_Verified: 2026-05-13T04:26:19Z_
+_Verifier: the agent (gsd-verifier)_
