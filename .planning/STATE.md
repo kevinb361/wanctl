@@ -4,7 +4,7 @@ milestone: v1.43
 milestone_name: UL Suppression Metrics & Gate Calibration
 status: satisfied
 stopped_at: null
-last_updated: "2026-05-13T04:05:11Z"
+last_updated: "2026-05-13T04:15:32.589Z"
 last_activity: 2026-05-13
 progress:
   total_phases: 3
@@ -292,6 +292,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 204-09 Branch A continuation]: Operator re-approved CALIB-02 threshold at `175`, the next ceil-to-nearest-25 threshold above observed completed-window p99 dwell-hold `151.0`; preserved `statistic=p99`, `headroom_factor=1.5`, `rounding_policy=ceil_to_nearest_25`, and `gate_column=by_cause.dwell_hold`. Plan 204-10 remains blocked until a subsequent CALIB-04 rerun produces `verdict: pass`.
 - [Phase 204-09 Branch A continuation]: Launched CALIB-04 rerun `20260512T004208Z` on cake-shaper using `HEALTH_URL=http://10.10.110.223:9101/health`; production version `1.43.0`, pre-soak floor-hit baseline `0`, threshold `175`, and first rows included `ul_hysteresis_window_start_epoch`. Remote capture path is `/var/tmp/wanctl-soak-20260512T004208Z/soak-capture.ndjson`.
 - [Phase 204-09 Branch A continuation]: CALIB-04 rerun `20260512T004208Z` passed the dual gate at threshold `175`: row count `84099` (strict proxy miss accepted via continuation prompt with stronger checks), parse errors `0`, boundary-marker missing rows `0`, wall-clock span `23:59:59`, boundary span `23:59:54.820912`, primary_gate.delta `0`, secondary_gate_completed_window value `135.6199999999999`, and verdict updated to `pass`. Plan 204-10 remains a separate closeout refresh.
+- [Phase 204-10]: Used the latest PASS verdict from CALIB-04 threshold-175 rerun `20260512T004208Z` as the closeout truth source; earlier `20260510T203642Z` FAIL-A and `20260508T161146Z` pre-boundary pass are superseded provenance only. Phase 204/v1.43 is satisfied after SAFE-07, phase-scoped, hot-path, focused projection, and full-suite verification passed.
 
 ## Performance Metrics
 
@@ -383,5 +384,5 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 Phase: 204 (d-14-successor-recalibration-calib) — EXECUTING
 Plan: 10 of 10
-Status: Ready to execute
-Last activity: 2026-05-12
+Status: Phase complete — ready for verification
+Last activity: 2026-05-13
