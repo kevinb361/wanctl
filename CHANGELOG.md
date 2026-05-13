@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Harness-only invariant.** Phase 203 added zero lines to `src/wanctl/`. The SAFE-07 invariant is verified by `scripts/check-safe07-source-diff.sh` and by the unchanged SAFE-05 pin block in `tests/test_phase_195_replay.py`.
 - **Spectrum-only deltas.** `load_rtt_delta_us` uses raw `load_rtt_ms`, not an asymmetry-gate-attenuated effective RTT. On the v1.43 Spectrum baseline where the gate is disabled, values are exact; future gate-enabled deployments would over-state deltas during gate-active windows.
 - **Closeout status.** Phase 204 re-verification is `satisfied` after Plans 204-07..10 rebuilt the post-d44e2fd evidence chain. Corrected-boundary CALIB-01/CALIB-04 reruns and CALIB-02 reapproval have PASS evidence through the `20260512T004208Z` Branch A continuation; v1.43 is ready for archival.
+- **Plan 204-10 closeout artifact:** `.planning/phases/204-d-14-successor-recalibration-calib/204-10-SUMMARY.md` records the final verification commands, SAFE-07 output, and the threshold-175 test-fixture alignment deviation.
 
 ## 1.42.1 — 2026-05-05
 
