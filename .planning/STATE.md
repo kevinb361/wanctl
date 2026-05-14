@@ -6,7 +6,7 @@ status: planning
 last_updated: "2026-05-14T00:57:47.908Z"
 last_activity: 2026-05-14
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,15 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Between milestones — ready for `/gsd-new-milestone` to scope v1.44. SEED-005 conservative UL tuning sweep prereqs now met (METRIC-01 + OBSV-05 + CALIB-01 live with clean baseline soak under threshold 175); WR-01/WR-02 soak-harness hardening and `secondary_gate_legacy` removal also routed to v1.44.
+**Current focus:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration. Roadmap drafted (2026-05-14) with 5 phases (205–209); 16/16 requirements mapped (TOPO 1–7, HRDN 1–4, TOOL 1–3, SAFE 8–9). Spine seed SEED-001 active. ATT untouched throughout (SAFE-08); no controller threshold/algorithm changes (SAFE-09).
 
 ## Position
 
 **Last shipped milestone:** v1.43 UL Suppression Metrics & Gate Calibration (shipped 2026-05-13; audit `passed` 15/15)
 **Recently archived:** v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
-**Active milestone:** none — between-milestones state.
+**Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
+**Current phase:** none yet (next: `/gsd-plan-phase 205`).
 
-Progress: [          ] 0% (no active milestone)
+Progress: [          ] 0% (0/5 phases, 0/0 plans — phase plans not yet authored)
 
 ## Deferred Items
 
@@ -74,6 +75,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ### Roadmap Evolution
 
+- 2026-05-14: v1.44 roadmap drafted with 5 phases (205, 206, 207, 208, 209); 16/16 v1.44 REQ-IDs mapped (TOPO 1–7, HRDN 1–4, TOOL 1–3, SAFE 8–9). Phase numbering continues from v1.43 (last phase 204). Spine: SEED-001 (Spectrum besteffort wash). Cross-cutting SAFE-08 (ATT byte-identical) + SAFE-09 (no controller threshold/algorithm changes) verified at every phase boundary; mechanical closeout in Phase 209. Harness-before-deploy ordering: Phase 206 (A/B harness + rollback gate script) is a prerequisite for Phase 209 production canary. Phase 207 (HRDN-01 fail-closed source-diff verifier) is a prerequisite for SAFE-09 closeout.
 - 2026-04-23: v1.40 roadmap finalized with 4 phases (193, 194, 195, 196), 10/10 v1.40 REQ-IDs mapped. SAFE-05 is cross-cutting across all four phases. Phase numbering starts at 193 because v1.39 owns 191, 191.1, and 192.
 - 2026-04-23: v1.40 Queue-Primary Signal Arbitration opened in parallel with unclosed v1.39. v1.39 Phase 192 stays reserved at its number. v1.40 phases continue at 193 onward.
 - 2026-04-23: Joint Claude + Codex architectural decision — Spectrum DOCSIS ~280 Mbps under wanctl vs 591 Mbps CAKE-only static floor is a measurement-architecture problem, not a tuning problem. Primary signal changes from RTT delta to kernel-provided `avg_delay_us - base_delay_us` under load. RTT becomes confidence-gated secondary. Scope is DL-only; UL stays RTT-led because UL is healthy.
