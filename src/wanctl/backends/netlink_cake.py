@@ -424,6 +424,7 @@ class NetlinkCakeBackend(LinuxCakeBackend):
         - split-gso -> split_gso=True
         - ack-filter -> ack_filter=True
         - ingress -> ingress=True
+        - wash -> wash=True/False
 
         Args:
             params: CAKE parameters dict (same format as LinuxCakeBackend).
@@ -479,6 +480,7 @@ class NetlinkCakeBackend(LinuxCakeBackend):
                 ("split-gso", "split_gso"),
                 ("ack-filter", "ack_filter"),
                 ("ingress", "ingress"),
+                ("wash", "wash"),
             ]:
                 if tc_flag in params:
                     kwargs[pyroute2_kwarg] = bool(params[tc_flag])
