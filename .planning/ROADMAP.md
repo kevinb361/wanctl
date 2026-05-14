@@ -113,7 +113,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 205 — Tin-agnostic CAKE signal + allow_wash gate | 5/5 | Complete   | 2026-05-14 |
+| 205 — Tin-agnostic CAKE signal + allow_wash gate | 5/5 | Complete    | 2026-05-14 |
 | 206 — A/B replay harness + rollback gates | 0/0 | Not started | - |
 | 207 — Soak / harness hardening | 0/0 | Not started | - |
 | 208 — Carry-on quick-tasks (T17a / T9 / T12) | 0/0 | Not started | - |
