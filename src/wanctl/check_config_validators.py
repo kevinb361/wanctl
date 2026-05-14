@@ -161,6 +161,8 @@ KNOWN_AUTORATE_PATHS: set[str] = {
     "cake_params.rtt",
     "cake_params.ack_filter",
     "cake_params.ingress",
+    "cake_params.wash",  # Phase 205 (TOPO-02) -- tc flag, gated by allow_wash
+    "cake_params.allow_wash",  # Phase 205 (TOPO-02) -- per-WAN gate flag
     # Signal processing (_load_signal_processing_config)
     "signal_processing",
     "signal_processing.hampel",
