@@ -11,10 +11,11 @@ Signal flow:
             -> exposed via get_health_data() for monitoring
 
 Per-tin separation:
-    Active drop rate (drop_rate) excludes Bulk tin (index 0) because Bulk
-    traffic is intentionally deprioritised by CAKE's diffserv4 and its drops
-    are expected under load. Total drop rate (total_drop_rate) includes all
-    tins for completeness.
+    Active drop rate (drop_rate) excludes Bulk tin (index 0) for multi-tin
+    diffserv layouts because Bulk traffic is intentionally deprioritised by
+    CAKE and its drops are expected under load. For single-tin besteffort
+    layouts, the only tin is active. Total drop rate (total_drop_rate)
+    includes all tins for completeness.
 
 u32 counter handling:
     CAKE kernel counters are unsigned 32-bit integers that wrap at 2^32-1.
@@ -62,6 +63,29 @@ def u32_delta(current: int, previous: int) -> int:
     return delta
 
 
+def _active_tin_indices(tin_count: int) -> range:
+    """Return the indices of tins that count as 'active load'.
+
+    For multi-tin diffserv layouts (diffserv3/diffserv4/diffserv8), tin
+    index 0 is Bulk and is intentionally deprioritised — its drops/backlog
+    are expected under load and excluded from the active signal. For
+    single-tin besteffort layouts, the one tin IS the active tin; there
+    is no Bulk to exclude.
+
+    Args:
+        tin_count: len(tins_raw) from get_queue_stats().
+
+    Returns:
+        Index range to use for "active" aggregation.
+        - tin_count >= 2: range(1, tin_count) — exclude Bulk
+        - tin_count == 1: range(0, 1) — the only tin is active
+        - tin_count == 0: range(0, 0) — empty (caller already early-returns)
+    """
+    if tin_count >= 2:
+        return range(1, tin_count)
+    return range(tin_count)
+
+
 @dataclass(frozen=True, slots=True)
 class TinSnapshot:
     """Immutable per-tin statistics snapshot for one cycle.
@@ -98,8 +122,8 @@ class CakeSignalSnapshot:
     Attributes:
         drop_rate: EWMA drops/sec for BestEffort+Video+Voice tins (excludes Bulk).
         total_drop_rate: EWMA drops/sec for all tins including Bulk.
-        backlog_bytes: Sum of BestEffort+Video+Voice backlog bytes.
-        peak_delay_us: Max peak_delay across BestEffort+Video+Voice tins.
+        backlog_bytes: Sum of active-tin backlog bytes.
+        peak_delay_us: Max peak_delay across active tins.
         tins: Per-tin snapshots (tuple for immutability).
         cold_start: True on first update (delta not yet available).
         avg_delay_us: Max avg_delay across BestEffort+Video+Voice tins.
@@ -222,6 +246,14 @@ class CakeSignalProcessor:
         if not tins_raw:
             return self._last_snapshot
 
+        # Phase 205 Q4: meaningful Prometheus label for single-tin besteffort
+        # layouts. Operator-supplied custom tin_names pass through unchanged.
+        default_tin_names = ["Bulk", "BestEffort", "Video", "Voice"]
+        if len(tins_raw) == 1 and self._tin_names == default_tin_names:
+            tin_names = ["BestEffort"]
+        else:
+            tin_names = self._tin_names
+
         # Extract current per-tin drop counters
         current_counters: dict[int, int] = {}
         for i, tin in enumerate(tins_raw):
@@ -234,7 +266,7 @@ class CakeSignalProcessor:
 
             tin_snapshots = tuple(
                 TinSnapshot(
-                    name=self._tin_names[i] if i < len(self._tin_names) else f"Tin{i}",
+                    name=tin_names[i] if i < len(tin_names) else f"Tin{i}",
                     dropped_packets=current_counters.get(i, 0),
                     drop_delta=0,
                     backlog_bytes=tins_raw[i].get("backlog_bytes", 0),
@@ -251,20 +283,21 @@ class CakeSignalProcessor:
                 for i in range(len(tins_raw))
             )
 
-            # Compute backlog and peak delay excluding Bulk (index 0)
+            # Compute backlog and peak delay across active tins.
+            active_indices = _active_tin_indices(len(tins_raw))
             active_backlog = sum(
-                tins_raw[i].get("backlog_bytes", 0) for i in range(1, len(tins_raw))
+                tins_raw[i].get("backlog_bytes", 0) for i in active_indices
             )
             active_peak_delay = max(
-                (tins_raw[i].get("peak_delay_us", 0) for i in range(1, len(tins_raw))),
+                (tins_raw[i].get("peak_delay_us", 0) for i in active_indices),
                 default=0,
             )
             active_avg_delay = max(
-                (tins_raw[i].get("avg_delay_us", 0) for i in range(1, len(tins_raw))),
+                (tins_raw[i].get("avg_delay_us", 0) for i in active_indices),
                 default=0,
             )
             active_base_delay = max(
-                (tins_raw[i].get("base_delay_us", 0) for i in range(1, len(tins_raw))),
+                (tins_raw[i].get("base_delay_us", 0) for i in active_indices),
                 default=0,
             )
             active_max_delay_delta = max(
@@ -274,7 +307,7 @@ class CakeSignalProcessor:
                         tins_raw[i].get("avg_delay_us", 0)
                         - tins_raw[i].get("base_delay_us", 0),
                     )
-                    for i in range(1, len(tins_raw))
+                    for i in active_indices
                 ),
                 default=0,
             )
@@ -303,8 +336,9 @@ class CakeSignalProcessor:
         # Update previous counters for next cycle
         self._prev_counters = current_counters
 
-        # Sum active drops (tins[1:] = BestEffort+Video+Voice)
-        active_drops = sum(deltas.get(i, 0) for i in range(1, len(tins_raw)))
+        # Sum active drops (exclude Bulk only for multi-tin layouts)
+        active_indices = _active_tin_indices(len(tins_raw))
+        active_drops = sum(deltas.get(i, 0) for i in active_indices)
         total_drops = sum(deltas.get(i, 0) for i in range(len(tins_raw)))
 
         # Convert to drops/sec
@@ -323,7 +357,7 @@ class CakeSignalProcessor:
         # Build per-tin snapshots
         tin_snapshots = tuple(
             TinSnapshot(
-                name=self._tin_names[i] if i < len(self._tin_names) else f"Tin{i}",
+                name=tin_names[i] if i < len(tin_names) else f"Tin{i}",
                 dropped_packets=current_counters.get(i, 0),
                 drop_delta=deltas.get(i, 0),
                 backlog_bytes=tins_raw[i].get("backlog_bytes", 0),
@@ -340,20 +374,20 @@ class CakeSignalProcessor:
             for i in range(len(tins_raw))
         )
 
-        # Compute backlog and peak delay excluding Bulk (index 0)
+        # Compute backlog and peak delay across active tins.
         active_backlog = sum(
-            tins_raw[i].get("backlog_bytes", 0) for i in range(1, len(tins_raw))
+            tins_raw[i].get("backlog_bytes", 0) for i in active_indices
         )
         active_peak_delay = max(
-            (tins_raw[i].get("peak_delay_us", 0) for i in range(1, len(tins_raw))),
+            (tins_raw[i].get("peak_delay_us", 0) for i in active_indices),
             default=0,
         )
         active_avg_delay = max(
-            (tins_raw[i].get("avg_delay_us", 0) for i in range(1, len(tins_raw))),
+            (tins_raw[i].get("avg_delay_us", 0) for i in active_indices),
             default=0,
         )
         active_base_delay = max(
-            (tins_raw[i].get("base_delay_us", 0) for i in range(1, len(tins_raw))),
+            (tins_raw[i].get("base_delay_us", 0) for i in active_indices),
             default=0,
         )
         active_max_delay_delta = max(
@@ -363,7 +397,7 @@ class CakeSignalProcessor:
                     tins_raw[i].get("avg_delay_us", 0)
                     - tins_raw[i].get("base_delay_us", 0),
                 )
-                for i in range(1, len(tins_raw))
+                for i in active_indices
             ),
             default=0,
         )
