@@ -128,3 +128,5 @@ Replanned via `/gsd-plan-phase 205 --reviews`. Outcome:
 - **LOW-9 (oracle naming):** Resolved — RESEARCH/PATTERNS/VALIDATION + new test class names use "structural aggregation oracle" terminology; class renamed `TestCakeSignalProcessorBestEffortStructuralOracle`.
 
 Plan-set is now 5 plans (was 4): 205-00 (operator gate), 205-01 (RED+GREEN tests), 205-02 (TOPO-01), 205-03 (TOPO-02), 205-04 (SAFE-09 audit only).
+
+Audit marker: HIGH-2 resolved before source mutation by Plan 00 operator approval.
