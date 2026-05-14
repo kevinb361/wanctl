@@ -146,14 +146,29 @@ def build_cake_params(
     # Add tunable defaults
     params.update(TUNABLE_DEFAULTS)
 
+    # Phase 205 (TOPO-02): per-WAN allow_wash gate. Strict-bool guard
+    # `is True` rejects strings outright (`bool("false") == True` is an
+    # operator typo trap); symmetric with cake_signal.py's
+    # isinstance(v, bool) precedent.
+    allow_wash = cake_config.get("allow_wash") is True if cake_config else False
+
     # Apply config overrides (D-02: explicit False disables default True)
     if cake_config:
         for key, value in cake_config.items():
+            if key == "allow_wash":
+                continue  # control flag, consumed above; not a tc param
             tc_key = YAML_TO_TC_KEY.get(key, key)
             if tc_key in EXCLUDED_PARAMS:
-                raise ConfigValidationError(
-                    f"Excluded CAKE parameter: {key!r} -- not valid for transparent bridge topology"
-                )
+                # D-08 transparent-bridge protection still rejects nat and
+                # autorate-ingress unconditionally; wash is the only param
+                # the operator may opt into via the per-WAN allow_wash gate.
+                if tc_key == "wash" and allow_wash:
+                    pass  # fall through to assignment
+                else:
+                    raise ConfigValidationError(
+                        f"Excluded CAKE parameter: {key!r} -- not valid for "
+                        f"transparent bridge topology"
+                    )
             params[tc_key] = value
 
     # Handle overhead keyword: pop from params, validate, store as overhead_keyword
