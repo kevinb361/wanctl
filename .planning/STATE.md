@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 205
-status: executing
-stopped_at: Completed 205-03-PLAN.md
-last_updated: "2026-05-14T16:53:33.349Z"
+status: verifying
+stopped_at: Completed 205-04-PLAN.md
+last_updated: "2026-05-14T17:07:47.242Z"
 last_activity: 2026-05-14
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 4
-  percent: 80
+  completed_plans: 5
+  percent: 100
 ---
 
 # Session State
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
 **Current phase:** 205
 
-Progress: [████████░░] 80%
+Progress: [██████████] 100%
 
 ## Deferred Items
 
@@ -131,7 +131,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 205-03-PLAN.md
+Stopped at: Completed 205-04-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -304,9 +304,11 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 205-03]: allow_wash uses strict `is True` parsing so string/operator typos do not truthily bypass D-08 wash protection.
 - [Phase 205-03]: linux_cake emits explicit `nowash` when `wash` is present and false, mirroring `no-ack-filter` for operator auditability.
 - [Phase 205-03]: Phase 205 remains emission-only; `build_expected_readback()`, `_VALIDATE_KEY_TO_TCA`, and `_DIFFSERV_NAME_TO_INT` are deferred to Phase 209.
+- [Phase 205]: Plan 04 SAFE-09 closeout verified the cumulative Phase 205 source diff against v1.43 close (6508d68): exactly the operator-approved 5-file TOPO-01/TOPO-02 set, empty value-invariance grep, and Phase 209 readback/diffserv deferrals untouched.
 
 ## Performance Metrics
 
+- 2026-05-14: Phase 205 Plan 04 completed in ~11m across 2 tasks and 2 planning artifacts; SAFE-09 cross-plan diff scope matched the operator-approved 5-file set, value-invariance grep was empty, Phase 209 deferrals stayed untouched, full suite passed with 4995 passed / 6 skipped / 2 deselected, replay passed with 48 passed / 6 skipped, byte-identity guard passed, hot-path passed with 673 tests, and ruff/mypy were clean.
 - 2026-05-14: Phase 205 Plan 03 completed in 5m53s across 4 tasks and 4 source files; `allow_wash` now uses strict-bool default-false gating, `wash`/`nowash` emission reaches linux subprocess and netlink kwargs including docsis fallback, validator unknown-key warnings are suppressed for `cake_params.allow_wash` and `cake_params.wash`, ruff/mypy passed, the 330-test plan slice passed, and the hot-path slice passed with 673 tests.
 - 2026-05-14: Phase 205 Plan 02 completed in 5m30s across 1 task and 1 source file; `cake_signal.py` now uses `_active_tin_indices()` for active aggregation, single-tin besteffort RED gates are green, diffserv4 literal byte-identity and Phase 193/194/195 replay gates passed, ruff/mypy passed, and SAFE-09 file-scoped checks found no threshold/EWMA/dwell/deadband/burst value changes.
 - 2026-05-14: Phase 205 Plan 01 completed in 7m05s across 4 tasks and 5 test files; 14 Phase 205 tests were added/extended, RED behavior gates fail as expected for Plans 02/03, GREEN invariant guards pass, and `git diff HEAD -- src/wanctl/` is empty.
@@ -398,5 +400,5 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 Phase: 205 (tin-agnostic-cake-signal-allow-wash-gate) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-14
