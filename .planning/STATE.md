@@ -4,15 +4,15 @@ milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 205
 status: executing
-stopped_at: Completed 205-01-PLAN.md
-last_updated: "2026-05-14T16:27:01.711Z"
+stopped_at: Completed 205-02-PLAN.md
+last_updated: "2026-05-14T16:41:34.544Z"
 last_activity: 2026-05-14
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 5
-  completed_plans: 2
-  percent: 40
+  completed_plans: 3
+  percent: 60
 ---
 
 # Session State
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
 **Current phase:** 205
 
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 60%
 
 ## Deferred Items
 
@@ -131,7 +131,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 205-01-PLAN.md
+Stopped at: Completed 205-02-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -298,9 +298,13 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 204-10]: Used the latest PASS verdict from CALIB-04 threshold-175 rerun `20260512T004208Z` as the closeout truth source; earlier `20260510T203642Z` FAIL-A and `20260508T161146Z` pre-boundary pass are superseded provenance only. Phase 204/v1.43 is satisfied after SAFE-07, phase-scoped, hot-path, focused projection, and full-suite verification passed.
 - [Phase 205-01]: Plan 01 is tests-only; RED behavior tests intentionally fail until Plans 02/03, while GREEN invariant guards establish the baseline and production `src/wanctl/` remains untouched.
 - [Phase 205-01]: Diffserv4 byte-identity pinned literal values are drop_rate=175.0, total_drop_rate=180.0, backlog_bytes=75000, peak_delay_us=5000, avg_delay_us=4000, base_delay_us=1000, max_delay_delta_us=3000.
+- [Phase 205-02]: Active CAKE aggregation now uses _active_tin_indices(tin_count): single-tin besteffort includes index 0, while multi-tin diffserv continues excluding Bulk index 0.
+- [Phase 205-02]: Total aggregation sites remain all-tin range(len(tins_raw)) iterations; only active aggregation sites changed.
+- [Phase 205-02]: The single-tin label heuristic only rewrites the default four-name list to BestEffort; operator-supplied tin_names pass through unchanged.
 
 ## Performance Metrics
 
+- 2026-05-14: Phase 205 Plan 02 completed in 5m30s across 1 task and 1 source file; `cake_signal.py` now uses `_active_tin_indices()` for active aggregation, single-tin besteffort RED gates are green, diffserv4 literal byte-identity and Phase 193/194/195 replay gates passed, ruff/mypy passed, and SAFE-09 file-scoped checks found no threshold/EWMA/dwell/deadband/burst value changes.
 - 2026-05-14: Phase 205 Plan 01 completed in 7m05s across 4 tasks and 5 test files; 14 Phase 205 tests were added/extended, RED behavior gates fail as expected for Plans 02/03, GREEN invariant guards pass, and `git diff HEAD -- src/wanctl/` is empty.
 - 2026-05-12: Phase 204 Plan 09 completed corrected-boundary CALIB-04 rerun `20260510T203642Z`; 84,097 rows were accepted despite the >=86,000 proxy miss, boundary-marker missing rows were 0, primary_gate.delta=0, secondary_gate_completed_window value was 151.0 vs threshold 150, verdict FAIL-A just-over was recorded in `204-05-CALIB-04-SOAK-VERDICT.md`, SAFE-07 passed, and the hot-path slice passed with 667 tests.
 - 2026-05-12: Phase 204 Plan 09 Branch A continuation reapproved CALIB-02 at threshold 175 after the just-over FAIL-A (`151.0` vs `150`), preserving p99/headroom/rounding/gate-column semantics and keeping Plan 204-10 blocked pending a PASS rerun verdict.
@@ -389,6 +393,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 205 (tin-agnostic-cake-signal-allow-wash-gate) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-05-14
