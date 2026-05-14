@@ -361,7 +361,7 @@ class LinuxCakeBackend(RouterBackend):
                 - memlimit: str like "33554432"
                 - rtt: str like "100ms"
                 - Boolean flags (present=enabled): "split-gso", "ack-filter",
-                  "ingress", "ecn"
+                  "ingress", "wash", "ecn"
 
         Returns:
             True if tc command succeeded, False otherwise.
@@ -393,11 +393,13 @@ class LinuxCakeBackend(RouterBackend):
         # where tc supports one, otherwise operator overrides can be ignored.
         # Note: "ecn" is excluded -- not supported by iproute2-6.15.0's tc,
         # and CAKE enables ECN by default on all tins anyway.
-        for flag in ("split-gso", "ack-filter", "ingress"):
+        for flag in ("split-gso", "ack-filter", "ingress", "wash"):
             if params.get(flag):
                 cmd_args.append(flag)
             elif flag == "ack-filter" and flag in params:
                 cmd_args.append("no-ack-filter")
+            elif flag == "wash" and flag in params:
+                cmd_args.append("nowash")
 
         rc, _, err = self._run_tc(cmd_args, timeout=10.0)
         if rc == 0:
