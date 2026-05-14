@@ -123,4 +123,5 @@ Phase 205 closeout complete. Milestone can progress to Phase 206 (A/B replay har
 
 - FOUND: `.planning/phases/205-tin-agnostic-cake-signal-allow-wash-gate/205-04-SUMMARY.md`
 - FOUND: `.planning/phases/205-tin-agnostic-cake-signal-allow-wash-gate/205-VALIDATION.md`
+- FOUND commit: `87ad9cb`
 - Source mutation sanity: `git diff HEAD -- src/wanctl/ | wc -l` returned `0` before Task 2 commit.
