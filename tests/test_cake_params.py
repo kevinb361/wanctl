@@ -202,6 +202,36 @@ class TestBuildCakeParamsExcluded:
             build_cake_params("upload", {"autorate_ingress": True})
 
 
+class TestBuildCakeParamsAllowWash:
+    """Verify per-WAN allow_wash gate (Phase 205, TOPO-02)."""
+
+    # RED-BEHAVIOR (turns GREEN after Plan 03)
+    def test_allow_wash_true_permits_wash(self) -> None:
+        params = build_cake_params("download", {"allow_wash": True, "wash": True})
+        assert params.get("wash") is True
+        assert "allow_wash" not in params
+
+    # GREEN-INVARIANT (passes today; MUST still pass after Plan 03)
+    def test_allow_wash_false_rejects_wash(self) -> None:
+        with pytest.raises(ConfigValidationError):
+            build_cake_params("download", {"allow_wash": False, "wash": True})
+
+    # GREEN-INVARIANT
+    def test_allow_wash_absent_rejects_wash(self) -> None:
+        with pytest.raises(ConfigValidationError):
+            build_cake_params("download", {"wash": True})
+
+    # GREEN-INVARIANT
+    def test_allow_wash_does_not_permit_nat(self) -> None:
+        with pytest.raises(ConfigValidationError):
+            build_cake_params("download", {"allow_wash": True, "nat": True})
+
+    # GREEN-INVARIANT
+    def test_allow_wash_does_not_permit_autorate_ingress(self) -> None:
+        with pytest.raises(ConfigValidationError):
+            build_cake_params("download", {"allow_wash": True, "autorate_ingress": True})
+
+
 # =============================================================================
 # BANDWIDTH PARAMETER
 # =============================================================================
