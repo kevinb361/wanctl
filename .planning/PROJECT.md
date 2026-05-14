@@ -8,13 +8,32 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
+## Current Milestone: v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration
+
+**Goal:** Migrate Spectrum CAKE qdisc from `940Mbit diffserv4 nowash` to topology-correct `920Mbit besteffort wash` (validated out-of-band 2026-04-22 flent), removing classification theater that the carrier strips upstream — without disturbing ATT (DSL, separately validated) and without changing controller thresholds/algorithms.
+
+**Target features:**
+- Tin-agnostic `cake_signal.py` aggregation (currently hard-codes `tins[1:]` 4-tin layout at lines 13/173/306) — supports both single-tin besteffort and multi-tin diffserv4
+- Per-WAN config gate `cake_params.allow_wash: bool = false` (D-08 transparent-bridge rule preserved by default; ATT untouched)
+- Spectrum-only deployment with A/B replay harness vs out-of-band finding; rollback gates: RRUL p99 latency >5%, daemon restart-rate increase, pressure-state transition-rate increase
+- v1.43 closeout-routed cleanup bundled: WR-01/WR-02 soak-harness hardening, `secondary_gate_legacy` block removal, CALIB-02 promote-to-YAML
+- Carry-on quick-tasks: T17(a) `scripts/soak_summary_aggregate.py` + retire legacy regression test; T9 ingestion-rate flag on `wanctl-history`; T12 operator-summary digest perm try/except
+
+**Key context:**
+- v1.44 thesis B selected from joint Claude + Codex peer review 2026-05-09 over alternatives A (storage hygiene), C (UL tuning), D (Silicom buildout). Codex caught SEED-003 premature-closure attempt during scoping — kept v1.43 close honest.
+- SEED-001 spine: dormant → active at v1.44 open; topology-correct, not just a tuning win. v1.21's `diffserv4 + nowash` lock was correct for the THEN shaper layout; topology has shifted.
+- Phase numbering continues from v1.43 (last phase 204) → v1.44 starts at Phase 205.
+- ATT remains `diffserv4 nowash` throughout. Different carrier, different DSCP behavior, separate validation lane.
+- Out-of-scope (deferred to v1.45+): SEED-005 conservative UL tuning sweep (avoid 3 consecutive UL-only milestones), T6/T7 storage hygiene, T17(b) CALIB-02 YAML evaluation knob shape, T14/T15 Silicom buildout, T1 tcp_12down investigation, T13 ATT cake-primary canary.
+- SAFE-07 closeout invariant held v1.43 end-to-end (zero control-path source diff from `b72b463`). v1.44 inherits the discipline: no controller threshold/algorithm/EWMA/dwell/deadband/burst changes.
+
 ## Current State
 
 **Version:** v1.43.0 (UL Suppression Metrics & Gate Calibration) — archived and tagged 2026-05-13 after audit `passed` 15/15.
 **Tests:** Full suite passing; v1.43 verification soak `20260512T004208Z` dual gate PASS (D-19 primary delta 0, completed-window p99 dwell_hold `135.62 ≤ 175`).
 **LOC:** ~40,915 Python (src/)
 **Milestones:** 44 shipped (v1.0-v1.43), all archived in `.planning/milestones/`.
-**Active milestone:** none — ready for `/gsd-new-milestone` to define v1.44.
+**Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning).
 
 **Latest:** v1.43 UL Suppression Metrics & Gate Calibration — additive `/health` completed-window suppression counters by cause, per-sample `load_rtt_delta_us` in soak NDJSON with zone × cause-tag aggregation, and soak-grounded D-14 successor threshold `175` replacing the qualitative Phase 200 inheritance. Boundary-marker remediation cycle (Plans 204-07..10) re-derived CALIB-01/04 evidence under corrected aggregator. SAFE-07 closeout invariant held end-to-end: zero control-path source diff from Phase 201 close (`b72b463`).
 **Previous:** v1.42 DOCSIS-Aware UL Congestion Control — Spectrum upload runs a YAML setpoint clamp (`docsis_mode: true`, `setpoint_mbps: 12`) with windowed RTT-integral classifier and CAKE-backlog secondary corroborator; bounded absolute RED decay and integral anti-windup landed in Plan 201-14; recanary `20260505T122513Z` PASSED with `ul_floor_hits_during_load=0`; 24h soak `20260505T132736Z` D-19 floor-hit delta `0` on production v1.42.1.
@@ -740,4 +759,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-05-13 — v1.43 UL Suppression Metrics & Gate Calibration archived and tagged after audit `passed` 15/15. Boundary-marker remediation cycle (Plans 204-07..10) closed CALIB-01/04 under corrected aggregator; threshold 175 verified by soak `20260512T004208Z`. SAFE-07 invariant held end-to-end. Ready for `/gsd-new-milestone` to define v1.44 — SEED-005 prereqs now met._
+_Last updated: 2026-05-13 — v1.44 milestone opened (Topology-Correct CAKE — Spectrum besteffort wash migration). SEED-001 spine activated; thesis B confirmed via joint Claude+Codex review 2026-05-09 (over alternatives A/C/D). Carry-on quick-tasks T17(a)/T9/T12 + v1.43 closeout-routed cleanup (WR-01/WR-02, secondary_gate_legacy removal, CALIB-02 YAML promote) bundled. ATT untouched; phase numbering continues from 204 → 205. Research skipped (SEED-001 already codex-reviewed with breadcrumbs). Ready for requirements + roadmap._
