@@ -20,7 +20,7 @@
 
 **Closeout invariants:**
 - **SAFE-08 (mechanical):** ATT config + ATT-specific code paths byte-identical between v1.43 close (`6508d68`) and v1.44 close.
-- **SAFE-09 (behavioral):** No controller threshold / algorithm / EWMA / dwell / deadband / burst changes. Control-path source diff bounded to TOPO-01 (`cake_signal.py`), TOPO-02 (`cake_params.py` allow_wash gate), TOOL-03 (`operator_summary.py` perm handling), and the `__init__.py` version bump. Verified at every phase boundary; mechanical closeout in Phase 209.
+- **SAFE-09 (behavioral):** No controller threshold / algorithm / EWMA / dwell / deadband / burst changes. Control-path source diff bounded to TOPO-01 (`cake_signal.py`), TOPO-02 (`cake_params.py` allow_wash gate, `backends/linux_cake.py` + `backends/netlink_cake.py` wash token/kwarg emission, `check_config_validators.py` allowlist), TOOL-03 (`operator_summary.py` perm handling), and the `__init__.py` version bump. Verified at every phase boundary; mechanical closeout in Phase 209.
 
 **Granularity:** fine (per `.planning/config.json`)
 **Coverage:** 16 / 16 v1.44 requirements mapped (TOPO 1–7, HRDN 1–4, TOOL 1–3, SAFE 8–9)
@@ -46,8 +46,13 @@
   1. `src/wanctl/cake_signal.py` aggregation at lines 13/173/306 iterates over the actual tin set and produces identical outputs for ATT's multi-tin diffserv4 layout (regression evidence: existing ATT-shape unit/replay tests pass byte-for-byte).
   2. A new replay-oracle test exercises `cake_signal.py` against a captured single-tin besteffort CAKE state fixture and produces signal values consistent with the diffserv4 oracle for the same load profile.
   3. `cake_params.allow_wash` reads as `False` by default; with `allow_wash: false` the qdisc args list excludes `wash`; with `allow_wash: true` the args list includes `wash`. D-08 transparent-bridge protection (`EXCLUDED_PARAMS = {"nat", "wash", "autorate-ingress"}`) still excludes `nat` and `autorate-ingress` unconditionally.
-  4. SAFE-09 phase-boundary check: control-path source diff vs v1.43 close (`6508d68`) is bounded to `cake_signal.py` (TOPO-01) and `cake_params.py` (TOPO-02); no threshold/EWMA/dwell/deadband/burst values changed.
-**Plans:** TBD
+  4. SAFE-09 phase-boundary check: control-path source diff vs v1.43 close (`6508d68`) is bounded to `cake_signal.py` (TOPO-01) and the TOPO-02 set (`cake_params.py`, `backends/linux_cake.py`, `backends/netlink_cake.py`, `check_config_validators.py`); no threshold/EWMA/dwell/deadband/burst values changed. Wash readback validation (`build_expected_readback()` + `_VALIDATE_KEY_TO_TCA`) is explicitly out of Phase 205 scope — Phase 205 validates emission only; Phase 209 owns live qdisc readback.
+**Plans:** 5 plans
+- [ ] 205-00-PLAN.md — Operator gate: SAFE-09 allowlist expansion pre-approval + planning-artifact amendment
+- [ ] 205-01-PLAN.md — Wave 0: failing tests for besteffort aggregation, allow_wash gate, backend wash emission, validator allowlist
+- [ ] 205-02-PLAN.md — TOPO-01: tin-agnostic cake_signal.py via _active_tin_indices helper; diffserv4 byte-identical
+- [ ] 205-03-PLAN.md — TOPO-02 end-to-end: cake_params.py allow_wash gate + linux_cake/netlink_cake wash emission + check_config_validators allowlist
+- [ ] 205-04-PLAN.md — SAFE-09 boundary verification + ROADMAP amendment checkpoint
 
 #### Phase 206: A/B replay harness + rollback gates
 
@@ -100,7 +105,7 @@
   1. `configs/spectrum.yaml` migrates: `ceiling_mbps: 940 → 920`, `diffserv: diffserv4 → besteffort`, `allow_wash: true`. `configs/att.yaml` is byte-identical to v1.43 close (`6508d68`); `scripts/check-safe07-source-diff.sh` extended with the ATT-config whitelist mode confirms it (TOPO-03, SAFE-08).
   2. The production canary on Spectrum executes the v1.42/v1.43 two-snapshot rollback ritual: predeploy gate (Phase 206 script) → deploy → 24h soak under post-migration controller → verification soak comparing zone × cause-tag distributions to the v1.43 baseline (`20260509T183037Z`). The Phase 206 rollback gates do not trip (TOPO-06).
   3. `CHANGELOG.md`, `docs/BRIDGE_QOS.md`, and `docs/CONFIGURATION.md` document besteffort/wash semantics, the per-WAN `allow_wash` knob (default-false), and the topology rationale (DSCP not preserved across ISP) (TOPO-07).
-  4. SAFE-09 closeout: end-to-end control-path source diff between v1.43 close (`6508d68`) and v1.44 close is bounded to `cake_signal.py` (TOPO-01), `cake_params.py` (TOPO-02), `operator_summary.py` (TOOL-03), and `src/wanctl/__init__.py` (version bump). HRDN-01's fail-closed verifier confirms mechanically.
+  4. SAFE-09 closeout: end-to-end control-path source diff between v1.43 close (`6508d68`) and v1.44 close is bounded to `cake_signal.py` (TOPO-01), the TOPO-02 set (`cake_params.py`, `backends/linux_cake.py`, `backends/netlink_cake.py`, `check_config_validators.py`), `operator_summary.py` (TOOL-03), and `src/wanctl/__init__.py` (version bump). HRDN-01's fail-closed verifier confirms mechanically. Phase 209 also adds wash to `build_expected_readback()` + `_VALIDATE_KEY_TO_TCA` so live readback validates the new qdisc state.
   5. Version bump `1.43.0 → 1.44.0` propagates across `pyproject.toml`, `src/wanctl/__init__.py`, and `docker/Dockerfile`.
 **Plans:** TBD
 
@@ -108,7 +113,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 205 — Tin-agnostic CAKE signal + allow_wash gate | 0/0 | Not started | - |
+| 205 — Tin-agnostic CAKE signal + allow_wash gate | 0/5 | Not started | - |
 | 206 — A/B replay harness + rollback gates | 0/0 | Not started | - |
 | 207 — Soak / harness hardening | 0/0 | Not started | - |
 | 208 — Carry-on quick-tasks (T17a / T9 / T12) | 0/0 | Not started | - |
