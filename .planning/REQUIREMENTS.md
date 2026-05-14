@@ -16,8 +16,8 @@
 
 ### TOPO — Topology-correct CAKE migration (SEED-001 spine)
 
-- [ ] **TOPO-01** — `src/wanctl/cake_signal.py` aggregation is tin-agnostic at lines 13/173/306; handles single-tin besteffort and multi-tin diffserv4 layouts identically without per-deployment branching. Behavior preserved for ATT (multi-tin diffserv4); new besteffort path covered by replay-oracle test against captured CAKE state.
-- [ ] **TOPO-02** — Per-WAN config gate `cake_params.allow_wash: bool = false` permits `wash` in the qdisc args list when explicitly enabled. Default remains false; D-08 transparent-bridge protection (`EXCLUDED_PARAMS = {"nat", "wash", "autorate-ingress"}`) preserved for ATT and any future bridge deployment.
+- [x] **TOPO-01** — `src/wanctl/cake_signal.py` aggregation is tin-agnostic at lines 13/173/306; handles single-tin besteffort and multi-tin diffserv4 layouts identically without per-deployment branching. Behavior preserved for ATT (multi-tin diffserv4); new besteffort path covered by replay-oracle test against captured CAKE state.
+- [x] **TOPO-02** — Per-WAN config gate `cake_params.allow_wash: bool = false` permits `wash` in the qdisc args list when explicitly enabled. Default remains false; D-08 transparent-bridge protection (`EXCLUDED_PARAMS = {"nat", "wash", "autorate-ingress"}`) preserved for ATT and any future bridge deployment.
 - [ ] **TOPO-03** — `configs/spectrum.yaml` migrates: `ceiling_mbps: 940 → 920`, `diffserv: diffserv4 → besteffort`, `allow_wash: true`. ATT config (`configs/att.yaml`) byte-identical at v1.44 close.
 - [ ] **TOPO-04** — A/B replay harness captures pre/post RRUL p99 latency, throughput, jitter against the 2026-04-22 out-of-band flent finding. Reuses the Phase 193/194/195 replay pattern; deterministic golden fixture committed.
 - [ ] **TOPO-05** — Rollback criteria documented in machine-readable form (`PHASE-205-ROLLBACK-GATES.md` or equivalent): regression >5% on RRUL p99 latency OR Spectrum daemon restart-rate increase OR pressure-state transition-rate increase per hour. Predeploy gate script enforces.
@@ -63,8 +63,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TOPO-01 | Phase 205 | Pending |
-| TOPO-02 | Phase 205 | Pending |
+| TOPO-01 | Phase 205 | Complete |
+| TOPO-02 | Phase 205 | Complete |
 | TOPO-03 | Phase 209 | Pending |
 | TOPO-04 | Phase 206 | Pending |
 | TOPO-05 | Phase 206 | Pending |

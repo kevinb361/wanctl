@@ -4,15 +4,15 @@ milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 205
 status: executing
-stopped_at: None — Plan 204-10 closeout refresh complete; v1.43 is ready for milestone archive / next milestone planning
-last_updated: "2026-05-14T16:14:27.686Z"
+stopped_at: Completed 205-01-PLAN.md
+last_updated: "2026-05-14T16:27:01.711Z"
 last_activity: 2026-05-14
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
-  percent: 20
+  completed_plans: 2
+  percent: 40
 ---
 
 # Session State
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
 **Current phase:** 205
 
-Progress: [██░░░░░░░░] 20%
+Progress: [████░░░░░░] 40%
 
 ## Deferred Items
 
@@ -131,7 +131,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: None — Plan 204-10 closeout refresh complete; v1.43 is ready for milestone archive / next milestone planning
+Stopped at: Completed 205-01-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -296,9 +296,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 204-09 Branch A continuation]: Launched CALIB-04 rerun `20260512T004208Z` on cake-shaper using `HEALTH_URL=http://10.10.110.223:9101/health`; production version `1.43.0`, pre-soak floor-hit baseline `0`, threshold `175`, and first rows included `ul_hysteresis_window_start_epoch`. Remote capture path is `/var/tmp/wanctl-soak-20260512T004208Z/soak-capture.ndjson`.
 - [Phase 204-09 Branch A continuation]: CALIB-04 rerun `20260512T004208Z` passed the dual gate at threshold `175`: row count `84099` (strict proxy miss accepted via continuation prompt with stronger checks), parse errors `0`, boundary-marker missing rows `0`, wall-clock span `23:59:59`, boundary span `23:59:54.820912`, primary_gate.delta `0`, secondary_gate_completed_window value `135.6199999999999`, and verdict updated to `pass`. Plan 204-10 remains a separate closeout refresh.
 - [Phase 204-10]: Used the latest PASS verdict from CALIB-04 threshold-175 rerun `20260512T004208Z` as the closeout truth source; earlier `20260510T203642Z` FAIL-A and `20260508T161146Z` pre-boundary pass are superseded provenance only. Phase 204/v1.43 is satisfied after SAFE-07, phase-scoped, hot-path, focused projection, and full-suite verification passed.
+- [Phase 205-01]: Plan 01 is tests-only; RED behavior tests intentionally fail until Plans 02/03, while GREEN invariant guards establish the baseline and production `src/wanctl/` remains untouched.
+- [Phase 205-01]: Diffserv4 byte-identity pinned literal values are drop_rate=175.0, total_drop_rate=180.0, backlog_bytes=75000, peak_delay_us=5000, avg_delay_us=4000, base_delay_us=1000, max_delay_delta_us=3000.
 
 ## Performance Metrics
 
+- 2026-05-14: Phase 205 Plan 01 completed in 7m05s across 4 tasks and 5 test files; 14 Phase 205 tests were added/extended, RED behavior gates fail as expected for Plans 02/03, GREEN invariant guards pass, and `git diff HEAD -- src/wanctl/` is empty.
 - 2026-05-12: Phase 204 Plan 09 completed corrected-boundary CALIB-04 rerun `20260510T203642Z`; 84,097 rows were accepted despite the >=86,000 proxy miss, boundary-marker missing rows were 0, primary_gate.delta=0, secondary_gate_completed_window value was 151.0 vs threshold 150, verdict FAIL-A just-over was recorded in `204-05-CALIB-04-SOAK-VERDICT.md`, SAFE-07 passed, and the hot-path slice passed with 667 tests.
 - 2026-05-12: Phase 204 Plan 09 Branch A continuation reapproved CALIB-02 at threshold 175 after the just-over FAIL-A (`151.0` vs `150`), preserving p99/headroom/rounding/gate-column semantics and keeping Plan 204-10 blocked pending a PASS rerun verdict.
 - 2026-05-12: Phase 204 Plan 09 Branch A continuation launched CALIB-04 rerun `20260512T004208Z` with `threshold=175`, `PRE_FH=0`, health URL `http://10.10.110.223:9101/health`, remote tmux `wanctl-soak` running, initial line count 5, and boundary marker present in first rows; post-24h aggregation is pending.
@@ -386,6 +389,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 205 (tin-agnostic-cake-signal-allow-wash-gate) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-05-14
