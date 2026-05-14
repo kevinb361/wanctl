@@ -1,9 +1,9 @@
 ---
 phase: 205
 slug: tin-agnostic-cake-signal-allow-wash-gate
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-05-13
 ---
 
@@ -45,15 +45,17 @@ created: 2026-05-13
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
 | 205-00-01 | 00 | 1 | TOPO-01,02 | T-205-00-01 | operator approval of SAFE-09 file allowlist expansion captured before source mutation | checkpoint:human-verify | approve | n/a (checkpoint) | ✅ complete |
 | 205-00-02 | 00 | 1 | TOPO-01,02 | T-205-00-02 | ROADMAP amended (or divergence documented); VALIDATION.md + REVIEWS.md updated | scripted | `grep -c "backends/linux_cake.py" .planning/ROADMAP.md` returns >= 1 (or REJECT branch divergence note present) | n/a (artifact) | ✅ complete |
-| 205-01-01 | 01 | 1 | TOPO-01 | T-205-01-01 | fixture parameterization preserves 4-tin defaults | unit (RED) | `.venv/bin/pytest tests/test_cake_signal.py::TestCakeSignalProcessorBestEffort tests/test_cake_signal.py::TestCakeSignalProcessorBestEffortOracle -v` | ❌ W0 | ⬜ pending |
-| 205-01-02 | 01 | 1 | TOPO-02 | T-205-01-02 | RED tests for allow_wash + wash emission + validator allowlist | unit/integration (RED) | `.venv/bin/pytest tests/test_cake_params.py::TestBuildCakeParamsAllowWash tests/backends/test_linux_cake.py -k "emits_wash or emits_nowash" tests/backends/test_netlink_cake.py -k "passes_wash" tests/test_check_config.py::TestLinuxCakeValidation::test_cake_params_allow_wash_no_unknown_key_warning -v` | ❌ W0 | ⬜ pending |
-| 205-02-01 | 02 | 2 | TOPO-01 | T-205-02-01,02,03 | tin-agnostic _active_tin_indices helper; diffserv4 byte-identical; tin_names heuristic for besteffort | unit + replay (GREEN) | `.venv/bin/pytest -o addopts='' tests/test_cake_signal.py tests/test_phase_193_replay.py tests/test_phase_194_replay.py tests/test_phase_195_replay.py tests/test_queue_controller.py tests/test_wan_controller.py tests/test_health_check.py -q` | ✅ (after 205-01) | ⬜ pending |
-| 205-03-01 | 03 | 2 | TOPO-02 | T-205-03-01,02 | strict-bool allow_wash gate; nat/autorate-ingress still unconditionally excluded | unit (GREEN) | `.venv/bin/pytest tests/test_cake_params.py -v` | ✅ (after 205-01) | ⬜ pending |
-| 205-03-02 | 03 | 2 | TOPO-02 | T-205-03-03,05,07 | wash/nowash token + pyroute2 wash kwarg emission; symmetric explicit-false | unit/integration (GREEN) | `.venv/bin/pytest tests/backends/test_linux_cake.py tests/backends/test_netlink_cake.py -v` | ✅ (after 205-01) | ⬜ pending |
-| 205-03-03 | 03 | 2 | TOPO-02 | — | KNOWN_AUTORATE_PATHS includes cake_params.allow_wash + cake_params.wash; no daemon startup WARN | unit (GREEN) | `.venv/bin/pytest tests/test_check_config.py::TestLinuxCakeValidation -v` | ✅ (after 205-01) | ⬜ pending |
-| 205-04-01 | 04 | 3 | TOPO-01,02 | T-205-04-01,02 | SAFE-09 boundary diff scope = exactly 5 files; value-invariance grep empty; replay byte-identical; full suite green | scripted git + pytest | `git diff 6508d68 --name-only -- src/wanctl/ \| sort -u \| wc -l` returns 5; full suite + replay + hot-path slice all green | n/a (audit) | ⬜ pending |
-| 205-04-02 | 04 | 3 | — | T-205-04-03 | operator decision on ROADMAP SAFE-09 wording amendment captured | checkpoint:human-verify | (operator resume-signal) | n/a (checkpoint) | ⬜ pending |
-| 205-04-03 | 04 | 3 | — | — | ROADMAP amended (or divergence documented) + 205-04-SUMMARY.md written + VALIDATION.md finalized | scripted | `test -f .planning/phases/205-*/205-04-SUMMARY.md && grep -q SAFE-09 .planning/phases/205-*/205-04-SUMMARY.md` | n/a (artifact) | ⬜ pending |
+| 205-01-01 | 01 | 2 | TOPO-01 | T-205-01-01 | fixture parameterization preserves 4-tin defaults; single-tin besteffort RED behavior tests authored | unit (RED) | `.venv/bin/pytest tests/test_cake_signal.py::TestCakeSignalProcessorBestEffort tests/test_cake_signal.py::TestCakeSignalProcessorBestEffortStructuralOracle -v` failed as expected in Plan 01; later green after Plan 02 | ✅ | ✅ passed |
+| 205-01-02 | 01 | 2 | TOPO-02 | T-205-01-02 | RED tests for allow_wash + wash emission + docsis fallback + validator allowlist authored | unit/integration (RED) | Plan 01 RED commands failed as expected; Plan 03 slices later green | ✅ | ✅ passed |
+| 205-01-03 | 01 | 2 | TOPO-01, SAFE-09 | T-205-04-04 | literal diffserv4 byte-identity guard pins current numeric output | unit (GREEN invariant) | `.venv/bin/pytest tests/test_cake_signal.py::TestCakeSignalProcessorDiffserv4ByteIdentity -v` | ✅ | ✅ passed |
+| 205-01-04 | 01 | 2 | TOPO-01,02 | T-205-01-01,02 | GREEN-invariant audit confirms source untouched and default D-08 guards still pass | scripted + unit | `git diff HEAD -- src/wanctl/` empty; D-08 guard subset green | ✅ | ✅ passed |
+| 205-02-01 | 02 | 3 | TOPO-01 | T-205-02-01,02,03,04 | tin-agnostic `_active_tin_indices` helper; diffserv4 byte-identical; tin_names heuristic for besteffort | unit + replay (GREEN) | `.venv/bin/pytest -o addopts='' tests/test_cake_signal.py tests/test_phase_193_replay.py tests/test_phase_194_replay.py tests/test_phase_195_replay.py tests/test_queue_controller.py tests/test_wan_controller.py tests/test_health_check.py -q` | ✅ | ✅ passed |
+| 205-03-01 | 03 | 3 | TOPO-02 | T-205-03-01,02 | strict-bool allow_wash gate; nat/autorate-ingress still unconditionally excluded | unit (GREEN) | `.venv/bin/pytest tests/test_cake_params.py -v` | ✅ | ✅ passed |
+| 205-03-02 | 03 | 3 | TOPO-02 | T-205-03-03,05,07 | linux_cake wash/nowash subprocess emission including docsis fallback | unit/integration (GREEN) | `.venv/bin/pytest tests/backends/test_linux_cake.py -v` | ✅ | ✅ passed |
+| 205-03-03 | 03 | 3 | TOPO-02 | T-205-03-03,05,07 | netlink_cake wash pyroute2 kwarg emission including docsis fallback | unit/integration (GREEN) | `.venv/bin/pytest tests/backends/test_netlink_cake.py -v` | ✅ | ✅ passed |
+| 205-03-04 | 03 | 3 | TOPO-02 | — | `KNOWN_AUTORATE_PATHS` includes `cake_params.allow_wash` + `cake_params.wash`; no daemon startup WARN | unit (GREEN) | `.venv/bin/pytest tests/test_check_config.py::TestLinuxCakeValidation -v` | ✅ | ✅ passed |
+| 205-04-01 | 04 | 4 | TOPO-01,02 | T-205-04-01,02,03,04 | SAFE-09 boundary diff scope = exactly 5 files; value-invariance grep empty; deferrals untouched; full suite + replay + hot-path green | scripted git + pytest | `SAFE-09-scope=5-OK`; full suite `4995 passed, 6 skipped, 2 deselected`; replay `48 passed, 6 skipped`; byte-identity `1 passed`; hot-path `673 passed` | n/a (audit) | ✅ passed |
+| 205-04-02 | 04 | 4 | TOPO-01,02 | T-205-04-01,02,03,04 | 205-04-SUMMARY.md written and validation map finalized with wave-0 and Nyquist frontmatter flags enabled | scripted artifact check | `test -f .../205-04-SUMMARY.md && grep -q SAFE-09 .../205-04-SUMMARY.md && grep -q "wave_0_complete" .../205-VALIDATION.md` | ✅ | ✅ passed |
 
 ---
 
@@ -86,6 +88,6 @@ created: 2026-05-13
 - [ ] Wave 0 covers all MISSING references
 - [ ] No watch-mode flags
 - [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] Nyquist-compliant frontmatter flag enabled
 
-**Approval:** pending
+**Approval:** passed — Plan 04 closeout populated all task rows and verified the SAFE-09 boundary.
