@@ -1,22 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: null
-milestone_name: null
-status: between_milestones
-stopped_at: null
-last_updated: "2026-05-13T15:00:00.000Z"
-last_activity: 2026-05-13
+milestone: v1.44
+milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
+status: planning
+last_updated: "2026-05-14T00:57:47.908Z"
+last_activity: 2026-05-14
 progress:
   total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
   percent: 0
-last_shipped:
-  milestone: v1.43
-  name: UL Suppression Metrics & Gate Calibration
-  date: 2026-05-13
-  verdict: passed
 ---
 
 # Session State
@@ -387,7 +381,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Current Position
 
-Phase: 204
-Plan: Not started
-Status: Milestone complete
-Last activity: 2026-05-13
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-14 — Milestone v1.44 started
