@@ -344,7 +344,7 @@ class LinuxCakeBackend(RouterBackend):
     # CAKE-specific methods (not in ABC)
     # =========================================================================
 
-    def initialize_cake(self, params: dict[str, Any]) -> bool:
+    def initialize_cake(self, params: dict[str, Any]) -> bool:  # noqa: C901
         """Initialize CAKE qdisc via tc qdisc replace.
 
         Called at daemon startup. Uses replace (not add) to handle the case
