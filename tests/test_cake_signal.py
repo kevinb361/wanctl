@@ -32,13 +32,14 @@ def make_mock_stats(
     tin_peak_delay: list[int] | None = None,
     tin_avg_delay: list[int] | None = None,
     tin_base_delay: list[int] | None = None,
+    tin_count: int = 4,
 ) -> dict[str, Any]:
     """Build a mock get_queue_stats() return value."""
-    tin_drops = tin_drops or [0, 0, 0, 0]
-    tin_backlog = tin_backlog or [0, 0, 0, 0]
-    tin_peak_delay = tin_peak_delay or [0, 0, 0, 0]
-    tin_avg_delay = tin_avg_delay or [0, 0, 0, 0]
-    tin_base_delay = tin_base_delay or [0, 0, 0, 0]
+    tin_drops = tin_drops or [0] * tin_count
+    tin_backlog = tin_backlog or [0] * tin_count
+    tin_peak_delay = tin_peak_delay or [0] * tin_count
+    tin_avg_delay = tin_avg_delay or [0] * tin_count
+    tin_base_delay = tin_base_delay or [0] * tin_count
     return {
         "packets": 100000,
         "bytes": 150000000,
@@ -63,7 +64,7 @@ def make_mock_stats(
                 "bulk_flows": 0,
                 "unresponsive_flows": 0,
             }
-            for i in range(4)
+            for i in range(tin_count)
         ],
     }
 
@@ -423,6 +424,92 @@ class TestCakeSignalProcessorTinSeparation:
         assert snap.max_delay_delta_us == 9800
         assert [tin.delay_delta_us for tin in snap.tins[1:]] == [9800, 200, 500]
         assert snap.max_delay_delta_us != (snap.avg_delay_us - snap.base_delay_us)
+
+
+class TestCakeSignalProcessorBestEffort:
+    """RED-BEHAVIOR: single-tin besteffort layout must produce active signals."""
+
+    def test_single_tin_drops_in_active_rate(self) -> None:
+        cfg = CakeSignalConfig(enabled=True, time_constant_sec=1.0)
+        proc = CakeSignalProcessor(config=cfg)
+
+        proc.update(make_mock_stats(tin_drops=[0], tin_count=1))
+        snap = proc.update(make_mock_stats(tin_drops=[100], tin_count=1))
+
+        assert snap is not None
+        assert snap.drop_rate > 0.0
+        assert snap.total_drop_rate > 0.0
+
+    def test_single_tin_backlog_aggregates(self) -> None:
+        cfg = CakeSignalConfig(enabled=True, time_constant_sec=1.0)
+        proc = CakeSignalProcessor(config=cfg)
+
+        proc.update(make_mock_stats(tin_backlog=[0], tin_count=1))
+        snap = proc.update(make_mock_stats(tin_backlog=[50000], tin_count=1))
+
+        assert snap is not None
+        assert snap.backlog_bytes == 50000
+
+    def test_single_tin_peak_delay_aggregates(self) -> None:
+        cfg = CakeSignalConfig(enabled=True, time_constant_sec=1.0)
+        proc = CakeSignalProcessor(config=cfg)
+
+        proc.update(make_mock_stats(tin_peak_delay=[0], tin_count=1))
+        snap = proc.update(make_mock_stats(tin_peak_delay=[5000], tin_count=1))
+
+        assert snap is not None
+        assert snap.peak_delay_us == 5000
+
+    def test_single_tin_name_label_is_besteffort(self) -> None:
+        cfg = CakeSignalConfig(enabled=True, time_constant_sec=1.0)
+        proc = CakeSignalProcessor(config=cfg)
+
+        proc.update(make_mock_stats(tin_count=1))
+        snap = proc.update(make_mock_stats(tin_count=1))
+
+        assert snap is not None
+        assert snap.tins[0].name == "BestEffort"
+
+
+class TestCakeSignalProcessorBestEffortStructuralOracle:
+    """Structural aggregation oracle — synthesized 1-tin fixture, not a captured replay.
+
+    Confirms that the active-tin set on besteffort produces the same numeric output
+    as the active-tin set on diffserv4 for matched logical load.
+    """
+
+    def test_besteffort_matches_diffserv4_for_same_active_load(self) -> None:
+        cfg = CakeSignalConfig(enabled=True, time_constant_sec=1.0)
+        diffserv4_proc = CakeSignalProcessor(config=cfg)
+        besteffort_proc = CakeSignalProcessor(config=cfg)
+
+        diffserv4_proc.update(make_mock_stats(tin_count=4))
+        besteffort_proc.update(make_mock_stats(tin_count=1))
+        diffserv4_snap = diffserv4_proc.update(
+            make_mock_stats(
+                tin_drops=[0, 100, 0, 0],
+                tin_backlog=[0, 50000, 0, 0],
+                tin_peak_delay=[0, 5000, 0, 0],
+                tin_count=4,
+            )
+        )
+        besteffort_snap = besteffort_proc.update(
+            make_mock_stats(
+                tin_drops=[100],
+                tin_backlog=[50000],
+                tin_peak_delay=[5000],
+                tin_count=1,
+            )
+        )
+
+        assert diffserv4_snap is not None
+        assert besteffort_snap is not None
+        assert besteffort_snap.drop_rate == pytest.approx(diffserv4_snap.drop_rate, abs=1e-9)
+        assert besteffort_snap.total_drop_rate == pytest.approx(
+            diffserv4_snap.total_drop_rate, abs=1e-9
+        )
+        assert besteffort_snap.backlog_bytes == diffserv4_snap.backlog_bytes
+        assert besteffort_snap.peak_delay_us == diffserv4_snap.peak_delay_us
 
 
 # ---------------------------------------------------------------------------
