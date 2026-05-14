@@ -61,4 +61,23 @@
 
 ## Traceability
 
-(Filled by roadmap — phase ↔ REQ-ID mapping.)
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| TOPO-01 | Phase 205 | Pending |
+| TOPO-02 | Phase 205 | Pending |
+| TOPO-03 | Phase 209 | Pending |
+| TOPO-04 | Phase 206 | Pending |
+| TOPO-05 | Phase 206 | Pending |
+| TOPO-06 | Phase 209 | Pending |
+| TOPO-07 | Phase 209 | Pending |
+| HRDN-01 | Phase 207 | Pending |
+| HRDN-02 | Phase 207 | Pending |
+| HRDN-03 | Phase 207 | Pending |
+| HRDN-04 | Phase 207 | Pending |
+| TOOL-01 | Phase 208 | Pending |
+| TOOL-02 | Phase 208 | Pending |
+| TOOL-03 | Phase 208 | Pending |
+| SAFE-08 | Phase 209 (mechanical closeout; verified at every phase boundary) | Pending |
+| SAFE-09 | Phase 209 (mechanical closeout; verified at every phase boundary) | Pending |
+
+**Coverage:** 16/16 v1.44 requirements mapped (no orphans, no duplicates).
