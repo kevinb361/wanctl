@@ -2,15 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
-status: planning
-last_updated: "2026-05-14T00:57:47.908Z"
+current_phase: 205
+status: executing
+stopped_at: None — Plan 204-10 closeout refresh complete; v1.43 is ready for milestone archive / next milestone planning
+last_updated: "2026-05-14T16:14:27.686Z"
 last_activity: 2026-05-14
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 5
+  completed_plans: 1
+  percent: 20
 ---
 
 # Session State
@@ -20,16 +22,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration. Roadmap drafted (2026-05-14) with 5 phases (205–209); 16/16 requirements mapped (TOPO 1–7, HRDN 1–4, TOOL 1–3, SAFE 8–9). Spine seed SEED-001 active. ATT untouched throughout (SAFE-08); no controller threshold/algorithm changes (SAFE-09).
+**Current focus:** Phase 205 — tin-agnostic-cake-signal-allow-wash-gate
 
 ## Position
 
 **Last shipped milestone:** v1.43 UL Suppression Metrics & Gate Calibration (shipped 2026-05-13; audit `passed` 15/15)
 **Recently archived:** v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
-**Current phase:** none yet (next: `/gsd-plan-phase 205`).
+**Current phase:** 205
 
-Progress: [          ] 0% (0/5 phases, 0/0 plans — phase plans not yet authored)
+Progress: [██░░░░░░░░] 20%
 
 ## Deferred Items
 
@@ -383,7 +385,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-05-14 — Milestone v1.44 started
+Phase: 205 (tin-agnostic-cake-signal-allow-wash-gate) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-05-14

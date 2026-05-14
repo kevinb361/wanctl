@@ -47,8 +47,8 @@
   2. A new replay-oracle test exercises `cake_signal.py` against a captured single-tin besteffort CAKE state fixture and produces signal values consistent with the diffserv4 oracle for the same load profile.
   3. `cake_params.allow_wash` reads as `False` by default; with `allow_wash: false` the qdisc args list excludes `wash`; with `allow_wash: true` the args list includes `wash`. D-08 transparent-bridge protection (`EXCLUDED_PARAMS = {"nat", "wash", "autorate-ingress"}`) still excludes `nat` and `autorate-ingress` unconditionally.
   4. SAFE-09 phase-boundary check: control-path source diff vs v1.43 close (`6508d68`) is bounded to `cake_signal.py` (TOPO-01) and the TOPO-02 set (`cake_params.py`, `backends/linux_cake.py`, `backends/netlink_cake.py`, `check_config_validators.py`); no threshold/EWMA/dwell/deadband/burst values changed. Wash readback validation (`build_expected_readback()` + `_VALIDATE_KEY_TO_TCA`) is explicitly out of Phase 205 scope — Phase 205 validates emission only; Phase 209 owns live qdisc readback.
-**Plans:** 5 plans
-- [ ] 205-00-PLAN.md — Operator gate: SAFE-09 allowlist expansion pre-approval + planning-artifact amendment
+**Plans:** 1/5 plans executed
+- [x] 205-00-PLAN.md — Operator gate: SAFE-09 allowlist expansion pre-approval + planning-artifact amendment
 - [ ] 205-01-PLAN.md — Wave 0: failing tests for besteffort aggregation, allow_wash gate, backend wash emission, validator allowlist
 - [ ] 205-02-PLAN.md — TOPO-01: tin-agnostic cake_signal.py via _active_tin_indices helper; diffserv4 byte-identical
 - [ ] 205-03-PLAN.md — TOPO-02 end-to-end: cake_params.py allow_wash gate + linux_cake/netlink_cake wash emission + check_config_validators allowlist
@@ -113,7 +113,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 205 — Tin-agnostic CAKE signal + allow_wash gate | 0/5 | Not started | - |
+| 205 — Tin-agnostic CAKE signal + allow_wash gate | 1/5 | In Progress|  |
 | 206 — A/B replay harness + rollback gates | 0/0 | Not started | - |
 | 207 — Soak / harness hardening | 0/0 | Not started | - |
 | 208 — Carry-on quick-tasks (T17a / T9 / T12) | 0/0 | Not started | - |
