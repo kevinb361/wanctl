@@ -519,6 +519,49 @@ class TestInitializeCake:
         assert call_kwargs.get("ack_filter") is False
 
     @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_initialize_cake_passes_wash_kwarg(self, MockIPRoute, backend):
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        MockIPRoute.return_value = mock_instance
+
+        backend.initialize_cake({"wash": True})
+        call_kwargs = mock_instance.tc.call_args[1]
+        assert call_kwargs.get("wash") is True
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_initialize_cake_passes_wash_false_kwarg(self, MockIPRoute, backend):
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        MockIPRoute.return_value = mock_instance
+
+        backend.initialize_cake({"wash": False})
+        call_kwargs = mock_instance.tc.call_args[1]
+        assert call_kwargs.get("wash") is False
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_initialize_cake_falls_back_to_subprocess_for_docsis(
+        self, MockIPRoute, mock_run, backend
+    ):
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        MockIPRoute.return_value = mock_instance
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+
+        backend.initialize_cake(
+            {
+                "overhead_keyword": "docsis",
+                "bandwidth": "920Mbit",
+                "diffserv": "besteffort",
+                "wash": True,
+            }
+        )
+
+        mock_instance.tc.assert_not_called()
+        cmd = mock_run.call_args[0][0]
+        assert "wash" in cmd
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
     def test_initialize_cake_maps_numeric_overhead(self, MockIPRoute, backend):
         mock_instance = MagicMock()
         mock_instance.link_lookup.return_value = [42]

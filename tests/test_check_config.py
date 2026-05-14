@@ -1324,6 +1324,28 @@ class TestLinuxCakeValidation:
         ]
         assert len(unknown_cake) == 0, f"Unexpected unknown key warnings: {unknown_cake}"
 
+    def test_cake_params_allow_wash_no_unknown_key_warning(self):
+        """allow_wash and wash are recognized cake_params keys (Phase 205)."""
+        data = self._make_config(
+            transport="linux-cake",
+            cake_params={
+                "upload_interface": "enp8s0",
+                "download_interface": "enp9s0",
+                "allow_wash": True,
+                "wash": True,
+            },
+        )
+        data["queues"] = {"download": "WAN-Download", "upload": "WAN-Upload"}
+        data["continuous_monitoring"] = {"enabled": True}
+        results = check_unknown_keys(data)
+        unknown = [
+            r
+            for r in results
+            if r.severity == Severity.WARN
+            and ("allow_wash" in r.field or r.field.endswith(".wash"))
+        ]
+        assert len(unknown) == 0, f"Unexpected allow_wash/wash warnings: {unknown}"
+
 
 # =============================================================================
 # MERGED FROM test_check_config_smoke.py

@@ -715,6 +715,43 @@ class TestSetBandwidthCaching:
         assert "ecn" not in cmd
 
     @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_initialize_cake_emits_wash(self, mock_run, backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+        backend.initialize_cake({"wash": True})
+        cmd = mock_run.call_args[0][0]
+        assert "wash" in cmd
+        assert "nowash" not in cmd
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_initialize_cake_emits_nowash_on_explicit_false(self, mock_run, backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+        backend.initialize_cake({"wash": False})
+        cmd = mock_run.call_args[0][0]
+        assert "nowash" in cmd
+        assert all(t != "wash" for t in cmd)
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_initialize_cake_emits_wash_under_docsis_fallback(self, mock_run, backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="", stderr=""
+        )
+        backend.initialize_cake(
+            {
+                "overhead_keyword": "docsis",
+                "bandwidth": "920Mbit",
+                "diffserv": "besteffort",
+                "wash": True,
+            }
+        )
+        cmd = mock_run.call_args[0][0]
+        assert "wash" in cmd
+        assert any("docsis" in str(t) for t in cmd) or "overhead-keyword" in cmd
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
     def test_initialize_cake_uses_replace(self, mock_run, backend):
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="", stderr=""
