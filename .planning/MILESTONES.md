@@ -1,5 +1,25 @@
 # Project Milestones: wanctl
 
+## v1.43 UL Suppression Metrics & Gate Calibration (Shipped: 2026-05-13)
+
+**Phases completed:** 3 phases (202, 203, 204), 17/17 plans (4 + 3 + 10; Plan 204-05 superseded by gap-closure 204-09 Branch A)
+
+**Key accomplishments:**
+
+- Shipped additive `/health.wans[].upload` completed-window UL suppression counters with per-cause classification (`dwell_hold` / `backlog_recovery` / `other`); `suppressions_per_min` preserved untouched for backward compat. METRIC-03 replay against v1.42 reference soak `20260505T132736Z` confirmed counts match codex re-aggregation (peak mean ~13.9/min, p95=41, max=124).
+- Shipped per-sample `load_rtt_delta_us` in soak NDJSON + zone × cause-tag histogram aggregation in `soak-summary.json` with stdlib-only aggregator, deterministic golden fixtures, and re-runnable SAFE-07 source-diff gate.
+- Closed the D-14 secondary watchdog inherited from v1.42 Phase 201 (`6.466842.../60s mean` FAIL) via soak-grounded completed-window p99 dwell-hold gate at threshold `175`; dual-emission watchdog (`secondary_gate_legacy` + `secondary_gate_completed_window`) loaded from `scripts/calib_02_threshold.json`; verification soak `20260512T004208Z` dual gate PASS (`primary_gate.delta=0`, completed-window p99 dwell_hold `135.62 ≤ 175`).
+- Boundary-marker remediation cycle (Plans 204-07..10) post-`d44e2fd` re-derived CALIB-01 distribution under corrected aggregator and re-validated CALIB-04 via Branch A continuation after Branch B `FAIL-A` at `secondary_value=151.0` vs threshold 150; final threshold 175 operator-approved.
+- SAFE-07 closeout invariant held end-to-end: zero control-path source diff between Phase 201 close (`b72b463`) and v1.43 close at every phase boundary, verified by `scripts/check-safe07-source-diff.sh`. Only planned `src/wanctl/__init__.py` version bump permitted.
+- Version bumps `1.42.1` → `1.43.0` propagated across `pyproject.toml`, `src/wanctl/__init__.py`, `docker/Dockerfile`; CHANGELOG and `docs/CONFIGURATION.md` document additive `/health` fields, soak NDJSON / summary schema, and live-counter vs completed-window framing.
+- Two production deploys on cake-shaper via Plan 201-15 two-snapshot rollback ritual: Deploy 1 (`v1.43.0` binary + METRIC-01/OBSV-05) before CALIB-01 baseline soak, Deploy 2 (recalibrated threshold harness-only) before CALIB-04 verification soak.
+
+**Closure verdict:** `passed`. Audit 2026-05-13 (re-audit, supersedes 2026-05-06) confirmed 15/15 requirements satisfied, 3/3 phases verified, 14/14 integration wired, 1/1 E2E flow complete. RETRO Key Lesson #1 captures threshold-basis hygiene as durable lesson.
+
+**Known deferred items at close:** WR-01 / WR-02 (soak-harness hardening), `secondary_gate_legacy` block removal, CALIB-02 YAML-promotion evaluation, SEED-005 conservative UL tuning sweep — all routed to v1.44. Phase 202 VALIDATION.md `nyquist_compliant: false` (reconstructed retroactively; test coverage in place); optional `/gsd-validate-phase 202` backfill.
+
+---
+
 ## v1.42 DOCSIS-Aware UL Congestion Control (Shipped: 2026-05-06)
 
 **Phases completed:** 1 phase (201), 16/16 active plans (Plan 201-12 superseded by 201-16; 17 PLAN.md files materialized total)

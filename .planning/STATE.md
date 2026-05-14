@@ -1,35 +1,40 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.43
-milestone_name: UL Suppression Metrics & Gate Calibration
-status: milestone_complete
+milestone: null
+milestone_name: null
+status: between_milestones
 stopped_at: null
-last_updated: "2026-05-13T04:15:32.589Z"
+last_updated: "2026-05-13T15:00:00.000Z"
 last_activity: 2026-05-13
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 17
-  completed_plans: 17
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
+last_shipped:
+  milestone: v1.43
+  name: UL Suppression Metrics & Gate Calibration
+  date: 2026-05-13
+  verdict: passed
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-06 after three-milestone backfill)
+See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** v1.43 closeout / next milestone planning — Plan 204-10 refreshed closeout artifacts after the threshold-175 CALIB-04 rerun `20260512T004208Z` passed the dual gate (`primary_gate.delta=0`, completed-window p99 dwell-hold `135.6199999999999 <= 175`).
+**Current focus:** Between milestones — ready for `/gsd-new-milestone` to scope v1.44. SEED-005 conservative UL tuning sweep prereqs now met (METRIC-01 + OBSV-05 + CALIB-01 live with clean baseline soak under threshold 175); WR-01/WR-02 soak-harness hardening and `secondary_gate_legacy` removal also routed to v1.44.
 
 ## Position
 
-**Last shipped milestone:** v1.42 DOCSIS-Aware UL Congestion Control (shipped 2026-05-06; verdict `gaps_found` Route B)
-**Recently archived:** v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
-**Active milestone:** v1.43 UL Suppression Metrics & Gate Calibration (shipped 2026-05-13)
+**Last shipped milestone:** v1.43 UL Suppression Metrics & Gate Calibration (shipped 2026-05-13; audit `passed` 15/15)
+**Recently archived:** v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
+**Active milestone:** none — between-milestones state.
 
-Progress: [██████████] 100%
+Progress: [          ] 0% (no active milestone)
 
 ## Deferred Items
 
