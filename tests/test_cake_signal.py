@@ -512,6 +512,43 @@ class TestCakeSignalProcessorBestEffortStructuralOracle:
         assert besteffort_snap.peak_delay_us == diffserv4_snap.peak_delay_us
 
 
+class TestCakeSignalProcessorDiffserv4ByteIdentity:
+    """Pins exact numeric output for a representative 4-tin diffserv4 fixture.
+
+    The Phase 02 _active_tin_indices(4) helper MUST return range(1, 4) —
+    byte-identical to the prior range(1, len(tins_raw)). This test asserts every
+    CAKE signal field is bit-equal so any accumulation-order change in the helper
+    would surface immediately. Replay tests passing != byte-identical (Codex MEDIUM-4).
+    """
+
+    def test_diffserv4_signal_fields_bit_equal_to_pinned_snapshot(self) -> None:
+        cold = make_mock_stats(tin_count=4)
+        loaded = make_mock_stats(
+            tin_drops=[5, 100, 50, 25],
+            tin_backlog=[1000, 50000, 20000, 5000],
+            tin_peak_delay=[100, 5000, 2000, 500],
+            tin_avg_delay=[80, 4000, 1500, 400],
+            tin_base_delay=[50, 1000, 800, 200],
+            tin_count=4,
+        )
+        cfg = CakeSignalConfig(enabled=True, time_constant_sec=1.0)
+        proc = CakeSignalProcessor(config=cfg)
+
+        proc.update(cold)
+        snap0 = proc.update(loaded)
+
+        assert snap0 is not None
+        assert snap0.drop_rate == pytest.approx(175.0, rel=0, abs=0)
+        assert snap0.total_drop_rate == pytest.approx(180.0, rel=0, abs=0)
+        assert snap0.backlog_bytes == 75000
+        assert snap0.peak_delay_us == 5000
+        assert snap0.avg_delay_us == 4000
+        assert snap0.base_delay_us == 1000
+        assert snap0.max_delay_delta_us == 3000
+        assert snap0.tins[0].name == "Bulk"
+        assert snap0.tins[1].name == "BestEffort"
+
+
 # ---------------------------------------------------------------------------
 # CakeSignalProcessor -- disabled
 # ---------------------------------------------------------------------------
