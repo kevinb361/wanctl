@@ -438,3 +438,43 @@ class TestGateBaselineSchema:
         assert "_provenance" in gb
         assert gb["_provenance"]["restart_rate_per_hour_baseline_source"]
         assert gb["_provenance"]["transition_rate_per_hour_baseline_source"]
+
+
+class TestShellMissingOptionValue:
+    """G3 closure: missing operator-input values must be ABORT (rc=2), not BLOCK (rc=1)."""
+
+    # Every value-consuming option in scripts/phase206-predeploy-gate.sh
+    OPTIONS = [
+        "--baseline",
+        "--candidate",
+        "--soak-ndjson",
+        "--mode",
+        "--ssh-target",
+        "--window-start-iso8601",
+        "--window-end-iso8601",
+        "--window-hours",
+        "--restart-counter-start",
+        "--restart-counter-end",
+        "--journal-since",
+    ]
+
+    def test_each_option_with_no_value_aborts(self) -> None:
+        failures: list[str] = []
+        for opt in self.OPTIONS:
+            result = _run_gate([opt])
+            err = (result.stdout + result.stderr).decode()
+            if result.returncode != 2:
+                failures.append(f"{opt}: rc={result.returncode} (expected 2); stderr={err!r}")
+                continue
+            expected_marker = f"missing value for {opt}"
+            if expected_marker not in err:
+                failures.append(f"{opt}: missing marker {expected_marker!r}; stderr={err!r}")
+        assert not failures, "\n".join(failures)
+
+    def test_option_followed_by_another_option_aborts(self) -> None:
+        # --baseline immediately followed by --candidate must be treated as missing value
+        result = _run_gate(["--baseline", "--candidate", "/tmp/x.json"])
+        err = (result.stdout + result.stderr).decode()
+        assert result.returncode == 2, err
+        assert "missing value for --baseline" in err
+        assert "--candidate" in err  # next-token diagnostic
