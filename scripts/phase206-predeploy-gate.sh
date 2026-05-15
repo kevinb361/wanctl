@@ -161,6 +161,11 @@ if [[ -n "$SSH_TARGET" && -z "$RC_END" ]]; then
     log_info "RC_END=$RC_END (sampled via SSH at gate-invocation time)"
 fi
 
+if [[ -n "$RC_START" && -z "$RC_END" ]] || [[ -z "$RC_START" && -n "$RC_END" ]]; then
+    log_abort "restart counters must be supplied together (RC_START='$RC_START' RC_END='$RC_END'); supply both or neither"
+    exit $EXIT_ABORT
+fi
+
 if [[ -n "$WIN_START" && -n "$WIN_END" && -z "$WIN_HOURS" ]]; then
     START_S=$(date -d "$WIN_START" +%s) || { log_abort "invalid --window-start-iso8601"; exit $EXIT_ABORT; }
     END_S=$(date -d "$WIN_END" +%s) || { log_abort "invalid --window-end-iso8601"; exit $EXIT_ABORT; }

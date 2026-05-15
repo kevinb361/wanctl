@@ -290,9 +290,17 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         _log_abort(f"ERROR: failed RRUL p99 check: {exc}")
         return EXIT_ABORT
 
-    restart_inputs_present = (
-        args.restart_counter_start is not None and args.restart_counter_end is not None
-    )
+    start_present = args.restart_counter_start is not None
+    end_present = args.restart_counter_end is not None
+    if start_present != end_present:
+        _log_abort(
+            "ERROR: restart counters must be supplied together "
+            "(got start=%r end=%r); both --restart-counter-start and "
+            "--restart-counter-end are required or neither"
+            % (args.restart_counter_start, args.restart_counter_end)
+        )
+        return EXIT_ABORT
+    restart_inputs_present = start_present and end_present
     baseline_restart = gb.get("restart_rate_per_hour_baseline")
     if restart_inputs_present and baseline_restart is None:
         _log_abort(

@@ -425,6 +425,42 @@ class TestRestartCounterMonotonic:
         assert b"window-hours" in result.stderr
 
 
+class TestPartialRestartCounterFailsClosed:
+    def test_only_start_counter_aborts(self, tmp_path: Path) -> None:
+        baseline = _make_baseline_with(tmp_path, restart_rate_per_hour_baseline=1.0)
+        result = _run_gate(
+            [
+                "--baseline",
+                str(baseline),
+                "--candidate",
+                str(BASELINE),
+                "--restart-counter-start",
+                "0",
+                "--window-hours",
+                "1",
+            ]
+        )
+        assert result.returncode == 2, (result.stdout + result.stderr).decode()
+        assert b"restart counters must be supplied together" in result.stderr
+
+    def test_only_end_counter_aborts(self, tmp_path: Path) -> None:
+        baseline = _make_baseline_with(tmp_path, restart_rate_per_hour_baseline=1.0)
+        result = _run_gate(
+            [
+                "--baseline",
+                str(baseline),
+                "--candidate",
+                str(BASELINE),
+                "--restart-counter-end",
+                "1",
+                "--window-hours",
+                "1",
+            ]
+        )
+        assert result.returncode == 2, (result.stdout + result.stderr).decode()
+        assert b"restart counters must be supplied together" in result.stderr
+
+
 class TestGateBaselineSchema:
     def test_gate_baseline_schema_version_is_1(self) -> None:
         baseline = json.loads(BASELINE.read_text())
