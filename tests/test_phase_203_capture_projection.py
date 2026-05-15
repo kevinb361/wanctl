@@ -31,8 +31,9 @@ def _extract_projection(script_path: Path) -> str:
     """
     text = script_path.read_text()
     # The projection lives inside `jq -c ... '{ ... }'`. Match the '{' that
-    # follows the opening quote and capture until the matching '}' before append.
-    match = re.search(r"jq\s+-c[^']*'(\{.*?\})'\s*>>", text, re.DOTALL)
+    # follows the opening quote and capture until the matching '}' before the
+    # script redirects jq output (append in v1.43, temp file in HRDN-02).
+    match = re.search(r"jq\s+-c[^']*'(\{.*?\})'\s*(?:<[^>]+)?\s*(?:>>|>)", text, re.DOTALL)
     if match is None:
         raise RuntimeError(
             "Could not extract jq projection from scripts/soak-capture.sh; "
