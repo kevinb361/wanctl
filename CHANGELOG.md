@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased (v1.44 — in progress)
 
+### Decisions
+
+- **HRDN-04 (Phase 207): CALIB-02 threshold YAML promotion — NO.** The CALIB-02 D-14-successor watchdog threshold (currently `175`, gate column `by_cause.dwell_hold`) stays in `scripts/calib_02_threshold.json` rather than being promoted to a `continuous_monitoring.upload.calib_02_threshold` YAML key. No autorate validator schema entry is added. No controller-side YAML key is exposed. `scripts/calib_02_threshold.json` is byte-identical at v1.44 close (no value bump, no schema bump).
+
+  **Rationale anchors:**
+  - (a) **CALIB-04 PASS at threshold 175.** The v1.43 verification soak `20260512T004208Z` produced a completed-window p99 dwell-hold value of `135.62` against the operator-re-approved threshold `175`, with `primary_gate.verdict = pass` and `secondary_gate_completed_window.verdict = pass`. Recorded in `scripts/calib_02_threshold.json` (operator-approval link: `.planning/phases/204-d-14-successor-recalibration-calib/204-CALIB-02-OPERATOR-APPROVAL.md`) and in v1.43-ROADMAP Plan 204-09.
+  - (b) **Fail-closed JSON-file convention is sufficient.** `scripts/soak_summary_aggregate.py::load_calib_02_constants()` already fails closed when the JSON is absent or malformed (threshold=0 fallback). Operators tune the threshold by editing one file, and the operator-approval artifact link is baked into the JSON itself. Premature YAML promotion would lock knob shape (restart-required semantics, validator-schema entry, default-vs-override precedence) before SEED-005 tells us what semantics actually matter operationally.
+  - (c) **T17(b) is the right home for deeper schema-design work.** REQUIREMENTS.md "Future Requirements" item `T17(b)` (CALIB-02 YAML knob shape evaluation) is explicitly gated on SEED-005 outcomes (conservative UL tuning sweep). The deeper knob-shape question — restart-required vs hot-reload, validator semantics, default-vs-override precedence — will be answered with SEED-005 data, not anticipated now.
+
+  **Reversibility:** the NO route is fully reversible. If a future milestone routes T17(b) to YES, the JSON convention coexists with a new YAML key as a fallback or migration path — no v1.44 commit is hostile to the eventual YAML promotion.
+
 ### Removed
 
 - **HRDN-03 (Phase 207):** `secondary_gate_legacy` removed end-to-end across `scripts/soak_summary_aggregate.py` (`aggregate_watchdog()` + `aggregate_soak()`), `tests/test_phase_204_watchdog.py` (TestV142WatchdogRegression retired; positive-removal contract test added), `tests/test_phase_204_replay.py`, and `docs/SOAK_HARNESS.md`. Completed-window dual gate (`secondary_gate_completed_window`) is now the sole watchdog secondary signal. Fulfills the v1.43.0 "drops in v1.44" promise.
