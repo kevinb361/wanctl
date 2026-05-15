@@ -9,6 +9,8 @@ mismatch -- see four-state matrix in PLAN.md Task 1 behavior block. Thresholds
 loaded from scripts/phase206-thresholds.json (W5).
 """
 
+# ruff: noqa: N999
+
 from __future__ import annotations
 
 import argparse
@@ -52,7 +54,7 @@ def _read_json(path: str) -> dict:
     with Path(path).open(encoding="utf-8") as fh:
         data = json.load(fh)
     if not isinstance(data, dict):
-        raise ValueError(f"JSON root is not an object: {path}")
+        raise TypeError(f"JSON root is not an object: {path}")
     return data
 
 
@@ -175,7 +177,7 @@ def _apply_override(args: argparse.Namespace) -> None:
             setattr(args, attr, data[attr])
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:  # noqa: C901
     args = _parser().parse_args(argv)
     _apply_override(args)
     if args.journal_since:
