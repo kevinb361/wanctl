@@ -231,23 +231,45 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--window-hours", type=float)
     parser.add_argument("--mode", choices=("predeploy", "post-soak"), default="predeploy")
     parser.add_argument("--journal-since")
+    parser.add_argument(
+        "--allow-local-baseline-override",
+        action="store_true",
+        help=argparse.SUPPRESS,  # test-only; not for production operators
+    )
     return parser
 
 
-def _apply_override(args: argparse.Namespace) -> None:
+def _apply_override(args: argparse.Namespace) -> int | None:
+    """Apply PHASE206_LOCAL_BASELINE_OVERRIDE only when explicitly allowed.
+
+    Returns EXIT_ABORT (int) when the env var is set but the opt-in CLI flag is
+    absent. Returns None on success (override applied or env var unset).
+    The caller in main() MUST treat a non-None return as an abort.
+    """
     override = os.environ.get("PHASE206_LOCAL_BASELINE_OVERRIDE")
     if not override:
-        return
+        return None
+    if not getattr(args, "allow_local_baseline_override", False):
+        _log_abort(
+            "ERROR: PHASE206_LOCAL_BASELINE_OVERRIDE is set but "
+            "--allow-local-baseline-override was not passed; "
+            "local baseline override is not allowed in production gate-check"
+        )
+        return EXIT_ABORT
     with Path(override).open(encoding="utf-8") as fh:
         data = json.load(fh)
     for attr in ("restart_counter_start", "restart_counter_end", "window_hours"):
         if attr in data:
+            _log_info(f"applying local baseline override: {attr}={data[attr]!r}")
             setattr(args, attr, data[attr])
+    return None
 
 
 def main(argv: list[str] | None = None) -> int:  # noqa: C901
     args = _parser().parse_args(argv)
-    _apply_override(args)
+    rc = _apply_override(args)
+    if rc is not None:
+        return rc
     if args.journal_since:
         if not re.match(r"^[0-9TZ:+_. -]+$", args.journal_since):
             _log_info(f"journal-since supplied for audit: {args.journal_since}")

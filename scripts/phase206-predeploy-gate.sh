@@ -185,5 +185,13 @@ if [[ ! -x "$VENV_PY" && ! -f "$VENV_PY" ]]; then
     exit $EXIT_ABORT
 fi
 
+# SAFE-09 + TOPO-05 hardening: production wrapper never forwards the test-only
+# local baseline override into the python core. If an operator's shell has it
+# set, clear it here so the env-var path cannot smuggle inputs past validation.
+if [[ -n "${PHASE206_LOCAL_BASELINE_OVERRIDE:-}" ]]; then
+    log_info "clearing PHASE206_LOCAL_BASELINE_OVERRIDE from environment (production wrapper does not forward test-only overrides)"
+    unset PHASE206_LOCAL_BASELINE_OVERRIDE
+fi
+
 log_info "invoking gate-check helper (mode=$MODE)"
 exec "$VENV_PY" "$SCRIPT_DIR/phase206-gate-check.py" "${PY_ARGS[@]}"

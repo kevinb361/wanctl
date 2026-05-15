@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -613,3 +614,79 @@ class TestMixedMetricSource:
         combined = result.stdout + result.stderr
         assert b"baseline=20.00" not in combined
         assert b"delta=+" not in combined
+
+
+class TestLocalBaselineOverrideLockdown:
+    def _override_file(self, tmp_path: Path) -> Path:
+        override_path = tmp_path / "override.json"
+        override_path.write_text(
+            json.dumps(
+                {
+                    "restart_counter_start": 0,
+                    "restart_counter_end": 0,
+                    "window_hours": 1,
+                }
+            )
+        )
+        return override_path
+
+    def _python_core(self, args: list[str], override_path: Path) -> subprocess.CompletedProcess[bytes]:
+        return subprocess.run(
+            [str(VENV_PY), "scripts/phase206-gate-check.py", *args],
+            cwd=REPO_ROOT,
+            env={
+                "PATH": os.environ["PATH"],
+                "VENV_PY": str(VENV_PY),
+                "PHASE206_LOCAL_BASELINE_OVERRIDE": str(override_path),
+            },
+            capture_output=True,
+            timeout=15,
+            check=False,
+        )
+
+    def test_override_env_without_flag_aborts(self, tmp_path: Path) -> None:
+        override_path = self._override_file(tmp_path)
+        wrapper_result = _run_gate(
+            ["--baseline", str(BASELINE), "--candidate", str(BASELINE)],
+            extra_env={"PHASE206_LOCAL_BASELINE_OVERRIDE": str(override_path)},
+        )
+        assert wrapper_result.returncode == 0, (
+            wrapper_result.stdout + wrapper_result.stderr
+        ).decode()
+
+        core_result = self._python_core(
+            [
+                "--baseline",
+                str(BASELINE),
+                "--candidate",
+                str(BASELINE),
+                "--restart-counter-end",
+                "1",
+            ],
+            override_path,
+        )
+        assert core_result.returncode == 2, (core_result.stdout + core_result.stderr).decode()
+        assert b"local baseline override is not allowed" in core_result.stderr
+
+    def test_override_env_with_flag_applies(self, tmp_path: Path) -> None:
+        override_path = self._override_file(tmp_path)
+        result = self._python_core(
+            [
+                "--baseline",
+                str(BASELINE),
+                "--candidate",
+                str(BASELINE),
+                "--allow-local-baseline-override",
+            ],
+            override_path,
+        )
+        assert result.returncode in (0, 1), (result.stdout + result.stderr).decode()
+        assert b"applying local baseline override: restart_counter_start=0" in result.stderr
+
+    def test_wrapper_clears_override_env(self, tmp_path: Path) -> None:
+        result = _run_gate(
+            ["--baseline", str(BASELINE), "--candidate", str(BASELINE)],
+            extra_env={"PHASE206_LOCAL_BASELINE_OVERRIDE": str(tmp_path / "missing.json")},
+        )
+        assert result.returncode == 0, (result.stdout + result.stderr).decode()
+        assert b"clearing PHASE206_LOCAL_BASELINE_OVERRIDE" in result.stderr
