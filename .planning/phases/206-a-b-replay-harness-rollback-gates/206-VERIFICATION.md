@@ -1,22 +1,58 @@
 ---
 phase: 206-a-b-replay-harness-rollback-gates
-verified: 2026-05-15T02:48:44Z
-re_verified: 2026-05-15T15:00:30Z
-re_verification_plan: 206-08
-status: verified
-score: "5/5 roadmap success criteria verified after gap closure 2026-05-15"
+verified: 2026-05-15T15:15:10Z
+status: gaps_found
+score: "4/5 roadmap success criteria verified"
 overrides_applied: 0
 requirements: [TOPO-04, TOPO-05]
-gaps: []
+re_verification:
+  previous_status: verified
+  previous_score: "5/5 roadmap success criteria verified after gap closure 2026-05-15"
+  gaps_closed:
+    - "Original G1-G4 gap-closure checks remain closed: empty soak, decreasing counters, missing shell value, and mixed post-block metric keys all return rc=2."
+  gaps_remaining:
+    - "Code-review fail-closed gaps WR-01, WR-02, and WR-03 remain in the actual gate behavior."
+  regressions: []
+gaps:
+  - truth: "The predeploy gate fails closed on malformed/inconsistent restart-counter input."
+    status: failed
+    reason: "Supplying only one restart counter is treated as no restart input and the restart-rate gate is skipped, returning PASS."
+    artifacts:
+      - path: "scripts/phase206-gate-check.py"
+        issue: "restart_inputs_present requires both counters; exactly-one-counter input falls into the skip branch."
+      - path: "scripts/phase206-predeploy-gate.sh"
+        issue: "Wrapper can forward only --restart-counter-start or only --restart-counter-end instead of aborting before Python."
+    missing:
+      - "Abort with rc=2 when exactly one of --restart-counter-start / --restart-counter-end is present."
+      - "When --ssh-target samples RC_END, require a start counter or abort; do not let Python skip the restart gate."
+  - truth: "The post-soak transition-rate gate fails closed on invalid soak timing windows."
+    status: failed
+    reason: "A post-soak NDJSON with two valid rows at the same t_monotonic timestamp returns PASS as 0.00/h instead of ABORT."
+    artifacts:
+      - path: "scripts/phase206-gate-check.py"
+        issue: "elapsed_s <= 0 is coerced to 1e-9 hours, allowing zero-duration captures to pass."
+    missing:
+      - "Require strictly positive elapsed soak duration after sorting timed samples; abort rc=2 when elapsed_s <= 0."
+  - truth: "The production predeploy gate cannot be silently altered by test-only local override state."
+    status: failed
+    reason: "PHASE206_LOCAL_BASELINE_OVERRIDE is applied unconditionally; a hidden environment variable can overwrite restart counters/window and mask a restart breach."
+    artifacts:
+      - path: "scripts/phase206-gate-check.py"
+        issue: "_apply_override() reads PHASE206_LOCAL_BASELINE_OVERRIDE in normal execution before validation."
+      - path: "scripts/phase206-predeploy-gate.sh"
+        issue: "Wrapper does not clear or reject PHASE206_LOCAL_BASELINE_OVERRIDE before execing the Python gate."
+    missing:
+      - "Remove the implicit production override, require an explicit test-only flag, or have the wrapper reject/clear PHASE206_LOCAL_BASELINE_OVERRIDE."
 human_verification: []
+deferred: []
 ---
 
-# Phase 206: A/B Replay Harness + Rollback Gates — Verification Report
+# Phase 206: A/B Replay Harness + Rollback Gates Verification Report
 
 **Phase Goal:** A deterministic A/B replay harness captures pre-migration controller behavior against the 2026-04-22 out-of-band flent finding, and rollback criteria are encoded as a machine-readable predeploy gate script that fails closed.
-**Verified:** 2026-05-15T02:48:44Z
-**Status:** verified (re-verified 2026-05-15 after Plans 05-07)
-**Re-verification:** Yes — gap-closure re-verification after Plans 05/06/07 landed the fixes; original gap-discovery audit stamp preserved above.
+**Verified:** 2026-05-15T15:15:10Z
+**Status:** gaps_found
+**Re-verification:** Yes — previous report said verified; this pass re-checked the actual code after review findings and found additional fail-closed gaps.
 
 ## Goal Achievement
 
@@ -24,65 +60,69 @@ human_verification: []
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | The A/B replay harness reuses Phase 193/194/195 patterns, ingests a committed deterministic fixture, and emits pre/post metrics. | ✓ VERIFIED | `scripts/phase206-ab-replay.py` imports `_fresh_controller`/`_replay` from `tests.test_phase_193_replay` and `_replay_samples` from `tests.test_phase_206_replay`; spot-check emitted schema v1 with 350 pre/post samples. |
-| 2 | The summary JSON schema is stable for a one-line consumer change. | ✓ VERIFIED | Harness output top-level keys are `{schema_version, phase, fixture_provenance, fixture_sha256, meta, pre, post, delta, gates}` and focused tests pass. |
-| 3 | Operator-readable rollback trigger documentation exists and references JSON-sourced thresholds. | ✓ VERIFIED | `PHASE-205-ROLLBACK-GATES.md` exists; threshold drift gate already passed and `scripts/phase206-thresholds.json` contains 5.0/10.0/10.0. |
-| 4 | The predeploy gate blocks threshold breaches, passes baseline dry-run, and fails closed on malformed/inconsistent input. | ✓ VERIFIED | Gap-closure re-verification 2026-05-15 (Plan 08): empty post-soak rc=2 (G1), decreasing restart counters rc=2 (G2), missing shell option rc=2 (G3), default-harness-vs-committed-baseline rc=2 via secondary post-block-key guard (G4). See "Gap Closure Re-Verification" section below. |
-| 5 | SAFE-09 boundary: Phase 206 introduces no new control-path source diff. | ✓ VERIFIED | `git diff 6508d68 --name-only -- src/wanctl/` returns exactly the Phase 205 five-file allowlist; unstaged and untracked `src/wanctl/` surfaces are both 0. |
+| 1 | The A/B replay harness reuses Phase 193/194/195 patterns, ingests a committed deterministic fixture, and emits pre/post metrics. | ✓ VERIFIED | `scripts/phase206-ab-replay.py` imports `_fresh_controller`, `_replay`, `_replay_samples`, and `_snap_for`; focused tests passed (`44 passed`); harness spot-check emitted schema v1 with 350 pre/post samples. |
+| 2 | The summary JSON schema is stable for a one-line consumer change. | ✓ VERIFIED | Harness output has stable top-level keys `{schema_version, phase, fixture_provenance, fixture_sha256, meta, pre, post, delta, gates}` and `meta.metric_source='controller_replay'` in default mode. |
+| 3 | Operator-readable rollback trigger documentation exists and references JSON-sourced thresholds. | ✓ VERIFIED | `PHASE-205-ROLLBACK-GATES.md` documents all three triggers and cites `scripts/phase206-thresholds.json`; threshold/provenance check passed against JSON values 5.0/10.0/10.0. |
+| 4 | The predeploy gate blocks threshold breaches, passes baseline dry-run, and fails closed on malformed/inconsistent input. | ✗ FAILED | Baseline dry-run and original gap checks pass, but new fail-closed spot-checks found: partial restart counter input returns rc=0, zero-duration post-soak returns rc=0, and hidden `PHASE206_LOCAL_BASELINE_OVERRIDE` can mask a restart breach and return rc=0. |
+| 5 | SAFE-09 boundary: Phase 206 introduces no new control-path source diff. | ✓ VERIFIED | `git diff 6508d68 --name-only -- src/wanctl/` remains exactly the Phase 205 five-file allowlist; unstaged/untracked `src/wanctl/` counts are both 0. |
 
-**Score:** 5/5 roadmap success criteria verified (gap closure complete 2026-05-15).
+**Score:** 4/5 roadmap success criteria verified.
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |---|---|---|---|
-| `tests/fixtures/phase206_golden_capture.ndjson` | Deterministic golden fixture | ✓ VERIFIED | Present; 350 rows; SHA pinned as `68f99440bd41be646dfa64abe77380791d4b2dd7b09722588c808e9749c0bbda`. |
-| `tests/fixtures/_phase_206_generator.py` | Regenerator | ✓ VERIFIED | Present and substantive; reads flent gz via gzip/json and writes deterministic NDJSON. |
-| `tests/fixtures/phase206_replay_corpus.py` | Frozen loader | ✓ VERIFIED | Frozen `GoldenSample` and `load_golden()` implemented. |
-| `scripts/phase206-ab-replay.py` | A/B harness CLI | ✓ VERIFIED | Emits schema v1; imports Phase 193 primitives and `_replay_samples`; optional flent parser present. |
-| `scripts/phase206-gate-check.py` | Gate Python core | ✓ VERIFIED | Threshold checks implemented. Gap closure (2026-05-15): malformed soak + decreasing restart counter + mixed metric source (two-tier guard: meta-source + post-block keys) all rc=2 (Plans 05, 07). |
-| `scripts/phase206-predeploy-gate.sh` | Operator wrapper | ✓ VERIFIED | Path and SSH validation exist. Gap closure (2026-05-15): missing option values now rc=2 via require_value (Plan 06). |
+| `tests/fixtures/phase206_golden_capture.ndjson` | Deterministic golden fixture | ✓ VERIFIED | Present; 350 rows; SHA `68f99440bd41be646dfa64abe77380791d4b2dd7b09722588c808e9749c0bbda` pinned in provenance. |
+| `tests/fixtures/_phase_206_generator.py` | Regenerator | ✓ VERIFIED | Present and substantive; provenance documents deterministic regeneration from 2026-04-29 substitute artifact. |
+| `tests/fixtures/phase206_replay_corpus.py` | Frozen loader | ✓ VERIFIED | `GoldenSample` + `load_golden()` used by harness/tests. |
+| `scripts/phase206-ab-replay.py` | A/B harness CLI | ✓ VERIFIED | Schema-v1 output, optional flent parsing, Phase 193/206 helper imports, 350-sample traces. |
+| `scripts/phase206-gate-check.py` | Gate Python core | ✗ PARTIAL | Enforces many checks, but has three fail-closed gaps: exactly-one restart counter skips, zero-duration soak passes, env override can alter inputs. |
+| `scripts/phase206-predeploy-gate.sh` | Operator wrapper | ✗ PARTIAL | Validates paths/options and delegates to Python, but does not reject partial restart-counter input and does not clear/reject `PHASE206_LOCAL_BASELINE_OVERRIDE`. |
 | `scripts/phase206-thresholds.json` | Threshold source of truth | ✓ VERIFIED | Contains `RRUL_P99_REGRESSION_PCT=5.0`, `RESTART_RATE_INCREASE_PCT=10.0`, `TRANSITION_RATE_INCREASE_PCT=10.0`. |
-| `.planning/phases/206-a-b-replay-harness-rollback-gates/PHASE-205-ROLLBACK-GATES.md` | Operator rollback doc | ✓ VERIFIED | Documents three triggers, modes, formulas, threshold source, and SAFE-09 exclusions. |
+| `.planning/phases/206-a-b-replay-harness-rollback-gates/PHASE-205-ROLLBACK-GATES.md` | Operator rollback doc | ✓ VERIFIED | Documents triggers, modes, formulas, threshold source, and SAFE-09 exclusions. |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |---|---|---|---|---|
-| `scripts/phase206-ab-replay.py` | `tests.test_phase_193_replay` | import `_fresh_controller`, `_replay` | ✓ WIRED | Lines 24 and 35-43 reuse the Phase 193 factory path; no local `_fresh_controller` redefinition. |
-| `scripts/phase206-ab-replay.py` | `tests.test_phase_206_replay` | import `_replay_samples`, `_snap_for` | ✓ WIRED | `_build_side()` calls `_replay_samples()` and output includes full `rate_trace_mbps`/`zone_sequence`. |
+| `scripts/phase206-ab-replay.py` | `tests.test_phase_193_replay` | import `_fresh_controller`, `_replay` | ✓ WIRED | Harness imports Phase 193 primitives and does not redefine the controller factory. |
+| `scripts/phase206-ab-replay.py` | `tests.test_phase_206_replay` | import `_replay_samples`, `_snap_for` | ✓ WIRED | Harness uses per-sample replay helper that consumes all fixture rows. |
 | `scripts/phase206-predeploy-gate.sh` | `scripts/phase206-gate-check.py` | `exec "$VENV_PY" ...` | ✓ WIRED | Wrapper delegates to Python core and bubbles exit codes. |
-| `scripts/phase206-gate-check.py` | `scripts/phase206-thresholds.json` | `load_thresholds()` | ✓ WIRED | Thresholds load at module import. |
-| `scripts/phase206-gate-check.py` | soak NDJSON | `check_zone_transitions()` | ✓ WIRED | Link exists; gap closure (2026-05-15) added InsufficientSoakSamples / MalformedSoakInput guards (Plan 05). |
+| `scripts/phase206-gate-check.py` | `scripts/phase206-thresholds.json` | `load_thresholds()` | ✓ WIRED | Thresholds loaded at module import. |
+| `scripts/phase206-gate-check.py` | restart-counter input | CLI args | ✗ PARTIAL | Both-counter case is wired; exactly-one-counter malformed input is not rejected and is skipped. |
+| `scripts/phase206-gate-check.py` | soak NDJSON | `check_zone_transitions()` | ✗ PARTIAL | Empty/malformed/single-sample guards exist; zero-duration windows still pass. |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data Variable | Source | Produces Real Data | Status |
 |---|---|---|---|---|
 | `scripts/phase206-ab-replay.py` | `samples` | `load_golden(fixture_path)` | Yes | ✓ FLOWING — spot-check output had 350 rate/zone samples per side. |
-| `scripts/phase206-ab-replay.py` | flent metrics | `_parse_flent_rrul()` from `.flent.gz` | Yes when supplied | ✓ FLOWING — parser uses gzip/json, ping quantiles, and TCP series tail sum; focused test covers synthetic flent gz. |
-| `scripts/phase206-gate-check.py` | restart rate | explicit counters/window | Partial | ⚠️ HOLLOW EDGE — computes rate but lacks monotonic validation. |
-| `scripts/phase206-gate-check.py` | transition rate | `last_zone` + `t_monotonic` from NDJSON | Partial | ⚠️ HOLLOW EDGE — valid fixture flows, but malformed/empty captures produce a false 0.00/h pass. |
+| `scripts/phase206-ab-replay.py` | flent metrics | `_parse_flent_rrul()` from `.flent.gz` | Yes when supplied | ✓ FLOWING — focused CLI test covers synthetic flent gz path. |
+| `scripts/phase206-gate-check.py` | restart rate | explicit counters/window | Partial | ✗ HOLLOW EDGE — one missing counter causes the gate to skip restart-rate enforcement. |
+| `scripts/phase206-gate-check.py` | transition rate | `last_zone` + `t_monotonic` from NDJSON | Partial | ✗ HOLLOW EDGE — no positive elapsed-duration validation. |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |---|---|---|---|
-| Harness emits schema v1 with full replay traces | `.venv/bin/python scripts/phase206-ab-replay.py --out /tmp/opencode/p206-ab.json` | `schema_version=1`, `metric_source=controller_replay`, `350` pre/post samples | ✓ PASS |
+| Focused Phase 206 tests | `.venv/bin/pytest tests/test_phase_206_replay.py tests/test_phase206_ab_replay_cli.py tests/test_phase206_predeploy_gate.py -q` | `44 passed in 2.20s` | ✓ PASS |
+| Harness emits schema v1 with full replay traces | `.venv/bin/python scripts/phase206-ab-replay.py --out /tmp/opencode/p206-verify-ab.json` | schema v1; `metric_source=controller_replay`; 350 post samples | ✓ PASS |
 | Baseline dry-run passes | `bash scripts/phase206-predeploy-gate.sh --baseline tests/fixtures/phase206_baseline_v143.json --candidate tests/fixtures/phase206_baseline_v143.json` | rc=0 | ✓ PASS |
-| Empty post-soak NDJSON fails closed | `... --mode post-soak --soak-ndjson /tmp/opencode/p206-empty-soak.ndjson ...` | rc=2; stderr "insufficient valid soak samples" | ✓ PASS |
-| Decreasing restart counters fail closed | `... --restart-counter-start 5 --restart-counter-end 1 --window-hours 1 ...` | rc=2; stderr "restart_counter_end (1) < restart_counter_start (5)" | ✓ PASS |
-| Missing shell option value aborts | `bash scripts/phase206-predeploy-gate.sh --baseline` | rc=2; stderr "missing value for --baseline" | ✓ PASS |
-| Default harness candidate integrates with gate baseline | generate default candidate then run gate | rc=2; stderr "metric_source mismatch (post-block keys): baseline='rrul_p99_latency_ms' candidate='controller_rate_p99_mbps'" | ✓ PASS |
-| Focused Phase 206 tests | `.venv/bin/pytest tests/test_phase_206_replay.py tests/test_phase206_ab_replay_cli.py tests/test_phase206_predeploy_gate.py -q` | `32 passed in 1.50s` | ✓ PASS |
-| Full regression gate | Orchestrator-provided `.venv/bin/pytest tests/ -q` | `5027 passed, 6 skipped, 2 deselected` | ✓ PASS (reviewed) |
+| Empty post-soak NDJSON fails closed | `--mode post-soak --soak-ndjson <empty> ...` | rc=2; stderr `insufficient valid soak samples` | ✓ PASS |
+| Decreasing restart counters fail closed | `--restart-counter-start 5 --restart-counter-end 1 --window-hours 1` | rc=2; stderr `restart_counter_end (1) < restart_counter_start (5)` | ✓ PASS |
+| Missing shell option value aborts | `bash scripts/phase206-predeploy-gate.sh --baseline` | rc=2; stderr `missing value for --baseline` | ✓ PASS |
+| Default harness candidate vs committed baseline fails closed | candidate from `phase206-ab-replay.py` vs baseline | rc=2; stderr `metric_source mismatch (post-block keys)` | ✓ PASS |
+| Partial restart-counter input fails closed | `--restart-counter-start 0 --window-hours 1` without `--restart-counter-end` | rc=0; stderr says `restart-rate check skipped` and `PASS` | ✗ FAIL |
+| Zero-duration post-soak fails closed | two valid soak rows with same `t_monotonic` in `--mode post-soak` | rc=0; stderr says transition-rate `0.00/h` and `PASS` | ✗ FAIL |
+| Hidden override cannot mask restart breach | `PHASE206_LOCAL_BASELINE_OVERRIDE=<0/0 counters>` with CLI `--restart-counter-end 1` | rc=0; restart breach overwritten to `0.00/h` PASS | ✗ FAIL |
+| Full regression suite | Orchestrator evidence | `5039 passed, 6 skipped, 2 deselected in 202.92s`; schema drift gate `drift_detected=false` | ✓ PASS (test suite not sufficient for fail-closed gaps above) |
 
 ### Requirements Coverage
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |---|---|---|---|---|
-| TOPO-04 | 206-01, 206-04 | A/B replay harness captures pre/post RRUL p99 latency, throughput, jitter against the out-of-band flent finding; deterministic golden fixture committed. | ✓ SATISFIED | Harness, fixture, loader, generator, flent parser, schema tests, and focused tests are present and passing. Date substitution is documented in provenance. |
-| TOPO-05 | 206-02, 206-03, 206-04 | Rollback criteria documented in machine-readable/operator-readable form; predeploy gate enforces RRUL p99, restart-rate, transition-rate and fails closed. | ✓ SATISFIED | Three triggers and docs exist. Gap closure (2026-05-15, Plans 05/06/07) closes all four warning findings WR-01..WR-04. See spot-check table above and re-verification section below. |
+| TOPO-04 | 206-01, 206-04, 206-07 | A/B replay harness captures pre/post RRUL p99 latency, throughput, jitter against the out-of-band flent finding; deterministic golden fixture committed. | ✓ SATISFIED | Harness, fixture, loader, generator, flent parser, schema tests, and focused tests are present and passing. Date substitution is documented in provenance. |
+| TOPO-05 | 206-02, 206-03, 206-04, 206-05, 206-06, 206-07, 206-08 | Rollback criteria documented in machine-readable/operator-readable form; predeploy gate enforces RRUL p99, restart-rate, transition-rate and fails closed. | ✗ BLOCKED | Docs/thresholds/tests exist, but actual gate does not fail closed for partial restart-counter input, zero-duration soak windows, or hidden local override state. |
 
 No orphaned Phase 206 requirement IDs found in `.planning/REQUIREMENTS.md`: TOPO-04 and TOPO-05 are both mapped to Phase 206 and appear in PLAN frontmatter.
 
@@ -90,110 +130,21 @@ No orphaned Phase 206 requirement IDs found in `.planning/REQUIREMENTS.md`: TOPO
 
 | File | Line | Pattern | Severity | Impact |
 |---|---:|---|---|---|
-| `scripts/phase206-gate-check.py` | 121-131 | Silent skip of malformed/missing soak rows | 🛑 Blocker | Empty/malformed post-soak input can pass full-enforcement mode. |
-| `scripts/phase206-gate-check.py` | 245 | No validation for decreasing restart counters | 🛑 Blocker | Swapped/reset counters produce a negative healthy rate and pass. |
-| `scripts/phase206-predeploy-gate.sh` | 64-85 | `${2:-}; shift 2` without value validation | 🛑 Blocker | Missing operator input exits as rc=1 BLOCK, not rc=2 ABORT. |
-| `scripts/phase206-gate-check.py` | 69-84 | Mixed `rrul_p99_latency_ms`/`controller_rate_p99_mbps` comparison | ⚠️ Warning | Default harness candidate vs committed baseline blocks with mixed units; fail-closed but misleading/unusable. |
+| `scripts/phase206-gate-check.py` | 231-244 | Unconditional `PHASE206_LOCAL_BASELINE_OVERRIDE` | 🛑 Blocker | Hidden environment state can overwrite validated CLI inputs in production. |
+| `scripts/phase206-gate-check.py` | 293-319 | Exactly-one restart counter falls into skip branch | 🛑 Blocker | Malformed restart input returns PASS instead of ABORT. |
+| `scripts/phase206-gate-check.py` | 191-197 | `elapsed_s <= 0` coerced to `1e-9` hours | 🛑 Blocker | Zero-duration soak evidence can pass post-soak mode. |
+| `tests/test_phase206_predeploy_gate.py` | 283-305 | Happy-path post-soak test accepts `returncode in (0, 1)` | ⚠️ Warning | Test can pass on a BLOCK and does not prove a valid full-input post-soak pass path. |
+| `scripts/phase206-predeploy-gate.sh` | 178-184 | Python interpreter check accepts non-executable files until `exec` rc=126 | ⚠️ Warning | Malformed interpreter path may violate documented rc=2 ABORT contract. |
 
 ### Human Verification Required
 
-None. Phase 206 is an offline harness/gate/docs phase; the relevant behaviors were checkable with scripts/tests.
+None. Phase 206 is an offline harness/gate/docs phase; the relevant behaviors are checkable with scripts/tests.
 
 ### Gaps Summary
 
-All four gaps closed by Plans 05, 06, 07 (gap-closure wave, 2026-05-15). The rollback gate now fails closed on malformed soak NDJSON, decreasing restart counters, missing shell option values, and mixed metric sources (two-tier guard: primary meta.metric_source check + secondary _read_p99 post-block-key check). See "Gap Closure Re-Verification" section below for verbatim evidence.
-
-## Gap Closure Re-Verification (2026-05-15, Plan 08)
-
-### Gap-Closure Spot-Checks
-
-| Gap | Command | Result | Status |
-|-----|---------|--------|--------|
-| G1 | `bash scripts/phase206-predeploy-gate.sh --mode post-soak ... --soak-ndjson <empty>` | rc=2; stderr "insufficient valid soak samples" | ✓ CLOSED (Plan 05) |
-| G2 | `bash scripts/phase206-predeploy-gate.sh ... --restart-counter-start 5 --restart-counter-end 1 --window-hours 1` | rc=2; stderr "restart_counter_end (1) < restart_counter_start (5)" | ✓ CLOSED (Plan 05) |
-| G3 | `bash scripts/phase206-predeploy-gate.sh --baseline` | rc=2; stderr "missing value for --baseline" | ✓ CLOSED (Plan 06) |
-| G4 | `phase206-ab-replay.py` default output vs committed baseline | rc=2; stderr `metric_source mismatch (post-block keys): baseline='rrul_p99_latency_ms' candidate='controller_rate_p99_mbps'` (secondary guard; both meta sources are `controller_replay` so the primary guard does not fire) | ✓ CLOSED (Plan 07) |
-
-### Spot-Check Verbatim Output
-
-```text
-$ bash scripts/phase206-predeploy-gate.sh --mode post-soak --baseline tests/fixtures/phase206_baseline_v143.json --candidate tests/fixtures/phase206_baseline_v143.json --soak-ndjson /tmp/p206-revisit/empty-soak.ndjson --restart-counter-start 0 --restart-counter-end 0 --window-hours 1
-[phase206-predeploy-gate INFO]  invoking gate-check helper (mode=post-soak)
-[phase206-gate-check INFO] RRUL comparison source=rrul_p99_latency_ms
-[phase206-gate-check ABORT] ERROR: failed transition-rate check: insufficient valid soak samples: soak NDJSON is empty (/tmp/p206-revisit/empty-soak.ndjson)
-rc=2
-
-$ bash scripts/phase206-predeploy-gate.sh --baseline tests/fixtures/phase206_baseline_v143.json --candidate tests/fixtures/phase206_baseline_v143.json --restart-counter-start 5 --restart-counter-end 1 --window-hours 1
-[phase206-predeploy-gate INFO]  invoking gate-check helper (mode=predeploy)
-[phase206-gate-check INFO] RRUL comparison source=rrul_p99_latency_ms
-[phase206-gate-check ABORT] ERROR: restart_counter_end (1) < restart_counter_start (5); counter must be monotonic non-decreasing (systemd NRestarts only grows)
-rc=2
-
-$ bash scripts/phase206-predeploy-gate.sh --baseline
-[phase206-predeploy-gate ABORT] missing value for --baseline
-rc=2
-
-$ .venv/bin/python scripts/phase206-ab-replay.py --out /tmp/p206-revisit/ab-default.json
-rc=0
-$ bash scripts/phase206-predeploy-gate.sh --baseline tests/fixtures/phase206_baseline_v143.json --candidate /tmp/p206-revisit/ab-default.json
-[phase206-predeploy-gate INFO]  invoking gate-check helper (mode=predeploy)
-[phase206-gate-check ABORT] ERROR: failed RRUL p99 check: metric_source mismatch (post-block keys): baseline='rrul_p99_latency_ms' candidate='controller_rate_p99_mbps'; refuse to compare across sources (TOPO-05 fail-closed)
-rc=2
-```
-
-### SAFE-09 Four-Surface Re-Check
-
-```text
-$ git diff 6508d68 --name-only -- src/wanctl/ | sort -u
-src/wanctl/backends/linux_cake.py
-src/wanctl/backends/netlink_cake.py
-src/wanctl/cake_params.py
-src/wanctl/cake_signal.py
-src/wanctl/check_config_validators.py
-
-$ git diff 6508d68 --name-only -- src/wanctl/ | sort -u | wc -l
-5
-
-$ git diff --cached 6508d68 --name-only -- src/wanctl/ | sort -u | wc -l
-5
-
-$ git diff --name-only -- src/wanctl/ | wc -l
-0
-
-$ git ls-files --others --exclude-standard -- src/wanctl/ | wc -l
-0
-
-$ git status --short -- src/wanctl/
-```
-
-SAFE-09 invariant holds across all four surfaces after gap closure.
-
-### Test Evidence
-
-```text
-$ .venv/bin/pytest tests/ -q
-5039 passed, 6 skipped, 2 deselected in 199.79s (0:03:19)
-
-$ .venv/bin/pytest -o addopts='' tests/test_cake_signal.py tests/test_queue_controller.py tests/test_wan_controller.py tests/test_health_check.py -q
-673 passed in 41.12s
-
-$ .venv/bin/pytest tests/test_phase_206_replay.py tests/test_phase206_ab_replay_cli.py tests/test_phase206_predeploy_gate.py -q
-44 passed in 3.27s
-
-$ .venv/bin/pytest tests/test_phase206_predeploy_gate.py::TestPostSoakAbortMalformed tests/test_phase206_predeploy_gate.py::TestRestartCounterMonotonic tests/test_phase206_predeploy_gate.py::TestShellMissingOptionValue tests/test_phase206_predeploy_gate.py::TestMixedMetricSource -q
-12 passed in 0.89s
-```
-
-### Plan References
-
-- Plan 05 (Wave 1): G1 + G2 — Python core validation (`scripts/phase206-gate-check.py`)
-- Plan 06 (Wave 2): G3 — shell `require_value()` helper (`scripts/phase206-predeploy-gate.sh`)
-- Plan 07 (Wave 3): G4 — two-tier `metric_source` mismatch ABORT (primary: `meta.metric_source` equality; secondary: `_read_p99` post-block-key equality) + end-to-end integration test
-- Plan 08 (Wave 4, this plan): re-verification + status flip
+Phase 206 achieves the deterministic A/B harness and documentation portions of the goal, but the predeploy gate is not yet fail-closed for all malformed/inconsistent input. The remaining blocking gaps are in TOPO-05: reject partial restart-counter input, reject zero-duration soak windows, and eliminate or explicitly gate the production-visible local override path. These are not clearly deferred to later phases; Phase 209 depends on this gate rather than owning these fixes.
 
 ---
 
-_Verified: 2026-05-15T02:48:44Z_
-_Re-verified: 2026-05-15T15:00:30Z_
-_Re-verifier: Plan 08 closeout task (gap-closure 2026-05-15)_
+_Verified: 2026-05-15T15:15:10Z_
 _Verifier: the agent (gsd-verifier)_
