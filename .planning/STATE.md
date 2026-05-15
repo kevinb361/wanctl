@@ -4,15 +4,15 @@ milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 206
 status: executing
-stopped_at: Completed 206-07-PLAN.md
-last_updated: "2026-05-15T14:52:38.539Z"
+stopped_at: Completed 206-08-PLAN.md
+last_updated: "2026-05-15T15:04:13.192Z"
 last_activity: 2026-05-15
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 13
-  completed_plans: 12
-  percent: 92
+  completed_plans: 13
+  percent: 100
 ---
 
 # Session State
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
 **Current phase:** 206
 
-Progress: [█████████░] 92%
+Progress: [██████████] 100%
 
 ## Deferred Items
 
@@ -131,7 +131,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 206-07-PLAN.md
+Stopped at: Completed 206-08-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -321,6 +321,8 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 206-06]: G3 value validation belongs in `scripts/phase206-predeploy-gate.sh` because the failure occurs before the Python gate core is invoked.
 - [Phase 206-07]: Selected Path A for G4: RRUL metric-source inconsistency now fails closed with rc=2 ABORT instead of comparing across latency-ms and throughput-Mbps units.
 - [Phase 206-07]: The default harness vs committed baseline path closes through the secondary post-block-key guard because both meta sources are `controller_replay` but `_read_p99()` resolves different post keys.
+- [Phase 206]: Phase 206 closeout status is verified only after re-running all four former failing spot-checks and confirming each returns rc=2 with the expected fail-closed message. — Prevents a stale status flip from masking unresolved TOPO-05 fail-closed gaps.
+- [Phase 206]: SAFE-09 remains bounded to the Phase 205 five-file src/wanctl allowlist; Plan 08 itself edits no src/wanctl files. — Confirms the closeout plan changed verification artifacts only and preserved the production controller source boundary.
 
 ## Performance Metrics
 
@@ -422,6 +424,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 206 (a-b-replay-harness-rollback-gates) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Ready to execute
 Last activity: 2026-05-15
