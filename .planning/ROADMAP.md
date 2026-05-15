@@ -66,14 +66,14 @@
   3. `PHASE-205-ROLLBACK-GATES.md` (or equivalent) documents the three rollback triggers in operator-readable form: RRUL p99 latency regression > 5%, Spectrum daemon restart-rate increase, pressure-state transition-rate increase per hour.
   4. A predeploy gate script exits non-zero when any of the three rollback triggers is breached against a captured baseline; an operator dry-run on the v1.43 baseline exits zero.
   5. SAFE-09 phase-boundary check: zero control-path source diff introduced in this phase (harness + scripts only, no `src/wanctl/` edits beyond Phase 205's bounded set).
-**Plans:** 6/8 plans executed
+**Plans:** 7/8 plans executed
 - [x] 206-01-PLAN.md — A/B replay harness core: golden NDJSON fixture + corpus loader + harness CLI emitting schema-v1 A/B summary JSON (TOPO-04)
 - [x] 206-02-PLAN.md — Predeploy rollback-gate script + Python core with three threshold checks + tests (TOPO-05)
 - [x] 206-03-PLAN.md — Operator-readable rollback doc (PHASE-205-ROLLBACK-GATES.md) + golden-fixture provenance doc
 - [x] 206-04-PLAN.md — SAFE-09 phase-boundary verification + cross-plan threshold drift check + fixture SHA256 pin
 - [x] 206-05-PLAN.md — Fail-closed gate gap closure: malformed soak NDJSON and restart-counter monotonicity (TOPO-05)
 - [x] 206-06-PLAN.md — Fail-closed shell wrapper gap closure: missing value-consuming option values ABORT rc=2 (TOPO-05)
-- [ ] 206-07-PLAN.md — Gap closure follow-up
+- [x] 206-07-PLAN.md — Fail-closed metric-source guard: mixed RRUL sources ABORT rc=2 instead of mixed-unit BLOCK (TOPO-05)
 - [ ] 206-08-PLAN.md — Gap closure follow-up
 
 #### Phase 207: Soak / harness hardening (v1.43 closeout-routed)
@@ -127,14 +127,14 @@
 - [x] 206-01-PLAN.md — A/B replay harness core: golden NDJSON fixture + corpus loader + harness CLI emitting schema-v1 A/B summary JSON (TOPO-04)
 - [x] 206-02-PLAN.md — Predeploy rollback-gate script + Python core with three threshold checks + tests (TOPO-05)
 - [x] 206-03-PLAN.md — Operator-readable rollback doc (PHASE-205-ROLLBACK-GATES.md) + golden-fixture provenance doc
-- [ ] 206-04-PLAN.md — SAFE-09 phase-boundary verification + cross-plan threshold drift check + fixture SHA256 pin
+- [x] 206-04-PLAN.md — SAFE-09 phase-boundary verification + cross-plan threshold drift check + fixture SHA256 pin
 
 ### Progress
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 205 — Tin-agnostic CAKE signal + allow_wash gate | 5/5 | Complete    | 2026-05-14 |
-| 206 — A/B replay harness + rollback gates | 6/8 | In Progress|  |
+| 206 — A/B replay harness + rollback gates | 7/8 | In Progress|  |
 | 207 — Soak / harness hardening | 0/0 | Not started | - |
 | 208 — Carry-on quick-tasks (T17a / T9 / T12) | 0/0 | Not started | - |
 | 209 — Spectrum config migration + canary + docs | 0/0 | Not started | - |
