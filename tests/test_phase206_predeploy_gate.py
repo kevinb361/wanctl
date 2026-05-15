@@ -522,9 +522,7 @@ class TestMixedMetricSource:
         assert "flent" in err
         assert "controller_replay" in err
 
-    def test_default_harness_vs_committed_baseline_aborts_not_blocks(
-        self, tmp_path: Path
-    ) -> None:
+    def test_default_harness_vs_committed_baseline_aborts_not_blocks(self, tmp_path: Path) -> None:
         """Secondary guard: documented operator scenario — harness default output
         (meta.metric_source='controller_replay', post has only controller_rate_p99_mbps)
         vs committed baseline (meta.metric_source='controller_replay', post has BOTH p99

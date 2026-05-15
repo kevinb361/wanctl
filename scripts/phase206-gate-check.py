@@ -75,15 +75,41 @@ def _read_p99(side: dict) -> tuple[float, str]:
 
 
 def check_rrul_p99(baseline: dict, candidate: dict, threshold_pct: float) -> tuple[bool, str]:
+    # Primary guard: meta.metric_source equality. Runs first; future-proofs against a
+    # future flent-sourced baseline. Today's committed fixtures both carry
+    # metric_source='controller_replay' so this guard does not fire on the documented
+    # scenario -- the secondary guard below does.
+    meta_base = baseline.get("meta", {}) if isinstance(baseline, dict) else {}
+    meta_cand = candidate.get("meta", {}) if isinstance(candidate, dict) else {}
+    src_meta_base = meta_base.get("metric_source") if isinstance(meta_base, dict) else None
+    src_meta_cand = meta_cand.get("metric_source") if isinstance(meta_cand, dict) else None
+    if src_meta_base and src_meta_cand and src_meta_base != src_meta_cand:
+        msg = (
+            f"metric_source mismatch: baseline={src_meta_base!r} candidate={src_meta_cand!r}; "
+            f"refuse to compare across sources (TOPO-05 fail-closed)"
+        )
+        raise ValueError(msg)  # metric_source mismatch
+
+    # Secondary guard: _read_p99 post-block-key equality. Runs after the meta check
+    # passes; catches the case where meta-sources match (or are absent) but the post
+    # block exposes different p99 keys (e.g. baseline has rrul_p99_latency_ms,
+    # candidate has controller_rate_p99_mbps). This is the guard that closes G4
+    # against today's committed baseline.
     pre, src_pre = _read_p99(baseline["post"])
     cur, src_cur = _read_p99(candidate["post"])
+    if src_pre != src_cur:
+        msg = (
+            f"metric_source mismatch (post-block keys): baseline={src_pre!r} candidate={src_cur!r}; "
+            f"refuse to compare across sources (TOPO-05 fail-closed)"
+        )
+        raise ValueError(msg)  # metric_source mismatch
+
     pct = ((cur - pre) / pre) * 100.0 if pre > 0 else (0.0 if cur == 0 else float("inf"))
     if src_pre == "controller_rate_p99_mbps":
+        # For throughput metric, "regression" means lower-than-baseline; invert sign so the
+        # threshold compares consistently against threshold_pct as "% worse than baseline".
         pct = -pct
-    if src_pre != src_cur:
-        _log_info(f"RRUL comparison mixed sources baseline={src_pre} current={src_cur}")
-    else:
-        _log_info(f"RRUL comparison source={src_pre}")
+    _log_info(f"RRUL comparison source={src_pre}")
     if pct > threshold_pct:
         return False, (
             f"RRUL p99 regression: baseline={pre:.2f} current={cur:.2f} "
