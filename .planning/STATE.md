@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 206
-status: gaps_found
-stopped_at: Phase 206 verification found TOPO-05 fail-closed gaps
-last_updated: "2026-05-15T02:52:14Z"
+status: executing
+stopped_at: Completed 206-05-PLAN.md
+last_updated: "2026-05-15T14:24:20.632Z"
 last_activity: 2026-05-15
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 9
-  completed_plans: 9
-  percent: 100
+  completed_phases: 1
+  total_plans: 13
+  completed_plans: 10
+  percent: 77
 ---
 
 # Session State
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 206 — a-b-replay-harness-rollback-gates gap closure
+**Current focus:** Phase 206 — a-b-replay-harness-rollback-gates
 
 ## Position
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
 **Current phase:** 206
 
-Progress: [██████████] 100%
+Progress: [████████░░] 77%
 
 ## Deferred Items
 
@@ -131,7 +131,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 206-04-PLAN.md
+Stopped at: Completed 206-05-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -315,9 +315,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 206-03]: Golden fixture provenance records the operator-accepted 2026-04-29 substitute for the missing 2026-04-22 finding and pins SHA256 68f99440bd41be646dfa64abe77380791d4b2dd7b09722588c808e9749c0bbda.
 - [Phase 206-04]: SAFE-09 closeout evidence covers committed, staged/index, unstaged worktree, and untracked src/wanctl/ surfaces; the only source diff remains the Phase 205 five-file allowlist.
 - [Phase 206-04]: Rollback threshold doc values were verified against scripts/phase206-thresholds.json; JSON remains the source of truth for 5.0/10.0/10.0.
+- [Phase 206-05]: Preserved planned exception class names InsufficientSoakSamples and MalformedSoakInput for acceptance traceability, with targeted N818 lint exemptions.
+- [Phase 206]: Restart counter monotonicity is validated before division so swapped/reset counters abort as inconsistent operator input rather than producing a negative healthy rate.
 
 ## Performance Metrics
 
+- 2026-05-15: Phase 206 Plan 05 completed in 4m23s across 2 gap-closure tasks and 2 modified files; `scripts/phase206-gate-check.py` now aborts on empty, malformed, missing-zone, missing-timestamp, and single-sample soak NDJSON in post-soak mode, rejects decreasing restart counters before division, focused new classes passed with 5 and 3 tests, the full predeploy-gate slice passed with 25 tests, the Phase 206 focused slice passed with 40 tests, ruff lint/format passed, and SAFE-09 unstaged/untracked `src/wanctl/` surfaces both remained 0.
 - 2026-05-15: Phase 206 Plan 04 completed in 6m22s across 2 verification tasks and 2 planning files; SAFE-09 boundary evidence now covers committed, staged/index, unstaged worktree, and untracked `src/wanctl/` surfaces, the committed/index surfaces match the Phase 205 five-file allowlist, unstaged and untracked counts are both 0, threshold docs match `scripts/phase206-thresholds.json`, full suite passed with 5027 passed / 6 skipped / 2 deselected, hot-path slice passed with 673 tests, and Phase 206 focused slice passed with 32 tests.
 - 2026-05-15: Phase 206 Plan 02 completed in ~25m across 3 tasks and 6 created files; scripts/phase206-thresholds.json now owns the TOPO-05 5.0/10.0/10.0 thresholds, the Python gate core is SSH-free with fail-closed gate_baseline mismatch handling, the bash wrapper owns NRestarts SSH sampling and path/target validation, focused gate tests passed with 17 tests, full suite passed with 5027 passed / 6 skipped / 2 deselected, dry-run baseline-vs-self exited 0, and SAFE-09 source diff remained at the Phase 205 5-file allowlist.
 - 2026-05-15: Phase 206 Plan 03 completed in 4m07s across 2 documentation tasks and 2 created planning artifacts; rollback gates doc now covers RRUL p99, daemon restart-rate, and pressure-transition-rate triggers with JSON-sourced thresholds inlined for readability, fixture provenance pins the accepted 2026-04-29 substitution with SHA256 `68f99440bd41be646dfa64abe77380791d4b2dd7b09722588c808e9749c0bbda`, and SAFE-09 source diff remained at the Phase 205 5-file allowlist.
@@ -413,6 +416,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 206 (a-b-replay-harness-rollback-gates) — EXECUTING
-Plan: 4 of 4
+Plan: 2 of 8
 Status: Ready to execute
 Last activity: 2026-05-15
