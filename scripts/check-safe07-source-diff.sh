@@ -29,6 +29,42 @@ if ! git rev-parse --verify "${REF}^{commit}" >/dev/null 2>&1; then
   exit 2
 fi
 
+# HRDN-01 (Phase 207): SAFE-07 fail-closed dirty-tree pre-check.
+# The committed-diff check below only sees committed state. Catch
+# uncommitted, staged, and untracked src/wanctl/ edits here so this
+# SAFE-07 verifier is trustworthy across every pre-commit git surface
+# (see HRDN-01 in REQUIREMENTS.md).
+DIRTY_UNSTAGED=0
+DIRTY_STAGED=0
+DIRTY_UNTRACKED_LIST=""
+git diff --quiet -- src/wanctl/ || DIRTY_UNSTAGED=1
+git diff --cached --quiet -- src/wanctl/ || DIRTY_STAGED=1
+DIRTY_UNTRACKED_LIST=$(git ls-files --others --exclude-standard -- src/wanctl/ || true)
+
+if [ "${DIRTY_UNSTAGED}" -ne 0 ] \
+  || [ "${DIRTY_STAGED}" -ne 0 ] \
+  || [ -n "${DIRTY_UNTRACKED_LIST}" ]; then
+  echo "SAFE-07 VIOLATION: uncommitted, staged, or untracked src/wanctl/ edit detected" >&2
+  if [ "${DIRTY_UNSTAGED}" -ne 0 ]; then
+    echo "  unstaged worktree edits present under src/wanctl/" >&2
+  fi
+  if [ "${DIRTY_STAGED}" -ne 0 ]; then
+    echo "  staged-but-not-committed edits present under src/wanctl/" >&2
+  fi
+  if [ -n "${DIRTY_UNTRACKED_LIST}" ]; then
+    echo "  untracked file(s) present under src/wanctl/:" >&2
+    while IFS= read -r path; do
+      [ -n "${path}" ] && printf '    %s\n' "${path}" >&2
+    done <<< "${DIRTY_UNTRACKED_LIST}"
+  fi
+  echo "" >&2
+  echo "Short status under src/wanctl/:" >&2
+  git status --short -- src/wanctl/ >&2 || true
+  echo "" >&2
+  echo "Commit, stash, revert, or remove the src/wanctl/ changes before re-running." >&2
+  exit 1
+fi
+
 DIFF_OUTPUT=$(git diff "${REF}..HEAD" -- src/wanctl/ 2>&1 || true)
 
 if [ -n "${DIFF_OUTPUT}" ]; then
