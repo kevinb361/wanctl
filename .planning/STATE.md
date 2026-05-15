@@ -4,15 +4,15 @@ milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 206
 status: executing
-stopped_at: Completed 206-03-PLAN.md
-last_updated: "2026-05-15T02:08:14.213Z"
+stopped_at: Completed 206-02-PLAN.md
+last_updated: "2026-05-15T02:26:05.438Z"
 last_activity: 2026-05-15
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 9
-  completed_plans: 7
-  percent: 78
+  completed_plans: 8
+  percent: 89
 ---
 
 # Session State
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
 **Current phase:** 206
 
-Progress: [████████░░] 78%
+Progress: [█████████░] 89%
 
 ## Deferred Items
 
@@ -308,11 +308,15 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 206-01]: A/B replay harness reuses Phase 193 controller/replay primitives by import; pre-migration 940M is a post-construction ceiling override, not a redefined factory.
 - [Phase 206-01]: Default harness output labels controller-derived metrics with meta.metric_source=controller_replay; paired flent .gz inputs are required for real RRUL p99/throughput/jitter fields.
 - [Phase 206-01]: Golden NDJSON fixture keeps only five replay-safe fields from the locked 2026-04-29 flent capture; raw flent metadata remains out of git.
+- [Phase 206-02]: Threshold constants for TOPO-05 live in scripts/phase206-thresholds.json and are loaded by the Python core via load_thresholds().
+- [Phase 206-02]: The Python gate core remains SSH-free; NRestarts sampling and SSH target validation live in the bash wrapper.
+- [Phase 206-02]: Post-soak mode is fail-closed and requires all inputs plus both gate_baseline rate fields.
 - [Phase 206-03]: Rollback docs cite scripts/phase206-thresholds.json as the threshold source of truth while inlining 5.0/10.0/10.0 for operator readability; Plan 04 verifies doc-vs-JSON drift.
 - [Phase 206-03]: Golden fixture provenance records the operator-accepted 2026-04-29 substitute for the missing 2026-04-22 finding and pins SHA256 68f99440bd41be646dfa64abe77380791d4b2dd7b09722588c808e9749c0bbda.
 
 ## Performance Metrics
 
+- 2026-05-15: Phase 206 Plan 02 completed in ~25m across 3 tasks and 6 created files; scripts/phase206-thresholds.json now owns the TOPO-05 5.0/10.0/10.0 thresholds, the Python gate core is SSH-free with fail-closed gate_baseline mismatch handling, the bash wrapper owns NRestarts SSH sampling and path/target validation, focused gate tests passed with 17 tests, full suite passed with 5027 passed / 6 skipped / 2 deselected, dry-run baseline-vs-self exited 0, and SAFE-09 source diff remained at the Phase 205 5-file allowlist.
 - 2026-05-15: Phase 206 Plan 03 completed in 4m07s across 2 documentation tasks and 2 created planning artifacts; rollback gates doc now covers RRUL p99, daemon restart-rate, and pressure-transition-rate triggers with JSON-sourced thresholds inlined for readability, fixture provenance pins the accepted 2026-04-29 substitution with SHA256 `68f99440bd41be646dfa64abe77380791d4b2dd7b09722588c808e9749c0bbda`, and SAFE-09 source diff remained at the Phase 205 5-file allowlist.
 - 2026-05-15: Phase 206 Plan 01 completed in 11m across 3 tasks and 6 created files; deterministic golden fixture has 350 rows with SHA256 `68f99440bd41be646dfa64abe77380791d4b2dd7b09722588c808e9749c0bbda`, `_replay_samples` consumed all 350 rows, focused Phase 206 tests passed with 15 tests, full suite passed with 5010 passed / 6 skipped / 2 deselected, and SAFE-09 source diff remained at the Phase 205 5-file allowlist.
 - 2026-05-14: Phase 205 Plan 04 completed in ~11m across 2 tasks and 2 planning artifacts; SAFE-09 cross-plan diff scope matched the operator-approved 5-file set, value-invariance grep was empty, Phase 209 deferrals stayed untouched, full suite passed with 4995 passed / 6 skipped / 2 deselected, replay passed with 48 passed / 6 skipped, byte-identity guard passed, hot-path passed with 673 tests, and ruff/mypy were clean.
@@ -406,6 +410,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 206 (a-b-replay-harness-rollback-gates) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-05-15
