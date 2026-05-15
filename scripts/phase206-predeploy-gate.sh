@@ -23,6 +23,22 @@ log_info()  { printf '[phase206-predeploy-gate INFO]  %s\n' "$*" >&2; }
 log_block() { printf '[phase206-predeploy-gate BLOCK] %s\n' "$*" >&2; printf '%s\n' "$*"; }
 log_abort() { printf '[phase206-predeploy-gate ABORT] %s\n' "$*" >&2; }
 
+# require_value OPT VALUE — abort with rc=2 if VALUE is empty or starts with `--`.
+# Call BEFORE any `shift 2` so a missing operator-input value classifies as ABORT,
+# not BLOCK (which is reserved for threshold breaches under valid input).
+require_value() {
+    local opt="$1"
+    local val="${2-}"
+    if [[ -z "${val}" ]]; then
+        log_abort "missing value for ${opt}"
+        exit $EXIT_ABORT
+    fi
+    if [[ "${val}" == --* ]]; then
+        log_abort "missing value for ${opt} (next token is option-like: ${val})"
+        exit $EXIT_ABORT
+    fi
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 VENV_PY="${VENV_PY:-$REPO_ROOT/.venv/bin/python3}"
@@ -62,27 +78,27 @@ JOURNAL_SINCE=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --baseline)
-            BASELINE="${2:-}"; shift 2 ;;
+            require_value "--baseline" "${2-}"; BASELINE="$2"; shift 2 ;;
         --candidate)
-            CANDIDATE="${2:-}"; shift 2 ;;
+            require_value "--candidate" "${2-}"; CANDIDATE="$2"; shift 2 ;;
         --soak-ndjson)
-            SOAK="${2:-}"; shift 2 ;;
+            require_value "--soak-ndjson" "${2-}"; SOAK="$2"; shift 2 ;;
         --mode)
-            MODE="${2:-}"; shift 2 ;;
+            require_value "--mode" "${2-}"; MODE="$2"; shift 2 ;;
         --ssh-target)
-            SSH_TARGET="${2:-}"; shift 2 ;;
+            require_value "--ssh-target" "${2-}"; SSH_TARGET="$2"; shift 2 ;;
         --window-start-iso8601)
-            WIN_START="${2:-}"; shift 2 ;;
+            require_value "--window-start-iso8601" "${2-}"; WIN_START="$2"; shift 2 ;;
         --window-end-iso8601)
-            WIN_END="${2:-}"; shift 2 ;;
+            require_value "--window-end-iso8601" "${2-}"; WIN_END="$2"; shift 2 ;;
         --window-hours)
-            WIN_HOURS="${2:-}"; shift 2 ;;
+            require_value "--window-hours" "${2-}"; WIN_HOURS="$2"; shift 2 ;;
         --restart-counter-start)
-            RC_START="${2:-}"; shift 2 ;;
+            require_value "--restart-counter-start" "${2-}"; RC_START="$2"; shift 2 ;;
         --restart-counter-end)
-            RC_END="${2:-}"; shift 2 ;;
+            require_value "--restart-counter-end" "${2-}"; RC_END="$2"; shift 2 ;;
         --journal-since)
-            JOURNAL_SINCE="${2:-}"; shift 2 ;;
+            require_value "--journal-since" "${2-}"; JOURNAL_SINCE="$2"; shift 2 ;;
         -h|--help)
             usage; exit $EXIT_PASS ;;
         *)
