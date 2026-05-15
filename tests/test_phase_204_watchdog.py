@@ -140,7 +140,7 @@ class TestLegacyGateRemovalContract:
         )
         assert set(result) == {"secondary_gate_completed_window"}
 
-    def test_aggregate_soak_summary_omits_secondary_gate_legacy(
+    def test_aggregate_soak_summary_omits_removed_legacy_gate(
         self, aggregator: ModuleType
     ) -> None:
         result = aggregator.aggregate_soak(SYNTHETIC_NDJSON)
