@@ -305,6 +305,73 @@ class TestPostSoakRequiresAll:
         assert result.returncode in (0, 1), (result.stdout + result.stderr).decode()
 
 
+class TestPostSoakAbortMalformed:
+    """G1 closure: empty/malformed/insufficient soak NDJSON must rc=2 in post-soak mode."""
+
+    def _post_soak_args(self, baseline_path: Path, soak_path: Path) -> list[str]:
+        return [
+            "--mode",
+            "post-soak",
+            "--baseline",
+            str(baseline_path),
+            "--candidate",
+            str(baseline_path),
+            "--soak-ndjson",
+            str(soak_path),
+            "--restart-counter-start",
+            "0",
+            "--restart-counter-end",
+            "0",
+            "--window-hours",
+            "1",
+        ]
+
+    def test_empty_soak_file_aborts(self, tmp_path: Path) -> None:
+        soak = tmp_path / "empty.ndjson"
+        soak.write_text("")
+        result = _run_gate(self._post_soak_args(BASELINE, soak))
+        assert result.returncode == 2, (result.stdout + result.stderr).decode()
+        assert b"insufficient valid soak samples" in result.stderr
+
+    def test_all_malformed_json_aborts(self, tmp_path: Path) -> None:
+        soak = tmp_path / "malformed.ndjson"
+        soak.write_text("not json\n{also not json\n[]not-json-either\n")
+        result = _run_gate(self._post_soak_args(BASELINE, soak))
+        assert result.returncode == 2, (result.stdout + result.stderr).decode()
+        err = result.stderr
+        assert b"insufficient valid soak samples" in err or b"no valid soak rows" in err
+
+    def test_rows_missing_last_zone_aborts(self, tmp_path: Path) -> None:
+        soak = tmp_path / "no_zone.ndjson"
+        soak.write_text(
+            '{"t_monotonic": 1.0}\n'
+            '{"t_monotonic": 2.0}\n'
+            '{"t_monotonic": 3.0}\n'
+        )
+        result = _run_gate(self._post_soak_args(BASELINE, soak))
+        assert result.returncode == 2, (result.stdout + result.stderr).decode()
+        assert b"insufficient valid soak samples" in result.stderr
+
+    def test_rows_missing_t_monotonic_aborts(self, tmp_path: Path) -> None:
+        soak = tmp_path / "no_t.ndjson"
+        soak.write_text(
+            '{"last_zone": "GREEN"}\n'
+            '{"last_zone": "YELLOW"}\n'
+            '{"last_zone": "GREEN"}\n'
+        )
+        result = _run_gate(self._post_soak_args(BASELINE, soak))
+        assert result.returncode == 2, (result.stdout + result.stderr).decode()
+        err = result.stderr
+        assert b"soak rows missing t_monotonic" in err or b"insufficient valid soak samples" in err
+
+    def test_single_valid_sample_aborts(self, tmp_path: Path) -> None:
+        soak = tmp_path / "one_sample.ndjson"
+        soak.write_text('{"last_zone": "GREEN", "t_monotonic": 1.0}\n')
+        result = _run_gate(self._post_soak_args(BASELINE, soak))
+        assert result.returncode == 2, (result.stdout + result.stderr).decode()
+        assert b"insufficient valid soak samples" in result.stderr
+
+
 class TestGateBaselineSchema:
     def test_gate_baseline_schema_version_is_1(self) -> None:
         baseline = json.loads(BASELINE.read_text())
