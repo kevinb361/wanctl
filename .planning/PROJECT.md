@@ -33,10 +33,11 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Tests:** Full suite passing; v1.43 verification soak `20260512T004208Z` dual gate PASS (D-19 primary delta 0, completed-window p99 dwell_hold `135.62 ≤ 175`).
 **LOC:** ~40,915 Python (src/)
 **Milestones:** 44 shipped (v1.0-v1.43), all archived in `.planning/milestones/`.
-**Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (Phase 205 complete; next Phase 206 A/B replay harness + rollback gates).
+**Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (Phases 205-207 complete; next Phase 208 carry-on quick tasks T17(a)/T9/T12).
 
-**Latest:** v1.44 Phase 205 Tin-agnostic CAKE signal + allow_wash gate — `cake_signal.py` aggregation is now layout-agnostic for single-tin besteffort and multi-tin diffserv4, and `cake_params.allow_wash` gates explicit `wash` emission through the Linux and netlink CAKE backends. Phase 205 stayed no-deploy, preserved SAFE-09 by bounding source changes to the approved five-file set, and left live qdisc readback validation to Phase 209.
-**Previous:** v1.43 UL Suppression Metrics & Gate Calibration — additive `/health` completed-window suppression counters by cause, per-sample `load_rtt_delta_us` in soak NDJSON with zone × cause-tag aggregation, and soak-grounded D-14 successor threshold `175` replacing the qualitative Phase 200 inheritance. Boundary-marker remediation cycle (Plans 204-07..10) re-derived CALIB-01/04 evidence under corrected aggregator. SAFE-07 closeout invariant held end-to-end: zero control-path source diff from Phase 201 close (`b72b463`).
+**Latest:** v1.44 Phase 207 Soak harness hardening — SAFE-07 source-diff verification now fails closed on dirty/staged/untracked `src/wanctl/` surfaces, `soak-capture.sh` tolerates bounded transient capture failures with sidecar TSV diagnostics, `secondary_gate_legacy` is removed from live soak summaries, and CALIB-02 YAML promotion is explicitly routed to NO pending T17(b)/SEED-005. Phase 207 preserved SAFE-09 with zero controller-path source diff and full/hot-path test passes.
+**Previous:** v1.44 Phase 205-206 foundation — Phase 205 made CAKE tin aggregation layout-agnostic and gated explicit `wash` emission through `cake_params.allow_wash`; Phase 206 added the A/B replay harness and rollback/predeploy gates needed before Phase 209 production canary work.
+**Older:** v1.43 UL Suppression Metrics & Gate Calibration — additive `/health` completed-window suppression counters by cause, per-sample `load_rtt_delta_us` in soak NDJSON with zone × cause-tag aggregation, and soak-grounded D-14 successor threshold `175` replacing the qualitative Phase 200 inheritance. Boundary-marker remediation cycle (Plans 204-07..10) re-derived CALIB-01/04 evidence under corrected aggregator. SAFE-07 closeout invariant held end-to-end: zero control-path source diff from Phase 201 close (`b72b463`).
 **Older:** v1.42 DOCSIS-Aware UL Congestion Control — Spectrum upload runs a YAML setpoint clamp (`docsis_mode: true`, `setpoint_mbps: 12`) with windowed RTT-integral classifier and CAKE-backlog secondary corroborator; bounded absolute RED decay and integral anti-windup landed in Plan 201-14; recanary `20260505T122513Z` PASSED with `ul_floor_hits_during_load=0`; 24h soak `20260505T132736Z` D-19 floor-hit delta `0` on production v1.42.1.
 **Older:** v1.41 Per-Direction Control Surfaces — UL/DL threshold split shipped behind per-key presence flags (ARB-05); validator now WARNs on unknown `continuous_monitoring.*` keys (SAFE-06); `CHANGELOG.md` and `docs/CONFIGURATION.md` carry restart-required migration semantics (DOCS-03); VALN-06 deferred-and-closed via Phase 201 Route B.
 **Older:** v1.40 Ordering Rationale — DL queue-primary arbitration with confidence-gated RTT demotion; v1.39 Control-Path Timing & Measurement Accounting — netlink overlap instrumentation + reflector scorer blackout-awareness; v1.38 Measurement Resilience Under Load — machine-readable degraded measurement truth.
@@ -426,10 +427,10 @@ thresholds or steering behavior.
 - [ ] VALN-05b ATT cake-primary canary — administratively deferred since v1.40; gating phrase historical; disposition unchanged at v1.43 boundary, requires its own ADR for resolution
 - [ ] SEED-005 — Conservative UL tuning sweep. v1.44 candidate; prereqs (METRIC-01 + OBSV-05 + CALIB-01 live in production with clean baseline soak under recalibrated threshold) **now met** at v1.43 close.
 - [ ] SEED-001 — Spectrum topology-correct CAKE mode (920Mbit besteffort wash). Dormant; triggers on cake_signal.py / EXCLUDED_PARAMS / CAKE-mode work.
-- [ ] WR-01 — `scripts/check-safe07-source-diff.sh` does not fail on uncommitted/staged `src/wanctl/` edits (v1.43 Phase 203 tech debt routed to v1.44)
-- [ ] WR-02 — `scripts/soak-capture.sh` aborts a 24h soak on a single transient curl/jq failure under `set -euo pipefail` (v1.43 Phase 203 tech debt routed to v1.44)
-- [ ] `secondary_gate_legacy` block removal — emit-both transition cycle complete in v1.43; drop legacy block in v1.44 (Plan 204-06 TODO)
-- [ ] CALIB-02 YAML-promotion evaluation — promote threshold from soak-harness constant to YAML config key after v1.44 validation (Plan 204-06 TODO)
+- ✓ WR-01 — `scripts/check-safe07-source-diff.sh` dirty-tree fail-closed gap resolved in v1.44 Phase 207 (unstaged, staged, and untracked `src/wanctl/` surfaces covered).
+- ✓ WR-02 — `scripts/soak-capture.sh` transient capture abort gap resolved in v1.44 Phase 207 with bounded failure tolerance and sidecar TSV diagnostics.
+- ✓ `secondary_gate_legacy` block removal — completed in v1.44 Phase 207; live soak summaries now emit only `secondary_gate_completed_window`.
+- ✓ CALIB-02 YAML-promotion evaluation — routed to NO in v1.44 Phase 207; threshold remains in `scripts/calib_02_threshold.json`, with deeper YAML knob-shape design deferred to T17(b)/SEED-005.
 
 ### Out of Scope
 
@@ -760,4 +761,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-05-13 — v1.44 milestone opened (Topology-Correct CAKE — Spectrum besteffort wash migration). SEED-001 spine activated; thesis B confirmed via joint Claude+Codex review 2026-05-09 (over alternatives A/C/D). Carry-on quick-tasks T17(a)/T9/T12 + v1.43 closeout-routed cleanup (WR-01/WR-02, secondary_gate_legacy removal, CALIB-02 YAML promote) bundled. ATT untouched; phase numbering continues from 204 → 205. Research skipped (SEED-001 already codex-reviewed with breadcrumbs). Ready for requirements + roadmap._
+_Last updated: 2026-05-15 — v1.44 Phase 207 complete. HRDN-01/02/03/04 close the v1.43 routed harness hardening items: SAFE-07 dirty-tree verifier, transient-tolerant soak capture, `secondary_gate_legacy` removal, and CALIB-02 YAML-promotion NO decision. SAFE-09 remains clean with zero controller-path source diff; next active phase is 208 carry-on quick tasks T17(a)/T9/T12._
