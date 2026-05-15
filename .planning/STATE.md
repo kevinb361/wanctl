@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 206
-status: gaps_found
-stopped_at: Phase 206 verification found TOPO-05 non-finite window-hours gap
-last_updated: "2026-05-15T16:24:00Z"
+status: executing
+stopped_at: Phase 207 context gathered
+last_updated: "2026-05-15T16:58:38.066Z"
 last_activity: 2026-05-15
 progress:
   total_phases: 5
@@ -131,8 +131,8 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 206-09-PLAN.md
-Resume file: None
+Stopped at: Phase 207 context gathered
+Resume file: .planning/phases/207-soak-harness-hardening-v1-43-closeout-routed/207-CONTEXT.md
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
 ## Decisions
