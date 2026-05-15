@@ -30,7 +30,7 @@
 
 - [x] **Phase 205: Tin-agnostic CAKE signal + allow_wash gate** — pure-code refactor; `cake_signal.py` becomes layout-agnostic and `cake_params.py` gains a per-WAN `allow_wash` gate. No deploy. (completed 2026-05-14)
 - [ ] **Phase 206: A/B replay harness + rollback gates** — captures pre-migration controller behavior as the comparison baseline and wires machine-readable rollback criteria into a predeploy gate script. (gaps_found 2026-05-15; TOPO-05 non-finite `--window-hours` fail-closed gap remains; see `206-VERIFICATION.md`)
-- [ ] **Phase 207: Soak / harness hardening (v1.43 closeout-routed)** — fail-closed source-diff verifier, soak-capture transient-failure tolerance, `secondary_gate_legacy` removal, CALIB-02 YAML-promotion decision.
+- [x] **Phase 207: Soak / harness hardening (v1.43 closeout-routed)** — fail-closed source-diff verifier, soak-capture transient-failure tolerance, `secondary_gate_legacy` removal, CALIB-02 YAML-promotion decision. (completed 2026-05-15)
 - [ ] **Phase 208: Carry-on quick-tasks (T17a / T9 / T12)** — aggregator schema closeout, `wanctl-history --ingestion-rate`, operator-summary digest perm guard.
 - [ ] **Phase 209: Spectrum config migration, production canary, and docs** — Spectrum YAML flips to `920Mbit besteffort wash`, two-snapshot rollback ritual canary, docs updated, SAFE-08 / SAFE-09 mechanical closeout.
 
@@ -88,12 +88,12 @@
   3. The `secondary_gate_legacy` block is removed from `aggregate_watchdog()` in `scripts/soak_summary_aggregate.py`; only the completed-window dual gate remains; `tests/test_phase_204_watchdog.py::TestV142WatchdogRegression` is either retired or rewritten against the new contract and the full test suite passes (HRDN-03).
   4. CALIB-02 threshold YAML-promotion has an explicit YES/NO decision recorded in CHANGELOG with rationale. If YES: `continuous_monitoring.upload.calib_02_threshold` is exposed with restart-required semantics, autorate validator schema entry, and default `175` matching `scripts/calib_02_threshold.json`. If NO: rationale references CALIB-04 PASS evidence (HRDN-04).
   5. SAFE-09 phase-boundary check: zero control-path source diff in this phase (scripts + aggregator + tests only; the optional CALIB-02 YAML knob, if YES, lives in config schema not threshold logic).
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 - [x] 207-01-PLAN.md — HRDN-01: fail-closed source-diff verifier (scripts/check-safe07-source-diff.sh dirty-tree pre-check) + pytest coverage
 - [x] 207-02-PLAN.md — HRDN-02: soak-capture transient-failure tolerance (scripts/soak-capture.sh bounded counters + sidecar TSV) + pytest coverage
 - [x] 207-03-PLAN.md — HRDN-03: legacy gate cleanup (atomic 5-site sweep: aggregator + 2 test files + docs + CHANGELOG)
 - [x] 207-04-PLAN.md — HRDN-04: CALIB-02 YAML-promotion NO decision (CHANGELOG entry only; JSON file byte-identical)
-- [ ] 207-05-PLAN.md — SAFE-09 phase-boundary verification: four-surface diff check + post-HRDN-01 self-test + defensive plan-grep
+- [x] 207-05-PLAN.md — SAFE-09 phase-boundary verification: four-surface diff check + post-HRDN-01 self-test + defensive plan-grep
 
 #### Phase 208: Carry-on quick-tasks (T17a / T9 / T12)
 
@@ -136,7 +136,7 @@
 |-------|----------------|--------|-----------|
 | 205 — Tin-agnostic CAKE signal + allow_wash gate | 5/5 | Complete    | 2026-05-14 |
 | 206 — A/B replay harness + rollback gates | 9/9 | Complete   | 2026-05-15 |
-| 207 — Soak / harness hardening | 4/5 | In Progress|  |
+| 207 — Soak / harness hardening | 5/5 | Complete   | 2026-05-15 |
 | 208 — Carry-on quick-tasks (T17a / T9 / T12) | 0/0 | Not started | - |
 | 209 — Spectrum config migration + canary + docs | 0/0 | Not started | - |
 
