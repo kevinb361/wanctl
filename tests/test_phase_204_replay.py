@@ -44,17 +44,16 @@ def aggregator() -> ModuleType:
 
 
 class TestV142NdjsonRegressionPhase204:
-    """Backward-compat replay plus CALIB-03 top-level gate presence."""
+    """Backward-compat replay plus completed-window gate presence (v1.44 legacy gate removed; HRDN-03)."""
 
-    def test_aggregate_soak_v142_includes_new_gates(self, aggregator: ModuleType) -> None:
+    def test_aggregate_soak_v142_emits_only_completed_window_gate(
+        self, aggregator: ModuleType
+    ) -> None:
         if not V142_NDJSON.exists():
             pytest.skip(f"v1.42 reference fixture absent at {V142_NDJSON}")
         result = aggregator.aggregate_soak(V142_NDJSON)
-        assert "secondary_gate_legacy" in result
+        assert "secondary_gate_legacy" not in result
         assert "secondary_gate_completed_window" in result
-        assert result["secondary_gate_legacy"]["value"] == pytest.approx(
-            6.466842364880155, abs=1e-6
-        )
 
     def test_diagnostic_distribution_phase_203_unaffected(
         self, aggregator: ModuleType
