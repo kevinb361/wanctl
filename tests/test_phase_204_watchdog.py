@@ -1,9 +1,9 @@
 """Phase 204 CALIB-03 watchdog aggregation tests.
 
-The legacy watchdog block is a transition-only port of the v1.42 inline-jq
-suppression-rate computation. The completed-window block is the real D-14
-successor gate and reads operator-approved constants from
-``scripts/calib_02_threshold.json`` through ``aggregate_soak()``.
+The completed-window block is the D-14 successor gate and reads
+operator-approved constants from ``scripts/calib_02_threshold.json`` through
+``aggregate_soak()``. HRDN-03 closed the v1.42→v1.44 transition by removing
+the legacy watchdog block.
 """
 
 from __future__ import annotations
@@ -83,27 +83,7 @@ def _make_rows(boundary_jumps: list[int]) -> list[dict]:
 
 
 class TestWatchdogMath:
-    """CALIB-03 dual-emission shape and new-gate verdict math."""
-
-    def test_legacy_block_shape(self, aggregator: ModuleType) -> None:
-        result = aggregator.aggregate_watchdog(
-            _make_rows([10]),
-            legacy_threshold=5.0,
-            new_threshold=100,
-            statistic="p99",
-            gate_column="by_cause.dwell_hold",
-        )
-        assert set(result) == {"secondary_gate_legacy", "secondary_gate_completed_window"}
-        legacy = result["secondary_gate_legacy"]
-        assert {
-            "name",
-            "computation",
-            "value",
-            "threshold",
-            "window_count",
-            "verdict",
-            "note",
-        } <= set(legacy)
+    """CALIB-03 completed-window gate verdict math."""
 
     def test_new_block_loads_from_calib_02(self, aggregator: ModuleType) -> None:
         result = aggregator.aggregate_soak(SYNTHETIC_NDJSON)
@@ -142,31 +122,27 @@ class TestWatchdogMath:
         assert constants["gate_column"] == "by_cause.dwell_hold"
 
 
-class TestV142WatchdogRegression:
-    """CALIB-03 transition oracle: legacy live-counter mean must match v1.42."""
+class TestLegacyGateRemovalContract:
+    """HRDN-03 (Phase 207, v1.44): assert secondary_gate_legacy is gone end-to-end.
 
-    def test_legacy_value_matches_inline_jq_oracle(self, aggregator: ModuleType) -> None:
-        if not V142_NDJSON.exists():
-            pytest.skip(f"v1.42 reference fixture absent at {V142_NDJSON}")
-        rows = aggregator.load_ndjson(V142_NDJSON)
-        result = aggregator.aggregate_watchdog(
-            rows,
-            legacy_threshold=5.0,
-            new_threshold=75,
-            statistic="p99",
-        )
-        assert result["secondary_gate_legacy"]["value"] == pytest.approx(
-            6.466842364880155, abs=1e-6
-        )
+    Positive-removal contract: the transition cycle from v1.42 → v1.44 is
+    closed; only the completed-window dual gate is emitted.
+    """
 
-    def test_legacy_verdict_against_v142_threshold(self, aggregator: ModuleType) -> None:
-        if not V142_NDJSON.exists():
-            pytest.skip(f"v1.42 reference fixture absent at {V142_NDJSON}")
-        rows = aggregator.load_ndjson(V142_NDJSON)
+    def test_aggregate_watchdog_returns_only_completed_window_key(
+        self, aggregator: ModuleType
+    ) -> None:
         result = aggregator.aggregate_watchdog(
-            rows,
-            legacy_threshold=5.0,
-            new_threshold=75,
+            _make_rows([10]),
+            new_threshold=100,
             statistic="p99",
+            gate_column="by_cause.dwell_hold",
         )
-        assert result["secondary_gate_legacy"]["verdict"] == "fail"
+        assert set(result) == {"secondary_gate_completed_window"}
+
+    def test_aggregate_soak_summary_omits_secondary_gate_legacy(
+        self, aggregator: ModuleType
+    ) -> None:
+        result = aggregator.aggregate_soak(SYNTHETIC_NDJSON)
+        assert "secondary_gate_legacy" not in result
+        assert "secondary_gate_completed_window" in result
