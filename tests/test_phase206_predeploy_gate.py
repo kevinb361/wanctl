@@ -554,6 +554,7 @@ class TestMixedMetricSource:
         err = (result.stdout + result.stderr).decode()
         assert result.returncode == 2, err
         # Secondary guard message: names both post-block keys explicitly.
+        # metric_source mismatch (post-block keys): baseline='rrul_p99_latency_ms' candidate='controller_rate_p99_mbps'
         assert (
             "metric_source mismatch (post-block keys): baseline='rrul_p99_latency_ms' "
             "candidate='controller_rate_p99_mbps'"
