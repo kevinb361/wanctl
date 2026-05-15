@@ -4,15 +4,15 @@ milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 206
 status: gaps_found
-stopped_at: Phase 206 verification found TOPO-05 fail-closed gaps after code review
-last_updated: "2026-05-15T15:20:00Z"
-last_activity: 2026-05-15
+stopped_at: Phase 206 gap-closure plan 09 ready (closes WR-01/02/03 after code review)
+last_updated: "2026-05-15T15:34:04.053Z"
+last_activity: 2026-05-15 -- Phase 206 planning complete (206-09 added)
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 13
+  total_plans: 14
   completed_plans: 13
-  percent: 100
+  percent: 93
 ---
 
 # Session State
@@ -426,4 +426,4 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 Phase: 206 (a-b-replay-harness-rollback-gates) — EXECUTING
 Plan: 5 of 8
 Status: Ready to execute
-Last activity: 2026-05-15
+Last activity: 2026-05-15 -- Phase 206 planning complete
