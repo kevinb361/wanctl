@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 206
-status: executing
-stopped_at: Completed 206-08-PLAN.md
-last_updated: "2026-05-15T15:04:13.192Z"
+status: gaps_found
+stopped_at: Phase 206 verification found TOPO-05 fail-closed gaps after code review
+last_updated: "2026-05-15T15:20:00Z"
 last_activity: 2026-05-15
 progress:
   total_phases: 5
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 206 — a-b-replay-harness-rollback-gates
+**Current focus:** Phase 206 — a-b-replay-harness-rollback-gates gap closure
 
 ## Position
 
