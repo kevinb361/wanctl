@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 206
-status: gaps_found
-stopped_at: Phase 206 gap-closure plan 09 ready (closes WR-01/02/03 after code review)
-last_updated: "2026-05-15T15:34:04.053Z"
-last_activity: 2026-05-15 -- Phase 206 planning complete (206-09 added)
+status: executing
+stopped_at: Completed 206-09-PLAN.md
+last_updated: "2026-05-15T16:13:39.023Z"
+last_activity: 2026-05-15
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 14
-  completed_plans: 13
-  percent: 93
+  completed_plans: 14
+  percent: 100
 ---
 
 # Session State
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 206 — a-b-replay-harness-rollback-gates gap closure
+**Current focus:** Phase 206 — a-b-replay-harness-rollback-gates
 
 ## Position
 
@@ -131,7 +131,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 206-08-PLAN.md
+Stopped at: Completed 206-09-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -323,6 +323,8 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 206-07]: The default harness vs committed baseline path closes through the secondary post-block-key guard because both meta sources are `controller_replay` but `_read_p99()` resolves different post keys.
 - [Phase 206]: Phase 206 closeout status is verified only after re-running all four former failing spot-checks and confirming each returns rc=2 with the expected fail-closed message. — Prevents a stale status flip from masking unresolved TOPO-05 fail-closed gaps.
 - [Phase 206]: SAFE-09 remains bounded to the Phase 205 five-file src/wanctl allowlist; Plan 08 itself edits no src/wanctl files. — Confirms the closeout plan changed verification artifacts only and preserved the production controller source boundary.
+- [Phase 206-09]: Gate fail-closed gaps WR-01/WR-02/WR-03 now abort rc=2 for partial counters, zero-duration soak windows, and unapproved PHASE206_LOCAL_BASELINE_OVERRIDE; wrapper clears the override in production.
+- [Phase 206-09]: SAFE-09 boundary preserved; no protected src/wanctl edits beyond the existing Phase 205 committed allowlist.
 
 ## Performance Metrics
 
@@ -424,6 +426,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 206 (a-b-replay-harness-rollback-gates) — EXECUTING
-Plan: 5 of 8
+Plan: 2 of 9
 Status: Ready to execute
-Last activity: 2026-05-15 -- Phase 206 planning complete
+Last activity: 2026-05-15
