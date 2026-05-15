@@ -4,15 +4,15 @@ milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 206
 status: executing
-stopped_at: Completed 206-06-PLAN.md
-last_updated: "2026-05-15T14:29:36.738Z"
+stopped_at: Completed 206-07-PLAN.md
+last_updated: "2026-05-15T14:52:38.539Z"
 last_activity: 2026-05-15
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 13
-  completed_plans: 11
-  percent: 85
+  completed_plans: 12
+  percent: 92
 ---
 
 # Session State
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
 **Current phase:** 206
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 92%
 
 ## Deferred Items
 
@@ -131,7 +131,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 206-06-PLAN.md
+Stopped at: Completed 206-07-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -319,10 +319,13 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 206]: Restart counter monotonicity is validated before division so swapped/reset counters abort as inconsistent operator input rather than producing a negative healthy rate.
 - [Phase 206-06]: Shell wrapper now rejects missing or option-like values for all value-consuming options before `shift 2`, so malformed operator CLI input is ABORT rc=2 rather than BLOCK rc=1.
 - [Phase 206-06]: G3 value validation belongs in `scripts/phase206-predeploy-gate.sh` because the failure occurs before the Python gate core is invoked.
+- [Phase 206-07]: Selected Path A for G4: RRUL metric-source inconsistency now fails closed with rc=2 ABORT instead of comparing across latency-ms and throughput-Mbps units.
+- [Phase 206-07]: The default harness vs committed baseline path closes through the secondary post-block-key guard because both meta sources are `controller_replay` but `_read_p99()` resolves different post keys.
 
 ## Performance Metrics
 
 - 2026-05-15: Phase 206 Plan 06 completed in 2m09s across 1 TDD task and 2 modified files; `scripts/phase206-predeploy-gate.sh` now has one `require_value()` helper and 11 parser calls before value-consuming `shift 2` operations, `TestShellMissingOptionValue` covers all 11 no-value cases plus `--baseline --candidate /tmp/x.json`, focused missing-value tests passed with 2 tests, the full predeploy-gate slice passed with 27 tests, the Phase 206 focused slice passed with 42 tests, `bash -n` passed, test lint/format passed, and SAFE-09 unstaged/untracked `src/wanctl/` surfaces both remained 0.
+- 2026-05-15: Phase 206 Plan 07 completed in 18m48s across 1 TDD task and 2 modified files; `check_rrul_p99()` now enforces primary `meta.metric_source` equality and secondary `_read_p99()` post-block-key equality before RRUL threshold math, `TestMixedMetricSource` passed with 2 tests, the four gap-closure classes passed with 12 tests, the full predeploy-gate slice passed with 29 tests, the Phase 206 focused slice passed with 44 tests, lint/format passed, and SAFE-09 unstaged/untracked `src/wanctl/` surfaces both remained 0.
 - 2026-05-15: Phase 206 Plan 05 completed in 4m23s across 2 gap-closure tasks and 2 modified files; `scripts/phase206-gate-check.py` now aborts on empty, malformed, missing-zone, missing-timestamp, and single-sample soak NDJSON in post-soak mode, rejects decreasing restart counters before division, focused new classes passed with 5 and 3 tests, the full predeploy-gate slice passed with 25 tests, the Phase 206 focused slice passed with 40 tests, ruff lint/format passed, and SAFE-09 unstaged/untracked `src/wanctl/` surfaces both remained 0.
 - 2026-05-15: Phase 206 Plan 04 completed in 6m22s across 2 verification tasks and 2 planning files; SAFE-09 boundary evidence now covers committed, staged/index, unstaged worktree, and untracked `src/wanctl/` surfaces, the committed/index surfaces match the Phase 205 five-file allowlist, unstaged and untracked counts are both 0, threshold docs match `scripts/phase206-thresholds.json`, full suite passed with 5027 passed / 6 skipped / 2 deselected, hot-path slice passed with 673 tests, and Phase 206 focused slice passed with 32 tests.
 - 2026-05-15: Phase 206 Plan 02 completed in ~25m across 3 tasks and 6 created files; scripts/phase206-thresholds.json now owns the TOPO-05 5.0/10.0/10.0 thresholds, the Python gate core is SSH-free with fail-closed gate_baseline mismatch handling, the bash wrapper owns NRestarts SSH sampling and path/target validation, focused gate tests passed with 17 tests, full suite passed with 5027 passed / 6 skipped / 2 deselected, dry-run baseline-vs-self exited 0, and SAFE-09 source diff remained at the Phase 205 5-file allowlist.
@@ -419,6 +422,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 206 (a-b-replay-harness-rollback-gates) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-05-15
