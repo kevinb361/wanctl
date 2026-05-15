@@ -1,0 +1,283 @@
+#!/usr/bin/env python3
+"""Phase 206 predeploy-gate Python core.
+
+Computes RRUL p99 regression, daemon restart-rate increase, and pressure-state
+transition-rate increase against a committed baseline. Importable for tests;
+invoked by scripts/phase206-predeploy-gate.sh in production. Stdlib only -- NO
+network calls. SAFE-09: no src/wanctl edits. Fail-closed on input/baseline
+mismatch -- see four-state matrix in PLAN.md Task 1 behavior block. Thresholds
+loaded from scripts/phase206-thresholds.json (W5).
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+EXIT_PASS = 0
+EXIT_BLOCK = 1
+EXIT_ABORT = 2
+
+
+def load_thresholds(path: Path | None = None) -> dict:
+    target = path or (Path(__file__).resolve().parent / "phase206-thresholds.json")
+    with target.open(encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+_T = load_thresholds()
+RRUL_P99_REGRESSION_PCT = float(_T["RRUL_P99_REGRESSION_PCT"])
+RESTART_RATE_INCREASE_PCT = float(_T["RESTART_RATE_INCREASE_PCT"])
+TRANSITION_RATE_INCREASE_PCT = float(_T["TRANSITION_RATE_INCREASE_PCT"])
+
+
+def _log_info(msg: str) -> None:
+    print(f"[phase206-gate-check INFO] {msg}", file=sys.stderr)
+
+
+def _log_block(msg: str) -> None:
+    print(f"[phase206-gate-check BLOCK] {msg}", file=sys.stderr)
+    print(msg)
+
+
+def _log_abort(msg: str) -> None:
+    print(f"[phase206-gate-check ABORT] {msg}", file=sys.stderr)
+
+
+def _read_json(path: str) -> dict:
+    with Path(path).open(encoding="utf-8") as fh:
+        data = json.load(fh)
+    if not isinstance(data, dict):
+        raise ValueError(f"JSON root is not an object: {path}")
+    return data
+
+
+def _read_p99(side: dict) -> tuple[float, str]:
+    if "rrul_p99_latency_ms" in side:
+        return float(side["rrul_p99_latency_ms"]), "rrul_p99_latency_ms"
+    if "controller_rate_p99_mbps" in side:
+        return float(side["controller_rate_p99_mbps"]), "controller_rate_p99_mbps"
+    raise KeyError("post block lacks both rrul_p99_latency_ms and controller_rate_p99_mbps")
+
+
+def check_rrul_p99(baseline: dict, candidate: dict, threshold_pct: float) -> tuple[bool, str]:
+    pre, src_pre = _read_p99(baseline["post"])
+    cur, src_cur = _read_p99(candidate["post"])
+    pct = ((cur - pre) / pre) * 100.0 if pre > 0 else (0.0 if cur == 0 else float("inf"))
+    if src_pre == "controller_rate_p99_mbps":
+        pct = -pct
+    if src_pre != src_cur:
+        _log_info(f"RRUL comparison mixed sources baseline={src_pre} current={src_cur}")
+    else:
+        _log_info(f"RRUL comparison source={src_pre}")
+    if pct > threshold_pct:
+        return False, (
+            f"RRUL p99 regression: baseline={pre:.2f} current={cur:.2f} "
+            f"delta=+{pct:.1f}% > {threshold_pct}% (source: {src_pre})"
+        )
+    return True, f"RRUL p99: {pct:+.1f}% (within +/-{threshold_pct}%) (source: {src_pre})"
+
+
+def check_restart_rate(
+    baseline_rate_per_hour: float, current_rate_per_hour: float, threshold_pct: float
+) -> tuple[bool, str]:
+    baseline_rate_per_hour = float(baseline_rate_per_hour)
+    current_rate_per_hour = float(current_rate_per_hour)
+    if baseline_rate_per_hour == 0.0:
+        if current_rate_per_hour > 0.0:
+            return False, (
+                f"Daemon restart-rate: baseline=0.00/h current={current_rate_per_hour:.2f}/h "
+                f"(zero-baseline policy: any restart triggers breach)"
+            )
+        return True, "Daemon restart-rate: 0.00/h (matches baseline)"
+    pct = ((current_rate_per_hour - baseline_rate_per_hour) / baseline_rate_per_hour) * 100.0
+    if pct > threshold_pct:
+        return False, (
+            f"Daemon restart-rate: baseline={baseline_rate_per_hour:.2f}/h "
+            f"current={current_rate_per_hour:.2f}/h delta=+{pct:.1f}% > {threshold_pct}%"
+        )
+    return True, (
+        f"Daemon restart-rate: {current_rate_per_hour:.2f}/h "
+        f"(baseline {baseline_rate_per_hour:.2f}/h, +{pct:.1f}%)"
+    )
+
+
+def check_zone_transitions(
+    soak_ndjson_path: str, baseline_rate_per_hour: float, threshold_pct: float
+) -> tuple[bool, str]:
+    last_zones: list[str] = []
+    t_values: list[float] = []
+    with open(soak_ndjson_path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            zone = obj.get("last_zone")
+            if zone is None:
+                continue
+            last_zones.append(str(zone))
+            t = obj.get("t_monotonic")
+            if isinstance(t, (int, float)):
+                t_values.append(float(t))
+    transitions = sum(1 for i in range(1, len(last_zones)) if last_zones[i] != last_zones[i - 1])
+    elapsed_s = (max(t_values) - min(t_values)) if t_values else 0.0
+    hours = max(elapsed_s / 3600.0, 1e-9)
+    actual = transitions / hours
+    baseline_rate_per_hour = float(baseline_rate_per_hour)
+    if baseline_rate_per_hour == 0.0:
+        if actual > 0.0:
+            return False, (
+                f"Pressure-state transition-rate: baseline=0.00/h current={actual:.2f}/h "
+                f"(zero-baseline policy)"
+            )
+        return True, "Pressure-state transition-rate: 0.00/h (matches baseline)"
+    pct = ((actual - baseline_rate_per_hour) / baseline_rate_per_hour) * 100.0
+    if pct > threshold_pct:
+        return False, (
+            f"Pressure-state transition-rate: baseline={baseline_rate_per_hour:.2f}/h "
+            f"current={actual:.2f}/h delta=+{pct:.1f}% > {threshold_pct}%"
+        )
+    return True, (
+        f"Pressure-state transition-rate: {actual:.2f}/h "
+        f"(baseline {baseline_rate_per_hour:.2f}/h, +{pct:.1f}%)"
+    )
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Phase 206 rollback gate core")
+    parser.add_argument("--baseline", required=True)
+    parser.add_argument("--candidate", required=True)
+    parser.add_argument("--soak-ndjson")
+    parser.add_argument("--restart-counter-start", type=int)
+    parser.add_argument("--restart-counter-end", type=int)
+    parser.add_argument("--window-hours", type=float)
+    parser.add_argument("--mode", choices=("predeploy", "post-soak"), default="predeploy")
+    parser.add_argument("--journal-since")
+    return parser
+
+
+def _apply_override(args: argparse.Namespace) -> None:
+    override = os.environ.get("PHASE206_LOCAL_BASELINE_OVERRIDE")
+    if not override:
+        return
+    with Path(override).open(encoding="utf-8") as fh:
+        data = json.load(fh)
+    for attr in ("restart_counter_start", "restart_counter_end", "window_hours"):
+        if attr in data:
+            setattr(args, attr, data[attr])
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    _apply_override(args)
+    if args.journal_since:
+        if not re.match(r"^[0-9TZ:+_. -]+$", args.journal_since):
+            _log_info(f"journal-since supplied for audit: {args.journal_since}")
+        else:
+            _log_info(f"journal-since={args.journal_since}")
+
+    try:
+        baseline = _read_json(args.baseline)
+        candidate = _read_json(args.candidate)
+    except Exception as exc:  # noqa: BLE001 - CLI fail-closed path includes parser details.
+        _log_abort(f"ERROR: failed to read baseline/candidate JSON: {exc}")
+        return EXIT_ABORT
+
+    gb = baseline.get("gate_baseline", {})
+    if not isinstance(gb, dict):
+        gb = {}
+
+    if args.mode == "post-soak":
+        if args.soak_ndjson is None:
+            _log_abort("ERROR: --mode post-soak requires --soak-ndjson")
+            return EXIT_ABORT
+        if (
+            args.restart_counter_start is None
+            or args.restart_counter_end is None
+            or args.window_hours is None
+        ):
+            _log_abort(
+                "ERROR: --mode post-soak requires --restart-counter-start and "
+                "--restart-counter-end and --window-hours"
+            )
+            return EXIT_ABORT
+        if (
+            "restart_rate_per_hour_baseline" not in gb
+            or "transition_rate_per_hour_baseline" not in gb
+        ):
+            _log_abort(
+                "ERROR: --mode post-soak requires gate_baseline with both "
+                "restart_rate_per_hour_baseline and transition_rate_per_hour_baseline"
+            )
+            return EXIT_ABORT
+
+    results: list[tuple[bool, str]] = []
+    try:
+        results.append(check_rrul_p99(baseline, candidate, RRUL_P99_REGRESSION_PCT))
+    except Exception as exc:  # noqa: BLE001 - malformed input is an ABORT, not traceback.
+        _log_abort(f"ERROR: failed RRUL p99 check: {exc}")
+        return EXIT_ABORT
+
+    restart_inputs_present = (
+        args.restart_counter_start is not None and args.restart_counter_end is not None
+    )
+    baseline_restart = gb.get("restart_rate_per_hour_baseline")
+    if restart_inputs_present and baseline_restart is None:
+        _log_abort(
+            "ERROR: --restart-counter-start/--restart-counter-end provided but "
+            "gate_baseline missing restart_rate_per_hour_baseline; cannot enforce TOPO-05"
+        )
+        return EXIT_ABORT
+    if restart_inputs_present and baseline_restart is not None:
+        if args.window_hours is None or args.window_hours <= 0:
+            _log_abort("ERROR: --window-hours required when restart-counter inputs present")
+            return EXIT_ABORT
+        current = (args.restart_counter_end - args.restart_counter_start) / args.window_hours
+        results.append(check_restart_rate(baseline_restart, current, RESTART_RATE_INCREASE_PCT))
+    else:
+        _log_info("restart-rate check skipped (no --restart-counter-* inputs)")
+
+    soak_present = args.soak_ndjson is not None
+    baseline_transition = gb.get("transition_rate_per_hour_baseline")
+    if soak_present and baseline_transition is None:
+        _log_abort(
+            "ERROR: --soak-ndjson provided but gate_baseline missing "
+            "transition_rate_per_hour_baseline; cannot enforce TOPO-05"
+        )
+        return EXIT_ABORT
+    if soak_present and baseline_transition is not None:
+        try:
+            results.append(
+                check_zone_transitions(
+                    args.soak_ndjson, baseline_transition, TRANSITION_RATE_INCREASE_PCT
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 - malformed soak input fail-closed.
+            _log_abort(f"ERROR: failed transition-rate check: {exc}")
+            return EXIT_ABORT
+    else:
+        _log_info("transition-rate check skipped (no --soak-ndjson input)")
+
+    blocked = False
+    for passed, message in results:
+        if passed:
+            _log_info(message)
+        else:
+            _log_block(message)
+            blocked = True
+    if blocked:
+        return EXIT_BLOCK
+    _log_info("PASS: Phase 206 rollback gates clear")
+    return EXIT_PASS
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
