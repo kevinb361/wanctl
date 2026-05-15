@@ -29,7 +29,7 @@
 ### Phases
 
 - [x] **Phase 205: Tin-agnostic CAKE signal + allow_wash gate** — pure-code refactor; `cake_signal.py` becomes layout-agnostic and `cake_params.py` gains a per-WAN `allow_wash` gate. No deploy. (completed 2026-05-14)
-- [ ] **Phase 206: A/B replay harness + rollback gates** — captures pre-migration controller behavior as the comparison baseline and wires machine-readable rollback criteria into a predeploy gate script.
+- [x] **Phase 206: A/B replay harness + rollback gates** — captures pre-migration controller behavior as the comparison baseline and wires machine-readable rollback criteria into a predeploy gate script. (completed 2026-05-15)
 - [ ] **Phase 207: Soak / harness hardening (v1.43 closeout-routed)** — fail-closed source-diff verifier, soak-capture transient-failure tolerance, `secondary_gate_legacy` removal, CALIB-02 YAML-promotion decision.
 - [ ] **Phase 208: Carry-on quick-tasks (T17a / T9 / T12)** — aggregator schema closeout, `wanctl-history --ingestion-rate`, operator-summary digest perm guard.
 - [ ] **Phase 209: Spectrum config migration, production canary, and docs** — Spectrum YAML flips to `920Mbit besteffort wash`, two-snapshot rollback ritual canary, docs updated, SAFE-08 / SAFE-09 mechanical closeout.
@@ -66,11 +66,11 @@
   3. `PHASE-205-ROLLBACK-GATES.md` (or equivalent) documents the three rollback triggers in operator-readable form: RRUL p99 latency regression > 5%, Spectrum daemon restart-rate increase, pressure-state transition-rate increase per hour.
   4. A predeploy gate script exits non-zero when any of the three rollback triggers is breached against a captured baseline; an operator dry-run on the v1.43 baseline exits zero.
   5. SAFE-09 phase-boundary check: zero control-path source diff introduced in this phase (harness + scripts only, no `src/wanctl/` edits beyond Phase 205's bounded set).
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 - [x] 206-01-PLAN.md — A/B replay harness core: golden NDJSON fixture + corpus loader + harness CLI emitting schema-v1 A/B summary JSON (TOPO-04)
 - [x] 206-02-PLAN.md — Predeploy rollback-gate script + Python core with three threshold checks + tests (TOPO-05)
 - [x] 206-03-PLAN.md — Operator-readable rollback doc (PHASE-205-ROLLBACK-GATES.md) + golden-fixture provenance doc
-- [ ] 206-04-PLAN.md — SAFE-09 phase-boundary verification + cross-plan threshold drift check + fixture SHA256 pin
+- [x] 206-04-PLAN.md — SAFE-09 phase-boundary verification + cross-plan threshold drift check + fixture SHA256 pin
 
 #### Phase 207: Soak / harness hardening (v1.43 closeout-routed)
 
@@ -86,8 +86,8 @@
   5. SAFE-09 phase-boundary check: zero control-path source diff in this phase (scripts + aggregator + tests only; the optional CALIB-02 YAML knob, if YES, lives in config schema not threshold logic).
 **Plans:** 4 plans
 - [x] 206-01-PLAN.md — A/B replay harness core: golden NDJSON fixture + corpus loader + harness CLI emitting schema-v1 A/B summary JSON (TOPO-04)
-- [ ] 206-02-PLAN.md — Predeploy rollback-gate script + Python core with three threshold checks + tests (TOPO-05)
-- [ ] 206-03-PLAN.md — Operator-readable rollback doc (PHASE-205-ROLLBACK-GATES.md) + golden-fixture provenance doc
+- [x] 206-02-PLAN.md — Predeploy rollback-gate script + Python core with three threshold checks + tests (TOPO-05)
+- [x] 206-03-PLAN.md — Operator-readable rollback doc (PHASE-205-ROLLBACK-GATES.md) + golden-fixture provenance doc
 - [ ] 206-04-PLAN.md — SAFE-09 phase-boundary verification + cross-plan threshold drift check + fixture SHA256 pin
 
 #### Phase 208: Carry-on quick-tasks (T17a / T9 / T12)
@@ -120,7 +120,7 @@
   4. SAFE-09 closeout: end-to-end control-path source diff between v1.43 close (`6508d68`) and v1.44 close is bounded to `cake_signal.py` (TOPO-01), the TOPO-02 set (`cake_params.py`, `backends/linux_cake.py`, `backends/netlink_cake.py`, `check_config_validators.py`), `operator_summary.py` (TOOL-03), and `src/wanctl/__init__.py` (version bump). HRDN-01's fail-closed verifier confirms mechanically. Phase 209 also adds wash to `build_expected_readback()` + `_VALIDATE_KEY_TO_TCA` so live readback validates the new qdisc state.
   5. Version bump `1.43.0 → 1.44.0` propagates across `pyproject.toml`, `src/wanctl/__init__.py`, and `docker/Dockerfile`.
 **Plans:** 4 plans
-- [ ] 206-01-PLAN.md — A/B replay harness core: golden NDJSON fixture + corpus loader + harness CLI emitting schema-v1 A/B summary JSON (TOPO-04)
+- [x] 206-01-PLAN.md — A/B replay harness core: golden NDJSON fixture + corpus loader + harness CLI emitting schema-v1 A/B summary JSON (TOPO-04)
 - [ ] 206-02-PLAN.md — Predeploy rollback-gate script + Python core with three threshold checks + tests (TOPO-05)
 - [ ] 206-03-PLAN.md — Operator-readable rollback doc (PHASE-205-ROLLBACK-GATES.md) + golden-fixture provenance doc
 - [ ] 206-04-PLAN.md — SAFE-09 phase-boundary verification + cross-plan threshold drift check + fixture SHA256 pin
@@ -130,7 +130,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 205 — Tin-agnostic CAKE signal + allow_wash gate | 5/5 | Complete    | 2026-05-14 |
-| 206 — A/B replay harness + rollback gates | 3/4 | In Progress|  |
+| 206 — A/B replay harness + rollback gates | 4/4 | Complete   | 2026-05-15 |
 | 207 — Soak / harness hardening | 0/0 | Not started | - |
 | 208 — Carry-on quick-tasks (T17a / T9 / T12) | 0/0 | Not started | - |
 | 209 — Spectrum config migration + canary + docs | 0/0 | Not started | - |

@@ -4,15 +4,15 @@ milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 206
 status: executing
-stopped_at: Completed 206-02-PLAN.md
-last_updated: "2026-05-15T02:26:05.438Z"
+stopped_at: Completed 206-04-PLAN.md
+last_updated: "2026-05-15T02:37:39.148Z"
 last_activity: 2026-05-15
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 9
-  completed_plans: 8
-  percent: 89
+  completed_plans: 9
+  percent: 100
 ---
 
 # Session State
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
 **Current phase:** 206
 
-Progress: [█████████░] 89%
+Progress: [██████████] 100%
 
 ## Deferred Items
 
@@ -131,7 +131,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 206-03-PLAN.md
+Stopped at: Completed 206-04-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -313,9 +313,12 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 206-02]: Post-soak mode is fail-closed and requires all inputs plus both gate_baseline rate fields.
 - [Phase 206-03]: Rollback docs cite scripts/phase206-thresholds.json as the threshold source of truth while inlining 5.0/10.0/10.0 for operator readability; Plan 04 verifies doc-vs-JSON drift.
 - [Phase 206-03]: Golden fixture provenance records the operator-accepted 2026-04-29 substitute for the missing 2026-04-22 finding and pins SHA256 68f99440bd41be646dfa64abe77380791d4b2dd7b09722588c808e9749c0bbda.
+- [Phase 206-04]: SAFE-09 closeout evidence covers committed, staged/index, unstaged worktree, and untracked src/wanctl/ surfaces; the only source diff remains the Phase 205 five-file allowlist.
+- [Phase 206-04]: Rollback threshold doc values were verified against scripts/phase206-thresholds.json; JSON remains the source of truth for 5.0/10.0/10.0.
 
 ## Performance Metrics
 
+- 2026-05-15: Phase 206 Plan 04 completed in 6m22s across 2 verification tasks and 2 planning files; SAFE-09 boundary evidence now covers committed, staged/index, unstaged worktree, and untracked `src/wanctl/` surfaces, the committed/index surfaces match the Phase 205 five-file allowlist, unstaged and untracked counts are both 0, threshold docs match `scripts/phase206-thresholds.json`, full suite passed with 5027 passed / 6 skipped / 2 deselected, hot-path slice passed with 673 tests, and Phase 206 focused slice passed with 32 tests.
 - 2026-05-15: Phase 206 Plan 02 completed in ~25m across 3 tasks and 6 created files; scripts/phase206-thresholds.json now owns the TOPO-05 5.0/10.0/10.0 thresholds, the Python gate core is SSH-free with fail-closed gate_baseline mismatch handling, the bash wrapper owns NRestarts SSH sampling and path/target validation, focused gate tests passed with 17 tests, full suite passed with 5027 passed / 6 skipped / 2 deselected, dry-run baseline-vs-self exited 0, and SAFE-09 source diff remained at the Phase 205 5-file allowlist.
 - 2026-05-15: Phase 206 Plan 03 completed in 4m07s across 2 documentation tasks and 2 created planning artifacts; rollback gates doc now covers RRUL p99, daemon restart-rate, and pressure-transition-rate triggers with JSON-sourced thresholds inlined for readability, fixture provenance pins the accepted 2026-04-29 substitution with SHA256 `68f99440bd41be646dfa64abe77380791d4b2dd7b09722588c808e9749c0bbda`, and SAFE-09 source diff remained at the Phase 205 5-file allowlist.
 - 2026-05-15: Phase 206 Plan 01 completed in 11m across 3 tasks and 6 created files; deterministic golden fixture has 350 rows with SHA256 `68f99440bd41be646dfa64abe77380791d4b2dd7b09722588c808e9749c0bbda`, `_replay_samples` consumed all 350 rows, focused Phase 206 tests passed with 15 tests, full suite passed with 5010 passed / 6 skipped / 2 deselected, and SAFE-09 source diff remained at the Phase 205 5-file allowlist.
@@ -410,6 +413,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 ## Current Position
 
 Phase: 206 (a-b-replay-harness-rollback-gates) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-05-15
