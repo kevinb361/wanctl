@@ -276,7 +276,16 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         return EXIT_ABORT
     if restart_inputs_present and baseline_restart is not None:
         if args.window_hours is None or args.window_hours <= 0:
-            _log_abort("ERROR: --window-hours required when restart-counter inputs present")
+            _log_abort(
+                f"ERROR: --window-hours must be > 0 when restart-counter inputs present "
+                f"(got {args.window_hours!r})"
+            )
+            return EXIT_ABORT
+        if args.restart_counter_end < args.restart_counter_start:
+            _log_abort(
+                f"ERROR: restart_counter_end ({args.restart_counter_end}) < restart_counter_start ({args.restart_counter_start}); "  # noqa: E501
+                f"counter must be monotonic non-decreasing (systemd NRestarts only grows)"
+            )
             return EXIT_ABORT
         current = (args.restart_counter_end - args.restart_counter_start) / args.window_hours
         results.append(check_restart_rate(baseline_restart, current, RESTART_RATE_INCREASE_PCT))
