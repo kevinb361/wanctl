@@ -25,6 +25,14 @@ EXIT_BLOCK = 1
 EXIT_ABORT = 2
 
 
+class MalformedSoakInput(ValueError):
+    """Raised when soak NDJSON cannot be parsed at all."""
+
+
+class InsufficientSoakSamples(ValueError):
+    """Raised when fewer than 2 rows in the soak NDJSON have both last_zone and t_monotonic."""
+
+
 def load_thresholds(path: Path | None = None) -> dict:
     target = path or (Path(__file__).resolve().parent / "phase206-thresholds.json")
     with target.open(encoding="utf-8") as fh:
@@ -111,26 +119,54 @@ def check_restart_rate(
 def check_zone_transitions(
     soak_ndjson_path: str, baseline_rate_per_hour: float, threshold_pct: float
 ) -> tuple[bool, str]:
-    last_zones: list[str] = []
-    t_values: list[float] = []
+    timed_samples: list[tuple[float, str]] = []
+    lines_seen = 0
+    parsed_rows = 0
+    rows_with_zone = 0
     with open(soak_ndjson_path, encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip()
+        for raw_line in fh:
+            line = raw_line.strip()
             if not line:
                 continue
+            lines_seen += 1
             try:
                 obj = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            if not isinstance(obj, dict):
+                continue
+            parsed_rows += 1
             zone = obj.get("last_zone")
             if zone is None:
                 continue
-            last_zones.append(str(zone))
+            rows_with_zone += 1
             t = obj.get("t_monotonic")
-            if isinstance(t, (int, float)):
-                t_values.append(float(t))
-    transitions = sum(1 for i in range(1, len(last_zones)) if last_zones[i] != last_zones[i - 1])
-    elapsed_s = (max(t_values) - min(t_values)) if t_values else 0.0
+            if not isinstance(t, (int, float)):
+                continue
+            timed_samples.append((float(t), str(zone)))
+
+    if lines_seen == 0:
+        raise InsufficientSoakSamples(
+            f"insufficient valid soak samples: soak NDJSON is empty ({soak_ndjson_path})"
+        )
+    if parsed_rows == 0:
+        raise MalformedSoakInput(
+            f"no valid soak rows: every non-blank line in {soak_ndjson_path} failed JSON parsing"
+        )
+    if rows_with_zone > 0 and not timed_samples:
+        raise InsufficientSoakSamples(
+            f"soak rows missing t_monotonic: {rows_with_zone} row(s) had last_zone but none had numeric t_monotonic"
+        )
+    if len(timed_samples) < 2:
+        raise InsufficientSoakSamples(
+            f"insufficient valid soak samples: need >= 2 rows with both last_zone and t_monotonic, got {len(timed_samples)}"
+        )
+
+    timed_samples.sort(key=lambda pair: pair[0])
+    zones = [z for _, z in timed_samples]
+    ts = [t for t, _ in timed_samples]
+    transitions = sum(1 for i in range(1, len(zones)) if zones[i] != zones[i - 1])
+    elapsed_s = ts[-1] - ts[0]
     hours = max(elapsed_s / 3600.0, 1e-9)
     actual = transitions / hours
     baseline_rate_per_hour = float(baseline_rate_per_hour)
