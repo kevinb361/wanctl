@@ -163,6 +163,26 @@ class TestGateAbort:
         )
         assert result.returncode == 2
 
+    def test_non_executable_interpreter_aborts(self, tmp_path: Path) -> None:
+        fake_python = tmp_path / "fake_python"
+        fake_python.write_text("#!/bin/sh\necho hi\n")
+        result = subprocess.run(
+            [
+                "bash",
+                str(GATE_SCRIPT),
+                "--baseline",
+                str(BASELINE),
+                "--candidate",
+                str(BASELINE),
+            ],
+            env={**os.environ, "VENV_PY": str(fake_python)},
+            capture_output=True,
+            timeout=15,
+            check=False,
+        )
+        assert result.returncode == 2, (result.stdout + result.stderr).decode()
+        assert b"Python interpreter not executable" in result.stderr
+
 
 class TestFailClosed:
     def test_aborts_when_soak_provided_but_gate_baseline_missing_transition_rate(
@@ -303,7 +323,7 @@ class TestPostSoakRequiresAll:
                 "1",
             ]
         )
-        assert result.returncode in (0, 1), (result.stdout + result.stderr).decode()
+        assert result.returncode == 0, (result.stdout + result.stderr).decode()
 
 
 class TestPostSoakAbortMalformed:

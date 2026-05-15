@@ -180,8 +180,8 @@ PY_ARGS=("--baseline" "$BASELINE" "--candidate" "$CANDIDATE" "--mode" "$MODE")
 [[ -n "$WIN_HOURS" ]] && PY_ARGS+=("--window-hours" "$WIN_HOURS")
 [[ -n "$JOURNAL_SINCE" ]] && PY_ARGS+=("--journal-since" "$JOURNAL_SINCE")
 
-if [[ ! -x "$VENV_PY" && ! -f "$VENV_PY" ]]; then
-    log_abort "Python interpreter not found: $VENV_PY"
+if [[ ! -x "$VENV_PY" ]]; then
+    log_abort "Python interpreter not executable: $VENV_PY"
     exit $EXIT_ABORT
 fi
 
