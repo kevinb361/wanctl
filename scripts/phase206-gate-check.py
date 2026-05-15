@@ -25,11 +25,11 @@ EXIT_BLOCK = 1
 EXIT_ABORT = 2
 
 
-class MalformedSoakInput(ValueError):
+class MalformedSoakInput(ValueError):  # noqa: N818 - planned Phase 206 acceptance name.
     """Raised when soak NDJSON cannot be parsed at all."""
 
 
-class InsufficientSoakSamples(ValueError):
+class InsufficientSoakSamples(ValueError):  # noqa: N818 - planned Phase 206 acceptance name.
     """Raised when fewer than 2 rows in the soak NDJSON have both last_zone and t_monotonic."""
 
 

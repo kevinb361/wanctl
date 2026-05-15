@@ -343,22 +343,14 @@ class TestPostSoakAbortMalformed:
 
     def test_rows_missing_last_zone_aborts(self, tmp_path: Path) -> None:
         soak = tmp_path / "no_zone.ndjson"
-        soak.write_text(
-            '{"t_monotonic": 1.0}\n'
-            '{"t_monotonic": 2.0}\n'
-            '{"t_monotonic": 3.0}\n'
-        )
+        soak.write_text('{"t_monotonic": 1.0}\n{"t_monotonic": 2.0}\n{"t_monotonic": 3.0}\n')
         result = _run_gate(self._post_soak_args(BASELINE, soak))
         assert result.returncode == 2, (result.stdout + result.stderr).decode()
         assert b"insufficient valid soak samples" in result.stderr
 
     def test_rows_missing_t_monotonic_aborts(self, tmp_path: Path) -> None:
         soak = tmp_path / "no_t.ndjson"
-        soak.write_text(
-            '{"last_zone": "GREEN"}\n'
-            '{"last_zone": "YELLOW"}\n'
-            '{"last_zone": "GREEN"}\n'
-        )
+        soak.write_text('{"last_zone": "GREEN"}\n{"last_zone": "YELLOW"}\n{"last_zone": "GREEN"}\n')
         result = _run_gate(self._post_soak_args(BASELINE, soak))
         assert result.returncode == 2, (result.stdout + result.stderr).decode()
         err = result.stderr
