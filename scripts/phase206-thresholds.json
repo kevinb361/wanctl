@@ -1,0 +1,7 @@
+{
+  "thresholds_schema_version": 1,
+  "RRUL_P99_REGRESSION_PCT": 5.0,
+  "RESTART_RATE_INCREASE_PCT": 10.0,
+  "TRANSITION_RATE_INCREASE_PCT": 10.0,
+  "_notes": "TOPO-05 single source of truth. PHASE-205-ROLLBACK-GATES.md (Plan 03) references this file; do not duplicate numeric literals in documentation."
+}

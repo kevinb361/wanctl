@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "meta": {
+    "metric_source": "controller_replay",
+    "tool_version": "phase206-ab-replay/1.1"
+  },
+  "post": {
+    "config": {
+      "ceiling_mbps": 920,
+      "diffserv": "besteffort",
+      "allow_wash": true
+    },
+    "controller_mean_rate_mbps": 900.0,
+    "controller_rate_p99_mbps": 920.0,
+    "controller_rate_stddev_mbps": 5.0,
+    "zone_distribution": {
+      "GREEN": 1900,
+      "YELLOW": 80,
+      "SOFT_RED": 15,
+      "RED": 5
+    },
+    "rate_apply_count": 25,
+    "rrul_p99_latency_ms": 20.0,
+    "throughput_mbps": 900.0,
+    "jitter_ms": 5.0
+  },
+  "gate_baseline": {
+    "gate_baseline_schema_version": 1,
+    "restart_rate_per_hour_baseline": 0.0,
+    "transition_rate_per_hour_baseline": 77.17,
+    "_provenance": {
+      "restart_rate_per_hour_baseline_source": "wanctl@spectrum.service NRestarts unchanged over the v1.43 reference soak window 20260509T183037Z (24h); verified by operator at planning time. Zero-baseline policy: any current restart triggers breach (see check_restart_rate).",
+      "transition_rate_per_hour_baseline_source": "Derived at planning time from .planning/milestones/v1.43-phases/204-d-14-successor-recalibration-calib/soak/20260509T183037Z/soak-capture.ndjson: 1852 adjacent zone changes in last_zone over (max(t_monotonic) - min(t_monotonic)) = 86399.6s = 23.9999h => 1852/23.9999 = 77.17/h."
+    }
+  }
+}
