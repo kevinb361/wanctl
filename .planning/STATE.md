@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
-current_phase: 206
+current_phase: 207
 status: executing
-stopped_at: Phase 207 context gathered
-last_updated: "2026-05-15T16:58:38.066Z"
+stopped_at: Completed 207-01-PLAN.md
+last_updated: "2026-05-15T20:42:16.989Z"
 last_activity: 2026-05-15
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 14
-  completed_plans: 14
-  percent: 100
+  total_plans: 19
+  completed_plans: 15
+  percent: 79
 ---
 
 # Session State
@@ -22,16 +22,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 206 — a-b-replay-harness-rollback-gates gap closure
+**Current focus:** Phase 207 — soak-harness-hardening-v1-43-closeout-routed
 
 ## Position
 
 **Last shipped milestone:** v1.43 UL Suppression Metrics & Gate Calibration (shipped 2026-05-13; audit `passed` 15/15)
 **Recently archived:** v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
-**Current phase:** 206
+**Current phase:** 207
 
-Progress: [██████████] 100%
+Progress: [████████░░] 79%
 
 ## Deferred Items
 
@@ -131,8 +131,8 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Phase 207 context gathered
-Resume file: .planning/phases/207-soak-harness-hardening-v1-43-closeout-routed/207-CONTEXT.md
+Stopped at: Completed 207-01-PLAN.md
+Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
 ## Decisions
@@ -425,7 +425,7 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 
 ## Current Position
 
-Phase: 206 (a-b-replay-harness-rollback-gates) — EXECUTING
-Plan: 2 of 9
+Phase: 207 (soak-harness-hardening-v1-43-closeout-routed) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
 Last activity: 2026-05-15
