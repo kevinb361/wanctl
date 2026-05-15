@@ -478,3 +478,92 @@ class TestShellMissingOptionValue:
         assert result.returncode == 2, err
         assert "missing value for --baseline" in err
         assert "--candidate" in err  # next-token diagnostic
+
+
+class TestMixedMetricSource:
+    """G4 closure: cross-source RRUL comparisons must rc=2 ABORT, not rc=1 BLOCK with mixed units.
+
+    Two-tier guard:
+      - Primary: meta.metric_source equality (future-proofing; pinned by Test 1).
+      - Secondary: _read_p99 post-block-key equality (closes today's actual scenario; pinned by Test 2).
+    """
+
+    def _make_with_source(
+        self, tmp_path: Path, name: str, source: str, p99_key: str, p99_value: float
+    ) -> Path:
+        baseline = json.loads(BASELINE.read_text())
+        baseline.setdefault("meta", {})["metric_source"] = source
+        # Reset post.* to a single p99 key so the test is unambiguous about which source is in play.
+        baseline["post"].pop("rrul_p99_latency_ms", None)
+        baseline["post"].pop("controller_rate_p99_mbps", None)
+        baseline["post"][p99_key] = p99_value
+        out = tmp_path / name
+        out.write_text(json.dumps(baseline, indent=2))
+        return out
+
+    def test_synthetic_mismatch_aborts_with_named_sources(self, tmp_path: Path) -> None:
+        """Primary guard: SYNTHETIC meta.metric_source divergence triggers rc=2 ABORT.
+
+        This crafts a baseline with meta.metric_source='flent' and a candidate with
+        meta.metric_source='controller_replay' — a synthetic scenario that does NOT
+        match today's committed fixtures (both of which carry metric_source='controller_replay').
+        It pins the primary guard so future flent-sourced baselines stay protected.
+        """
+        base = self._make_with_source(
+            tmp_path, "base_flent.json", "flent", "rrul_p99_latency_ms", 20.0
+        )
+        cand = self._make_with_source(
+            tmp_path, "cand_replay.json", "controller_replay", "controller_rate_p99_mbps", 920.0
+        )
+        result = _run_gate(["--baseline", str(base), "--candidate", str(cand)])
+        err = (result.stdout + result.stderr).decode()
+        assert result.returncode == 2, err
+        assert "metric_source mismatch" in err
+        assert "flent" in err
+        assert "controller_replay" in err
+
+    def test_default_harness_vs_committed_baseline_aborts_not_blocks(
+        self, tmp_path: Path
+    ) -> None:
+        """Secondary guard: documented operator scenario — harness default output
+        (meta.metric_source='controller_replay', post has only controller_rate_p99_mbps)
+        vs committed baseline (meta.metric_source='controller_replay', post has BOTH p99
+        keys so _read_p99 picks rrul_p99_latency_ms first) — meta-sources MATCH, so the
+        primary guard does not fire; the secondary post-block-key guard fires instead.
+
+        G4 closure: this must be rc=2 ABORT, not rc=1 BLOCK with mixed units.
+        """
+        import sys as _sys
+
+        harness = REPO_ROOT / "scripts" / "phase206-ab-replay.py"
+        candidate = tmp_path / "ab-default.json"
+        subprocess.run(
+            [_sys.executable, str(harness), "--out", str(candidate)],
+            check=True,
+            capture_output=True,
+            timeout=60,
+        )
+        assert candidate.exists()
+        cand_meta = json.loads(candidate.read_text())["meta"]["metric_source"]
+        assert cand_meta == "controller_replay", (
+            f"harness default produced metric_source={cand_meta!r}"
+        )
+        # NOTE: committed baseline meta.metric_source is 'controller_replay' (not 'flent').
+        # The G4 mismatch is at the _read_p99 post-block-KEY level, not meta-source level.
+        # Both sides' meta sources match; the secondary guard catches the key disagreement.
+
+        result = _run_gate(["--baseline", str(BASELINE), "--candidate", str(candidate)])
+        err = (result.stdout + result.stderr).decode()
+        assert result.returncode == 2, err
+        # Secondary guard message: names both post-block keys explicitly.
+        assert (
+            "metric_source mismatch (post-block keys): baseline='rrul_p99_latency_ms' "
+            "candidate='controller_rate_p99_mbps'"
+        ) in err
+        assert "refuse to compare across sources" in err
+        # MUST NOT be the old misleading BLOCK with mixed units. Use the LOOSE form
+        # (per revision R6) so future calibration changes to the harness's mbps value
+        # do not invalidate this test.
+        combined = result.stdout + result.stderr
+        assert b"baseline=20.00" not in combined
+        assert b"delta=+" not in combined
