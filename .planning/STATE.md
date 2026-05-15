@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 207
-status: executing
+status: ready_to_plan
 stopped_at: Completed 207-05-PLAN.md
 last_updated: "2026-05-15T21:35:10.804Z"
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 19
   completed_plans: 19
-  percent: 100
+  percent: 80
 ---
 
 # Session State
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 **Last shipped milestone:** v1.43 UL Suppression Metrics & Gate Calibration (shipped 2026-05-13; audit `passed` 15/15)
 **Recently archived:** v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
-**Current phase:** 207
+**Current phase:** 208
 
 Progress: [██████████] 100%
 

@@ -136,7 +136,7 @@
 |-------|----------------|--------|-----------|
 | 205 — Tin-agnostic CAKE signal + allow_wash gate | 5/5 | Complete    | 2026-05-14 |
 | 206 — A/B replay harness + rollback gates | 9/9 | Complete   | 2026-05-15 |
-| 207 — Soak / harness hardening | 5/5 | Complete   | 2026-05-15 |
+| 207 — Soak / harness hardening | 5/5 | Complete    | 2026-05-15 |
 | 208 — Carry-on quick-tasks (T17a / T9 / T12) | 0/0 | Not started | - |
 | 209 — Spectrum config migration + canary + docs | 0/0 | Not started | - |
 
