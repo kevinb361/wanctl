@@ -5,6 +5,12 @@ All notable changes to wanctl are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased (v1.44 — in progress)
+
+### Removed
+
+- **HRDN-03 (Phase 207):** `secondary_gate_legacy` removed end-to-end across `scripts/soak_summary_aggregate.py` (`aggregate_watchdog()` + `aggregate_soak()`), `tests/test_phase_204_watchdog.py` (TestV142WatchdogRegression retired; positive-removal contract test added), `tests/test_phase_204_replay.py`, and `docs/SOAK_HARNESS.md`. Completed-window dual gate (`secondary_gate_completed_window`) is now the sole watchdog secondary signal. Fulfills the v1.43.0 "drops in v1.44" promise.
+
 ## v1.43.0 — 2026-05-13
 
 ### Added
