@@ -168,23 +168,9 @@ successor watchdog computation.
 
 ## Watchdog computation transition (CALIB-03)
 
-Phase 204 introduces a dual-emission watchdog in `soak-summary.json`. Both
-blocks are emitted side-by-side for **one transition cycle = the v1.43
-milestone**; the legacy block drops in a v1.44 follow-up commit.
-
-### `secondary_gate_legacy` (informational only — drops in v1.44)
-
-```json
-"secondary_gate_legacy": {
-  "name": "ul_hysteresis_suppression_rate_per_60s_mean (legacy live-counter-snapshot mean)",
-  "computation": "Mean of live-counter snapshots within each 60s window, then mean across windows. Verbatim port of v1.42 Plan 201-16 jq pipeline. PRESERVED FOR ONE TRANSITION CYCLE - drops in v1.44.",
-  "value": 6.466842364880155,
-  "threshold": 5.0,
-  "window_count": 1439,
-  "verdict": "fail",
-  "note": "This metric is metric-semantically broken; see Phase 201 RETRO Lesson #1. Use secondary_gate_completed_window for actual gating."
-}
-```
+Phase 204 introduced a dual-emission watchdog in `soak-summary.json` for one
+transition cycle (v1.43); the legacy `secondary_gate_legacy` block was removed
+in v1.44 (HRDN-03). v1.44+ emits only `secondary_gate_completed_window`.
 
 ### `secondary_gate_completed_window` (the real gate)
 
@@ -203,8 +189,9 @@ milestone**; the legacy block drops in a v1.44 follow-up commit.
 
 The CALIB-04 verification soak (Plan 204-05) passes iff both
 `primary_gate.verdict == "pass"` and
-`secondary_gate_completed_window.verdict == "pass"`. The
-`secondary_gate_legacy` block is not part of the pass criterion.
+`secondary_gate_completed_window.verdict == "pass"`. As of v1.44 (HRDN-03),
+`secondary_gate_completed_window` is the only secondary signal — the v1.42
+legacy live-counter-snapshot mean was removed end-to-end.
 
 Completed-window aggregation is boundary-driven. The aggregator uses
 `ul_hysteresis_window_start_epoch` to detect when a new 60s window has completed
@@ -320,6 +307,14 @@ because this phase adds no `src/wanctl/` symbols.
 Production canary is not required for Phase 203 deliverables. The capture and
 aggregation layer is local-repo tooling; production binary and soak execution
 come later in the v1.43 calibration sequence.
+
+## Version history
+
+- v1.44 (HRDN-03, Phase 207): `secondary_gate_legacy` removed end-to-end
+  (aggregator + tests + docs + CHANGELOG). Completed-window dual gate is now the
+  sole watchdog secondary signal.
+- v1.43: Soak harness promoted from inline-jq evidence into versioned scripts
+  (OBSV-05/06/07); dual-emission watchdog introduced (CALIB-03).
 
 ## Limitations
 
