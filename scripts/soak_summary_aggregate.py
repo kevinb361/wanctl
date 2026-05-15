@@ -291,57 +291,14 @@ def aggregate_watchdog(
     rows: list[dict[str, Any]],
     *,
     new_threshold: int,
-    legacy_threshold: float = 5.0,
     statistic: str = "p99",
     gate_column: str = "suppressions_completed_window_count_distribution",
     headroom_factor: float | None = None,
 ) -> dict[str, Any]:
     """Compute the CALIB-03 D-14-successor watchdog gate.
 
-    Emits both the legacy live-counter mean and the completed-window successor
-    gate for one transition cycle (v1.43). The legacy half is a direct Python
-    port of the v1.42 Plan 201-16 inline-jq 60s-window mean computation.
+    Emits the completed-window successor gate. Replaced the v1.42 legacy live-counter-snapshot mean in v1.44 (HRDN-03).
     """
-    if not rows:
-        legacy_mean: float | None = None
-        legacy_window_count = 0
-    else:
-        sorted_rows = sorted(rows, key=lambda r: float(r.get("t_monotonic", 0.0)))
-        t_start = float(sorted_rows[0].get("t_monotonic", 0.0))
-        t_end = float(sorted_rows[-1].get("t_monotonic", 0.0))
-        window_count = int((t_end - t_start) / 60.0)
-        window_sums = [0.0] * window_count
-        window_counts = [0] * window_count
-        for row in sorted_rows:
-            tm = float(row.get("t_monotonic", -1.0))
-            window = int((tm - t_start) / 60.0)
-            if 0 <= window < window_count:
-                window_sums[window] += float(row.get("suppressions_per_min") or 0)
-                window_counts[window] += 1
-        window_means = [
-            total / count for total, count in zip(window_sums, window_counts, strict=True) if count
-        ]
-        legacy_window_count = len(window_means)
-        legacy_mean = sum(window_means) / len(window_means) if window_means else None
-
-    legacy_value = legacy_mean if legacy_mean is not None else 0.0
-    legacy_block = {
-        "name": "ul_hysteresis_suppression_rate_per_60s_mean (legacy live-counter-snapshot mean)",
-        "computation": (
-            "Mean of live-counter snapshots within each 60s window, then mean across "
-            "windows. Verbatim port of v1.42 Plan 201-16 jq pipeline. PRESERVED FOR "
-            "ONE TRANSITION CYCLE - drops in v1.44."
-        ),
-        "value": legacy_value,
-        "threshold": legacy_threshold,
-        "window_count": legacy_window_count,
-        "verdict": "pass" if legacy_value <= legacy_threshold else "fail",
-        "note": (
-            "This metric is metric-semantically broken; see Phase 201 RETRO Lesson #1. "
-            "Use secondary_gate_completed_window for actual gating."
-        ),
-    }
-
     dist = aggregate_completed_window_distribution(rows)
     if gate_column == "suppressions_completed_window_count_distribution":
         cell = dist
@@ -357,8 +314,8 @@ def aggregate_watchdog(
         "name": f"ul_suppressions_completed_window_count_{statistic}",
         "computation": (
             f"{statistic} of per-completed-window suppression counts over the soak "
-            f"window (gate_column={gate_column}). Replaces secondary_gate_legacy "
-            "at v1.44."
+            f"window (gate_column={gate_column}). Replaced the v1.42 legacy "
+            "live-counter-snapshot mean in v1.44 (HRDN-03); see CHANGELOG."
         ),
         "value": new_value,
         "threshold": new_threshold,
@@ -374,7 +331,6 @@ def aggregate_watchdog(
     }
 
     return {
-        "secondary_gate_legacy": legacy_block,
         "secondary_gate_completed_window": new_block,
     }
 
@@ -461,7 +417,6 @@ def aggregate_soak(
     constants = watchdog_constants or load_calib_02_constants()
     watchdog = aggregate_watchdog(
         rows,
-        legacy_threshold=5.0,
         new_threshold=int(constants["threshold"]),
         statistic=str(constants["statistic"]),
         gate_column=str(constants["gate_column"]),
@@ -473,7 +428,6 @@ def aggregate_soak(
         "suppressions_completed_window_count_distribution": aggregate_completed_window_distribution(
             rows
         ),
-        "secondary_gate_legacy": watchdog["secondary_gate_legacy"],
         "secondary_gate_completed_window": watchdog["secondary_gate_completed_window"],
         "phase_203_metadata": {
             "attribution_policy": "dual",
