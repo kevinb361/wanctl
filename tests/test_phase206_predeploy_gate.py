@@ -363,6 +363,17 @@ class TestPostSoakAbortMalformed:
         assert result.returncode == 2, (result.stdout + result.stderr).decode()
         assert b"insufficient valid soak samples" in result.stderr
 
+    def test_zero_duration_soak_aborts(self, tmp_path: Path) -> None:
+        soak = tmp_path / "zero_duration.ndjson"
+        soak.write_text(
+            '{"last_zone": "GREEN", "t_monotonic": 100.0}\n'
+            '{"last_zone": "GREEN", "t_monotonic": 100.0}\n'
+        )
+        baseline = _make_baseline_with(tmp_path, transition_rate_per_hour_baseline=1.0)
+        result = _run_gate(self._post_soak_args(baseline, soak))
+        assert result.returncode == 2, (result.stdout + result.stderr).decode()
+        assert b"no positive t_monotonic duration" in result.stderr
+
 
 class TestRestartCounterMonotonic:
     """G2 closure: decreasing restart counters and non-positive window-hours must rc=2."""

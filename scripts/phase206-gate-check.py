@@ -193,7 +193,13 @@ def check_zone_transitions(
     ts = [t for t, _ in timed_samples]
     transitions = sum(1 for i in range(1, len(zones)) if zones[i] != zones[i - 1])
     elapsed_s = ts[-1] - ts[0]
-    hours = max(elapsed_s / 3600.0, 1e-9)
+    if elapsed_s <= 0:
+        raise InsufficientSoakSamples(
+            f"soak NDJSON has no positive t_monotonic duration "
+            f"(elapsed_s={elapsed_s!r}); need a real timed window "
+            f"(first_t={ts[0]!r} last_t={ts[-1]!r})"
+        )
+    hours = elapsed_s / 3600.0
     actual = transitions / hours
     baseline_rate_per_hour = float(baseline_rate_per_hour)
     if baseline_rate_per_hour == 0.0:
