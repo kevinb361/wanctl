@@ -28,7 +28,7 @@
 
 - [x] **HRDN-01** — `scripts/check-safe07-source-diff.sh` fails non-zero on uncommitted or staged `src/wanctl/` edits (WR-01). Manual verifier compensation no longer required; SAFE-09 closeout gate trusts the script.
 - [x] **HRDN-02** — `scripts/soak-capture.sh` survives a single transient `curl`/`jq` failure during a 24h soak (WR-02). Per-row error bypass added under `set -euo pipefail` with bounded failure counter; soak aborts only when failure rate exceeds documented threshold.
-- [ ] **HRDN-03** — `secondary_gate_legacy` block removed from `aggregate_watchdog()` in `scripts/soak_summary_aggregate.py`. Only completed-window dual gate remains. `tests/test_phase_204_watchdog.py::TestV142WatchdogRegression` retired or rewritten against new contract. Closes CALIB-03 transition-cycle.
+- [x] **HRDN-03** — `secondary_gate_legacy` block removed from `aggregate_watchdog()` in `scripts/soak_summary_aggregate.py`. Only completed-window dual gate remains. `tests/test_phase_204_watchdog.py::TestV142WatchdogRegression` retired or rewritten against new contract. Closes CALIB-03 transition-cycle.
 - [ ] **HRDN-04** — CALIB-02 threshold YAML-promotion **evaluated** with explicit YES/NO decision + rationale documented. If YES: exposed as `continuous_monitoring.upload.calib_02_threshold` with restart-required semantics, autorate validator schema entry, default `175` matching `scripts/calib_02_threshold.json`. If NO: rationale recorded in CHANGELOG referencing CALIB-04 PASS evidence.
 
 ### TOOL — Carry-on quick-tasks (T17a / T9 / T12)
@@ -72,7 +72,7 @@
 | TOPO-07 | Phase 209 | Pending |
 | HRDN-01 | Phase 207 | Complete |
 | HRDN-02 | Phase 207 | Complete |
-| HRDN-03 | Phase 207 | Pending |
+| HRDN-03 | Phase 207 | Complete |
 | HRDN-04 | Phase 207 | Pending |
 | TOOL-01 | Phase 208 | Pending |
 | TOOL-02 | Phase 208 | Pending |

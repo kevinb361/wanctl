@@ -4,15 +4,14 @@ milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 207
 status: executing
-stopped_at: Completed 207-02-PLAN.md
-last_updated: "2026-05-15T20:52:28.012Z"
-last_activity: 2026-05-15
+stopped_at: Completed 207-03-PLAN.md
+last_updated: "2026-05-15T21:10:50.260Z"
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 19
-  completed_plans: 16
-  percent: 84
+  completed_plans: 17
+  percent: 89
 ---
 
 # Session State
@@ -31,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
 **Current phase:** 207
 
-Progress: [████████░░] 84%
+Progress: [█████████░] 89%
 
 ## Deferred Items
 
@@ -131,7 +130,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 207-02-PLAN.md
+Stopped at: Completed 207-03-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
