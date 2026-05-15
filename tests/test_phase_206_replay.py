@@ -156,8 +156,8 @@ class TestSchemaV1Stability:
         summary = json.loads(out.read_text(encoding="utf-8"))
         assert summary["schema_version"] == 1
         assert set(summary.keys()) == EXPECTED_TOP_KEYS
-        assert EXPECTED_SIDE_KEYS_CONTROLLER <= set(summary["pre"].keys())
-        assert EXPECTED_SIDE_KEYS_CONTROLLER <= set(summary["post"].keys())
+        assert set(summary["pre"].keys()) >= EXPECTED_SIDE_KEYS_CONTROLLER
+        assert set(summary["post"].keys()) >= EXPECTED_SIDE_KEYS_CONTROLLER
         assert set(summary["pre"]["zone_distribution"].keys()) == VALID_ZONES
         assert summary["meta"]["metric_source"] == "controller_replay"
 
@@ -198,8 +198,8 @@ class TestReplaySamplesConsumesAllRows:
 
 
 def test_flent_key_constant_is_deliberately_unused_until_task_3() -> None:
-    assert EXPECTED_SIDE_KEYS_FLENT == {
+    assert {
         "rrul_p99_latency_ms",
         "throughput_mbps",
         "jitter_ms",
-    }
+    } == EXPECTED_SIDE_KEYS_FLENT

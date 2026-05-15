@@ -7,8 +7,8 @@ scripts/phase206-ab-replay.py. Fixture provenance:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 GOLDEN_NDJSON = Path(__file__).resolve().parent / "phase206_golden_capture.ndjson"

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Phase 206 A/B replay harness. Drives QueueController twice against tests/fixtures/phase206_golden_capture.ndjson (pre: 940M diffserv4 nowash; post: 920M besteffort wash) and emits a schema-v1 A/B summary JSON. Reuses tests.test_phase_193_replay._replay and tests.test_phase_206_replay._replay_samples by import (intentional tests.* import — this script is CI-only invocation; if ever packaged for /opt/wanctl runtime, these helpers would migrate to wanctl.testing.replay). With --flent-gz-pre and --flent-gz-post, also parses real RRUL p99/throughput/jitter from flent artifacts and reports meta.metric_source='flent'. Stdlib only."""
 
+# ruff: noqa: N999,E402,I001
+
 from __future__ import annotations
 
 import argparse
@@ -60,7 +62,7 @@ def _parse_flent_rrul(path: Path) -> dict[str, float | str]:
         raise ValueError(f"flent parse failed for {path}: {e}") from e
     results = data.get("results", {})
     if not isinstance(results, dict):
-        raise ValueError(f"flent parse failed for {path}: results is not a dict")
+        raise TypeError(f"flent parse failed for {path}: results is not a dict")
 
     ping_values: list[float] = []
     for key in PING_SERIES_KEYS:
@@ -217,7 +219,7 @@ def main(argv: list[str] | None = None) -> int:
             flent_pre = None
             flent_post = None
             metric_source = "controller_replay"
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return EXIT_ABORT
 
