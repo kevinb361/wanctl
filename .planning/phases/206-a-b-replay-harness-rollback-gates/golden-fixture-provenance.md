@@ -88,11 +88,7 @@ The committed fixture currently contains 350 rows.
 
 ## SHA256 of Committed Fixture
 
-Current value:
-
-```text
-68f99440bd41be646dfa64abe77380791d4b2dd7b09722588c808e9749c0bbda  tests/fixtures/phase206_golden_capture.ndjson
-```
+Current value: `68f99440bd41be646dfa64abe77380791d4b2dd7b09722588c808e9749c0bbda`
 
 Operator command to recompute:
 
