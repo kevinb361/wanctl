@@ -650,7 +650,9 @@ class TestLocalBaselineOverrideLockdown:
         )
         return override_path
 
-    def _python_core(self, args: list[str], override_path: Path) -> subprocess.CompletedProcess[bytes]:
+    def _python_core(
+        self, args: list[str], override_path: Path
+    ) -> subprocess.CompletedProcess[bytes]:
         return subprocess.run(
             [str(VENV_PY), "scripts/phase206-gate-check.py", *args],
             cwd=REPO_ROOT,
