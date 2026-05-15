@@ -7,8 +7,8 @@ import argparse
 import glob
 import gzip
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SOURCE_DIR = Path(
@@ -30,7 +30,7 @@ def _load_flent(path: Path) -> dict:
         data = json.load(fh)
     results = data.get("results", {})
     if not isinstance(results, dict):
-        raise ValueError(f"{path}: results is not a dict")
+        raise TypeError(f"{path}: results is not a dict")
     return results
 
 
@@ -106,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         rows = build_rows(args.source_dir, args.max_samples, args.min_samples)
         write_rows(rows, args.out)
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
     return 0
