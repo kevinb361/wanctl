@@ -29,7 +29,7 @@
 ### Phases
 
 - [x] **Phase 205: Tin-agnostic CAKE signal + allow_wash gate** — pure-code refactor; `cake_signal.py` becomes layout-agnostic and `cake_params.py` gains a per-WAN `allow_wash` gate. No deploy. (completed 2026-05-14)
-- [x] **Phase 206: A/B replay harness + rollback gates** — captures pre-migration controller behavior as the comparison baseline and wires machine-readable rollback criteria into a predeploy gate script. (gaps_found 2026-05-15; TOPO-05 fail-closed gaps remain; see `206-VERIFICATION.md`) (completed 2026-05-15)
+- [ ] **Phase 206: A/B replay harness + rollback gates** — captures pre-migration controller behavior as the comparison baseline and wires machine-readable rollback criteria into a predeploy gate script. (gaps_found 2026-05-15; TOPO-05 non-finite `--window-hours` fail-closed gap remains; see `206-VERIFICATION.md`)
 - [ ] **Phase 207: Soak / harness hardening (v1.43 closeout-routed)** — fail-closed source-diff verifier, soak-capture transient-failure tolerance, `secondary_gate_legacy` removal, CALIB-02 YAML-promotion decision.
 - [ ] **Phase 208: Carry-on quick-tasks (T17a / T9 / T12)** — aggregator schema closeout, `wanctl-history --ingestion-rate`, operator-summary digest perm guard.
 - [ ] **Phase 209: Spectrum config migration, production canary, and docs** — Spectrum YAML flips to `920Mbit besteffort wash`, two-snapshot rollback ritual canary, docs updated, SAFE-08 / SAFE-09 mechanical closeout.
