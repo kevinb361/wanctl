@@ -323,9 +323,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     if start_present != end_present:
         _log_abort(
             "ERROR: restart counters must be supplied together "
-            "(got start=%r end=%r); both --restart-counter-start and "
-            "--restart-counter-end are required or neither"
-            % (args.restart_counter_start, args.restart_counter_end)
+            f"(got start={args.restart_counter_start!r} end={args.restart_counter_end!r}); "
+            "both --restart-counter-start and --restart-counter-end are required or neither"
         )
         return EXIT_ABORT
     restart_inputs_present = start_present and end_present
