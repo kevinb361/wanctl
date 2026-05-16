@@ -74,7 +74,7 @@ Each task was committed atomically:
 2. **Task 2: Implement fail-closed guard in aggregate_watchdog() (GREEN)** - `8da071d` (fix)
 3. **Task 3: Pin schema round-trip determinism + legacy-absent walker** - `7fb37e6` (test)
 
-**Plan metadata:** pending final docs commit.
+**Plan metadata:** `b90234a` (docs: complete plan)
 
 ## Files Created/Modified
 
