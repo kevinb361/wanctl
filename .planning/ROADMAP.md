@@ -31,7 +31,7 @@
 - [x] **Phase 205: Tin-agnostic CAKE signal + allow_wash gate** — pure-code refactor; `cake_signal.py` becomes layout-agnostic and `cake_params.py` gains a per-WAN `allow_wash` gate. No deploy. (completed 2026-05-14)
 - [ ] **Phase 206: A/B replay harness + rollback gates** — captures pre-migration controller behavior as the comparison baseline and wires machine-readable rollback criteria into a predeploy gate script. (gaps_found 2026-05-15; TOPO-05 non-finite `--window-hours` fail-closed gap remains; see `206-VERIFICATION.md`)
 - [x] **Phase 207: Soak / harness hardening (v1.43 closeout-routed)** — fail-closed source-diff verifier, soak-capture transient-failure tolerance, `secondary_gate_legacy` removal, CALIB-02 YAML-promotion decision. (completed 2026-05-15)
-- [ ] **Phase 208: Carry-on quick-tasks (T17a / T9 / T12)** — aggregator schema closeout, `wanctl-history --ingestion-rate`, operator-summary digest perm guard.
+- [x] **Phase 208: Carry-on quick-tasks (T17a / T9 / T12)** — aggregator schema closeout, `wanctl-history --ingestion-rate`, operator-summary digest perm guard. (completed 2026-05-16)
 - [ ] **Phase 209: Spectrum config migration, production canary, and docs** — Spectrum YAML flips to `920Mbit besteffort wash`, two-snapshot rollback ritual canary, docs updated, SAFE-08 / SAFE-09 mechanical closeout.
 
 ### Phase Details
@@ -106,10 +106,10 @@
   2. `wanctl-history --ingestion-rate` prints per-WAN rows/sec plus a windowed mean in operator-readable form, and emits a stable JSON object when `--json` is set; both outputs derived from `src/wanctl/storage/reader.py` (TOOL-02, T9).
   3. `src/wanctl/operator_summary.py` wraps the digest write in `try/except OSError`; an injected permission-denied write logs a stable skip-message and does not propagate; a unit test pins both the no-raise behavior and the skip-message format (TOOL-03, T12).
   4. SAFE-09 phase-boundary check: control-path source diff vs v1.43 close stays bounded to the cumulative TOPO-01/TOPO-02/TOOL-03 + `__init__.py` set. TOOL-01 and TOOL-02 land in scripts/CLI/storage-reader, not the control loop.
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 - [x] 208-01-PLAN.md — TOOL-01: aggregate_watchdog() fail-closed guard for unknown gate_column/statistic + v1.43/v1.44 schema round-trip
 - [x] 208-02-PLAN.md — TOOL-02: wanctl-history --ingestion-rate flag (per-WAN rows/sec table + object-shaped JSON)
-- [ ] 208-03-PLAN.md — TOOL-03: operator_summary print_digest() narrow permission/IO guard with stable stderr skip prefix
+- [x] 208-03-PLAN.md — TOOL-03: operator_summary print_digest() narrow permission/IO guard with stable stderr skip prefix
 
 #### Phase 209: Spectrum config migration, production canary, and docs
 
@@ -136,7 +136,7 @@
 | 205 — Tin-agnostic CAKE signal + allow_wash gate | 5/5 | Complete    | 2026-05-14 |
 | 206 — A/B replay harness + rollback gates | 9/9 | Complete   | 2026-05-15 |
 | 207 — Soak / harness hardening | 5/5 | Complete    | 2026-05-15 |
-| 208 — Carry-on quick-tasks (T17a / T9 / T12) | 2/3 | In Progress|  |
+| 208 — Carry-on quick-tasks (T17a / T9 / T12) | 3/3 | Complete   | 2026-05-16 |
 | 209 — Spectrum config migration + canary + docs | 0/0 | Not started | - |
 
 ### Coverage Map (v1.44)
