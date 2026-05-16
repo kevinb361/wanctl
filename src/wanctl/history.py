@@ -625,14 +625,25 @@ def _resolve_time_range(args: argparse.Namespace) -> tuple[int, int]:
 
 
 def _filter_db_paths_by_wan(db_paths: list[Path], wan: str | None) -> list[Path]:
-    """Restrict iteration to DBs whose WAN name matches ``wan``."""
+    """Filter per-WAN DBs by filename and retain legacy DBs for SQL filtering.
+
+    Per-WAN metrics-<wan>.db files are filtered by filename; explicit
+    legacy/ad-hoc DBs are retained so count_metrics(..., wan=wan) can filter
+    rows by SQL.
+    """
     if not wan:
         return list(db_paths)
     out: list[Path] = []
     for db_path in db_paths:
         stem = db_path.stem
-        wan_name = stem.removeprefix("metrics-") if stem.startswith("metrics-") else stem
-        if wan_name == wan:
+        if stem.startswith("metrics-"):
+            wan_name = stem.removeprefix("metrics-")
+            if wan_name == wan:
+                out.append(db_path)
+        else:
+            # Explicit legacy/ad-hoc DBs (for example metrics.db) can contain rows
+            # for multiple WANs. Keep them in scope and let count_metrics(..., wan=wan)
+            # apply the SQL row filter.
             out.append(db_path)
     return out
 
