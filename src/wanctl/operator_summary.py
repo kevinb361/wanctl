@@ -15,6 +15,10 @@ from tabulate import tabulate
 
 from wanctl.storage.db_utils import discover_wan_dbs
 
+# TOOL-03 / D-14: stable stderr prefix for per-DB digest skips. Tests assert on
+# this prefix plus wan=/db= context, not the full OS error text.
+_DIGEST_SKIP_PREFIX = "operator-summary digest: skipped"
+
 
 def _decode_payload(raw: str, source: str) -> dict[str, Any]:
     payload = json.loads(raw)
@@ -145,15 +149,52 @@ def _format_digest_line(wan_name: str, rows: list[sqlite3.Row]) -> str:
     )
 
 
-def print_digest(db_paths: list[Path]) -> None:
+def print_digest(db_paths: list[Path]) -> dict[str, int]:
+    """Print per-DB hard-red digest and return read/write accounting.
+
+    Only DB-open failures are classified as skipped. Query-time failures (for
+    example a missing alerts table) bubble to main() so schema/corruption faults
+    remain real command failures instead of permission skips.
+    """
+    counts = {"readable": 0, "printed": 0, "read_skipped": 0, "write_skipped": 0}
     if not db_paths:
         print("no WAN DBs discovered")
-        return
+        return counts
 
     for db_path in db_paths:
-        with sqlite3.connect(db_path) as conn:
+        wan_name = _wan_name_from_db_path(db_path)
+
+        # Narrow guard: catch permission/IO failures around DB OPEN only. Query
+        # OperationalError (missing table/bad SQL) must bubble to main().
+        try:
+            conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        except (sqlite3.OperationalError, OSError) as exc:
+            print(
+                f"{_DIGEST_SKIP_PREFIX} wan={wan_name} db={db_path}: {exc}",
+                file=sys.stderr,
+            )
+            counts["read_skipped"] += 1
+            continue
+
+        counts["readable"] += 1
+        try:
             rows = _query_digest_rows(conn)
-        print(_format_digest_line(_wan_name_from_db_path(db_path), rows))
+        finally:
+            conn.close()
+        line = _format_digest_line(wan_name, rows)
+
+        try:
+            print(line)
+        except OSError as exc:
+            print(
+                f"{_DIGEST_SKIP_PREFIX} wan={wan_name} db={db_path} (write): {exc}",
+                file=sys.stderr,
+            )
+            counts["write_skipped"] += 1
+            continue
+        counts["printed"] += 1
+
+    return counts
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -186,9 +227,28 @@ def main() -> int:
 
     if args.digest:
         try:
-            print_digest(discover_wan_dbs())
-        except (OSError, sqlite3.DatabaseError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            db_paths = discover_wan_dbs()
+        except OSError as exc:
+            print(
+                f"operator-summary digest: discovery failed ({exc})",
+                file=sys.stderr,
+            )
+            return 1
+
+        try:
+            counts = print_digest(db_paths)
+        except (sqlite3.DatabaseError, json.JSONDecodeError, TypeError, ValueError) as exc:
             print(str(exc), file=sys.stderr)
+            return 1
+
+        if db_paths and counts["readable"] == 0:
+            print("no readable WAN DBs - try sudo", file=sys.stderr)
+            return 0
+        if counts["readable"] > 0 and counts["printed"] == 0:
+            print(
+                "operator-summary digest: all output writes failed",
+                file=sys.stderr,
+            )
             return 1
         return 0
 
