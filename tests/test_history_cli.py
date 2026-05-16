@@ -806,6 +806,220 @@ class TestPerTinHistory:
         assert data[0]["tin"] == "Bulk"
 
 
+class TestIngestionRateCli:
+    """TOOL-02: wanctl-history --ingestion-rate rows/sec reporting."""
+
+    # Deterministic anchor: 2026-01-01 00:00:00 local time equivalent.
+    BASE_TS = 1767225600
+
+    @staticmethod
+    def _ts_arg(ts: int) -> str:
+        return datetime.fromtimestamp(ts).isoformat()
+
+    def test_ingestion_rate_flag_recognized(self):
+        """--ingestion-rate is recognized by the argument parser."""
+        parser = create_parser()
+        args = parser.parse_args(["--ingestion-rate", "--last", "1h"])
+        assert args.ingestion_rate is True
+
+    def test_ingestion_rate_table_output_deterministic(self, tmp_path, monkeypatch, capsys):
+        """Table output reports a deterministic per-WAN ingestion row."""
+        MetricsWriter._reset_instance()
+        db_path = tmp_path / "metrics-spectrum.db"
+        writer = MetricsWriter(db_path=db_path)
+        start = self.BASE_TS
+        end = self.BASE_TS + 60
+        for i in range(60):
+            writer.write_metric(
+                timestamp=start + i,
+                wan_name="spectrum",
+                metric_name="wanctl_rtt_ms",
+                value=15.0,
+            )
+        writer.close()
+        MetricsWriter._reset_instance()
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "wanctl-history",
+                "--ingestion-rate",
+                "--from",
+                self._ts_arg(start),
+                "--to",
+                self._ts_arg(end),
+                "--db",
+                str(db_path),
+            ],
+        )
+        rc = main()
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "spectrum" in out
+        assert "Rows/sec" in out
+
+    def test_ingestion_rate_json_object_shape_exact(self, tmp_path, monkeypatch, capsys):
+        """JSON output is object-shaped with exact deterministic counts/rates."""
+        MetricsWriter._reset_instance()
+        db_path = tmp_path / "metrics-spectrum.db"
+        writer = MetricsWriter(db_path=db_path)
+        start = self.BASE_TS
+        end = self.BASE_TS + 30
+        for i in range(30):
+            writer.write_metric(
+                timestamp=start + i,
+                wan_name="spectrum",
+                metric_name="wanctl_rtt_ms",
+                value=15.0,
+            )
+        writer.close()
+        MetricsWriter._reset_instance()
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "wanctl-history",
+                "--ingestion-rate",
+                "--json",
+                "--from",
+                self._ts_arg(start),
+                "--to",
+                self._ts_arg(end),
+                "--db",
+                str(db_path),
+            ],
+        )
+        rc = main()
+        assert rc == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert isinstance(payload, dict), f"expected dict, got {type(payload).__name__}"
+        for required in ("window", "generated_at", "totals", "wans"):
+            assert required in payload
+        assert payload["window"]["start_ts"] == start
+        assert payload["window"]["end_ts"] == end
+        assert payload["window"]["window_seconds"] == end - start
+        assert payload["totals"]["row_count"] == 30
+        assert payload["totals"]["wan_count"] == 1
+        assert payload["totals"]["rows_per_sec"] == pytest.approx(
+            30 / (end - start), rel=0.01
+        )
+        assert isinstance(payload["wans"], list)
+        assert len(payload["wans"]) == 1
+        row = payload["wans"][0]
+        assert row["wan_name"] == "spectrum"
+        assert row["row_count"] == 30
+        assert row["rows_per_sec"] == pytest.approx(30 / (end - start), rel=0.01)
+        for required in (
+            "wan_name",
+            "wan_db",
+            "row_count",
+            "rows_per_sec",
+            "mean_rows_per_sec_windowed",
+        ):
+            assert required in row
+
+    def test_ingestion_rate_wan_filter_restricts_iteration(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """--wan spectrum with spectrum+att DBs emits only a spectrum row."""
+        MetricsWriter._reset_instance()
+        spectrum_db = tmp_path / "metrics-spectrum.db"
+        att_db = tmp_path / "metrics-att.db"
+        start = self.BASE_TS
+        end = self.BASE_TS + 30
+
+        writer_s = MetricsWriter(db_path=spectrum_db)
+        for i in range(30):
+            writer_s.write_metric(
+                timestamp=start + i,
+                wan_name="spectrum",
+                metric_name="wanctl_rtt_ms",
+                value=15.0,
+            )
+        writer_s.close()
+        MetricsWriter._reset_instance()
+
+        writer_a = MetricsWriter(db_path=att_db)
+        for i in range(10):
+            writer_a.write_metric(
+                timestamp=start + i,
+                wan_name="att",
+                metric_name="wanctl_rtt_ms",
+                value=20.0,
+            )
+        writer_a.close()
+        MetricsWriter._reset_instance()
+
+        monkeypatch.setattr(
+            "wanctl.history.discover_wan_dbs",
+            lambda: [spectrum_db, att_db],
+        )
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "wanctl-history",
+                "--ingestion-rate",
+                "--json",
+                "--wan",
+                "spectrum",
+                "--from",
+                self._ts_arg(start),
+                "--to",
+                self._ts_arg(end),
+            ],
+        )
+        rc = main()
+        assert rc == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["totals"]["wan_count"] == 1, (
+            f"expected only spectrum row; got {payload['totals']}"
+        )
+        assert len(payload["wans"]) == 1
+        assert payload["wans"][0]["wan_name"] == "spectrum"
+        wan_names = {r["wan_name"] for r in payload["wans"]}
+        assert "att" not in wan_names
+
+    def test_ingestion_rate_empty_db_no_exception(self, tmp_path, monkeypatch, capsys):
+        """Empty DB emits a zero-row ingestion-rate entry without failing."""
+        MetricsWriter._reset_instance()
+        db_path = tmp_path / "metrics-spectrum.db"
+        writer = MetricsWriter(db_path=db_path)
+        writer.write_metric(
+            timestamp=self.BASE_TS - 3600,
+            wan_name="spectrum",
+            metric_name="wanctl_rtt_ms",
+            value=15.0,
+        )
+        writer.close()
+        MetricsWriter._reset_instance()
+
+        start = self.BASE_TS
+        end = self.BASE_TS + 60
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "wanctl-history",
+                "--ingestion-rate",
+                "--json",
+                "--from",
+                self._ts_arg(start),
+                "--to",
+                self._ts_arg(end),
+                "--db",
+                str(db_path),
+            ],
+        )
+        rc = main()
+        assert rc == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["totals"]["row_count"] == 0
+        assert payload["wans"][0]["row_count"] == 0
+
+
 # =============================================================================
 # MERGED FROM test_history_tuning.py
 # =============================================================================
@@ -1015,4 +1229,3 @@ class TestTuningFlag:
         captured = capsys.readouterr()
         assert "target_bloat_ms" in captured.out
         assert "Spectrum" in captured.out
-
