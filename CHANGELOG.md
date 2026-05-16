@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased (v1.44 — in progress)
 
+### Added
+
+- **TOOL-02 (Phase 208):** Added `wanctl-history --ingestion-rate` parser and dispatch support with per-WAN DB filtering, count-based rows/sec reporting, operator table output, and stable object-shaped JSON metadata.
+
 ### Tests
 
 - **TOOL-01 (Phase 208):** Added watchdog aggregator regression coverage for unknown `gate_column` values, unsupported statistics, recursive `secondary_gate_legacy` absence, deterministic schema round-tripping, and the exact 10-key `secondary_gate_completed_window` block contract.
