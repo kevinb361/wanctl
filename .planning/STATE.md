@@ -8,7 +8,7 @@ stopped_at: Completed 208-04-PLAN.md
 last_updated: "2026-05-16T18:28:22.761Z"
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 23
   completed_plans: 23
   percent: 100
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 **Last shipped milestone:** v1.43 UL Suppression Metrics & Gate Calibration (shipped 2026-05-13; audit `passed` 15/15)
 **Recently archived:** v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
-**Current phase:** 208
+**Current phase:** 209
 
 Progress: [██████████] 100%
 
