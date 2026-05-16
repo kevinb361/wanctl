@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **TOOL-01 (Phase 208):** Added watchdog aggregator regression coverage for unknown `gate_column` values, unsupported statistics, recursive `secondary_gate_legacy` absence, deterministic schema round-tripping, and the exact 10-key `secondary_gate_completed_window` block contract.
 - **TOOL-02 (Phase 208):** Added deterministic `wanctl-history --ingestion-rate` CLI tests for parser recognition, table output, object-shaped JSON, `--wan` iteration filtering, and zero-row windows.
+- **TOOL-03 (Phase 208):** Added operator-summary digest regression tests for unreadable WAN DB skips, all-unreadable sudo guidance, stdout-write `OSError` handling, discovery `OSError` reporting, all-writes-fail messaging, and the codex HIGH missing-`alerts`-table bubble invariant.
 
 ### Fixed
 
