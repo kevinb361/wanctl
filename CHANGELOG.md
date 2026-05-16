@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **TOOL-01 (Phase 208):** `aggregate_watchdog()` now fails closed in-band for unknown watchdog gate columns or unsupported statistics, returning `verdict="fail"`, `value=0.0`, and a non-null reason while preserving the existing output schema. Plan 208-01 records final verification in `.planning/phases/208-carry-on-quick-tasks-t17a-t9-t12/208-01-SUMMARY.md` (`b90234a`).
+- **TOOL-03 (Phase 208):** `wanctl-operator-summary --digest` now skips per-WAN DB open permission/IO failures with a stable stderr prefix, preserves query-time/schema errors on the existing failure path, catches stdout-write `OSError` per line, distinguishes no-readable-DB sudo guidance from all-writes-failed output failures, and reports discovery `OSError` with a stable prefix.
 
 ### Decisions
 
