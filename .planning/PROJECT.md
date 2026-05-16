@@ -33,10 +33,10 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Tests:** Full suite passing; v1.43 verification soak `20260512T004208Z` dual gate PASS (D-19 primary delta 0, completed-window p99 dwell_hold `135.62 ≤ 175`).
 **LOC:** ~40,915 Python (src/)
 **Milestones:** 44 shipped (v1.0-v1.43), all archived in `.planning/milestones/`.
-**Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (Phases 205-207 complete; next Phase 208 carry-on quick tasks T17(a)/T9/T12).
+**Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (Phases 205-208 complete; next Phase 209 Spectrum config migration + canary + docs).
 
-**Latest:** v1.44 Phase 207 Soak harness hardening — SAFE-07 source-diff verification now fails closed on dirty/staged/untracked `src/wanctl/` surfaces, `soak-capture.sh` tolerates bounded transient capture failures with sidecar TSV diagnostics, `secondary_gate_legacy` is removed from live soak summaries, and CALIB-02 YAML promotion is explicitly routed to NO pending T17(b)/SEED-005. Phase 207 preserved SAFE-09 with zero controller-path source diff and full/hot-path test passes.
-**Previous:** v1.44 Phase 205-206 foundation — Phase 205 made CAKE tin aggregation layout-agnostic and gated explicit `wash` emission through `cake_params.allow_wash`; Phase 206 added the A/B replay harness and rollback/predeploy gates needed before Phase 209 production canary work.
+**Latest:** v1.44 Phase 208 Carry-on quick tasks — completed TOOL-01/T17(a) watchdog fail-closed hardening, TOOL-02/T9 `wanctl-history --ingestion-rate` with legacy/ad-hoc `--db` + `--wan` gap closure, and TOOL-03/T12 digest permission/write tolerance. Phase 208 verification passed 8/8 after gap closure, code review was clean, security threats are closed, and SAFE-09 remains bounded to operator tooling rather than controller thresholds/algorithms.
+**Previous:** v1.44 Phase 207 Soak harness hardening — SAFE-07 source-diff verification now fails closed on dirty/staged/untracked `src/wanctl/` surfaces, `soak-capture.sh` tolerates bounded transient capture failures with sidecar TSV diagnostics, `secondary_gate_legacy` is removed from live soak summaries, and CALIB-02 YAML promotion is explicitly routed to NO pending T17(b)/SEED-005. Phase 207 preserved SAFE-09 with zero controller-path source diff and full/hot-path test passes.
 **Older:** v1.43 UL Suppression Metrics & Gate Calibration — additive `/health` completed-window suppression counters by cause, per-sample `load_rtt_delta_us` in soak NDJSON with zone × cause-tag aggregation, and soak-grounded D-14 successor threshold `175` replacing the qualitative Phase 200 inheritance. Boundary-marker remediation cycle (Plans 204-07..10) re-derived CALIB-01/04 evidence under corrected aggregator. SAFE-07 closeout invariant held end-to-end: zero control-path source diff from Phase 201 close (`b72b463`).
 **Older:** v1.42 DOCSIS-Aware UL Congestion Control — Spectrum upload runs a YAML setpoint clamp (`docsis_mode: true`, `setpoint_mbps: 12`) with windowed RTT-integral classifier and CAKE-backlog secondary corroborator; bounded absolute RED decay and integral anti-windup landed in Plan 201-14; recanary `20260505T122513Z` PASSED with `ul_floor_hits_during_load=0`; 24h soak `20260505T132736Z` D-19 floor-hit delta `0` on production v1.42.1.
 **Older:** v1.41 Per-Direction Control Surfaces — UL/DL threshold split shipped behind per-key presence flags (ARB-05); validator now WARNs on unknown `continuous_monitoring.*` keys (SAFE-06); `CHANGELOG.md` and `docs/CONFIGURATION.md` carry restart-required migration semantics (DOCS-03); VALN-06 deferred-and-closed via Phase 201 Route B.
@@ -431,6 +431,9 @@ thresholds or steering behavior.
 - ✓ WR-02 — `scripts/soak-capture.sh` transient capture abort gap resolved in v1.44 Phase 207 with bounded failure tolerance and sidecar TSV diagnostics.
 - ✓ `secondary_gate_legacy` block removal — completed in v1.44 Phase 207; live soak summaries now emit only `secondary_gate_completed_window`.
 - ✓ CALIB-02 YAML-promotion evaluation — routed to NO in v1.44 Phase 207; threshold remains in `scripts/calib_02_threshold.json`, with deeper YAML knob-shape design deferred to T17(b)/SEED-005.
+- ✓ T17(a) / TOOL-01 — `aggregate_watchdog()` bad `gate_column` / unsupported `statistic` now fails closed in v1.44 Phase 208 while preserving the 10-key `secondary_gate_completed_window` schema.
+- ✓ T9 / TOOL-02 — `wanctl-history --ingestion-rate` landed in v1.44 Phase 208 with table/object JSON output, per-WAN counts, and explicit legacy/ad-hoc `--db` + `--wan` SQL-filter semantics.
+- ✓ T12 / TOOL-03 — `wanctl-operator-summary --digest` now tolerates unreadable DB opens, output-write `OSError`, and discovery `OSError` without masking schema/query corruption.
 
 ### Out of Scope
 
@@ -761,4 +764,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-05-15 — v1.44 Phase 207 complete. HRDN-01/02/03/04 close the v1.43 routed harness hardening items: SAFE-07 dirty-tree verifier, transient-tolerant soak capture, `secondary_gate_legacy` removal, and CALIB-02 YAML-promotion NO decision. SAFE-09 remains clean with zero controller-path source diff; next active phase is 208 carry-on quick tasks T17(a)/T9/T12._
+_Last updated: 2026-05-16 — v1.44 Phase 208 complete. TOOL-01/T17(a), TOOL-02/T9, and TOOL-03/T12 carry-on tasks are verified, including the post-verification gap closure for explicit legacy/ad-hoc `wanctl-history --ingestion-rate --db <metrics.db> --wan <name>` semantics. SAFE-09 remains bounded to operator tooling; next active phase is 209 Spectrum config migration + canary + docs._
