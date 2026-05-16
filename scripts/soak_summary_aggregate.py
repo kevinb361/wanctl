@@ -47,6 +47,14 @@ DEFAULT_BUCKETS_US = [
 ]
 ZONES = ("GREEN", "YELLOW", "SOFT_RED", "RED")
 CAUSES = ("dwell_hold", "backlog_recovery", "other")
+# TOOL-01: known watchdog statistics, must match _distribution_from_boundaries() output keys.
+KNOWN_WATCHDOG_STATISTICS: frozenset[str] = frozenset({"mean", "p50", "p95", "p99", "max"})
+# TOOL-01: top-level gate columns that select the whole distribution (not a by_cause cell).
+KNOWN_WATCHDOG_TOP_LEVEL_GATES: frozenset[str] = frozenset(
+    {
+        "suppressions_completed_window_count_distribution",
+    }
+)
 CALIB_02_DEFAULTS_PATH = Path(__file__).parent / "calib_02_threshold.json"
 
 
@@ -300,16 +308,30 @@ def aggregate_watchdog(
     Emits the completed-window successor gate. Replaced the v1.42 legacy live-counter-snapshot mean in v1.44 (HRDN-03).
     """
     dist = aggregate_completed_window_distribution(rows)
-    if gate_column == "suppressions_completed_window_count_distribution":
+    config_reason: str | None = None
+    if gate_column in KNOWN_WATCHDOG_TOP_LEVEL_GATES:
         cell = dist
     elif gate_column.startswith("by_cause."):
         cause = gate_column.split(".", 1)[1]
-        cell = dist.get("by_cause", {}).get(cause, {})
+        if cause not in CAUSES:
+            cell = {}
+            config_reason = f"unknown gate_column cause: {gate_column!r}"
+        else:
+            cell = dist.get("by_cause", {}).get(cause, {})
     else:
         cell = {}
+        config_reason = f"unknown gate_column: {gate_column!r}"
+
+    if config_reason is None and statistic not in KNOWN_WATCHDOG_STATISTICS:
+        config_reason = f"unsupported statistic: {statistic!r}"
 
     dist_valid = bool(dist.get("valid", True))
-    new_value = float(cell.get(statistic, 0.0)) if cell and dist_valid else 0.0
+    config_ok = config_reason is None
+    new_value = (
+        float(cell.get(statistic, 0.0))
+        if cell and dist_valid and config_ok
+        else 0.0
+    )
     new_block = {
         "name": f"ul_suppressions_completed_window_count_{statistic}",
         "computation": (
@@ -322,8 +344,8 @@ def aggregate_watchdog(
         "statistic": statistic,
         "headroom_factor": headroom_factor,
         "gate_column": gate_column,
-        "verdict": "pass" if dist_valid and new_value <= new_threshold else "fail",
-        "reason": None if dist_valid else dist.get("reason"),
+        "verdict": "pass" if dist_valid and config_ok and new_value <= new_threshold else "fail",
+        "reason": config_reason or (None if dist_valid else dist.get("reason")),
         "operator_approval": (
             ".planning/phases/204-d-14-successor-recalibration-calib/"
             "204-CALIB-02-OPERATOR-APPROVAL.md"
