@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased (v1.44 — in progress)
 
+### Tests
+
+- **TOOL-01 (Phase 208):** Added watchdog aggregator regression coverage for unknown `gate_column` values, unsupported statistics, and the exact 10-key `secondary_gate_completed_window` block contract.
+
 ### Decisions
 
 - **HRDN-04 (Phase 207): CALIB-02 threshold YAML promotion — NO.** The CALIB-02 D-14-successor watchdog threshold (currently `175`, gate column `by_cause.dwell_hold`) stays in `scripts/calib_02_threshold.json` rather than being promoted to a `continuous_monitoring.upload.calib_02_threshold` YAML key. No autorate validator schema entry is added. No controller-side YAML key is exposed. `scripts/calib_02_threshold.json` is byte-identical at v1.44 close (no value bump, no schema bump).
