@@ -4,14 +4,14 @@ milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 208
 status: ready_to_plan
-stopped_at: Completed 208-02-PLAN.md
-last_updated: "2026-05-16T17:32:01.036Z"
+stopped_at: Completed 208-03-PLAN.md
+last_updated: "2026-05-16T17:40:52.290Z"
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 22
-  completed_plans: 21
-  percent: 95
+  completed_plans: 22
+  percent: 100
 ---
 
 # Session State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
 **Current phase:** 208
 
-Progress: [██████████] 95%
+Progress: [██████████] 100%
 
 ## Deferred Items
 
@@ -130,7 +130,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 208-02-PLAN.md
+Stopped at: Completed 208-03-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -333,3 +333,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 208-02]: TOOL-02 consumes count_metrics() silent-0 behavior as the unreadable-DB contract and documents suspicious zero rows in CLI help.
 - [Phase 208-02]: WAN filtering restricts DB iteration before count_metrics() so filtered-out WANs do not appear as zero-rate rows.
 - [Phase 208-02]: Ingestion-rate JSON uses a top-level object because window metadata and totals are first-class output contract fields.
+- [Phase 208]: TOOL-03 classifies only sqlite3.connect() permission/IO failures as digest skips; query-time sqlite3.DatabaseError remains on the existing command failure path.
+- [Phase 208]: Operator digest readable/printed accounting distinguishes no-readable sudo guidance from all-writes-failed stdout failures.
+- [Phase 208]: Digest permission tests use monkeypatched sqlite3.connect / builtins.print failure injection; chmod-based permission tests remain forbidden.
