@@ -34,7 +34,7 @@
 ### TOOL — Carry-on quick-tasks (T17a / T9 / T12)
 
 - [x] **TOOL-01** — `scripts/soak_summary_aggregate.py` aggregator closes CALIB-03 transition-cycle obligation: aggregator output schema stable across v1.43→v1.44 transition; legacy regression test retired in same commit (T17a).
-- [ ] **TOOL-02** — `wanctl-history --ingestion-rate` flag exposes per-WAN ingestion rate from `src/wanctl/storage/reader.py`. Output is operator-readable (rows/sec + windowed mean) and machine-parseable (JSON when `--json` set). Force multiplier for any future fire-on-change / sparse-sampling work (T9).
+- [x] **TOOL-02** — `wanctl-history --ingestion-rate` flag exposes per-WAN ingestion rate from `src/wanctl/storage/reader.py`. Output is operator-readable (rows/sec + windowed mean) and machine-parseable (JSON when `--json` set). Force multiplier for any future fire-on-change / sparse-sampling work (T9).
 - [ ] **TOOL-03** — `src/wanctl/operator_summary.py` wraps digest write in `try/except OSError` with logged skip-message when permission denied; unit test asserts no exception propagates and skip-message format stable (T12).
 
 ### SAFE — Cross-cutting closeout invariants
@@ -75,7 +75,7 @@
 | HRDN-03 | Phase 207 | Complete |
 | HRDN-04 | Phase 207 | Complete |
 | TOOL-01 | Phase 208 | Complete |
-| TOOL-02 | Phase 208 | Pending |
+| TOOL-02 | Phase 208 | Complete |
 | TOOL-03 | Phase 208 | Pending |
 | SAFE-08 | Phase 209 (mechanical closeout; verified at every phase boundary) | Pending |
 | SAFE-09 | Phase 209 (mechanical closeout; verified at every phase boundary) | Pending |

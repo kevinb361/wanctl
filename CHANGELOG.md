@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **TOOL-02 (Phase 208):** Added `wanctl-history --ingestion-rate` parser and dispatch support with per-WAN DB filtering, count-based rows/sec reporting, operator table output, and stable object-shaped JSON metadata.
+- **TOOL-02 (Phase 208):** Added `wanctl-history --ingestion-rate` parser and dispatch support with per-WAN DB filtering, count-based rows/sec reporting, operator table output, and stable object-shaped JSON metadata. Plan 208-02 records final verification in `.planning/phases/208-carry-on-quick-tasks-t17a-t9-t12/208-02-SUMMARY.md`.
 
 ### Tests
 
