@@ -4,14 +4,14 @@ milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 208
 status: ready_to_plan
-stopped_at: Phase 208 context gathered
-last_updated: "2026-05-16T01:32:37.410Z"
+stopped_at: Completed 208-01-PLAN.md
+last_updated: "2026-05-16T17:21:47.739Z"
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 19
-  completed_plans: 19
-  percent: 100
+  total_plans: 22
+  completed_plans: 20
+  percent: 91
 ---
 
 # Session State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 207 — soak-harness-hardening-v1-43-closeout-routed
+**Current focus:** Phase 208 — carry-on-quick-tasks-t17a-t9-t12
 
 ## Position
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
 **Current phase:** 208
 
-Progress: [██████████] 100%
+Progress: [█████████░] 91%
 
 ## Deferred Items
 
@@ -130,8 +130,8 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Phase 208 context gathered
-Resume file: .planning/phases/208-carry-on-quick-tasks-t17a-t9-t12/208-CONTEXT.md
+Stopped at: Completed 208-01-PLAN.md
+Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
 ## Decisions
@@ -327,3 +327,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 207-02]: HRDN-02 uses attempted-iteration denominator for soak-capture failure rate; slow curl calls count as one row_total attempt and wall-clock missed-slot accounting is deferred.
 - [Phase 207-02]: soak-capture transient failures are recorded only in soak-capture-errors.tsv; soak-capture.ndjson schema remains unchanged for soak_summary_aggregate.py.
 - [Phase 207-02]: curl exit capture uses local `|| curl_exit=$?` under global `set -euo pipefail`; no `set +e` was introduced.
+- [Phase 208-01]: TOOL-01 invalid watchdog config fails closed in-band instead of raising, preserving generated summary inspectability.
+- [Phase 208-01]: Cross-version schema proof is split: deterministic fixture re-run here, byte-equal golden anchor in tests/test_phase_204_distribution.py.
+- [Phase 208-01]: SAFE-09 boundary preserved with no src/wanctl/ changes.

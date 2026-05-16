@@ -106,11 +106,10 @@
   2. `wanctl-history --ingestion-rate` prints per-WAN rows/sec plus a windowed mean in operator-readable form, and emits a stable JSON object when `--json` is set; both outputs derived from `src/wanctl/storage/reader.py` (TOOL-02, T9).
   3. `src/wanctl/operator_summary.py` wraps the digest write in `try/except OSError`; an injected permission-denied write logs a stable skip-message and does not propagate; a unit test pins both the no-raise behavior and the skip-message format (TOOL-03, T12).
   4. SAFE-09 phase-boundary check: control-path source diff vs v1.43 close stays bounded to the cumulative TOPO-01/TOPO-02/TOOL-03 + `__init__.py` set. TOOL-01 and TOOL-02 land in scripts/CLI/storage-reader, not the control loop.
-**Plans:** 4 plans
-- [x] 206-01-PLAN.md — A/B replay harness core: golden NDJSON fixture + corpus loader + harness CLI emitting schema-v1 A/B summary JSON (TOPO-04)
-- [x] 206-02-PLAN.md — Predeploy rollback-gate script + Python core with three threshold checks + tests (TOPO-05)
-- [x] 206-03-PLAN.md — Operator-readable rollback doc (PHASE-205-ROLLBACK-GATES.md) + golden-fixture provenance doc
-- [x] 206-04-PLAN.md — SAFE-09 phase-boundary verification + cross-plan threshold drift check + fixture SHA256 pin
+**Plans:** 1/3 plans executed
+- [x] 208-01-PLAN.md — TOOL-01: aggregate_watchdog() fail-closed guard for unknown gate_column/statistic + v1.43/v1.44 schema round-trip
+- [ ] 208-02-PLAN.md — TOOL-02: wanctl-history --ingestion-rate flag (per-WAN rows/sec table + object-shaped JSON)
+- [ ] 208-03-PLAN.md — TOOL-03: operator_summary print_digest() narrow permission/IO guard with stable stderr skip prefix
 
 #### Phase 209: Spectrum config migration, production canary, and docs
 
@@ -137,7 +136,7 @@
 | 205 — Tin-agnostic CAKE signal + allow_wash gate | 5/5 | Complete    | 2026-05-14 |
 | 206 — A/B replay harness + rollback gates | 9/9 | Complete   | 2026-05-15 |
 | 207 — Soak / harness hardening | 5/5 | Complete    | 2026-05-15 |
-| 208 — Carry-on quick-tasks (T17a / T9 / T12) | 0/0 | Not started | - |
+| 208 — Carry-on quick-tasks (T17a / T9 / T12) | 1/3 | In Progress|  |
 | 209 — Spectrum config migration + canary + docs | 0/0 | Not started | - |
 
 ### Coverage Map (v1.44)
