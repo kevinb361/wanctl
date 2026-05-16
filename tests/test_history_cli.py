@@ -982,6 +982,62 @@ class TestIngestionRateCli:
         wan_names = {r["wan_name"] for r in payload["wans"]}
         assert "att" not in wan_names
 
+    def test_ingestion_rate_explicit_legacy_db_with_wan_uses_sql_filter(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """--db metrics.db + --wan keeps explicit DB and filters rows by SQL wan_name."""
+        MetricsWriter._reset_instance()
+        db_path = tmp_path / "metrics.db"
+        start = self.BASE_TS
+        end = self.BASE_TS + 60
+        writer = MetricsWriter(db_path=db_path)
+        for i in range(12):
+            writer.write_metric(
+                timestamp=start + i,
+                wan_name="spectrum",
+                metric_name="wanctl_rtt_ms",
+                value=15.0,
+            )
+        for i in range(5):
+            writer.write_metric(
+                timestamp=start + i,
+                wan_name="att",
+                metric_name="wanctl_rtt_ms",
+                value=25.0,
+            )
+        writer.close()
+        MetricsWriter._reset_instance()
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "wanctl-history",
+                "--ingestion-rate",
+                "--json",
+                "--wan",
+                "spectrum",
+                "--from",
+                self._ts_arg(start),
+                "--to",
+                self._ts_arg(end),
+                "--db",
+                str(db_path),
+            ],
+        )
+        rc = main()
+        assert rc == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert isinstance(payload, dict)
+        assert payload["window"]["window_seconds"] == end - start
+        assert payload["totals"]["wan_count"] == 1
+        assert payload["totals"]["row_count"] == 12
+        assert len(payload["wans"]) == 1
+        row = payload["wans"][0]
+        assert row["wan_name"] == "metrics"
+        assert row["row_count"] == 12
+        assert row["rows_per_sec"] == pytest.approx(12 / (end - start), rel=0.01)
+
     def test_ingestion_rate_empty_db_no_exception(self, tmp_path, monkeypatch, capsys):
         """Empty DB emits a zero-row ingestion-rate entry without failing."""
         MetricsWriter._reset_instance()
