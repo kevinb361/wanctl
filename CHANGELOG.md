@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **TOOL-01 (Phase 208):** `aggregate_watchdog()` now fails closed in-band for unknown watchdog gate columns or unsupported statistics, returning `verdict="fail"`, `value=0.0`, and a non-null reason while preserving the existing output schema. Plan 208-01 records final verification in `.planning/phases/208-carry-on-quick-tasks-t17a-t9-t12/208-01-SUMMARY.md` (`b90234a`).
 - **TOOL-03 (Phase 208):** `wanctl-operator-summary --digest` now skips per-WAN DB open permission/IO failures with a stable stderr prefix, preserves query-time/schema errors on the existing failure path, catches stdout-write `OSError` per line, distinguishes no-readable-DB sudo guidance from all-writes-failed output failures, and reports discovery `OSError` with a stable prefix. Plan 208-03 records final verification in `.planning/phases/208-carry-on-quick-tasks-t17a-t9-t12/208-03-SUMMARY.md`.
 
+### Planning
+
+- **TOOL-02 (Phase 208 gap closure):** Phase 208 verification found that `wanctl-history --ingestion-rate --wan <wan> --db <legacy metrics.db>` can drop explicit non-`metrics-<wan>.db` paths before SQL row filtering applies. Plan 208-04 now scopes the gap closure: retain explicit legacy/ad-hoc DB paths under `--wan`, add the regression test, and preserve normal per-WAN filename filtering.
+
 ### Decisions
 
 - **HRDN-04 (Phase 207): CALIB-02 threshold YAML promotion — NO.** The CALIB-02 D-14-successor watchdog threshold (currently `175`, gate column `by_cause.dwell_hold`) stays in `scripts/calib_02_threshold.json` rather than being promoted to a `continuous_monitoring.upload.calib_02_threshold` YAML key. No autorate validator schema entry is added. No controller-side YAML key is exposed. `scripts/calib_02_threshold.json` is byte-identical at v1.44 close (no value bump, no schema bump).
