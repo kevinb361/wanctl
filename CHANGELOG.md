@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
-- **TOOL-01 (Phase 208):** Added watchdog aggregator regression coverage for unknown `gate_column` values, unsupported statistics, and the exact 10-key `secondary_gate_completed_window` block contract.
+- **TOOL-01 (Phase 208):** Added watchdog aggregator regression coverage for unknown `gate_column` values, unsupported statistics, recursive `secondary_gate_legacy` absence, deterministic schema round-tripping, and the exact 10-key `secondary_gate_completed_window` block contract.
 
 ### Fixed
 

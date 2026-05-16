@@ -221,3 +221,60 @@ class TestLegacyGateRemovalContract:
         result = aggregator.aggregate_soak(SYNTHETIC_NDJSON)
         assert "secondary_gate_legacy" not in result
         assert "secondary_gate_completed_window" in result
+
+
+class TestSchemaRoundTripV143V144:
+    """TOOL-01 / D-03: determinism + legacy-absence proof for the post-HRDN-03 schema.
+
+    Note on cross-version proof split:
+    - This class proves determinism (same input → byte-equal output across runs) and
+      legacy-gate absence at every depth.
+    - The actual cross-version schema anchor is
+      `tests/test_phase_204_distribution.py::test_aggregate_soak_matches_golden`,
+      which compares aggregator output byte-for-byte against a committed golden
+      reference summary. Both tests must pass for D-03 to be satisfied.
+    """
+
+    def test_legacy_gate_absent_and_top_level_shape(
+        self, aggregator: ModuleType
+    ) -> None:
+        from pathlib import Path
+
+        fixture = Path(__file__).parent / "fixtures" / "phase_204_synthetic_capture.ndjson"
+        result = aggregator.aggregate_soak(fixture)
+
+        # Recursive walker: "secondary_gate_legacy" must not appear anywhere.
+        def _walk(obj):
+            if isinstance(obj, dict):
+                assert "secondary_gate_legacy" not in obj, (
+                    "secondary_gate_legacy must stay absent post-HRDN-03; "
+                    f"found in {list(obj)}"
+                )
+                for v in obj.values():
+                    _walk(v)
+            elif isinstance(obj, list):
+                for v in obj:
+                    _walk(v)
+
+        _walk(result)
+
+        # Positive: completed-window gate is TOP-LEVEL in aggregate_soak() output
+        # (verified at scripts/soak_summary_aggregate.py:431 — NOT under result["watchdog"]).
+        assert "secondary_gate_completed_window" in result, (
+            f"top-level secondary_gate_completed_window missing; top-level keys: {list(result)}"
+        )
+        block = result["secondary_gate_completed_window"]
+        assert set(block) == EXPECTED_SECONDARY_GATE_KEYS, (
+            f"10-key block contract drifted: {set(block) ^ EXPECTED_SECONDARY_GATE_KEYS}"
+        )
+
+    def test_schema_round_trip_deterministic(self, aggregator: ModuleType) -> None:
+        import json
+        from pathlib import Path
+
+        fixture = Path(__file__).parent / "fixtures" / "phase_204_synthetic_capture.ndjson"
+        r1 = aggregator.aggregate_soak(fixture)
+        r2 = aggregator.aggregate_soak(fixture)
+        assert json.dumps(r1, sort_keys=True, indent=2) == json.dumps(
+            r2, sort_keys=True, indent=2
+        )
