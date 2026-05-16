@@ -14,7 +14,9 @@ Usage:
 
 import argparse
 import json
+import logging
 import re
+import sqlite3
 import sys
 from collections import Counter
 from datetime import datetime, timedelta
@@ -23,8 +25,15 @@ from pathlib import Path
 from tabulate import tabulate
 
 from wanctl.storage.db_utils import discover_wan_dbs, query_all_wans
-from wanctl.storage.reader import compute_summary, query_metrics, select_granularity
+from wanctl.storage.reader import (
+    compute_summary,
+    count_metrics,
+    query_metrics,
+    select_granularity,
+)
 from wanctl.storage.writer import DEFAULT_DB_PATH
+
+logger = logging.getLogger(__name__)
 
 # Per-tin CAKE metric names for --tins queries (CAKE-07)
 PER_TIN_METRICS = [
@@ -426,6 +435,60 @@ def format_tins_json(results: list[dict]) -> str:
     return json.dumps(output, indent=2)
 
 
+def format_ingestion_rate_table(rows: list[dict], start_ts: int, end_ts: int) -> str:
+    """Format per-WAN ingestion rate as an operator-readable table."""
+    window_seconds = max(end_ts - start_ts, 1)
+    headers = ["WAN", "Database", "Window", "Rows", "Rows/sec", "Mean Rows/sec"]
+    table_rows = []
+    for r in rows:
+        mean = r["row_count"] / window_seconds if window_seconds > 0 else 0.0
+        table_rows.append(
+            [
+                r["wan_name"],
+                r["wan_db"],
+                f"{format_timestamp(start_ts)}..{format_timestamp(end_ts)}",
+                r["row_count"],
+                format_value(r["rows_per_sec"]),
+                format_value(mean),
+            ]
+        )
+    return tabulate(table_rows, headers=headers, tablefmt="simple")  # type: ignore[no-any-return]
+
+
+def format_ingestion_rate_json(rows: list[dict], start_ts: int, end_ts: int) -> str:
+    """Format per-WAN ingestion rate as a stable JSON object."""
+    window_seconds = max(end_ts - start_ts, 1)
+    total_rows = sum(r["row_count"] for r in rows)
+    payload = {
+        "window": {
+            "start_ts": start_ts,
+            "end_ts": end_ts,
+            "start_iso": datetime.fromtimestamp(start_ts).isoformat(),
+            "end_iso": datetime.fromtimestamp(end_ts).isoformat(),
+            "window_seconds": window_seconds,
+        },
+        "generated_at": datetime.now().isoformat(),
+        "totals": {
+            "row_count": total_rows,
+            "rows_per_sec": (total_rows / window_seconds) if window_seconds > 0 else 0.0,
+            "wan_count": len(rows),
+        },
+        "wans": [
+            {
+                "wan_name": r["wan_name"],
+                "wan_db": r["wan_db"],
+                "row_count": r["row_count"],
+                "rows_per_sec": r["rows_per_sec"],
+                "mean_rows_per_sec_windowed": (
+                    r["row_count"] / window_seconds if window_seconds > 0 else 0.0
+                ),
+            }
+            for r in rows
+        ],
+    }
+    return json.dumps(payload, indent=2)
+
+
 # =============================================================================
 # ARGUMENT PARSING
 # =============================================================================
@@ -493,6 +556,16 @@ Examples:
         help="Show per-tin CAKE statistics (drops, ECN, delay, backlog per tin)",
     )
     filter_group.add_argument(
+        "--ingestion-rate",
+        dest="ingestion_rate",
+        action="store_true",
+        help=(
+            "Show per-WAN metrics ingestion rate (rows/sec) over the selected window. "
+            "Unreadable DBs appear as 0-row entries; cross-check with --wan/--last for "
+            "suspicious zero-rate WANs."
+        ),
+    )
+    filter_group.add_argument(
         "--metrics",
         metavar="NAMES",
         help="Comma-separated metric names to filter",
@@ -551,10 +624,86 @@ def _resolve_time_range(args: argparse.Namespace) -> tuple[int, int]:
     return now - 3600, now
 
 
+def _filter_db_paths_by_wan(db_paths: list[Path], wan: str | None) -> list[Path]:
+    """Restrict iteration to DBs whose WAN name matches ``wan``."""
+    if not wan:
+        return list(db_paths)
+    out: list[Path] = []
+    for db_path in db_paths:
+        stem = db_path.stem
+        wan_name = stem.removeprefix("metrics-") if stem.startswith("metrics-") else stem
+        if wan_name == wan:
+            out.append(db_path)
+    return out
+
+
+def _per_wan_ingestion_rate(
+    db_paths: list[Path],
+    start_ts: int,
+    end_ts: int,
+    wan: str | None,
+    metrics: list[str] | None,
+) -> tuple[list[dict], int]:
+    """Return per-WAN ingestion-rate rows and residual hard-failure count.
+
+    ``count_metrics()`` returns 0 for missing, open-failed, or query-failed DBs;
+    those unreadable cases intentionally appear as 0-row WANs here. The exception
+    boundary only handles residual hard SQLite/OS failures that escape the reader.
+    """
+    rows: list[dict] = []
+    failures = 0
+    window_seconds = max(end_ts - start_ts, 1)
+    for db_path in db_paths:
+        stem = db_path.stem
+        wan_name = stem.removeprefix("metrics-") if stem.startswith("metrics-") else stem
+        try:
+            count = count_metrics(
+                db_path=db_path,
+                start_ts=start_ts,
+                end_ts=end_ts,
+                metrics=metrics,
+                wan=wan,
+                granularity=None,
+            )
+        except (sqlite3.DatabaseError, OSError) as exc:
+            logger.warning("Failed to count %s, skipping: %s", db_path.name, exc)
+            failures += 1
+            continue
+        rows.append(
+            {
+                "wan_db": str(db_path),
+                "wan_name": wan_name,
+                "row_count": count,
+                "window_seconds": window_seconds,
+                "rows_per_sec": (count / window_seconds) if window_seconds > 0 else 0.0,
+            }
+        )
+    return rows, failures
+
+
 def _handle_special_query(
     args: argparse.Namespace, db_paths: list[Path], start_ts: int, end_ts: int
 ) -> int | None:
     """Handle special query modes (tins, tuning, alerts). Returns exit code or None."""
+    if args.ingestion_rate:
+        filtered_paths = _filter_db_paths_by_wan(db_paths, args.wan)
+        metrics_list = [m.strip() for m in args.metrics.split(",")] if args.metrics else None
+        rows, failures = _per_wan_ingestion_rate(
+            filtered_paths,
+            start_ts=start_ts,
+            end_ts=end_ts,
+            wan=args.wan,
+            metrics=metrics_list,
+        )
+        if filtered_paths and failures == len(filtered_paths):
+            print("All metrics databases failed to read.", file=sys.stderr)
+            return 1
+        if args.json_output:
+            print(format_ingestion_rate_json(rows, start_ts, end_ts))
+        else:
+            print(format_ingestion_rate_table(rows, start_ts, end_ts))
+        return 0
+
     if args.tins:
         granularity = select_granularity(start_ts, end_ts)
         results = query_all_wans(
