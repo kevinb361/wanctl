@@ -4,14 +4,14 @@ milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 208
 status: ready_to_plan
-stopped_at: Completed 208-03-PLAN.md
-last_updated: "2026-05-16T18:22:01.424Z"
+stopped_at: Completed 208-04-PLAN.md
+last_updated: "2026-05-16T18:28:22.761Z"
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 23
-  completed_plans: 22
-  percent: 96
+  completed_plans: 23
+  percent: 100
 ---
 
 # Session State
@@ -130,7 +130,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 208-03-PLAN.md
+Stopped at: Completed 208-04-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -336,3 +336,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 208]: TOOL-03 classifies only sqlite3.connect() permission/IO failures as digest skips; query-time sqlite3.DatabaseError remains on the existing command failure path.
 - [Phase 208]: Operator digest readable/printed accounting distinguishes no-readable sudo guidance from all-writes-failed stdout failures.
 - [Phase 208]: Digest permission tests use monkeypatched sqlite3.connect / builtins.print failure injection; chmod-based permission tests remain forbidden.
+- [Phase 208-04]: Explicit non-metrics-<wan>.db paths are retained under --wan because they may contain multiple WANs and must be filtered by parameterized SQL.
+- [Phase 208-04]: Normal discovered per-WAN metrics-spectrum.db / metrics-att.db behavior remains filename-restricted so filtered-out WAN DBs do not appear as zero rows.
+- [Phase 208-04]: Legacy metrics.db display identity remains filename-derived (metrics) while row counts are SQL-filtered by requested WAN.
