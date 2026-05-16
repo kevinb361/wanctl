@@ -28,6 +28,22 @@ V142_NDJSON = (
     / "soak-capture.ndjson"
 )
 
+# TOOL-01: secondary-gate block contract — exactly these 10 keys.
+EXPECTED_SECONDARY_GATE_KEYS = frozenset(
+    {
+        "name",
+        "computation",
+        "value",
+        "threshold",
+        "statistic",
+        "headroom_factor",
+        "gate_column",
+        "verdict",
+        "reason",
+        "operator_approval",
+    }
+)
+
 
 def _load_module(path: Path, name: str) -> ModuleType:
     spec = importlib.util.spec_from_file_location(name, path)
@@ -120,6 +136,65 @@ class TestWatchdogMath:
         assert constants["statistic"] == "p99"
         assert constants["threshold"] == 175
         assert constants["gate_column"] == "by_cause.dwell_hold"
+
+    def test_unknown_gate_column_cause_fails_closed(self, aggregator: ModuleType) -> None:
+        result = aggregator.aggregate_watchdog(
+            _make_rows([10]),
+            new_threshold=100,
+            statistic="p99",
+            gate_column="by_cause.bogus_cause",
+        )
+        assert set(result) == {"secondary_gate_completed_window"}
+        block = result["secondary_gate_completed_window"]
+        assert set(block) == EXPECTED_SECONDARY_GATE_KEYS, (
+            f"block keys drifted: {set(block) ^ EXPECTED_SECONDARY_GATE_KEYS}"
+        )
+        assert block["verdict"] == "fail"
+        assert block["value"] == 0.0
+        assert block["reason"] is not None
+        assert "bogus_cause" in block["reason"]
+
+    def test_unknown_top_level_gate_column_fails_closed(
+        self, aggregator: ModuleType
+    ) -> None:
+        result = aggregator.aggregate_watchdog(
+            _make_rows([10]),
+            new_threshold=100,
+            statistic="p99",
+            gate_column="totally_unknown_column",
+        )
+        block = result["secondary_gate_completed_window"]
+        assert set(block) == EXPECTED_SECONDARY_GATE_KEYS
+        assert block["verdict"] == "fail"
+        assert block["value"] == 0.0
+        assert block["reason"] is not None
+        assert "totally_unknown_column" in block["reason"]
+
+    def test_unsupported_statistic_fails_closed(self, aggregator: ModuleType) -> None:
+        result = aggregator.aggregate_watchdog(
+            _make_rows([10]),
+            new_threshold=100,
+            statistic="p42",
+            gate_column="by_cause.dwell_hold",
+        )
+        block = result["secondary_gate_completed_window"]
+        assert set(block) == EXPECTED_SECONDARY_GATE_KEYS
+        assert block["verdict"] == "fail"
+        assert block["value"] == 0.0
+        assert block["reason"] is not None
+        assert "p42" in block["reason"]
+
+    def test_valid_config_shape_regression(self, aggregator: ModuleType) -> None:
+        """Regression guard: valid pass path still emits the same 10-key shape."""
+        result = aggregator.aggregate_watchdog(
+            _make_rows([1, 2, 3]),
+            new_threshold=100,
+            statistic="p99",
+            gate_column="suppressions_completed_window_count_distribution",
+        )
+        block = result["secondary_gate_completed_window"]
+        assert set(block) == EXPECTED_SECONDARY_GATE_KEYS
+        assert block["verdict"] == "pass"
 
 
 class TestLegacyGateRemovalContract:
