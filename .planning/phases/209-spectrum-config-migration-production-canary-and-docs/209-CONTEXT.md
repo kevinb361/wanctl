@@ -41,11 +41,17 @@ Flip Spectrum to topology-correct CAKE (`ceiling_mbps: 920`, `diffserv: besteffo
 - **D-15:** Primary audience is the operator deciding `allow_wash` for a new WAN. Tone matches CONFIGURATION.md / RUNBOOK.md — decision-driving, lead with "how to decide", end with "why". Short examples; explicit Spectrum (`allow_wash: true`, besteffort) vs ATT (`allow_wash: false`, diffserv4) contrast.
 - **D-16:** CHANGELOG.md treatment is a dedicated `v1.44.0` heading (matching v1.43-dev pattern from Phase 202-04) noting `allow_wash` knob, besteffort/wash semantics shift on Spectrum, `ceiling_mbps: 940→920`, and an explicit link to `docs/BRIDGE_QOS.md`. No inline DSCP-rationale paragraph in CHANGELOG (avoids duplication with BRIDGE_QOS.md).
 
+### Refinements (post-pattern-mapping, 2026-05-18)
+- **D-17 (refines D-06):** The D-06 hard-fail on wash readback mismatch lives **inside the backends' `validate_cake()` methods** (`src/wanctl/backends/netlink_cake.py` and `src/wanctl/backends/linux_cake.py`), raising on wash-specific mismatch. `linux_cake_adapter.py:344` is NOT modified and is NOT added to the SAFE-09 allowlist. The wash-specific raise is the smallest delta; broader readback-mismatch behavior remains unchanged (soft-signal preserved for other params). Both backends are already in the SAFE-09 allowlist, so no allowlist expansion is required.
+- **D-18 (refines D-05):** The "always-emit-wash for ATT" policy lives in **`build_cake_params`** (`src/wanctl/cake_params.py`). When `allow_wash` is false, `build_cake_params` emits `wash: False` into the params dict (mirroring the explicit-False precedent at `netlink_cake.py:478`). `build_expected_readback` remains a pure pass-through transform — no default-emission logic added there. Preserves the existing "build_cake_params owns policy, transforms own transform" separation.
+- **D-19 (wave-merge / commit-shape policy, post-checker-review 2026-05-18):** Plans 209-01, 209-02, and 209-03 each ship as their OWN commit on plan completion. Plan 209-04's closeout commit contains EXACTLY 5 files: `configs/spectrum.yaml` + `pyproject.toml` + `src/wanctl/__init__.py` + `docker/Dockerfile` + `CHANGELOG.md` (date flip). No bundling of upstream-plan work into the 209-04 closeout commit. This locks D-11's "single closeout commit" shape and resolves the checker-flagged hedging in Plan 04. The 209-02 default-mode allowlist expansion (Plan 02 Task 3) ships in 209-02's own commit BEFORE 209-04 runs, so 209-04 Task 4b's SAFE-09 mechanical gate has the v1.44 allowlist available as a real exit-0 verifier.
+
 ### Claude's Discretion
 - Exact prose of BRIDGE_QOS.md — operator-decision-driving tone is the constraint; phrasing is open.
 - Exact CONFIGURATION.md `allow_wash` entry text and section placement (under `cake_params` block) — planner/executor's call.
 - Test layout for symmetric wash readback (one file vs split) — follow nearest existing readback-test convention.
 - Phase 206 harness invocation flags for the verification A/B run — Phase 206 docs are the source of truth.
+- Whether to add a `phase209_expected_counts` pin block to `tests/test_phase_195_replay.py` for the new wash readback line counts — PATTERNS.md recommends yes per Phase 202-03 / 204-02 precedent; planner's call to wire concretely.
 
 </decisions>
 
