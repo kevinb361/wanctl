@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
-current_phase: 208
+current_phase: 209
 status: ready_to_plan
-stopped_at: Completed 208-04-PLAN.md
-last_updated: "2026-05-16T18:28:22.761Z"
+stopped_at: Phase 209 context gathered
+last_updated: "2026-05-18T14:48:25.892Z"
 progress:
   total_phases: 5
-  completed_phases: 5
+  completed_phases: 4
   total_plans: 23
   completed_plans: 23
   percent: 100
@@ -130,8 +130,8 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 208-04-PLAN.md
-Resume file: None
+Stopped at: Phase 209 context gathered
+Resume file: .planning/phases/209-spectrum-config-migration-production-canary-and-docs/209-CONTEXT.md
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
 ## Decisions
