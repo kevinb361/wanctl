@@ -1096,6 +1096,10 @@ class TestLinuxHtbFqCodelBackend:
 class TestValidateCake:
     """validate_cake tests -- BACK-03, D-07."""
 
+    @staticmethod
+    def _cake_json_with_options(options: dict[str, object]) -> str:
+        return json.dumps([{"kind": "cake", "options": options}])
+
     @patch("wanctl.backends.linux_cake.subprocess.run")
     def test_validate_cake_all_match(self, mock_run, backend):
         mock_run.return_value = subprocess.CompletedProcess(
@@ -1111,6 +1115,80 @@ class TestValidateCake:
         )
         result = backend.validate_cake({"overhead": 22})
         assert result is False
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_validate_cake_wash_true_matches(self, mock_run, backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=self._cake_json_with_options({"wash": True}),
+            stderr="",
+        )
+
+        assert backend.validate_cake({"wash": True}) is True
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_validate_cake_wash_false_matches(self, mock_run, backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=self._cake_json_with_options({"wash": False}),
+            stderr="",
+        )
+
+        assert backend.validate_cake({"wash": False}) is True
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_validate_cake_wash_false_matches_omitted_key(self, mock_run, backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=self._cake_json_with_options({}), stderr=""
+        )
+
+        assert backend.validate_cake({"wash": False}) is True
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_validate_cake_wash_false_mismatch_raises(self, mock_run, backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=self._cake_json_with_options({"wash": True}),
+            stderr="",
+        )
+
+        with pytest.raises(RuntimeError, match="wash.*expected=False.*actual=True"):
+            backend.validate_cake({"wash": False})
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_validate_cake_wash_true_mismatch_raises(self, mock_run, backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=self._cake_json_with_options({"wash": False}),
+            stderr="",
+        )
+
+        with pytest.raises(RuntimeError, match="wash.*expected=True.*actual=False"):
+            backend.validate_cake({"wash": True})
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_validate_cake_wash_true_omitted_key_raises(self, mock_run, backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=self._cake_json_with_options({}), stderr=""
+        )
+
+        with pytest.raises(RuntimeError, match="wash.*expected=True.*actual=False"):
+            backend.validate_cake({"wash": True})
+
+    @patch("wanctl.backends.linux_cake.subprocess.run")
+    def test_validate_cake_non_wash_mismatch_stays_soft_signal(self, mock_run, backend):
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=self._cake_json_with_options({"rtt": 50000}),
+            stderr="",
+        )
+
+        assert backend.validate_cake({"rtt": 100000}) is False
 
     @patch("wanctl.backends.linux_cake.subprocess.run")
     def test_validate_cake_no_cake(self, mock_run, backend):
