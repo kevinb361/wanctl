@@ -171,6 +171,16 @@ def build_cake_params(
                     )
             params[tc_key] = value
 
+    # Phase 209 (D-18, TOPO-03): always emit wash into params dict so
+    # build_expected_readback can assert symmetric wash readback for
+    # both ATT (allow_wash=false -> wash bit NOT set) and Spectrum
+    # (allow_wash=true -> wash bit IS set). Mirrors the
+    # "Explicit False matters" precedent at netlink_cake.py:478.
+    # build_cake_params owns the policy; build_expected_readback stays
+    # a pure pass-through transform.
+    if "wash" not in params:
+        params["wash"] = allow_wash
+
     # Handle overhead keyword: pop from params, validate, store as overhead_keyword
     overhead = params.pop("overhead", None)
     if overhead is not None and isinstance(overhead, str):
@@ -212,6 +222,9 @@ def build_expected_readback(params: dict[str, Any]) -> dict[str, Any]:
 
     if "diffserv" in params:
         expected["diffserv"] = params["diffserv"]
+
+    if "wash" in params:
+        expected["wash"] = bool(params["wash"])
 
     if "rtt" in params:
         rtt_str = str(params["rtt"])
