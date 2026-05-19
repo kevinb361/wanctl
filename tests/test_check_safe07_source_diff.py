@@ -46,13 +46,30 @@ def _init_repo_with_baseline(tmp_path: Path, baseline_version: str = "1.43.0") -
     return _git(repo, "rev-parse", "HEAD").stdout.strip()
 
 
-def _run_script(repo: Path, ref: str) -> subprocess.CompletedProcess[str]:
+def _run_script(
+    repo: Path, *args: str, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["bash", str(repo / "scripts" / SCRIPT.name), ref],
+        ["bash", str(repo / "scripts" / SCRIPT.name), *args],
         cwd=repo,
         capture_output=True,
         text=True,
+        env={**os.environ, **(env or {})},
     )
+
+
+def _init_repo_with_att_baseline(tmp_path: Path) -> str:
+    """Return the SHA of a synthetic repo with configs/att.yaml committed."""
+    ref = _init_repo_with_baseline(tmp_path)
+    (tmp_path / "configs").mkdir(exist_ok=True)
+    (tmp_path / "configs" / "att.yaml").write_text("wan: att\n", encoding="utf-8")
+    (tmp_path / "configs" / "examples").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "configs" / "examples" / "att-cable.yaml").write_text(
+        "example: att\n", encoding="utf-8"
+    )
+    _git(tmp_path, "add", "configs/att.yaml", "configs/examples/att-cable.yaml")
+    _git(tmp_path, "commit", "-q", "-m", "add att config")
+    return _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
 
 
 def test_clean_tree_exits_zero(tmp_path: Path) -> None:
@@ -119,3 +136,77 @@ def test_committed_disallowed_src_diff_exits_nonzero(tmp_path: Path) -> None:
     result = _run_script(tmp_path, ref)
     assert result.returncode == 1, (result.stdout, result.stderr)
     assert "SAFE-07 VIOLATION: src/wanctl/ has changed since" in result.stderr
+
+
+def test_att_config_whitelist_clean_tree_exits_zero(tmp_path: Path) -> None:
+    ref = _init_repo_with_att_baseline(tmp_path)
+    result = _run_script(tmp_path, "--att-config-whitelist", ref)
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert f"SAFE-08 OK: no configs/att.yaml diff vs {ref}" in result.stdout
+
+
+def test_att_config_whitelist_unstaged_edit_exits_nonzero(tmp_path: Path) -> None:
+    ref = _init_repo_with_att_baseline(tmp_path)
+    path = tmp_path / "configs" / "att.yaml"
+    path.write_text(path.read_text(encoding="utf-8") + "# drift\n", encoding="utf-8")
+    result = _run_script(tmp_path, "--att-config-whitelist", ref)
+    assert result.returncode == 1
+    assert "SAFE-08 VIOLATION: uncommitted, staged, or untracked configs/att.yaml" in result.stderr
+    assert "unstaged worktree edits present on configs/att.yaml" in result.stderr
+
+
+def test_att_config_whitelist_staged_edit_exits_nonzero(tmp_path: Path) -> None:
+    ref = _init_repo_with_att_baseline(tmp_path)
+    path = tmp_path / "configs" / "att.yaml"
+    path.write_text(path.read_text(encoding="utf-8") + "# staged drift\n", encoding="utf-8")
+    _git(tmp_path, "add", "configs/att.yaml")
+    result = _run_script(tmp_path, "--att-config-whitelist", ref)
+    assert result.returncode == 1
+    assert "staged-but-not-committed edits present on configs/att.yaml" in result.stderr
+
+
+def test_att_config_whitelist_committed_diff_exits_nonzero(tmp_path: Path) -> None:
+    ref = _init_repo_with_att_baseline(tmp_path)
+    path = tmp_path / "configs" / "att.yaml"
+    path.write_text("wan: att\ndrift: true\n", encoding="utf-8")
+    _git(tmp_path, "add", "configs/att.yaml")
+    _git(tmp_path, "commit", "-q", "-m", "att drift")
+    result = _run_script(tmp_path, "--att-config-whitelist", ref)
+    assert result.returncode == 1
+    assert "SAFE-08 VIOLATION: configs/att.yaml has changed since" in result.stderr
+
+
+def test_att_config_whitelist_env_override_resolves_ref(tmp_path: Path) -> None:
+    ref = _init_repo_with_att_baseline(tmp_path)
+    result = _run_script(
+        tmp_path,
+        "--att-config-whitelist",
+        env={"PHASE_209_ATT_REF": ref},
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert f"SAFE-08 OK: no configs/att.yaml diff vs {ref}" in result.stdout
+
+
+def test_att_config_whitelist_bad_ref_exits_two(tmp_path: Path) -> None:
+    _init_repo_with_att_baseline(tmp_path)
+    result = _run_script(tmp_path, "--att-config-whitelist", "deadbeef")
+    assert result.returncode == 2
+    assert "ref 'deadbeef' not found" in result.stderr
+
+
+def test_unknown_flag_exits_two(tmp_path: Path) -> None:
+    _init_repo_with_baseline(tmp_path)
+    result = _run_script(tmp_path, "--bogus")
+    assert result.returncode == 2
+    assert "Unknown flag: --bogus" in result.stderr
+
+
+def test_att_config_whitelist_ignores_examples_drift(tmp_path: Path) -> None:
+    ref = _init_repo_with_att_baseline(tmp_path)
+    path = tmp_path / "configs" / "examples" / "att-cable.yaml"
+    path.write_text("example: changed\n", encoding="utf-8")
+    _git(tmp_path, "add", "configs/examples/att-cable.yaml")
+    _git(tmp_path, "commit", "-q", "-m", "example docs drift")
+    result = _run_script(tmp_path, "--att-config-whitelist", ref)
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert "SAFE-08 OK" in result.stdout
