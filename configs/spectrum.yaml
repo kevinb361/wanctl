@@ -41,6 +41,8 @@ cake_params:
   rtt: "100ms" # Conservative DOCSIS interval; 1s was diagnostic only, not an operating tune
   ack_filter: false # Silicom validation 2026-04-28; preserve no-ack-filter on upload
   ingress: false # Silicom validation 2026-04-28; ingress on spec-router hurt upload tests
+  diffserv: besteffort # Phase 209 (TOPO-03): DSCP stripped at DOCSIS CMTS; see docs/BRIDGE_QOS.md
+  allow_wash: true # Phase 209 (TOPO-02 gate + D-05): wash bit on; 2026-04-22 flent finding; see docs/BRIDGE_QOS.md
 
 # Continuous monitoring - Expert-tuned for Spectrum Cable
 continuous_monitoring:
@@ -58,7 +60,7 @@ continuous_monitoring:
     floor_yellow_mbps: 350 # YELLOW: early warning
     floor_soft_red_mbps: 275 # SOFT_RED: RTT-only congestion (no steering)
     floor_red_mbps: 200 # RED: severe congestion
-    ceiling_mbps: 940 # Realistic "good-day" max (under DOCSIS overhead)
+    ceiling_mbps: 920 # Phase 209 (TOPO-03): topology-correct DOCSIS ceiling; 2026-04-22 flent finding; see docs/BRIDGE_QOS.md
     step_up_mbps: 10 # p158 re-confirmed 2026-04-09 (linux-cake post-DSCP post-netlink)
     factor_down: 0.85 # linux-cake validated 2026-04-02 (was 0.90, confirmed in pass)
     factor_down_yellow: 0.92 # linux-cake confirmed 2026-04-02 (unchanged from REST)
