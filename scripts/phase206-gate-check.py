@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -336,9 +337,21 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         )
         return EXIT_ABORT
     if restart_inputs_present and baseline_restart is not None:
-        if args.window_hours is None or args.window_hours <= 0:
+        # Phase 209 (HIGH #4 / D-20, closes Phase 206 TOPO-05 fail-open):
+        # `inf > 0` evaluates True so `args.window_hours <= 0` does NOT
+        # catch --window-hours=inf, and the restart-rate becomes
+        # `delta / inf == 0.0` which silently passes the threshold check
+        # (fail-open). `math.isfinite` rejects both nan and inf, locking
+        # the guard to finite positive values only. Cross-phase tooling
+        # extension; SAFE-09 control-path allowlist unaffected.
+        if (
+            args.window_hours is None
+            or not math.isfinite(args.window_hours)
+            or args.window_hours <= 0
+        ):
             _log_abort(
-                f"ERROR: --window-hours must be > 0 when restart-counter inputs present "
+                f"ERROR: --window-hours must be a finite positive number when "
+                f"restart-counter inputs present "
                 f"(got {args.window_hours!r})"
             )
             return EXIT_ABORT

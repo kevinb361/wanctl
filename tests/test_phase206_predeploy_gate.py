@@ -456,6 +456,66 @@ class TestRestartCounterMonotonic:
         assert result.returncode == 2, (result.stdout + result.stderr).decode()
         assert b"window-hours" in result.stderr
 
+    def test_inf_window_hours_aborts(self, tmp_path: Path) -> None:
+        baseline = _make_baseline_with(tmp_path, restart_rate_per_hour_baseline=1.0)
+        result = _run_gate(
+            [
+                "--baseline",
+                str(baseline),
+                "--candidate",
+                str(BASELINE),
+                "--restart-counter-start",
+                "0",
+                "--restart-counter-end",
+                "5",
+                "--window-hours",
+                "inf",
+            ]
+        )
+        assert result.returncode == 2, (result.stdout + result.stderr).decode()
+        assert b"window-hours" in result.stderr
+        assert b"finite positive" in result.stderr
+
+    def test_nan_window_hours_aborts(self, tmp_path: Path) -> None:
+        baseline = _make_baseline_with(tmp_path, restart_rate_per_hour_baseline=1.0)
+        result = _run_gate(
+            [
+                "--baseline",
+                str(baseline),
+                "--candidate",
+                str(BASELINE),
+                "--restart-counter-start",
+                "0",
+                "--restart-counter-end",
+                "5",
+                "--window-hours",
+                "nan",
+            ]
+        )
+        assert result.returncode == 2, (result.stdout + result.stderr).decode()
+        assert b"window-hours" in result.stderr
+        assert b"finite positive" in result.stderr
+
+    def test_finite_positive_window_hours_reaches_restart_gate(self, tmp_path: Path) -> None:
+        baseline = _make_baseline_with(tmp_path, restart_rate_per_hour_baseline=1.0)
+        result = _run_gate(
+            [
+                "--baseline",
+                str(baseline),
+                "--candidate",
+                str(BASELINE),
+                "--restart-counter-start",
+                "0",
+                "--restart-counter-end",
+                "0",
+                "--window-hours",
+                "24.0",
+            ]
+        )
+        assert result.returncode == 0, (result.stdout + result.stderr).decode()
+        assert b"window-hours must" not in result.stderr
+        assert b"Daemon restart-rate" in result.stderr
+
 
 class TestPartialRestartCounterFailsClosed:
     def test_only_start_counter_aborts(self, tmp_path: Path) -> None:
