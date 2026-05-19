@@ -384,6 +384,6 @@ The representative schema above covers the core autorate path. Production config
 - `irtt`, `reflector_quality`, `owd_asymmetry`, and `fusion`: supplemental measurement-quality stack.
 - `alerting`: Discord webhook alert delivery and per-alert cooldowns.
 - `tuning`: adaptive runtime parameter tuning with safety bounds.
-- `cake_params`: required for `linux-cake` and `linux-cake-netlink` transports.
+- `cake_params`: required for `linux-cake` and `linux-cake-netlink` transports. Per-WAN `allow_wash` flag (default `false`) controls whether the CAKE qdisc may strip DSCP markings on egress. Enable `allow_wash: true` only on WANs whose carrier strips markings upstream (consumer DOCSIS cable, most consumer fiber); keep `allow_wash: false` on transparent-bridge or marking-preserving links. See [BRIDGE_QOS.md](BRIDGE_QOS.md) for the per-WAN decision guide.
 
 See [CONFIG_SCHEMA.md](CONFIG_SCHEMA.md) for the exhaustive key reference, [SUBSYSTEMS.md](SUBSYSTEMS.md) for operational internals, and [PERFORMANCE.md](PERFORMANCE.md) for timing and cycle-budget guidance.

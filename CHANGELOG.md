@@ -5,23 +5,31 @@ All notable changes to wanctl are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased (v1.44 — in progress)
+## v1.44.0 — <YYYY-MM-DD>
 
 ### Added
 
+- **TOPO-02 / TOPO-07 (Phase 209):** Per-WAN `allow_wash` `cake_params` flag (default `false`). Enables CAKE `wash` egress on WANs whose carrier path does not preserve markings end-to-end; see [docs/BRIDGE_QOS.md](docs/BRIDGE_QOS.md) for the decision guide and topology rationale. Spectrum migrates to `allow_wash: true` in this release; ATT keeps the default `false`.
+- **TOPO-07 (Phase 209):** `docs/BRIDGE_QOS.md` — new operator decision guide for per-WAN `allow_wash`, with Spectrum/ATT worked contrast and carrier-topology rationale.
+- **SAFE-08 (Phase 209):** `scripts/check-safe07-source-diff.sh --att-config-whitelist` mode verifies `configs/att.yaml` is byte-identical to v1.43 close (`6508d68`).
+- **SAFE-09 (Phase 209):** Wash readback validation in `build_expected_readback()` + `_VALIDATE_KEY_TO_TCA`; controller-startup hard-fail on wash-specific mismatch (D-17). Symmetric per D-05: ATT asserts wash NOT set; Spectrum asserts wash IS set.
 - **TOOL-02 (Phase 208):** Added `wanctl-history --ingestion-rate` parser and dispatch support with per-WAN DB filtering, count-based rows/sec reporting, operator table output, and stable object-shaped JSON metadata. Plan 208-02 records final verification in `.planning/phases/208-carry-on-quick-tasks-t17a-t9-t12/208-02-SUMMARY.md`.
 
-### Tests
+### Changed
 
-- **TOOL-01 (Phase 208):** Added watchdog aggregator regression coverage for unknown `gate_column` values, unsupported statistics, recursive `secondary_gate_legacy` absence, deterministic schema round-tripping, and the exact 10-key `secondary_gate_completed_window` block contract.
-- **TOOL-02 (Phase 208):** Added deterministic `wanctl-history --ingestion-rate` CLI tests for parser recognition, table output, object-shaped JSON, `--wan` iteration filtering, explicit legacy `--db metrics.db --wan spectrum` SQL row filtering, and zero-row windows.
-- **TOOL-03 (Phase 208):** Added operator-summary digest regression tests for unreadable WAN DB skips, all-unreadable sudo guidance, stdout-write `OSError` handling, discovery `OSError` reporting, all-writes-fail messaging, and the codex HIGH missing-`alerts`-table bubble invariant.
+- **TOPO-03 (Phase 209):** `configs/spectrum.yaml` migrated to topology-correct CAKE: `ceiling_mbps: 940 → 920`, `diffserv: diffserv4 → besteffort`, `allow_wash: true`. Validated out-of-band 2026-04-22 flent.
 
 ### Fixed
 
 - **TOOL-01 (Phase 208):** `aggregate_watchdog()` now fails closed in-band for unknown watchdog gate columns or unsupported statistics, returning `verdict="fail"`, `value=0.0`, and a non-null reason while preserving the existing output schema. Plan 208-01 records final verification in `.planning/phases/208-carry-on-quick-tasks-t17a-t9-t12/208-01-SUMMARY.md` (`b90234a`).
 - **TOOL-02 (Phase 208 gap closure):** `wanctl-history --ingestion-rate --wan <wan> --db <legacy/ad-hoc DB>` now keeps explicit non-`metrics-<wan>.db` paths in scope and relies on parameterized SQL `wan_name` filtering for row counts, while discovered per-WAN `metrics-spectrum.db` / `metrics-att.db` filtering remains filename-restricted. Plan 208-04 records final verification in `.planning/phases/208-carry-on-quick-tasks-t17a-t9-t12/208-04-SUMMARY.md`.
 - **TOOL-03 (Phase 208):** `wanctl-operator-summary --digest` now skips per-WAN DB open permission/IO failures with a stable stderr prefix, preserves query-time/schema errors on the existing failure path, catches stdout-write `OSError` per line, distinguishes no-readable-DB sudo guidance from all-writes-failed output failures, and reports discovery `OSError` with a stable prefix. Plan 208-03 records final verification in `.planning/phases/208-carry-on-quick-tasks-t17a-t9-t12/208-03-SUMMARY.md`.
+
+### Tests
+
+- **TOOL-01 (Phase 208):** Added watchdog aggregator regression coverage for unknown `gate_column` values, unsupported statistics, recursive `secondary_gate_legacy` absence, deterministic schema round-tripping, and the exact 10-key `secondary_gate_completed_window` block contract.
+- **TOOL-02 (Phase 208):** Added deterministic `wanctl-history --ingestion-rate` CLI tests for parser recognition, table output, object-shaped JSON, `--wan` iteration filtering, explicit legacy `--db metrics.db --wan spectrum` SQL row filtering, and zero-row windows.
+- **TOOL-03 (Phase 208):** Added operator-summary digest regression tests for unreadable WAN DB skips, all-unreadable sudo guidance, stdout-write `OSError` handling, discovery `OSError` reporting, all-writes-fail messaging, and the codex HIGH missing-`alerts`-table bubble invariant.
 
 ### Planning
 
@@ -41,6 +49,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **HRDN-03 (Phase 207):** `secondary_gate_legacy` removed end-to-end across `scripts/soak_summary_aggregate.py` (`aggregate_watchdog()` + `aggregate_soak()`), `tests/test_phase_204_watchdog.py` (TestV142WatchdogRegression retired; positive-removal contract test added), `tests/test_phase_204_replay.py`, and `docs/SOAK_HARNESS.md`. Completed-window dual gate (`secondary_gate_completed_window`) is now the sole watchdog secondary signal. Fulfills the v1.43.0 "drops in v1.44" promise.
+
+### Deploy notes
+
+- **TOPO-06 (Phase 209):** Spectrum production canary used the v1.42/v1.43 two-snapshot rollback ritual: predeploy gate (Phase 206 script against golden NDJSON fixture SHA256 `68f99440…`) → reconcile → deploy `1.44.0` → 24h verification soak compared via Phase 206 A/B replay harness against v1.43 baseline `20260509T183037Z`. Rollback artifacts: `/opt/wanctl-prephase209-<ISO8601>-snapA.tar.gz` + `/etc/wanctl/spectrum.yaml.prephase209-<ISO8601>-snapA`. ATT byte-identical at v1.44 close per SAFE-08.
 
 ## v1.43.0 — 2026-05-13
 
