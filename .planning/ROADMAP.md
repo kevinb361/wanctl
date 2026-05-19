@@ -124,8 +124,8 @@
   3. `CHANGELOG.md`, `docs/BRIDGE_QOS.md`, and `docs/CONFIGURATION.md` document besteffort/wash semantics, the per-WAN `allow_wash` knob (default-false), and the topology rationale (DSCP not preserved across ISP) (TOPO-07).
   4. SAFE-09 closeout: end-to-end control-path source diff between v1.43 close (`6508d68`) and v1.44 close is bounded to `cake_signal.py` (TOPO-01), the TOPO-02 set (`cake_params.py`, `backends/linux_cake.py`, `backends/netlink_cake.py`, `check_config_validators.py`), `operator_summary.py` (TOOL-03), and `src/wanctl/__init__.py` (version bump). HRDN-01's fail-closed verifier confirms mechanically. Phase 209 also adds wash to `build_expected_readback()` + `_VALIDATE_KEY_TO_TCA` so live readback validates the new qdisc state.
   5. Version bump `1.43.0 → 1.44.0` propagates across `pyproject.toml`, `src/wanctl/__init__.py`, and `docker/Dockerfile`.
-**Plans:** 4 plans
-- [ ] 209-01-PLAN.md — Wash readback validation (build_cake_params always-emit-wash + build_expected_readback pass-through + _VALIDATE_KEY_TO_TCA wash + backend hard-fail per D-17) (SAFE-09)
+**Plans:** 1/4 plans executed
+- [x] 209-01-PLAN.md — Wash readback validation (build_cake_params always-emit-wash + build_expected_readback pass-through + _VALIDATE_KEY_TO_TCA wash + backend hard-fail per D-17) (SAFE-09)
 - [ ] 209-02-PLAN.md — scripts/check-safe07-source-diff.sh --att-config-whitelist mode + pytest harness (SAFE-08)
 - [ ] 209-03-PLAN.md — docs/BRIDGE_QOS.md (new) + CONFIGURATION.md allow_wash entry + CHANGELOG.md v1.44.0 heading flip (TOPO-07)
 - [ ] 209-04-PLAN.md — Spectrum YAML flip + version bump 1.44.0 + two-snapshot canary + 24h A/B soak vs 20260509T183037Z + SAFE-08/09 mechanical closeout (TOPO-03, TOPO-06, SAFE-08, SAFE-09)
@@ -138,7 +138,7 @@
 | 206 — A/B replay harness + rollback gates | 9/9 | Complete   | 2026-05-15 |
 | 207 — Soak / harness hardening | 5/5 | Complete    | 2026-05-15 |
 | 208 — Carry-on quick-tasks (T17a / T9 / T12) | 4/4 | Complete    | 2026-05-16 |
-| 209 — Spectrum config migration + canary + docs | 0/4 | Planned (wave 1: 3 parallel; wave 2: 1 operator-gated) | - |
+| 209 — Spectrum config migration + canary + docs | 1/4 | In Progress|  |
 
 ### Coverage Map (v1.44)
 
