@@ -1,33 +1,126 @@
 #!/usr/bin/env bash
-# SAFE-07 cross-cutting invariant verification.
+# SAFE-07 / SAFE-08 cross-cutting invariant verification.
 #
 # Asserts that no control-path source diff exists between the Phase 201
 # close (== Phase 202 close, since Phase 202 was additive-only) and HEAD.
+# In --att-config-whitelist mode, asserts configs/att.yaml is byte-identical
+# to the Phase 209 ATT reference (v1.43 close by default).
 #
 # Usage:
 #   bash scripts/check-safe07-source-diff.sh                  # uses default ref
 #   bash scripts/check-safe07-source-diff.sh <git-ref>        # override ref
 #   PHASE_202_CLOSE=<sha> bash scripts/check-safe07-source-diff.sh
+#   bash scripts/check-safe07-source-diff.sh --att-config-whitelist           # SAFE-08 ATT byte-identity vs 6508d68
+#   bash scripts/check-safe07-source-diff.sh --att-config-whitelist <git-ref> # override ref
+#   PHASE_209_ATT_REF=<sha> bash scripts/check-safe07-source-diff.sh --att-config-whitelist
 #
 # Exit:
 #   0 — clean (no control-path src/wanctl/ diff vs ref; planned version bump allowed)
-#   1 — SAFE-07 VIOLATION: src/wanctl/ has changed outside the allowed version bump
+#   1 — SAFE-07 VIOLATION or SAFE-08 VIOLATION (configs/att.yaml drift, --att-config-whitelist mode)
 #   2 — usage / git error (ref not found)
 
 set -euo pipefail
+
+# Phase 209 (D-01, D-02, SAFE-08): --att-config-whitelist mode extends
+# this verifier with a configs/att.yaml byte-identity check vs v1.43
+# close. Default mode (no flag) preserves the SAFE-07 src/wanctl/ check
+# verbatim. Mode flags consume one argv slot; positional ref handling
+# is preserved after flag parsing.
+MODE="default"
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --att-config-whitelist) MODE="att-whitelist"; shift ;;
+    --) shift; break ;;
+    -*) echo "Unknown flag: $1" >&2; exit 2 ;;
+    *) break ;;  # positional ref left for legacy handling below
+  esac
+done
+
+# Phase 209 (D-02): ATT-mode default ref is v1.43 close.
+DEFAULT_PHASE_209_ATT_REF="6508d68"
 
 # Default ref: Phase 202 close commit on main.
 # Recorded 2026-05-06 at planning time. Update if a later phase re-baselines.
 DEFAULT_PHASE_202_CLOSE="b72b463"
 
-REF="${1:-${PHASE_202_CLOSE:-$DEFAULT_PHASE_202_CLOSE}}"
+if [ "${MODE}" = "att-whitelist" ]; then
+  REF="${1:-${PHASE_209_ATT_REF:-$DEFAULT_PHASE_209_ATT_REF}}"
+else
+  REF="${1:-${PHASE_202_CLOSE:-$DEFAULT_PHASE_202_CLOSE}}"
+fi
 
 if ! git rev-parse --verify "${REF}^{commit}" >/dev/null 2>&1; then
   echo "ERROR: ref '${REF}' not found in this repository." >&2
-  echo "       Provide a valid Phase 202 close commit SHA via positional arg" >&2
-  echo "       or PHASE_202_CLOSE env var." >&2
+  if [ "${MODE}" = "att-whitelist" ]; then
+    echo "       Provide a valid Phase 209 ATT reference SHA via positional arg" >&2
+    echo "       or PHASE_209_ATT_REF env var." >&2
+  else
+    echo "       Provide a valid Phase 202 close commit SHA via positional arg" >&2
+    echo "       or PHASE_202_CLOSE env var." >&2
+  fi
   exit 2
 fi
+
+if [ "${MODE}" = "att-whitelist" ]; then
+  # Phase 209 (D-01, SAFE-08): configs/att.yaml byte-identity vs v1.43
+  # close. Mirrors the SAFE-07 src/wanctl/ pattern below; only the
+  # scope changes. D-03: examples/ explicitly out of scope. D-04:
+  # fail-closed, no warn-and-continue.
+
+  # Dirty-tree pre-check (HRDN-01 pattern, single-file scope).
+  DIRTY_UNSTAGED=0
+  DIRTY_STAGED=0
+  git diff --quiet -- configs/att.yaml || DIRTY_UNSTAGED=1
+  git diff --cached --quiet -- configs/att.yaml || DIRTY_STAGED=1
+  # Untracked-file check is irrelevant for a single committed file
+  # path — a clone with a different filename would not match this
+  # path scope. D-03 keeps examples/ out of scope.
+
+  if [ "${DIRTY_UNSTAGED}" -ne 0 ] || [ "${DIRTY_STAGED}" -ne 0 ]; then
+    echo "SAFE-08 VIOLATION: uncommitted, staged, or untracked configs/att.yaml edit detected" >&2
+    if [ "${DIRTY_UNSTAGED}" -ne 0 ]; then
+      echo "  unstaged worktree edits present on configs/att.yaml" >&2
+    fi
+    if [ "${DIRTY_STAGED}" -ne 0 ]; then
+      echo "  staged-but-not-committed edits present on configs/att.yaml" >&2
+    fi
+    echo "" >&2
+    echo "Short status:" >&2
+    git status --short -- configs/att.yaml >&2 || true
+    echo "" >&2
+    echo "Commit, stash, revert, or remove the configs/att.yaml changes before re-running." >&2
+    exit 1
+  fi
+
+  # Committed-diff check vs ref. Per D-03 the scope is configs/att.yaml ONLY;
+  # examples/ are not enforced. Per D-04 there is no version-bump allowlist
+  # branch — ANY committed diff is a SAFE-08 violation.
+  DIFF_OUTPUT=$(git diff "${REF}..HEAD" -- configs/att.yaml 2>&1 || true)
+  if [ -n "${DIFF_OUTPUT}" ]; then
+    echo "SAFE-08 VIOLATION: configs/att.yaml has changed since ${REF}" >&2
+    echo "" >&2
+    echo "Phase 209 SAFE-08 requires byte-identity for configs/att.yaml" >&2
+    echo "between v1.43 close (${REF}) and v1.44 close. Examples/ are" >&2
+    echo "explicitly out of scope (D-03); only configs/att.yaml is checked." >&2
+    echo "" >&2
+    echo "Inspect the diff:" >&2
+    echo "  git diff ${REF}..HEAD -- configs/att.yaml" >&2
+    echo "" >&2
+    echo "First 20 lines of diff:" >&2
+    line_count=0
+    while IFS= read -r line && [ "${line_count}" -lt 20 ]; do
+      echo "${line}" >&2
+      line_count=$((line_count + 1))
+    done <<< "${DIFF_OUTPUT}"
+    exit 1
+  fi
+
+  echo "SAFE-08 OK: no configs/att.yaml diff vs ${REF}"
+  exit 0
+fi
+
+# Default mode (existing SAFE-07 src/wanctl/ check) — unchanged below until
+# the Phase 209 SAFE-09 allowlist expansion.
 
 # HRDN-01 (Phase 207): SAFE-07 fail-closed dirty-tree pre-check.
 # The committed-diff check below only sees committed state. Catch
