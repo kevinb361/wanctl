@@ -4,14 +4,14 @@ milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 209
 status: ready_to_plan
-stopped_at: Phase 209 context gathered
-last_updated: "2026-05-18T20:11:55.738Z"
+stopped_at: Completed 209-01-PLAN.md
+last_updated: "2026-05-19T01:50:42.541Z"
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 27
-  completed_plans: 23
-  percent: 85
+  completed_plans: 24
+  percent: 89
 ---
 
 # Session State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 208 — carry-on-quick-tasks-t17a-t9-t12
+**Current focus:** Phase 209 — spectrum-config-migration-production-canary-and-docs
 
 ## Position
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
 **Current phase:** 209
 
-Progress: [██████████] 100%
+Progress: [█████████░] 89%
 
 ## Deferred Items
 
@@ -130,8 +130,8 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Phase 209 context gathered
-Resume file: .planning/phases/209-spectrum-config-migration-production-canary-and-docs/209-CONTEXT.md
+Stopped at: Completed 209-01-PLAN.md
+Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
 ## Decisions
@@ -339,3 +339,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 208-04]: Explicit non-metrics-<wan>.db paths are retained under --wan because they may contain multiple WANs and must be filtered by parameterized SQL.
 - [Phase 208-04]: Normal discovered per-WAN metrics-spectrum.db / metrics-att.db behavior remains filename-restricted so filtered-out WAN DBs do not appear as zero rows.
 - [Phase 208-04]: Legacy metrics.db display identity remains filename-derived (metrics) while row counts are SQL-filtered by requested WAN.
+- [Phase 209]: Plan 209-01 kept wash hard-fail scoped inside backend validate_cake methods — linux_cake_adapter.py remains unchanged per D-17 and non-wash mismatches keep soft-signal behavior.
+- [Phase 209]: Plan 209-01 normalized omitted wash readback to False for wash only — Protects ATT off-by-omission startup while still raising on real wash drift.
+- [Phase 209]: Plan 209-01 corrected netlink diffserv enum pins to pyroute2 values — Local pyroute2 reports besteffort=3, diffserv8=2, precedence=4; prevents Spectrum besteffort soft-fail.

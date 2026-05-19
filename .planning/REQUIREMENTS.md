@@ -18,7 +18,7 @@
 
 - [x] **TOPO-01** — `src/wanctl/cake_signal.py` aggregation is tin-agnostic at lines 13/173/306; handles single-tin besteffort and multi-tin diffserv4 layouts identically without per-deployment branching. Behavior preserved for ATT (multi-tin diffserv4); new besteffort path covered by replay-oracle test against captured CAKE state.
 - [x] **TOPO-02** — Per-WAN config gate `cake_params.allow_wash: bool = false` permits `wash` in the qdisc args list when explicitly enabled. Default remains false; D-08 transparent-bridge protection (`EXCLUDED_PARAMS = {"nat", "wash", "autorate-ingress"}`) preserved for ATT and any future bridge deployment.
-- [ ] **TOPO-03** — `configs/spectrum.yaml` migrates: `ceiling_mbps: 940 → 920`, `diffserv: diffserv4 → besteffort`, `allow_wash: true`. ATT config (`configs/att.yaml`) byte-identical at v1.44 close.
+- [x] **TOPO-03** — `configs/spectrum.yaml` migrates: `ceiling_mbps: 940 → 920`, `diffserv: diffserv4 → besteffort`, `allow_wash: true`. ATT config (`configs/att.yaml`) byte-identical at v1.44 close.
 - [x] **TOPO-04** — A/B replay harness captures pre/post RRUL p99 latency, throughput, jitter against the 2026-04-22 out-of-band flent finding. Reuses the Phase 193/194/195 replay pattern; deterministic golden fixture committed.
 - [ ] **TOPO-05** — Rollback criteria documented in machine-readable form (`PHASE-205-ROLLBACK-GATES.md` or equivalent): regression >5% on RRUL p99 latency OR Spectrum daemon restart-rate increase OR pressure-state transition-rate increase per hour. Predeploy gate script exists, but Phase 206 verification is `status: gaps_found` because non-finite `--window-hours` values (`nan`/`inf`) still fail open instead of rc=2 ABORT.
 - [ ] **TOPO-06** — Production canary on Spectrum executes the v1.42/v1.43 two-snapshot rollback ritual: predeploy gate → 24h soak under post-migration controller → verification soak comparing zone × cause-tag distributions to v1.43 baseline `20260509T183037Z`.
@@ -40,7 +40,7 @@
 ### SAFE — Cross-cutting closeout invariants
 
 - [ ] **SAFE-08** — Spectrum-only deploy invariant: ATT (`configs/att.yaml`, `src/wanctl/backends/*` ATT-specific paths) byte-identical between v1.43 close (`6508d68`) and v1.44 close. Verified mechanically by `scripts/check-safe07-source-diff.sh` extended with ATT-config whitelist mode.
-- [ ] **SAFE-09** — No controller threshold / algorithm / EWMA / dwell / deadband / burst changes within v1.44. Control-path source diff bounded to TOPO-01 (`cake_signal.py` tin-agnostic refactor), TOPO-02 (`cake_params.py` allow_wash gate), TOOL-03 (`operator_summary.py` perm handling), and the `__init__.py` version bump. SAFE-09 closeout checklist passes at every phase boundary.
+- [x] **SAFE-09** — No controller threshold / algorithm / EWMA / dwell / deadband / burst changes within v1.44. Control-path source diff bounded to TOPO-01 (`cake_signal.py` tin-agnostic refactor), TOPO-02 (`cake_params.py` allow_wash gate), TOOL-03 (`operator_summary.py` perm handling), and the `__init__.py` version bump. SAFE-09 closeout checklist passes at every phase boundary.
 
 ---
 
@@ -65,7 +65,7 @@
 |-------------|-------|--------|
 | TOPO-01 | Phase 205 | Complete |
 | TOPO-02 | Phase 205 | Complete |
-| TOPO-03 | Phase 209 | Pending |
+| TOPO-03 | Phase 209 | Complete |
 | TOPO-04 | Phase 206 | Complete |
 | TOPO-05 | Phase 206 | Gaps Found |
 | TOPO-06 | Phase 209 | Pending |
@@ -78,6 +78,6 @@
 | TOOL-02 | Phase 208 | Complete |
 | TOOL-03 | Phase 208 | Complete |
 | SAFE-08 | Phase 209 (mechanical closeout; verified at every phase boundary) | Pending |
-| SAFE-09 | Phase 209 (mechanical closeout; verified at every phase boundary) | Pending |
+| SAFE-09 | Phase 209 (mechanical closeout; verified at every phase boundary) | Complete |
 
 **Coverage:** 16/16 v1.44 requirements mapped (no orphans, no duplicates).
