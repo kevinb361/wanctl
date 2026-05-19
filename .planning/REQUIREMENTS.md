@@ -39,7 +39,7 @@
 
 ### SAFE — Cross-cutting closeout invariants
 
-- [ ] **SAFE-08** — Spectrum-only deploy invariant: ATT (`configs/att.yaml`, `src/wanctl/backends/*` ATT-specific paths) byte-identical between v1.43 close (`6508d68`) and v1.44 close. Verified mechanically by `scripts/check-safe07-source-diff.sh` extended with ATT-config whitelist mode.
+- [x] **SAFE-08** — Spectrum-only deploy invariant: ATT (`configs/att.yaml`, `src/wanctl/backends/*` ATT-specific paths) byte-identical between v1.43 close (`6508d68`) and v1.44 close. Verified mechanically by `scripts/check-safe07-source-diff.sh` extended with ATT-config whitelist mode.
 - [x] **SAFE-09** — No controller threshold / algorithm / EWMA / dwell / deadband / burst changes within v1.44. Control-path source diff bounded to TOPO-01 (`cake_signal.py` tin-agnostic refactor), TOPO-02 (`cake_params.py` allow_wash gate), TOOL-03 (`operator_summary.py` perm handling), and the `__init__.py` version bump. SAFE-09 closeout checklist passes at every phase boundary.
 
 ---
@@ -77,7 +77,7 @@
 | TOOL-01 | Phase 208 | Complete |
 | TOOL-02 | Phase 208 | Complete |
 | TOOL-03 | Phase 208 | Complete |
-| SAFE-08 | Phase 209 (mechanical closeout; verified at every phase boundary) | Pending |
+| SAFE-08 | Phase 209 (mechanical closeout; verified at every phase boundary) | Complete |
 | SAFE-09 | Phase 209 (mechanical closeout; verified at every phase boundary) | Complete |
 
 **Coverage:** 16/16 v1.44 requirements mapped (no orphans, no duplicates).
