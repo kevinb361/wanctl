@@ -117,14 +117,14 @@ def test_dirty_edit_outside_src_exits_zero(tmp_path: Path) -> None:
 
 
 def test_committed_version_bump_only_still_exits_zero(tmp_path: Path) -> None:
-    ref = _init_repo_with_baseline(tmp_path, baseline_version="1.42.1")
+    ref = _init_repo_with_baseline(tmp_path, baseline_version="1.43.0")
     path = tmp_path / "src" / "wanctl" / "__init__.py"
-    path.write_text('__version__ = "1.43.0"\n', encoding="utf-8")
+    path.write_text('__version__ = "1.44.0"\n', encoding="utf-8")
     _git(tmp_path, "add", "src/wanctl/__init__.py")
     _git(tmp_path, "commit", "-q", "-m", "bump")
     result = _run_script(tmp_path, ref)
     assert result.returncode == 0, (result.stdout, result.stderr)
-    assert "only planned src/wanctl/__init__.py version bump" in result.stdout
+    assert "SAFE-09 OK: diff vs" in result.stdout
 
 
 def test_committed_disallowed_src_diff_exits_nonzero(tmp_path: Path) -> None:
@@ -135,7 +135,47 @@ def test_committed_disallowed_src_diff_exits_nonzero(tmp_path: Path) -> None:
     _git(tmp_path, "commit", "-q", "-m", "disallowed src change")
     result = _run_script(tmp_path, ref)
     assert result.returncode == 1, (result.stdout, result.stderr)
-    assert "SAFE-07 VIOLATION: src/wanctl/ has changed since" in result.stderr
+    assert "SAFE-09 VIOLATION: src/wanctl/ has changed since" in result.stderr
+
+
+def test_default_mode_v144_allowlist_happy_path_exits_zero(tmp_path: Path) -> None:
+    ref = _init_repo_with_baseline(tmp_path, baseline_version="1.43.0")
+    allowlisted_files = [
+        "src/wanctl/cake_signal.py",
+        "src/wanctl/cake_params.py",
+        "src/wanctl/check_config_validators.py",
+        "src/wanctl/operator_summary.py",
+        "src/wanctl/backends/linux_cake.py",
+        "src/wanctl/backends/netlink_cake.py",
+    ]
+    for rel in allowlisted_files:
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"# allowlisted change: {rel}\n", encoding="utf-8")
+    (tmp_path / "src" / "wanctl" / "__init__.py").write_text(
+        '__version__ = "1.44.0"\n', encoding="utf-8"
+    )
+    _git(tmp_path, "add", "src/wanctl")
+    _git(tmp_path, "commit", "-q", "-m", "v144 allowlist")
+    result = _run_script(tmp_path, ref)
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert "SAFE-09 OK: diff vs" in result.stdout
+    assert "bounded to v1.44 allowlist" in result.stdout
+
+
+def test_default_mode_v144_allowlist_rejects_out_of_scope_file(tmp_path: Path) -> None:
+    ref = _init_repo_with_baseline(tmp_path, baseline_version="1.43.0")
+    adapter = tmp_path / "src" / "wanctl" / "backends" / "linux_cake_adapter.py"
+    adapter.parent.mkdir(parents=True, exist_ok=True)
+    adapter.write_text("# not allowlisted\n", encoding="utf-8")
+    (tmp_path / "src" / "wanctl" / "__init__.py").write_text(
+        '__version__ = "1.44.0"\n', encoding="utf-8"
+    )
+    _git(tmp_path, "add", "src/wanctl")
+    _git(tmp_path, "commit", "-q", "-m", "disallowed adapter")
+    result = _run_script(tmp_path, ref)
+    assert result.returncode == 1
+    assert "SAFE-09 VIOLATION: src/wanctl/ has changed since" in result.stderr
 
 
 def test_att_config_whitelist_clean_tree_exits_zero(tmp_path: Path) -> None:

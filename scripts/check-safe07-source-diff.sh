@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# SAFE-07 / SAFE-08 cross-cutting invariant verification.
+# SAFE-09 cross-cutting invariant verification.
 #
-# Asserts that no control-path source diff exists between the Phase 201
-# close (== Phase 202 close, since Phase 202 was additive-only) and HEAD.
-# In --att-config-whitelist mode, asserts configs/att.yaml is byte-identical
-# to the Phase 209 ATT reference (v1.43 close by default).
+# Default mode asserts that the control-path source diff between the
+# v1.43 close (6508d68) and HEAD is bounded to the v1.44 allowlist:
+# {cake_signal.py, cake_params.py, check_config_validators.py,
+# operator_summary.py, backends/linux_cake.py, backends/netlink_cake.py,
+# __init__.py}. Per ROADMAP §"Phase 209" success criterion 4.
+#
+# --att-config-whitelist mode asserts that configs/att.yaml is
+# byte-identical to v1.43 close (SAFE-08).
 #
 # Usage:
 #   bash scripts/check-safe07-source-diff.sh                  # uses default ref
@@ -15,8 +19,8 @@
 #   PHASE_209_ATT_REF=<sha> bash scripts/check-safe07-source-diff.sh --att-config-whitelist
 #
 # Exit:
-#   0 — clean (no control-path src/wanctl/ diff vs ref; planned version bump allowed)
-#   1 — SAFE-07 VIOLATION or SAFE-08 VIOLATION (configs/att.yaml drift, --att-config-whitelist mode)
+#   0 — clean
+#   1 — SAFE-09 VIOLATION or SAFE-08 VIOLATION (configs/att.yaml drift, --att-config-whitelist mode)
 #   2 — usage / git error (ref not found)
 
 set -euo pipefail
@@ -39,9 +43,8 @@ done
 # Phase 209 (D-02): ATT-mode default ref is v1.43 close.
 DEFAULT_PHASE_209_ATT_REF="6508d68"
 
-# Default ref: Phase 202 close commit on main.
-# Recorded 2026-05-06 at planning time. Update if a later phase re-baselines.
-DEFAULT_PHASE_202_CLOSE="b72b463"
+# Default ref: v1.43 close commit on main (Phase 209 SAFE-09 anchor).
+DEFAULT_PHASE_202_CLOSE="6508d68"
 
 if [ "${MODE}" = "att-whitelist" ]; then
   REF="${1:-${PHASE_209_ATT_REF:-$DEFAULT_PHASE_209_ATT_REF}}"
@@ -119,8 +122,7 @@ if [ "${MODE}" = "att-whitelist" ]; then
   exit 0
 fi
 
-# Default mode (existing SAFE-07 src/wanctl/ check) — unchanged below until
-# the Phase 209 SAFE-09 allowlist expansion.
+# Default mode (SAFE-09 src/wanctl/ check).
 
 # HRDN-01 (Phase 207): SAFE-07 fail-closed dirty-tree pre-check.
 # The committed-diff check below only sees committed state. Catch
@@ -162,22 +164,29 @@ DIFF_OUTPUT=$(git diff "${REF}..HEAD" -- src/wanctl/ 2>&1 || true)
 
 if [ -n "${DIFF_OUTPUT}" ]; then
   CHANGED_PATHS=$(git diff --name-only "${REF}..HEAD" -- src/wanctl/)
-  DISALLOWED_PATHS=$(printf '%s\n' "${CHANGED_PATHS}" | grep -vx 'src/wanctl/__init__.py' || true)
-  NUMSTAT=$(git diff --numstat "${REF}..HEAD" -- src/wanctl/__init__.py || true)
+  # Phase 209 (SAFE-09 mechanical closeout, ROADMAP §"Phase 209" success
+  # criterion 4): the v1.44 allowlist accepts any committed diff vs ref
+  # that is bounded to the seven-file set below. Anything outside this
+  # set is a SAFE-09 violation. The __init__.py version-bump assertion
+  # is updated from 1.43.0→1.44.0.
+  V144_ALLOWLIST_RE='^src/wanctl/(__init__\.py|cake_signal\.py|cake_params\.py|check_config_validators\.py|operator_summary\.py|backends/(linux_cake|netlink_cake)\.py)$'
+  DISALLOWED_PATHS=$(printf '%s\n' "${CHANGED_PATHS}" | grep -Ev "${V144_ALLOWLIST_RE}" || true)
 
   if [ -z "${DISALLOWED_PATHS}" ] \
-    && [ "${NUMSTAT}" = $'1\t1\tsrc/wanctl/__init__.py' ] \
-    && git show "${REF}:src/wanctl/__init__.py" | grep -q '^__version__ = "1\.42\.1"$' \
-    && grep -q '^__version__ = "1\.43\.0"$' src/wanctl/__init__.py; then
-    echo "SAFE-07 OK: only planned src/wanctl/__init__.py version bump vs ${REF}"
+    && git show "${REF}:src/wanctl/__init__.py" | grep -q '^__version__ = "1\.43\.0"$' \
+    && grep -q '^__version__ = "1\.44\.0"$' src/wanctl/__init__.py; then
+    echo "SAFE-09 OK: diff vs ${REF} bounded to v1.44 allowlist"
     exit 0
   fi
 
-  echo "SAFE-07 VIOLATION: src/wanctl/ has changed since ${REF}" >&2
+  echo "SAFE-09 VIOLATION: src/wanctl/ has changed since ${REF}" >&2
   echo "" >&2
-  echo "Phase 204 allows only the planned src/wanctl/__init__.py" >&2
-  echo "__version__ 1.42.1 -> 1.43.0 diff. Any other src/wanctl/" >&2
-  echo "change indicates a control-path edit slipped in:" >&2
+  echo "Phase 209 (v1.44 close) allows only the following src/wanctl/ files:" >&2
+  echo "  cake_signal.py, cake_params.py, check_config_validators.py," >&2
+  echo "  operator_summary.py, backends/linux_cake.py, backends/netlink_cake.py," >&2
+  echo "  __init__.py (1.43.0 → 1.44.0 version bump)" >&2
+  echo "" >&2
+  echo "Any other src/wanctl/ change indicates a control-path edit slipped in:" >&2
   echo "  git diff ${REF}..HEAD -- src/wanctl/" >&2
   echo "" >&2
   echo "First 20 lines of diff:" >&2
@@ -189,5 +198,5 @@ if [ -n "${DIFF_OUTPUT}" ]; then
   exit 1
 fi
 
-echo "SAFE-07 OK: no src/wanctl/ diff vs ${REF}"
+echo "SAFE-09 OK: no src/wanctl/ diff vs ${REF}"
 exit 0
