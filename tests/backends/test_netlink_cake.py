@@ -23,7 +23,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from wanctl.backends.linux_cake import LinuxCakeBackend
-from wanctl.backends.netlink_cake import NetlinkCakeBackend
+from wanctl.backends.netlink_cake import (
+    NetlinkCakeBackend,
+    _DIFFSERV_NAME_TO_INT,
+    _VALIDATE_KEY_TO_TCA,
+)
 
 # =============================================================================
 # Fixtures
@@ -637,6 +641,32 @@ class TestInitializeCake:
 class TestValidateCake:
     """validate_cake netlink readback and fallback tests -- NLNK-01."""
 
+    def _mock_cake_options(self, MockIPRoute, attrs: dict[str, object]) -> MagicMock:
+        mock_instance = MagicMock()
+        mock_instance.link_lookup.return_value = [42]
+        mock_options = MagicMock()
+        mock_options.get_attr.side_effect = lambda key: attrs.get(key)
+        mock_msg = MagicMock()
+        mock_msg.get_attr.side_effect = lambda key: {
+            "TCA_KIND": "cake",
+            "TCA_OPTIONS": mock_options,
+        }.get(key)
+        mock_instance.tc.return_value = [mock_msg]
+        MockIPRoute.return_value = mock_instance
+        return mock_instance
+
+    def test_validate_key_to_tca_contains_wash(self) -> None:
+        assert _VALIDATE_KEY_TO_TCA["wash"] == "TCA_CAKE_WASH"
+
+    def test_diffserv_mapping_pins_pyroute2_values(self) -> None:
+        assert _DIFFSERV_NAME_TO_INT == {
+            "diffserv3": 0,
+            "diffserv4": 1,
+            "diffserv8": 2,
+            "besteffort": 3,
+            "precedence": 4,
+        }
+
     @patch("wanctl.backends.netlink_cake.IPRoute")
     def test_validate_cake_reads_via_netlink(self, MockIPRoute, backend):
         mock_instance = MagicMock()
@@ -657,6 +687,72 @@ class TestValidateCake:
 
         result = backend.validate_cake({"diffserv": "diffserv4", "overhead": 18})
         assert result is True
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_validate_cake_wash_true_matches(self, MockIPRoute, backend):
+        self._mock_cake_options(MockIPRoute, {"TCA_CAKE_WASH": True})
+
+        assert backend.validate_cake({"wash": True}) is True
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_validate_cake_wash_false_matches(self, MockIPRoute, backend):
+        self._mock_cake_options(MockIPRoute, {"TCA_CAKE_WASH": False})
+
+        assert backend.validate_cake({"wash": False}) is True
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_validate_cake_wash_false_matches_omitted_attr(self, MockIPRoute, backend):
+        self._mock_cake_options(MockIPRoute, {})
+
+        assert backend.validate_cake({"wash": False}) is True
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_validate_cake_wash_true_mismatch_raises(self, MockIPRoute, backend):
+        self._mock_cake_options(MockIPRoute, {"TCA_CAKE_WASH": False})
+
+        with pytest.raises(RuntimeError, match="wash.*expected=True.*actual=False"):
+            backend.validate_cake({"wash": True})
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_validate_cake_wash_true_omitted_attr_raises(self, MockIPRoute, backend):
+        self._mock_cake_options(MockIPRoute, {})
+
+        with pytest.raises(RuntimeError, match="wash.*expected=True.*actual=False"):
+            backend.validate_cake({"wash": True})
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_validate_cake_wash_false_mismatch_raises(self, MockIPRoute, backend):
+        self._mock_cake_options(MockIPRoute, {"TCA_CAKE_WASH": True})
+
+        with pytest.raises(RuntimeError, match="wash.*expected=False.*actual=True"):
+            backend.validate_cake({"wash": False})
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_validate_cake_non_wash_mismatch_stays_soft_signal(
+        self, MockIPRoute, backend
+    ):
+        self._mock_cake_options(MockIPRoute, {"TCA_CAKE_RTT": 50000})
+
+        assert backend.validate_cake({"rtt": 100000}) is False
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_validate_cake_spectrum_besteffort_wash_readback(
+        self, MockIPRoute, backend
+    ):
+        self._mock_cake_options(
+            MockIPRoute,
+            {"TCA_CAKE_DIFFSERV_MODE": 3, "TCA_CAKE_WASH": 1},
+        )
+
+        assert backend.validate_cake({"diffserv": "besteffort", "wash": True}) is True
+
+    @patch("wanctl.backends.netlink_cake.IPRoute")
+    def test_validate_cake_att_diffserv4_omitted_wash_readback(
+        self, MockIPRoute, backend
+    ):
+        self._mock_cake_options(MockIPRoute, {"TCA_CAKE_DIFFSERV_MODE": 1})
+
+        assert backend.validate_cake({"diffserv": "diffserv4", "wash": False}) is True
 
     @patch("wanctl.backends.netlink_cake.IPRoute")
     @patch.object(LinuxCakeBackend, "validate_cake", return_value=True)
