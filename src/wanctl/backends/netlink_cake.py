@@ -59,10 +59,18 @@ _OVERHEAD_KEYWORD_TO_PYROUTE2: dict[str, dict[str, Any]] = {
 }
 
 # Netlink returns diffserv mode as int enum; config uses string names.
+# Phase 209 (HIGH #3, post-review 2026-05-19): all 5 diffserv enum
+# values pinned to pyroute2 (CAKE_DIFFSERV_*). Pre-Phase-209 the table
+# claimed `besteffort: 2`, colliding with DIFFSERV8=2 (actual besteffort
+# is 3). After Spectrum's YAML flip to `diffserv: besteffort`, the
+# broken constant caused readback to silently soft-fail every cycle
+# (expected=2 vs actual=3) while wash validation passes.
 _DIFFSERV_NAME_TO_INT: dict[str, int] = {
-    "diffserv3": 0,
-    "diffserv4": 1,
-    "besteffort": 2,
+    "diffserv3": 0,    # CAKE_DIFFSERV_DIFFSERV3
+    "diffserv4": 1,    # CAKE_DIFFSERV_DIFFSERV4
+    "diffserv8": 2,    # CAKE_DIFFSERV_DIFFSERV8
+    "besteffort": 3,   # CAKE_DIFFSERV_BESTEFFORT (was 2, WRONG)
+    "precedence": 4,   # CAKE_DIFFSERV_PRECEDENCE
 }
 
 # Map validate_cake expected dict keys to TCA_CAKE option attribute names.
@@ -75,6 +83,7 @@ _VALIDATE_KEY_TO_TCA: dict[str, str] = {
     "split_gso": "TCA_CAKE_SPLIT_GSO",
     "ack_filter": "TCA_CAKE_ACK_FILTER",
     "ingress": "TCA_CAKE_INGRESS",
+    "wash": "TCA_CAKE_WASH",
 }
 
 
@@ -534,12 +543,33 @@ class NetlinkCakeBackend(LinuxCakeBackend):
                             actual = options.get_attr(tca_key)
                         else:
                             actual = options.get_attr(key)
+                        # Phase 209 (HIGH #2, post-review 2026-05-19): wash
+                        # readback normalization MIRRORING linux_cake.validate_cake.
+                        # Older iproute2/kernel versions may omit TCA_CAKE_WASH
+                        # from netlink readback when wash is off. Normalize
+                        # None->False for the wash key only, so ATT-side
+                        # (expected=False) does not raise on off-by-omission
+                        # kernels. BOTH configs/att.yaml AND configs/spectrum.yaml
+                        # use `transport: linux-cake-netlink`, so this is
+                        # load-bearing for SAFE-08 preservation.
+                        if key == "wash" and actual is None:
+                            actual = False
                         # Normalize diffserv: netlink returns int enum, config uses string
                         if key == "diffserv" and isinstance(expected_value, str):
                             expected_value = _DIFFSERV_NAME_TO_INT.get(
                                 expected_value, expected_value
                             )
                         if actual != expected_value:
+                            # Phase 209 (D-17, SAFE-09): wash-specific hard-fail.
+                            # Symmetric assertion (D-05): ATT asserts wash NOT set;
+                            # Spectrum asserts wash IS set. Drift in either direction
+                            # is a controller-startup-blocking error. Non-wash
+                            # mismatches preserve the existing soft-signal.
+                            if key == "wash":
+                                raise RuntimeError(
+                                    f"CAKE wash readback mismatch on {self.interface}: "
+                                    f"expected={expected_value!r} actual={actual!r}"
+                                )
                             self.logger.error(
                                 "CAKE param mismatch on %s: %s expected=%r actual=%r",
                                 self.interface,
