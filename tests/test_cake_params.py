@@ -231,6 +231,22 @@ class TestBuildCakeParamsAllowWash:
         with pytest.raises(ConfigValidationError):
             build_cake_params("download", {"allow_wash": True, "autorate_ingress": True})
 
+    def test_allow_wash_false_emits_wash_false_for_readback(self) -> None:
+        params = build_cake_params("download", {"allow_wash": False})
+        assert params["wash"] is False
+
+    def test_allow_wash_absent_emits_wash_false_for_readback(self) -> None:
+        params = build_cake_params("download", {})
+        assert params["wash"] is False
+
+    def test_allow_wash_true_with_wash_emits_wash_true_for_readback(self) -> None:
+        params = build_cake_params("download", {"allow_wash": True, "wash": True})
+        assert params["wash"] is True
+
+    def test_allow_wash_string_true_emits_wash_false_for_readback(self) -> None:
+        params = build_cake_params("download", {"allow_wash": "true"})
+        assert params["wash"] is False
+
 
 # =============================================================================
 # BANDWIDTH PARAMETER
@@ -326,6 +342,18 @@ class TestBuildExpectedReadback:
     def test_diffserv_passthrough(self) -> None:
         expected = build_expected_readback({"diffserv": "diffserv4"})
         assert expected["diffserv"] == "diffserv4"
+
+    def test_wash_false_passthrough(self) -> None:
+        expected = build_expected_readback({"wash": False})
+        assert expected["wash"] is False
+
+    def test_wash_true_passthrough(self) -> None:
+        expected = build_expected_readback({"wash": True})
+        assert expected["wash"] is True
+
+    def test_wash_absent_stays_absent(self) -> None:
+        expected = build_expected_readback({})
+        assert "wash" not in expected
 
     def test_combined_readback(self) -> None:
         params = {
