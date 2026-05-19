@@ -713,6 +713,35 @@ class TestPhase195SourceGuards:
         for name, expected_count in phase202_expected_counts.items():
             assert sum(1 for line in phase201_src.splitlines() if name in line) == expected_count
 
+        # v1.44 baseline (Plan 209-01 — wash readback validation). Pin exact
+        # line counts across the narrow wash-readback files so future drift in
+        # controller-internal readback validation fails closed without touching
+        # the older SAFE-05 dicts above.
+        phase209_expected_counts = {
+            "TCA_CAKE_WASH": 1,
+            '"wash": "TCA_CAKE_WASH"': 1,
+            "CAKE wash readback mismatch": 2,
+            '"besteffort": 3': 1,
+            '"besteffort": 2': 0,
+            '"diffserv8": 2': 1,
+            '"precedence": 4': 1,
+        }
+        for name, expected_count in phase209_expected_counts.items():
+            actual_count = sum(
+                1
+                for path in (
+                    "src/wanctl/backends/netlink_cake.py",
+                    "src/wanctl/backends/linux_cake.py",
+                    "src/wanctl/cake_params.py",
+                )
+                for line in Path(path).read_text().splitlines()
+                if not line.lstrip().startswith("#") and name in line
+            )
+            assert actual_count == expected_count, (
+                f"SAFE-05 Phase 209 drift: {name!r} expected "
+                f"{expected_count} occurrences, got {actual_count}"
+            )
+
     def test_no_absolute_disagreement_literal_remains(self) -> None:
         src = Path("src/wanctl/wan_controller.py").read_text()
 
