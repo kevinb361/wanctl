@@ -4,14 +4,14 @@ milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 209
 status: ready_to_plan
-stopped_at: Completed 209-02-PLAN.md
-last_updated: "2026-05-19T01:59:09.419Z"
+stopped_at: Completed 209-03-PLAN.md
+last_updated: "2026-05-19T02:04:44.426Z"
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 27
-  completed_plans: 25
-  percent: 93
+  completed_plans: 26
+  percent: 96
 ---
 
 # Session State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 **Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
 **Current phase:** 209
 
-Progress: [█████████░] 93%
+Progress: [██████████] 96%
 
 ## Deferred Items
 
@@ -130,7 +130,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 209-02-PLAN.md
+Stopped at: Completed 209-03-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
@@ -342,3 +342,6 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 209]: Plan 209-01 kept wash hard-fail scoped inside backend validate_cake methods — linux_cake_adapter.py remains unchanged per D-17 and non-wash mismatches keep soft-signal behavior.
 - [Phase 209]: Plan 209-01 normalized omitted wash readback to False for wash only — Protects ATT off-by-omission startup while still raising on real wash drift.
 - [Phase 209]: Plan 209-01 corrected netlink diffserv enum pins to pyroute2 values — Local pyroute2 reports besteffort=3, diffserv8=2, precedence=4; prevents Spectrum besteffort soft-fail.
+- [Phase 209]: docs/BRIDGE_QOS.md is the single source of truth for allow_wash carrier-topology rationale; CONFIGURATION.md and CHANGELOG.md link to it instead of duplicating it.
+- [Phase 209]: Plan 209-03 kept the v1.44.0 changelog date as the literal <YYYY-MM-DD> placeholder; Plan 209-04 owns final closeout correction.
+- [Phase 209]: The v1.44.0 changelog block intentionally avoids inline DSCP rationale prose per D-16.
