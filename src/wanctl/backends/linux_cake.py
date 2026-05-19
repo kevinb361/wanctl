@@ -446,7 +446,22 @@ class LinuxCakeBackend(RouterBackend):
         all_match = True
         for key, expected_value in expected.items():
             actual_value = options.get(key)
+            # Phase 209 (D-17, SAFE-09): wash readback normalization.
+            # Some kernel/iproute2 versions omit the wash key entirely
+            # when wash is off. Normalize None -> False for the wash key
+            # only so symmetric ATT-side assertion (expected=False) does
+            # not always raise for off-by-omission kernels.
+            if key == "wash" and actual_value is None:
+                actual_value = False
             if actual_value != expected_value:
+                # Phase 209 (D-17, SAFE-09): wash-specific hard-fail.
+                # Symmetric per D-05; non-wash mismatches preserve
+                # existing soft-signal (return False).
+                if key == "wash":
+                    raise RuntimeError(
+                        f"CAKE wash readback mismatch on {self.interface}: "
+                        f"expected={expected_value!r} actual={actual_value!r}"
+                    )
                 self.logger.error(
                     "CAKE param mismatch on %s: %s expected=%r actual=%r",
                     self.interface,
