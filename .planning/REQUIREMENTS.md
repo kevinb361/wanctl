@@ -21,7 +21,7 @@
 - [x] **TOPO-03** — `configs/spectrum.yaml` migrates: `ceiling_mbps: 940 → 920`, `diffserv: diffserv4 → besteffort`, `allow_wash: true`. ATT config (`configs/att.yaml`) byte-identical at v1.44 close.
 - [x] **TOPO-04** — A/B replay harness captures pre/post RRUL p99 latency, throughput, jitter against the 2026-04-22 out-of-band flent finding. Reuses the Phase 193/194/195 replay pattern; deterministic golden fixture committed.
 - [ ] **TOPO-05** — Rollback criteria documented in machine-readable form (`PHASE-205-ROLLBACK-GATES.md` or equivalent): regression >5% on RRUL p99 latency OR Spectrum daemon restart-rate increase OR pressure-state transition-rate increase per hour. Predeploy gate script exists, but Phase 206 verification is `status: gaps_found` because non-finite `--window-hours` values (`nan`/`inf`) still fail open instead of rc=2 ABORT.
-- [ ] **TOPO-06** — Production canary on Spectrum executes the v1.42/v1.43 two-snapshot rollback ritual: predeploy gate → 24h soak under post-migration controller → verification soak comparing zone × cause-tag distributions to v1.43 baseline `20260509T183037Z`.
+- [x] **TOPO-06** — Production canary on Spectrum executes the v1.42/v1.43 two-snapshot rollback ritual: predeploy gate → 24h soak under post-migration controller → verification soak comparing zone × cause-tag distributions to v1.43 baseline `20260509T183037Z`.
 - [x] **TOPO-07** — `CHANGELOG.md`, `docs/BRIDGE_QOS.md`, and `docs/CONFIGURATION.md` updated for besteffort/wash semantics, the `allow_wash` knob (per-WAN, default-false), and the topology rationale (DSCP not preserved across ISP).
 
 ### HRDN — Soak / harness hardening (v1.43 closeout-routed)
@@ -68,7 +68,7 @@
 | TOPO-03 | Phase 209 | Complete |
 | TOPO-04 | Phase 206 | Complete |
 | TOPO-05 | Phase 206 | Gaps Found |
-| TOPO-06 | Phase 209 | Pending |
+| TOPO-06 | Phase 209 | Complete |
 | TOPO-07 | Phase 209 | Complete |
 | HRDN-01 | Phase 207 | Complete |
 | HRDN-02 | Phase 207 | Complete |
