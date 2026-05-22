@@ -4,8 +4,9 @@
 # Default mode asserts that the control-path source diff between the
 # v1.43 close (6508d68) and HEAD is bounded to the v1.44 allowlist:
 # {cake_signal.py, cake_params.py, check_config_validators.py,
-# operator_summary.py, backends/linux_cake.py, backends/netlink_cake.py,
-# __init__.py}. Per ROADMAP §"Phase 209" success criterion 4.
+# history.py, operator_summary.py, backends/linux_cake.py,
+# backends/netlink_cake.py, __init__.py}. Per ROADMAP §"Phase 209"
+# success criterion 4 plus Phase 208 TOOL-02 verified operator-tooling drift.
 #
 # --att-config-whitelist mode asserts that configs/att.yaml is
 # byte-identical to v1.43 close (SAFE-08).
@@ -166,10 +167,10 @@ if [ -n "${DIFF_OUTPUT}" ]; then
   CHANGED_PATHS=$(git diff --name-only "${REF}..HEAD" -- src/wanctl/)
   # Phase 209 (SAFE-09 mechanical closeout, ROADMAP §"Phase 209" success
   # criterion 4): the v1.44 allowlist accepts any committed diff vs ref
-  # that is bounded to the seven-file set below. Anything outside this
+  # that is bounded to the v1.44 allowlist below. Anything outside this
   # set is a SAFE-09 violation. The __init__.py version-bump assertion
   # is updated from 1.43.0→1.44.0.
-  V144_ALLOWLIST_RE='^src/wanctl/(__init__\.py|cake_signal\.py|cake_params\.py|check_config_validators\.py|operator_summary\.py|backends/(linux_cake|netlink_cake)\.py)$'
+  V144_ALLOWLIST_RE='^src/wanctl/(__init__\.py|cake_signal\.py|cake_params\.py|check_config_validators\.py|history\.py|operator_summary\.py|backends/(linux_cake|netlink_cake)\.py)$'
   DISALLOWED_PATHS=$(printf '%s\n' "${CHANGED_PATHS}" | grep -Ev "${V144_ALLOWLIST_RE}" || true)
 
   if [ -z "${DISALLOWED_PATHS}" ] \
@@ -183,7 +184,7 @@ if [ -n "${DIFF_OUTPUT}" ]; then
   echo "" >&2
   echo "Phase 209 (v1.44 close) allows only the following src/wanctl/ files:" >&2
   echo "  cake_signal.py, cake_params.py, check_config_validators.py," >&2
-  echo "  operator_summary.py, backends/linux_cake.py, backends/netlink_cake.py," >&2
+  echo "  history.py, operator_summary.py, backends/linux_cake.py, backends/netlink_cake.py," >&2
   echo "  __init__.py (1.43.0 → 1.44.0 version bump)" >&2
   echo "" >&2
   echo "Any other src/wanctl/ change indicates a control-path edit slipped in:" >&2
