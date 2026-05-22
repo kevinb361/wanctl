@@ -1,0 +1,38 @@
+ISO_SOAK=20260521T222622Z
+LOCAL_SOAK_DIR=.planning/phases/209-spectrum-config-migration-production-canary-and-docs/soak/20260521T222622Z
+REMOTE_SOAK_DIR=/var/tmp/wanctl-soak-20260521T222622Z
+REMOTE_SCRIPT=/var/tmp/wanctl-soak-20260521T222622Z/soak-capture.sh
+HEALTH_URL=http://10.10.110.223:9101/health
+LAUNCH_TIME_UTC=2026-05-21T22:26:22Z
+SOAK_EXPECTED_END_UTC=2026-05-22T22:26:22Z
+RESUME_AFTER_UTC=2026-05-22T22:31:22Z
+
+[root cause for previous short captures]
+The 20260520T154633Z and 20260521T124808Z captures were launched as user-level transient services with systemd-run --user.
+cake-shaper reports Linger=no for user kevin, so the user manager stopped the transient service after the SSH/session lifecycle window.
+Both captures exited Result=success with header-only error sidecars, proving the controller and capture projection were not failing.
+
+[corrected launch]
+sudo systemd-run --unit=phase209-soak-20260521T222622Z --property=User=kevin --property=RuntimeMaxSec=90000 --setenv=HEALTH_URL=http://10.10.110.223:9101/health --setenv=CAPTURE_DIR=/var/tmp/wanctl-soak-20260521T222622Z --setenv=SOAK_DURATION_SEC=86400 --setenv=SOAK_FAIL_RATE_THRESHOLD=0.01 --setenv=MIN_SAMPLES_BEFORE_EVAL=60 /usr/bin/bash /var/tmp/wanctl-soak-20260521T222622Z/soak-capture.sh 20260521T222622Z
+Running as unit: phase209-soak-20260521T222622Z.service
+
+[initial verification]
+ActiveState=active
+SubState=running
+User=kevin
+RuntimeMaxUSec=1d 1h
+Environment=HEALTH_URL=http://10.10.110.223:9101/health CAPTURE_DIR=/var/tmp/wanctl-soak-20260521T222622Z SOAK_DURATION_SEC=86400 SOAK_FAIL_RATE_THRESHOLD=0.01 MIN_SAMPLES_BEFORE_EVAL=60
+Rows after initial warmup: 21
+Error sidecar lines after initial warmup: 1
+
+[post-failure-window verification]
+Checked after 12 minutes, beyond the previous ~10-12 minute failure window.
+ActiveState=active
+SubState=running
+Rows: 722
+Error sidecar lines: 1
+First row: 2026-05-21T22:26:38+00:00 version=1.44.0 status=healthy
+Last row: 2026-05-21T22:39:09+00:00 version=1.44.0 status=healthy t_monotonic=750.89
+
+[notes]
+This system-level launch supersedes the short user-level captures 20260520T154633Z and 20260521T124808Z.
