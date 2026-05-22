@@ -144,6 +144,7 @@ def test_default_mode_v144_allowlist_happy_path_exits_zero(tmp_path: Path) -> No
         "src/wanctl/cake_signal.py",
         "src/wanctl/cake_params.py",
         "src/wanctl/check_config_validators.py",
+        "src/wanctl/history.py",
         "src/wanctl/operator_summary.py",
         "src/wanctl/backends/linux_cake.py",
         "src/wanctl/backends/netlink_cake.py",
