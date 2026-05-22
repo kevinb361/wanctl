@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 209
-status: ready_to_plan
-stopped_at: Completed 209-03-PLAN.md
-last_updated: "2026-05-19T02:04:44.426Z"
+status: ready_to_complete_milestone
+stopped_at: Completed 209-04-PLAN.md
+last_updated: "2026-05-22T23:43:09.716Z"
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 27
-  completed_plans: 26
-  percent: 96
+  completed_plans: 27
+  percent: 100
 ---
 
 # Session State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-05-13 after v1.43 archive close)
 
 **Last shipped milestone:** v1.43 UL Suppression Metrics & Gate Calibration (shipped 2026-05-13; audit `passed` 15/15)
 **Recently archived:** v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03), v1.39 (2026-05-06 retroactive)
-**Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (planning; phases 205–209 drafted 2026-05-14).
+**Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (execution complete; ready for milestone closeout).
 **Current phase:** 209
 
-Progress: [██████████] 96%
+Progress: [██████████] 100%
 
 ## Deferred Items
 
@@ -76,6 +76,7 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ### Roadmap Evolution
 
+- 2026-05-22: Phase 209 Plan 04 completed after the approved SAFE-09 verifier allowlist fix for `src/wanctl/history.py` (Phase 208 TOOL-02 operator tooling). Final Task 4b verdict PASS: SAFE-08 and SAFE-09 both pass mechanically against v1.43 close `6508d68`; Phase 206 post-soak gate rc=0; Phase 209 is 4/4 complete and v1.44 is ready for milestone closeout.
 - 2026-05-14: v1.44 roadmap drafted with 5 phases (205, 206, 207, 208, 209); 16/16 v1.44 REQ-IDs mapped (TOPO 1–7, HRDN 1–4, TOOL 1–3, SAFE 8–9). Phase numbering continues from v1.43 (last phase 204). Spine: SEED-001 (Spectrum besteffort wash). Cross-cutting SAFE-08 (ATT byte-identical) + SAFE-09 (no controller threshold/algorithm changes) verified at every phase boundary; mechanical closeout in Phase 209. Harness-before-deploy ordering: Phase 206 (A/B harness + rollback gate script) is a prerequisite for Phase 209 production canary. Phase 207 (HRDN-01 fail-closed source-diff verifier) is a prerequisite for SAFE-09 closeout.
 - 2026-04-23: v1.40 roadmap finalized with 4 phases (193, 194, 195, 196), 10/10 v1.40 REQ-IDs mapped. SAFE-05 is cross-cutting across all four phases. Phase numbering starts at 193 because v1.39 owns 191, 191.1, and 192.
 - 2026-04-23: v1.40 Queue-Primary Signal Arbitration opened in parallel with unclosed v1.39. v1.39 Phase 192 stays reserved at its number. v1.40 phases continue at 193 onward.
@@ -130,12 +131,15 @@ The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is
 
 ## Session Continuity
 
-Stopped at: Completed 209-03-PLAN.md
+Stopped at: Completed 209-04-PLAN.md
 Resume file: None
 Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-impl-reconciliation/`
 
 ## Decisions
 
+- [Phase 209-04]: Task 4b final verdict is PASS after rerunning SAFE-08 and SAFE-09 mechanically against v1.43 close ref `6508d68`.
+- [Phase 209-04]: SAFE-09 verifier allowlist includes `src/wanctl/history.py` because Phase 208 verified it as intentional TOOL-02 operator-tooling drift, not controller-path drift.
+- [Phase 209-04]: Phase 206 post-soak gate rc=0 is the binding canary comparator; the zone × cause-tag soak summary remains informational for operator review.
 - [v1.40 Roadmap]: Phase 193 is telemetry-only; zero control-behavior change is a hard requirement so that v1.39 replay remains byte-identical against the Phase 193 build.
 - [v1.40 Roadmap]: Phase 195 depends on v1.39 Phase 192 because blackout-aware reflector scoring is a direct input to ICMP-agreement side of rtt_confidence; without it, rtt_confidence would read falsely low during carrier blackouts and the new healer bypass gate would calibrate on a polluted signal.
 - [v1.40 Roadmap]: Phase 196 Spectrum A/B is strictly serialized against v1.39 Phase 192's 24h soak (VALN-04); ATT canary is strictly gated on v1.39 Phase 191 closure.
