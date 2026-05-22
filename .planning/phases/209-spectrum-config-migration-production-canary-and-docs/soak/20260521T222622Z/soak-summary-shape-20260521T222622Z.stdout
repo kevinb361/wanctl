@@ -1,0 +1,1 @@
+matrix zones: ['GREEN', 'RED', 'SOFT_RED', 'YELLOW']

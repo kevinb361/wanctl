@@ -1,0 +1,6 @@
+[phase206-predeploy-gate INFO]  invoking gate-check helper (mode=post-soak)
+[phase206-gate-check INFO] RRUL comparison source=controller_rate_p99_mbps
+[phase206-gate-check INFO] RRUL p99: -0.0% (within +/-5.0%) (source: controller_rate_p99_mbps)
+[phase206-gate-check INFO] Daemon restart-rate: 0.00/h (matches baseline)
+[phase206-gate-check INFO] Pressure-state transition-rate: 49.83/h (baseline 77.17/h, +-35.4%)
+[phase206-gate-check INFO] PASS: Phase 206 rollback gates clear

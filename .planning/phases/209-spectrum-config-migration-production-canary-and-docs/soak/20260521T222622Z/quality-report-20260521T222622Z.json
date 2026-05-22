@@ -1,0 +1,31 @@
+{
+  "error_sidecar_lines": 1,
+  "first_status": "healthy",
+  "first_t_wall": "2026-05-21T22:26:38+00:00",
+  "first_version": "1.44.0",
+  "iso_soak": "20260521T222622Z",
+  "last_status": "healthy",
+  "last_t_monotonic": 86399.6,
+  "last_t_wall": "2026-05-22T22:26:37+00:00",
+  "last_version": "1.44.0",
+  "last_zone": "GREEN",
+  "missing_boundary_marker_rows": 0,
+  "monotonic_max": 86399.6,
+  "monotonic_min": 0.0,
+  "ndjson": ".planning/phases/209-spectrum-config-migration-production-canary-and-docs/soak/20260521T222622Z/soak-capture.ndjson",
+  "parse_errors": 0,
+  "rows": 82954,
+  "statuses": {
+    "healthy": 82954
+  },
+  "versions": {
+    "1.44.0": 82954
+  },
+  "wall_clock_span_hours": 23.99972222222222,
+  "wall_clock_span_seconds": 86399.0,
+  "zones": {
+    "GREEN": 82237,
+    "RED": 3,
+    "YELLOW": 714
+  }
+}
