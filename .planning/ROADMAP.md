@@ -138,7 +138,7 @@
 | 206 — A/B replay harness + rollback gates | 9/9 | Complete   | 2026-05-15 |
 | 207 — Soak / harness hardening | 5/5 | Complete    | 2026-05-15 |
 | 208 — Carry-on quick-tasks (T17a / T9 / T12) | 4/4 | Complete    | 2026-05-16 |
-| 209 — Spectrum config migration + canary + docs | 4/4 | Complete   | 2026-05-22 |
+| 209 — Spectrum config migration + canary + docs | 4/4 | Complete    | 2026-05-23 |
 
 ### Coverage Map (v1.44)
 

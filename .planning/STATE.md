@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 209
-status: ready_to_complete_milestone
+status: milestone_complete
 stopped_at: Completed 209-04-PLAN.md
 last_updated: "2026-05-22T23:43:09.716Z"
 progress:
   total_phases: 5
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 27
   completed_plans: 27
-  percent: 100
+  percent: 120
 ---
 
 # Session State
