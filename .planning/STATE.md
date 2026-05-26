@@ -4,16 +4,16 @@ milestone: v1.45
 milestone_name: Flapping Peak-Counter Window Repair
 current_phase: 210
 current_plan: 3
-status: executing
-stopped_at: v1.45 roadmap drafted; awaiting `/gsd-plan-phase 210`.
-last_updated: "2026-05-26T16:54:32.182Z"
+status: verifying
+stopped_at: Completed 210-03-PLAN.md
+last_updated: "2026-05-26T17:02:03.022Z"
 last_activity: 2026-05-26
 progress:
   total_phases: 2
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 67
+  completed_plans: 3
+  percent: 50
 ---
 
 # Session State
@@ -34,10 +34,10 @@ Plan: 3 of 3
 **Active milestone:** v1.45 Flapping Peak-Counter Window Repair (roadmap drafted; planning)
 **Current phase:** 210
 **Current plan:** 3
-**Status:** Ready to execute
+**Status:** Phase 210 complete — ready for verification / Phase 211 planning
 **Last activity:** 2026-05-26
 
-Progress: [███████░░░] 67%
+Progress: [██████████] 100%
 
 ## Phase Structure (v1.45)
 
@@ -101,14 +101,14 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Stopped at: v1.45 roadmap drafted; awaiting `/gsd-plan-phase 210`.
+Stopped at: Completed 210-03-PLAN.md
 Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
 ## Operator Next Steps
 
-- Run `/gsd-plan-phase 210` to materialize Phase 210 plan tree (windowed peak accumulator + test rewrite + SAFE-10 enforcement).
-- After Phase 210 ships and merges, run `/gsd-plan-phase 211` to scope production-verification gate.
+- Run `/gsd-plan-phase 211` to scope the production-verification gate.
+- After Phase 210 ships and deploys, verify at least one real flapping event reports `peak_transition_count > flap_threshold`.
 
 ## Decisions (v1.45)
 
@@ -118,9 +118,11 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [v1.45 Roadmap]: Plan materialization deferred to `/gsd-plan-phase` per milestone convention; no `.planning/phases/210-*` or `.planning/phases/211-*` directories created during roadmap phase.
 - [210-02]: Flapping tests now assert `peak_transition_count` from `_dl_peak_window_transitions` / `_ul_peak_window_transitions` deques, with fixed-threshold second-fire coverage for DL and UL.
 - [210-02]: Threshold-mutation integration coverage was adjusted because identical `flap_window` pruning makes the old `peak=35` / `transition=30` payload expectation impossible under the accepted two-deque design.
+- [210-03]: SAFE-10 baseline uses v1.44 archive marker `21ee630` as the local equivalent close point because `c9932d2` resolves to an earlier v1.42-era commit in this checkout.
 
 ## Performance Metrics
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 210 | 02 | 6.0min | 2 | 3 |
+| 210 | 03 | 4.1min | 1 | 1 |

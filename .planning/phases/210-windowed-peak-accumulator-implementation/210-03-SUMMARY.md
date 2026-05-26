@@ -37,7 +37,7 @@ patterns-established:
 requirements-completed: [SAFE-10]
 
 # Metrics
-duration: 4.6min
+duration: 4.1min
 completed: 2026-05-26
 ---
 
@@ -297,7 +297,7 @@ Itemized check status:
 - **Issue:** The plan says direct `git rev-parse c9932d2` should identify the v1.44 close baseline, but in this checkout it resolves to `c9932d23fbb631111b365332db6f1e39622cc898`, subject `refactor(201-14): document rev-4 invariant and format implementation`. Diffing from that commit incorrectly includes v1.44 source changes and produces a false SAFE-10 violation.
 - **Fix:** Used the plan's allowed `or equivalent` baseline path: the most recent `archive v1.44 phase directories` marker, `21ee630`, which matches the actual v1.44 close boundary in this repository.
 - **Files modified:** `.planning/phases/210-windowed-peak-accumulator-implementation/210-03-SUMMARY.md`
-- **Commit:** pending at summary creation time
+- **Commit:** `c0c6c7a`
 
 ## Issues Encountered
 
@@ -311,9 +311,10 @@ None.
 
 None — this plan creates only an audit summary and introduces no network endpoints, auth paths, file access patterns, or trust-boundary schema changes.
 
-## Self-Check: PENDING
+## Self-Check: PASSED
 
-- Summary file existence and commit hash checks will be finalized after the task commit.
+- FOUND: `.planning/phases/210-windowed-peak-accumulator-implementation/210-03-SUMMARY.md`
+- FOUND: task commit `c0c6c7a`
 
 ---
 *Phase: 210-windowed-peak-accumulator-implementation*
