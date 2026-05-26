@@ -51,8 +51,13 @@ continuous_monitoring:
   # Default 0.05 preserves v1.38.0 50ms behavior. Values above 10.0 are capped.
   # Tune only with flent + /health overlap A/B evidence; see docs/CONFIG_SCHEMA.md.
 
+  # Spectrum plan anchor (bill/plan disclosure checked 2026-05-20):
+  # typical download 1045 Mbps, typical upload 40 Mbps, typical latency 19 ms.
+  # These are plan/source-of-truth capacity hints, not automatic CAKE ceilings;
+  # production ceilings below are latency-first operating points validated by sweeps/soaks.
+
   # Baseline RTT (seeded from production autotuning 2026-03-25)
-  baseline_rtt_initial: 22 # Autotuned from 24 (1379 samples, baseline_rtt_min=19.7)
+  baseline_rtt_initial: 22 # Close to disclosed 19 ms plan latency; autotuned from 24 (1379 samples, baseline_rtt_min=19.7)
 
   # Download parameters (Phase 2A: 4-state with SOFT_RED)
   download:
@@ -75,8 +80,10 @@ continuous_monitoring:
     factor_down_yellow: 1.0 # 200-10 R5: hold during YELLOW; restores QueueController default for Spectrum per 200-09
     consecutive_yellow_decay_clamp: 40 # 200-10 R3: bound consecutive YELLOW decay cascade at ~2s/40 cycles
     # Phase 201 (v1.42) DOCSIS-aware UL congestion control mode (per VALN-06).
-    # Operating point: 12 Mbit (60% of ~20 Mbit estimated provisioned upstream).
-    # Setpoint = [ASSUMED] A4 + A5 from RESEARCH.md; canary validates.
+    # Plan disclosure checked 2026-05-20: typical upstream is 40 Mbps, so
+    # setpoint 12 is 30% of plan upload, not 60% of provisioned capacity.
+    # Keep 12/18 as latency-first operating points from the 2026-04-29 gaming-server
+    # soak decision until a fresh stopped-controller/controller-native sweep proves better.
     # Fallback on canary fail: drop to 10 (parameter tune, NOT control-model rejection).
     docsis_mode: true
     setpoint_mbps: 12

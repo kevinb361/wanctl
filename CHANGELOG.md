@@ -5,6 +5,12 @@ All notable changes to wanctl are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Planning
+
+- **Spectrum plan anchor:** Documented the actual Spectrum plan disclosure (1045 Mbps typical download, 40 Mbps typical upload, 19 ms typical latency) in `configs/spectrum.yaml` comments and `.planning/spectrum-plan-speed-anchor-2026-05-20.md`. Current 12/18 Mbps upload values remain latency-first validated operating points, not provisioned-capacity percentages.
+
 ## v1.44.0 — 2026-05-19
 
 ### Added
