@@ -617,6 +617,60 @@ _A living document updated after each milestone. Lessons feed forward into futur
 
 ---
 
+## Milestone: v1.44 — Topology-Correct CAKE (Spectrum besteffort wash migration)
+
+**Shipped:** 2026-05-26
+**Phases:** 5 (205-209) | **Plans:** 27 | **Tasks:** 68
+**Audit:** `passed` 16/16 (after 2026-05-26 mechanical restamp of Phase 206 frontmatter)
+
+### What Was Built
+
+- Tin-agnostic `cake_signal.py` aggregation handling both single-tin besteffort and multi-tin diffserv4 without per-deployment branching
+- Per-WAN `cake_params.allow_wash: bool = false` gate; D-08 transparent-bridge protection preserved by default
+- Deterministic A/B replay harness against the 2026-04-22 out-of-band flent finding, with golden NDJSON fixture and schema-v1 JSON output
+- Operator predeploy gate (`scripts/phase206-gate-check.py`) with JSON-sourced thresholds; fail-closed on partial counters, zero-duration soak, hidden override env vars, and non-finite `--window-hours`
+- SAFE-07 source-diff verifier fails closed on dirty/staged/untracked `src/wanctl/` surfaces; `secondary_gate_legacy` block retired; CALIB-02 YAML promotion routed to NO
+- `wanctl-history --ingestion-rate` per-WAN reporting; `wanctl-operator-summary --digest` tolerates per-WAN open/write failures; completed-window watchdog fails closed on misconfigured gate columns/statistics
+- Spectrum committed to `920Mbit besteffort wash` in production; 24h soak `20260521T222622Z` passed with rollback gates green (restart 0.00/h, transitions 49.83/h vs baseline 77.17/h)
+- SAFE-08 ATT byte-identical and SAFE-09 zero controller-path source diff held mechanically against `6508d68`
+
+### What Worked
+
+- **Five-file SAFE-09 allowlist agreed *before* any source mutation.** Operator-approved scope (`linux_cake.py`, `netlink_cake.py`, `cake_params.py`, `cake_signal.py`, `check_config_validators.py`) kept the entire milestone within boundary; the one amendment (history.py for Phase 208 TOOL-02) was explicit, reviewed, and recorded.
+- **Harness-before-deploy ordering.** Phase 206 A/B replay + predeploy gate landed before Phase 209 production canary. The gate caught its own fail-open gap (nan/inf) during Phase 209-02 hardening — exactly the role it was designed for.
+- **Cross-phase gap closure.** TOPO-05 nan/inf fail-open surfaced in Phase 206-09 verification and was closed in Phase 209-02 (`d70112f`) as part of pre-canary hardening, rather than re-opening Phase 206. The milestone audit's "mechanical re-verification" call (not a code change) was correct.
+- **Bridge QoS docs as a standalone artifact.** `docs/BRIDGE_QOS.md` captures the topology rationale (DSCP not preserved across ISP) outside the change log, giving operators a durable reference that survives milestone churn.
+- **24h soak ratification before milestone close.** Production canary evidence (`20260521T222622Z`) is the same evidence the rollback gates consumed — single source of truth for "this shipped."
+
+### What Was Inefficient
+
+- **Verification frontmatter drift.** Phase 206 VERIFICATION.md was never re-stamped after Plan 206-09 closed earlier gaps OR after Plan 209-02 closed the nan/inf gap. The milestone audit caught it as `gaps_found (stale)` and the restamp was mechanical — but it cost an audit cycle and a milestone-close hesitation. **Lesson:** verification frontmatter is part of the gap-closure plan, not an afterthought.
+- **Nyquist VALIDATION.md missing for 3 of 5 phases.** Phases 207/208/209 closed without retroactive Nyquist validation; only Phase 205 is `compliant`. Real tech debt — phases passed verification and shipped to prod, but the audit-uat workflow can't confirm test coverage at the phase level.
+- **REQUIREMENTS.md traceability table didn't auto-sync to verification status.** TOPO-05 remained `[ ]` and "Gaps Found" in the table even after the code was fixed cross-phase. Manual sync at milestone close caught it; an earlier sync (or a hook) would have surfaced the drift sooner.
+- **24 open artifacts at pre-close audit** (carry-forwards from v1.40), only one of which was new to v1.44. Old debt drags forward across milestones without a deliberate `/gsd-review-backlog` sweep.
+
+### Patterns Established
+
+- **SAFE-N allowlist as cross-cutting closeout requirement.** SAFE-08 (config byte-identity) + SAFE-09 (control-path source allowlist) verified at every phase boundary and mechanically closed in the canary phase. Pattern reusable for future "topology-correct without controller change" milestones.
+- **Cross-phase gap closure with explicit naming.** Phase 209-02 closing a Phase 206 gap is recorded as `fix(209-02): reject non-finite phase206 gate windows` — the commit subject names the originating phase, keeping the audit trail honest without forcing artificial phase-boundary refactors.
+- **"Mechanical re-verification" as audit verdict.** When live code closes a gap that the verification artifact hasn't acknowledged, the audit can label the resolution as documentation drift rather than code drift. Saves a real verification cycle when the evidence is already in tree.
+
+### Key Lessons
+
+1. **Restamp verification frontmatter the same commit as the gap-closure code.** Drift between live code and verification status is the #1 source of milestone-close hesitation in this project.
+2. **Nyquist VALIDATION.md is not optional for shipping phases.** Retroactive validation via `/gsd-validate-phase` should be part of phase-close, not milestone-close.
+3. **Seed status hygiene at milestone close.** v1.44 shipped SEED-001's exact thesis but the seed stayed `dormant` until the close pass. Fulfilled seeds should be marked at the closing phase, not at milestone close.
+4. **`/gsd-review-backlog` between milestones, not after.** Carry-forwards compound. A 22-item Deferred list at v1.44 close starts the v1.45 cycle with debt visible but unsorted.
+5. **Pre-commit hook in "warning mode" is fine for planning commits.** Several v1.44 commits used `SKIP_DOC_CHECK=1` for milestone-archive operations. The hook's docs-only-when-core-also-changed rule is the right contract; the override is rare and justified.
+
+### Cost Observations
+
+- Model mix: opus-heavy planning/verification/audit; sonnet for execution. Phase 209-02 cross-phase gap closure benefited from opus context retention across the 206→209 boundary.
+- Verification restamp ran inline (single Edit pair + REQUIREMENTS.md row update) rather than re-invoking `/gsd-verify-work`. Lower context cost, same correctness — appropriate because the audit doc had already gathered the evidence.
+- Milestone-close commits: 3 (restamp `83655b2`, archive checkpoint `93a5ad4`, REQUIREMENTS removal `3ef96fc`). Safety checkpoint pattern from the workflow held — at no point was state unrecoverable from git.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
