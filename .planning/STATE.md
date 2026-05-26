@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.45
 milestone_name: Flapping Peak-Counter Window Repair
 current_phase: 210
-current_plan: 1
+current_plan: 3
 status: executing
 stopped_at: v1.45 roadmap drafted; awaiting `/gsd-plan-phase 210`.
-last_updated: "2026-05-26T16:45:42.051Z"
+last_updated: "2026-05-26T16:54:32.182Z"
 last_activity: 2026-05-26
 progress:
   total_phases: 2
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 0
+  completed_plans: 2
+  percent: 67
 ---
 
 # Session State
@@ -28,16 +28,16 @@ See: .planning/PROJECT.md (updated 2026-05-26 after v1.44 archive close + v1.45 
 ## Current Position
 
 Phase: 210 (windowed-peak-accumulator-implementation) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 **Last shipped milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (shipped 2026-05-26; audit `passed` 16/16 after Phase 206 restamp)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.45 Flapping Peak-Counter Window Repair (roadmap drafted; planning)
 **Current phase:** 210
-**Current plan:** 1
+**Current plan:** 3
 **Status:** Ready to execute
 **Last activity:** 2026-05-26
 
-Progress: [███░░░░░░░] 33%
+Progress: [███████░░░] 67%
 
 ## Phase Structure (v1.45)
 
@@ -116,3 +116,11 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [v1.45 Roadmap]: ALERT-03 (alert-once-per-episode, no log-spam) paired into Phase 211 rather than Phase 210 because end-to-end behavior is only verifiable in production under a real sustained event. Phase 210 tests establish the mechanism (cooldown_sec retained, deque-clear-on-fire retained); Phase 211 confirms it holds in production.
 - [v1.45 Roadmap]: SAFE-10 owned primarily by Phase 210 (PR-merge-time verification) and re-verified at Phase 211 (milestone-close) to catch drift between merge and deploy.
 - [v1.45 Roadmap]: Plan materialization deferred to `/gsd-plan-phase` per milestone convention; no `.planning/phases/210-*` or `.planning/phases/211-*` directories created during roadmap phase.
+- [210-02]: Flapping tests now assert `peak_transition_count` from `_dl_peak_window_transitions` / `_ul_peak_window_transitions` deques, with fixed-threshold second-fire coverage for DL and UL.
+- [210-02]: Threshold-mutation integration coverage was adjusted because identical `flap_window` pruning makes the old `peak=35` / `transition=30` payload expectation impossible under the accepted two-deque design.
+
+## Performance Metrics
+
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+| 210 | 02 | 6.0min | 2 | 3 |

@@ -44,7 +44,7 @@
   5. SAFE-10 closeout check shows zero `src/wanctl/` source diff outside the alerting path between v1.44 close and Phase 210 close. The five-file SAFE-09 allowlist (`linux_cake.py`, `netlink_cake.py`, `cake_params.py`, `cake_signal.py`, `check_config_validators.py`) is untouched; `alert_engine.py` semantics (`cooldown_sec` dedup) unchanged.
 **Plans**: 3 plans
 - [x] 210-01-PLAN.md — Implement windowed peak accumulator in wan_controller.py (ALERT-01, ALERT-02)
-- [ ] 210-02-PLAN.md — Update TestFlappingDequeClear and add TestFlappingPeakWindow (TEST-01, TEST-02, TEST-03)
+- [x] 210-02-PLAN.md — Update TestFlappingDequeClear and add TestFlappingPeakWindow (TEST-01, TEST-02, TEST-03)
 - [ ] 210-03-PLAN.md — SAFE-10 closeout audit (SAFE-10)
 
 #### Phase 211: Production Verification & Milestone Closure
@@ -64,7 +64,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 210. Windowed Peak Accumulator Implementation | 1/3 | In Progress|  |
+| 210. Windowed Peak Accumulator Implementation | 2/3 | In Progress|  |
 | 211. Production Verification & Milestone Closure | 0/TBD | Not started | - |
 
 ### Coverage
