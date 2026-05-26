@@ -64,7 +64,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 210. Windowed Peak Accumulator Implementation | 3/3 | Complete   | 2026-05-26 |
+| 210. Windowed Peak Accumulator Implementation | 3/3 | Complete    | 2026-05-26 |
 | 211. Production Verification & Milestone Closure | 0/TBD | Not started | - |
 
 ### Coverage
