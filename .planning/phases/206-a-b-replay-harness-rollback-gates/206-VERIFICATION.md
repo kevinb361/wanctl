@@ -1,8 +1,8 @@
 ---
 phase: 206-a-b-replay-harness-rollback-gates
-verified: 2026-05-15T16:22:02Z
-status: gaps_found
-score: "4/5 roadmap success criteria verified"
+verified: 2026-05-26T14:55:00Z
+status: passed
+score: "5/5 roadmap success criteria verified"
 overrides_applied: 0
 requirements: [TOPO-04, TOPO-05]
 re_verification:
@@ -13,29 +13,31 @@ re_verification:
     - "Zero-duration post-soak NDJSON now aborts rc=2 with `no positive t_monotonic duration`."
     - "PHASE206_LOCAL_BASELINE_OVERRIDE no longer mutates production gate inputs: wrapper clears it; Python core rejects it without explicit test-only opt-in."
     - "Post-soak happy-path test now asserts rc == 0, and non-executable VENV_PY aborts rc=2."
-  gaps_remaining:
-    - "Non-finite --window-hours values (`nan`, `inf`) still return rc=0 instead of fail-closed rc=2."
+    - "Non-finite --window-hours values (`nan`, `inf`) now fail closed rc=2 via math.isfinite() guard at scripts/phase206-gate-check.py:344-352; regression test test_inf_window_hours_aborts at tests/test_phase206_predeploy_gate.py:459. Closed cross-phase by commit d70112f (Phase 209 Plan 02, 209-02-SUMMARY.md, ratified by v1.44 milestone audit 2026-05-23)."
+  gaps_remaining: []
   regressions: []
-gaps:
-  - truth: "The predeploy gate fails closed on malformed restart-window input."
-    status: failed
-    reason: "`--window-hours nan` and `--window-hours inf` are accepted by argparse, bypass the `<= 0` validation, and produce a PASS even with restart-counter input present."
-    artifacts:
-      - path: "scripts/phase206-gate-check.py"
-        issue: "Line 339 checks only `args.window_hours is None or args.window_hours <= 0`; no finite-number validation before restart-rate math."
-      - path: "tests/test_phase206_predeploy_gate.py"
-        issue: "No regression coverage for `--window-hours nan` or `--window-hours inf`."
-    missing:
-      - "Reject non-finite restart window values with rc=2 before computing current restart rate."
-      - "Add tests for `--window-hours nan` and `--window-hours inf` fail-closed behavior."
+gaps: []
 ---
 
 # Phase 206: A/B Replay Harness + Rollback Gates Verification Report
 
 **Phase Goal:** A deterministic A/B replay harness captures pre-migration controller behavior against the 2026-04-22 out-of-band flent finding, and rollback criteria are encoded as a machine-readable predeploy gate script that fails closed.
-**Verified:** 2026-05-15T16:22:02Z
-**Status:** gaps_found
-**Re-verification:** Yes — after Plan 206-09 gap closure.
+**Verified:** 2026-05-26T14:55:00Z (re-stamp after TOPO-05 closure)
+**Original verification:** 2026-05-15T16:22:02Z
+**Status:** passed
+**Re-verification cycle:** Plan 206-09 closed 4 gaps (2026-05-15); Phase 209 Plan 02 closed the final TOPO-05 nan/inf gap (commit `d70112f`, 2026-05-19); this restamp records the parity state confirmed by `.planning/v1.44-MILESTONE-AUDIT.md`.
+
+## Re-Verification 2026-05-26 — TOPO-05 nan/inf closure
+
+The 2026-05-15 verification flagged `--window-hours nan` and `--window-hours inf` as fail-open (rc=0 PASS with restart counters present). That gap is now closed:
+
+- **Live code:** `scripts/phase206-gate-check.py:344-352` adds a `math.isfinite()` guard rejecting both `nan` and `inf` before restart-rate math runs. Inline comment cites Phase 209 / HIGH #4 / D-20 cross-phase rationale.
+- **Regression test:** `tests/test_phase206_predeploy_gate.py:459` `test_inf_window_hours_aborts` plus companion `test_nan_window_hours_aborts` exercise the fail-closed rc=2 path.
+- **Closing commit:** `d70112f fix(209-02): reject non-finite phase206 gate windows` (2026-05-19).
+- **Live ratification:** Phase 209 canary executed the gate against the 20260520T123555Z 24h Spectrum soak with rc=0 PASS (see `209-04-SUMMARY.md`). No false-pass observed.
+- **Audit cross-check:** `.planning/v1.44-MILESTONE-AUDIT.md` records this as `unsatisfied_per_matrix_but_closed_in_code` and labels the resolution "mechanical re-verification, not a code change."
+
+The historical sections below preserve the 2026-05-15 snapshot for evidentiary continuity. Truth 4 row, Score 4/5, Required Artifact `phase206-gate-check.py` ✗ PARTIAL, Key Link Verification restart-counter ✗ PARTIAL, Data-Flow restart rate ✗ HOLLOW EDGE, and the NaN/Infinite restart-window spot-checks all reflect the pre-closure state. As of 2026-05-26 those resolve to: Truth 4 ✓ VERIFIED, Score **5/5**, artifact ✓ VERIFIED, link ✓ WIRED, data-flow ✓ FLOWING, and the two spot-checks now rc=2 fail-closed.
 
 ## Goal Achievement
 

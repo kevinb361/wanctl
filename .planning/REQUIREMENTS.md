@@ -20,7 +20,7 @@
 - [x] **TOPO-02** — Per-WAN config gate `cake_params.allow_wash: bool = false` permits `wash` in the qdisc args list when explicitly enabled. Default remains false; D-08 transparent-bridge protection (`EXCLUDED_PARAMS = {"nat", "wash", "autorate-ingress"}`) preserved for ATT and any future bridge deployment.
 - [x] **TOPO-03** — `configs/spectrum.yaml` migrates: `ceiling_mbps: 940 → 920`, `diffserv: diffserv4 → besteffort`, `allow_wash: true`. ATT config (`configs/att.yaml`) byte-identical at v1.44 close.
 - [x] **TOPO-04** — A/B replay harness captures pre/post RRUL p99 latency, throughput, jitter against the 2026-04-22 out-of-band flent finding. Reuses the Phase 193/194/195 replay pattern; deterministic golden fixture committed.
-- [ ] **TOPO-05** — Rollback criteria documented in machine-readable form (`PHASE-205-ROLLBACK-GATES.md` or equivalent): regression >5% on RRUL p99 latency OR Spectrum daemon restart-rate increase OR pressure-state transition-rate increase per hour. Predeploy gate script exists, but Phase 206 verification is `status: gaps_found` because non-finite `--window-hours` values (`nan`/`inf`) still fail open instead of rc=2 ABORT.
+- [x] **TOPO-05** — Rollback criteria documented in machine-readable form (`PHASE-205-ROLLBACK-GATES.md` or equivalent): regression >5% on RRUL p99 latency OR Spectrum daemon restart-rate increase OR pressure-state transition-rate increase per hour. Non-finite `--window-hours` values (`nan`/`inf`) now fail closed rc=2 via `math.isfinite()` guard at `scripts/phase206-gate-check.py:344-352` (closed cross-phase by commit `d70112f` in Plan 209-02; regression test `test_inf_window_hours_aborts` at `tests/test_phase206_predeploy_gate.py:459`).
 - [x] **TOPO-06** — Production canary on Spectrum executes the v1.42/v1.43 two-snapshot rollback ritual: predeploy gate → 24h soak under post-migration controller → verification soak comparing zone × cause-tag distributions to v1.43 baseline `20260509T183037Z`.
 - [x] **TOPO-07** — `CHANGELOG.md`, `docs/BRIDGE_QOS.md`, and `docs/CONFIGURATION.md` updated for besteffort/wash semantics, the `allow_wash` knob (per-WAN, default-false), and the topology rationale (DSCP not preserved across ISP).
 
@@ -67,7 +67,7 @@
 | TOPO-02 | Phase 205 | Complete |
 | TOPO-03 | Phase 209 | Complete |
 | TOPO-04 | Phase 206 | Complete |
-| TOPO-05 | Phase 206 | Gaps Found |
+| TOPO-05 | Phase 206 | Complete (closed by Plan 209-02 `d70112f`; restamped 2026-05-26) |
 | TOPO-06 | Phase 209 | Complete |
 | TOPO-07 | Phase 209 | Complete |
 | HRDN-01 | Phase 207 | Complete |
