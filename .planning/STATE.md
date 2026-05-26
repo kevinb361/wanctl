@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.45
 milestone_name: Flapping Peak-Counter Window Repair
 current_phase: 211
-current_plan: Not started
-status: planning
-stopped_at: Phase 211 context gathered
-last_updated: "2026-05-26T17:33:23.353Z"
+current_plan: 2
+status: executing
+stopped_at: Completed 211-01-PLAN.md
+last_updated: "2026-05-26T18:49:03Z"
 last_activity: 2026-05-26
 progress:
   total_phases: 2
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 50
+  total_plans: 6
+  completed_plans: 4
+  percent: 67
 ---
 
 # Session State
@@ -23,21 +23,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-26 after v1.44 archive close + v1.45 milestone open)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 211 — production verification & milestone closure
+**Current focus:** Phase 211 — production-verification-milestone-closure
 
 ## Current Position
 
-Phase: 210 (windowed-peak-accumulator-implementation) — EXECUTING
-Plan: 3 of 3
+Phase: 211 (production-verification-milestone-closure) — EXECUTING
+Plan: 2 of 3
 **Last shipped milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (shipped 2026-05-26; audit `passed` 16/16 after Phase 206 restamp)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.45 Flapping Peak-Counter Window Repair (roadmap drafted; planning)
 **Current phase:** 211
-**Current plan:** Not started
-**Status:** Ready to plan
+**Current plan:** 2
+**Status:** Executing Phase 211
 **Last activity:** 2026-05-26
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 67%
 
 ## Phase Structure (v1.45)
 
@@ -101,8 +101,8 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Stopped at: Phase 211 context gathered
-Resume file: .planning/phases/211-production-verification-milestone-closure/211-CONTEXT.md
+Stopped at: Completed 211-01-PLAN.md
+Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
 ## Operator Next Steps
@@ -113,12 +113,14 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 ## Decisions (v1.45)
 
 - [v1.45 Roadmap]: Two-phase split selected over single-phase. Rationale: VERIFY-01 cannot be satisfied at PR-merge time — it requires a real production flapping event after deploy. Making the production-gate an explicit phase boundary (Phase 211) mirrors v1.44 Phase 209 production-canary pattern and avoids burying the closure gate as a milestone-close deferral.
-- [v1.45 Roadmap]: ALERT-03 (alert-once-per-episode, no log-spam) paired into Phase 211 rather than Phase 210 because end-to-end behavior is only verifiable in production under a real sustained event. Phase 210 tests establish the mechanism (cooldown_sec retained, deque-clear-on-fire retained); Phase 211 confirms it holds in production.
+- [v1.45 Roadmap]: ALERT-03 (alert-once-per-`cooldown_sec`-window, no per-cycle log-spam; amended 2026-05-26 per codex peer review from "per episode" to "per cooldown_sec window" after live-config audit found Spectrum=600s, ATT=300s default — making "per episode" mathematically infeasible at the documented Spectrum cooldown intent of ~3 firings per 30-min event) paired into Phase 211 rather than Phase 210 because end-to-end behavior is only verifiable in production under a real sustained event. Phase 210 tests establish the mechanism (cooldown_sec retained, deque-clear-on-fire retained); Phase 211 confirms it holds in production.
 - [v1.45 Roadmap]: SAFE-10 owned primarily by Phase 210 (PR-merge-time verification) and re-verified at Phase 211 (milestone-close) to catch drift between merge and deploy.
 - [v1.45 Roadmap]: Plan materialization deferred to `/gsd-plan-phase` per milestone convention; no `.planning/phases/210-*` or `.planning/phases/211-*` directories created during roadmap phase.
 - [210-02]: Flapping tests now assert `peak_transition_count` from `_dl_peak_window_transitions` / `_ul_peak_window_transitions` deques, with fixed-threshold second-fire coverage for DL and UL.
 - [210-02]: Threshold-mutation integration coverage was adjusted because identical `flap_window` pruning makes the old `peak=35` / `transition=30` payload expectation impossible under the accepted two-deque design.
 - [210-03]: SAFE-10 baseline uses v1.44 archive marker `21ee630` as the local equivalent close point because `c9932d2` resolves to an earlier v1.42-era commit in this checkout.
+- [211-01]: Spectrum v1.45 canary deploy verified via bound production health endpoint `http://10.10.110.223:9101/health`; loopback `127.0.0.1:9101` is not listening in current production config.
+- [211-01]: `scripts/deploy.sh spectrum cake-shaper` copied v1.45 code but did not restart the running daemon; orchestrator restarted `wanctl@spectrum.service`, after which `/health.version` returned `1.45.0` and the Spectrum 7d observation window opened at approximately `2026-05-26T18:48:06Z`.
 
 ## Performance Metrics
 
@@ -126,3 +128,4 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 |-------|------|----------|-------|-------|
 | 210 | 02 | 6.0min | 2 | 3 |
 | 210 | 03 | 4.1min | 1 | 1 |
+| 211 | 01 | 7min | 5 | 6 |
