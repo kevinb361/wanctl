@@ -8,9 +8,21 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone
+## Current Milestone: v1.45 Flapping Peak-Counter Window Repair
 
-(none active — v1.44 shipped 2026-05-26; planning next milestone via `/gsd-new-milestone v1.45`)
+**Goal:** Restore the intensity signal in `flapping_dl` / `flapping_ul` alert payloads by tracking peak transition count via a windowed accumulator that survives the per-fire deque clear, so production operators can see oscillation intensity above the trigger threshold.
+
+**Target features:**
+- Per-direction windowed peak accumulator independent of deque-clear-on-fire (validated in Phase 210)
+- Preserved alert-once-per-episode semantics (deque clear retained; `alert_engine.fire()` `cooldown_sec` continues to dedupe)
+- Updated `TestFlappingDequeClear` semantics + new tests asserting `peak_transition_count > flap_threshold` during sustained oscillation (validated in Phase 210)
+- Production verification: at least one real flapping event shows `peak > flap_threshold` after deployment (Phase 211)
+
+**Key context:**
+- Confirmed bug per 2026-05-26 backlog triage (Codex peer-reviewed across two rounds); production alerts table shows `peak == transition_count == 30` across 20+ Spectrum `flapping_ul` events (2026-05-21→25) + 3 ATT `flapping_dl` events
+- Root cause located at `src/wanctl/wan_controller.py:4322-4323` (DL) and `:4353-4354` (UL): in-fire `deque.clear()` + `peak = 0` destroys window state
+- Design Option A selected over Option B (rename) — preserves the intensity signal that motivated the metric
+- Alerting-only change; controller-threshold / arbitration boundaries unchanged
 
 <details>
 <summary>Archived v1.44 milestone goals (collapsed for brevity)</summary>
@@ -40,11 +52,11 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.44.0 (Topology-Correct CAKE — Spectrum besteffort wash migration) — shipped 2026-05-26, deployed on Spectrum since Phase 209 production canary.
-**Tests:** Full suite passing; v1.44 verification soak `20260521T222622Z` completed 24h with Phase 206 rollback gates PASS (restart rate `0.00/h`, transition rate `49.83/h` vs baseline `77.17/h`).
+**Version:** v1.45 in progress — Phase 210 implemented and verified the flapping peak-window accumulator; Phase 211 remains for production deployment/observation closure.
+**Tests:** Phase 210 alerting suites and hot-path regression slice passing; production verification deferred to Phase 211 by design.
 **LOC:** ~40,915 Python (src/)
 **Milestones:** 45 shipped (v1.0-v1.44), all archived in `.planning/milestones/`.
-**Active milestone:** none — ready for `/gsd-new-milestone v1.45`.
+**Active milestone:** v1.45 Flapping Peak-Counter Window Repair — Phase 210 complete, Phase 211 ready to plan.
 
 **Latest:** v1.44 Phase 209 Spectrum migration + production canary — Spectrum committed config is now `920Mbit besteffort wash`, wash readback validation is controller-internal and hard-fail in both CAKE backends, `docs/BRIDGE_QOS.md` documents the operator topology decision, and SAFE-08/SAFE-09 passed mechanically after the 24h production soak.
 **Previous:** v1.44 Phase 208 Carry-on quick tasks — completed TOOL-01/T17(a) watchdog fail-closed hardening, TOOL-02/T9 `wanctl-history --ingestion-rate` with legacy/ad-hoc `--db` + `--wan` gap closure, and TOOL-03/T12 digest permission/write tolerance. Phase 208 verification passed 8/8 after gap closure, code review was clean, security threats are closed, and SAFE-09 remains bounded to operator tooling rather than controller thresholds/algorithms.
@@ -777,4 +789,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-05-26 — v1.44 Topology-Correct CAKE milestone shipped and archived. Spectrum is on `920Mbit besteffort wash` in production; ATT byte-identical; SAFE-08/SAFE-09 mechanical close passed against `6508d68`; audit `passed` 16/16 after the 2026-05-26 Phase 206 verification restamp. SEED-001 (v1.44 spine) marked `fulfilled`. Ready for `/gsd-new-milestone v1.45`._
+_Last updated: 2026-05-26 — Phase 210 complete for v1.45 Flapping Peak-Counter Window Repair. The `peak_transition_count` window-state destruction bug at `wan_controller.py:4322-4323/4353-4354` is fixed via the Option A windowed accumulator, with unit/integration coverage and SAFE-10 closeout verified. Phase 211 remains for production deployment evidence: at least one real flapping event must show `peak_transition_count > flap_threshold`._
