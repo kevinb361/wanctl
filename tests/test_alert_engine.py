@@ -1699,6 +1699,122 @@ class TestFlappingDequeClear:
         assert len(mock_flapping_controller._ul_zone_transitions) == 0
         assert len(mock_flapping_controller._ul_peak_window_transitions) == 6
 
+
+class TestFlappingPeakWindow:
+    """Regression tests for two-deque peak tracking at fixed threshold."""
+
+    def test_dl_peak_above_threshold_during_sustained_oscillation(
+        self, mock_flapping_controller
+    ):
+        """Second DL fire reports peak above fixed threshold within one flap window."""
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+        captured_window_lengths = []
+
+        with patch.object(
+            mock_flapping_controller.alert_engine, "fire", return_value=True
+        ) as mock_fire:
+            for i, zone in enumerate(zones):
+                with patch("time.monotonic", return_value=1.0 + i):
+                    mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+            assert mock_fire.call_count == 1
+            assert len(mock_flapping_controller._dl_zone_transitions) == 0
+            assert len(mock_flapping_controller._dl_peak_window_transitions) == 6
+
+            current_zone = zones[-1]
+            for offset in range(1, 7):
+                current_zone = "RED" if current_zone == "GREEN" else "GREEN"
+                with patch("time.monotonic", return_value=7.0 + offset - 1):
+                    mock_flapping_controller._check_flapping_alerts(current_zone, "GREEN")
+                captured_window_lengths.append(
+                    len(mock_flapping_controller._dl_peak_window_transitions)
+                )
+
+        assert mock_fire.call_count == 2
+        second_payload = mock_fire.call_args_list[1][0][3]
+        assert second_payload["transition_count"] == 6
+        assert second_payload["peak_transition_count"] == 12
+        assert second_payload["peak_transition_count"] > 6
+        assert max(captured_window_lengths) > 6
+
+    def test_ul_peak_above_threshold_during_sustained_oscillation(
+        self, mock_flapping_controller
+    ):
+        """Second UL fire reports peak above fixed threshold within one flap window."""
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+        captured_window_lengths = []
+
+        with patch.object(
+            mock_flapping_controller.alert_engine, "fire", return_value=True
+        ) as mock_fire:
+            for i, zone in enumerate(zones):
+                with patch("time.monotonic", return_value=1.0 + i):
+                    mock_flapping_controller._check_flapping_alerts("GREEN", zone)
+
+            assert mock_fire.call_count == 1
+            assert len(mock_flapping_controller._ul_zone_transitions) == 0
+            assert len(mock_flapping_controller._ul_peak_window_transitions) == 6
+
+            current_zone = zones[-1]
+            for offset in range(1, 7):
+                current_zone = "RED" if current_zone == "GREEN" else "GREEN"
+                with patch("time.monotonic", return_value=7.0 + offset - 1):
+                    mock_flapping_controller._check_flapping_alerts("GREEN", current_zone)
+                captured_window_lengths.append(
+                    len(mock_flapping_controller._ul_peak_window_transitions)
+                )
+
+        assert mock_fire.call_count == 2
+        second_payload = mock_fire.call_args_list[1][0][3]
+        assert second_payload["transition_count"] == 6
+        assert second_payload["peak_transition_count"] == 12
+        assert second_payload["peak_transition_count"] > 6
+        assert max(captured_window_lengths) > 6
+
+    def test_peak_window_deque_grows_monotonically_across_fires_within_window(
+        self, mock_flapping_controller
+    ):
+        """Peak-window deque grows monotonically across fires until flap_window prunes."""
+        captured_window_lengths = []
+        current_zone = "GREEN"
+
+        with patch.object(mock_flapping_controller.alert_engine, "fire", return_value=True):
+            with patch("time.monotonic", return_value=1.0):
+                mock_flapping_controller._check_flapping_alerts(current_zone, "GREEN")
+            captured_window_lengths.append(
+                len(mock_flapping_controller._dl_peak_window_transitions)
+            )
+
+            for idx in range(1, 13):
+                current_zone = "RED" if current_zone == "GREEN" else "GREEN"
+                with patch("time.monotonic", return_value=1.0 + idx):
+                    mock_flapping_controller._check_flapping_alerts(current_zone, "GREEN")
+                captured_window_lengths.append(
+                    len(mock_flapping_controller._dl_peak_window_transitions)
+                )
+
+        assert all(
+            captured_window_lengths[i] >= captured_window_lengths[i - 1]
+            for i in range(1, len(captured_window_lengths))
+        )
+        assert captured_window_lengths[-1] > 6
+
+    def test_peak_window_deque_resets_when_flap_window_prunes_deque(
+        self, mock_flapping_controller
+    ):
+        """Peak-window deque empties only when flap_window prune drops old entries."""
+        zones = ["GREEN", "RED", "GREEN", "RED"]
+        for i, zone in enumerate(zones):
+            with patch("time.monotonic", return_value=1.0 + i):
+                mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        assert len(mock_flapping_controller._dl_peak_window_transitions) == 3
+
+        with patch("time.monotonic", return_value=66.0):
+            mock_flapping_controller._check_flapping_alerts(zones[-1], "GREEN")
+
+        assert len(mock_flapping_controller._dl_peak_window_transitions) == 0
+
 # =============================================================================
 # FLAPPING DEFAULT VALUES
 # =============================================================================
