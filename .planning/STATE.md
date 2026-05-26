@@ -4,9 +4,9 @@ milestone: v1.45
 milestone_name: Flapping Peak-Counter Window Repair
 current_phase: 210
 current_plan: 3
-status: verifying
-stopped_at: Completed 210-03-PLAN.md
-last_updated: "2026-05-26T17:02:03.022Z"
+status: ready_to_plan
+stopped_at: Phase 210 complete (3/3) — ready to discuss Phase 211
+last_updated: 2026-05-26T17:08:46.281Z
 last_activity: 2026-05-26
 progress:
   total_phases: 2
@@ -23,7 +23,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-26 after v1.44 archive close + v1.45 milestone open)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 210 — windowed-peak-accumulator-implementation
+**Current focus:** Phase 211 — production verification & milestone closure
 
 ## Current Position
 
@@ -32,9 +32,9 @@ Plan: 3 of 3
 **Last shipped milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (shipped 2026-05-26; audit `passed` 16/16 after Phase 206 restamp)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.45 Flapping Peak-Counter Window Repair (roadmap drafted; planning)
-**Current phase:** 210
-**Current plan:** 3
-**Status:** Phase 210 complete — ready for verification / Phase 211 planning
+**Current phase:** 211
+**Current plan:** Not started
+**Status:** Ready to plan
 **Last activity:** 2026-05-26
 
 Progress: [██████████] 100%
