@@ -107,33 +107,77 @@ def flapping_controller(tmp_path: Path, mock_autorate_config: MagicMock) -> tupl
 def test_peak_transition_count_reflects_oscillation_intensity(
     flapping_controller: tuple[WANController, Path],
 ) -> None:
-    """Peak count survives pruning so the emitted payload reflects earlier intensity."""
+    """Peak count survives fire clear so payload reflects earlier intensity."""
     controller, db_path = flapping_controller
-    controller.alert_engine._rules["congestion_flapping"]["flap_threshold"] = 40
+    controller.alert_engine._rules["congestion_flapping"]["cooldown_sec"] = 0
 
     last_zone = _drive_dl_transitions(
         controller,
         start_ts=1000.0,
-        transition_count=35,
-        step_sec=3.0,
+        transition_count=30,
+        step_sec=1.0,
     )
-    assert controller._dl_peak_transitions == 35
+    assert len(controller._dl_zone_transitions) == 0
+    assert len(controller._dl_peak_window_transitions) == 30
 
-    controller.alert_engine._rules["congestion_flapping"]["flap_threshold"] = 30
+    controller.alert_engine._rules["congestion_flapping"]["flap_threshold"] = 40
+    last_zone = _drive_dl_transitions(
+        controller,
+        start_ts=1035.0,
+        transition_count=5,
+        step_sec=1.0,
+        initial_zone=last_zone,
+    )
+    assert len(controller._dl_zone_transitions) == 5
+    assert len(controller._dl_peak_window_transitions) == 35
+
+    controller.alert_engine._rules["congestion_flapping"]["flap_threshold"] = 6
     next_zone = "GREEN" if last_zone == "RED" else "RED"
-    fire_ts = 1139.0
     with (
-        patch("wanctl.wan_controller.time.monotonic", return_value=fire_ts),
-        patch("wanctl.alert_engine.time.monotonic", return_value=fire_ts),
+        patch("wanctl.wan_controller.time.monotonic", return_value=1041.0),
+        patch("wanctl.alert_engine.time.monotonic", return_value=1041.0),
     ):
         controller._check_flapping_alerts(next_zone, "GREEN")
 
     alerts = _query_flapping_alerts(db_path)
-    assert len(alerts) == 1
-    details = json.loads(alerts[0]["details"])
-    assert details["transition_count"] == 30
+    assert len(alerts) == 2
+    details = json.loads(alerts[1]["details"])
+    assert details["transition_count"] == 6
     assert details["peak_transition_count"] > details["transition_count"]
-    assert details["peak_transition_count"] == 35
+    assert details["peak_transition_count"] == 36
+
+
+def test_peak_transition_count_above_threshold_fixed_threshold(
+    flapping_controller: tuple[WANController, Path],
+) -> None:
+    """Sustained oscillation pushes peak above threshold without mutating threshold."""
+    controller, _db_path = flapping_controller
+
+    with patch.object(controller.alert_engine, "fire", return_value=True) as mock_fire:
+        last_zone = _drive_dl_transitions(
+            controller,
+            start_ts=3000.0,
+            transition_count=30,
+            step_sec=1.0,
+        )
+        assert mock_fire.call_count == 1
+        first_payload = mock_fire.call_args_list[0][0][3]
+        assert first_payload["transition_count"] == 30
+        assert first_payload["peak_transition_count"] >= 30
+
+        _drive_dl_transitions(
+            controller,
+            start_ts=3035.0,
+            transition_count=30,
+            step_sec=1.0,
+            initial_zone=last_zone,
+        )
+
+    assert mock_fire.call_count == 2
+    second_payload = mock_fire.call_args_list[1][0][3]
+    assert second_payload["transition_count"] == 30
+    assert second_payload["peak_transition_count"] > 30
+    assert second_payload["peak_transition_count"] >= 60
 
 
 def test_flapping_cooldown_suppresses_second_alert_within_window(

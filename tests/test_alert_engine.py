@@ -1295,8 +1295,8 @@ def mock_flapping_controller():
     # Flapping state (initialized like __init__)
     controller._dl_zone_transitions = deque()
     controller._ul_zone_transitions = deque()
-    controller._dl_peak_transitions = 0
-    controller._ul_peak_transitions = 0
+    controller._dl_peak_window_transitions = deque()
+    controller._ul_peak_window_transitions = deque()
     controller._dl_prev_zone = None
     controller._ul_prev_zone = None
     controller._dl_zone_hold = 0
@@ -1387,6 +1387,9 @@ class TestFlappingDL:
                     mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
 
         details = mock_fire.call_args[0][3]
+        # This test asserts peak == flap_threshold at the moment of the FIRST fire (intensity == threshold).
+        # Above-threshold semantics (peak > flap_threshold during sustained oscillation at the SECOND fire
+        # within the same flap_window) are covered by TestFlappingPeakWindow (added in Task 2 of plan 210-02).
         assert details["peak_transition_count"] == 6
 
 
@@ -1411,27 +1414,28 @@ class TestFlappingUL:
         assert mock_fire.call_args[0][0] == "flapping_ul"
         assert mock_fire.call_args[0][1] == "warning"
 
-    def test_flapping_ul_peak_resets_after_fire(self, mock_flapping_controller):
-        """UL peak count resets after fire and does not accumulate across episodes."""
-        now = time.monotonic()
+    def test_ul_peak_window_survives_fire_and_drains_via_prune(self, mock_flapping_controller):
+        """UL peak-window deque survives fire and drains only by flap_window prune."""
+        now = 1000.0
         zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
 
         with patch.object(
             mock_flapping_controller.alert_engine, "fire", return_value=True
         ) as mock_fire:
             for i, zone in enumerate(zones):
-                with patch("time.monotonic", return_value=now + i * 5):
+                with patch("time.monotonic", return_value=now + i):
                     mock_flapping_controller._check_flapping_alerts("GREEN", zone)
 
             assert mock_fire.call_args_list[0][0][3]["peak_transition_count"] == 6
-            assert mock_flapping_controller._ul_peak_transitions == 0
+            assert len(mock_flapping_controller._ul_zone_transitions) == 0
+            assert len(mock_flapping_controller._ul_peak_window_transitions) == 6
 
-            for i, zone in enumerate(zones):
-                with patch("time.monotonic", return_value=now + 100 + i * 5):
-                    mock_flapping_controller._check_flapping_alerts("GREEN", zone)
+            with patch("time.monotonic", return_value=now + 67):
+                mock_flapping_controller._check_flapping_alerts("GREEN", zones[-1])
 
-        assert mock_fire.call_count == 2
-        assert mock_fire.call_args_list[1][0][3]["peak_transition_count"] == 6
+        assert mock_fire.call_count == 1
+        assert len(mock_flapping_controller._ul_zone_transitions) == 0
+        assert len(mock_flapping_controller._ul_peak_window_transitions) == 0
 
 
 # =============================================================================
@@ -1671,6 +1675,29 @@ class TestFlappingDequeClear:
         # Should NOT fire: deque was cleared, no new transitions added
         mock_fire.assert_not_called()
 
+    def test_dl_peak_window_deque_not_cleared_on_fire(self, mock_flapping_controller):
+        """DL peak-window deque retains transition timestamps after episode fire."""
+        now = time.monotonic()
+
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+        for i, zone in enumerate(zones):
+            with patch("time.monotonic", return_value=now + i * 5):
+                mock_flapping_controller._check_flapping_alerts(zone, "GREEN")
+
+        assert len(mock_flapping_controller._dl_zone_transitions) == 0
+        assert len(mock_flapping_controller._dl_peak_window_transitions) == 6
+
+    def test_ul_peak_window_deque_not_cleared_on_fire(self, mock_flapping_controller):
+        """UL peak-window deque retains transition timestamps after episode fire."""
+        now = time.monotonic()
+
+        zones = ["GREEN", "RED", "GREEN", "RED", "GREEN", "RED", "GREEN"]
+        for i, zone in enumerate(zones):
+            with patch("time.monotonic", return_value=now + i * 5):
+                mock_flapping_controller._check_flapping_alerts("GREEN", zone)
+
+        assert len(mock_flapping_controller._ul_zone_transitions) == 0
+        assert len(mock_flapping_controller._ul_peak_window_transitions) == 6
 
 # =============================================================================
 # FLAPPING DEFAULT VALUES
@@ -1924,8 +1951,8 @@ class TestFlappingCooldownKeyFix:
         )
         controller._dl_zone_transitions = deque()
         controller._ul_zone_transitions = deque()
-        controller._dl_peak_transitions = 0
-        controller._ul_peak_transitions = 0
+        controller._dl_peak_window_transitions = deque()
+        controller._ul_peak_window_transitions = deque()
         controller._dl_prev_zone = None
         controller._ul_prev_zone = None
         controller._dl_zone_hold = 0
@@ -1978,8 +2005,8 @@ class TestFlappingDwellFilter:
         )
         controller._dl_zone_transitions = deque()
         controller._ul_zone_transitions = deque()
-        controller._dl_peak_transitions = 0
-        controller._ul_peak_transitions = 0
+        controller._dl_peak_window_transitions = deque()
+        controller._ul_peak_window_transitions = deque()
         controller._dl_prev_zone = None
         controller._ul_prev_zone = None
         controller._dl_zone_hold = 0
