@@ -54,9 +54,12 @@
 **Success Criteria** (what must be TRUE):
   1. Phase 210 build is deployed to production (cake-shaper Spectrum and ATT) with `/health.version` reflecting the v1.45 bump and pre-deploy snapshot artifact captured for rollback.
   2. Production alerts table shows at least one `flapping_dl` or `flapping_ul` event after deploy where `details.peak_transition_count > details.flap_threshold` (i.e., `> 30`).
-  3. Operator confirms in production that `congestion_flapping` does not log-spam at every cycle during a sustained event — `alert_engine.fire()` `cooldown_sec` continues to dedupe per episode (ALERT-03 alert-once-per-episode semantics preserved end-to-end).
+  3. Operator confirms in production that `congestion_flapping` does not log-spam at every 50ms cycle during a sustained event — `alert_engine.fire()` `cooldown_sec` continues to dedupe per cooldown-window (ALERT-03 alert-once-per-`cooldown_sec`-window semantics preserved end-to-end; Spectrum=600s per `configs/spectrum.yaml:239`, ATT=300s default per `autorate_config.py:774`; amended 2026-05-26 per codex peer review — superseded prior "per episode" wording).
   4. SAFE-10 closeout check at Phase 211 boundary shows zero `src/wanctl/` source diff outside the alerting path between v1.44 close and v1.45 close; five-file SAFE-09 allowlist remains untouched.
-**Plans**: TBD
+**Plans**: 3 plans
+- [x] 211-01-PLAN.md — Closeout commit (v1.44.0→1.45.0) + Spectrum Snapshot A + Spectrum deploy (VERIFY-01 window open)
+- [ ] 211-02-PLAN.md — ATT deploy + 7d cross-WAN alerts observation + VERIFY-01 evidence capture (VERIFY-01)
+- [ ] 211-03-PLAN.md — ALERT-03 audit + SAFE-10 manual closeout + v1.45 archive (ALERT-03)
 
 ### Progress
 
@@ -65,7 +68,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 210. Windowed Peak Accumulator Implementation | 3/3 | Complete    | 2026-05-26 |
-| 211. Production Verification & Milestone Closure | 0/TBD | Not started | - |
+| 211. Production Verification & Milestone Closure |  1/3   | In Progress | - |
 
 ### Coverage
 

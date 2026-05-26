@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **ALERT-03 invariant:** `cooldown_sec` dedup behavior is unchanged — alert-once-per-cooldown-window semantics are preserved by the existing `AlertEngine.fire()` cooldown path.
 
+### Deploy notes
+
+- **Spectrum canary (Phase 211):** v1.45.0 activated on Spectrum at approximately `2026-05-26T18:48:06Z` after Snapshot A capture (`20260526T184731Z`) and service restart; `/health.version` readback returned `1.45.0`.
+
 ## v1.44.0 — 2026-05-19
 
 ### Added
