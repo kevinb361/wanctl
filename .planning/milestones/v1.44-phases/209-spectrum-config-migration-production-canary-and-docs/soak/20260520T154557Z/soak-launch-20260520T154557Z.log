@@ -1,0 +1,67 @@
+ISO_SOAK=20260520T154557Z
+LOCAL_SOAK_DIR=.planning/phases/209-spectrum-config-migration-production-canary-and-docs/soak/20260520T154557Z
+REMOTE_SOAK_DIR=/var/tmp/wanctl-soak-20260520T154557Z
+REMOTE_SCRIPT=/var/tmp/wanctl-soak-20260520T154557Z/soak-capture.sh
+HEALTH_URL=http://10.10.110.223:9101/health
+LAUNCH_TIME_UTC=2026-05-20T15:45:57Z
+
+[local git]
+e12202efcb3b85b0dac8d098546da5205838bf04
+ M CHANGELOG.md
+ M configs/spectrum.yaml
+
+[preflight version]
+1.44.0
+
+[preflight status]
+active
+
+[preflight jq curl]
+/usr/bin/curl
+/usr/bin/jq
+/usr/bin/systemd-run
+
+[preflight wash RuntimeError since deploy snapshot B]
+
+[restart counter start]
+RC_START=0
+
+[create remote dir]
+drwxrwxr-x 2 kevin kevin 4096 May 20 10:45 /var/tmp/wanctl-soak-20260520T154557Z
+
+[copy harness]
+58b73efe6178eb4acec695561b7cb357e17ab092229f9fc5e29ba83d73e5ae88  /var/tmp/wanctl-soak-20260520T154557Z/soak-capture.sh
+
+[launch systemd-run corrected invocation]
+Running timer as unit: phase209-soak-20260520T154557Z.timer
+Will run service as unit: phase209-soak-20260520T154557Z.service
+LAUNCH_RC=0
+
+[post-launch unit status]
+● phase209-soak-20260520T154557Z.service - [systemd-run] /usr/bin/bash /var/tmp/wanctl-soak-20260520T154557Z/soak-capture.sh 20260520T154557Z
+     Loaded: loaded (/run/user/1000/systemd/transient/phase209-soak-20260520T154557Z.service; transient)
+  Transient: yes
+     Active: active (running) since Wed 2026-05-20 10:45:57 CDT; 37ms ago
+ Invocation: f6dd3cd21249451885f89e08390913cf
+TriggeredBy: ○ phase209-soak-20260520T154557Z.timer
+   Main PID: 3327644
+      Tasks: 1 (limit: 2222)
+     Memory: 1.5M (peak: 1.6M)
+        CPU: 8ms
+     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/phase209-soak-20260520T154557Z.service
+
+May 20 10:45:57 cake-shaper systemd[3325943]: Started phase209-soak-20260520T154557Z.service - [systemd-run] /usr/bin/bash /var/tmp/wanctl-soak-20260520T154557Z/soak-capture.sh 20260520T154557Z.
+May 20 10:45:57 cake-shaper bash[3327644]: /var/tmp/wanctl-soak-20260520T154557Z/soak-capture.sh: line 26: HEALTH_URL: HEALTH_URL env var required (e.g. HEALTH_URL=http://<host>:9101/health)
+May 20 10:45:57 cake-shaper systemd[3325943]: phase209-soak-20260520T154557Z.service: Main process exited, code=exited, status=1/FAILURE
+May 20 10:45:57 cake-shaper systemd[3325943]: phase209-soak-20260520T154557Z.service: Failed with result 'exit-code'.
+
+[post-launch capture warmup]
+failed
+total 8
+-rwxr-xr-x 1 kevin kevin 7910 May 20 10:45 soak-capture.sh
+
+[expected resume]
+SOAK_START_UTC=2026-05-20T15:45:57Z
+SOAK_EXPECTED_END_UTC=2026-05-21T15:45:57Z
+RESUME_AFTER_UTC=2026-05-21T15:50:57Z
+RC_START=0

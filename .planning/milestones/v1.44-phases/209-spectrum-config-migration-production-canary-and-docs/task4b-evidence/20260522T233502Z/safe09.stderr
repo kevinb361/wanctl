@@ -1,0 +1,31 @@
+SAFE-09 VIOLATION: src/wanctl/ has changed since 6508d68
+
+Phase 209 (v1.44 close) allows only the following src/wanctl/ files:
+  cake_signal.py, cake_params.py, check_config_validators.py,
+  operator_summary.py, backends/linux_cake.py, backends/netlink_cake.py,
+  __init__.py (1.43.0 → 1.44.0 version bump)
+
+Any other src/wanctl/ change indicates a control-path edit slipped in:
+  git diff 6508d68..HEAD -- src/wanctl/
+
+First 20 lines of diff:
+diff --git a/src/wanctl/__init__.py b/src/wanctl/__init__.py
+index 275a75e..448d61e 100644
+--- a/src/wanctl/__init__.py
++++ b/src/wanctl/__init__.py
+@@ -1,3 +1,3 @@
+ """wanctl - Adaptive CAKE bandwidth control for RouterOS."""
+ 
+-__version__ = "1.43.0"
++__version__ = "1.44.0"
+diff --git a/src/wanctl/backends/linux_cake.py b/src/wanctl/backends/linux_cake.py
+index 9373d83..3000e0e 100644
+--- a/src/wanctl/backends/linux_cake.py
++++ b/src/wanctl/backends/linux_cake.py
+@@ -344,7 +344,7 @@ class LinuxCakeBackend(RouterBackend):
+     # CAKE-specific methods (not in ABC)
+     # =========================================================================
+ 
+-    def initialize_cake(self, params: dict[str, Any]) -> bool:
++    def initialize_cake(self, params: dict[str, Any]) -> bool:  # noqa: C901
+         """Initialize CAKE qdisc via tc qdisc replace.

@@ -1,0 +1,1 @@
+snapA_yaml_exists=1

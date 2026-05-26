@@ -1,0 +1,7 @@
+[phase206-predeploy-gate INFO]  invoking gate-check helper (mode=predeploy)
+[phase206-gate-check INFO] RRUL comparison source=controller_rate_p99_mbps
+[phase206-gate-check INFO] restart-rate check skipped (no --restart-counter-* inputs)
+[phase206-gate-check INFO] transition-rate check skipped (no --soak-ndjson input)
+[phase206-gate-check INFO] RRUL p99: -0.0% (within +/-5.0%) (source: controller_rate_p99_mbps)
+[phase206-gate-check INFO] PASS: Phase 206 rollback gates clear
+predeploy gate rc=0

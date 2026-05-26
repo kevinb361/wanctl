@@ -1,0 +1,30 @@
+ISO_SOAK=20260521T124808Z
+LOCAL_SOAK_DIR=.planning/phases/209-spectrum-config-migration-production-canary-and-docs/soak/20260521T124808Z
+REMOTE_SOAK_DIR=/var/tmp/wanctl-soak-20260521T124808Z
+REMOTE_SCRIPT=/var/tmp/wanctl-soak-20260521T124808Z/soak-capture.sh
+HEALTH_URL=http://10.10.110.223:9101/health
+LAUNCH_TIME_UTC=2026-05-21T12:48:08Z
+SOAK_EXPECTED_END_UTC=2026-05-22T12:48:08Z
+RESUME_AFTER_UTC=2026-05-22T12:53:08Z
+
+[local git]
+e12202efcb3b85b0dac8d098546da5205838bf04
+ M CHANGELOG.md
+ M configs/spectrum.yaml
+
+[preflight health/version]
+healthy 1.44.0
+
+[launch]
+systemd-run --user --unit=phase209-soak-20260521T124808Z --property=RuntimeMaxSec=90000 --setenv=HEALTH_URL=http://10.10.110.223:9101/health --setenv=CAPTURE_DIR=/var/tmp/wanctl-soak-20260521T124808Z --setenv=SOAK_DURATION_SEC=86400 --setenv=SOAK_FAIL_RATE_THRESHOLD=0.01 --setenv=MIN_SAMPLES_BEFORE_EVAL=60 /usr/bin/bash /var/tmp/wanctl-soak-20260521T124808Z/soak-capture.sh 20260521T124808Z
+Running as unit: phase209-soak-20260521T124808Z.service
+
+[post-launch verification]
+ActiveState=active
+SubState=running
+Environment=HEALTH_URL=http://10.10.110.223:9101/health CAPTURE_DIR=/var/tmp/wanctl-soak-20260521T124808Z SOAK_DURATION_SEC=86400 SOAK_FAIL_RATE_THRESHOLD=0.01 MIN_SAMPLES_BEFORE_EVAL=60
+Rows after warmup: 79
+Error sidecar lines after warmup: 1
+
+[notes]
+This relaunch supersedes the short 20260520T154633Z capture, which exited successfully after only 608 rows. The fresh launch verifies SOAK_DURATION_SEC=86400 in the transient service environment.

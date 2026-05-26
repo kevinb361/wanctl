@@ -1,0 +1,2 @@
+[phase206-predeploy-gate INFO]  invoking gate-check helper (mode=predeploy)
+[phase206-gate-check ABORT] ERROR: failed RRUL p99 check: 'post'
