@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Spectrum plan anchor:** Documented the actual Spectrum plan disclosure (1045 Mbps typical download, 40 Mbps typical upload, 19 ms typical latency) in `configs/spectrum.yaml` comments and `.planning/spectrum-plan-speed-anchor-2026-05-20.md`. Current 12/18 Mbps upload values remain latency-first validated operating points, not provisioned-capacity percentages.
 
+## v1.45.0 — 2026-05-26
+
+### Fixed
+
+- **ALERT-01 / ALERT-02 (Phase 210):** `flapping_dl` / `flapping_ul` alert `peak_transition_count` now reflects the 120s window peak, not the fire-cycle value reset by deque-clear-on-fire bookkeeping.
+- **Payload compatibility:** Flapping alert payloads still emit `transition_count` for current-window count consumers while preserving the existing `peak_transition_count` field name for intensity reporting.
+
+### Unchanged
+
+- **ALERT-03 invariant:** `cooldown_sec` dedup behavior is unchanged — alert-once-per-cooldown-window semantics are preserved by the existing `AlertEngine.fire()` cooldown path.
+
 ## v1.44.0 — 2026-05-19
 
 ### Added
