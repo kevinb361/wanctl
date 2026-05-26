@@ -3,15 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.44
 milestone_name: Topology-Correct CAKE — Spectrum besteffort wash migration
 current_phase: 209
-status: milestone_complete
+status: Awaiting next milestone
 stopped_at: Completed 209-04-PLAN.md
-last_updated: "2026-05-22T23:43:09.716Z"
+last_updated: "2026-05-26T14:49:03.837Z"
+last_activity: 2026-05-26 — Milestone v1.44 completed and archived
 progress:
   total_phases: 5
-  completed_phases: 6
+  completed_phases: 5
   total_plans: 27
   completed_plans: 27
-  percent: 120
+  percent: 100
 ---
 
 # Session State
@@ -34,7 +35,7 @@ Progress: [██████████] 100%
 
 ## Deferred Items
 
-Items acknowledged and deferred at v1.40 milestone close on 2026-05-03 (per audit-open snapshot):
+Items acknowledged and deferred at v1.44 milestone close on 2026-05-26 (per audit-open snapshot, 22 items). SEED-001 (Spectrum topology-correct CAKE mode) was the v1.44 spine and is now `fulfilled` — removed from this list. The 206 VERIFICATION.md frontmatter gap was closed by the 2026-05-26 restamp (commit `83655b2`); TOPO-05 is now `[x]` in REQUIREMENTS.md.
 
 | Category | Item | Status |
 |----------|------|--------|
@@ -47,19 +48,23 @@ Items acknowledged and deferred at v1.40 milestone close on 2026-05-03 (per audi
 | quick_tasks | 260319-lk3-fix-state-file-persistence-and-tuning-pa | missing |
 | quick_tasks | 260320-9wi-update-readme-and-config-schema-docs-for | missing |
 | quick_tasks | 260327-uy3-add-spike-detector-confirmation-counter- | missing |
+| quick_tasks | 260503-cfs-fix-spectrum-alerting-severity | missing |
 | quick_tasks | 6-lan-accessible-health-endpoints-and-dual | missing |
 | quick_tasks | 7-fix-flapping-alert-bugs-rule-name-mismat | missing |
 | quick_tasks | 8-fix-flapping-alert-detection-cooldown-ke | missing |
 | threads | phase-196-queue-primary-refractory-semantics-investigation | in_progress |
-| todos | 2026-04-08-investigate-tcp-12down-latency-spikes | unknown |
-| todos | 2026-04-10-monitor-proxmox-steal-cpu | unknown |
-| todos | 2026-04-12-investigate-steering-cycle-overruns-and-blocking-i-o | unknown |
-| todos | 2026-04-15-profile-post-hotpath-baseline-on-production-wan | unknown |
-| todos | 2026-04-17-24h-soak-checkpoint-verification | unknown |
-| seeds | 001-spectrum-topology-correct-cake-mode | dormant |
-| uat_gaps | (2 items) | resolved |
+| todos | 2026-04-08-investigate-tcp-12down-latency-spikes-under-multi-flow-downl | pending (tuning) |
+| todos | 2026-04-15-profile-post-hotpath-baseline-on-production-wan | pending (performance) |
+| todos | 2026-04-17-audit-autorate-flat-gauge-fire-on-change | pending (storage) |
+| todos | 2026-04-17-cake-tin-skip-on-unchanged-consumer-audit | pending (storage) |
+| todos | 2026-04-17-ingestion-rate-tool | pending (tooling) |
+| seeds | SEED-003-v143-d14-watchdog-recalibration | dormant |
+| seeds | SEED-004-v143-target-edge-churn-instrumentation | dormant |
+| seeds | SEED-005-v143-conservative-ul-tuning-sweep | dormant |
 
-Most quick_tasks at status `missing` are legacy directory entries without metadata files (no live work). v1.41 should triage these via `/gsd-review-backlog`.
+Plus 7 more todos (full list under `.planning/todos/pending/`).
+
+Most quick_tasks at status `missing` are legacy directory entries without metadata files (no live work). v1.45 should triage these via `/gsd-review-backlog`.
 
 The pending todo `2026-04-24-resolve-att-cake-primary-canary-after-phase-196` is preserved in `.planning/todos/pending/` and tied to v1.40 VALN-05b deferral (cross-milestone gate on v1.39 Phase 191 closure).
 
@@ -349,3 +354,14 @@ Archived Phase 199 evidence: `.planning/milestones/v1.40-phases/199-obs-02-spec-
 - [Phase 209]: docs/BRIDGE_QOS.md is the single source of truth for allow_wash carrier-topology rationale; CONFIGURATION.md and CHANGELOG.md link to it instead of duplicating it.
 - [Phase 209]: Plan 209-03 kept the v1.44.0 changelog date as the literal <YYYY-MM-DD> placeholder; Plan 209-04 owns final closeout correction.
 - [Phase 209]: The v1.44.0 changelog block intentionally avoids inline DSCP rationale prose per D-16.
+
+## Current Position
+
+Phase: Milestone v1.44 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-05-26 — Milestone v1.44 completed and archived
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

@@ -8,32 +8,43 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration
+## Current Milestone
+
+(none active — v1.44 shipped 2026-05-26; planning next milestone via `/gsd-new-milestone v1.45`)
+
+<details>
+<summary>Archived v1.44 milestone goals (collapsed for brevity)</summary>
+
+### v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (shipped 2026-05-26)
 
 **Goal:** Migrate Spectrum CAKE qdisc from `940Mbit diffserv4 nowash` to topology-correct `920Mbit besteffort wash` (validated out-of-band 2026-04-22 flent), removing classification theater that the carrier strips upstream — without disturbing ATT (DSL, separately validated) and without changing controller thresholds/algorithms.
 
-**Target features:**
-- Tin-agnostic `cake_signal.py` aggregation (currently hard-codes `tins[1:]` 4-tin layout at lines 13/173/306) — supports both single-tin besteffort and multi-tin diffserv4
-- Per-WAN config gate `cake_params.allow_wash: bool = false` (D-08 transparent-bridge rule preserved by default; ATT untouched)
-- Spectrum-only deployment with A/B replay harness vs out-of-band finding; rollback gates: RRUL p99 latency >5%, daemon restart-rate increase, pressure-state transition-rate increase
-- v1.43 closeout-routed cleanup bundled: WR-01/WR-02 soak-harness hardening, `secondary_gate_legacy` block removal, CALIB-02 promote-to-YAML
-- Carry-on quick-tasks: T17(a) `scripts/soak_summary_aggregate.py` + retire legacy regression test; T9 ingestion-rate flag on `wanctl-history`; T12 operator-summary digest perm try/except
+**Shipped features:**
+- **Tin-agnostic CAKE signal + allow_wash gate** (Phase 205) — `cake_signal.py` aggregation now handles both single-tin besteffort and multi-tin diffserv4 without per-deployment branching; per-WAN `cake_params.allow_wash: bool = false` permits `wash` only when explicitly enabled; D-08 transparent-bridge protection preserved by default.
+- **A/B replay harness + rollback gates** (Phase 206) — deterministic golden NDJSON-driven A/B replay against the 2026-04-22 out-of-band finding; predeploy gate script with JSON-sourced thresholds (RRUL p99 >5%, restart-rate, transition-rate); fail-closed on malformed inputs (partial counters, zero-duration soak, hidden override, non-finite window).
+- **Soak / harness hardening** (Phase 207, v1.43 closeout-routed) — SAFE-07 source-diff verifier fails closed on dirty/staged/untracked `src/wanctl/` surfaces; `soak-capture.sh` tolerates bounded curl/HTTP/jq blips with sidecar TSV diagnostics; `secondary_gate_legacy` block retired; CALIB-02 YAML promotion routed to NO.
+- **Carry-on operator tooling** (Phase 208) — completed-window watchdog fail-closed on misconfigured gate columns/statistics; `wanctl-history --ingestion-rate` with `--wan` filtering; `wanctl-operator-summary --digest` tolerates per-WAN open/write failures without masking schema corruption.
+- **Spectrum config migration + production canary** (Phase 209) — Spectrum committed config is now `920Mbit besteffort wash`; wash readback validation is controller-internal and hard-fail in both CAKE backends; `docs/BRIDGE_QOS.md` documents the operator topology decision; 24h soak `20260521T222622Z` passed with rollback gates green; SAFE-08 (ATT byte-identical) + SAFE-09 (no controller threshold/algorithm changes) passed mechanically against `6508d68`.
 
-**Key context:**
-- v1.44 thesis B selected from joint Claude + Codex peer review 2026-05-09 over alternatives A (storage hygiene), C (UL tuning), D (Silicom buildout). Codex caught SEED-003 premature-closure attempt during scoping — kept v1.43 close honest.
-- SEED-001 spine: dormant → active at v1.44 open; topology-correct, not just a tuning win. v1.21's `diffserv4 + nowash` lock was correct for the THEN shaper layout; topology has shifted.
-- Phase numbering continues from v1.43 (last phase 204) → v1.44 starts at Phase 205.
-- ATT remains `diffserv4 nowash` throughout. Different carrier, different DSCP behavior, separate validation lane.
-- Out-of-scope (deferred to v1.45+): SEED-005 conservative UL tuning sweep (avoid 3 consecutive UL-only milestones), T6/T7 storage hygiene, T17(b) CALIB-02 YAML evaluation knob shape, T14/T15 Silicom buildout, T1 tcp_12down investigation, T13 ATT cake-primary canary.
-- SAFE-07 closeout invariant held v1.43 end-to-end (zero control-path source diff from `b72b463`). v1.44 inherits the discipline: no controller threshold/algorithm/EWMA/dwell/deadband/burst changes.
+**Closeout invariant held:** Zero controller-path source diff from `6508d68` (v1.43 close) through v1.44 close. The five-file SAFE-09 allowlist (`linux_cake.py`, `netlink_cake.py`, `cake_params.py`, `cake_signal.py`, `check_config_validators.py`) was operator-approved before any source mutation. ATT remained `diffserv4 nowash` throughout.
+
+**Key decisions:**
+- 2026-05-09: v1.44 thesis B selected from joint Claude + Codex peer review over alternatives A (storage hygiene), C (UL tuning), D (Silicom buildout). Codex caught SEED-003 premature-closure attempt during scoping.
+- 2026-05-14: Phase numbering continues from v1.43 (last phase 204) → v1.44 starts at Phase 205. 16/16 v1.44 REQ-IDs mapped (TOPO 1-7, HRDN 1-4, TOOL 1-3, SAFE 8-9). Spine: SEED-001.
+- 2026-05-19: Plan 209-02 closed Phase 206 TOPO-05 nan/inf gap cross-phase via `math.isfinite()` guard (commit `d70112f`). Ratified by v1.44 audit 2026-05-23 and restamped 2026-05-26.
+- 2026-05-22: Plan 209-04 PASS after approved SAFE-09 allowlist amendment for `src/wanctl/history.py` (Phase 208 TOOL-02 operator tooling, not controller-path).
+
+**Routed to v1.45+:** SEED-005 conservative UL tuning sweep (prereqs satisfied; deferred to avoid 3 consecutive UL-only milestones); T6/T7 storage hygiene (autorate flat-gauge fire-on-change + CAKE tin skip-on-unchanged consumer audit); T17(b) CALIB-02 YAML knob shape evaluation; phase-196 queue-primary refractory semantics thread; 12 legacy quick_tasks + 12 pending todos awaiting `/gsd-review-backlog`.
+
+</details>
 
 ## Current State
 
-**Version:** v1.44.0 (Topology-Correct CAKE — Spectrum besteffort wash migration) — deployed on Spectrum after Phase 209 production canary.
+**Version:** v1.44.0 (Topology-Correct CAKE — Spectrum besteffort wash migration) — shipped 2026-05-26, deployed on Spectrum since Phase 209 production canary.
 **Tests:** Full suite passing; v1.44 verification soak `20260521T222622Z` completed 24h with Phase 206 rollback gates PASS (restart rate `0.00/h`, transition rate `49.83/h` vs baseline `77.17/h`).
 **LOC:** ~40,915 Python (src/)
-**Milestones:** 44 shipped (v1.0-v1.43), all archived in `.planning/milestones/`.
-**Active milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (Phases 205-209 complete; ready for milestone security/audit/closeout).
+**Milestones:** 45 shipped (v1.0-v1.44), all archived in `.planning/milestones/`.
+**Active milestone:** none — ready for `/gsd-new-milestone v1.45`.
 
 **Latest:** v1.44 Phase 209 Spectrum migration + production canary — Spectrum committed config is now `920Mbit besteffort wash`, wash readback validation is controller-internal and hard-fail in both CAKE backends, `docs/BRIDGE_QOS.md` documents the operator topology decision, and SAFE-08/SAFE-09 passed mechanically after the 24h production soak.
 **Previous:** v1.44 Phase 208 Carry-on quick tasks — completed TOOL-01/T17(a) watchdog fail-closed hardening, TOOL-02/T9 `wanctl-history --ingestion-rate` with legacy/ad-hoc `--db` + `--wan` gap closure, and TOOL-03/T12 digest permission/write tolerance. Phase 208 verification passed 8/8 after gap closure, code review was clean, security threats are closed, and SAFE-09 remains bounded to operator tooling rather than controller thresholds/algorithms.
@@ -92,8 +103,9 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 </details>
 
-## Recently Archived: v1.39, v1.41, v1.42, v1.43
+## Recently Archived: v1.39, v1.41, v1.42, v1.43, v1.44
 
+- **v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration** (shipped 2026-05-26, audit `passed` 16/16 after 206 restamp) — `.planning/milestones/v1.44-ROADMAP.md`
 - **v1.43 UL Suppression Metrics & Gate Calibration** (shipped 2026-05-13, audit `passed` 15/15) — `.planning/milestones/v1.43-ROADMAP.md`
 - **v1.42 DOCSIS-Aware UL Congestion Control** (shipped 2026-05-06, gaps_found Route B) — `.planning/milestones/v1.42-ROADMAP.md`
 - **v1.41 Per-Direction Control Surfaces** (closed 2026-05-04, gaps_found, VALN-06 deferred-then-closed via v1.42) — `.planning/milestones/v1.41-ROADMAP.md`
@@ -765,4 +777,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-05-16 — v1.44 Phase 208 complete. TOOL-01/T17(a), TOOL-02/T9, and TOOL-03/T12 carry-on tasks are verified, including the post-verification gap closure for explicit legacy/ad-hoc `wanctl-history --ingestion-rate --db <metrics.db> --wan <name>` semantics. SAFE-09 remains bounded to operator tooling; next active phase is 209 Spectrum config migration + canary + docs._
+_Last updated: 2026-05-26 — v1.44 Topology-Correct CAKE milestone shipped and archived. Spectrum is on `920Mbit besteffort wash` in production; ATT byte-identical; SAFE-08/SAFE-09 mechanical close passed against `6508d68`; audit `passed` 16/16 after the 2026-05-26 Phase 206 verification restamp. SEED-001 (v1.44 spine) marked `fulfilled`. Ready for `/gsd-new-milestone v1.45`._

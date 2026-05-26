@@ -1,5 +1,40 @@
 # Project Milestones: wanctl
 
+## v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (Shipped: 2026-05-26)
+
+**Phases completed:** 5 phases, 27 plans, 68 tasks
+
+**Key accomplishments:**
+
+- Operator-approved 5-file SAFE-09 TOPO-02 scope with ROADMAP, validation, and review artifacts aligned before any source mutation.
+- Tin-agnostic CAKE signal and allow_wash behavior gates are now authored before production source changes.
+- CAKE signal aggregation now handles single-tin besteffort without changing diffserv4 active/total aggregation behavior.
+- `allow_wash` now gates `wash` emission end-to-end while preserving default D-08 protection and deferring readback validation to Phase 209.
+- Deterministic Phase 206 A/B replay harness with scrubbed golden NDJSON, per-sample CAKE snapshot consumption, schema-v1 JSON output, and optional real flent RRUL parsing.
+- TOPO-05 rollback gate with JSON-sourced thresholds, wrapper-owned restart-counter SSH sampling, fail-closed post-soak mode, and full shell-integration coverage.
+- Operator-facing rollback gates with JSON-sourced thresholds plus audit-grade provenance for the 2026-04-29 golden fixture substitution.
+- Phase 206 is closed with four-surface SAFE-09 source-boundary proof, threshold doc/JSON drift evidence, full-suite test evidence, and a live SHA256 fixture pin.
+- Phase 206 rollback gate now aborts on malformed soak evidence and inconsistent restart counters instead of silently passing full-enforcement post-soak mode.
+- Predeploy gate shell parser now turns missing or option-like values for all value-consuming flags into structured rc=2 ABORTs before threshold logic runs.
+- Phase 206 predeploy gate now aborts on RRUL metric-source mismatches before numeric comparison, preventing misleading ms-vs-Mbps BLOCK output.
+- Phase 206 verification is now `status: verified` after rerunning the four fail-closed gap checks, SAFE-09 boundary checks, full suite, hot-path slice, and Phase 206 focused tests.
+- Phase 206 rollback gate now fails closed for malformed restart counters, invalid post-soak timing, and hidden local override state while preserving SAFE-09 control-path boundaries.
+- SAFE-07 source-diff verifier now rejects unstaged, staged, and untracked `src/wanctl/` edits before evaluating committed diffs.
+- Soak capture now survives bounded curl/HTTP/jq row failures with sidecar TSV diagnostics while preserving the NDJSON consumer schema.
+- The v1.43 `secondary_gate_legacy` transition block is removed end-to-end; v1.44 soak summaries now emit only the completed-window watchdog secondary signal.
+- CALIB-02 threshold YAML promotion routed to NO in the v1.44 CHANGELOG, preserving the fail-closed JSON threshold artifact and deferring schema design to T17(b)/SEED-005.
+- P207_BASE-anchored SAFE-09 closeout report proving zero `src/wanctl/` phase diff across committed, staged, unstaged, and untracked surfaces at gate-time and report-write-time.
+- Completed-window watchdog aggregation now fails closed on misconfigured gate columns/statistics while preserving the v1.44 10-key schema contract.
+- Per-WAN `wanctl-history --ingestion-rate` reporting with count_metrics-backed rows/sec, --wan-aware iteration filtering, and stable window/totals JSON.
+- `wanctl-operator-summary --digest` now tolerates per-WAN DB open failures and stdout-write failures without masking schema/query corruption.
+- `wanctl-history --ingestion-rate --db metrics.db --wan spectrum` now retains the explicit DB path and reports SQL-filtered Spectrum row counts without changing per-WAN DB filtering.
+- Controller-internal CAKE wash readback validation with symmetric ATT/Spectrum assertions and pyroute2-correct diffserv enums.
+- Single-entry SAFE verifier now covers ATT config byte-identity and v1.44 source allowlist contracts, with Phase 206 restart-window non-finite inputs closed fail-closed.
+- Standalone bridge QoS operator guide for per-WAN `allow_wash`, with focused configuration guidance and compact v1.44 Phase 209 release notes.
+- Spectrum now runs the v1.44.0 `920Mbit besteffort wash` migration with 24h production soak evidence, Phase 206 rollback gates clear, and SAFE-08/SAFE-09 mechanical closeout passing against `6508d68`.
+
+---
+
 ## v1.43 UL Suppression Metrics & Gate Calibration (Shipped: 2026-05-13)
 
 **Phases completed:** 3 phases (202, 203, 204), 17/17 plans (4 + 3 + 10; Plan 204-05 superseded by gap-closure 204-09 Branch A)

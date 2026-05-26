@@ -1,8 +1,14 @@
 ---
 id: SEED-001
-status: dormant
+status: fulfilled
 planted: 2026-04-24
 planted_during: v1.40 Queue-Primary Signal Arbitration (Phase 195 planning)
+fulfilled: 2026-05-19
+fulfilled_by: v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (Phases 205-209)
+fulfilled_evidence: |
+  Phase 205 delivered tin-agnostic CAKE signal + allow_wash gate; Phase 209 Plan 04
+  shipped Spectrum 920Mbit besteffort wash to production with 24h soak passing v1.43
+  baseline. ATT byte-identical (SAFE-08); zero controller-source drift (SAFE-09).
 v1_44_spine_candidate: true
 v1_44_spine_flagged: 2026-05-09
 v1_44_spine_flagged_during: v1.43 Phase 204 soak idle; thesis draft at .planning/v1.44-THESIS-DRAFT.md; activate this seed (status → active) at /gsd-new-milestone v1.44
