@@ -60,7 +60,7 @@ completed: 2026-05-26
 
 1. **Task 1: Replace scalar peak attrs with peak-window deques and rewire flapping detector** - `f652992` (fix)
 
-**Plan metadata:** pending final metadata commit
+**Plan metadata:** `f569bc7` (docs)
 
 ## Files Created/Modified
 
@@ -117,6 +117,7 @@ Plan 210-02 can update and extend tests against the new two-deque semantics, inc
 
 - FOUND: `.planning/phases/210-windowed-peak-accumulator-implementation/210-01-SUMMARY.md`
 - FOUND: task commit `f652992`
+- FOUND: metadata commit `f569bc7`
 
 ---
 *Phase: 210-windowed-peak-accumulator-implementation*
