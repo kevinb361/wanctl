@@ -1,0 +1,30 @@
+STATUS_CHECK_UTC=2026-05-20T15:45:16Z
+
+[unit status]
+× phase209-soak-20260520T154501Z.service - [systemd-run] /usr/bin/bash /opt/wanctl/scripts/soak-capture.sh /var/tmp/wanctl-soak-20260520T154501Z/soak-capture.ndjson 86400
+     Loaded: loaded (/run/user/1000/systemd/transient/phase209-soak-20260520T154501Z.service; transient)
+  Transient: yes
+     Active: failed (Result: exit-code) since Wed 2026-05-20 10:45:02 CDT; 14s ago
+   Duration: 32ms
+ Invocation: 14beec35b08a4b6fafc469058f421893
+    Process: 3327233 ExecStart=/usr/bin/bash /opt/wanctl/scripts/soak-capture.sh /var/tmp/wanctl-soak-20260520T154501Z/soak-capture.ndjson 86400 (code=exited, status=127)
+   Main PID: 3327233 (code=exited, status=127)
+   Mem peak: 1.7M
+        CPU: 10ms
+
+May 20 10:45:02 cake-shaper systemd[3325943]: Started phase209-soak-20260520T154501Z.service - [systemd-run] /usr/bin/bash /opt/wanctl/scripts/soak-capture.sh /var/tmp/wanctl-soak-20260520T154501Z/soak-capture.ndjson 86400.
+May 20 10:45:02 cake-shaper bash[3327233]: /usr/bin/bash: /opt/wanctl/scripts/soak-capture.sh: No such file or directory
+May 20 10:45:02 cake-shaper systemd[3325943]: phase209-soak-20260520T154501Z.service: Main process exited, code=exited, status=127/n/a
+May 20 10:45:02 cake-shaper systemd[3325943]: phase209-soak-20260520T154501Z.service: Failed with result 'exit-code'.
+
+[timer status]
+Unit phase209-soak-20260520T154501Z.timer could not be found.
+
+[capture file]
+total 0
+
+[unit logs]
+May 20 10:45:02 cake-shaper systemd[3325943]: Started phase209-soak-20260520T154501Z.service - [systemd-run] /usr/bin/bash /opt/wanctl/scripts/soak-capture.sh /var/tmp/wanctl-soak-20260520T154501Z/soak-capture.ndjson 86400.
+May 20 10:45:02 cake-shaper bash[3327233]: /usr/bin/bash: /opt/wanctl/scripts/soak-capture.sh: No such file or directory
+May 20 10:45:02 cake-shaper systemd[3325943]: phase209-soak-20260520T154501Z.service: Main process exited, code=exited, status=127/n/a
+May 20 10:45:02 cake-shaper systemd[3325943]: phase209-soak-20260520T154501Z.service: Failed with result 'exit-code'.

@@ -1,0 +1,154 @@
+[0;34m========================================[0m
+[0;34mwanctl Deployment[0m
+[0;34m========================================[0m
+
+WAN Name:    spectrum
+Target:      cake-shaper
+Steering:    No
+
+[0;32m[*][0m Checking prerequisites...
+[0;32m[+][0m Prerequisites OK
+[0;32m[*][0m Deploying wanctl code to cake-shaper...
+[deploy] running Phase 201 predeploy gate
+[predeploy-gate INFO]  PASS: continuous_monitoring.upload is clean (no v1.41 rejected keys; if docsis_mode is enabled, setpoint_mbps is set).
+[deploy] predeploy gate PASS
+sending incremental file list
+deleting scripts/wanctl-operator-summary
+deleting scripts/validate-deployment.sh
+deleting scripts/compact-metrics-dbs.sh
+deleting scripts/analyze_baseline.py
+deleting scripts/
+./
+__init__.py
+cake_params.py
+cake_signal.py
+check_config_validators.py
+history.py
+operator_summary.py
+backends/linux_cake.py
+backends/netlink_cake.py
+
+sent 42,852 bytes  received 1,528 bytes  88,760.00 bytes/sec
+total size is 1,535,669  speedup is 34.60
+[0;32m[+][0m Code deployed (101 Python files)
+[0;32m[*][0m Deploying configuration for spectrum...
+[0;32m[+][0m Config deployed: /etc/wanctl/spectrum.yaml
+[0;32m[*][0m Deploying profiling scripts...
+  -> scripts/profiling_collector.py
+  -> scripts/analyze_profiling.py
+[0;32m[+][0m Profiling scripts deployed
+[0;32m[*][0m Deploying analysis scripts...
+  -> wanctl/scripts/analyze_baseline.py
+[0;32m[+][0m Analysis scripts deployed
+[0;32m[*][0m Deploying documentation...
+[1;33m[!][0m File not found: docs/PROFILING.md
+[0;32m[+][0m Documentation deployed
+[0;32m[*][0m Deploying NIC tuning script...
+[0;32m[+][0m NIC tuning script deployed to /usr/local/bin/wanctl-nic-tuning.sh
+[0;32m[*][0m Deploying sysctl tuning...
+[0;32m[+][0m Sysctl tuning deployed to /etc/sysctl.d/99-wanctl-network.conf
+[0;32m[*][0m Deploying bridge QoS rules and loader...
+[0;32m[+][0m Bridge QoS nftables rules deployed to /etc/wanctl/bridge-qos.nft
+[0;32m[+][0m Bridge QoS loader script deployed to /usr/local/bin/wanctl-bridge-qos.sh
+[0;32m[*][0m Deploying systemd units...
+  -> wanctl@.service
+  -> wanctl-nic-tuning.service
+  -> wanctl-bridge-qos.service
+[0;32m[+][0m Systemd units deployed
+[0;32m[*][0m Verifying deployment...
+[0;32m[+][0m Application tree matches: 101 Python files
+[0;32m[+][0m Core script present
+[0;32m[+][0m Config present: spectrum.yaml
+[0;32m[+][0m Secrets file: all expected variables present
+[0;32m[+][0m Systemd template present
+[0;32m[+][0m Verification passed
+[0;32m[*][0m Deploying validation script...
+[0;32m[+][0m Validation script deployed
+[0;32m[*][0m Deploying wanctl-history CLI...
+[1;33m[!][0m wanctl-history not found: scripts/wanctl-history
+[0;32m[*][0m Deploying wanctl-operator-summary CLI...
+[0;32m[+][0m wanctl-operator-summary CLI deployed (available as 'wanctl-operator-summary' command)
+[0;32m[*][0m Deploying compact-metrics-dbs helper...
+[0;32m[+][0m compact-metrics-dbs helper deployed (available as 'compact-metrics-dbs' command)
+[0;32m[*][0m Running pre-startup validation...
+
+=========================================
+ wanctl Deployment Validation
+=========================================
+
+[0;34m[INFO][0m Validating config: /etc/wanctl/spectrum.yaml
+[0;32m[PASS][0m Config valid: /etc/wanctl/spectrum.yaml
+
+[0;34m[INFO][0m Testing router connection: 10.10.99.1 (linux-cake-netlink)
+[1;33m[WARN][0m Unknown transport: linux-cake-netlink (skipping router test)
+
+[0;34m[INFO][0m Checking state path: /var/lib/wanctl/spectrum_state.json
+[0;32m[PASS][0m State file exists and valid: /var/lib/wanctl/spectrum_state.json
+
+=========================================
+ Validation Summary
+=========================================
+
+[0;32mERRORS: 0[0m
+[1;33mWARNINGS: 1[0m (review recommended)
+
+All critical checks passed. Review warnings if daemon fails to start.
+[1;33m[!][0m Pre-startup validation found issues - review before starting daemon
+[0;34m========================================[0m
+[0;34mNext Steps[0m
+[0;34m========================================[0m
+[0;34m1. Configure your WAN:[0m
+   Edit /etc/wanctl/spectrum.yaml on cake-shaper
+   - Set router host, user
+   - Set queue names to match your RouterOS config
+   - Adjust bandwidth floors and ceilings
+
+[0;34m2. Set up router credentials:[0m
+
+   Option A - REST API (recommended for faster response):
+     ssh cake-shaper 'sudo nano /etc/wanctl/secrets'
+     Add: ROUTER_PASSWORD=your_router_password
+     Set transport: "rest" in your config file
+
+   Option B - SSH key authentication:
+     Copy your router SSH key to /etc/wanctl/ssh/router.key
+     sudo chown wanctl:wanctl /etc/wanctl/ssh/router.key
+     sudo chmod 600 /etc/wanctl/ssh/router.key
+     Set transport: "ssh" in your config file
+
+[0;34m3. Migrate storage if this host has not already moved to the per-WAN DB layout:[0m
+   Check for the archive marker first:
+   ssh cake-shaper 'sudo test -f /var/lib/wanctl/metrics.db.pre-v135-archive && echo migrated || echo needs-migration'
+
+   If the archive marker is missing, run from your workstation before restart/canary:
+   ./scripts/migrate-storage.sh --ssh cake-shaper
+
+[0;34m4. Restart the service:[0m
+   ssh cake-shaper 'sudo systemctl enable --now wanctl@spectrum.service'
+
+[0;34m5. Run post-restart canary:[0m
+   ./scripts/canary-check.sh --ssh cake-shaper
+
+   The canary validates health, storage, and latency signals after restart.
+   Exit 0 = PASS, 1 = FAIL, 2 = WARN
+   For threshold details or escalation steps, see: docs/RUNBOOK.md
+[0;34m6. Monitor:[0m
+   ssh cake-shaper 'sudo journalctl -u wanctl@spectrum.service -f'
+   ssh cake-shaper 'sudo tail -f /var/log/wanctl/spectrum.log'
+   ssh cake-shaper 'sudo systemctl status wanctl@spectrum.service'
+
+[0;34m7. Capture operator summary and soak evidence:[0m
+   ssh cake-shaper 'wanctl-operator-summary http://<health-ip-1>:9101/health http://<health-ip-2>:9101/health'
+   ./scripts/soak-monitor.sh
+
+[0;34m9. Collect profiling data (Phase 1):[0m
+   After deployment, let the daemon run for 7-14 days
+   Then extract profiling statistics:
+   ssh cake-shaper 'python3 /opt/scripts/profiling_collector.py /var/log/wanctl/spectrum.log --all'
+
+   Generate analysis report:
+   ssh cake-shaper 'python3 /opt/scripts/analyze_profiling.py --log-file /var/log/wanctl/spectrum.log'
+
+   See /opt/docs/PROFILING.md for detailed procedure
+
+[0;32m[+][0m Deployment complete!

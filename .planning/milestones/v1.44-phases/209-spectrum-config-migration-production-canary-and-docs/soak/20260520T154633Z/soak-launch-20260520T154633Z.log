@@ -1,0 +1,58 @@
+ISO_SOAK=20260520T154633Z
+LOCAL_SOAK_DIR=.planning/phases/209-spectrum-config-migration-production-canary-and-docs/soak/20260520T154633Z
+REMOTE_SOAK_DIR=/var/tmp/wanctl-soak-20260520T154633Z
+REMOTE_SCRIPT=/var/tmp/wanctl-soak-20260520T154633Z/soak-capture.sh
+HEALTH_URL=http://10.10.110.223:9101/health
+LAUNCH_TIME_UTC=2026-05-20T15:46:33Z
+
+[local git]
+e12202efcb3b85b0dac8d098546da5205838bf04
+ M CHANGELOG.md
+ M configs/spectrum.yaml
+
+[preflight health/version/service]
+healthy 1.44.0
+active
+
+[preflight wash RuntimeError since deploy snapshot B]
+
+[restart counter start]
+RC_START=0
+
+[create remote dir + copy harness]
+58b73efe6178eb4acec695561b7cb357e17ab092229f9fc5e29ba83d73e5ae88  /var/tmp/wanctl-soak-20260520T154633Z/soak-capture.sh
+
+[launch systemd-run with setenv]
+Running timer as unit: phase209-soak-20260520T154633Z.timer
+Will run service as unit: phase209-soak-20260520T154633Z.service
+LAUNCH_RC=0
+
+[post-launch warmup status]
+active
+● phase209-soak-20260520T154633Z.service - [systemd-run] /usr/bin/bash /var/tmp/wanctl-soak-20260520T154633Z/soak-capture.sh 20260520T154633Z
+     Loaded: loaded (/run/user/1000/systemd/transient/phase209-soak-20260520T154633Z.service; transient)
+  Transient: yes
+     Active: active (running) since Wed 2026-05-20 10:46:34 CDT; 12s ago
+ Invocation: 4628327adc4e40cc9d42c6c7e7446b47
+TriggeredBy: ● phase209-soak-20260520T154633Z.timer
+   Main PID: 3327905 (bash)
+      Tasks: 2 (limit: 2222)
+     Memory: 716K (peak: 3.8M)
+        CPU: 461ms
+     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/phase209-soak-20260520T154633Z.service
+             ├─3327905 /usr/bin/bash /var/tmp/wanctl-soak-20260520T154633Z/soak-capture.sh 20260520T154633Z
+             └─3328140 sleep 1
+
+May 20 10:46:34 cake-shaper systemd[3325943]: Started phase209-soak-20260520T154633Z.service - [systemd-run] /usr/bin/bash /var/tmp/wanctl-soak-20260520T154633Z/soak-capture.sh 20260520T154633Z.
+total 24
+-rw-rw-r-- 1 kevin kevin   48 May 20 10:46 soak-capture-errors.tsv
+-rw-rw-r-- 1 kevin kevin 9718 May 20 10:46 soak-capture.ndjson
+-rwxr-xr-x 1 kevin kevin 7910 May 20 10:46 soak-capture.sh
+12 /var/tmp/wanctl-soak-20260520T154633Z/soak-capture.ndjson
+{"t_wall":"2026-05-20T15:46:34+00:00","t_monotonic":0.01,"version":"1.44.0","status":"healthy","floor_hit_cycles_total":0,"suppressions_per_min":9,"max_delay_delta_us":8,"red_streak":0,"zone_trace_tail":["GREEN","GREEN","GREEN","GREEN","GREEN"],"headroom_state":"AVAILABLE","headroom_exhausted_streak":0,"anti_windup_triggers":0,"rtt_integral_ms_s":19.163,"docsis_mode_active":true,"red_decay_step_pct":0.02,"red_decay_delta_max_pct":0.1,"load_rtt_ms":24.14,"baseline_rtt_ms":22.26,"load_rtt_delta_us":1879,"last_zone":"GREEN","ul_hysteresis_window_start_epoch":1779291968.5637906,"ul_suppressions_completed_window_count":46,"ul_suppressions_completed_window_by_cause":{"dwell_hold":6,"backlog_recovery":40,"other":0},"ul_suppressions_lifetime_by_cause":{"dwell_hold":1523,"backlog_recovery":1643,"other":0}}
+
+[expected resume]
+SOAK_START_UTC=2026-05-20T15:46:33Z
+SOAK_EXPECTED_END_UTC=2026-05-21T15:46:33Z
+RESUME_AFTER_UTC=2026-05-21T15:51:33Z
+RC_START=0

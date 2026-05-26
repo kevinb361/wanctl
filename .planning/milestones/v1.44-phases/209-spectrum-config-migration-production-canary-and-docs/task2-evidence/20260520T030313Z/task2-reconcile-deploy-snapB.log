@@ -1,0 +1,39 @@
+[2026-05-20T12:35:16Z] Step C: reconcile configs/spectrum.yaml to cake-shaper
+[2026-05-20T12:35:48Z] Resume Step C verification using sudo grep after permission-denied command wrapper issue
+1
+1
+1
+[2026-05-20T12:35:49Z] Step D: deploy 1.44.0 code/config using scripts/deploy.sh
+[2026-05-20T12:35:51Z] Restart wanctl@spectrum.service
+[2026-05-20T12:35:52Z] Wait for health.version 1.44.0
+curl: (7) Failed to connect to 10.10.110.223 port 9101 after 0 ms: Could not connect to server
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json,sys; print(json.load(sys.stdin).get("version", ""))
+                           ~~~~~~~~~^^^^^^^^^^^
+  File "/usr/lib/python3.13/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/lib/python3.13/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/lib/python3.13/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+active
+[2026-05-20T12:35:55Z] Check journal for wash-readback RuntimeError
+[2026-05-20T12:35:55Z] No wash RuntimeError found
+[2026-05-20T12:35:55Z] Step E: capture Snapshot B
+ISO_B=20260520T123555Z
+/opt/wanctl-prephase209-20260520T123555Z-snapB.tar.gz
+/etc/wanctl/spectrum.yaml.prephase209-20260520T123555Z-snapB
+1
+1
+1
+1.44.0
+[2026-05-20T12:35:55Z] Task 2 deploy and Snapshot B completed
