@@ -27,7 +27,7 @@
 
 **Phase Numbering:** Continues from v1.44 last phase (209). v1.45 starts at Phase 210.
 
-- [ ] **Phase 210: Windowed Peak Accumulator Implementation** — Add per-direction windowed peak accumulator at `wan_controller.py:4275-4360`, update `TestFlappingDequeClear`, add new tests asserting `peak > flap_threshold` during sustained oscillation; preserve SAFE-10 control-path boundary
+- [x] **Phase 210: Windowed Peak Accumulator Implementation** — Add per-direction windowed peak accumulator at `wan_controller.py:4275-4360`, update `TestFlappingDequeClear`, add new tests asserting `peak > flap_threshold` during sustained oscillation; preserve SAFE-10 control-path boundary (completed 2026-05-26)
 - [ ] **Phase 211: Production Verification & Milestone Closure** — Deploy Phase 210 build; confirm at least one real production flapping event reports `peak_transition_count > flap_threshold`; re-verify SAFE-10 at milestone close
 
 ### Phase Details
@@ -45,7 +45,7 @@
 **Plans**: 3 plans
 - [x] 210-01-PLAN.md — Implement windowed peak accumulator in wan_controller.py (ALERT-01, ALERT-02)
 - [x] 210-02-PLAN.md — Update TestFlappingDequeClear and add TestFlappingPeakWindow (TEST-01, TEST-02, TEST-03)
-- [ ] 210-03-PLAN.md — SAFE-10 closeout audit (SAFE-10)
+- [x] 210-03-PLAN.md — SAFE-10 closeout audit (SAFE-10)
 
 #### Phase 211: Production Verification & Milestone Closure
 **Goal**: Deploy the Phase 210 fix to production, observe at least one real flapping event in the alerts table where `peak_transition_count > flap_threshold`, and close v1.45 with operator-verified evidence that the metric now carries the intensity signal it was designed to carry.
@@ -64,7 +64,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 210. Windowed Peak Accumulator Implementation | 2/3 | In Progress|  |
+| 210. Windowed Peak Accumulator Implementation | 3/3 | Complete   | 2026-05-26 |
 | 211. Production Verification & Milestone Closure | 0/TBD | Not started | - |
 
 ### Coverage
