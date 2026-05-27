@@ -1,0 +1,190 @@
+# Phase 212 redacted deployed config evidence
+# captured_at: 2026-05-27T18:47:46Z
+# source_host: cake-shaper
+# source_path: /etc/wanctl/spectrum.yaml
+# command: sudo -n cat /etc/wanctl/spectrum.yaml
+# redaction: D-08 secret-like keys omitted before artifact write
+# omitted_keys_policy: lowercase key contains password|secret|token|credential|auth|key|private
+# mutation_posture: read-only file read; no config write
+alerting:
+  enabled: true
+  rules:
+    congestion_flapping:
+      cooldown_sec: 600
+      severity: warning
+  webhook_url: ${DISCORD_WEBHOOK_URL}
+cake_params:
+  ack_filter: false
+  allow_wash: true
+  diffserv: besteffort
+  download_interface: spec-router
+  ingress: false
+  memlimit: 64mb
+  mpu: 64
+  overhead: docsis
+  rtt: 100ms
+  upload_interface: spec-modem
+cake_signal:
+  backlog:
+    enabled: true
+    threshold_bytes: 5000
+  detection:
+    refractory_cycles: 40
+  drop_rate:
+    enabled: true
+    threshold_drops_per_sec: 5.0
+    time_constant_sec: 1.0
+  enabled: true
+  metrics:
+    enabled: true
+  peak_delay:
+    enabled: false
+  recovery:
+    probe_ceiling_pct: 0.95
+    probe_multiplier: 1.0
+continuous_monitoring:
+  baseline_rtt_initial: 22
+  cake_stats_cadence_sec: 1.0
+  download:
+    ceiling_mbps: 920
+    factor_down: 0.85
+    factor_down_yellow: 0.92
+    floor_green_mbps: 550
+    floor_red_mbps: 200
+    floor_soft_red_mbps: 275
+    floor_yellow_mbps: 350
+    green_required: 5
+    step_up_mbps: 10
+  enabled: true
+  fallback_checks:
+    check_gateway: true
+    check_tcp: true
+    enabled: true
+    fallback_mode: graceful_degradation
+    gateway_ip: 10.10.110.1
+    max_fallback_cycles: 3
+    tcp_targets:
+    - - 1.1.1.1
+      - 443
+    - - 208.67.222.222
+      - 443
+  ping_hosts:
+  - 1.1.1.1
+  - 9.9.9.9
+  - 208.67.222.222
+  thresholds:
+    accel_threshold_ms: 12
+    baseline_time_constant_sec: 50
+    deadband_ms: 3.0
+    dwell_cycles: 5
+    hard_red_bloat_ms: 100
+    load_time_constant_sec: 0.1
+    suppression_alert_threshold: 180
+    target_bloat_ms: 15
+    warn_bloat_ms: 75
+  upload:
+    anti_windup_cycles: 60
+    cake_backlog_low_threshold_bytes: 5000
+    cake_delay_delta_low_threshold_us: 5000
+    ceiling_mbps: 18
+    consecutive_yellow_decay_clamp: 40
+    docsis_mode: true
+    factor_down: 0.9
+    factor_down_yellow: 1.0
+    floor_mbps: 8
+    green_required: 3
+    integral_threshold_ms_s: 30.0
+    integral_window_seconds: 2.0
+    red_decay_delta_max_pct: 0.1
+    red_decay_step_pct: 0.02
+    setpoint_mbps: 12
+    step_up_mbps: 5
+  use_median_of_three: true
+fusion:
+  enabled: true
+  icmp_weight: 0.7
+health_check:
+  host: 10.10.110.223
+  port: 9101
+irtt:
+  cadence_sec: 10
+  duration_ms: 1000
+  enabled: false
+  packet_size: 48
+  port: 2112
+  server: 104.200.21.31
+lock_file: /run/wanctl/spectrum.lock
+lock_timeout: 300
+logging:
+  debug_log: /var/log/wanctl/spectrum_debug.log
+  main_log: /var/log/wanctl/spectrum.log
+metrics:
+  enabled: true
+  host: 10.10.110.223
+  port: 9100
+queues:
+  download: WAN-Download-Spectrum
+  upload: WAN-Upload-Spectrum
+reflector_quality:
+  min_score: 0.8
+  probe_interval_sec: 30
+  recovery_count: 3
+router:
+  host: 10.10.99.1
+  port: 443
+  transport: linux-cake-netlink
+  user: admin
+  verify_ssl: false
+signal_processing:
+  hampel:
+    sigma_threshold: 2.8
+    window_size: 12
+state_file: /var/lib/wanctl/spectrum_state.json
+storage:
+  db_path: /var/lib/wanctl/metrics-spectrum.db
+  maintenance_interval_seconds: 900
+  retention:
+    aggregate_1m_age_seconds: 86400
+    aggregate_5m_age_seconds: 604800
+    raw_age_seconds: 3600
+timeouts:
+  ping: 0.5
+  ssh_command: 15
+tuning:
+  bounds:
+    baseline_rtt_max:
+      max: 100.0
+      min: 25.0
+    baseline_rtt_min:
+      max: 30.0
+      min: 5.0
+    fusion_icmp_weight:
+      max: 0.95
+      min: 0.5
+    hampel_sigma_threshold:
+      max: 5.0
+      min: 1.5
+    hampel_window_size:
+      max: 15
+      min: 5
+    load_time_constant_sec:
+      max: 10.0
+      min: 0.5
+    reflector_min_score:
+      max: 0.95
+      min: 0.5
+    target_bloat_ms:
+      max: 30.0
+      min: 5.0
+    warn_bloat_ms:
+      max: 80.0
+      min: 15.0
+  cadence_sec: 3600
+  enabled: true
+  exclude_params:
+  - target_bloat_ms
+  - warn_bloat_ms
+  lookback_hours: 24
+  max_step_pct: 10.0
+  warmup_hours: 1
+wan_name: spectrum

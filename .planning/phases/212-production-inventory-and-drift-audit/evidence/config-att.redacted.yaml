@@ -1,0 +1,168 @@
+# Phase 212 redacted deployed config evidence
+# captured_at: 2026-05-27T18:47:46Z
+# source_host: cake-shaper
+# source_path: /etc/wanctl/att.yaml
+# command: sudo -n cat /etc/wanctl/att.yaml
+# redaction: D-08 secret-like keys omitted before artifact write
+# omitted_keys_policy: lowercase key contains password|secret|token|credential|auth|key|private
+# mutation_posture: read-only file read; no config write
+alerting:
+  enabled: true
+  webhook_url: ${DISCORD_WEBHOOK_URL}
+cake_params:
+  download_interface: ens28
+  memlimit: 32mb
+  mpu: 64
+  overhead: bridged-ptm
+  rtt: 35ms
+  upload_interface: ens27
+cake_signal:
+  backlog:
+    enabled: true
+    threshold_bytes: 10000
+  detection:
+    refractory_cycles: 40
+  drop_rate:
+    enabled: true
+    threshold_drops_per_sec: 5.0
+    time_constant_sec: 1.0
+  enabled: true
+  metrics:
+    enabled: true
+  peak_delay:
+    enabled: false
+  recovery:
+    probe_ceiling_pct: 0.95
+    probe_multiplier: 1.0
+continuous_monitoring:
+  baseline_rtt_initial: 28.3
+  download:
+    ceiling_mbps: 95
+    factor_down: 0.9
+    floor_green_mbps: 55
+    floor_red_mbps: 20
+    floor_soft_red_mbps: 28
+    floor_yellow_mbps: 35
+    green_required: 8
+    step_up_mbps: 1
+  enabled: true
+  fallback_checks:
+    check_gateway: true
+    check_tcp: true
+    enabled: true
+    fallback_mode: graceful_degradation
+    gateway_ip: 10.10.110.1
+    max_fallback_cycles: 3
+    tcp_targets:
+    - - 1.1.1.1
+      - 443
+    - - 8.8.8.8
+      - 443
+  ping_hosts:
+  - 1.1.1.1
+  - 8.8.8.8
+  - 151.101.1.57
+  thresholds:
+    baseline_time_constant_sec: 67
+    deadband_ms: 5.0
+    dwell_cycles: 5
+    hard_red_bloat_ms: 80
+    load_time_constant_sec: 0.25
+    suppression_alert_threshold: 60
+    target_bloat_ms: 3.0
+    warn_bloat_ms: 10.0
+  upload:
+    ceiling_mbps: 18
+    factor_down: 0.95
+    floor_mbps: 6
+    step_up_mbps: 1.0
+  use_median_of_three: true
+fusion:
+  enabled: true
+  icmp_weight: 0.7
+health_check:
+  host: 10.10.110.227
+  port: 9101
+irtt:
+  cadence_sec: 10
+  duration_ms: 1000
+  enabled: true
+  packet_size: 48
+  port: 2112
+  server: 104.200.21.31
+lock_file: /run/wanctl/att.lock
+lock_timeout: 300
+logging:
+  debug_log: /var/log/wanctl/att_debug.log
+  main_log: /var/log/wanctl/att.log
+metrics:
+  enabled: true
+  host: 10.10.110.227
+  port: 9100
+ping_source_ip: 10.10.110.227
+queues:
+  download: WAN-Download-ATT
+  upload: WAN-Upload-ATT
+reflector_quality:
+  min_score: 0.8
+  probe_interval_sec: 30
+  recovery_count: 3
+router:
+  host: 10.10.99.1
+  port: 443
+  transport: linux-cake-netlink
+  user: admin
+  verify_ssl: false
+signal_processing:
+  hampel:
+    sigma_threshold: 3.2
+    window_size: 20
+state_file: /var/lib/wanctl/att_state.json
+storage:
+  db_path: /var/lib/wanctl/metrics-att.db
+  maintenance_interval_seconds: 900
+  retention:
+    aggregate_1m_age_seconds: 86400
+    aggregate_5m_age_seconds: 604800
+    raw_age_seconds: 3600
+timeouts:
+  ping: 0.5
+  ssh_command: 15
+tuning:
+  bounds:
+    baseline_rtt_max:
+      max: 120.0
+      min: 30.0
+    baseline_rtt_min:
+      max: 40.0
+      min: 10.0
+    fusion_icmp_weight:
+      max: 0.95
+      min: 0.5
+    hampel_sigma_threshold:
+      max: 5.0
+      min: 1.5
+    hampel_window_size:
+      max: 21
+      min: 5
+    load_time_constant_sec:
+      max: 10.0
+      min: 0.5
+    reflector_min_score:
+      max: 0.95
+      min: 0.5
+    target_bloat_ms:
+      max: 10.0
+      min: 1.0
+    warn_bloat_ms:
+      max: 30.0
+      min: 5.0
+  cadence_sec: 3600
+  enabled: true
+  exclude_params:
+  - target_bloat_ms
+  - warn_bloat_ms
+  lookback_hours: 24
+  max_step_pct: 10.0
+  warmup_hours: 1
+wan_name: att

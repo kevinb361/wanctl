@@ -1,0 +1,71 @@
+# Phase 212 redacted deployed config evidence
+# captured_at: 2026-05-27T18:47:46Z
+# source_host: cake-shaper
+# source_path: /etc/wanctl/steering.yaml
+# command: sudo -n cat /etc/wanctl/steering.yaml
+# redaction: D-08 secret-like keys omitted before artifact write
+# omitted_keys_policy: lowercase key contains password|secret|token|credential|auth|key|private
+# mutation_posture: read-only file read; no config write
+cake_state_sources:
+  primary: /var/lib/wanctl/spectrum_state.json
+capacity_protection:
+  att_download_reserve_mbps: 10
+  att_upload_reserve_mbps: 2
+confidence:
+  dry_run: false
+  flap_detection_enabled: true
+  flap_window_minutes: 5
+  hold_down_duration_sec: 30.0
+  max_toggles: 4
+  penalty_duration_sec: 60.0
+  penalty_threshold_add: 15
+  recovery_sustain_sec: 3.0
+  recovery_threshold: 20
+  steer_threshold: 55
+  sustain_duration_sec: 2.0
+lock_file: /run/wanctl/steering.lock
+lock_timeout: 60
+logging:
+  debug_log: /var/log/wanctl/steering_debug.log
+  main_log: /var/log/wanctl/steering.log
+mangle_rule:
+  comment: 'ADAPTIVE: Steer latency-sensitive to ATT'
+measurement:
+  interval_seconds: 0.5
+  ping_count: 3
+  ping_host: 1.1.1.1
+mode:
+  enable_yellow_state: true
+  reset_counters: false
+  use_confidence_scoring: true
+router:
+  host: 10.10.99.1
+  port: 443
+  transport: rest
+  user: admin
+  verify_ssl: false
+state:
+  file: /var/lib/wanctl/steering_state.json
+  history_size: 240
+storage:
+  db_path: /var/lib/wanctl/metrics.db
+  retention:
+    aggregate_1m_age_seconds: 86400
+    aggregate_5m_age_seconds: 259200
+    raw_age_seconds: 900
+thresholds:
+  bad_threshold_ms: 25.0
+  recovery_threshold_ms: 12.0
+timeouts:
+  ping: 0.15
+topology:
+  alternate_wan: att
+  primary_wan: spectrum
+  primary_wan_config: /etc/wanctl/spectrum.yaml
+wan_name: steering
+wan_state:
+  enabled: true
+  grace_period_sec: 30
+  red_weight: 25
+  staleness_threshold_sec: 5
+  wan_override: false
