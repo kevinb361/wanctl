@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BASE-01 / BASE-02 / BASE-03 (Phase 213):** Added the Phase 213 experience baseline harness, including read-only health polling, browse-loop timing, alert-window extraction, steering snapshots, offline classification, and the baseline runbook for serialized Spectrum/ATT evidence capture.
 
+### Security
+
+- **Phase 213:** Verified the baseline harness threat register with `threats_open: 0`; accepted live-traffic and polling risks are documented in `213-SECURITY.md`.
+
 ### Planning
 
 - **Spectrum plan anchor:** Documented the actual Spectrum plan disclosure (1045 Mbps typical download, 40 Mbps typical upload, 19 ms typical latency) in `configs/spectrum.yaml` comments and `.planning/spectrum-plan-speed-anchor-2026-05-20.md`. Current 12/18 Mbps upload values remain latency-first validated operating points, not provisioned-capacity percentages.
