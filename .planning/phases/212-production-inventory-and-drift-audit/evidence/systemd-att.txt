@@ -1,0 +1,23 @@
+# Phase 212 systemd evidence
+# captured_at: 2026-05-27T18:46:04Z
+# source_host: cake-shaper
+# service: wanctl@att.service
+# command: systemctl show wanctl@att.service --property=Id,ActiveState,SubState,ExecMainStartTimestamp,ExecMainPID,NRestarts,ExecStart,FragmentPath,WatchdogUSec,User,Group,Restart,RestartUSec,LoadState,UnitFileState --no-pager
+# mutation_posture: read-only systemctl show; no service mutation
+# redaction: Environment and EnvironmentFile output intentionally not requested
+
+Restart=on-failure
+RestartUSec=5s
+WatchdogUSec=30s
+NRestarts=0
+ExecMainStartTimestamp=Wed 2026-05-27 12:43:11 CDT
+ExecMainPID=66556
+ExecStart={ path=/usr/bin/python3 ; argv[]=/usr/bin/python3 /opt/wanctl/autorate_continuous.py --config /etc/wanctl/att.yaml ; ignore_errors=no ; start_time=[Wed 2026-05-27 12:43:11 CDT] ; stop_time=[n/a] ; pid=66556 ; code=(null) ; status=0/0 }
+User=wanctl
+Group=wanctl
+Id=wanctl@att.service
+LoadState=loaded
+ActiveState=active
+SubState=running
+FragmentPath=/etc/systemd/system/wanctl@.service
+UnitFileState=enabled
