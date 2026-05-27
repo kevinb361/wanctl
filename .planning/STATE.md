@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.46
 milestone_name: Internet Quality Recovery
-current_phase: 213
-current_plan: 5
-status: ready_to_plan
-stopped_at: Phase 213 complete (5/5) — ready to discuss Phase 214
-last_updated: 2026-05-27T22:53:59.088Z
+current_phase: 214
+current_plan: Not started
+status: planning
+stopped_at: Phase 214 context gathered
+last_updated: "2026-05-27T23:18:37.834Z"
 last_activity: 2026-05-27
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 8
-  completed_plans: 14
-  percent: 14
+  completed_plans: 8
+  percent: 29
 ---
 
 # Session State
@@ -117,8 +117,8 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Stopped at: Completed 213-05-PLAN.md
-Resume file: None
+Stopped at: Phase 214 context gathered
+Resume file: .planning/phases/214-measurement-collapse-investigation/214-CONTEXT.md
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
 ## Operator Next Steps
