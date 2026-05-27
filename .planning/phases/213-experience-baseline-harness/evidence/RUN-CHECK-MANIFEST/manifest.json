@@ -1,0 +1,84 @@
+{
+  "phase": 213,
+  "run_id": "RUN-CHECK-MANIFEST",
+  "started_utc": "2026-05-27T22:09:56+00:00",
+  "ended_utc": "2026-05-27T22:09:56+00:00",
+  "host_dev_vm": "dev",
+  "source_ip": "OFFLINE",
+  "netperf_host": "dallas",
+  "flent_version": "Starting Flent 2.1.1 using Python 3.12.3.",
+  "wanctl_version_dev_repo": "1.45.0",
+  "wanctl_version_spectrum_runtime": "offline-fixture",
+  "wanctl_version_att_runtime": "offline-fixture",
+  "wanctl_version_steering_runtime": "offline-fixture",
+  "git_head_sha": "c08cab5",
+  "tests_ordered": [
+    {
+      "wan": "spectrum",
+      "test": "browse",
+      "test_start_unix": 0,
+      "test_end_unix": 0
+    },
+    {
+      "wan": "spectrum",
+      "test": "tcp_upload",
+      "test_start_unix": 0,
+      "test_end_unix": 0
+    },
+    {
+      "wan": "spectrum",
+      "test": "tcp_download",
+      "test_start_unix": 0,
+      "test_end_unix": 0
+    },
+    {
+      "wan": "spectrum",
+      "test": "rrul",
+      "test_start_unix": 0,
+      "test_end_unix": 0
+    },
+    {
+      "wan": "spectrum",
+      "test": "tcp_12down",
+      "test_start_unix": 0,
+      "test_end_unix": 0
+    },
+    {
+      "wan": "att",
+      "test": "browse",
+      "test_start_unix": 0,
+      "test_end_unix": 0
+    },
+    {
+      "wan": "att",
+      "test": "tcp_upload",
+      "test_start_unix": 0,
+      "test_end_unix": 0
+    },
+    {
+      "wan": "att",
+      "test": "tcp_download",
+      "test_start_unix": 0,
+      "test_end_unix": 0
+    },
+    {
+      "wan": "att",
+      "test": "rrul",
+      "test_start_unix": 0,
+      "test_end_unix": 0
+    },
+    {
+      "wan": "att",
+      "test": "tcp_12down",
+      "test_start_unix": 0,
+      "test_end_unix": 0
+    }
+  ],
+  "redaction_posture": "D-08 key pattern (password|secret|token|credential|auth|key|private) applied to *.redacted.json artifacts",
+  "mutation_posture": "evidence-only: dev-VM traffic generation plus read-only snapshots; no production mutation",
+  "bind_map": {
+    "att": "fixture",
+    "spectrum": "fixture"
+  },
+  "bind_map_egress_observed": {}
+}
