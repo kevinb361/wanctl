@@ -1,0 +1,17 @@
+{
+  "buckets": {
+    "download_recovery_lag": {"evidence_rows": [], "flagged": false, "operator_note": "No download recovery lag evidence found."},
+    "external_isp": {"evidence_rows": [], "flagged": false, "operator_note": "No external ISP evidence found."},
+    "measurement_collapse": {"evidence_rows": [], "flagged": false, "operator_note": "No measurement collapse evidence found."},
+    "refractory_semantics": {"evidence_rows": [], "flagged": false, "operator_note": "No refractory semantics evidence found."},
+    "steering_drift": {"evidence_rows": [], "flagged": false, "operator_note": "No steering drift evidence found."},
+    "upload_ceiling_setpoint": {
+      "evidence_rows": [
+        {"metric": "pct_samples_at_upload_ceiling", "value": 0.85, "threshold": 0.8, "source": "synthetic"}
+      ],
+      "flagged": true,
+      "operator_note": "Upload samples stayed within 0.5 Mbps of configured ceiling for >80% of the window."
+    }
+  },
+  "recommended_next_phase": {"primary": 215, "runners_up": [214, 216]}
+}

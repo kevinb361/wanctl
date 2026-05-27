@@ -1,0 +1,11 @@
+{
+  "buckets": {
+    "download_recovery_lag": {"evidence_rows": [], "flagged": false, "operator_note": "No download recovery lag evidence found."},
+    "external_isp": {"evidence_rows": [], "flagged": false, "operator_note": "No external ISP evidence found."},
+    "measurement_collapse": {"evidence_rows": [], "flagged": false, "operator_note": "No measurement collapse evidence found."},
+    "refractory_semantics": {"evidence_rows": [], "flagged": false, "operator_note": "No refractory semantics evidence found."},
+    "steering_drift": {"evidence_rows": [], "flagged": false, "operator_note": "No steering drift evidence found."},
+    "upload_ceiling_setpoint": {"evidence_rows": [], "flagged": false, "operator_note": "No upload ceiling/setpoint evidence found."}
+  },
+  "recommended_next_phase": {"primary": 214, "runners_up": [215, 216]}
+}
