@@ -20,7 +20,7 @@ created: 2026-05-27
 ### Production Inventory And Drift (DRIFT)
 
 - [x] **DRIFT-01**: Operator can see an exact live inventory of Spectrum, ATT, and steering deployed versions, active health endpoints, service uptime, service status, and health summary state.
-- [ ] **DRIFT-02**: Operator can distinguish expected staged deployment state from accidental version/config drift; any ATT/steering version mismatch is either upgraded or documented as intentionally held.
+- [x] **DRIFT-02**: Operator can distinguish expected staged deployment state from accidental version/config drift; any ATT/steering version mismatch is either upgraded or documented as intentionally held.
 - [x] **DRIFT-03**: Operator can verify repo config, deployed `/etc/wanctl/*.yaml`, and live `/health` critical operating points agree without exposing secrets.
 
 ### Experience Baseline (BASE)
@@ -79,7 +79,7 @@ created: 2026-05-27
 | REQ-ID     | Phase | Status  |
 |------------|-------|---------|
 | DRIFT-01   | 212   | Complete |
-| DRIFT-02   | 212   | Pending |
+| DRIFT-02   | 212   | Complete |
 | DRIFT-03   | 212   | Complete |
 | BASE-01    | 213   | Pending |
 | BASE-02    | 213   | Pending |

@@ -48,7 +48,7 @@
 3. Repo config, deployed `/etc/wanctl/*.yaml`, and live `/health` critical operating points are compared without exposing secrets.
 4. Phase output identifies which live facts should constrain later baseline/tuning work.
 
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 Plans:
 **Wave 1**
 
@@ -56,7 +56,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 212-02-PLAN.md — Compare saved evidence and classify service, version, config, health, and steering drift.
+- [x] 212-02-PLAN.md — Compare saved evidence and classify service, version, config, health, and steering drift.
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -150,7 +150,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 212. Production Inventory And Drift Audit | 1/3 | In Progress |  |
+| 212. Production Inventory And Drift Audit | 2/3 | In Progress|  |
 | 213. Experience Baseline Harness | 0/? | Pending | — |
 | 214. Measurement Collapse Investigation | 0/? | Pending | — |
 | 215. Spectrum Upload Reclaim Canary | 0/? | Pending | — |
