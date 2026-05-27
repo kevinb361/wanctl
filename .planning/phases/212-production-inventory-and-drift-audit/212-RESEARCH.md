@@ -174,8 +174,8 @@ The exact evidence filenames are at planner discretion as long as redacted snaps
 **Example:**
 ```bash
 # Source: project context + service contracts [VERIFIED: 212-CONTEXT.md; deploy/systemd/*.service]
-ssh <prod-host> 'systemctl show wanctl@spectrum.service --property=ActiveState,SubState,ExecMainStartTimestamp,ExecMainPID,NRestarts,ExecStart,FragmentPath,WatchdogUSec,Environment'
-ssh <prod-host> 'curl -fsS http://10.10.110.223:9101/health'
+ssh cake-shaper 'systemctl show wanctl@spectrum.service --property=ActiveState,SubState,ExecMainStartTimestamp,ExecMainPID,NRestarts,ExecStart,FragmentPath,WatchdogUSec'
+ssh cake-shaper 'curl -fsS http://10.10.110.223:9101/health'
 ```
 
 ### Pattern 2: Normalize and Redact Before Diff
@@ -312,20 +312,17 @@ print(yaml.safe_dump(redact(data), sort_keys=True))
 
 ## Open Questions
 
-1. **Which production host should the plan target for remote probes?**
-   - What we know: Project docs use production layout paths and SSH examples, and previous endpoints are `10.10.110.223` and `10.10.110.227`. [VERIFIED: AGENTS.md; configs/spectrum.yaml; configs/att.yaml; .planning/STATE.md]
-   - What's unclear: The exact SSH target alias/host for the planner to use is not encoded in Phase 212 context. [VERIFIED: 212-CONTEXT.md]
-   - Recommendation: Planner should leave `<prod-host>` explicit or use the operator-known host from prior deploy runbooks if already available in local/private context. [ASSUMED]
+1. **RESOLVED: Which production host should the plan target for remote probes?**
+   - Resolution: Use `cake-shaper` as the known production host alias from Phase 211 deploy history. Production evidence commands must run via `ssh cake-shaper ...` or locally only when the executor is already logged into the production host; the dev VM must not be inspected as production evidence. [VERIFIED: .planning/STATE.md Phase 211 decisions]
+   - Evidence policy: `evidence/README.md` must record host/source for each artifact, including whether the command was run through `ssh cake-shaper` or from a local production shell. [VERIFIED: 212-CONTEXT.md D-12]
 
-2. **What is the live steering health bind/port?**
+2. **RESOLVED: What is the live steering health bind/port?**
    - What we know: Code example docstring says steering health server example uses port `9102`; older integration map says steering health is `127.0.0.1:9103`; Phase 212 context says steering may differ and must be discovered. [VERIFIED: src/wanctl/steering/health.py; .planning/codebase/INTEGRATIONS.md; 212-CONTEXT.md]
-   - What's unclear: The deployed `/etc/wanctl/steering.yaml` and live service decide the actual current endpoint. [VERIFIED: 212-CONTEXT.md]
-   - Recommendation: Do not hard-code steering health endpoint; discover from deployed config, service logs, or listening sockets read-only. [VERIFIED: 212-CONTEXT.md]
+   - Resolution: Do not hard-code steering health endpoint. Discover it from deployed `/etc/wanctl/steering.yaml`, `systemctl show/status steering.service`, service logs, or listening sockets on `cake-shaper`, all read-only. If discovery cannot prove an endpoint, write `evidence/health-steering.json` as a structured JSON discovery-failure artifact with `status: "unavailable"`, searched sources, error, and downstream impact. [VERIFIED: 212-CONTEXT.md D-03/D-04]
 
-3. **Should RouterOS readback be used?**
+3. **RESOLVED: Should RouterOS readback be used?**
    - What we know: RouterOS readback is optional and read-only, only for critical operating points where YAML and `/health` are insufficient. [VERIFIED: 212-CONTEXT.md]
-   - What's unclear: Whether `/health` already proves every queue/rule operating point for this snapshot. [VERIFIED: 212-CONTEXT.md]
-   - Recommendation: Plan RouterOS readback as conditional with an approval/credential-safe note, not as the default first probe. [VERIFIED: 212-CONTEXT.md]
+   - Resolution: RouterOS readback remains conditional and read-only. Use it only when saved deployed YAML plus `/health` cannot prove a critical operating point needed for Phase 213/214/215 interpretation. If used, record the exact read-only command in the runbook/evidence README and save only redacted/summarized output; do not save credentials, raw secrets, or write-operation output. [VERIFIED: 212-CONTEXT.md D-07/D-08/D-10]
 
 ## Environment Availability
 
