@@ -58,7 +58,7 @@
   4. SAFE-10 closeout check at Phase 211 boundary shows zero `src/wanctl/` source diff outside the alerting path between v1.44 close and v1.45 close; five-file SAFE-09 allowlist remains untouched.
 **Plans**: 3 plans
 - [x] 211-01-PLAN.md — Closeout commit (v1.44.0→1.45.0) + Spectrum Snapshot A + Spectrum deploy (VERIFY-01 window open)
-- [ ] 211-02-PLAN.md — ATT deploy + 7d cross-WAN alerts observation + VERIFY-01 evidence capture (VERIFY-01)
+- [x] 211-02-PLAN.md — ATT deploy + 7d cross-WAN alerts observation + VERIFY-01 evidence capture (VERIFY-01)
 - [ ] 211-03-PLAN.md — ALERT-03 audit + SAFE-10 manual closeout + v1.45 archive (ALERT-03)
 
 ### Progress
@@ -68,7 +68,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 210. Windowed Peak Accumulator Implementation | 3/3 | Complete    | 2026-05-26 |
-| 211. Production Verification & Milestone Closure |  1/3   | In Progress | - |
+| 211. Production Verification & Milestone Closure | 2/3 | In Progress|  |
 
 ### Coverage
 

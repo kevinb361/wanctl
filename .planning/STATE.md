@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.45
 milestone_name: Flapping Peak-Counter Window Repair
 current_phase: 211
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 211-01-PLAN.md
-last_updated: "2026-05-26T18:49:03Z"
-last_activity: 2026-05-26
+stopped_at: Completed 211-02-PLAN.md
+last_updated: "2026-05-27T17:49:36.683Z"
+last_activity: 2026-05-27
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
-  percent: 67
+  completed_plans: 5
+  percent: 83
 ---
 
 # Session State
@@ -28,16 +28,16 @@ See: .planning/PROJECT.md (updated 2026-05-26 after v1.44 archive close + v1.45 
 ## Current Position
 
 Phase: 211 (production-verification-milestone-closure) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 **Last shipped milestone:** v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (shipped 2026-05-26; audit `passed` 16/16 after Phase 206 restamp)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.45 Flapping Peak-Counter Window Repair (roadmap drafted; planning)
 **Current phase:** 211
-**Current plan:** 2
-**Status:** Executing Phase 211
-**Last activity:** 2026-05-26
+**Current plan:** 3
+**Status:** Ready to execute
+**Last activity:** 2026-05-27
 
-Progress: [███████░░░] 67%
+Progress: [████████░░] 83%
 
 ## Phase Structure (v1.45)
 
@@ -101,14 +101,14 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Stopped at: Completed 211-01-PLAN.md
+Stopped at: Completed 211-02-PLAN.md
 Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
 ## Operator Next Steps
 
-- Run `/gsd-plan-phase 211` to scope the production-verification gate.
-- After Phase 210 ships and deploys, verify at least one real flapping event reports `peak_transition_count > flap_threshold`.
+- Execute Plan 211-03 using the Branch B deferral path; do not archive phase directories with `git mv` while VERIFY-01 is deferred.
+- Carry VERIFY-01 forward to v1.46/watch-list if the operator wants to revisit production flapping evidence later.
 
 ## Decisions (v1.45)
 
@@ -121,6 +121,8 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [210-03]: SAFE-10 baseline uses v1.44 archive marker `21ee630` as the local equivalent close point because `c9932d2` resolves to an earlier v1.42-era commit in this checkout.
 - [211-01]: Spectrum v1.45 canary deploy verified via bound production health endpoint `http://10.10.110.223:9101/health`; loopback `127.0.0.1:9101` is not listening in current production config.
 - [211-01]: `scripts/deploy.sh spectrum cake-shaper` copied v1.45 code but did not restart the running daemon; orchestrator restarted `wanctl@spectrum.service`, after which `/health.version` returned `1.45.0` and the Spectrum 7d observation window opened at approximately `2026-05-26T18:48:06Z`.
+- [211-02]: Operator approved ATT rollout before the original T+24h gate; ATT Snapshot A `20260527T174231Z` was captured, `./scripts/deploy.sh att cake-shaper` ran, and `wanctl@att.service` required restart before bound health endpoint `http://10.10.110.227:9101/health` returned `1.45.0 healthy`.
+- [211-02]: Operator explicitly chose early D-04(b) deferral before the full 7d observation window elapsed. VERIFY-01 remains open for v1.46/watch-list; Plan 211-03 must follow Branch B and must not archive active phase directories with `git mv`.
 
 ## Performance Metrics
 
@@ -129,3 +131,4 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 | 210 | 02 | 6.0min | 2 | 3 |
 | 210 | 03 | 4.1min | 1 | 1 |
 | 211 | 01 | 7min | 5 | 6 |
+| 211 | 02 | checkpointed | 4 | 2 |
