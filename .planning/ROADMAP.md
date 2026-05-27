@@ -74,7 +74,24 @@ Plans:
 3. Summary maps observed symptoms to likely cause bucket(s): upload ceiling/setpoint, download recovery lag, measurement collapse, steering drift, refractory semantics, or external ISP conditions.
 4. Baseline recommends whether to proceed to measurement investigation, upload reclaim, or another narrower phase first.
 
-**Plans:** TBD by `/gsd-plan-phase 213`
+**Plans:** 5 plans across 4 waves
+Plans:
+**Wave 1**
+
+- [ ] 213-01-PLAN.md — Test fixtures + offline unit tests + mutation-boundary grep guard (Wave 0 foundation)
+
+**Wave 2** *(parallel; both depend on 213-01)*
+
+- [ ] 213-02-PLAN.md — Dev-VM surfaces: extended /health NDJSON poller + curl-browse loop
+- [ ] 213-03-PLAN.md — cake-shaper SSH surfaces: read-only SQLite alert window + pre/post steering snapshot with D-08 redaction
+
+**Wave 3** *(blocked on Waves 1–2 completion)*
+
+- [ ] 213-04-PLAN.md — Top-level orchestrator + signal-sheet classifier + operator runbook + evidence/README.md
+
+**Wave 4** *(blocked on Wave 3 completion; non-autonomous)*
+
+- [ ] 213-05-PLAN.md — Dry-run validation + real evidence-capturing run (D-11 sequencing) + operator-authored 213-REPORT.md
 
 #### Phase 214: Measurement Collapse Investigation
 
