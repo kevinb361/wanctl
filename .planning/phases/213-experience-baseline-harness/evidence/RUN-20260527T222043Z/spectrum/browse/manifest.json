@@ -1,0 +1,8 @@
+{
+  "wan": "spectrum",
+  "test": "browse",
+  "test_start_unix": 1779920453,
+  "test_end_unix": 1779920513,
+  "pre_buf_sec": 10,
+  "post_buf_sec": 10
+}

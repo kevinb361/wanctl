@@ -1,0 +1,8 @@
+{
+  "wan": "spectrum",
+  "test": "tcp_download",
+  "test_start_unix": 1779920637,
+  "test_end_unix": 1779920707,
+  "pre_buf_sec": 10,
+  "post_buf_sec": 10
+}

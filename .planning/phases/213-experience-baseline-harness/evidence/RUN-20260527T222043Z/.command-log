@@ -1,0 +1,48 @@
+2026-05-27T22:20:43+00:00	phase213-steering-snapshot pre spectrum/browse
+2026-05-27T22:20:53+00:00	phase213-browse-loop --local-bind 10.10.110.226 --duration 60
+2026-05-27T22:22:03+00:00	phase213-steering-snapshot post spectrum/browse
+2026-05-27T22:22:04+00:00	phase213-alert-window spectrum/browse
+2026-05-27T22:22:09+00:00	phase213-steering-snapshot pre spectrum/tcp_upload
+2026-05-27T22:22:19+00:00	phase191-flent-capture --tests tcp_upload --wan spectrum --local-bind 10.10.110.226
+2026-05-27T22:23:30+00:00	normalized flent spectrum/tcp_upload -> /home/kevin/flent-results/phase213/phase213-20260527T222043Z-tcp_upload/spectrum/20260527-172219
+2026-05-27T22:23:41+00:00	phase213-steering-snapshot post spectrum/tcp_upload
+2026-05-27T22:23:41+00:00	phase213-alert-window spectrum/tcp_upload
+2026-05-27T22:23:47+00:00	phase213-steering-snapshot pre spectrum/tcp_download
+2026-05-27T22:23:57+00:00	phase191-flent-capture --tests tcp_download --wan spectrum --local-bind 10.10.110.226
+2026-05-27T22:25:07+00:00	normalized flent spectrum/tcp_download -> /home/kevin/flent-results/phase213/phase213-20260527T222043Z-tcp_download/spectrum/20260527-172357
+2026-05-27T22:25:18+00:00	phase213-steering-snapshot post spectrum/tcp_download
+2026-05-27T22:25:18+00:00	phase213-alert-window spectrum/tcp_download
+2026-05-27T22:25:23+00:00	phase213-steering-snapshot pre spectrum/rrul
+2026-05-27T22:25:33+00:00	phase191-flent-capture --tests rrul --wan spectrum --local-bind 10.10.110.226
+2026-05-27T22:26:51+00:00	normalized flent spectrum/rrul -> /home/kevin/flent-results/phase213/phase213-20260527T222043Z-rrul/spectrum/20260527-172533
+2026-05-27T22:27:01+00:00	phase213-steering-snapshot post spectrum/rrul
+2026-05-27T22:27:01+00:00	phase213-alert-window spectrum/rrul
+2026-05-27T22:27:06+00:00	phase213-steering-snapshot pre spectrum/tcp_12down
+2026-05-27T22:27:16+00:00	phase191-flent-capture --tests tcp_12down --wan spectrum --local-bind 10.10.110.226
+2026-05-27T22:28:27+00:00	normalized flent spectrum/tcp_12down -> /home/kevin/flent-results/phase213/phase213-20260527T222043Z-tcp_12down/spectrum/20260527-172716
+2026-05-27T22:28:38+00:00	phase213-steering-snapshot post spectrum/tcp_12down
+2026-05-27T22:28:39+00:00	phase213-alert-window spectrum/tcp_12down
+2026-05-27T22:28:44+00:00	phase213-steering-snapshot pre att/browse
+2026-05-27T22:28:54+00:00	phase213-browse-loop --local-bind 10.10.110.233 --duration 60
+2026-05-27T22:30:06+00:00	phase213-steering-snapshot post att/browse
+2026-05-27T22:30:06+00:00	phase213-alert-window att/browse
+2026-05-27T22:30:11+00:00	phase213-steering-snapshot pre att/tcp_upload
+2026-05-27T22:30:21+00:00	phase191-flent-capture --tests tcp_upload --wan att --local-bind 10.10.110.233
+2026-05-27T22:31:33+00:00	normalized flent att/tcp_upload -> /home/kevin/flent-results/phase213/phase213-20260527T222043Z-tcp_upload/att/20260527-173022
+2026-05-27T22:31:43+00:00	phase213-steering-snapshot post att/tcp_upload
+2026-05-27T22:31:43+00:00	phase213-alert-window att/tcp_upload
+2026-05-27T22:31:48+00:00	phase213-steering-snapshot pre att/tcp_download
+2026-05-27T22:31:58+00:00	phase191-flent-capture --tests tcp_download --wan att --local-bind 10.10.110.233
+2026-05-27T22:33:09+00:00	normalized flent att/tcp_download -> /home/kevin/flent-results/phase213/phase213-20260527T222043Z-tcp_download/att/20260527-173158
+2026-05-27T22:33:19+00:00	phase213-steering-snapshot post att/tcp_download
+2026-05-27T22:33:20+00:00	phase213-alert-window att/tcp_download
+2026-05-27T22:33:25+00:00	phase213-steering-snapshot pre att/rrul
+2026-05-27T22:33:35+00:00	phase191-flent-capture --tests rrul --wan att --local-bind 10.10.110.233
+2026-05-27T22:34:52+00:00	normalized flent att/rrul -> /home/kevin/flent-results/phase213/phase213-20260527T222043Z-rrul/att/20260527-173335
+2026-05-27T22:35:02+00:00	phase213-steering-snapshot post att/rrul
+2026-05-27T22:35:02+00:00	phase213-alert-window att/rrul
+2026-05-27T22:35:08+00:00	phase213-steering-snapshot pre att/tcp_12down
+2026-05-27T22:35:18+00:00	phase191-flent-capture --tests tcp_12down --wan att --local-bind 10.10.110.233
+2026-05-27T22:36:29+00:00	normalized flent att/tcp_12down -> /home/kevin/flent-results/phase213/phase213-20260527T222043Z-tcp_12down/att/20260527-173518
+2026-05-27T22:36:40+00:00	phase213-steering-snapshot post att/tcp_12down
+2026-05-27T22:36:40+00:00	phase213-alert-window att/tcp_12down

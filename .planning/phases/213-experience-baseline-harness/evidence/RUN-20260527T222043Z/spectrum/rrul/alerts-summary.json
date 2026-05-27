@@ -1,0 +1,23 @@
+{
+  "spectrum": {
+    "wan": "spectrum",
+    "db": "/var/lib/wanctl/metrics-spectrum.db",
+    "present": true,
+    "rows": [],
+    "summary": []
+  },
+  "att": {
+    "wan": "att",
+    "db": "/var/lib/wanctl/metrics-att.db",
+    "present": true,
+    "rows": [],
+    "summary": []
+  },
+  "steering": {
+    "wan": "steering",
+    "db": "/var/lib/wanctl/metrics.db",
+    "present": true,
+    "rows": [],
+    "summary": []
+  }
+}
