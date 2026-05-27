@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.46
 milestone_name: Internet Quality Recovery
 current_phase: 213
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 213-02-PLAN.md
-last_updated: "2026-05-27T21:41:18.835Z"
+stopped_at: Completed 213-03-PLAN.md
+last_updated: "2026-05-27T21:48:21.909Z"
 last_activity: 2026-05-27
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 8
-  completed_plans: 5
-  percent: 63
+  completed_plans: 6
+  percent: 75
 ---
 
 # Session State
@@ -28,16 +28,16 @@ See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
 ## Current Position
 
 Phase: 213 (experience-baseline-harness) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 **Last shipped milestone:** v1.45 Flapping Peak-Counter Window Repair (shipped 2026-05-27 — VERIFY-01 DEFERRED)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.46 Internet Quality Recovery
 **Current phase:** 213
-**Current plan:** 3
+**Current plan:** 4
 **Status:** Ready to execute
 **Last activity:** 2026-05-27
 
-Progress: [██████░░░░] 63%
+Progress: [████████░░] 75%
 
 ## Phase Structure (v1.46)
 
@@ -117,7 +117,7 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Stopped at: Completed 213-02-PLAN.md
+Stopped at: Completed 213-03-PLAN.md
 Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
@@ -154,6 +154,8 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [212-03]: Deferred Phase 214, 217, 218, and ATT canary/refractory work remains excluded from Phase 212 inventory scope.
 - [213-02]: Phase 213 traffic/telemetry surfaces stayed script-only and evidence-only; no controller code, production config, services, or RouterOS surfaces were touched.
 - [213-02]: Browse-loop request failures are captured as CSV evidence rows via `exit_code` instead of aborting, so downstream classification can distinguish network failures from successful slow responses.
+- [213-03]: Alert-window live mode uses `sqlite3 -readonly file:DB?mode=ro`; local fixture mode skips SSH entirely and falls back to Python stdlib `sqlite3` only when the dev VM lacks the sqlite3 CLI.
+- [213-03]: Steering state raw JSON lives only in `/tmp/phase213-steering-raw.XXXXXX` under an immediate EXIT trap; committed evidence paths receive only D-08-redacted JSON.
 
 ## Performance Metrics
 
@@ -169,3 +171,4 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 | 212 | 03 | 4min | 2 | 2 |
 | Phase 213 P01 | 5min | 2 tasks | 49 files |
 | Phase 213 P02 | 4min | 2 tasks | 2 files |
+| Phase 213 P03 | 4min | 2 tasks | 2 files |
