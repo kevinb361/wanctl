@@ -26,7 +26,7 @@
 
 **Phase Numbering:** Continues from v1.45 last phase (211). v1.46 starts at Phase 212.
 
-- [ ] **Phase 212: Production Inventory And Drift Audit** — Establish exact live production state before interpreting quality symptoms.
+- [x] **Phase 212: Production Inventory And Drift Audit** — Establish exact live production state before interpreting quality symptoms. (completed 2026-05-27)
 - [ ] **Phase 213: Experience Baseline Harness** — Capture controlled evidence for what “internet quality is not good enough” means operationally.
 - [ ] **Phase 214: Measurement Collapse Investigation** — Resolve bad `tcp_12down` p99 latency while health remains `GREEN`.
 - [ ] **Phase 215: Spectrum Upload Reclaim Canary** — Safely test whether conservative Spectrum upload settings are leaving useful quality on the table.
@@ -48,7 +48,7 @@
 3. Repo config, deployed `/etc/wanctl/*.yaml`, and live `/health` critical operating points are compared without exposing secrets.
 4. Phase output identifies which live facts should constrain later baseline/tuning work.
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 **Wave 1**
 
@@ -60,7 +60,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 212-03-PLAN.md — Produce final operator report, downstream constraints, and source-coverage closeout.
+- [x] 212-03-PLAN.md — Produce final operator report, downstream constraints, and source-coverage closeout.
 
 #### Phase 213: Experience Baseline Harness
 
@@ -150,7 +150,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 212. Production Inventory And Drift Audit | 2/3 | In Progress|  |
+| 212. Production Inventory And Drift Audit | 3/3 | Complete   | 2026-05-27 |
 | 213. Experience Baseline Harness | 0/? | Pending | — |
 | 214. Measurement Collapse Investigation | 0/? | Pending | — |
 | 215. Spectrum Upload Reclaim Canary | 0/? | Pending | — |
