@@ -8,6 +8,24 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
+## Current Milestone: v1.46 Internet Quality Recovery
+
+**Goal:** Restore user-perceived internet quality by measuring real production behavior, identifying whether conservative upload limits, recovery lag, measurement collapse, steering/version drift, or refractory semantics are causing degraded experience, then reclaim throughput safely with evidence-backed canaries.
+
+**Target features:**
+- Production inventory and drift audit for Spectrum, ATT, and steering.
+- Experience baseline harness covering normal use, upload/download, RRUL, and `tcp_12down` with matching `/health`, CAKE, alert, and steering evidence.
+- Measurement-collapse investigation for cases where p99 latency is bad while health remains `GREEN`.
+- Conservative Spectrum upload reclaim canary after baseline evidence, one knob at a time with rollback gates.
+- Queue-primary refractory/recovery decision using current evidence rather than stale Phase 196 assumptions.
+- Production cycle-budget baseline to close or promote the pending post-hotpath profiling todo.
+
+**Key context:**
+- v1.45 shipped-with-deferral so the alerting proof gate no longer blocks quality work.
+- Spectrum is live on `1.45.0` and was healthy at configured ceilings during scoping; the quality concern is not explained by a current floor clamp.
+- Spectrum upload remains intentionally conservative (`setpoint_mbps: 12`, `ceiling_mbps: 18`) relative to a 40 Mbps plan anchor and should be evaluated with baseline evidence before any tune.
+- ATT/steering version/config drift, the pending `tcp_12down` bad-p99 todo, and the Phase 196 refractory thread are first-class inputs.
+
 ## Recently Shipped-with-Deferral: v1.45 Flapping Peak-Counter Window Repair
 
 **Goal:** Restore the intensity signal in `flapping_dl` / `flapping_ul` alert payloads by tracking peak transition count via a windowed accumulator that survives the per-fire deque clear, so production operators can see oscillation intensity above the trigger threshold.
@@ -53,14 +71,15 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.45 shipped-with-deferral — Phase 210 implemented and verified the flapping peak-window accumulator; Phase 211 deployed v1.45.0 and recorded operator-approved VERIFY-01 deferral.
-**Tests:** Phase 210 alerting suites and hot-path regression slice passing; Phase 211 SAFE-10 manual closeout passed against `21ee630` with `AWK_EXIT=0`; production VERIFY-01 remains deferred.
+**Version:** v1.46 planning — Internet Quality Recovery active; v1.45 shipped-with-deferral and remains retained for VERIFY-01 watch-list closure.
+**Tests:** Phase 210 alerting suites and hot-path regression slice passing; Phase 211 SAFE-10 manual closeout passed against `21ee630` with `AWK_EXIT=0`; v1.46 baseline and quality tests not yet planned.
 **LOC:** ~40,915 Python (src/)
-**Milestones:** 46 shipped or shipped-with-deferral (v1.0-v1.45); v1.45 remains unarchived until VERIFY-01 closes.
-**Active milestone:** none — v1.45 shipped with VERIFY-01 deferred; v1.46/new-milestone scoping is next.
+**Milestones:** 46 shipped or shipped-with-deferral (v1.0-v1.45); v1.46 active.
+**Active milestone:** v1.46 Internet Quality Recovery.
 
-**Latest:** v1.45 Flapping Peak-Counter Window Repair shipped-with-deferral — windowed peak accumulator is live on Spectrum and ATT at `1.45.0`; VERIFY-01 production observation is deferred to v1.46/watch-list by operator sign-off, and phase directories/REQUIREMENTS/spine todo remain in place.
-**Previous:** v1.44 Phase 208 Carry-on quick tasks — completed TOOL-01/T17(a) watchdog fail-closed hardening, TOOL-02/T9 `wanctl-history --ingestion-rate` with legacy/ad-hoc `--db` + `--wan` gap closure, and TOOL-03/T12 digest permission/write tolerance. Phase 208 verification passed 8/8 after gap closure, code review was clean, security threats are closed, and SAFE-09 remains bounded to operator tooling rather than controller thresholds/algorithms.
+**Latest:** v1.46 Internet Quality Recovery opened — evidence-first project reset focused on real user-perceived quality, production drift, measurement collapse, conservative upload reclaim, refractory/recovery semantics, and cycle-budget baseline.
+**Previous:** v1.45 Flapping Peak-Counter Window Repair shipped-with-deferral — windowed peak accumulator is live on Spectrum and ATT at `1.45.0`; VERIFY-01 production observation is deferred to v1.46/watch-list by operator sign-off, and phase directories/REQUIREMENTS/spine todo remain in place.
+**Older:** v1.44 Phase 208 Carry-on quick tasks — completed TOOL-01/T17(a) watchdog fail-closed hardening, TOOL-02/T9 `wanctl-history --ingestion-rate` with legacy/ad-hoc `--db` + `--wan` gap closure, and TOOL-03/T12 digest permission/write tolerance. Phase 208 verification passed 8/8 after gap closure, code review was clean, security threats are closed, and SAFE-09 remains bounded to operator tooling rather than controller thresholds/algorithms.
 **Older:** v1.44 Phase 207 Soak harness hardening — SAFE-07 source-diff verification now fails closed on dirty/staged/untracked `src/wanctl/` surfaces, `soak-capture.sh` tolerates bounded transient capture failures with sidecar TSV diagnostics, `secondary_gate_legacy` is removed from live soak summaries, and CALIB-02 YAML promotion is explicitly routed to NO pending T17(b)/SEED-005. Phase 207 preserved SAFE-09 with zero controller-path source diff and full/hot-path test passes.
 **Older:** v1.43 UL Suppression Metrics & Gate Calibration — additive `/health` completed-window suppression counters by cause, per-sample `load_rtt_delta_us` in soak NDJSON with zone × cause-tag aggregation, and soak-grounded D-14 successor threshold `175` replacing the qualitative Phase 200 inheritance. Boundary-marker remediation cycle (Plans 204-07..10) re-derived CALIB-01/04 evidence under corrected aggregator. SAFE-07 closeout invariant held end-to-end: zero control-path source diff from Phase 201 close (`b72b463`).
 **Older:** v1.42 DOCSIS-Aware UL Congestion Control — Spectrum upload runs a YAML setpoint clamp (`docsis_mode: true`, `setpoint_mbps: 12`) with windowed RTT-integral classifier and CAKE-backlog secondary corroborator; bounded absolute RED decay and integral anti-windup landed in Plan 201-14; recanary `20260505T122513Z` PASSED with `ul_floor_hits_during_load=0`; 24h soak `20260505T132736Z` D-19 floor-hit delta `0` on production v1.42.1.
