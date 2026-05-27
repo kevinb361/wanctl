@@ -294,7 +294,8 @@ append_test_entry() {
 }
 
 run_bracketed_test() {
-  local wan="$1" test="$2" bind="${BIND[$wan]}" test_dir label t_start t_end
+  local wan="$1" test="$2" bind test_dir label t_start t_end
+  bind="${BIND[$wan]}"
   test_dir="${RUN_DIR}/${wan}/${test}"
   mkdir -p "$test_dir"
   bash scripts/phase213-steering-snapshot.sh --output "${test_dir}/steering-pre"

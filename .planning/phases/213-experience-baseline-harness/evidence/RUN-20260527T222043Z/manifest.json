@@ -1,0 +1,87 @@
+{
+  "phase": 213,
+  "run_id": "RUN-20260527T222043Z",
+  "started_utc": "2026-05-27T22:20:43+00:00",
+  "ended_utc": "2026-05-27T22:36:45+00:00",
+  "host_dev_vm": "dev",
+  "source_ip": "10.10.110.226",
+  "netperf_host": "dallas",
+  "flent_version": "Starting Flent 2.1.1 using Python 3.12.3.",
+  "wanctl_version_dev_repo": "1.45.0",
+  "wanctl_version_spectrum_runtime": "offline-fixture",
+  "wanctl_version_att_runtime": "offline-fixture",
+  "wanctl_version_steering_runtime": "offline-fixture",
+  "git_head_sha": "aa4c33e",
+  "tests_ordered": [
+    {
+      "wan": "spectrum",
+      "test": "browse",
+      "test_start_unix": 1779920453,
+      "test_end_unix": 1779920513
+    },
+    {
+      "wan": "spectrum",
+      "test": "tcp_upload",
+      "test_start_unix": 1779920539,
+      "test_end_unix": 1779920610
+    },
+    {
+      "wan": "spectrum",
+      "test": "tcp_download",
+      "test_start_unix": 1779920637,
+      "test_end_unix": 1779920707
+    },
+    {
+      "wan": "spectrum",
+      "test": "rrul",
+      "test_start_unix": 1779920733,
+      "test_end_unix": 1779920811
+    },
+    {
+      "wan": "spectrum",
+      "test": "tcp_12down",
+      "test_start_unix": 1779920836,
+      "test_end_unix": 1779920907
+    },
+    {
+      "wan": "att",
+      "test": "browse",
+      "test_start_unix": 1779920934,
+      "test_end_unix": 1779920995
+    },
+    {
+      "wan": "att",
+      "test": "tcp_upload",
+      "test_start_unix": 1779921021,
+      "test_end_unix": 1779921093
+    },
+    {
+      "wan": "att",
+      "test": "tcp_download",
+      "test_start_unix": 1779921118,
+      "test_end_unix": 1779921189
+    },
+    {
+      "wan": "att",
+      "test": "rrul",
+      "test_start_unix": 1779921215,
+      "test_end_unix": 1779921292
+    },
+    {
+      "wan": "att",
+      "test": "tcp_12down",
+      "test_start_unix": 1779921318,
+      "test_end_unix": 1779921389
+    }
+  ],
+  "redaction_posture": "D-08 key pattern (password|secret|token|credential|auth|key|private) applied to *.redacted.json artifacts",
+  "mutation_posture": "evidence-only: dev-VM traffic generation plus read-only snapshots; no production mutation",
+  "bind_map": {
+    "att": "10.10.110.233",
+    "spectrum": "10.10.110.226"
+  },
+  "bind_map_egress_observed": {
+    "att": "99.126.115.47",
+    "spectrum": "70.123.224.169"
+  }
+}

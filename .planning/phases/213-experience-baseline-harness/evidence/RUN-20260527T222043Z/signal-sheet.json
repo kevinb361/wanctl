@@ -1,0 +1,438 @@
+{
+  "buckets": {
+    "download_recovery_lag": {
+      "evidence_rows": [
+        {
+          "cake_dl_peak_delay_us_p99": 140.0,
+          "test": "tcp_12down",
+          "time_to_green_after_red_sec": 0.0,
+          "wan": "att"
+        },
+        {
+          "cake_dl_peak_delay_us_p99": 127.0,
+          "test": "rrul",
+          "time_to_green_after_red_sec": 0.0,
+          "wan": "att"
+        },
+        {
+          "cake_dl_peak_delay_us_p99": 95.0,
+          "test": "tcp_12down",
+          "time_to_green_after_red_sec": 0.0,
+          "wan": "spectrum"
+        },
+        {
+          "cake_dl_peak_delay_us_p99": 30.0,
+          "test": "rrul",
+          "time_to_green_after_red_sec": 0.0,
+          "wan": "spectrum"
+        }
+      ],
+      "flagged": false,
+      "operator_note": "No download recovery lag threshold exceeded."
+    },
+    "external_isp": {
+      "evidence_rows": [
+        {
+          "curl_ttfb_p99_ms": 414.863,
+          "flent_throughput_drop_pct_vs_plan": 0.0,
+          "signal_outlier_rate_max": 0.667,
+          "test": "tcp_12down",
+          "wan": "att"
+        },
+        {
+          "curl_ttfb_p99_ms": 414.863,
+          "flent_throughput_drop_pct_vs_plan": 0.0,
+          "signal_outlier_rate_max": 0.733,
+          "test": "browse",
+          "wan": "att"
+        },
+        {
+          "curl_ttfb_p99_ms": 414.863,
+          "flent_throughput_drop_pct_vs_plan": 0.0,
+          "signal_outlier_rate_max": 0.667,
+          "test": "tcp_download",
+          "wan": "att"
+        },
+        {
+          "curl_ttfb_p99_ms": 414.863,
+          "flent_throughput_drop_pct_vs_plan": 0.0,
+          "signal_outlier_rate_max": 0.733,
+          "test": "tcp_upload",
+          "wan": "att"
+        },
+        {
+          "curl_ttfb_p99_ms": 414.863,
+          "flent_throughput_drop_pct_vs_plan": 0.0,
+          "signal_outlier_rate_max": 0.867,
+          "test": "rrul",
+          "wan": "att"
+        },
+        {
+          "curl_ttfb_p99_ms": 332.557,
+          "flent_throughput_drop_pct_vs_plan": 0.0,
+          "signal_outlier_rate_max": 0.667,
+          "test": "tcp_12down",
+          "wan": "spectrum"
+        },
+        {
+          "curl_ttfb_p99_ms": 332.557,
+          "flent_throughput_drop_pct_vs_plan": 0.0,
+          "signal_outlier_rate_max": 0.867,
+          "test": "browse",
+          "wan": "spectrum"
+        },
+        {
+          "curl_ttfb_p99_ms": 332.557,
+          "flent_throughput_drop_pct_vs_plan": 0.0,
+          "signal_outlier_rate_max": 0.8,
+          "test": "tcp_download",
+          "wan": "spectrum"
+        },
+        {
+          "curl_ttfb_p99_ms": 332.557,
+          "flent_throughput_drop_pct_vs_plan": 0.0,
+          "signal_outlier_rate_max": 0.933,
+          "test": "tcp_upload",
+          "wan": "spectrum"
+        },
+        {
+          "curl_ttfb_p99_ms": 332.557,
+          "flent_throughput_drop_pct_vs_plan": 0.0,
+          "signal_outlier_rate_max": 0.867,
+          "test": "rrul",
+          "wan": "spectrum"
+        }
+      ],
+      "flagged": false,
+      "operator_note": "No external-ISP AND-gate crossed."
+    },
+    "measurement_collapse": {
+      "evidence_rows": [
+        {
+          "flent_median": 0.0,
+          "flent_p99": 0.0,
+          "signal_outlier_rate_max": 0.667,
+          "test": "tcp_12down",
+          "wan": "att"
+        },
+        {
+          "flent_median": 0.0,
+          "flent_p99": 0.0,
+          "signal_outlier_rate_max": 0.733,
+          "test": "browse",
+          "wan": "att"
+        },
+        {
+          "flent_median": 0.0,
+          "flent_p99": 0.0,
+          "signal_outlier_rate_max": 0.667,
+          "test": "tcp_download",
+          "wan": "att"
+        },
+        {
+          "flent_median": 0.0,
+          "flent_p99": 0.0,
+          "signal_outlier_rate_max": 0.733,
+          "test": "tcp_upload",
+          "wan": "att"
+        },
+        {
+          "flent_median": 0.0,
+          "flent_p99": 0.0,
+          "signal_outlier_rate_max": 0.867,
+          "test": "rrul",
+          "wan": "att"
+        },
+        {
+          "flent_median": 0.0,
+          "flent_p99": 0.0,
+          "signal_outlier_rate_max": 0.667,
+          "test": "tcp_12down",
+          "wan": "spectrum"
+        },
+        {
+          "flent_median": 0.0,
+          "flent_p99": 0.0,
+          "signal_outlier_rate_max": 0.867,
+          "test": "browse",
+          "wan": "spectrum"
+        },
+        {
+          "flent_median": 0.0,
+          "flent_p99": 0.0,
+          "signal_outlier_rate_max": 0.8,
+          "test": "tcp_download",
+          "wan": "spectrum"
+        },
+        {
+          "flent_median": 0.0,
+          "flent_p99": 0.0,
+          "signal_outlier_rate_max": 0.933,
+          "test": "tcp_upload",
+          "wan": "spectrum"
+        },
+        {
+          "flent_median": 0.0,
+          "flent_p99": 0.0,
+          "signal_outlier_rate_max": 0.867,
+          "test": "rrul",
+          "wan": "spectrum"
+        }
+      ],
+      "flagged": false,
+      "operator_note": "No measurement-collapse threshold crossed."
+    },
+    "refractory_semantics": {
+      "evidence_rows": [
+        {
+          "backlog_suppressed_delta": 14451.0,
+          "pct_samples_refractory_active": 0.0,
+          "test": "tcp_12down",
+          "wan": "att"
+        },
+        {
+          "backlog_suppressed_delta": 14451.0,
+          "pct_samples_refractory_active": 0.0,
+          "test": "browse",
+          "wan": "att"
+        },
+        {
+          "backlog_suppressed_delta": 14451.0,
+          "pct_samples_refractory_active": 0.0,
+          "test": "tcp_download",
+          "wan": "att"
+        },
+        {
+          "backlog_suppressed_delta": 14451.0,
+          "pct_samples_refractory_active": 0.0,
+          "test": "tcp_upload",
+          "wan": "att"
+        },
+        {
+          "backlog_suppressed_delta": 14451.0,
+          "pct_samples_refractory_active": 0.0,
+          "test": "rrul",
+          "wan": "att"
+        },
+        {
+          "backlog_suppressed_delta": 14451.0,
+          "pct_samples_refractory_active": 0.0,
+          "test": "tcp_12down",
+          "wan": "spectrum"
+        },
+        {
+          "backlog_suppressed_delta": 13097.0,
+          "pct_samples_refractory_active": 0.0,
+          "test": "browse",
+          "wan": "spectrum"
+        },
+        {
+          "backlog_suppressed_delta": 14003.0,
+          "pct_samples_refractory_active": 0.0,
+          "test": "tcp_download",
+          "wan": "spectrum"
+        },
+        {
+          "backlog_suppressed_delta": 13487.0,
+          "pct_samples_refractory_active": 0.0,
+          "test": "tcp_upload",
+          "wan": "spectrum"
+        },
+        {
+          "backlog_suppressed_delta": 14451.0,
+          "pct_samples_refractory_active": 0.0,
+          "test": "rrul",
+          "wan": "spectrum"
+        }
+      ],
+      "flagged": true,
+      "operator_note": "Refractory/backlog suppression activity observed during test windows."
+    },
+    "steering_drift": {
+      "evidence_rows": [
+        {
+          "cake_read_failures_delta": 0.0,
+          "good_count_delta": 0.0,
+          "green_rtt_ms": null,
+          "green_samples_required": null,
+          "pre_post_state_transition": "present -> present",
+          "red_count_delta": 0.0,
+          "red_rtt_ms": null,
+          "red_samples_required": null,
+          "test": "tcp_12down",
+          "wan": "att",
+          "yellow_rtt_ms": null
+        },
+        {
+          "cake_read_failures_delta": 0.0,
+          "good_count_delta": 0.0,
+          "green_rtt_ms": null,
+          "green_samples_required": null,
+          "pre_post_state_transition": "present -> present",
+          "red_count_delta": 0.0,
+          "red_rtt_ms": null,
+          "red_samples_required": null,
+          "test": "browse",
+          "wan": "att",
+          "yellow_rtt_ms": null
+        },
+        {
+          "cake_read_failures_delta": 0.0,
+          "good_count_delta": 0.0,
+          "green_rtt_ms": null,
+          "green_samples_required": null,
+          "pre_post_state_transition": "present -> present",
+          "red_count_delta": 0.0,
+          "red_rtt_ms": null,
+          "red_samples_required": null,
+          "test": "tcp_download",
+          "wan": "att",
+          "yellow_rtt_ms": null
+        },
+        {
+          "cake_read_failures_delta": 0.0,
+          "good_count_delta": 0.0,
+          "green_rtt_ms": null,
+          "green_samples_required": null,
+          "pre_post_state_transition": "present -> present",
+          "red_count_delta": 0.0,
+          "red_rtt_ms": null,
+          "red_samples_required": null,
+          "test": "tcp_upload",
+          "wan": "att",
+          "yellow_rtt_ms": null
+        },
+        {
+          "cake_read_failures_delta": 0.0,
+          "good_count_delta": 0.0,
+          "green_rtt_ms": null,
+          "green_samples_required": null,
+          "pre_post_state_transition": "present -> present",
+          "red_count_delta": 0.0,
+          "red_rtt_ms": null,
+          "red_samples_required": null,
+          "test": "rrul",
+          "wan": "att",
+          "yellow_rtt_ms": null
+        },
+        {
+          "cake_read_failures_delta": 0.0,
+          "good_count_delta": 0.0,
+          "green_rtt_ms": null,
+          "green_samples_required": null,
+          "pre_post_state_transition": "present -> present",
+          "red_count_delta": 0.0,
+          "red_rtt_ms": null,
+          "red_samples_required": null,
+          "test": "tcp_12down",
+          "wan": "spectrum",
+          "yellow_rtt_ms": null
+        },
+        {
+          "cake_read_failures_delta": 0.0,
+          "good_count_delta": 0.0,
+          "green_rtt_ms": null,
+          "green_samples_required": null,
+          "pre_post_state_transition": "present -> present",
+          "red_count_delta": 0.0,
+          "red_rtt_ms": null,
+          "red_samples_required": null,
+          "test": "browse",
+          "wan": "spectrum",
+          "yellow_rtt_ms": null
+        },
+        {
+          "cake_read_failures_delta": 0.0,
+          "good_count_delta": 0.0,
+          "green_rtt_ms": null,
+          "green_samples_required": null,
+          "pre_post_state_transition": "present -> present",
+          "red_count_delta": 0.0,
+          "red_rtt_ms": null,
+          "red_samples_required": null,
+          "test": "tcp_download",
+          "wan": "spectrum",
+          "yellow_rtt_ms": null
+        },
+        {
+          "cake_read_failures_delta": 0.0,
+          "good_count_delta": 0.0,
+          "green_rtt_ms": null,
+          "green_samples_required": null,
+          "pre_post_state_transition": "present -> present",
+          "red_count_delta": 0.0,
+          "red_rtt_ms": null,
+          "red_samples_required": null,
+          "test": "tcp_upload",
+          "wan": "spectrum",
+          "yellow_rtt_ms": null
+        },
+        {
+          "cake_read_failures_delta": 0.0,
+          "good_count_delta": 0.0,
+          "green_rtt_ms": null,
+          "green_samples_required": null,
+          "pre_post_state_transition": "present -> present",
+          "red_count_delta": 0.0,
+          "red_rtt_ms": null,
+          "red_samples_required": null,
+          "test": "rrul",
+          "wan": "spectrum",
+          "yellow_rtt_ms": null
+        }
+      ],
+      "flagged": false,
+      "operator_note": "No raw steering transition or counter delta observed."
+    },
+    "upload_ceiling_setpoint": {
+      "evidence_rows": [
+        {
+          "pct_samples_at_ceiling": 0.9886,
+          "sample_count": 176,
+          "test": "tcp_upload",
+          "upload_ceiling_mbps": 18.0,
+          "wan": "att"
+        },
+        {
+          "pct_samples_at_ceiling": 0.8146,
+          "sample_count": 178,
+          "test": "tcp_upload",
+          "upload_ceiling_mbps": 18.0,
+          "wan": "spectrum"
+        }
+      ],
+      "flagged": true,
+      "operator_note": "Upload samples pegged near configured per-WAN ceiling."
+    }
+  },
+  "phase": 213,
+  "recommended_next_phase": {
+    "primary": 215,
+    "rationale": "Primary bucket: upload_ceiling_setpoint",
+    "runners_up": [
+      216,
+      214
+    ]
+  },
+  "run_dir": ".planning/phases/213-experience-baseline-harness/evidence/RUN-20260527T222043Z",
+  "threshold_constants": {
+    "BUCKET_1_PCT_AT_CEILING": 0.8,
+    "BUCKET_2_PEAK_DELAY_US": 50000,
+    "BUCKET_2_TIME_TO_GREEN_SEC": 30,
+    "BUCKET_3_OUTLIER_RATE_MAX": 0.3,
+    "BUCKET_3_P99_VS_MEDIAN_MULT": 5,
+    "BUCKET_5_BACKLOG_SUPPRESSED_DELTA": 100,
+    "BUCKET_5_PCT_REFRACTORY_ACTIVE": 0.05,
+    "BUCKET_6_OUTLIER_RATE_MAX": 0.1,
+    "BUCKET_6_THROUGHPUT_DROP_PCT": 0.3,
+    "BUCKET_6_TTFB_P99_MS": 2000,
+    "BUCKET_KEYS": [
+      "upload_ceiling_setpoint",
+      "download_recovery_lag",
+      "measurement_collapse",
+      "steering_drift",
+      "refractory_semantics",
+      "external_isp"
+    ]
+  }
+}

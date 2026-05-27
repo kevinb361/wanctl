@@ -1,0 +1,8 @@
+{
+  "wan": "att",
+  "test": "tcp_12down",
+  "test_start_unix": 1779921318,
+  "test_end_unix": 1779921389,
+  "pre_buf_sec": 10,
+  "post_buf_sec": 10
+}

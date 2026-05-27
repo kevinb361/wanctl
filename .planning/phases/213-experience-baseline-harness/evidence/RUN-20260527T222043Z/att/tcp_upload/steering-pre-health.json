@@ -1,0 +1,200 @@
+{
+  "status": "healthy",
+  "uptime_seconds": 2505357.4,
+  "version": "1.39.0",
+  "steering": {
+    "enabled": false,
+    "state": "SPECTRUM_GOOD",
+    "mode": "active"
+  },
+  "congestion": {
+    "primary": {
+      "state": "GREEN",
+      "state_code": 0,
+      "tins": [
+        {
+          "tin_name": "Bulk",
+          "dropped_packets": 0,
+          "ecn_marked_packets": 0,
+          "avg_delay_us": 644,
+          "peak_delay_us": 3634,
+          "backlog_bytes": 0,
+          "sparse_flows": 3,
+          "bulk_flows": 0,
+          "unresponsive_flows": 0
+        },
+        {
+          "tin_name": "BestEffort",
+          "dropped_packets": 1,
+          "ecn_marked_packets": 0,
+          "avg_delay_us": 5,
+          "peak_delay_us": 34,
+          "backlog_bytes": 0,
+          "sparse_flows": 2,
+          "bulk_flows": 0,
+          "unresponsive_flows": 0
+        },
+        {
+          "tin_name": "Video",
+          "dropped_packets": 181,
+          "ecn_marked_packets": 9223,
+          "avg_delay_us": 13,
+          "peak_delay_us": 84,
+          "backlog_bytes": 0,
+          "sparse_flows": 3,
+          "bulk_flows": 0,
+          "unresponsive_flows": 0
+        },
+        {
+          "tin_name": "Voice",
+          "dropped_packets": 0,
+          "ecn_marked_packets": 0,
+          "avg_delay_us": 25,
+          "peak_delay_us": 568,
+          "backlog_bytes": 0,
+          "sparse_flows": 1,
+          "bulk_flows": 0,
+          "unresponsive_flows": 0
+        }
+      ]
+    }
+  },
+  "decision": {
+    "last_transition_time": "2026-04-28T17:53:27.724650+00:00",
+    "time_in_state_seconds": 2522204.2
+  },
+  "counters": {
+    "red_count": 0,
+    "good_count": 0,
+    "cake_read_failures": 0
+  },
+  "confidence": {
+    "primary": 0
+  },
+  "errors": {
+    "consecutive_failures": 0,
+    "cake_read_failures": 0
+  },
+  "thresholds": {
+    "green_rtt_ms": 5.0,
+    "yellow_rtt_ms": 15.0,
+    "red_rtt_ms": 15.0,
+    "red_samples_required": 2,
+    "green_samples_required": 15
+  },
+  "router_connectivity": {
+    "is_reachable": true,
+    "consecutive_failures": 0,
+    "last_failure_type": null,
+    "last_failure_time": null,
+    "outage_duration_seconds": null
+  },
+  "pid": 876,
+  "cycle_budget": {
+    "cycle_time_ms": {
+      "avg": 19.0,
+      "p95": 26.9,
+      "p99": 37.5
+    },
+    "utilization_pct": 3.8,
+    "overrun_count": 22482,
+    "status": "ok",
+    "warning_threshold_pct": 80.0
+  },
+  "rtt_source": {
+    "current": "autorate_health",
+    "last_successful": "autorate_health",
+    "last_rtt_ms": 21.66,
+    "last_measurement_age_sec": 0.156,
+    "counts": {
+      "autorate_health": 4963037,
+      "autorate_irtt": 76,
+      "history_fallback": 19258
+    }
+  },
+  "wan_awareness": {
+    "enabled": true,
+    "zone": "GREEN",
+    "effective_zone": "GREEN",
+    "grace_period_active": false,
+    "staleness_age_sec": 1.0,
+    "stale": false,
+    "confidence_contribution": 0,
+    "degrade_timer_remaining": null
+  },
+  "storage": {
+    "pending_writes": 0,
+    "queue": {
+      "drained_total": 0,
+      "error_total": 0
+    },
+    "writes": {
+      "success_total": 4982374,
+      "failure_total": 0,
+      "lock_failure_total": 0,
+      "volume_total": 114594539,
+      "last_duration_ms": 0.8874661289155483,
+      "max_duration_ms": 3397.821992984973
+    },
+    "checkpoint": {
+      "busy": 0,
+      "wal_pages": 0,
+      "checkpointed_pages": 0,
+      "maintenance_lock_skipped_total": 0
+    },
+    "files": {
+      "db_bytes": 823197696,
+      "wal_bytes": 4280712,
+      "shm_bytes": 32768,
+      "total_bytes": 827511176,
+      "db_exists": true,
+      "wal_exists": true,
+      "shm_exists": true
+    },
+    "status": "ok"
+  },
+  "runtime": {
+    "process": "steering",
+    "rss_bytes": 61890560,
+    "swap_bytes": 12910592,
+    "memory_status": "ok",
+    "swap_status": "ok",
+    "cycle_status": "ok",
+    "status": "ok"
+  },
+  "alerting": {
+    "enabled": false,
+    "fire_count": 0,
+    "active_cooldowns": []
+  },
+  "router_reachable": true,
+  "disk_space": {
+    "path": "/var/lib/wanctl",
+    "free_bytes": 22992707584,
+    "total_bytes": 30878322688,
+    "free_pct": 74.5,
+    "status": "ok"
+  },
+  "summary": {
+    "service": "steering",
+    "status": "healthy",
+    "alerts": {
+      "enabled": false,
+      "fire_count": 0,
+      "active_cooldowns": 0,
+      "status": "disabled"
+    },
+    "rows": [
+      {
+        "name": "steering",
+        "status": "ok",
+        "state": "SPECTRUM_GOOD",
+        "congestion_state": "GREEN",
+        "wan_zone": "GREEN",
+        "router_reachable": true,
+        "storage_status": "ok",
+        "runtime_status": "ok"
+      }
+    ]
+  }
+}

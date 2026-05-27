@@ -1,0 +1,7 @@
+{
+  "wan": "steering",
+  "db": "/var/lib/wanctl/metrics.db",
+  "present": true,
+  "rows": [],
+  "summary": []
+}

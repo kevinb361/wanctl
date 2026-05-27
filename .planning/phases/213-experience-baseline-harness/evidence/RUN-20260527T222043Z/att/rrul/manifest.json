@@ -1,0 +1,8 @@
+{
+  "wan": "att",
+  "test": "rrul",
+  "test_start_unix": 1779921215,
+  "test_end_unix": 1779921292,
+  "pre_buf_sec": 10,
+  "post_buf_sec": 10
+}

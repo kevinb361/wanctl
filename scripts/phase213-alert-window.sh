@@ -241,6 +241,5 @@ if [[ -n "$LOCAL_DB" ]]; then
     fi
     run_local_mode
 else
-    require_command sqlite3
     run_ssh_mode
 fi
