@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.46
 milestone_name: Internet Quality Recovery
 current_phase: 212
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 212-01-PLAN.md
-last_updated: "2026-05-27T18:51:38.322Z"
+stopped_at: Completed 212-02-PLAN.md
+last_updated: "2026-05-27T18:58:56.870Z"
 last_activity: 2026-05-27
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 67
 ---
 
 # Session State
@@ -28,16 +28,16 @@ See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
 ## Current Position
 
 Phase: 212 (production-inventory-and-drift-audit) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 **Last shipped milestone:** v1.45 Flapping Peak-Counter Window Repair (shipped 2026-05-27 — VERIFY-01 DEFERRED)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.46 Internet Quality Recovery
 **Current phase:** 212
-**Current plan:** 2
+**Current plan:** 3
 **Status:** Ready to execute
 **Last activity:** 2026-05-27
 
-Progress: [███░░░░░░░] 33%
+Progress: [███████░░░] 67%
 
 ## Phase Structure (v1.46)
 
@@ -117,7 +117,7 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Stopped at: Completed 212-01-PLAN.md
+Stopped at: Completed 212-02-PLAN.md
 Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
@@ -147,6 +147,9 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [212-01]: Used `sudo -n` for read-only production config/state reads after unprivileged reads were permission-blocked; this preserved the no-mutation boundary while allowing deployed endpoint/config evidence capture.
 - [212-01]: Omitted D-08 secret-like config keys from redacted YAML artifacts so automated key/value scans pass cleanly while preserving proof-relevant non-secret fields.
 - [212-01]: Recorded steering health at `127.0.0.1:9102` only after read-only socket discovery on `cake-shaper`; Spectrum/ATT endpoints were confirmed from deployed config.
+- [212-02]: Spectrum and ATT service/config/health evidence is not drift; ATT version drift is resolved by the approved Phase 211 deployment.
+- [212-02]: Steering runtime reports `1.39.0` while repo source is `1.45.0`, so steering version/threshold evidence is unknown drift pending operator-approved alignment.
+- [212-02]: Folded steering clean-restart todo remains `current-state-good/reproduction-not-attempted`; no controlled restart was staged or represented as proof.
 
 ## Performance Metrics
 
@@ -158,3 +161,4 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 | 211 | 02 | checkpointed | 4 | 2 |
 | 211 | 03 | in-session | 5 | 6 |
 | 212 | 01 | 7min | 3 | 13 |
+| 212 | 02 | 3min | 2 | 2 |
