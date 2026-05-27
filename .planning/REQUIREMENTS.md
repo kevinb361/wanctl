@@ -1,69 +1,102 @@
 ---
-milestone: v1.45
-name: Flapping Peak-Counter Window Repair
+milestone: v1.46
+name: Internet Quality Recovery
 status: planning
-created: 2026-05-26
+created: 2026-05-27
 ---
 
-# Milestone v1.45 Requirements: Flapping Peak-Counter Window Repair
+# Milestone v1.46 Requirements: Internet Quality Recovery
 
-**Goal:** Restore the intensity signal in `flapping_dl` / `flapping_ul` alert payloads by tracking peak transition count via a windowed accumulator that survives the per-fire deque clear, so production operators can see oscillation intensity above the trigger threshold.
+**Goal:** Restore user-perceived internet quality by measuring real production behavior, identifying whether conservative upload limits, recovery lag, measurement collapse, steering/version drift, or refractory semantics are causing degraded experience, then reclaim throughput safely with evidence-backed canaries.
 
-**Scope:** Alerting-only. No controller-threshold, autorate, signal-arbitration, or netlink-apply changes. SAFE-09-style control-path boundary preserved by scope.
+**Scope:** Evidence-first quality recovery. Production mutation is gated behind baseline evidence, Snapshot A rollback, one-knob canaries, and explicit operator approval. v1.45 VERIFY-01 remains a carried watch-list item, not a blocker for v1.46 quality work.
 
-**Source:** Confirmed bug from 2026-05-26 backlog triage (`.planning/todos/pending/2026-04-17-monitor-flapping-peak-count-on-next-docsis-event.md`). Production alerts table shows `peak == transition_count == 30` across 20+ Spectrum `flapping_ul` events (2026-05-21→25) + 3 ATT `flapping_dl` events. Root cause located at `src/wanctl/wan_controller.py:4322-4323` (DL) and `:4353-4354` (UL): in-fire `deque.clear()` + `self._dl_peak_transitions = 0` (and UL equivalent) destroys window state at the exact moment the alert fires.
-
-**Design option selected:** Option A (windowed peak accumulator), per Codex round-2 peer review. Option B (rename payload to `transition_count_at_fire`) explicitly rejected — would lose the intensity signal that motivated the metric.
+**Source:** Operator reassessment on 2026-05-27 during v1.45 production observation: project momentum was stalled on alerting proof while internet quality felt worse than it should. Live read showed Spectrum healthy at configured ceilings, not floor-clamped, but Spectrum upload remains deliberately conservative (`setpoint_mbps: 12`, `ceiling_mbps: 18`) relative to the 40 Mbps plan anchor. ATT/steering deployment-version drift and known `tcp_12down` bad-p99-while-GREEN evidence are explicit investigation inputs.
 
 ---
 
-## v1.45 Requirements
+## v1.46 Requirements
 
-### Alerting Payload (ALERT)
+### Production Inventory And Drift (DRIFT)
 
-- [x] **ALERT-01**: Operator can read `peak_transition_count` from a fired `flapping_dl` / `flapping_ul` alert and observe a value > `flap_threshold` when oscillation intensity exceeds the trigger threshold within the 120-second flap window.
-- [x] **ALERT-02**: Operator can read `transition_count` from the same payload and continue to see the current-window count at fire time (payload-compatible with existing operator tooling and downstream consumers).
-- [ ] **ALERT-03**: Operator observes alert-once-per-oscillation-episode semantics in production — `congestion_flapping` does not log-spam at every cycle while transitions stay above threshold (deque-clear-on-fire retained for episode boundaries; `alert_engine.fire()` `cooldown_sec` continues to dedupe).
+- [ ] **DRIFT-01**: Operator can see an exact live inventory of Spectrum, ATT, and steering deployed versions, active health endpoints, service uptime, service status, and health summary state.
+- [ ] **DRIFT-02**: Operator can distinguish expected staged deployment state from accidental version/config drift; any ATT/steering version mismatch is either upgraded or documented as intentionally held.
+- [ ] **DRIFT-03**: Operator can verify repo config, deployed `/etc/wanctl/*.yaml`, and live `/health` critical operating points agree without exposing secrets.
 
-### Test Surface (TEST)
+### Experience Baseline (BASE)
 
-- [x] **TEST-01**: `tests/test_alert_engine.py::TestFlappingDequeClear` is updated to test peak-over-120s-window semantics rather than peak-equals-fire-value semantics. Existing assertions about deque-clear-on-fire are preserved; new assertions verify peak survives the clear.
-- [x] **TEST-02**: New test asserts `peak_transition_count > flap_threshold` when transitions are injected at a rate exceeding the threshold within a single window. Covers both DL and UL paths.
-- [x] **TEST-03**: New regression coverage for cooldown interaction — multiple `fire()` calls within the 120s window produce monotonically non-decreasing peak values until the windowed prune drops the deque to zero, at which point peak resets.
+- [ ] **BASE-01**: Operator has a repeatable production baseline runbook for normal browsing, upload, download, RRUL, and `tcp_12down` checks with timestamps, commands, and artifact paths.
+- [ ] **BASE-02**: Each baseline run captures matching `/health`, CAKE state, SQLite alert counts, current rates, measurement quality, and steering state for the same time window.
+- [ ] **BASE-03**: Baseline results classify the perceived-quality issue into at least one primary bucket: upload ceiling/setpoint, download recovery lag, measurement collapse, steering drift, refractory semantics, or external ISP conditions.
 
-### Production Verification (VERIFY)
+### Measurement Collapse (MEAS)
 
-- [ ] **VERIFY-01**: After deploy, at least one real production flapping event in the alerts table reports `peak_transition_count > flap_threshold`. Closure gate for the v1.45 milestone — the bug is not fixed in production until live data confirms.
+- [ ] **MEAS-01**: The pending `tcp_12down` investigation is rerun with a bounded matrix across time-of-day and captures p50/p95/p99 latency, throughput, reflector misses, protocol divergence, and controller state.
+- [ ] **MEAS-02**: If health remains `GREEN` during bad p99 latency, the operator has an explicit explanation of why and a proposed health/degraded-signal change or a documented reason not to add one.
+- [ ] **MEAS-03**: Any new degraded-measurement signal is observational first unless evidence proves it should affect control decisions.
 
-### Safety Invariant (SAFE)
+### Conservative Throughput Reclaim (RECLAIM)
 
-- [x] **SAFE-10**: Zero `src/wanctl/` source diff outside the alerting path between v1.44 close (`c9932d2` or equivalent) and v1.45 close. Specifically: no changes to autorate continuous loop, signal arbitration, netlink apply, CAKE backends, fusion healer, or DOCSIS UL controller. The five-file SAFE-09 allowlist from v1.44 (`linux_cake.py`, `netlink_cake.py`, `cake_params.py`, `cake_signal.py`, `check_config_validators.py`) remains untouched.
+- [ ] **RECLAIM-01**: Spectrum upload operating points are evaluated against current production evidence, including `setpoint_mbps: 12`, `ceiling_mbps: 18`, typical plan upload `40 Mbps`, latency, floor-hit counts, suppression counters, and user-perceived upload quality.
+- [ ] **RECLAIM-02**: At most one upload knob changes per canary cycle, with Snapshot A rollback, explicit success gates, and explicit rollback gates.
+- [ ] **RECLAIM-03**: Any successful reclaim canary improves operator-relevant throughput or perceived quality without increasing floor-hit cycles, alert spam, or p95/p99 latency beyond approved bounds.
+
+### Recovery And Refractory Semantics (RECOV)
+
+- [ ] **RECOV-01**: The Phase 196 queue-primary refractory semantics thread is closed with a concrete decision: no change, config-only tune, or code design phase.
+- [ ] **RECOV-02**: If a code design is approved, it preserves Phase 160 cascade safety while keeping valid queue-delay signal available where needed for queue-primary classification.
+- [ ] **RECOV-03**: Recovery lag after transient congestion is measured from production artifacts before changing `green_required`, `step_up`, backlog suppression, or refractory behavior.
+
+### Performance Baseline (PERF)
+
+- [ ] **PERF-01**: The pending post-hotpath production profiling todo is closed or promoted by capturing at least one hour of current production cycle-budget data.
+- [ ] **PERF-02**: The profile identifies whether RTT measurement, CAKE stats, router communication, logging/metrics, or storage writes are now the dominant hot-path cost.
+- [ ] **PERF-03**: If cycle budget is healthy, performance work is explicitly deprioritized in favor of quality/tuning work.
+
+### Carry-Forward Production Verification (VERIFY)
+
+- [ ] **VERIFY-01**: Operator can close the v1.45 deferred production gate when a natural production flapping event on either WAN produces an alerts row with `details.peak_transition_count > 30`; until then, the watch-list item remains open and must not block v1.46 quality work.
+- [ ] **VERIFY-02**: Once VERIFY-01 closes, operator can run the ALERT-03 per-`cooldown_sec` bucket audit against that event and archive the retained v1.45 phase directories if the audit passes.
 
 ---
 
 ## Future Requirements (deferred)
 
-(none — v1.45 scope is fully captured in the above)
+- **Silicom bypass operational tooling and harness** — retained as SEED-006; not part of the internet-quality recovery spine unless baseline evidence points at bypass/bridge operations.
+- **Storage hygiene fire-on-change work** — retained as SEED-007; only pull forward if PERF evidence shows storage/write pressure is quality-relevant.
+- **CALIB-02 YAML knob shape evaluation** — gated on throughput-reclaim outcomes and not required for the baseline phases.
 
 ## Out of Scope
 
-- **Rename to `transition_count_at_fire`** — Option B rejected during 2026-05-26 design review; loses intensity signal.
-- **Threshold tuning** (`flap_threshold = 30`, `flap_window = 120`) — values unchanged; v1.45 fixes the metric, not the trigger.
-- **Steering, autorate, or controller threshold changes** — explicitly outside SAFE-10.
-- **`alert_engine.py` semantics changes** — `cooldown_sec` dedup behavior is unchanged; only `wan_controller.py` peak tracking is modified.
-- **Other deferred items from v1.44 close** — SEED-003/004/005 (UL tuning chain), SEED-006 (Silicom), SEED-007 (storage hygiene), T17(b) CALIB-02 YAML evaluation, phase-196 queue-primary refractory semantics thread. All remain dormant for v1.46+ consideration.
+- **Artificially inducing flapping events** to close v1.45 VERIFY-01.
+- **Threshold/floor/ceiling changes without baseline evidence** — no casual tuning of control parameters.
+- **Multi-knob canaries** — one change per production canary cycle.
+- **Production mutation during inventory/baseline phases** except explicitly approved read-only profiling/test captures.
+- **Treating `/health.status == healthy` or state `GREEN` as sufficient proof of good user experience** — v1.46 explicitly tests that assumption.
 
 ## Traceability
 
-| REQ-ID    | Phase | Status   |
-|-----------|-------|----------|
-| ALERT-01  | 210   | Complete |
-| ALERT-02  | 210   | Complete |
-| ALERT-03  | 211   | Pending  |
-| TEST-01   | 210   | Complete |
-| TEST-02   | 210   | Complete |
-| TEST-03   | 210   | Complete |
-| VERIFY-01 | 211   | Pending  |
-| SAFE-10   | 210, 211 (cross-cutting) | Complete |
+| REQ-ID     | Phase | Status  |
+|------------|-------|---------|
+| DRIFT-01   | 212   | Pending |
+| DRIFT-02   | 212   | Pending |
+| DRIFT-03   | 212   | Pending |
+| BASE-01    | 213   | Pending |
+| BASE-02    | 213   | Pending |
+| BASE-03    | 213   | Pending |
+| MEAS-01    | 214   | Pending |
+| MEAS-02    | 214   | Pending |
+| MEAS-03    | 214   | Pending |
+| RECLAIM-01 | 215   | Pending |
+| RECLAIM-02 | 215   | Pending |
+| RECLAIM-03 | 215   | Pending |
+| RECOV-01   | 216   | Pending |
+| RECOV-02   | 216   | Pending |
+| RECOV-03   | 216   | Pending |
+| PERF-01    | 217   | Pending |
+| PERF-02    | 217   | Pending |
+| PERF-03    | 217   | Pending |
+| VERIFY-01  | 218   | Pending |
+| VERIFY-02  | 218   | Pending |
 
-**Coverage:** 8/8 v1.45 REQ-IDs mapped. SAFE-10 is cross-cutting (verified at every phase boundary, mirrors v1.44 SAFE-08/SAFE-09 mechanism); primary verification owned by Phase 210 at PR-merge time, re-verified at Phase 211 at milestone close.
+**Coverage:** 20/20 v1.46 REQ-IDs mapped. Phase 218 is intentionally a lightweight watch-list/cleanup phase and should only execute when a natural production flapping event exists.

@@ -1,60 +1,63 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.45
-milestone_name: Flapping Peak-Counter Window Repair
-current_phase: null
-current_plan: null
-status: shipped-with-deferral
-stopped_at: v1.45 shipped with VERIFY-01 deferred
-last_updated: "2026-05-27T17:53:06Z"
+milestone: v1.46
+milestone_name: Internet Quality Recovery
+status: planning
+last_updated: "2026-05-27T17:58:25.484Z"
 last_activity: 2026-05-27
 progress:
-  total_phases: 2
-  completed_phases: 1
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  total_phases: 7
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-26 after v1.44 archive close + v1.45 milestone open)
+See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** v1.45 shipped with VERIFY-01 deferred; v1.46/watch-list follow-up pending operator scoping.
+**Current focus:** v1.46 Internet Quality Recovery — production inventory, experience baseline, measurement-collapse investigation, and safe quality reclaim.
 
 ## Current Position
 
-Phase: none — v1.45 shipped-with-deferral
-Plan: none
+Phase: 212 (production-inventory-and-drift-audit) — READY TO DISCUSS/PLAN
+Plan: —
 **Last shipped milestone:** v1.45 Flapping Peak-Counter Window Repair (shipped 2026-05-27 — VERIFY-01 DEFERRED)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
-**Active milestone:** (none — v1.45 shipped with deferral; awaiting v1.46/new-milestone discussion)
-**Current phase:** none
-**Current plan:** none
-**Status:** v1.45-shipped-with-VERIFY-01-deferred
-**Last activity:** 2026-05-27
+**Active milestone:** v1.46 Internet Quality Recovery
+**Current phase:** 212
+**Current plan:** Not started
+**Status:** Ready to discuss/plan Phase 212
+**Last activity:** 2026-05-27 — Milestone v1.46 started
 
-Progress: [██████████] 100%
+Progress: [----------] 0%
 
-## Phase Structure (v1.45)
+## Phase Structure (v1.46)
 
 | Phase | Goal | REQ-IDs |
 |-------|------|---------|
-| 210 | Windowed peak accumulator implementation + tests + SAFE-10 enforcement at code level | ALERT-01, ALERT-02, TEST-01, TEST-02, TEST-03, SAFE-10 |
-| 211 | Production verification: real flapping event reports `peak > flap_threshold`; SAFE-10 closeout | ALERT-03, VERIFY-01 |
+| 212 | Production inventory and drift audit for Spectrum, ATT, and steering | DRIFT-01, DRIFT-02, DRIFT-03 |
+| 213 | Experience baseline harness for normal use, RRUL, and `tcp_12down` evidence capture | BASE-01, BASE-02, BASE-03 |
+| 214 | Measurement-collapse investigation for bad p99 latency while health remains GREEN | MEAS-01, MEAS-02, MEAS-03 |
+| 215 | Spectrum upload reclaim canary after baseline evidence | RECLAIM-01, RECLAIM-02, RECLAIM-03 |
+| 216 | Queue-primary recovery/refractory semantics decision | RECOV-01, RECOV-02, RECOV-03 |
+| 217 | Production cycle-budget baseline and profiling todo closure | PERF-01, PERF-02, PERF-03 |
+| 218 | Deferred v1.45 VERIFY watch-list closure when natural event exists | VERIFY-01, VERIFY-02 |
 
-**Split rationale:** VERIFY-01 is a production-gate that cannot be satisfied at PR-merge time. It requires a real production flapping event after deploy. Phase 211 makes this gate explicit (mirrors v1.44 Phase 209 production-canary pattern) rather than burying it as a milestone-close deferral. ALERT-03 (no-log-spam under sustained events) is paired into Phase 211 because end-to-end behavior is only verifiable in production.
+**Ordering rationale:** Start read-only with live inventory and user-experience baseline before any tuning. Measurement collapse and upload reclaim should be evidence-driven. Recovery/refractory decisions wait for current baseline data. Phase 218 is a watch-list cleanup phase and only executes when a natural production flapping event exists.
 
 ## Cross-Cutting Invariants
 
-**SAFE-10** verified at every phase boundary:
+**v1.46 safety posture:**
 
-- Zero `src/wanctl/` source diff outside the alerting path between v1.44 close (`c9932d2` or equivalent) and v1.45 close
-- Five-file SAFE-09 allowlist from v1.44 untouched: `linux_cake.py`, `netlink_cake.py`, `cake_params.py`, `cake_signal.py`, `check_config_validators.py`
-- `alert_engine.py` semantics (cooldown_sec dedup) unchanged — only `wan_controller.py:4275-4360` flapping-detection block and version bump expected to diff
+- No production tuning before baseline evidence and rollback gates.
+- One knob per production canary.
+- Do not treat `/health.status == healthy` or `GREEN` as sufficient proof of good user experience.
+- v1.45 VERIFY-01 remains carried as a watch-list item and must not block quality work.
 
 ## Deferred Items (carried from v1.44 close)
 
@@ -90,6 +93,7 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ### Roadmap Evolution
 
+- 2026-05-27: v1.46 roadmap opened as Internet Quality Recovery after operator reassessment that v1.45 production-observation wait was stalling useful work while internet quality felt worse than it should. Scope is evidence-first quality recovery: production drift audit, experience baseline, measurement-collapse investigation, conservative upload reclaim, recovery/refractory decision, cycle-budget baseline, and deferred v1.45 VERIFY watch-list closure. Phase numbering continues from v1.45 (last phase 211) → v1.46 starts at Phase 212.
 - 2026-05-26: v1.45 roadmap drafted with 2 phases (210, 211). All 8 v1.45 REQ-IDs mapped (ALERT-01..03, TEST-01..03, VERIFY-01, SAFE-10). Phase numbering continues from v1.44 (last phase 209). Spine: `2026-04-17-monitor-flapping-peak-count-on-next-docsis-event` confirmed-bug todo. Two-phase split made explicit because VERIFY-01 is a production-gate that cannot be satisfied at PR-merge time. SAFE-10 cross-cutting at every phase boundary (mirrors v1.44 SAFE-08/SAFE-09 mechanism).
 
 ### Key Design Decision (carried forward from REQUIREMENTS.md)
@@ -110,14 +114,15 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Stopped at: v1.45 shipped with VERIFY-01 deferred; awaiting v1.46/watch-list scoping
-Resume file: None
+Stopped at: v1.46 roadmap initialized; Phase 212 ready for discuss/plan
+Resume file: .planning/ROADMAP.md
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
 ## Operator Next Steps
 
-- Start v1.46/new-milestone discussion when ready.
-- Carry VERIFY-01 forward to v1.46/watch-list if the operator wants to revisit production flapping evidence later.
+- Run `/gsd-discuss-phase 212` to scope the production inventory/drift audit.
+- If skipping discussion, run `/gsd-plan-phase 212`.
+- Leave Phase 218 alone until a natural production flapping event creates a qualifying `peak_transition_count > 30` row.
 
 ## Decisions (v1.45)
 
