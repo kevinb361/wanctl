@@ -1,0 +1,137 @@
+{
+  "captured_at": "2026-05-27T18:42:41Z",
+  "source": "repo checkout",
+  "mutation_posture": "read-only local file inspection; no production mutation",
+  "repo_version": {
+    "pyproject": "1.45.0",
+    "src_wanctl_init": "1.45.0"
+  },
+  "units": {
+    "spectrum": "wanctl@spectrum.service",
+    "att": "wanctl@att.service",
+    "steering": "steering.service"
+  },
+  "config_paths": {
+    "spectrum": "/etc/wanctl/spectrum.yaml",
+    "att": "/etc/wanctl/att.yaml",
+    "steering": "/etc/wanctl/steering.yaml"
+  },
+  "expected_exec_start": {
+    "autorate_template": "/usr/bin/python3 /opt/wanctl/autorate_continuous.py --config /etc/wanctl/%i.yaml",
+    "steering": "/usr/bin/python3 -m wanctl.steering.daemon --config /etc/wanctl/steering.yaml"
+  },
+  "repo_health_endpoints": {
+    "spectrum": "http://10.10.110.223:9101/health",
+    "att": "http://10.10.110.227:9101/health",
+    "steering": "discover from deployed steering config/service/log/socket evidence; do not assume loopback"
+  },
+  "proof_relevant_fields": {
+    "spectrum": {
+      "wan_name": "spectrum",
+      "router_transport": "linux-cake-netlink",
+      "router_host": "10.10.99.1",
+      "queues": {
+        "download": "WAN-Download-Spectrum",
+        "upload": "WAN-Upload-Spectrum"
+      },
+      "download": {
+        "floor_green_mbps": 550,
+        "floor_yellow_mbps": 350,
+        "floor_soft_red_mbps": 275,
+        "floor_red_mbps": 200,
+        "ceiling_mbps": 920
+      },
+      "upload": {
+        "floor_mbps": 8,
+        "ceiling_mbps": 18,
+        "docsis_mode": true,
+        "setpoint_mbps": 12
+      },
+      "health_check": {
+        "host": "10.10.110.223",
+        "port": 9101
+      },
+      "metrics": {
+        "host": "10.10.110.223",
+        "port": 9100
+      },
+      "state_file": "/var/lib/wanctl/spectrum_state.json",
+      "alerting_congestion_flapping_cooldown_sec": 600
+    },
+    "att": {
+      "wan_name": "att",
+      "router_transport": "linux-cake-netlink",
+      "router_host": "10.10.99.1",
+      "queues": {
+        "download": "WAN-Download-ATT",
+        "upload": "WAN-Upload-ATT"
+      },
+      "download": {
+        "floor_green_mbps": 55,
+        "floor_yellow_mbps": 35,
+        "floor_soft_red_mbps": 28,
+        "floor_red_mbps": 20,
+        "ceiling_mbps": 95
+      },
+      "upload": {
+        "floor_mbps": 6,
+        "ceiling_mbps": 18
+      },
+      "health_check": {
+        "host": "10.10.110.227",
+        "port": 9101
+      },
+      "metrics": {
+        "host": "10.10.110.227",
+        "port": 9100
+      },
+      "state_file": "/var/lib/wanctl/att_state.json"
+    },
+    "steering": {
+      "wan_name": "steering",
+      "router_transport": "rest",
+      "router_host": "10.10.99.1",
+      "topology": {
+        "primary_wan": "spectrum",
+        "primary_wan_config": "/etc/wanctl/spectrum.yaml",
+        "alternate_wan": "att"
+      },
+      "cake_state_sources": {
+        "primary": "/var/lib/wanctl/spectrum_state.json"
+      },
+      "mangle_rule_comment": "ADAPTIVE: Steer latency-sensitive to ATT",
+      "thresholds": {
+        "bad_threshold_ms": 25.0,
+        "recovery_threshold_ms": 12.0
+      },
+      "confidence": {
+        "steer_threshold": 55,
+        "recovery_threshold": 20,
+        "sustain_duration_sec": 2.0,
+        "recovery_sustain_sec": 3.0,
+        "hold_down_duration_sec": 30.0,
+        "dry_run": false
+      },
+      "wan_state": {
+        "enabled": true,
+        "red_weight": 25,
+        "staleness_threshold_sec": 5,
+        "grace_period_sec": 30,
+        "wan_override": false
+      },
+      "state_file": "/var/lib/wanctl/steering_state.json",
+      "storage_db_path": "/var/lib/wanctl/metrics.db"
+    }
+  },
+  "health_evidence_limitations": "Health endpoint evidence is daemon-state evidence, not UX proof; Phase 213 must still baseline user-perceived quality.",
+  "redaction_policy": {
+    "secret_key_pattern": "password|secret|token|credential|auth|key|private",
+    "excluded_surfaces": [
+      "/etc/wanctl/secrets contents",
+      "raw RouterOS passwords",
+      "webhook URLs",
+      "private key material",
+      "raw secret-bearing Environment output"
+    ]
+  }
+}
