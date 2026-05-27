@@ -27,7 +27,7 @@
 **Phase Numbering:** Continues from v1.45 last phase (211). v1.46 starts at Phase 212.
 
 - [x] **Phase 212: Production Inventory And Drift Audit** — Establish exact live production state before interpreting quality symptoms. (completed 2026-05-27)
-- [ ] **Phase 213: Experience Baseline Harness** — Capture controlled evidence for what “internet quality is not good enough” means operationally.
+- [x] **Phase 213: Experience Baseline Harness** — Capture controlled evidence for what “internet quality is not good enough” means operationally. (completed 2026-05-27)
 - [ ] **Phase 214: Measurement Collapse Investigation** — Resolve bad `tcp_12down` p99 latency while health remains `GREEN`.
 - [ ] **Phase 215: Spectrum Upload Reclaim Canary** — Safely test whether conservative Spectrum upload settings are leaving useful quality on the table.
 - [ ] **Phase 216: Recovery/Refractory Decision** — Close the queue-primary refractory semantics thread with an evidence-backed decision.
@@ -74,7 +74,7 @@ Plans:
 3. Summary maps observed symptoms to likely cause bucket(s): upload ceiling/setpoint, download recovery lag, measurement collapse, steering drift, refractory semantics, or external ISP conditions.
 4. Baseline recommends whether to proceed to measurement investigation, upload reclaim, or another narrower phase first.
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 Plans:
 **Wave 1**
 
@@ -91,7 +91,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion; non-autonomous)*
 
-- [ ] 213-05-PLAN.md — Dry-run validation + real evidence-capturing run (D-11 sequencing) + operator-authored 213-REPORT.md
+- [x] 213-05-PLAN.md — Dry-run validation + real evidence-capturing run (D-11 sequencing) + operator-authored 213-REPORT.md
 
 #### Phase 214: Measurement Collapse Investigation
 
@@ -168,7 +168,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 212. Production Inventory And Drift Audit | 3/3 | Complete    | 2026-05-27 |
-| 213. Experience Baseline Harness | 4/5 | In Progress|  |
+| 213. Experience Baseline Harness | 5/5 | Complete    | 2026-05-27 |
 | 214. Measurement Collapse Investigation | 0/? | Pending | — |
 | 215. Spectrum Upload Reclaim Canary | 0/? | Pending | — |
 | 216. Recovery/Refractory Decision | 0/? | Pending | — |
