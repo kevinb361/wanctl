@@ -37,80 +37,113 @@
 ### Phase Details
 
 #### Phase 212: Production Inventory And Drift Audit
+
 **Goal:** Establish exact live production state before interpreting quality symptoms.
 **Depends on:** Nothing.
 **Requirements:** DRIFT-01, DRIFT-02, DRIFT-03
 **Success Criteria:**
+
 1. Spectrum, ATT, and steering deployed versions, health endpoints, service uptime, service status, and summary state are captured in one report.
 2. ATT/steering version drift is classified as intentional staging, accidental drift, or resolved by approved deployment.
 3. Repo config, deployed `/etc/wanctl/*.yaml`, and live `/health` critical operating points are compared without exposing secrets.
 4. Phase output identifies which live facts should constrain later baseline/tuning work.
-**Plans:** TBD by `/gsd-plan-phase 212`
+
+**Plans:** 3 plans
+Plans:
+**Wave 1**
+
+- [ ] 212-01-PLAN.md — Capture read-only production evidence and redacted snapshots for Spectrum, ATT, and steering.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 212-02-PLAN.md — Compare saved evidence and classify service, version, config, health, and steering drift.
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 212-03-PLAN.md — Produce final operator report, downstream constraints, and source-coverage closeout.
 
 #### Phase 213: Experience Baseline Harness
+
 **Goal:** Capture enough controlled evidence to explain what “internet quality is not good enough” means operationally.
 **Depends on:** Phase 212
 **Requirements:** BASE-01, BASE-02, BASE-03
 **Success Criteria:**
+
 1. Baseline runbook covers normal browsing, upload, download, RRUL, and `tcp_12down` checks with commands and artifact paths.
 2. Each run captures matching `/health`, CAKE state, SQLite alert counts, current rates, measurement quality, and steering state.
 3. Summary maps observed symptoms to likely cause bucket(s): upload ceiling/setpoint, download recovery lag, measurement collapse, steering drift, refractory semantics, or external ISP conditions.
 4. Baseline recommends whether to proceed to measurement investigation, upload reclaim, or another narrower phase first.
+
 **Plans:** TBD by `/gsd-plan-phase 213`
 
 #### Phase 214: Measurement Collapse Investigation
+
 **Goal:** Resolve the pending `tcp_12down` issue where p99 latency can be bad while health remains `GREEN`.
 **Depends on:** Phase 213
 **Requirements:** MEAS-01, MEAS-02, MEAS-03
 **Success Criteria:**
+
 1. Bounded reproduction matrix is run across time-of-day with p50/p95/p99 latency, throughput, reflector misses, protocol divergence, and controller state.
 2. The “bad p99 while GREEN” case is explained or marked not reproduced with enough evidence to justify closure.
 3. Any proposed degraded-measurement signal starts observational unless evidence supports control-path use.
 4. Pending todo `2026-04-08-investigate-tcp-12down-latency-spikes-under-multi-flow-downl` is closed or explicitly carried with narrower next steps.
+
 **Plans:** TBD by `/gsd-plan-phase 214`
 
 #### Phase 215: Spectrum Upload Reclaim Canary
+
 **Goal:** Safely test whether conservative Spectrum upload settings are leaving useful quality on the table.
 **Depends on:** Phase 213; should also consider Phase 214 findings if measurement collapse reproduces.
 **Requirements:** RECLAIM-01, RECLAIM-02, RECLAIM-03
 **Success Criteria:**
+
 1. Spectrum upload `setpoint_mbps: 12`, `ceiling_mbps: 18`, typical plan upload `40 Mbps`, latency, floor-hit counts, and suppression counters are evaluated against baseline evidence.
 2. Exactly one knob is selected for canary or the phase explicitly decides not to tune.
 3. Snapshot A rollback and success/rollback gates are documented before any production mutation.
 4. Canary either improves operator-relevant quality without gate regression or rolls back cleanly with evidence.
+
 **Plans:** TBD by `/gsd-plan-phase 215`
 
 #### Phase 216: Recovery/Refractory Decision
+
 **Goal:** Close the queue-primary refractory semantics thread with an evidence-backed decision.
 **Depends on:** Phase 213; may depend on Phase 214/215 outcomes.
 **Requirements:** RECOV-01, RECOV-02, RECOV-03
 **Success Criteria:**
+
 1. Phase 196 thread is reviewed against current baseline data and closed with no-change, config-only tune, or code-design decision.
 2. Recovery lag after transient congestion is measured before changing `green_required`, `step_up`, backlog suppression, or refractory behavior.
 3. Any approved code design preserves Phase 160 cascade safety while retaining valid queue-delay signal where needed for queue-primary classification.
 4. If code work is needed, a follow-up phase is created rather than slipping unplanned behavior changes into the decision phase.
+
 **Plans:** TBD by `/gsd-plan-phase 216`
 
 #### Phase 217: Production Cycle-Budget Baseline
+
 **Goal:** Close the pending post-hotpath profiling todo and decide whether performance is actually limiting quality.
 **Depends on:** Phase 212; can run after Phase 213 unless live cycle budget looks unhealthy.
 **Requirements:** PERF-01, PERF-02, PERF-03
 **Success Criteria:**
+
 1. At least one hour of current production cycle-budget data is captured on a representative WAN.
 2. Subsystem cost summary identifies whether RTT measurement, CAKE stats, router communication, logging/metrics, or storage writes dominate.
 3. Pending todo `2026-04-15-profile-post-hotpath-baseline-on-production-wan` is closed or promoted to an optimization phase.
 4. If cycle budget is healthy, performance work is explicitly deprioritized in favor of quality/tuning work.
+
 **Plans:** TBD by `/gsd-plan-phase 217`
 
 #### Phase 218: Deferred v1.45 VERIFY Watch-List Closure
+
 **Goal:** Close the retained v1.45 production verification gate only when natural evidence exists.
 **Depends on:** Natural production flapping event; no artificial event generation.
 **Requirements:** VERIFY-01, VERIFY-02
 **Success Criteria:**
+
 1. A natural production `flapping_dl` or `flapping_ul` alert row exists on either WAN with `details.peak_transition_count > 30`.
 2. Raw alert JSON and `EVIDENCE.md` close the v1.45 VERIFY-01 watch-list item.
 3. ALERT-03 per-`cooldown_sec` bucket audit runs against the qualifying episode and passes or opens a follow-up.
 4. Retained v1.45 phase directories are archived only after VERIFY-01 and ALERT-03 pass.
+
 **Plans:** TBD only when evidence exists.
 
 ### Progress
