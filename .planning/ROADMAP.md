@@ -74,7 +74,7 @@ Plans:
 3. Summary maps observed symptoms to likely cause bucket(s): upload ceiling/setpoint, download recovery lag, measurement collapse, steering drift, refractory semantics, or external ISP conditions.
 4. Baseline recommends whether to proceed to measurement investigation, upload reclaim, or another narrower phase first.
 
-**Plans:** 1/5 plans executed
+**Plans:** 2/5 plans executed
 Plans:
 **Wave 1**
 
@@ -82,7 +82,7 @@ Plans:
 
 **Wave 2** *(parallel; both depend on 213-01)*
 
-- [ ] 213-02-PLAN.md — Dev-VM surfaces: extended /health NDJSON poller + curl-browse loop
+- [x] 213-02-PLAN.md — Dev-VM surfaces: extended /health NDJSON poller + curl-browse loop
 - [ ] 213-03-PLAN.md — cake-shaper SSH surfaces: read-only SQLite alert window + pre/post steering snapshot with D-08 redaction
 
 **Wave 3** *(blocked on Waves 1–2 completion)*
@@ -168,7 +168,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 212. Production Inventory And Drift Audit | 3/3 | Complete    | 2026-05-27 |
-| 213. Experience Baseline Harness | 1/5 | In Progress|  |
+| 213. Experience Baseline Harness | 2/5 | In Progress|  |
 | 214. Measurement Collapse Investigation | 0/? | Pending | — |
 | 215. Spectrum Upload Reclaim Canary | 0/? | Pending | — |
 | 216. Recovery/Refractory Decision | 0/? | Pending | — |
