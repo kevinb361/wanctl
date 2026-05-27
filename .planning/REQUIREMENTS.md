@@ -25,9 +25,9 @@ created: 2026-05-27
 
 ### Experience Baseline (BASE)
 
-- [ ] **BASE-01**: Operator has a repeatable production baseline runbook for normal browsing, upload, download, RRUL, and `tcp_12down` checks with timestamps, commands, and artifact paths.
-- [ ] **BASE-02**: Each baseline run captures matching `/health`, CAKE state, SQLite alert counts, current rates, measurement quality, and steering state for the same time window.
-- [ ] **BASE-03**: Baseline results classify the perceived-quality issue into at least one primary bucket: upload ceiling/setpoint, download recovery lag, measurement collapse, steering drift, refractory semantics, or external ISP conditions.
+- [x] **BASE-01**: Operator has a repeatable production baseline runbook for normal browsing, upload, download, RRUL, and `tcp_12down` checks with timestamps, commands, and artifact paths.
+- [x] **BASE-02**: Each baseline run captures matching `/health`, CAKE state, SQLite alert counts, current rates, measurement quality, and steering state for the same time window.
+- [x] **BASE-03**: Baseline results classify the perceived-quality issue into at least one primary bucket: upload ceiling/setpoint, download recovery lag, measurement collapse, steering drift, refractory semantics, or external ISP conditions.
 
 ### Measurement Collapse (MEAS)
 
@@ -81,9 +81,9 @@ created: 2026-05-27
 | DRIFT-01   | 212   | Complete |
 | DRIFT-02   | 212   | Complete |
 | DRIFT-03   | 212   | Complete |
-| BASE-01    | 213   | Pending |
-| BASE-02    | 213   | Pending |
-| BASE-03    | 213   | Pending |
+| BASE-01    | 213   | Complete |
+| BASE-02    | 213   | Complete |
+| BASE-03    | 213   | Complete |
 | MEAS-01    | 214   | Pending |
 | MEAS-02    | 214   | Pending |
 | MEAS-03    | 214   | Pending |
