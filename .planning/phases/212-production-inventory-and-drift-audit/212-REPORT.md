@@ -125,3 +125,44 @@ Every non-`not drift` row from `212-production-inventory.md` is carried forward 
 - Phase 216 must resolve steering version/threshold semantics before relying on steering health threshold fields for recovery/refractory decisions.
 - Phase 217 cycle-budget profiling remains separate unless later evidence shows immediate performance risk; Phase 212 did not run profiling captures.
 - Phase 218 VERIFY watch-list remains dependent on a natural production flapping event; Phase 212 did not generate or simulate one.
+
+## Source Coverage Closeout
+
+### Required source coverage
+
+| Source item | Status | Evidence path | Closeout note |
+|---|---|---|---|
+| GOAL Phase 212 | COVERED | `.planning/ROADMAP.md`, `212-CONTEXT.md`, `212-production-inventory.md`, `212-REPORT.md` | Final report establishes exact live production state before quality interpretation and preserves no-mutation posture. |
+| REQ DRIFT-01 | COVERED | `212-production-inventory.md`, `evidence/systemd-spectrum.txt`, `evidence/systemd-att.txt`, `evidence/systemd-steering.txt`, `evidence/health-spectrum.json`, `evidence/health-att.json`, `evidence/health-steering.json` | Versions, endpoints, uptime/service state, restart counts, watchdog facts, and daemon health summaries are present for Spectrum, ATT, and steering. |
+| REQ DRIFT-02 | COVERED | `212-production-inventory.md`, `evidence/health-att.json`, `evidence/health-steering.json`, `../211-production-verification-milestone-closure/211-02-SUMMARY.md` | ATT is resolved by approved deployment; steering runtime/threshold evidence remains `unknown drift` with operator approval required before alignment. |
+| REQ DRIFT-03 | COVERED | `212-production-inventory.md`, `evidence/config-spectrum.redacted.yaml`, `evidence/config-att.redacted.yaml`, `evidence/config-steering.redacted.yaml`, `evidence/steering-state.redacted.json` | Repo/deployed config and `/health` critical operating points were compared from redacted artifacts. |
+| RESEARCH read-only evidence pipeline | COVERED | `212-RESEARCH.md`, `evidence/README.md`, `212-01-SUMMARY.md` | Evidence was captured as stable artifacts before comparison; final report cites artifacts rather than uncited live claims. |
+| RESEARCH normalize/redact-before-diff | COVERED | `212-RESEARCH.md`, `evidence/config-spectrum.redacted.yaml`, `evidence/config-att.redacted.yaml`, `evidence/config-steering.redacted.yaml` | Redacted deployed YAML/state artifacts preserve proof-relevant non-secret operating points while omitting D-08 matching keys. |
+| RESEARCH classify drift by operational meaning | COVERED | `212-RESEARCH.md`, `212-production-inventory.md`, Drift Register above | Mismatches use operational verdicts and downstream impact; no mismatch is silently fixed. |
+| CONTEXT D-01 classify-only default | COVERED | `212-CONTEXT.md`, `212-production-inventory.md`, Production-Mutation Review above | Phase 212 classified only; no production alignment was performed. |
+| CONTEXT D-02 operator approval before alignment | COVERED | Drift Register above | Steering drift rows state operator approval is required before alignment and no Phase 212 mutation was performed. |
+| CONTEXT D-03 steering degraded-state persistence as inventory only | COVERED | `evidence/health-steering.json`, `evidence/steering-state.redacted.json`, Steering Inventory above | Current state is `SPECTRUM_GOOD`; no controlled degraded restart was staged. |
+| CONTEXT D-04 primary live evidence surfaces | COVERED | Evidence Index above, `evidence/README.md` | Systemd, health, deployed YAML, repo config, package/version, and steering state evidence are all cited. |
+| CONTEXT D-05 health versus user experience distinction | COVERED | Executive Verdict, Downstream Constraints, `212-production-inventory.md` | Report repeatedly states healthy/GREEN is daemon-state evidence only, not UX proof. |
+| CONTEXT D-06 systemd versus health disagreement handling | COVERED | Spectrum/ATT/Steering Inventory above, `212-production-inventory.md` | No current systemd-vs-health disagreement was found; report preserves each source separately rather than collapsing them. |
+| CONTEXT D-07 optional RouterOS readback | COVERED / NOT NEEDED | `212-CONTEXT.md`, `212-production-inventory.md` | RouterOS readback was not needed because deployed YAML plus `/health` proved the critical operating points; no RouterOS write or readback mutation occurred. |
+| CONTEXT D-08 no raw sensitive values | COVERED | Secret-Redaction Review above, automated closeout scan | Redacted artifacts omit D-08 matching key/value lines; final report cites paths, not raw sensitive output. |
+| CONTEXT D-09 preserve proof-relevant non-secret config values | COVERED | `212-production-inventory.md`, inventory tables above | WAN names, transport, endpoints, floors, ceilings, setpoints, thresholds, state paths, and cooldowns are retained where relevant. |
+| CONTEXT D-10 commands/runbook context without sensitive output | COVERED | `evidence/README.md` | Command purpose and source are indexed without committing raw secret-bearing output. |
+| CONTEXT D-11 operator-first tables | COVERED | Spectrum/ATT/Steering Inventory above | Inventory tables use expected value, live value, verdict, evidence path, and impact on later phases. |
+| CONTEXT D-12 stable redacted snapshots/summarized output | COVERED | `evidence/README.md`, `evidence/*` artifacts | Later planners can cite stable Phase 212 paths without re-running production probes. |
+| CONTEXT D-13 downstream constraints | COVERED | Downstream Constraints above | Phase 213/214/215 constraints list endpoint binding quirks, version/config drift, steering uncertainty, and Spectrum upload operating points. |
+| Deferred items excluded | EXCLUDED | `212-CONTEXT.md` deferred section, `.planning/ROADMAP.md` | Phase 214 `tcp_12down`, Phase 217 profiling, Phase 218 VERIFY watch-list, and ATT canary/refractory follow-up work were not planned as Phase 212 work. |
+
+### Closeout checklist
+
+| Check | Status | Evidence path | Result |
+|---|---|---|---|
+| Source coverage | PASS | Source coverage table above | GOAL, DRIFT-01/02/03, research patterns, D-01 through D-13, and deferred exclusions are explicitly covered. |
+| Redaction scan | PASS | `evidence/`, `212-production-inventory.md`, `212-REPORT.md` | Automated D-08-like scan completed after this closeout section was appended. |
+| Mutation boundary | PASS | Production-Mutation Review above, `evidence/README.md` | Phase 212 did not run service restarts, deploy scripts, production config writes, RouterOS writes, or a controlled steering degraded restart. |
+| Endpoint provenance | PASS | Evidence Index, Spectrum/ATT/Steering Inventory above | Spectrum and ATT endpoints come from deployed config/bound health artifacts; steering endpoint was discovered from socket/health evidence. |
+| Folded steering todo handling | PASS | Steering Inventory, Drift Register | Current state is good but reproduction was not attempted; todo is not closed by Phase 212. |
+| Deferred-ideas exclusion | PASS | `212-CONTEXT.md`, `.planning/ROADMAP.md` | Deferred items excluded: Phase 214 measurement-collapse todo, Phase 217 profiling todo, Phase 218 VERIFY watch-list, and ATT canary/refractory follow-up. |
+
+Closeout result: Phase 212 final report is complete, cites stable evidence paths, preserves daemon-health versus user-experience distinction, carries unresolved steering drift behind explicit operator approval, lists downstream constraints for Phases 213/214/215, and remains read-only/default-no-mutation.
