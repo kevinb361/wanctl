@@ -8,7 +8,7 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.45 Flapping Peak-Counter Window Repair
+## Recently Shipped-with-Deferral: v1.45 Flapping Peak-Counter Window Repair
 
 **Goal:** Restore the intensity signal in `flapping_dl` / `flapping_ul` alert payloads by tracking peak transition count via a windowed accumulator that survives the per-fire deque clear, so production operators can see oscillation intensity above the trigger threshold.
 
@@ -16,13 +16,14 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - Per-direction windowed peak accumulator independent of deque-clear-on-fire (validated in Phase 210)
 - Preserved alert-once-per-episode semantics (deque clear retained; `alert_engine.fire()` `cooldown_sec` continues to dedupe)
 - Updated `TestFlappingDequeClear` semantics + new tests asserting `peak_transition_count > flap_threshold` during sustained oscillation (validated in Phase 210)
-- Production verification: at least one real flapping event shows `peak > flap_threshold` after deployment (Phase 211)
+- Production verification: at least one real flapping event shows `peak > flap_threshold` after deployment — deferred to v1.46/watch-list by operator sign-off
 
 **Key context:**
 - Confirmed bug per 2026-05-26 backlog triage (Codex peer-reviewed across two rounds); production alerts table shows `peak == transition_count == 30` across 20+ Spectrum `flapping_ul` events (2026-05-21→25) + 3 ATT `flapping_dl` events
 - Root cause located at `src/wanctl/wan_controller.py:4322-4323` (DL) and `:4353-4354` (UL): in-fire `deque.clear()` + `peak = 0` destroys window state
 - Design Option A selected over Option B (rename) — preserves the intensity signal that motivated the metric
 - Alerting-only change; controller-threshold / arbitration boundaries unchanged
+- v1.45 shipped-with-deferral on 2026-05-27; VERIFY-01 and the dependent ALERT-03 production audit remain open carry-forward items.
 
 <details>
 <summary>Archived v1.44 milestone goals (collapsed for brevity)</summary>
@@ -52,13 +53,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.45 in progress — Phase 210 implemented and verified the flapping peak-window accumulator; Phase 211 remains for production deployment/observation closure.
-**Tests:** Phase 210 alerting suites and hot-path regression slice passing; production verification deferred to Phase 211 by design.
+**Version:** v1.45 shipped-with-deferral — Phase 210 implemented and verified the flapping peak-window accumulator; Phase 211 deployed v1.45.0 and recorded operator-approved VERIFY-01 deferral.
+**Tests:** Phase 210 alerting suites and hot-path regression slice passing; Phase 211 SAFE-10 manual closeout passed against `21ee630` with `AWK_EXIT=0`; production VERIFY-01 remains deferred.
 **LOC:** ~40,915 Python (src/)
-**Milestones:** 45 shipped (v1.0-v1.44), all archived in `.planning/milestones/`.
-**Active milestone:** v1.45 Flapping Peak-Counter Window Repair — Phase 210 complete, Phase 211 ready to plan.
+**Milestones:** 46 shipped or shipped-with-deferral (v1.0-v1.45); v1.45 remains unarchived until VERIFY-01 closes.
+**Active milestone:** none — v1.45 shipped with VERIFY-01 deferred; v1.46/new-milestone scoping is next.
 
-**Latest:** v1.44 Phase 209 Spectrum migration + production canary — Spectrum committed config is now `920Mbit besteffort wash`, wash readback validation is controller-internal and hard-fail in both CAKE backends, `docs/BRIDGE_QOS.md` documents the operator topology decision, and SAFE-08/SAFE-09 passed mechanically after the 24h production soak.
+**Latest:** v1.45 Flapping Peak-Counter Window Repair shipped-with-deferral — windowed peak accumulator is live on Spectrum and ATT at `1.45.0`; VERIFY-01 production observation is deferred to v1.46/watch-list by operator sign-off, and phase directories/REQUIREMENTS/spine todo remain in place.
 **Previous:** v1.44 Phase 208 Carry-on quick tasks — completed TOOL-01/T17(a) watchdog fail-closed hardening, TOOL-02/T9 `wanctl-history --ingestion-rate` with legacy/ad-hoc `--db` + `--wan` gap closure, and TOOL-03/T12 digest permission/write tolerance. Phase 208 verification passed 8/8 after gap closure, code review was clean, security threats are closed, and SAFE-09 remains bounded to operator tooling rather than controller thresholds/algorithms.
 **Older:** v1.44 Phase 207 Soak harness hardening — SAFE-07 source-diff verification now fails closed on dirty/staged/untracked `src/wanctl/` surfaces, `soak-capture.sh` tolerates bounded transient capture failures with sidecar TSV diagnostics, `secondary_gate_legacy` is removed from live soak summaries, and CALIB-02 YAML promotion is explicitly routed to NO pending T17(b)/SEED-005. Phase 207 preserved SAFE-09 with zero controller-path source diff and full/hot-path test passes.
 **Older:** v1.43 UL Suppression Metrics & Gate Calibration — additive `/health` completed-window suppression counters by cause, per-sample `load_rtt_delta_us` in soak NDJSON with zone × cause-tag aggregation, and soak-grounded D-14 successor threshold `175` replacing the qualitative Phase 200 inheritance. Boundary-marker remediation cycle (Plans 204-07..10) re-derived CALIB-01/04 evidence under corrected aggregator. SAFE-07 closeout invariant held end-to-end: zero control-path source diff from Phase 201 close (`b72b463`).
@@ -115,8 +116,9 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 </details>
 
-## Recently Archived: v1.39, v1.41, v1.42, v1.43, v1.44
+## Recently Archived / Shipped: v1.39, v1.41, v1.42, v1.43, v1.44, v1.45
 
+- **v1.45 Flapping Peak-Counter Window Repair** (shipped-with-deferral 2026-05-27, VERIFY-01 deferred to v1.46/watch-list; no archive directory yet) — `.planning/phases/211-production-verification-milestone-closure/211-03-SUMMARY.md`
 - **v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration** (shipped 2026-05-26, audit `passed` 16/16 after 206 restamp) — `.planning/milestones/v1.44-ROADMAP.md`
 - **v1.43 UL Suppression Metrics & Gate Calibration** (shipped 2026-05-13, audit `passed` 15/15) — `.planning/milestones/v1.43-ROADMAP.md`
 - **v1.42 DOCSIS-Aware UL Congestion Control** (shipped 2026-05-06, gaps_found Route B) — `.planning/milestones/v1.42-ROADMAP.md`
@@ -789,4 +791,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-05-26 — Phase 210 complete for v1.45 Flapping Peak-Counter Window Repair. The `peak_transition_count` window-state destruction bug at `wan_controller.py:4322-4323/4353-4354` is fixed via the Option A windowed accumulator, with unit/integration coverage and SAFE-10 closeout verified. Phase 211 remains for production deployment evidence: at least one real flapping event must show `peak_transition_count > flap_threshold`._
+_Last updated: 2026-05-27 — v1.45 Flapping Peak-Counter Window Repair shipped with VERIFY-01 deferred to v1.46/watch-list by operator sign-off. SAFE-10 closeout passed; no archive directory was created, and REQUIREMENTS.md plus the v1.45 spine todo remain in place._

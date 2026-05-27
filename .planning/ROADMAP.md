@@ -2,7 +2,7 @@
 
 ## Milestones
 
-- 🚧 **v1.45 Flapping Peak-Counter Window Repair** — planning (Phases 210–211; 8/8 REQ-IDs mapped; spine = confirmed bug at `wan_controller.py:4322-4323/4353-4354`)
+- ✅ **v1.45 Flapping Peak-Counter Window Repair** — shipped-with-deferral 2026-05-27 (Phases 210–211; VERIFY-01 deferred to v1.46+ per D-04(b); spine todo retained until production verification closes)
 - ✅ **v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration** — shipped 2026-05-26 (Phases 205–209; audit `passed` after 206 restamp, 16/16; Spectrum running `920Mbit besteffort wash` in production with 24h soak ✓) — `milestones/v1.44-ROADMAP.md`
 - ✅ **v1.43 UL Suppression Metrics & Gate Calibration** — shipped 2026-05-13 (audit `passed` 15/15; gap-closure cycle 204-07..10 closed post-d44e2fd evidence; threshold 175 dual-gate verified) — `milestones/v1.43-ROADMAP.md`
 - ✅ **v1.42 DOCSIS-Aware UL Congestion Control** — shipped 2026-05-06 (gaps_found Route B; D-19 PASS / D-14 deferred to v1.43) — `milestones/v1.42-ROADMAP.md`
@@ -13,7 +13,7 @@
 
 ---
 
-## Active Milestone: v1.45 Flapping Peak-Counter Window Repair
+## Shipped-with-Deferral Milestone: v1.45 Flapping Peak-Counter Window Repair
 
 **Goal:** Restore the intensity signal in `flapping_dl` / `flapping_ul` alert payloads by tracking peak transition count via a windowed accumulator that survives the per-fire deque clear, so production operators can see oscillation intensity above the trigger threshold.
 
@@ -21,14 +21,16 @@
 
 **Design:** Option A (windowed peak accumulator) selected over Option B (rename payload) — preserves the intensity signal that motivated the metric.
 
-**Spine:** `.planning/todos/pending/2026-04-17-monitor-flapping-peak-count-on-next-docsis-event.md` (confirmed bug 2026-05-26; root cause located; Codex peer-reviewed across two rounds).
+**Spine:** `.planning/todos/pending/2026-04-17-monitor-flapping-peak-count-on-next-docsis-event.md` (confirmed bug 2026-05-26; root cause located; Codex peer-reviewed across two rounds; retained because VERIFY-01 is deferred).
+
+**Ship status:** shipped-with-deferral 2026-05-27 — VERIFY-01 deferred to v1.46+ per D-04(b); see `.planning/STATE.md` Deferred Items. No v1.45 archive directory or `v1.45-ROADMAP.md` snapshot was created on this branch.
 
 ### Phases
 
 **Phase Numbering:** Continues from v1.44 last phase (209). v1.45 starts at Phase 210.
 
 - [x] **Phase 210: Windowed Peak Accumulator Implementation** — Add per-direction windowed peak accumulator at `wan_controller.py:4275-4360`, update `TestFlappingDequeClear`, add new tests asserting `peak > flap_threshold` during sustained oscillation; preserve SAFE-10 control-path boundary (completed 2026-05-26)
-- [ ] **Phase 211: Production Verification & Milestone Closure** — Deploy Phase 210 build; confirm at least one real production flapping event reports `peak_transition_count > flap_threshold`; re-verify SAFE-10 at milestone close
+- [x] **Phase 211: Production Verification & Milestone Closure** — Deploy Phase 210 build; VERIFY-01 production observation deferred by operator sign-off; SAFE-10 re-verified at milestone close; archive deferred to v1.46+ follow-up
 
 ### Phase Details
 
@@ -59,7 +61,7 @@
 **Plans**: 3 plans
 - [x] 211-01-PLAN.md — Closeout commit (v1.44.0→1.45.0) + Spectrum Snapshot A + Spectrum deploy (VERIFY-01 window open)
 - [x] 211-02-PLAN.md — ATT deploy + 7d cross-WAN alerts observation + VERIFY-01 evidence capture (VERIFY-01)
-- [ ] 211-03-PLAN.md — ALERT-03 audit + SAFE-10 manual closeout + v1.45 archive (ALERT-03)
+- [x] 211-03-PLAN.md — ALERT-03 deferred stub + SAFE-10 manual closeout + Branch-B shipped-with-deferral state update (ALERT-03 deferred with VERIFY-01)
 
 ### Progress
 
@@ -68,7 +70,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 210. Windowed Peak Accumulator Implementation | 3/3 | Complete    | 2026-05-26 |
-| 211. Production Verification & Milestone Closure | 2/3 | In Progress|  |
+| 211. Production Verification & Milestone Closure | 3/3 | Shipped-with-deferral | 2026-05-27 |
 
 ### Coverage
 
@@ -103,6 +105,7 @@ All 8 v1.45 REQ-IDs map to exactly one phase. No orphans.
 
 ### Deferred to v1.46+ (carried forward from v1.44 close; not consumed by v1.45)
 
+- **VERIFY-01 / ALERT-03 production verification** — v1.45 shipped pending production verification per D-04(b); close when a qualifying DOCSIS event produces an alerts row with `details.peak_transition_count > 30`, then run ALERT-03 per-cooldown bucket audit.
 - **SEED-003** D-14 successor recalibration (dormant; v1.43 deferral, still awaiting metric-semantics decision)
 - **SEED-004** target-edge churn instrumentation (dormant; v1.43 carry-forward)
 - **SEED-005** conservative UL tuning sweep (dormant; prereqs satisfied; deferred to avoid 3 consecutive UL-only milestones)
