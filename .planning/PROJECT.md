@@ -71,14 +71,15 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.46 planning — Internet Quality Recovery active; v1.45 shipped-with-deferral and remains retained for VERIFY-01 watch-list closure.
-**Tests:** Phase 210 alerting suites and hot-path regression slice passing; Phase 211 SAFE-10 manual closeout passed against `21ee630` with `AWK_EXIT=0`; v1.46 baseline and quality tests not yet planned.
+**Version:** v1.46 active — Phase 212 complete; Phase 213 ready next.
+**Tests:** Phase 212 verification passed 16/16 after read-only production inventory/drift audit; Phase 210 alerting suites and hot-path regression slice passing; Phase 211 SAFE-10 manual closeout passed against `21ee630` with `AWK_EXIT=0`.
 **LOC:** ~40,915 Python (src/)
 **Milestones:** 46 shipped or shipped-with-deferral (v1.0-v1.45); v1.46 active.
 **Active milestone:** v1.46 Internet Quality Recovery.
 
-**Latest:** v1.46 Internet Quality Recovery opened — evidence-first project reset focused on real user-perceived quality, production drift, measurement collapse, conservative upload reclaim, refractory/recovery semantics, and cycle-budget baseline.
-**Previous:** v1.45 Flapping Peak-Counter Window Repair shipped-with-deferral — windowed peak accumulator is live on Spectrum and ATT at `1.45.0`; VERIFY-01 production observation is deferred to v1.46/watch-list by operator sign-off, and phase directories/REQUIREMENTS/spine todo remain in place.
+**Latest:** v1.46 Phase 212 Production Inventory And Drift Audit complete — read-only evidence captured from `cake-shaper`, drift classified without production mutation, final report preserves downstream constraints for Phase 213/214/215 and the `/health` vs user-perceived-quality distinction.
+**Previous:** v1.46 Internet Quality Recovery opened — evidence-first project reset focused on real user-perceived quality, production drift, measurement collapse, conservative upload reclaim, refractory/recovery semantics, and cycle-budget baseline.
+**Older:** v1.45 Flapping Peak-Counter Window Repair shipped-with-deferral — windowed peak accumulator is live on Spectrum and ATT at `1.45.0`; VERIFY-01 production observation is deferred to v1.46/watch-list by operator sign-off, and phase directories/REQUIREMENTS/spine todo remain in place.
 **Older:** v1.44 Phase 208 Carry-on quick tasks — completed TOOL-01/T17(a) watchdog fail-closed hardening, TOOL-02/T9 `wanctl-history --ingestion-rate` with legacy/ad-hoc `--db` + `--wan` gap closure, and TOOL-03/T12 digest permission/write tolerance. Phase 208 verification passed 8/8 after gap closure, code review was clean, security threats are closed, and SAFE-09 remains bounded to operator tooling rather than controller thresholds/algorithms.
 **Older:** v1.44 Phase 207 Soak harness hardening — SAFE-07 source-diff verification now fails closed on dirty/staged/untracked `src/wanctl/` surfaces, `soak-capture.sh` tolerates bounded transient capture failures with sidecar TSV diagnostics, `secondary_gate_legacy` is removed from live soak summaries, and CALIB-02 YAML promotion is explicitly routed to NO pending T17(b)/SEED-005. Phase 207 preserved SAFE-09 with zero controller-path source diff and full/hot-path test passes.
 **Older:** v1.43 UL Suppression Metrics & Gate Calibration — additive `/health` completed-window suppression counters by cause, per-sample `load_rtt_delta_us` in soak NDJSON with zone × cause-tag aggregation, and soak-grounded D-14 successor threshold `175` replacing the qualitative Phase 200 inheritance. Boundary-marker remediation cycle (Plans 204-07..10) re-derived CALIB-01/04 evidence under corrected aggregator. SAFE-07 closeout invariant held end-to-end: zero control-path source diff from Phase 201 close (`b72b463`).
