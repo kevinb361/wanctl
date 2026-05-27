@@ -1,0 +1,229 @@
+{
+  "_phase212_source": {
+    "captured_at": "2026-05-27T18:46:04Z",
+    "endpoint": "http://127.0.0.1:9102/health",
+    "mutation_posture": "read-only HTTP GET via production host after config/socket discovery",
+    "searched_sources": [
+      {
+        "error": {
+          "returncode": 1,
+          "stderr_summary": [
+            "Traceback (most recent call last):",
+            "  File \"<stdin>\", line 3, in <module>",
+            "PermissionError: [Errno 13] Permission denied: '/etc/wanctl/steering.yaml'"
+          ]
+        },
+        "source": "/etc/wanctl/steering.yaml"
+      },
+      {
+        "result": [
+          "LISTEN 0      5          127.0.0.1:9102 0.0.0.0:*"
+        ],
+        "source": "ss -ltnH filtered for 9102/9103"
+      },
+      {
+        "returncode": 0,
+        "source": "HTTP GET http://127.0.0.1:9102/health"
+      }
+    ],
+    "source_host": "cake-shaper"
+  },
+  "alerting": {
+    "active_cooldowns": [],
+    "enabled": false,
+    "fire_count": 0
+  },
+  "confidence": {
+    "primary": 0
+  },
+  "congestion": {
+    "primary": {
+      "state": "GREEN",
+      "state_code": 0,
+      "tins": [
+        {
+          "avg_delay_us": 644,
+          "backlog_bytes": 0,
+          "bulk_flows": 0,
+          "dropped_packets": 0,
+          "ecn_marked_packets": 0,
+          "peak_delay_us": 3634,
+          "sparse_flows": 3,
+          "tin_name": "Bulk",
+          "unresponsive_flows": 0
+        },
+        {
+          "avg_delay_us": 5,
+          "backlog_bytes": 0,
+          "bulk_flows": 0,
+          "dropped_packets": 1,
+          "ecn_marked_packets": 0,
+          "peak_delay_us": 34,
+          "sparse_flows": 2,
+          "tin_name": "BestEffort",
+          "unresponsive_flows": 0
+        },
+        {
+          "avg_delay_us": 13,
+          "backlog_bytes": 0,
+          "bulk_flows": 0,
+          "dropped_packets": 181,
+          "ecn_marked_packets": 9223,
+          "peak_delay_us": 84,
+          "sparse_flows": 3,
+          "tin_name": "Video",
+          "unresponsive_flows": 0
+        },
+        {
+          "avg_delay_us": 25,
+          "backlog_bytes": 0,
+          "bulk_flows": 0,
+          "dropped_packets": 0,
+          "ecn_marked_packets": 0,
+          "peak_delay_us": 568,
+          "sparse_flows": 1,
+          "tin_name": "Voice",
+          "unresponsive_flows": 0
+        }
+      ]
+    }
+  },
+  "counters": {
+    "cake_read_failures": 0,
+    "good_count": 0,
+    "red_count": 0
+  },
+  "cycle_budget": {
+    "cycle_time_ms": {
+      "avg": 18.2,
+      "p95": 22.1,
+      "p99": 30.4
+    },
+    "overrun_count": 22370,
+    "status": "ok",
+    "utilization_pct": 3.6,
+    "warning_threshold_pct": 80.0
+  },
+  "decision": {
+    "last_transition_time": "2026-04-28T17:53:27.724650+00:00",
+    "time_in_state_seconds": 2508757.8
+  },
+  "disk_space": {
+    "free_bytes": 22992052224,
+    "free_pct": 74.5,
+    "path": "/var/lib/wanctl",
+    "status": "ok",
+    "total_bytes": 30878322688
+  },
+  "errors": {
+    "cake_read_failures": 0,
+    "consecutive_failures": 0
+  },
+  "pid": 876,
+  "router_connectivity": {
+    "consecutive_failures": 0,
+    "is_reachable": true,
+    "last_failure_time": null,
+    "last_failure_type": null,
+    "outage_duration_seconds": null
+  },
+  "router_reachable": true,
+  "rtt_source": {
+    "counts": {
+      "autorate_health": 4936381,
+      "autorate_irtt": 76,
+      "history_fallback": 19162
+    },
+    "current": "autorate_health",
+    "last_measurement_age_sec": 0.149,
+    "last_rtt_ms": 21.75,
+    "last_successful": "autorate_health"
+  },
+  "runtime": {
+    "cycle_status": "ok",
+    "memory_status": "ok",
+    "process": "steering",
+    "rss_bytes": 60915712,
+    "status": "ok",
+    "swap_bytes": 12984320,
+    "swap_status": "ok"
+  },
+  "status": "healthy",
+  "steering": {
+    "enabled": false,
+    "mode": "active",
+    "state": "SPECTRUM_GOOD"
+  },
+  "storage": {
+    "checkpoint": {
+      "busy": 0,
+      "checkpointed_pages": 0,
+      "maintenance_lock_skipped_total": 0,
+      "wal_pages": 0
+    },
+    "files": {
+      "db_bytes": 823812096,
+      "db_exists": true,
+      "shm_bytes": 32768,
+      "shm_exists": true,
+      "total_bytes": 828100856,
+      "wal_bytes": 4255992,
+      "wal_exists": true
+    },
+    "pending_writes": 0,
+    "queue": {
+      "drained_total": 0,
+      "error_total": 0
+    },
+    "status": "ok",
+    "writes": {
+      "failure_total": 0,
+      "last_duration_ms": 0.4271748475730419,
+      "lock_failure_total": 0,
+      "max_duration_ms": 3397.821992984973,
+      "success_total": 4955622,
+      "volume_total": 113979243
+    }
+  },
+  "summary": {
+    "alerts": {
+      "active_cooldowns": 0,
+      "enabled": false,
+      "fire_count": 0,
+      "status": "disabled"
+    },
+    "rows": [
+      {
+        "congestion_state": "GREEN",
+        "name": "steering",
+        "router_reachable": true,
+        "runtime_status": "ok",
+        "state": "SPECTRUM_GOOD",
+        "status": "ok",
+        "storage_status": "ok",
+        "wan_zone": "GREEN"
+      }
+    ],
+    "service": "steering",
+    "status": "healthy"
+  },
+  "thresholds": {
+    "green_rtt_ms": 5.0,
+    "green_samples_required": 15,
+    "red_rtt_ms": 15.0,
+    "red_samples_required": 2,
+    "yellow_rtt_ms": 15.0
+  },
+  "uptime_seconds": 2491911.1,
+  "version": "1.39.0",
+  "wan_awareness": {
+    "confidence_contribution": 0,
+    "degrade_timer_remaining": null,
+    "effective_zone": "GREEN",
+    "enabled": true,
+    "grace_period_active": false,
+    "stale": false,
+    "staleness_age_sec": 1.6,
+    "zone": "GREEN"
+  }
+}

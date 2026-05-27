@@ -1,0 +1,27 @@
+{
+  "required_top_level_keys": [
+    "phase",
+    "run_id",
+    "started_utc",
+    "ended_utc",
+    "host_dev_vm",
+    "source_ip",
+    "netperf_host",
+    "flent_version",
+    "wanctl_version_dev_repo",
+    "wanctl_version_spectrum_runtime",
+    "wanctl_version_att_runtime",
+    "wanctl_version_steering_runtime",
+    "git_head_sha",
+    "tests_ordered",
+    "redaction_posture",
+    "mutation_posture",
+    "bind_map"
+  ],
+  "required_test_entry_keys": [
+    "wan",
+    "test",
+    "test_start_unix",
+    "test_end_unix"
+  ]
+}

@@ -2,6 +2,7 @@
 
 import sys
 import tempfile
+import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -66,6 +67,25 @@ def phase201_sustained_load_trace():
 @pytest.fixture
 def phase201_idle_trace():
     return synthesize_idle_trace()
+
+
+# Phase 213 health snapshots copied verbatim from Phase 212 evidence.
+_PHASE213_FIXTURES = Path(__file__).parent / "fixtures" / "phase213"
+
+
+@pytest.fixture(scope="session")
+def phase212_health_spectrum():
+    return json.loads((_PHASE213_FIXTURES / "health-spectrum-snapshot.json").read_text())
+
+
+@pytest.fixture(scope="session")
+def phase212_health_att():
+    return json.loads((_PHASE213_FIXTURES / "health-att-snapshot.json").read_text())
+
+
+@pytest.fixture(scope="session")
+def phase212_health_steering():
+    return json.loads((_PHASE213_FIXTURES / "health-steering-snapshot.json").read_text())
 
 
 @pytest.fixture
