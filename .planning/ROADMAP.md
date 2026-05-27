@@ -74,7 +74,7 @@ Plans:
 3. Summary maps observed symptoms to likely cause bucket(s): upload ceiling/setpoint, download recovery lag, measurement collapse, steering drift, refractory semantics, or external ISP conditions.
 4. Baseline recommends whether to proceed to measurement investigation, upload reclaim, or another narrower phase first.
 
-**Plans:** 3/5 plans executed
+**Plans:** 4/5 plans executed
 Plans:
 **Wave 1**
 
@@ -87,7 +87,7 @@ Plans:
 
 **Wave 3** *(blocked on Waves 1–2 completion)*
 
-- [ ] 213-04-PLAN.md — Top-level orchestrator + signal-sheet classifier + operator runbook + evidence/README.md
+- [x] 213-04-PLAN.md — Top-level orchestrator + signal-sheet classifier + operator runbook + evidence/README.md
 
 **Wave 4** *(blocked on Wave 3 completion; non-autonomous)*
 
@@ -168,7 +168,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 212. Production Inventory And Drift Audit | 3/3 | Complete    | 2026-05-27 |
-| 213. Experience Baseline Harness | 3/5 | In Progress|  |
+| 213. Experience Baseline Harness | 4/5 | In Progress|  |
 | 214. Measurement Collapse Investigation | 0/? | Pending | — |
 | 215. Spectrum Upload Reclaim Canary | 0/? | Pending | — |
 | 216. Recovery/Refractory Decision | 0/? | Pending | — |
