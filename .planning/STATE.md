@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.46
 milestone_name: Internet Quality Recovery
 current_phase: 212
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 212 context gathered
-last_updated: "2026-05-27T18:38:19.401Z"
+stopped_at: Completed 212-01-PLAN.md
+last_updated: "2026-05-27T18:51:38.322Z"
 last_activity: 2026-05-27
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 33
 ---
 
 # Session State
@@ -23,21 +23,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** v1.46 Internet Quality Recovery — production inventory, experience baseline, measurement-collapse investigation, and safe quality reclaim.
+**Current focus:** Phase 212 — production-inventory-and-drift-audit
 
 ## Current Position
 
-Phase: 212 (production-inventory-and-drift-audit) — READY TO DISCUSS/PLAN
-Plan: —
+Phase: 212 (production-inventory-and-drift-audit) — EXECUTING
+Plan: 2 of 3
 **Last shipped milestone:** v1.45 Flapping Peak-Counter Window Repair (shipped 2026-05-27 — VERIFY-01 DEFERRED)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.46 Internet Quality Recovery
 **Current phase:** 212
-**Current plan:** Not started
+**Current plan:** 2
 **Status:** Ready to execute
 **Last activity:** 2026-05-27
 
-Progress: [----------] 0%
+Progress: [███░░░░░░░] 33%
 
 ## Phase Structure (v1.46)
 
@@ -117,8 +117,8 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Stopped at: Phase 212 context gathered
-Resume file: .planning/phases/212-production-inventory-and-drift-audit/212-CONTEXT.md
+Stopped at: Completed 212-01-PLAN.md
+Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
 ## Operator Next Steps
@@ -142,6 +142,12 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [211-02]: Operator explicitly chose early D-04(b) deferral before the full 7d observation window elapsed. VERIFY-01 remains open for v1.46/watch-list; Plan 211-03 must follow Branch B and must not archive active phase directories with `git mv`.
 - [v1.45 deferral close]: v1.45 shipped with VERIFY-01 DEFERRED by operator sign-off at 2026-05-27T17:53:06Z; ALERT-03 audit is deferred because no qualifying production episode exists; SAFE-10 manual audit passed against `21ee630` with `AWK_EXIT=0`; carry-forward task is to close VERIFY-01 in v1.46/watch-list when a qualifying DOCSIS event appears.
 
+## Decisions (v1.46)
+
+- [212-01]: Used `sudo -n` for read-only production config/state reads after unprivileged reads were permission-blocked; this preserved the no-mutation boundary while allowing deployed endpoint/config evidence capture.
+- [212-01]: Omitted D-08 secret-like config keys from redacted YAML artifacts so automated key/value scans pass cleanly while preserving proof-relevant non-secret fields.
+- [212-01]: Recorded steering health at `127.0.0.1:9102` only after read-only socket discovery on `cake-shaper`; Spectrum/ATT endpoints were confirmed from deployed config.
+
 ## Performance Metrics
 
 | Phase | Plan | Duration | Tasks | Files |
@@ -151,3 +157,4 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 | 211 | 01 | 7min | 5 | 6 |
 | 211 | 02 | checkpointed | 4 | 2 |
 | 211 | 03 | in-session | 5 | 6 |
+| 212 | 01 | 7min | 3 | 13 |
