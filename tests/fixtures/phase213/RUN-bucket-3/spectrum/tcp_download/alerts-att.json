@@ -1,0 +1,7 @@
+{
+  "db": "tests/fixtures/phase213/alerts-test.db",
+  "present": true,
+  "rows": [],
+  "summary": [],
+  "wan": "spectrum"
+}
