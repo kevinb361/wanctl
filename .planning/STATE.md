@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.46
 milestone_name: Internet Quality Recovery
 current_phase: 214
-current_plan: 1
+current_plan: 3
 status: executing
-stopped_at: Completed 214-01-PLAN.md
-last_updated: "2026-05-28T01:16:36.936Z"
+stopped_at: Completed 214-02-PLAN.md
+last_updated: "2026-05-28T01:29:36.634Z"
 last_activity: 2026-05-28
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 14
-  completed_plans: 9
-  percent: 29
+  completed_plans: 10
+  percent: 71
 ---
 
 # Session State
@@ -28,16 +28,16 @@ See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
 ## Current Position
 
 Phase: 214 (measurement-collapse-investigation) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 **Last shipped milestone:** v1.45 Flapping Peak-Counter Window Repair (shipped 2026-05-27 — VERIFY-01 DEFERRED)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.46 Internet Quality Recovery
 **Current phase:** 214
-**Current plan:** 1
+**Current plan:** 3
 **Status:** Ready to execute
 **Last activity:** 2026-05-28
 
-Progress: [██████░░░░] 64%
+Progress: [███████░░░] 71%
 
 ## Phase Structure (v1.46)
 
@@ -117,7 +117,7 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Stopped at: Completed 214-01-PLAN.md
+Stopped at: Completed 214-02-PLAN.md
 Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
@@ -158,6 +158,8 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [213-03]: Steering state raw JSON lives only in `/tmp/phase213-steering-raw.XXXXXX` under an immediate EXIT trap; committed evidence paths receive only D-08-redacted JSON.
 - [213-05]: Phase 213 complete; next phase: 215 per operator verdict; runners-up: 216, 214.
 - [214-01]: Matrix capture stays a thin Phase 213 wrapper; Plan 01 adds Phase 214 window metadata, per-test journal capture, and an untracked-file extension to the D-14 `src/wanctl/` mutation guard.
+- [214-02]: Phase 214 owns a new fail-closed flent extractor rather than back-editing Phase 213's zero-fill classifier path; `raw_values['Ping (ms) ICMP']` is the MEAS-01 p99 source of truth.
+- [214-02]: The extractor uses the locked Phase 214 sorted-index percentile method (`n//2`, `int(n*0.95)`, `int(n*0.99)` with clamp) and pins the known-good fixture values at p50=31.2, p95=60.3, p99=124.0.
 
 ## Performance Metrics
 
@@ -177,3 +179,4 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 | Phase 213 P04 | 8min | 3 tasks | 4 files |
 | Phase 213 P05 | in-session | 3 tasks | 140+ files |
 | Phase 214 P01 | 3min | 1 tasks | 1 files |
+| Phase 214 P02 | 9min | 2 tasks | 7 files |
