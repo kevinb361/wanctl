@@ -1,0 +1,5 @@
+{"__REALTIME_TIMESTAMP":"1779920856000000","MESSAGE":"Ping to 8.8.8.8 failed","_SYSTEMD_UNIT":"wanctl@spectrum.service"}
+{"__REALTIME_TIMESTAMP":"1779920858000000","MESSAGE":"Ping to 1.1.1.1 failed","_SYSTEMD_UNIT":"wanctl@spectrum.service"}
+{"__REALTIME_TIMESTAMP":"1779920861000000","MESSAGE":"Ping to 9.9.9.9 failed","_SYSTEMD_UNIT":"wanctl@spectrum.service"}
+{"__REALTIME_TIMESTAMP":"1779920863000000","MESSAGE":"ICMP deprioritized (ratio=2.21)","_SYSTEMD_UNIT":"wanctl@spectrum.service"}
+{"__REALTIME_TIMESTAMP":"1779920900000000","MESSAGE":"Ping to 4.2.2.2 failed","_SYSTEMD_UNIT":"wanctl@spectrum.service"}
