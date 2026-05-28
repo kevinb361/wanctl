@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.46
 milestone_name: Internet Quality Recovery
 current_phase: 214
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 214-03-PLAN.md
-last_updated: "2026-05-28T01:46:53.073Z"
+stopped_at: Completed 214-04-PLAN.md
+last_updated: "2026-05-28T02:26:20.472Z"
 last_activity: 2026-05-28
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 14
-  completed_plans: 11
-  percent: 79
+  completed_plans: 12
+  percent: 86
 ---
 
 # Session State
@@ -28,16 +28,16 @@ See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
 ## Current Position
 
 Phase: 214 (measurement-collapse-investigation) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 **Last shipped milestone:** v1.45 Flapping Peak-Counter Window Repair (shipped 2026-05-27 — VERIFY-01 DEFERRED)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.46 Internet Quality Recovery
 **Current phase:** 214
-**Current plan:** 4
+**Current plan:** 5
 **Status:** Ready to execute
 **Last activity:** 2026-05-28
 
-Progress: [████████░░] 79%
+Progress: [█████████░] 86%
 
 ## Phase Structure (v1.46)
 
@@ -117,7 +117,7 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Stopped at: Completed 214-03-PLAN.md
+Stopped at: Completed 214-04-PLAN.md
 Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
@@ -163,6 +163,9 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [214-03]: The aligner reuses `phase214-extract.py`'s `FlentExtractionError` class via a sys.modules-cached importlib load so downstream exception handling sees one canonical class.
 - [214-03]: The aligner CLI derives the flent window from `extract_flent_latency()` and rejects operator-supplied `--flent-t0` / `--flent-end` flags.
 - [214-03]: The synthesized health fixture is aligned to the committed flent fixture window so end-to-end CLI verification exercises health projection and `in_flent_window` rows together.
+- [214-04]: Classifier output remains observational-only: Form B signal-sheet evidence is emitted locally, Form C alerting is documented as a future recommendation, and Form A is only a future-phase candidate.
+- [214-04]: The classifier keeps Phase 214 additive by importing the fail-closed extractor and avoiding edits to `src/wanctl/`, Phase 213 scripts, and prior Phase 214 extractor/aligner scripts.
+- [214-04]: The CLI accepts an omitted `--run-dir` with a deterministic fallback so the documented acceptance command succeeds while MED-7 metadata remains populated.
 
 ## Performance Metrics
 
@@ -184,3 +187,4 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 | Phase 214 P01 | 3min | 1 tasks | 1 files |
 | Phase 214 P02 | 9min | 2 tasks | 7 files |
 | Phase 214 P03 | 10min | 2 tasks | 5 files |
+| Phase 214 P04 | 12min | 2 tasks | 5 files |
