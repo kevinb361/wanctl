@@ -15,3 +15,8 @@ the fail-closed `FlentExtractionError` path. Recipe:
 Do not modify these fixtures without a paired test update. `.gitignore` carries
 `!tests/fixtures/phase214/*.flent.gz` below the blanket `*.flent.gz` rule so new
 Phase 214 flent fixtures under this directory are not silently ignored.
+
+`sample-bad-p99-health.ndjson` is a synthesized 30-second `/health` fixture
+matching the live Phase 213 poller key set. Recipe: start at epoch `1779920851`,
+emit 1Hz `t_wall` rows, hold `status=healthy` / `download_state=GREEN`, and cycle
+`measurement_successful_count` as `0,0,0,2` to model collapse-while-GREEN.
