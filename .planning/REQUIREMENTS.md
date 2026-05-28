@@ -33,7 +33,7 @@ created: 2026-05-27
 
 - [x] **MEAS-01**: The pending `tcp_12down` investigation is rerun with a bounded matrix across time-of-day and captures p50/p95/p99 latency, throughput, reflector misses, protocol divergence, and controller state.
 - [x] **MEAS-02**: If health remains `GREEN` during bad p99 latency, the operator has an explicit explanation of why and a proposed health/degraded-signal change or a documented reason not to add one.
-- [ ] **MEAS-03**: Any new degraded-measurement signal is observational first unless evidence proves it should affect control decisions.
+- [x] **MEAS-03**: Any new degraded-measurement signal is observational first unless evidence proves it should affect control decisions.
 
 ### Conservative Throughput Reclaim (RECLAIM)
 
@@ -86,7 +86,7 @@ created: 2026-05-27
 | BASE-03    | 213   | Complete |
 | MEAS-01    | 214   | Complete |
 | MEAS-02    | 214   | Complete |
-| MEAS-03    | 214   | Pending |
+| MEAS-03    | 214   | Complete |
 | RECLAIM-01 | 215   | Pending |
 | RECLAIM-02 | 215   | Pending |
 | RECLAIM-03 | 215   | Pending |
