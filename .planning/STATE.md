@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.46
 milestone_name: Internet Quality Recovery
 current_phase: 214
-current_plan: Not started
-status: planning
-stopped_at: Phase 214 context gathered
-last_updated: "2026-05-27T23:18:37.834Z"
-last_activity: 2026-05-27
+current_plan: 1
+status: executing
+stopped_at: Completed 214-01-PLAN.md
+last_updated: "2026-05-28T01:16:36.936Z"
+last_activity: 2026-05-28
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 14
+  completed_plans: 9
   percent: 29
 ---
 
@@ -23,21 +23,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 214 — measurement collapse investigation
+**Current focus:** Phase 214 — measurement-collapse-investigation
 
 ## Current Position
 
-Phase: 213 (experience-baseline-harness) — EXECUTING
-Plan: 5 of 5
+Phase: 214 (measurement-collapse-investigation) — EXECUTING
+Plan: 2 of 6
 **Last shipped milestone:** v1.45 Flapping Peak-Counter Window Repair (shipped 2026-05-27 — VERIFY-01 DEFERRED)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.46 Internet Quality Recovery
 **Current phase:** 214
-**Current plan:** Not started
-**Status:** Ready to plan
-**Last activity:** 2026-05-27
+**Current plan:** 1
+**Status:** Ready to execute
+**Last activity:** 2026-05-28
 
-Progress: [█████████░] 88%
+Progress: [██████░░░░] 64%
 
 ## Phase Structure (v1.46)
 
@@ -117,8 +117,8 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Stopped at: Phase 214 context gathered
-Resume file: .planning/phases/214-measurement-collapse-investigation/214-CONTEXT.md
+Stopped at: Completed 214-01-PLAN.md
+Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
 ## Operator Next Steps
@@ -157,6 +157,7 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [213-03]: Alert-window live mode uses `sqlite3 -readonly file:DB?mode=ro`; local fixture mode skips SSH entirely and falls back to Python stdlib `sqlite3` only when the dev VM lacks the sqlite3 CLI.
 - [213-03]: Steering state raw JSON lives only in `/tmp/phase213-steering-raw.XXXXXX` under an immediate EXIT trap; committed evidence paths receive only D-08-redacted JSON.
 - [213-05]: Phase 213 complete; next phase: 215 per operator verdict; runners-up: 216, 214.
+- [214-01]: Matrix capture stays a thin Phase 213 wrapper; Plan 01 adds Phase 214 window metadata, per-test journal capture, and an untracked-file extension to the D-14 `src/wanctl/` mutation guard.
 
 ## Performance Metrics
 
@@ -175,3 +176,4 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 | Phase 213 P03 | 4min | 2 tasks | 2 files |
 | Phase 213 P04 | 8min | 3 tasks | 4 files |
 | Phase 213 P05 | in-session | 3 tasks | 140+ files |
+| Phase 214 P01 | 3min | 1 tasks | 1 files |

@@ -105,11 +105,11 @@ Plans:
 3. Any proposed degraded-measurement signal starts observational unless evidence supports control-path use.
 4. Pending todo `2026-04-08-investigate-tcp-12down-latency-spikes-under-multi-flow-downl` is closed or explicitly carried with narrower next steps.
 
-**Plans:** 6 plans
+**Plans:** 1/6 plans executed
 Plans:
 **Wave 1** *(parallel; no file overlap)*
 
-- [ ] 214-01-PLAN.md — Per-window matrix wrapper (`scripts/phase214-flent-matrix.sh`) with window-hour gate + D-14 src/wanctl/ diff guard + sidecar manifest
+- [x] 214-01-PLAN.md — Per-window matrix wrapper (`scripts/phase214-flent-matrix.sh`) with window-hour gate + D-14 src/wanctl/ diff guard + sidecar manifest
 - [ ] 214-02-PLAN.md — Fail-closed flent latency/throughput extractor (`scripts/phase214-extract.py`) + Wave-0 fixtures + tests
 
 **Wave 2** *(blocked on 214-02)*
@@ -190,7 +190,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 212. Production Inventory And Drift Audit | 3/3 | Complete    | 2026-05-27 |
 | 213. Experience Baseline Harness | 5/5 | Complete    | 2026-05-27 |
-| 214. Measurement Collapse Investigation | 0/6 | Planned     | — |
+| 214. Measurement Collapse Investigation | 1/6 | In Progress|  |
 | 215. Spectrum Upload Reclaim Canary | 0/? | Pending | — |
 | 216. Recovery/Refractory Decision | 0/? | Pending | — |
 | 217. Production Cycle-Budget Baseline | 0/? | Pending | — |
