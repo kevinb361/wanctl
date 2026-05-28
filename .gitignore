@@ -21,6 +21,7 @@ MagicMock/
 
 # Test data (flent/netperf output)
 *.flent.gz
+!tests/fixtures/phase214/*.flent.gz
 io-sample-*.csv
 measurement-sample-*.csv
 rrul-sample-*.csv
