@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MATRIX_SUMMARY = REPO_ROOT / "scripts/phase214-matrix-summary.py"
 
