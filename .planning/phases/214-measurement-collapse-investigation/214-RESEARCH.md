@@ -763,27 +763,34 @@ The active project CLAUDE.md (wanctl) imposes the following directives the plann
 
 **User confirmation suggested for:** A1, A2 — these should be verified during Wave 0 by reading `health_check.py` and grepping recent journal output before the live matrix runs. The remaining assumptions are operational defaults the planner can adjust without invalidating the research.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does `health_check.py` v1.45.0 emit a fusion-suspension boolean or string field?**
    - What we know: `/health` rows contain `irtt_*` fields; fusion-healer transitions to alert.
-   - What's unclear: Whether there is a single boolean/string field like `measurement.fusion_state` that the aligner can pull, or whether fusion state must be inferred from `irtt_rtt_mean_ms` going null + journal events.
-   - Recommendation: Wave 0 task — grep `health_check.py` and `fusion_healer.py` for the exact field name; add it to the aligner if present.
+   - **RESOLVED (2026-05-27 source read):** The structured `/health` payload DOES carry fusion state at `wan_health.fusion.heal_state` with values `{active, suspended, recovering, no_healer}` (verified at `src/wanctl/health_check.py:617-722` `_build_fusion_section`, and `src/wanctl/fusion_healer.py:43-44,231` `HealState` enum). It also exposes `fusion.heal_grace_active`, `fusion.pearson_correlation`, `fusion.correlation_window_avg`, and `fusion.bypass_active`/`bypass_reason`/`bypass_count`. **HOWEVER**, the flat NDJSON emitted by `scripts/phase213-health-poller.sh:166-221` does NOT project any `fusion.*` field — the jq projection ends at `irtt_*` + `router_reachable` + `alerting_*`. Adding `fusion_heal_state` to that projection would be a Phase-213-script back-edit (forbidden by D-11). **Resolution for Phase 214:** the aligner reads only the fields the existing poller already projects; the `icmp_udp_divergence` driver in 214-04 uses (a) journal evidence (verified regex below) and (b) `irtt_rtt_mean_ms` going null while `load_rtt_ms` stable — both already in the NDJSON. The `/health.fusion.heal_state` field is documented in `214-REPORT.md` Signal Disposition as a future-phase candidate to add to the poller projection (separate phase; not a D-11 violation when proposed, only when implemented here).
 
 2. **Are exact journal log messages stable between v1.39 (when folded todo was captured) and v1.45.0?**
    - What we know: Folded todo quotes `ICMP deprioritized` (ratio `2.21`) and `UDP deprioritized` (ratio `0.58`) and `Ping to <ip> failed`.
-   - What's unclear: Whether v1.45.0 emits identical strings.
-   - Recommendation: Wave 0 task — pull a current journal sample with `ssh cake-shaper "sudo -n journalctl -u wanctl@spectrum --since '1 hour ago' --no-pager"` and confirm regex matches before relying on the rubric.
+   - **RESOLVED (2026-05-27 source read):** The v1.45.0 log strings are verified:
+     - **Reflector miss:** `src/wanctl/rtt_measurement.py:210` emits literal `"Ping to %s failed (no response)"`. Existing rubric regex `Ping to \S+ failed` MATCHES. No change.
+     - **Protocol deprioritization:** `src/wanctl/wan_controller.py:1786-1790` emits literal `"<wan>: Protocol deprioritization detected: ICMP/UDP ratio=<r> (<ICMP deprioritized|UDP deprioritized>), ICMP=<x>ms, UDP=<y>ms"`. The interpretation substring `ICMP deprioritized` / `UDP deprioritized` is verbatim from v1.39. Existing rubric regex `(ICMP|UDP)\s+deprioritized` MATCHES (case-sensitive is sufficient; case-insensitive optional and harmless).
+     - **Additional v1.45.0 signals NOT in the original v1.39 quote** (available for richer rubric, low-risk add):
+       - `src/wanctl/reflector_scorer.py:161-164` emits `"<wan>: Reflector <host> deprioritized (score=<s> < <min>)"` — distinct from ICMP/UDP deprioritization; this is reflector-pool-quality, not protocol-divergence. Belongs in `reflector_loss` driver, not `icmp_udp_divergence`.
+       - `src/wanctl/fusion_healer.py:250-256` emits `"Fusion healer <wan>: <old_state> -> <new_state> (r=<pearson>)"` with `<new_state>` ∈ `{active, suspended, recovering}`. This is the journal proxy for the absent `fusion.heal_state` NDJSON field; classifier may match `Fusion healer .* -> suspended` as an `icmp_udp_divergence` trigger when journal evidence is needed.
+   - **Resolution for Phase 214:** Plan 214-04's `JOURNAL_PROTO_DIVERGENCE_REGEX` is updated to `(?i)(ICMP|UDP)\s+deprioritized|Fusion healer.*->\s*suspended` (alternation captures both signals). `JOURNAL_REFLECTOR_FAIL_REGEX` stays at `Ping to \S+ failed`. Optional: `JOURNAL_REFLECTOR_DEPRIORITIZED_REGEX = r"Reflector \S+ deprioritized"` as a secondary `reflector_loss` trigger.
 
-3. **Should the optional ATT contrast run (D-04) be conducted in the same window as the inconclusive Spectrum run, or in a comparable but separate window?**
+3. **NDJSON time-key drift (related — surfaced during Q1/Q2 source read):**
+   - What we know (from 214-03 plan): aligner reads `r.get("sampled_utc") or r.get("t_wall_unix")` as the per-row epoch.
+   - **RESOLVED (2026-05-27 source read of live NDJSON):** Live `/health` NDJSON rows from `phase213-health-poller.sh` have ONLY `t_wall` (ISO8601 like `"2026-05-27T22:27:06+00:00"`) — NOT `sampled_utc`, NOT `t_wall_unix`. The aligner contract must read `t_wall` and convert via `datetime.fromisoformat(t_wall)` → `int(.timestamp())`. Plan 214-03 aligner interface updated accordingly; Plan 214-02 extractor returns `window_start_utc` and `window_end_utc` as ISO8601 strings (consumer converts when needed). This also resolves checker Warning #5 (asymmetric naming).
+
+4. **Should the optional ATT contrast run (D-04) be conducted in the same window as the inconclusive Spectrum run, or in a comparable but separate window?** (STILL OPEN — operator decision at run time)
    - What we know: D-04 says one ATT run if Spectrum reproduces collapse OR is inconclusive; no time-of-day stipulation given.
    - What's unclear: Whether contrast requires same-window comparability (less DOCSIS, share NTP-syncable contextual conditions) or just "any window."
    - Recommendation: Plan default to same-window-as-the-inconclusive-Spectrum-window; record decision in the matrix-summary.json.
 
-4. **What is the expected matrix-summary.json schema for downstream phases?**
+5. **What is the expected matrix-summary.json schema for downstream phases?** (RESOLVED — default schema locked in 214-05 plan)
    - What we know: Phase 215 (Spectrum upload reclaim) will consult Phase 214 outputs.
-   - What's unclear: Whether Phase 215 plans need a specific matrix verdict field name.
-   - Recommendation: Plan defaults to `{"phase": 214, "verdict": "pass|fail|ambiguous", "primary_driver": "<name>|null", "ranked_drivers": [...], "windows": [...], "signal_disposition": "form_b|form_c|none"}`. Phase 215 planning can map onto this.
+   - Resolution: Plan 214-05 ships default `{"phase": 214, "verdict": "pass|fail|ambiguous", "primary_driver": "<name>|null", "ranked_drivers": [...], "windows": [...], "signal_disposition": "form_b|form_c|none", "started_utc", "ended_utc", "git_head_sha", "mutation_posture"}`. Phase 215 planning maps onto this.
 
 ## Metadata
 

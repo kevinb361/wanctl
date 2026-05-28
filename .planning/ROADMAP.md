@@ -105,7 +105,28 @@ Plans:
 3. Any proposed degraded-measurement signal starts observational unless evidence supports control-path use.
 4. Pending todo `2026-04-08-investigate-tcp-12down-latency-spikes-under-multi-flow-downl` is closed or explicitly carried with narrower next steps.
 
-**Plans:** TBD by `/gsd-plan-phase 214`
+**Plans:** 6 plans
+Plans:
+**Wave 1** *(parallel; no file overlap)*
+
+- [ ] 214-01-PLAN.md — Per-window matrix wrapper (`scripts/phase214-flent-matrix.sh`) with window-hour gate + D-14 src/wanctl/ diff guard + sidecar manifest
+- [ ] 214-02-PLAN.md — Fail-closed flent latency/throughput extractor (`scripts/phase214-extract.py`) + Wave-0 fixtures + tests
+
+**Wave 2** *(blocked on 214-02)*
+
+- [ ] 214-03-PLAN.md — Time-aligned per-second cycle joiner (`scripts/phase214-align.py`) + tests + synthesized health NDJSON fixture
+
+**Wave 3** *(blocked on 214-03)*
+
+- [ ] 214-04-PLAN.md — Six-driver classifier + D-06 verdict gate (`scripts/phase214-classify.py`) + tests + journal-window fixture
+
+**Wave 4** *(blocked on 214-04)*
+
+- [ ] 214-05-PLAN.md — Matrix-summary aggregator (`scripts/phase214-matrix-summary.py`) + MEAS-03 structural mutation-guard pytest
+
+**Wave 5** *(blocked on 214-05; non-autonomous — operator live runs + REPORT authorship)*
+
+- [ ] 214-06-PLAN.md — Live three-window matrix capture + author `214-REPORT.md` + close/carry folded todo
 
 #### Phase 215: Spectrum Upload Reclaim Canary
 
@@ -169,7 +190,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 212. Production Inventory And Drift Audit | 3/3 | Complete    | 2026-05-27 |
 | 213. Experience Baseline Harness | 5/5 | Complete    | 2026-05-27 |
-| 214. Measurement Collapse Investigation | 0/? | Pending | — |
+| 214. Measurement Collapse Investigation | 0/6 | Planned     | — |
 | 215. Spectrum Upload Reclaim Canary | 0/? | Pending | — |
 | 216. Recovery/Refractory Decision | 0/? | Pending | — |
 | 217. Production Cycle-Budget Baseline | 0/? | Pending | — |
