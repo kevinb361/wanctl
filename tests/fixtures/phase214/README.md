@@ -21,3 +21,9 @@ matching the live Phase 213 poller key set. Recipe: start at epoch `1776329943`
 (the integer second of `sample-tcp_12down.flent.gz`'s `metadata.T0`), emit 1Hz
 `t_wall` rows, hold `status=healthy` / `download_state=GREEN`, and cycle
 `measurement_successful_count` as `0,0,0,2` to model collapse-while-GREEN.
+
+`sample-journal-window.ndjson` is a synthesized `journalctl --output=json`
+fixture that drives `reflector_loss` with three distinct `Ping to <ip> failed`
+messages inside a 10s sub-window and `icmp_udp_divergence` with an `ICMP
+deprioritized` message. It also includes one out-of-window reflector failure to
+exercise flent-window boundary discipline.
