@@ -3,12 +3,11 @@ import importlib.util
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
-
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ALIGNER = REPO_ROOT / "scripts/phase214-align.py"
@@ -54,6 +53,8 @@ ROW_SCHEMA_KEYS = {
 
 def _load_module(path: Path, name: str):
     assert path.exists(), f"{path} not built yet"
+    if name in sys.modules:
+        return sys.modules[name]
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -66,7 +67,7 @@ def _load_aligner():
 
 
 def _load_extractor():
-    return _load_module(EXTRACTOR, "phase214_extract_test")
+    return _load_module(EXTRACTOR, "phase214_extract")
 
 
 def _write_flent(path: Path, pings: list[dict[str, float]]) -> Path:
@@ -90,7 +91,7 @@ def _write_health(tmp_path: Path, rows: list[dict[str, Any]]) -> Path:
 
 def _health_row(t_unix: int, **overrides: Any) -> dict[str, Any]:
     row: dict[str, Any] = {
-        "t_wall": datetime.fromtimestamp(t_unix, tz=timezone.utc).isoformat(),
+        "t_wall": datetime.fromtimestamp(t_unix, tz=UTC).isoformat(),
         "status": "healthy",
         "download_state": "GREEN",
         "download_state_reason": "green_stable",
