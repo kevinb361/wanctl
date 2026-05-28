@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.46
 milestone_name: Internet Quality Recovery
 current_phase: 214
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 214-02-PLAN.md
-last_updated: "2026-05-28T01:29:36.634Z"
+stopped_at: Completed 214-03-PLAN.md
+last_updated: "2026-05-28T01:46:53.073Z"
 last_activity: 2026-05-28
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 14
-  completed_plans: 10
-  percent: 71
+  completed_plans: 11
+  percent: 79
 ---
 
 # Session State
@@ -28,16 +28,16 @@ See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
 ## Current Position
 
 Phase: 214 (measurement-collapse-investigation) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 **Last shipped milestone:** v1.45 Flapping Peak-Counter Window Repair (shipped 2026-05-27 — VERIFY-01 DEFERRED)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.46 Internet Quality Recovery
 **Current phase:** 214
-**Current plan:** 3
+**Current plan:** 4
 **Status:** Ready to execute
 **Last activity:** 2026-05-28
 
-Progress: [███████░░░] 71%
+Progress: [████████░░] 79%
 
 ## Phase Structure (v1.46)
 
@@ -117,7 +117,7 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Stopped at: Completed 214-02-PLAN.md
+Stopped at: Completed 214-03-PLAN.md
 Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
@@ -160,6 +160,9 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [214-01]: Matrix capture stays a thin Phase 213 wrapper; Plan 01 adds Phase 214 window metadata, per-test journal capture, and an untracked-file extension to the D-14 `src/wanctl/` mutation guard.
 - [214-02]: Phase 214 owns a new fail-closed flent extractor rather than back-editing Phase 213's zero-fill classifier path; `raw_values['Ping (ms) ICMP']` is the MEAS-01 p99 source of truth.
 - [214-02]: The extractor uses the locked Phase 214 sorted-index percentile method (`n//2`, `int(n*0.95)`, `int(n*0.99)` with clamp) and pins the known-good fixture values at p50=31.2, p95=60.3, p99=124.0.
+- [214-03]: The aligner reuses `phase214-extract.py`'s `FlentExtractionError` class via a sys.modules-cached importlib load so downstream exception handling sees one canonical class.
+- [214-03]: The aligner CLI derives the flent window from `extract_flent_latency()` and rejects operator-supplied `--flent-t0` / `--flent-end` flags.
+- [214-03]: The synthesized health fixture is aligned to the committed flent fixture window so end-to-end CLI verification exercises health projection and `in_flent_window` rows together.
 
 ## Performance Metrics
 
@@ -180,3 +183,4 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 | Phase 213 P05 | in-session | 3 tasks | 140+ files |
 | Phase 214 P01 | 3min | 1 tasks | 1 files |
 | Phase 214 P02 | 9min | 2 tasks | 7 files |
+| Phase 214 P03 | 10min | 2 tasks | 5 files |
