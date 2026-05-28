@@ -107,6 +107,7 @@ Each task was committed atomically:
 
 - Pre-commit documentation hook prompts are interactive for detected security/config/function changes. Commits were made with the hook's supported `SKIP_DOC_CHECK=1` environment path, not `--no-verify`; hooks still ran and reported the skip.
 - Full suite verification found an out-of-scope timing-sensitive failure: `tests/test_autorate_metrics_recording.py::TestPerformanceOverhead::test_many_cycles_no_degradation` measured max write time `10.04ms` vs `<5ms` after `5,150 passed, 6 skipped, 2 deselected`. This is unrelated to Phase 214 extractor/fixture changes and was recorded in `deferred-items.md` rather than fixed.
+- The first metadata commit accidentally included unrelated pre-existing `.planning` changes/deletions. This was immediately corrected by restore commit `20170ca`, and the final working tree is clean with those unrelated files restored.
 
 ## Known Stubs
 
