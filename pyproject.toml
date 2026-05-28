@@ -111,6 +111,9 @@ ignore = [
 max-complexity = 15  # Phase 145: all functions refactored below C901 threshold 15
 
 [tool.ruff.lint.per-file-ignores]
+"scripts/phase214-extract.py" = [
+    "N999",    # Phase 214 plan requires a hyphenated standalone CLI script name
+]
 "tests/*" = [
     "SIM102",  # collapsible-if in tests -- readability over compactness
     "N802",    # function name should be lowercase -- test names may include class/constant names

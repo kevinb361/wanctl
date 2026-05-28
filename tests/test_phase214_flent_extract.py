@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXTRACTOR = REPO_ROOT / "scripts/phase214-extract.py"
 FIXTURES = REPO_ROOT / "tests/fixtures/phase214"
