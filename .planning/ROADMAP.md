@@ -105,7 +105,7 @@ Plans:
 3. Any proposed degraded-measurement signal starts observational unless evidence supports control-path use.
 4. Pending todo `2026-04-08-investigate-tcp-12down-latency-spikes-under-multi-flow-downl` is closed or explicitly carried with narrower next steps.
 
-**Plans:** 2/6 plans executed
+**Plans:** 3/6 plans executed
 Plans:
 **Wave 1** *(parallel; no file overlap)*
 
@@ -114,7 +114,7 @@ Plans:
 
 **Wave 2** *(blocked on 214-02)*
 
-- [ ] 214-03-PLAN.md — Time-aligned per-second cycle joiner (`scripts/phase214-align.py`) + tests + synthesized health NDJSON fixture
+- [x] 214-03-PLAN.md — Time-aligned per-second cycle joiner (`scripts/phase214-align.py`) + tests + synthesized health NDJSON fixture
 
 **Wave 3** *(blocked on 214-03)*
 
@@ -190,7 +190,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 212. Production Inventory And Drift Audit | 3/3 | Complete    | 2026-05-27 |
 | 213. Experience Baseline Harness | 5/5 | Complete    | 2026-05-27 |
-| 214. Measurement Collapse Investigation | 2/6 | In Progress|  |
+| 214. Measurement Collapse Investigation | 3/6 | In Progress|  |
 | 215. Spectrum Upload Reclaim Canary | 0/? | Pending | — |
 | 216. Recovery/Refractory Decision | 0/? | Pending | — |
 | 217. Production Cycle-Budget Baseline | 0/? | Pending | — |
