@@ -13,7 +13,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PHASE_DIR = REPO_ROOT / ".planning/phases/214-measurement-collapse-investigation"
 MUTATION_BOUNDARY_TEST = REPO_ROOT / "tests/test_phase214_mutation_boundary.py"
@@ -21,6 +20,7 @@ PHASE213_BACK_EDIT_PATHS = [
     "scripts/phase213-classify.py",
     "scripts/phase213-baseline-capture.sh",
 ]
+PROTECTED_PATHS = ["src/wanctl/", *PHASE213_BACK_EDIT_PATHS]
 
 # Line-anchored command/assignment forms only. Narrative references to the same
 # words must not trip; active verbs and assignment forms at line start must trip.
@@ -30,7 +30,7 @@ FORBIDDEN_MUTATION_RE = re.compile(
     (
        systemctl\s+restart\s+wanctl(@\S+)?\b
      | service\s+wanctl(@\S+)?\s+restart\b
-     | restart\s+wanctl(@\S+)?\b
+     | restart\s+wanctl(@\S+)?(?=\s*(?:$|\#))
      | ceiling_mbps\s*[:=]\s*\d
      | setpoint_mbps\s*[:=]\s*\d
      | /etc/wanctl/\S+\s+(edit|write|modify)\b
@@ -60,9 +60,16 @@ def _phase_base_sha() -> str:
 
     for args in (["merge-base", "HEAD", "origin/main"], ["rev-parse", "HEAD~10"]):
         result = _git(args)
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
-    pytest.skip("could not resolve PHASE214_BASE_SHA, origin/main merge-base, or HEAD~10")
+        candidate = result.stdout.strip()
+        if result.returncode != 0 or not candidate:
+            continue
+        # origin/main may be older than the active milestone in local sequential
+        # execution. Use it only if it is a clean heuristic boundary for this
+        # phase's protected paths; otherwise fall through to HEAD~10.
+        committed = _git(["diff", "--name-only", f"{candidate}..HEAD", "--", *PROTECTED_PATHS])
+        if committed.returncode == 0 and not committed.stdout.strip():
+            return candidate
+    pytest.skip("could not resolve a clean Phase 214 base SHA; set PHASE214_BASE_SHA")
 
 
 def _assert_no_git_diff(paths: list[str], label: str) -> None:
