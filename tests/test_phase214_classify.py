@@ -4,7 +4,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CLASSIFIER = REPO_ROOT / "scripts/phase214-classify.py"
 ALIGNER = REPO_ROOT / "scripts/phase214-align.py"
