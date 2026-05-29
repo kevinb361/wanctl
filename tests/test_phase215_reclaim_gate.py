@@ -141,6 +141,30 @@ def test_gate_voids_when_candidate_window_is_collapsed(tmp_path: Path) -> None:
     assert verdict["measurement_state_collapsed"] is True
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("p95_ms", float("nan")),
+        ("p99_ms", float("inf")),
+        ("throughput_median_mbps", float("-inf")),
+    ],
+)
+def test_gate_voids_when_candidate_metrics_are_non_finite(tmp_path: Path, field: str, value: float) -> None:
+    health = _write_health(tmp_path / "health.ndjson")
+    candidate = _extract(52.0, 72.0, 12.6)
+    if field in candidate["latency"]:
+        candidate["latency"][field] = value
+    else:
+        candidate["upload_throughput"][field] = value
+
+    rc, verdict, _output = _run_gate(tmp_path, candidate, health)
+
+    assert rc == 2
+    assert verdict["verdict"] == "void"
+    assert verdict["exit_code"] == 2
+    assert "required_metric_missing_or_invalid" in verdict["reason"]
+
+
 def test_gate_writes_abort_verdict_when_required_inputs_are_missing(tmp_path: Path) -> None:
     rc, verdict, output = _run_parse_error(tmp_path)
 
