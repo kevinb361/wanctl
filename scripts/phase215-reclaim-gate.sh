@@ -109,25 +109,50 @@ require_command python3
 mkdir -p "$OUTPUT_DIR"
 VERDICT="$OUTPUT_DIR/verdict.json"
 
+write_preflight_abort() {
+    local reason="$1"
+    python3 - "$VERDICT" "$reason" <<'PY'
+import json
+import sys
+
+path, reason = sys.argv[1:]
+json.dump({"verdict": "abort", "exit_code": 2, "reason": reason}, open(path, "w", encoding="utf-8"), indent=2, sort_keys=True)
+PY
+}
+
 if [[ -n "$REMOTE_YAML" ]]; then
     require_command ssh
     remote_host="${REMOTE_YAML%%:*}"
     remote_path="${REMOTE_YAML#*:}"
     if [[ "$remote_host" == "$remote_path" || ! "$remote_path" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
         printf 'ABORT: --remote-yaml must be host:/absolute/safe/path\n' >&2
+        write_preflight_abort "remote_yaml_invalid"
         exit "$EXIT_ABORT"
     fi
-    deployed_ceiling="$(ssh "$remote_host" "sudo -n python3 -c \"import re; from pathlib import Path; text=Path('$remote_path').read_text(encoding='utf-8'); inside=False
+    if ! deployed_ceiling="$(ssh "$remote_host" "sudo -n python3 - '$remote_path'" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+inside = False
 for line in text.splitlines():
-    if re.match(r'^  upload:', line):
-        inside=True; continue
-    if inside and re.match(r'^  [A-Za-z_]+:', line):
-        inside=False
+    if re.match(r"^  upload:", line):
+        inside = True
+        continue
+    if inside and re.match(r"^  [A-Za-z_]+:", line):
+        inside = False
     if inside:
-        m=re.match(r'^    ceiling_mbps:\\\\s*([0-9.]+)', line)
-        if m:
-            print(m.group(1)); raise SystemExit(0)
-raise SystemExit(1)\"")"
+        match = re.match(r"^    ceiling_mbps:\s*([0-9.]+)", line)
+        if match:
+            print(match.group(1))
+            raise SystemExit(0)
+raise SystemExit(1)
+PY
+    )"; then
+        write_preflight_abort "deployed_ceiling_unreadable"
+        exit "$EXIT_ABORT"
+    fi
     if [[ "$deployed_ceiling" != "$EXPECTED_CEILING" ]]; then
         python3 - "$VERDICT" "$EXPECTED_CEILING" "$deployed_ceiling" <<'PY'
 import json, sys
