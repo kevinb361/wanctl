@@ -1,16 +1,36 @@
-# Phase 217: Production Cycle-Budget Baseline - Research
+# Phase 217: Production Cycle-Budget Baseline - Research (refresh)
 
-**Researched:** 2026-05-29
-**Domain:** Production performance profiling of a 50ms (20Hz) control loop; log/journal parsing; systemd override capture; measurement + decision (no control-path change)
-**Confidence:** HIGH (all findings grounded in current `src/`, `scripts/`, `deploy/`, and existing docs with file:line citations)
+**Researched:** 2026-05-29 (refresh — supersedes the original 217-RESEARCH.md of the same date)
+**Domain:** Production performance profiling of a 50ms (20Hz) control loop; structured-log capture; systemd override capture; measurement + decision (no control-path change)
+**Confidence:** HIGH (every load-bearing claim cites file:line in current `src/`/`scripts/`/`configs/`; the three previously-broken assumptions are now flagged and replaced)
+
+## Corrections Superseding the Previous Research
+
+Codex peer-review surfaced three blindspots in the prior 217-RESEARCH.md. Each was independently verified against source by the orchestrator and is **corrected** here. The planner must NOT re-inherit any of these:
+
+1. **`autorate_cycle_total: X.Xms` is NOT emitted as a parseable text DEBUG line.** The prior recommendation to capture in text DEBUG and parse `cycle_total` with the existing regex collector is **wrong**. `record_cycle_profiling()` logs cycle_total only as a structured `extra` field on the message `"Cycle timing"`, and the text formatter drops `extra` entirely. See "Verified findings" below for citations and the empirical pattern test.
+2. **`/var/log/wanctl/spectrum.log` is INFO-only.** DEBUG lines go to `/var/log/wanctl/spectrum_debug.log` (plus journald when `--debug` runs the console at DEBUG). The prior research's "capture from `/var/log/wanctl/spectrum.log`" was wrong as written; that file does not contain the per-cycle DEBUG samples even when `--debug` is on.
+3. **`/health` and DEBUG-logged `cycle_total` cannot cross-check observer-effect within one window.** Both read the same in-process `profiler.stats("autorate_cycle_total")`. The prior research's "report the delta as the observer-effect figure" yields ~0 by construction. A real observer-effect bound needs **adjacent windows** with `--debug` ON vs OFF, or the requirement is downgraded to a documented caveat.
+
+Anchor citations (orchestrator-verified):
+
+- `src/wanctl/perf_profiler.py:266-294` — `total_ms = (time.perf_counter() - cycle_start) * 1000.0`; `profiler.record(f"{label_prefix}_cycle_total", total_ms)`; `logger.debug("Cycle timing", extra=extra)` where `extra = {"cycle_total_ms": ..., "<suffix>_ms": ...}`. Message string is literally `"Cycle timing"`; `cycle_total_ms` lives only in `extra`.
+- `src/wanctl/logging_utils.py:122-134` — text formatter is `"%(asctime)s [{wan_name}] [%(levelname)s] %(message)s"`. Drops `extra` entirely.
+- `src/wanctl/logging_utils.py:74-102` — JSONFormatter walks `record.__dict__` and includes every key that is not internal to LogRecord. **`extra=` keys ARE preserved** under JSON format. (Verified.)
+- `src/wanctl/logging_utils.py:199-214` — main `RotatingFileHandler` is `setLevel(logging.INFO)`; debug `RotatingFileHandler` is `setLevel(logging.DEBUG)` and only added when `debug=True`. Console handler is upgraded to DEBUG only when `debug=True`.
+- `configs/spectrum.yaml:152-154` — `main_log: /var/log/wanctl/spectrum.log` and `debug_log: /var/log/wanctl/spectrum_debug.log`.
+- `src/wanctl/health_check.py:101` — `stats = profiler.stats(total_label)` reads the same in-process profiler that `record_cycle_profiling` writes.
+- `scripts/profiling_collector.py:38-46` — regex `(\w+): (\d+\.\d+)ms` matches per-`PerfTimer.__exit__` text DEBUG lines (`label: X.Xms`) but does NOT match the `"Cycle timing"` message (no `cycle_total` in the message string) and does NOT match JSON lines. Sub-timer coverage from the text DEBUG remains useful; cycle-total coverage requires a different path.
+
+The rest of this document is built around those corrected facts.
 
 ## Summary
 
-This is a measurement + decision phase. The full profiling stack already exists (`perf_profiler.py`, `profiling_collector.py`, `analyze_profiling.py`, the `--profile` flag, and `/health` `cycle_budget` telemetry). No new instrumentation is needed. The phase consumes that stack on Spectrum for ≥1h, attributes per-cycle cost across the five PERF-02 categories, writes a committed artifact + 1-page summary, creates the missing `docs/PROFILING.md` runbook, and closes-or-promotes the pending todo against the D-03 absolute bars.
+This is a measurement + decision phase. The profiling stack itself is fine — `OperationProfiler`, `PerfTimer`, `record_cycle_profiling`, the `--profile` flag, the `/health cycle_budget` block, and `scripts/analyze_profiling.py` all exist and work. What this phase needs to lock down is the **data path**: how do we get a 1h sample of `autorate_cycle_total` plus the 4 PERF-02 hot-path category labels into a committed artifact under D-05 (no `src/` changes), and how do we compute a falsifiable D-03 verdict over those samples.
 
-**The single highest-risk finding the planner MUST design around:** the existing analysis scripts (`profiling_collector.py`, `analyze_profiling.py`) parse log files with the regex `(\w+): (\d+\.\d+)ms`. That regex **only matches the `PerfTimer.__exit__` DEBUG lines** (`autorate_rtt_measurement: 40.5ms`), which require the daemon to run at **DEBUG level** (`--debug`). It does **NOT** match the periodic `report()` output that the `--profile` flag actually produces (format: `label: count=1200, min=12.3ms, avg=15.4ms, ...`), and it does **NOT** match JSON-formatted logs. I verified this empirically (see Pitfall 1). So `--profile` alone gives you human-readable aggregate reports in the log, but the analyzer scripts will return "No timing measurements found" against a `--profile`-only log. This is the crux of the capture design and it directly determines what the `.profile.json` artifact can contain and how acceptance criteria must be written.
+**Primary recommendation: Option A — capture under `WANCTL_LOG_FORMAT=json` + `--profile --debug` via systemd drop-in; analyze with a small offline JSON parser; `/health` polled at low cadence as an independent INFO-only sanity track.** Rationale below.
 
-**Primary recommendation:** Capture via systemd drop-in adding **both `--profile` and `--debug`** (DEBUG produces the analyzer-parseable per-sample `label: X.Xms` lines; `--profile` produces human-readable periodic aggregates as a cross-check). Pull data from the main log file `/var/log/wanctl/spectrum.log` (not journald — the parseable lines live in the rotating file handler). Run `profiling_collector.py ... --output json` to produce the committed `.profile.json` artifact, and `analyze_profiling.py` to produce the dominance/percentage breakdown. Cross-check both against the live `/health` `cycle_budget.subsystems` block, which is computed independently from the same profiler deques and requires no DEBUG. Explicitly state the observer-effect caveat: DEBUG-level capture adds ~11 per-cycle log writes (~220 writes/sec at 20Hz) that are absent in steady-state `--profile`-off production, so the captured `cycle_total` is an upper bound, not the steady-state cost.
+The headline trade is: Option A needs one small JSON-aware offline parser (zero `src/` risk, sits in `scripts/`), but yields the full {cycle_total + 15 subsystem labels} per cycle, lets the existing `OperationProfiler.stats()` math run client-side, and survives all three of the broken assumptions cleanly. Option B (full-window `/health` poll) avoids the parser but is structurally limited by `/health`'s rolling 100-sample window and cannot bound observer-effect any better than Option A. Option C is `src/` editing and is rejected under D-05.
 
 ## User Constraints (from CONTEXT.md)
 
@@ -19,15 +39,15 @@ This is a measurement + decision phase. The full profiling stack already exists 
 - **D-02:** Capture **~1h organic household traffic** (steady-state budget) **plus a short driven RRUL/upload segment** using the Phase 213 harness, to exercise the change-gated `autorate_router_write_*` path.
 - **D-03:** Judge against **absolute health bars**: (a) `autorate_cycle_total` headroom vs the 50ms cycle budget, and (b) structural dominance test — **no single subsystem >40% of `autorate_cycle_total`**.
 - **D-04:** **Drop the ±15% / ±25%-vs-v1.39 clauses.** Archived v1.0/v1.9 artifacts may be cited as **informational context only**, never as a pass/fail gate. Close-condition partition: **no-action** if cycle_total has comfortable 50ms headroom AND no subsystem >40%; **promote** if either a subsystem exceeds 40% or total headroom is thin.
-- **D-05:** Enable `--profile` via a **systemd override drop-in**, not a permanent edit. Clean enable → ≥1h capture → revert drop-in → restart.
+- **D-05:** Enable `--profile` via a **systemd override drop-in**, not a permanent edit. Clean enable → ≥1h capture → revert drop-in → restart. **No `src/` changes.**
 - **D-06:** Commit the artifact to `.planning/perf/v1.45-baseline-spectrum-<date>.profile.json` (create `.planning/perf/`) plus a **1-page summary** stating the close-condition outcome and the deprioritize/promote decision (PERF-03).
 - **D-07:** **Create the missing `docs/PROFILING.md`** runbook (enable/capture/revert/analyze, repeatable).
 
 ### Claude's Discretion
-- Exact driven-segment duration.
-- The analysis script invocation (`scripts/analyze_profiling.py`).
+- Exact driven-segment duration (recommended below as the Phase 213 default; planner may tune).
+- The analysis script invocation (the new offline JSON parser; existing `scripts/analyze_profiling.py` is no longer load-bearing because cycle_total isn't in text DEBUG).
 - Summary format.
-- Whether to quantify the profiling observer-effect inline or as a noted caveat.
+- Whether to quantify the profiling observer-effect inline or as a noted caveat (this research downgrades to **documented caveat + optional cheap adjacent-window estimate**; see Q5).
 
 ### Deferred Ideas (OUT OF SCOPE)
 - **Any actual optimization** (RTT-path restructuring, per-cycle metrics/logging allocation, router/transport cost reduction). If the data promotes the todo, that becomes a v1.46+ optimization phase.
@@ -37,142 +57,100 @@ This is a measurement + decision phase. The full profiling stack already exists 
 
 | ID | Description | Research Support |
 |----|-------------|------------------|
-| PERF-01 | Close or promote the pending post-hotpath profiling todo by capturing ≥1h of current production cycle-budget data. | Capture mechanics (Q4), artifact schema (Q1), close-condition partition reinterpreted by D-03/D-04. Capture = `--profile`+`--debug` drop-in on Spectrum, ≥1h, parse `/var/log/wanctl/spectrum.log`. |
-| PERF-02 | The profile identifies whether RTT measurement, CAKE stats, router communication, logging/metrics, or storage writes is the dominant hot-path cost. | Subsystem label→category map (Q2). 4 of 5 categories have direct labels; **storage writes has NO hot-path label** (deferred to background worker) and must be inferred from `wanctl-history --ingestion-rate` (gap flagged below). |
-| PERF-03 | If cycle budget is healthy, performance work is explicitly deprioritized in favor of quality/tuning. | The 1-page summary (D-06) records the explicit decision against the D-03 bars. |
+| PERF-01 | Close or promote the pending post-hotpath profiling todo by capturing ≥1h of current production cycle-budget data. | Capture mechanics (Q4) + artifact schema (Q1) — JSON-format DEBUG capture with the recommended data path. |
+| PERF-02 | The profile identifies whether RTT measurement, CAKE stats, router communication, logging/metrics, or storage writes is the dominant hot-path cost. | Subsystem label→category map (Q2). 4 of 5 categories have direct hot-path labels; **storage writes has NO hot-path label** (deferred to background worker) and is attributed out-of-band via `wanctl-history --ingestion-rate --from <start> --to <end> --wan spectrum`. |
+| PERF-03 | If cycle budget is healthy, performance work is explicitly deprioritized in favor of quality/tuning. | The 1-page summary (D-06) records the explicit decision against the D-03 bars, using the pre-data numeric headroom bar in Q5. |
 
-## Architectural Responsibility Map
+## Capture & Analysis Data Path (recommended)
 
-| Capability | Primary Tier | Secondary Tier | Rationale |
-|------------|-------------|----------------|-----------|
-| Per-cycle subsystem timing | Control loop (`wan_controller.run_cycle`) | — | `PerfTimer` wraps each `_run_*` subsystem; `_record_profiling` accumulates into `OperationProfiler` deques. `wan_controller.py:2540-2614` |
-| Profiling aggregation + periodic report | Profiler module (`perf_profiler.OperationProfiler`) | — | Bounded deque (maxlen 100) of samples per label; `report()` emits aggregate at INFO every 1200 cycles (~60s). `perf_profiler.py:66-195,231,296-300` |
-| `--profile` flag wiring | Daemon entry (`autorate_continuous`) | — | `--profile` → `_configure_controller_flags` → `enable_profiling(True)` per WAN. `autorate_continuous.py:294-298,490-497`; `wan_controller.py:4384-4386` |
-| Cycle-budget telemetry surface | Health server (`health_check`) | — | `_build_cycle_budget` reads the same profiler deques and exposes avg/p95/p99 + per-subsystem breakdown over HTTP `/health`. `health_check.py:114-151,259-269`. **No DEBUG needed.** |
-| Log → stats extraction | Offline scripts (`scripts/`) | — | `profiling_collector.py` / `analyze_profiling.py` regex-parse the log file. `analyze_profiling.py:23-41`; `profiling_collector.py:22-48` |
-| Storage-write attribution | Deferred I/O worker (`DeferredIOWorker`) + `wanctl-history` | — | SQLite writes are off the hot path (background worker, `autorate_continuous.py:518-528`). Hot-path cost is NOT directly profiled; use `wanctl-history --ingestion-rate`. `history.py:559,651-715` |
-| Load driving (driven segment) | External harness (dev VM) | — | `scripts/phase213-baseline-capture.sh` → `scripts/phase191-flent-capture.sh` runs `flent rrul`/`tcp_upload` from the dev VM; no production mutation. |
+### Chosen option: A — JSON-format DEBUG capture + offline JSON parser
 
-## Standard Stack
+**Why A over B and C:**
 
-This phase builds nothing new. The relevant existing components:
+- **vs C (in-process one-liner in `record_cycle_profiling`):** violates D-05 (no `src/` changes). Rejected on scope; not revisited.
+- **vs B (full-window `/health` NDJSON poll):** B avoids a new parser but inherits two structural limits. (1) `/health._build_cycle_budget` (`health_check.py:101-151`) reads `profiler.stats(...)` over a deque of `max_samples=100` (`perf_profiler.py:91-101`). At 20Hz that is a ~5-second rolling window — every `/health` GET is a snapshot of the last 5s, not a 1h aggregate. To approximate a 1h aggregate from `/health` you'd average snapshot avgs, which is a sample-of-means, not a true sample distribution, and degrades p95/p99 fidelity. (2) `/health.cycle_budget.subsystems` enumerates 9 labels (`health_check.py:127-137`) and crucially **omits the router-write sub-labels** (`autorate_router_write_*`) that are needed to confirm the D-02 driven segment landed. Option A captures every cycle, all 16 labels (15 subsystems + cycle_total), in one file with no rolling-window loss.
+- **Option A pros:** complete data, observer-effect bounded by capturing one extra short ON-vs-OFF pair if desired (cheap), `WANCTL_LOG_FORMAT=json` is an env switch already plumbed (`logging_utils.py:115`, `setup_logging` accepts it), JSONFormatter already preserves `extra=` keys verbatim (`logging_utils.py:91-96`), and no `src/` change.
+- **Option A cons:** introduces one offline parser script (~50 lines) in `scripts/`; the existing `scripts/profiling_collector.py` / `scripts/analyze_profiling.py` are bypassed for the cycle-total path (they remain usable as a sub-timer text cross-check on the SAME log if we briefly run text-format first, but this is optional). One residual verification needed: confirm at capture-time that the JSON output actually contains `cycle_total_ms` (see Open Question 1 below — this is the one item the planner's Wave 0 must verify before committing to the full 1h window).
 
-### Core (existing, consumed as-is)
-| Component | File:Line | Purpose |
-|-----------|-----------|---------|
-| `OperationProfiler` | `perf_profiler.py:66-195` | Bounded-deque (maxlen=100) per-label sample store; `stats()` returns count/min/max/avg/p95/p99; `report()` emits aggregate text. |
-| `PerfTimer` | `perf_profiler.py:25-63` | Context manager; on `__exit__` logs `label: X.Xms` **at DEBUG, only if logger passed and `isEnabledFor(DEBUG)`**. |
-| `record_cycle_profiling` | `perf_profiler.py:234-302` | Shared per-cycle recorder; records timings, detects overruns, emits DEBUG `extra` dict (gated on DEBUG), fires periodic `report()` (gated on `profiling_enabled`). |
-| `_record_profiling` | `wan_controller.py:2408-2462` | Autorate wrapper; builds the canonical timings dict (15 labels) and delegates. |
-| `_build_cycle_budget` | `health_check.py:78-151` | Builds the `/health` `cycle_budget` block from profiler deques (independent of log level). |
-| `profiling_collector.py` | `scripts/profiling_collector.py` | Parses a log file → per-subsystem stats; `--output json|csv|text`. |
-| `analyze_profiling.py` | `scripts/analyze_profiling.py` | Parses a log file → markdown report with percentages, utilization, headroom, bottleneck ranking. |
-| `wanctl-history --ingestion-rate` | `history.py:559,651-715` | Per-metric SQLite write-rate (storage-write attribution proxy). |
+### Capture mechanics (locked)
 
-### Supporting (load driving)
-| Component | File | Purpose |
-|-----------|------|---------|
-| `phase213-baseline-capture.sh` | `scripts/` | Orchestrates the baseline suite (browse, tcp_upload, tcp_download, rrul, tcp_12down), paired `/health` NDJSON pollers, manifest. Default `--flent-duration 60`. |
-| `phase191-flent-capture.sh` | `scripts/` | Underlying flent runner: `flent <TEST> --local-bind <ip> -H <host> -l <dur> -t <title> -D <dir> -o <plot>`. (`phase191-flent-capture.sh:158-164`) |
-| `phase213-health-poller.sh` | `scripts/` | 1Hz `/health` NDJSON projection during a window. |
+**Drop-in path:** `/etc/systemd/system/wanctl@spectrum.service.d/override.conf`. The checked-in unit at `deploy/systemd/wanctl@.service` runs `ExecStart=/usr/bin/python3 /opt/wanctl/autorate_continuous.py --config /etc/wanctl/%i.yaml`. ExecStart is a single-value directive, so the override must clear it first.
 
-### Alternatives Considered
-| Instead of | Could Use | Tradeoff |
-|------------|-----------|----------|
-| Parsing `/var/log/wanctl/spectrum.log` (file) | Parsing `journalctl -u wanctl@spectrum` (journal) | Both unit handlers receive the same records, but the analyzer expects a file path (`--log-file`). The file handler is INFO-level for the rotating main log; DEBUG lines only land in the file when DEBUG is enabled. Reading the file is simpler and matches the script contract. Journald is fine for live `grep "Profiling Report"` spot-checks. |
-| Log-parse pipeline | `/health` `cycle_budget.subsystems` snapshots | `/health` gives live avg/p95/p99 per subsystem with NO DEBUG observer-effect, but it is a rolling window (deque maxlen 100 = last ~5s at 20Hz), not a full 1h aggregate. **Use as an independent cross-check, not the primary artifact.** |
-
-**Installation:** None. `flent` must be present on the dev VM (Phase 213 used `Flent 2.1.1` / Python 3.12.3). See Environment Availability.
-
-## Architecture Patterns
-
-### Data Flow (capture → artifact → decision)
-
-```
-[dev VM] flent rrul/tcp_upload  ──drives load──▶  Spectrum link (driven segment, D-02)
-                                                        │
-organic household traffic ──────────────────────▶  Spectrum link (steady-state, D-02)
-                                                        │
-                                            wanctl@spectrum (--profile --debug)
-                                                        │
-                              run_cycle() PerfTimer per subsystem (always measures)
-                                                        │
-                          ┌─────────────────────────────┼──────────────────────────────┐
-                          ▼                              ▼                              ▼
-            PerfTimer DEBUG lines           periodic report() INFO        /health cycle_budget
-            "label: X.Xms"  (parseable)     "label: count=.., avg=..ms"   (live avg/p95/p99)
-                          │                  (human cross-check)            (independent check)
-                          ▼
-            /var/log/wanctl/spectrum.log
-                          │
-            scripts/profiling_collector.py --output json  ──▶  v1.45-baseline-spectrum-<date>.profile.json  (D-06)
-            scripts/analyze_profiling.py                  ──▶  markdown breakdown (percentages, >40% test)
-                          │
-            map labels → PERF-02 categories  +  wanctl-history --ingestion-rate (storage proxy)
-                          │
-            1-page summary: D-03 bars → close (no-action) | promote
-```
-
-### Pattern 1: Capture via transient systemd drop-in (D-05)
-**What:** Add `--profile` (and `--debug` for parseable data) to `ExecStart` via an override that does NOT touch the checked-in unit, then revert.
-**When to use:** Any time-bounded production instrumentation pass.
-**Mechanics** (the checked-in unit is `deploy/systemd/wanctl@.service`; deployed instance is `wanctl@spectrum`):
-
-```bash
-# 1. Create the drop-in. systemctl edit opens an editor; the drop-in path is:
-#    /etc/systemd/system/wanctl@spectrum.service.d/override.conf
-sudo systemctl edit wanctl@spectrum
-```
-
-Drop-in content (ExecStart must be cleared then re-set; the base unit's ExecStart is
-`/usr/bin/python3 /opt/wanctl/autorate_continuous.py --config /etc/wanctl/%i.yaml`):
+**Drop-in content (verbatim, the planner can encode this as an acceptance shape):**
 
 ```ini
 [Service]
+Environment=WANCTL_LOG_FORMAT=json
 ExecStart=
 ExecStart=/usr/bin/python3 /opt/wanctl/autorate_continuous.py --config /etc/wanctl/spectrum.yaml --profile --debug
 ```
 
-```bash
-# 2. Apply + restart, then capture for >= 1h
-sudo systemctl daemon-reload
-sudo systemctl restart wanctl@spectrum
-# ... drive load (D-02 driven segment) + let organic traffic accumulate >= 1h ...
+**Sequence:**
 
-# 3. Revert cleanly (removes the drop-in) and restart back to steady state
-sudo systemctl revert wanctl@spectrum
+```bash
+sudo systemctl edit wanctl@spectrum            # paste the drop-in above; saving writes override.conf
 sudo systemctl daemon-reload
 sudo systemctl restart wanctl@spectrum
+# >= 1h window. Inside that window, run the D-02 driven segment from the dev VM (see Q6).
+sudo systemctl revert wanctl@spectrum          # removes the drop-in
+sudo systemctl daemon-reload
+sudo systemctl restart wanctl@spectrum
+# Verify: `systemctl cat wanctl@spectrum` shows base unit only; `ps -ef | grep autorate_continuous` has no --profile/--debug.
 ```
 
-**Artifact retrieval:** the parseable data is in `/var/log/wanctl/spectrum.log` (config: `configs/spectrum.yaml:152-154`, `main_log: /var/log/wanctl/spectrum.log`). Copy it off the host (`scp`/`ssh cat`) before rotation evicts it (RotatingFileHandler, default 10MB × 3 backups — at DEBUG/20Hz this rotates fast; see Pitfall 4).
+**Retrieval (Spectrum host → analysis workstation):** the DEBUG sink under `--debug` is `config.debug_log` (`logging_utils.py:209-214`). For Spectrum that is `/var/log/wanctl/spectrum_debug.log` (`configs/spectrum.yaml:154`). `RotatingFileHandler` defaults are `maxBytes=10_485_760` (10 MB), `backupCount=3` (`logging_utils.py:196-197,211`). At ~12 structured DEBUG records/cycle × 20Hz the JSON file rotates fast — pull the whole rotated set:
 
-### Pattern 2: Independent triangulation
-**What:** Three data sources for the same numbers — DEBUG log parse (primary), `--profile` `report()` text (human cross-check), `/health` `cycle_budget` (no-observer-effect check).
-**When to use:** To bound the observer-effect and validate the artifact. If the DEBUG-derived `cycle_total` avg is materially higher than the `/health` snapshot avg taken in the same window, the delta is (mostly) observer-effect.
+```bash
+ssh <spectrum-host> "ls -la /var/log/wanctl/spectrum_debug.log*"
+scp '<spectrum-host>:/var/log/wanctl/spectrum_debug.log*' .planning/perf/capture/
+# Concatenate in chronological (oldest→newest) order before parsing. The handler writes:
+#   spectrum_debug.log.3 -> .2 -> .1 -> .log (current).
+cat .planning/perf/capture/spectrum_debug.log.3 \
+    .planning/perf/capture/spectrum_debug.log.2 \
+    .planning/perf/capture/spectrum_debug.log.1 \
+    .planning/perf/capture/spectrum_debug.log \
+  > .planning/perf/capture/spectrum_debug.ndjson
+```
 
-### Anti-Patterns to Avoid
-- **Running `analyze_profiling.py` against a `--profile`-only (INFO) log** and concluding "no data" means the daemon isn't profiling. The scripts' regex doesn't match `report()` format. (Pitfall 1.)
-- **Editing the checked-in `deploy/systemd/wanctl@.service`** instead of a drop-in. Violates D-05 and risks leaving `--profile/--debug` permanently enabled.
-- **Treating `cycle_total` captured under DEBUG as the steady-state budget.** It includes observer-effect. State the caveat (D-03 judges headroom — be conservative, i.e., a DEBUG-inflated number that still has comfortable headroom is a *stronger* no-action signal, not weaker).
-- **Reading the archived v1.0 "2.1% utilization / 1958ms headroom" numbers as a current target.** Those are at the old 2-second interval, not 50ms. Informational only (D-04).
+**Belt-and-braces (recommended):** also save `journalctl -u wanctl@spectrum --since "<start>" --until "<end>" -o cat > .planning/perf/capture/spectrum_journal.ndjson`. Journald carries the same DEBUG (console handler at DEBUG when `--debug` is on, `logging_utils.py:216`) and is immune to file rotation. Use the file as primary, journald as fallback if rotation cost a tail of the window.
 
-## Don't Hand-Roll
+The capture artifacts themselves (raw `spectrum_debug.log*`, journald dump, `/health` poll NDJSON if collected) **should not be committed** per the MEDIUM review finding — keep them under `.planning/perf/capture/` and `.gitignore` that directory; only the aggregate `.profile.json` and the summary are committed.
 
-| Problem | Don't Build | Use Instead | Why |
-|---------|-------------|-------------|-----|
-| Per-cycle timing | New instrumentation | `PerfTimer`/`OperationProfiler` already wired in `run_cycle` | Full stack exists; phase boundary forbids `src/` changes. |
-| Log → stats | A new parser | `profiling_collector.py --output json` | Already produces count/min/p50/avg/max/p95/p99 JSON per subsystem. |
-| Percentage / dominance breakdown | Hand math | `analyze_profiling.py` | Already computes per-subsystem % of cycle_total + ranks bottlenecks + utilization/headroom vs budget. |
-| Load generation | Custom traffic gen | `phase213-baseline-capture.sh` / `phase191-flent-capture.sh` | Proven, no-mutation, dev-VM-bound; Phase 213 already validated it on Spectrum. |
-| Storage-write rate | Inferring from disk | `wanctl-history --ingestion-rate --wan spectrum` | Purpose-built per-metric write-rate tool (v1.44 Phase 208). |
+### Analysis (locked)
 
-**Key insight:** The only genuinely new build artifacts in this phase are **data and docs**: the `.planning/perf/` dir, the committed `.profile.json`, the 1-page summary, and `docs/PROFILING.md`. Possibly one small **post-processing helper** if the planner wants the artifact JSON to also embed the category roll-up and the >40% verdict (the scripts give per-subsystem stats but not the PERF-02 5-category mapping — see Q2 gap).
+A new tiny script — call it `scripts/profiling_collector_json.py` (the planner picks the final name; this RESEARCH treats the name as illustrative) — reads NDJSON, filters records where `message == "Cycle timing"`, extracts `cycle_total_ms` and the `*_ms` extras, accumulates per-label sample lists, and emits the **same shape `profiling_collector.py --output json` already produces** so downstream tooling (analyze_profiling.py, jq, the summary template) stays compatible.
 
-## Question-by-Question Findings
+**Per-record JSON shape (exact, from JSONFormatter at `logging_utils.py:74-102` + `record_cycle_profiling` at `perf_profiler.py:287-294`):**
 
-### Q1 — Profiler output schema
-There is **no native `.profile.json` writer**. `--profile` only emits a periodic human-readable text `report()` to the log at INFO every `PROFILE_REPORT_INTERVAL = 1200` cycles (~60s) (`perf_profiler.py:231,296-300`). The artifact at `.planning/perf/v1.45-baseline-spectrum-<date>.profile.json` will be produced by **`profiling_collector.py --output json`** (`profiling_collector.py:226-227`), whose schema is a dict keyed by subsystem label, each value:
+```json
+{
+  "timestamp": "2026-05-30T12:34:56.789Z",
+  "level": "DEBUG",
+  "logger": "cake_continuous_spectrum",
+  "message": "Cycle timing",
+  "cycle_total_ms": 14.2,
+  "overrun": false,
+  "rtt_measurement_ms": 8.1,
+  "state_management_ms": 0.3,
+  "router_communication_ms": 2.4,
+  "signal_processing_ms": 0.5,
+  "ewma_spike_ms": 0.1,
+  "cake_stats_ms": 1.2,
+  "congestion_assess_ms": 0.4,
+  "irtt_observation_ms": 0.0,
+  "logging_metrics_ms": 0.7,
+  "router_apply_primary_ms": 0.0,
+  "router_apply_pending_ms": 0.0,
+  "router_write_download_ms": 0.0,
+  "router_write_upload_ms": 0.0,
+  "router_write_skipped_ms": 0.0,
+  "router_write_fallback_ms": 0.0
+}
+```
+
+Note the label transform at `perf_profiler.py:292`: `autorate_rtt_measurement` → `rtt_measurement_ms` (the `autorate_` prefix is stripped, `_ms` is appended). The parser must reconstruct the canonical `autorate_*` label for the committed artifact (to match the `profiling_collector.py --output json` schema and the canonical name space used in `/health` and elsewhere).
+
+**Committed artifact shape (matches existing `profiling_collector.py --output json`, see `profiling_collector.py:51-80` for `calculate_statistics`):**
 
 ```json
 {
@@ -180,279 +158,570 @@ There is **no native `.profile.json` writer**. `--profile` only emits a periodic
     "count": 72000, "min_ms": 9.8, "p50_ms": 14.2, "avg_ms": 15.1,
     "max_ms": 61.3, "p95_ms": 22.0, "p99_ms": 28.4
   },
-  "autorate_rtt_measurement": { "...": "..." }
+  "autorate_rtt_measurement": { "...": "..." },
+  "autorate_router_communication": { "...": "..." },
+  "autorate_cake_stats": { "...": "..." },
+  "autorate_logging_metrics": { "...": "..." },
+  "autorate_router_write_download": { "...": "..." },
+  "autorate_router_write_upload": { "...": "..." }
 }
 ```
 
-Units: all `*_ms` are milliseconds, rounded to 2 dp by the formatter. Labels are the raw `autorate_*` names (NOT the `*_ms`-suffixed health-block short names). A "single sample" is one `label: X.Xms` DEBUG log line per timer per cycle; the JSON above is the **aggregate** over all samples in the parsed log. [VERIFIED: `profiling_collector.py:51-80,226-227`]
+Stats math: identical to `OperationProfiler.stats()` at `perf_profiler.py:132-153` (sorted percentiles by index). The parser can either reuse that class directly (import from `wanctl.perf_profiler`) or reimplement the four lines — either is fine; the import path is cleaner.
 
-> Note on `label→*_ms` conversion in CONTEXT: that conversion happens in two unrelated places — (a) the DEBUG `extra` dict in `record_cycle_profiling` (`perf_profiler.py:290-293`, `autorate_rtt_measurement → rtt_measurement_ms`), and (b) the `/health` short-name strip (`health_check.py:142`, `autorate_rtt_measurement → rtt_measurement`). The committed `.profile.json` from `profiling_collector.py` keeps the **full `autorate_*` labels** — plan acceptance criteria against those.
+**Analysis commands (the data path the planner encodes as acceptance criteria):**
 
-### Q2 — Canonical subsystem label set → PERF-02 category map
-The full timings dict has **15 labels** (`wan_controller.py:2434-2450`). Mapped to the 5 PERF-02 categories:
+```bash
+# 1. Concatenate the captured rotated files into a single NDJSON stream (see Retrieval above).
+
+# 2. Produce the committed D-06 artifact:
+.venv/bin/python scripts/profiling_collector_json.py \
+    .planning/perf/capture/spectrum_debug.ndjson \
+    --output json \
+  > .planning/perf/v1.45-baseline-spectrum-$(date +%Y%m%d).profile.json
+
+# 3. Storage-write attribution (out-of-band; PERF-02 fifth category). Explicit window required
+#    (default is last hour — `history.py:616-624` `_resolve_time_range`):
+.venv/bin/python -m wanctl.history \
+    --ingestion-rate --wan spectrum \
+    --from <ISO start> --to <ISO end> --json \
+  > .planning/perf/v1.45-baseline-spectrum-$(date +%Y%m%d).ingestion.json
+
+# 4. PERF-02 dominance verdict + D-03 headroom verdict.
+#    The existing scripts/analyze_profiling.py operates on log text not on the JSON artifact,
+#    so the summary computation is done either inline in the new parser (preferred — single
+#    pass, emits both the artifact and a "summary" sub-object) or with a small jq pipeline
+#    over the committed artifact. Either way, the math is:
+#      utilization_pct       = cycle_total.avg_ms / 50 * 100
+#      headroom_avg_ms       = 50 - cycle_total.avg_ms
+#      p99_overrun           = cycle_total.p99_ms > 50
+#      category_pct[cat]     = category_total_avg_ms / cycle_total.avg_ms * 100
+#      dominance_verdict     = max(category_pct.values()) <= 40
+```
+
+### Acceptance criteria the planner can encode (falsifiable)
+
+1. Drop-in present during capture: `systemctl cat wanctl@spectrum` contains both `Environment=WANCTL_LOG_FORMAT=json` and an `ExecStart=` line ending `--profile --debug`.
+2. Drop-in absent post-phase: `systemctl cat wanctl@spectrum` matches the checked-in base unit exactly; running ExecStart contains neither `--profile` nor `--debug`.
+3. Capture contains `"message":"Cycle timing"` records with a `cycle_total_ms` field. **Concrete check (replaces the broken `grep -c "autorate_cycle_total:" >= 60000`):**
+   ```bash
+   jq -c 'select(.message == "Cycle timing") | .cycle_total_ms' \
+       .planning/perf/capture/spectrum_debug.ndjson | wc -l
+   # Expected: >= 60000  (1h × 20Hz × 0.83 safety margin for rotation/restart tail)
+   ```
+4. Committed artifact JSON contains keys for `autorate_cycle_total` and at least the 4 PERF-02 hot-path categories (`autorate_rtt_measurement`, `autorate_cake_stats`, `autorate_router_communication`, `autorate_logging_metrics`), each with `count`, `avg_ms`, `p95_ms`, `p99_ms`. `count >= 60000`.
+5. **Driven segment landed:** `autorate_router_write_download.count > 0` OR `autorate_router_write_upload.count > 0` in the artifact (these labels are change-gated; presence proves the flent run exercised the path inside the window).
+6. **D-03 verdict computed as a boolean pair** (numeric headroom bar — see Q5):
+   - `passes_headroom = cycle_total.avg_ms < 40.0 AND cycle_total.p99_ms < 50.0` (i.e. avg utilization < 80% per existing `/health` warning threshold, and no p99 overrun)
+   - `passes_dominance = max(category_pct.values()) < 40.0`
+   - `no_action` if both true; `promote` otherwise.
+7. Storage write-rate JSON has explicit window matching the capture window (not the default last-hour) and is reported as a non-hot-path note in the summary (no claim about % of cycle_total).
+8. `docs/PROFILING.md` exists; the runbook references this data path (JSON capture, parser, both numeric bars).
+
+### How PERF-02 subsystem dominance is computed
+
+Roll the 15 subsystem labels into the 5 PERF-02 categories using the map below (Q2). For each category, `category_total_avg_ms = sum(label.avg_ms for label in category)`. Then `category_pct = category_total_avg_ms / cycle_total.avg_ms * 100`. The dominance test is `max(category_pct.values()) < 40.0`.
+
+**Critical sub-rule (avoid double-counting):** `autorate_router_communication` is the parent timer wrapping the router subsystem; `autorate_router_apply_*` and `autorate_router_write_*` are sub-timers measured inside it (the `with PerfTimer("autorate_router_communication", ...)` block wraps the router-apply work — see the cluster at `src/wanctl/wan_controller.py:2444-2449` showing those keys originate inside the router pass). For the dominance test use the **parent** (`autorate_router_communication`) only. Sub-timers contribute to per-cycle attribution narrative but NOT to the category sum. (This was already correct in the previous research; preserving.)
+
+**Storage writes (5th PERF-02 category) has no hot-path label by design** (`DeferredIOWorker`, `autorate_continuous.py` deferred I/O). Report `wanctl-history --ingestion-rate --from/--to --wan spectrum` rows-per-second as a separate non-hot-path note in the summary. State explicitly that storage % of cycle_total is undefined by design.
+
+### How D-03 absolute headroom is bounded (pre-data numeric bar)
+
+Per the MEDIUM review finding, "comfortable headroom" is not falsifiable without a pre-data bar. Concrete bar:
+
+- `passes_headroom = cycle_total.avg_ms < 40.0` (i.e. avg utilization < 80% of the 50ms budget — matches the existing `/health cycle_budget` warning threshold at `health_check.py:84,109`)
+- **AND** `cycle_total.p99_ms < 50.0` (no p99 overruns)
+
+Rationale: 80% utilization is already the system's own self-reported "warning" threshold (`warning_threshold_pct: 80.0`, default in `_build_cycle_budget`). Using it here aligns the phase verdict with the daemon's runtime self-assessment. The p99-under-budget criterion catches "avg is fine but tail eats the headroom" cases, which a single avg bar misses on a 20Hz loop where p99 corresponds to ~1 cycle every ~5 seconds. Both bars must hold for `no-action`; either failing means `promote`.
+
+### How observer-effect is bounded
+
+Cross-checking `/health.cycle_time_ms.avg` against DEBUG-logged `cycle_total_ms` **within the same window is invalid** (both read `profiler.stats("autorate_cycle_total")` — `health_check.py:101`). Two acceptable shapes; **recommend (a), accept (b) as fallback:**
+
+**(a) Adjacent-window ON/OFF estimate (cheap, ~10 min total).** Outside the main 1h window, run two short steady-state windows ~5 min each, on the same evening, no driven load:
+
+- Window X: drop-in with `--profile --debug` and `WANCTL_LOG_FORMAT=json`. Poll `/health` once per minute for 5 minutes; record `cycle_budget.cycle_time_ms.avg`.
+- Window Y: revert; the daemon runs at INFO with no `--debug`, no `--profile`. Poll `/health` once per minute for 5 minutes; record `cycle_budget.cycle_time_ms.avg`.
+- `observer_effect_ms ≈ avg(window_X) - avg(window_Y)`. Report in the summary as `--debug` overhead under production conditions.
+
+This is honest: `/health` reads the same profiler that the daemon uses internally, so under both modes it reports the actual cycle_total the daemon is experiencing. The ON window includes the DEBUG-emission cost; the OFF window does not. The two `/health` reads are from different profiler states, so the comparison is real.
+
+**(b) Documented caveat (fallback if (a) is operationally inconvenient).** State in the summary: "Captured under `--debug`; per-cycle DEBUG JSON emission (`~12 records/cycle × 20Hz ≈ 240 records/sec`) adds I/O cost absent in steady-state INFO operation. The DEBUG-derived `cycle_total` is an **upper bound** on real cost. Read the headroom verdict accordingly — a DEBUG-inflated number that still has comfortable headroom is a **stronger** no-action signal." This is the previous research's intended caveat; it stands on its own without the invalid cross-check.
+
+The planner should default to (a) — it's a 10-min extension to the operational schedule and turns a caveat into a number. If the operator can't easily run the adjacent windows, (b) is sufficient for D-03's structural framing.
+
+## Architectural Responsibility Map
+
+| Capability | Primary Tier | Secondary Tier | Rationale |
+|------------|-------------|----------------|-----------|
+| Per-cycle subsystem timing | Control loop (`wan_controller.run_cycle`) | — | `PerfTimer` wraps each `_run_*` subsystem; `_record_profiling` populates the 15-label dict and delegates to `record_cycle_profiling`. `wan_controller.py:2408-2462` |
+| Profiling aggregation + periodic report | Profiler module (`perf_profiler.OperationProfiler`) | — | Bounded deque (maxlen 100) per label; `report()` emits aggregate at INFO every 1200 cycles (~60s). `perf_profiler.py:91-101,166-195,231,296-300` |
+| `--profile` flag wiring | Daemon entry (`autorate_continuous`) | — | `--profile` → `_configure_controller_flags` → `enable_profiling(True)` per WAN. (Already known to work — drives `report()` cadence; NOT the path for analyzer-parseable data.) |
+| Structured per-cycle log emission | Profiler module | Logging module | `record_cycle_profiling` builds the `extra` dict (gated on `isEnabledFor(DEBUG)`) and calls `logger.debug("Cycle timing", extra=extra)`. **JSONFormatter preserves; text formatter drops.** `perf_profiler.py:287-294`, `logging_utils.py:74-134` |
+| Log format selection | Logging module (env-controlled) | — | `WANCTL_LOG_FORMAT=json` switches formatter for all handlers in the unit. `logging_utils.py:115,185,193` |
+| Cycle-budget telemetry surface | Health server (`health_check`) | — | `_build_cycle_budget` reads the same in-process profiler deques. Independent of log level. Rolling ~5s window per snapshot (deque maxlen 100 × 50ms). `health_check.py:78-151` |
+| Subsystem→category dominance + headroom verdict | Offline analysis script (`scripts/`) | — | New small JSON parser (Option A) computes per-category roll-up, D-03 verdict pair, and emits the committed artifact. |
+| Storage-write attribution (non-hot-path) | `wanctl-history --ingestion-rate` | — | Hot-path has no storage timer (deferred I/O). `history.py:651-715`. Requires explicit `--from`/`--to` to match the capture window (`history.py:616-624`). |
+| Load driving (driven segment) | External harness (dev VM) | — | `scripts/phase213-baseline-capture.sh` → `scripts/phase191-flent-capture.sh`; no production mutation. |
+
+## Standard Stack
+
+This phase consumes existing components and adds one offline parser. No new runtime instrumentation.
+
+### Core (existing, consumed as-is)
+| Component | File:Line | Purpose |
+|-----------|-----------|---------|
+| `OperationProfiler` | `src/wanctl/perf_profiler.py:66-195` | Bounded-deque per-label sample store; `stats()` returns count/min/max/avg/p95/p99; `report()` emits aggregate text. |
+| `PerfTimer` | `src/wanctl/perf_profiler.py:25-63` | Context manager; emits `label: X.Xms` at DEBUG when logger is DEBUG-enabled. Drives sub-timer text DEBUG (still useful as a side cross-check). |
+| `record_cycle_profiling` | `src/wanctl/perf_profiler.py:234-302` | Per-cycle recorder; logs `"Cycle timing"` with `extra={"cycle_total_ms": ..., "<subsystem>_ms": ...}`. **Only JSON formatter preserves the extras.** |
+| `_record_profiling` (autorate) | `src/wanctl/wan_controller.py:2408-2462` | Builds the 15-label timings dict and delegates. |
+| `JSONFormatter` | `src/wanctl/logging_utils.py:17-102` | Walks `record.__dict__`, includes every non-internal key. **Preserves `extra=` fields verbatim — verified.** |
+| `setup_logging` | `src/wanctl/logging_utils.py:137-223` | Main file handler INFO-level; debug file handler DEBUG-level (only when `debug=True`); console upgraded to DEBUG when `debug=True`. |
+| `_build_cycle_budget` | `src/wanctl/health_check.py:78-151` | `/health` `cycle_budget` block; rolling ~5s window per snapshot; 9-subsystem breakdown (omits router-write sub-labels). |
+| `wanctl-history --ingestion-rate` | `src/wanctl/history.py:651-715` (with `--from/--to` plumbing at `:616-624`) | Per-WAN SQLite write-rate; required for PERF-02 storage attribution; **must pass explicit window**. |
+
+### New (this phase, no `src/` change)
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| Offline JSON parser | `scripts/profiling_collector_json.py` (illustrative name) | Reads NDJSON; filters `"Cycle timing"` records; reconstructs canonical `autorate_*` labels; computes count/min/p50/avg/max/p95/p99 per label; emits the existing `profiling_collector.py --output json` schema. |
+| `.profile.json` artifact | `.planning/perf/v1.45-baseline-spectrum-<date>.profile.json` | Committed aggregate (D-06). |
+| 1-page summary | `.planning/perf/217-cycle-budget-summary.md` | D-06 summary with D-03 verdict + close/promote decision (PERF-03). |
+| Runbook | `docs/PROFILING.md` | D-07 enable/capture/revert/analyze, references this data path. |
+
+### Supporting (load driving — unchanged from previous research)
+| Component | File | Purpose |
+|-----------|------|---------|
+| `phase213-baseline-capture.sh` | `scripts/` | Orchestrates browse/tcp_upload/tcp_download/rrul/tcp_12down baseline suite with paired `/health` NDJSON pollers. Default `--flent-duration 60`. |
+| `phase191-flent-capture.sh` | `scripts/` | Underlying flent runner: `flent <TEST> --local-bind <ip> -H <host> -l <dur> -t <title> -D <dir> -o <plot>`. |
+
+### Alternatives considered (and not chosen)
+| Instead of | Could Use | Why not |
+|------------|-----------|---------|
+| JSON-format DEBUG capture (A) | Full-window `/health` NDJSON poll (B) | Rolling 5s window; omits router-write sub-labels (`autorate_router_write_*`) needed for D-02 verification; p95/p99 fidelity degrades vs per-cycle samples. Keep `/health` polling as a low-cadence INFO-only sanity track instead. |
+| Offline parser (A) | One-line `logger.debug(f"... {total_ms:.1f}ms")` in `record_cycle_profiling` (C) | Violates D-05 (no `src/` changes). Rejected on scope. |
+| Concatenated rotated files | Parse `journalctl -u wanctl@spectrum` only | Both work; file path is the primary because the raw file is preserved across host restarts and is the existing tool contract. Journald is the rotation-safe fallback if rotation evicted a tail. |
+
+## Architecture Patterns
+
+### Data Flow (capture → artifact → decision) — corrected
+
+```
+[dev VM] flent rrul / tcp_upload  ──drives load──▶  Spectrum link (driven segment inside the 1h window, D-02)
+                                                            │
+organic household traffic  ─────────────────────────▶  Spectrum link (steady-state, D-02)
+                                                            │
+                                                wanctl@spectrum (drop-in: --profile --debug, WANCTL_LOG_FORMAT=json)
+                                                            │
+                                  run_cycle() PerfTimer per subsystem (always measures into profiler deques)
+                                                            │
+                              ┌─────────────────────────────┼──────────────────────────────────┐
+                              ▼                              ▼                                  ▼
+              JSONFormatter on debug handler        report() at INFO every ~60s        /health (low-cadence poll,
+              => /var/log/wanctl/spectrum_debug.log  => /var/log/wanctl/spectrum.log    INFO-only sanity track,
+              (one structured "Cycle timing" record  (human aggregate; not parseable     rolling ~5s window)
+               per cycle, with cycle_total_ms +       for cycle_total)
+               15 subsystem *_ms extras)
+                              │
+                              ▼
+              concatenated NDJSON  +  optional journald dump
+                              │
+              scripts/profiling_collector_json.py --output json
+              ──▶  .planning/perf/v1.45-baseline-spectrum-<date>.profile.json   (D-06 committed)
+                              │
+              category roll-up + D-03 verdict (avg_ms<40 AND p99_ms<50; max category %<40)
+              + wanctl-history --ingestion-rate --from <S> --to <E> --wan spectrum (PERF-02 storage)
+                              │
+              .planning/perf/217-cycle-budget-summary.md  (1-page, PERF-03 explicit decision)
+                              │
+              todo close (no-action)  |  todo promote → v1.46+ optimization phase
+```
+
+### Pattern 1: Transient systemd drop-in (D-05)
+**What:** Add `--profile --debug` and `Environment=WANCTL_LOG_FORMAT=json` to `ExecStart` via an override that does NOT touch the checked-in unit, then revert.
+**Why drop-in (not a permanent edit):** D-05 requires zero permanent flag changes; this is the only mechanism that touches the running daemon without modifying tracked `deploy/systemd/wanctl@.service` content.
+**Revert verification gate (the single most important safety check):** post-phase, `systemctl cat wanctl@spectrum` must show the base unit only (no drop-in override block); `ps -ef | grep autorate_continuous` must show neither `--profile` nor `--debug` in the running command line. This is the "did the live mutation get fully undone" gate.
+
+### Pattern 2: Independent triangulation (corrected)
+**What:** Two data sources for the dominance/headroom verdict — the per-cycle JSON DEBUG capture (primary, full distribution) and the low-cadence `/health.cycle_budget` poll (secondary, rolling 5s snapshots).
+**Limitation acknowledged:** `/health` and the JSON capture share an in-process profiler — they will agree within the same window, which means `/health` is NOT a clean observer-effect cross-check. It IS a useful sanity track to confirm the daemon is alive, the cycle_budget block has data, and the avg/p95/p99 numbers from the parser line up with what the daemon itself reports. Treat it as that, not as a second independent measurement.
+
+### Anti-patterns to avoid
+- **Running the regex collector against the new JSON capture.** `scripts/profiling_collector.py:38-46` regex `(\w+): (\d+\.\d+)ms` will match nothing inside JSON lines. Use the new JSON-aware parser.
+- **Capturing into `/var/log/wanctl/spectrum.log`** under the assumption it contains DEBUG. It doesn't — main handler is INFO-only.
+- **Cross-checking observer-effect with `/health` against DEBUG-logged cycle_total in the same window.** Same profiler; delta ~0 by construction.
+- **Editing the checked-in `deploy/systemd/wanctl@.service`** instead of a drop-in. Violates D-05.
+- **Committing raw `spectrum_debug.log*` to the repo.** Bloats history and risks operator-detail leakage. Commit only the aggregate `.profile.json`, summary, and (optionally) sanitized excerpts.
+- **Calling `wanctl-history --ingestion-rate` without `--from`/`--to`.** Defaults to last hour (`history.py:616-624`); if the analysis runs hours after the capture, attribution misaligns with the window.
+- **Treating "RTT was 98% in v1.0" as a current target.** v1.0 was the 2-second interval era. Use the archived numbers as informational context only (D-04).
+
+## Don't Hand-Roll
+
+| Problem | Don't Build | Use Instead | Why |
+|---------|-------------|-------------|-----|
+| Per-cycle timing instrumentation | New `PerfTimer` wrappers | Existing `PerfTimer`/`OperationProfiler` in `run_cycle` | Already wired; phase forbids `src/` changes. |
+| Statistical math (percentiles) | Custom sort/index routine | `OperationProfiler.stats()` imported into the offline parser, or copy the 4-line block from `perf_profiler.py:132-153` | Already battle-tested; reuse keeps the artifact schema identical to `scripts/profiling_collector.py`'s. |
+| Load generation | Custom traffic generator | `scripts/phase213-baseline-capture.sh` (60s rrul + 60s tcp_upload) | Proven, no-mutation, dev-VM-bound; Phase 213 validated it on Spectrum. |
+| Storage-write rate | Disk-watching glue | `wanctl-history --ingestion-rate --from --to --wan spectrum` | Purpose-built per-metric write-rate; matches PERF-02 framing. |
+| Log retrieval | Tailing while capturing | `scp` the rotated set + journald dump post-window | Capturing in flight risks log handler contention; offline retrieval is clean. |
+
+**Key insight:** The new build surface is **one ~50-line offline JSON parser + the artifact/summary/runbook docs**. Nothing in `src/` changes. The phase's deliverables are 100% in `scripts/`, `.planning/perf/`, and `docs/`.
+
+## Question-by-Question Findings
+
+### Q1 — Profiler output schema (corrected)
+The committed `.profile.json` schema mirrors the existing `scripts/profiling_collector.py --output json` output (`profiling_collector.py:51-80`, `calculate_statistics`):
+
+```json
+{
+  "<autorate_label>": {
+    "count": <int>,
+    "min_ms": <float>,
+    "p50_ms": <float>,
+    "avg_ms": <float>,
+    "max_ms": <float>,
+    "p95_ms": <float>,
+    "p99_ms": <float>
+  },
+  ...
+}
+```
+
+Source is the new JSON parser, not the regex collector — but the schema is intentionally identical so downstream consumers (jq pipelines, summary template) don't have to branch on source.
+
+**Label space:** the parser must reconstruct canonical `autorate_*` labels from the JSON capture. The transform at `perf_profiler.py:290-293` strips `autorate_` and appends `_ms` for the `extra` dict; the parser inverts it (`rtt_measurement_ms` → `autorate_rtt_measurement`). The `cycle_total_ms` field maps to `autorate_cycle_total`.
+
+### Q2 — Canonical subsystem label set → PERF-02 category map (unchanged from previous, preserved)
 
 | PERF-02 category | Hot-path label(s) | File:Line |
 |------------------|-------------------|-----------|
 | RTT measurement | `autorate_rtt_measurement` | `wan_controller.py:2435` |
 | CAKE stats | `autorate_cake_stats` | `wan_controller.py:2440` |
-| Router communication | `autorate_router_communication` (parent), `autorate_router_apply_primary`, `autorate_router_apply_pending`, `autorate_router_write_download`, `autorate_router_write_upload`, `autorate_router_write_skipped`, `autorate_router_write_fallback` | `wan_controller.py:2437,2444-2449` |
+| Router communication | `autorate_router_communication` (parent; use for dominance), `autorate_router_apply_*`, `autorate_router_write_*` (drill-down only) | `wan_controller.py:2437,2444-2449` |
 | Logging / metrics | `autorate_logging_metrics` | `wan_controller.py:2443` |
-| **Storage writes** | **(no hot-path label)** | — |
+| **Storage writes** | **(no hot-path label — deferred to `DeferredIOWorker`)** | — |
 
-Other labels not in a PERF-02 category but counted in `cycle_total`: `autorate_state_management` (parent), `autorate_signal_processing`, `autorate_ewma_spike`, `autorate_congestion_assess`, `autorate_irtt_observation`, `autorate_post_cycle`. The `/health` block uses a slightly different list of 9 (`health_check.py:127-137`) — note it includes `autorate_post_cycle` and omits the router-write sub-labels.
+Other labels counted in `cycle_total` but outside PERF-02: `autorate_state_management`, `autorate_signal_processing`, `autorate_ewma_spike`, `autorate_congestion_assess`, `autorate_irtt_observation`. Report them in the artifact (full label space) but exclude from the 4-category dominance roll-up.
 
-**Gap the planner MUST flag (PERF-02):** there is **no `autorate_storage_*` label**. SQLite writes are deliberately off the hot path — deferred to `DeferredIOWorker` (`autorate_continuous.py:518-528`). So storage-write cost **cannot** come from the cycle profile; it must be attributed via **`wanctl-history --ingestion-rate --wan spectrum`** (`history.py:559,699-715`). The PERF-02 "dominant cost" determination is therefore: rank the four directly-profiled categories by % of `cycle_total`, and separately report storage write-rate as a non-hot-path note. Acceptance criteria must not assert a storage % of cycle_total — that number does not exist by design.
+**Gap (PERF-02 fifth category):** confirmed there is no `autorate_storage_*` label. Storage writes are attributed via `wanctl-history --ingestion-rate --from <S> --to <E> --wan spectrum` and reported as rows-per-second over the capture window, separately from the cycle_total roll-up. **No claim about storage % of cycle_total** — that number does not exist by design.
 
-> Beware double-counting: `autorate_router_communication` is the parent timer wrapping the router subsystem; `router_apply_*`/`router_write_*` are sub-timers inside it. For the dominance test, use the **parent** (`autorate_router_communication`) as the category total; use sub-timers only for drill-down. (`wan_controller.py:2585-2607`)
+**Double-counting note (preserved):** sub-timers (`autorate_router_apply_*`, `autorate_router_write_*`) live inside the `autorate_router_communication` parent timer. The dominance test sums the **parent only**; sub-timers contribute to per-cycle narrative drill-down but NOT to the category total. Same rule still applies under the JSON capture.
 
-### Q3 — Analysis invocation
-Two scripts, both regex-parse a log file (`(\w+): (\d+\.\d+)ms`, `analyze_profiling.py:34`, `profiling_collector.py:41`):
-
-```bash
-# Per-subsystem stats as JSON -> this becomes the committed artifact (D-06)
-.venv/bin/python scripts/profiling_collector.py /path/to/spectrum.log --all --output json \
-  > .planning/perf/v1.45-baseline-spectrum-<date>.profile.json
-
-# Percentage breakdown + >40% dominance + utilization/headroom markdown
-.venv/bin/python scripts/analyze_profiling.py --log-file /path/to/spectrum.log --budget 50 \
-  --output /tmp/spectrum-analysis.md
-```
-
-`analyze_profiling.py` **does** compute per-subsystem percentage of `autorate_cycle_total` (`calculate_percentages`, `:86-111`), ranks the top-5 bottlenecks (`:184-193`), and reports utilization + headroom vs the 50ms budget (`:166-175`). It does **NOT** directly emit a boolean ">40% dominance" verdict, and its percentage list excludes the cycle_total itself. **Post-processing the planner must add:** (1) compute the D-03 >40% test from the percentages (the script's top bottleneck % is the number to threshold), and (2) roll the per-subsystem percentages into the 4 PERF-02 categories (the script reports per-label, not per-category). This is a small Python/jq step over the collector JSON, not a new tool. [VERIFIED: `analyze_profiling.py:86-227`]
-
-### Q4 — Capture mechanics & safety
-- `--profile` is parsed at `autorate_continuous.py:294-298`, applied to all controllers at `:490-497` (`_configure_controller_flags` → `enable_profiling(True)` → `wan_controller.py:4384-4386` sets `_profiling_enabled`). [VERIFIED]
-- Drop-in path: `/etc/systemd/system/wanctl@spectrum.service.d/override.conf`. The `ExecStart=` must be cleared first (single-value directive). Base ExecStart at `deploy/systemd/wanctl@.service` (`ExecStart=/usr/bin/python3 /opt/wanctl/autorate_continuous.py --config /etc/wanctl/%i.yaml`). The override hard-codes `spectrum` (do not rely on `%i` substitution surviving a literal edit unless you re-template it). [VERIFIED]
-- Sequence: `systemctl edit` → `daemon-reload` → `restart wanctl@spectrum` → capture ≥1h → `systemctl revert wanctl@spectrum` → `daemon-reload` → `restart`. PERFORMANCE.md already documents this exact pattern (`docs/PERFORMANCE.md:47-73`) and the archived `docs/archive/PROFILING.md` corroborates it. [VERIFIED]
-- Artifact written on host: nowhere as JSON natively — the **log file** `/var/log/wanctl/spectrum.log` is the source; retrieve via scp/ssh. (`configs/spectrum.yaml:153`)
-- **Watchdog interaction (flag for the planner):** the unit has `WatchdogSec=30s` and `Restart=on-failure` (`deploy/systemd/wanctl@.service`). A `restart` to apply the drop-in is a normal sd_notify-supervised start; the watchdog only fires if the daemon stops heartbeating for 30s. DEBUG logging adds I/O — if DEBUG write volume ever stalled the loop past 30s the watchdog would restart it (would corrupt the capture window and is a real risk on a slow disk). Mitigation: monitor `journalctl -u wanctl@spectrum -f` for overrun warnings / restarts during the window; if restarts occur, drop `--debug` and fall back to `--profile` + `/health` polling (see Pitfall 1 fallback). Also `CPUAffinity=1-2` and `MemoryHigh=512M/MemoryMax=640M` — DEBUG buffers shouldn't approach the memory cap but note it.
-
-### Q5 — Observer-effect
-**What always runs regardless of flags:** every `PerfTimer.__enter__/__exit__` (two `perf_counter()` calls per timer) and every `profiler.record()` into the deques. So the *measurement* itself is always-on; the deques are always populated; `/health cycle_budget` is always available. (`wan_controller.py:2544-2614`, `perf_profiler.py:52-63,103-112`)
-
-**What `--profile` adds:** one `profiler.report()` call to the log every ~60s (`perf_profiler.py:296-300`). Negligible per-cycle cost.
-
-**What `--debug` adds (this is the real observer-effect):**
-1. `PerfTimer.__exit__` emits a formatted DEBUG log line **per timer per cycle** when `isEnabledFor(DEBUG)` (`perf_profiler.py:62-63`). There are ~11 PerfTimer contexts per cycle in `run_cycle` (`wan_controller.py:2544-2612`). At 20Hz that is ~220 string-formats + log-writes/sec to a RotatingFileHandler.
-2. `record_cycle_profiling` builds the `extra` dict (~16 dict insertions + `round()` per cycle) only when `isEnabledFor(DEBUG)` (`perf_profiler.py:287-294`).
-
-**Bound:** roughly ~11 `logger.debug(...)` calls + one `extra`-dict-bearing debug call per 50ms cycle, i.e. ~12 log emissions/cycle × 20 = ~240/sec, all to a file handler. The exact ms cost is not statically derivable (depends on disk/handler), but it is strictly additive and absent in steady-state production (which runs at INFO with these paths gated off — the whole point of the original hot-path optimization the todo references). **Mandatory caveat for the summary:** "Captured under DEBUG; `autorate_cycle_total` includes per-cycle DEBUG logging overhead absent in steady-state INFO operation. The DEBUG-derived budget is an upper bound on real cost. Cross-checked against `/health cycle_budget` (no DEBUG overhead) — delta ≈ observer-effect." If the planner wants to avoid the caveat entirely, the no-`--debug` path (Pitfall 1 fallback: `--profile` report() + `/health` polling) is observer-effect-clean but yields aggregate-only data, not per-sample. [VERIFIED]
-
-### Q6 — Driven segment (D-02)
-The driven segment exists because `autorate_router_write_*` only fires on rate change (flash-wear guard: `rates_changed` gate at `wan_controller.py:2578-2590`). A quiet household leaves those labels at ~0. To force sustained rate changes, drive saturating load so the controller steps rates up/down:
+### Q3 — Analysis invocation (revised)
+Three commands (one new, two existing — locked in the recommended data path above):
 
 ```bash
-# From the dev VM (no production mutation). Underlying invocation (phase191-flent-capture.sh:158-164):
-flent rrul --local-bind <spectrum-dev-bind-ip> -H dallas -l <duration_sec> -t <title> -D <out_dir> -o <plot.png>
-flent tcp_upload --local-bind <spectrum-dev-bind-ip> -H dallas -l <duration_sec> -t <title> -D <out_dir> -o <plot.png>
+# 1. New JSON parser → committed artifact
+.venv/bin/python scripts/profiling_collector_json.py \
+    .planning/perf/capture/spectrum_debug.ndjson \
+    --output json \
+  > .planning/perf/v1.45-baseline-spectrum-$(date +%Y%m%d).profile.json
+
+# 2. Storage attribution (existing tool; explicit window required)
+.venv/bin/python -m wanctl.history \
+    --ingestion-rate --wan spectrum \
+    --from <ISO start> --to <ISO end> --json \
+  > .planning/perf/v1.45-baseline-spectrum-$(date +%Y%m%d).ingestion.json
+
+# 3. Category roll-up + D-03 verdict (jq, or inline in the parser)
+jq -n --slurpfile p .planning/perf/v1.45-baseline-spectrum-<date>.profile.json '
+  def cat(labels): [labels[] as $l | $p[0][$l].avg_ms // 0] | add;
+  ($p[0]["autorate_cycle_total"].avg_ms) as $total
+  | ($p[0]["autorate_cycle_total"].p99_ms) as $p99
+  | {
+      cycle_total_avg_ms: $total,
+      cycle_total_p99_ms: $p99,
+      utilization_pct: ($total / 50 * 100),
+      headroom_avg_ms: (50 - $total),
+      passes_headroom: ($total < 40 and $p99 < 50),
+      categories: {
+        rtt_measurement: cat(["autorate_rtt_measurement"]),
+        cake_stats: cat(["autorate_cake_stats"]),
+        router_communication: cat(["autorate_router_communication"]),
+        logging_metrics: cat(["autorate_logging_metrics"])
+      }
+    }
+  | .category_pct = (.categories | with_entries(.value = (.value / $total * 100)))
+  | .max_category_pct = (.category_pct | [.[]] | max)
+  | .passes_dominance = (.max_category_pct < 40)
+  | .verdict = (if .passes_headroom and .passes_dominance then "no_action" else "promote" end)
+'
 ```
 
-Or via the orchestrator (handles paired `/health` polling, manifest, bind map):
+The existing `scripts/analyze_profiling.py` is **not load-bearing** under Option A (it parses log text, not JSON, and depends on the same broken regex for cycle_total). It MAY be invoked against an additional brief text-format DEBUG capture if the planner wants sub-timer text-cross-check confidence, but this is optional and not required for D-06.
+
+### Q4 — Capture mechanics & safety (corrected)
+- `--profile` parsing: `src/wanctl/autorate_continuous.py:295` (CLI), `:494` (apply); enables `report()` cadence (`perf_profiler.py:296-300`). It does NOT enable the per-cycle DEBUG log emission — that requires `--debug`.
+- `--debug`: routes through `setup_logging(..., debug=True)`; adds the debug file handler at DEBUG level (`logging_utils.py:209-214`) and upgrades the console handler to DEBUG (`logging_utils.py:216`).
+- `Environment=WANCTL_LOG_FORMAT=json`: read by `get_log_format()` (`logging_utils.py:105-119`); flows into `_create_formatter` (`logging_utils.py:122-134`); applied to ALL handlers (`logging_utils.py:185,193,200-214`). So under the drop-in, both `spectrum.log` (INFO+) and `spectrum_debug.log` (DEBUG+) become JSON-line files for the window.
+- Drop-in path: `/etc/systemd/system/wanctl@spectrum.service.d/override.conf`. The drop-in's `ExecStart=` must be cleared then re-set (single-value directive). The literal value substitutes `spectrum` for `%i` (the override is per-instance).
+- Sequence: `systemctl edit` → `daemon-reload` → `restart` → ≥1h capture (driven segment INSIDE the window) → `systemctl revert wanctl@spectrum` → `daemon-reload` → `restart`. Revert removes the override file and restores the base unit (`man systemd.unit` revert semantics).
+- **Watchdog interaction:** the unit has `WatchdogSec=30s` and `Restart=on-failure` (`deploy/systemd/wanctl@.service`). DEBUG-emission cost is strictly additive I/O. On the production disk it's almost certainly fine, but if it ever stalled the loop past 30s the watchdog would restart — that would corrupt the capture window. Monitor `journalctl -u wanctl@spectrum -f` for overrun warnings and unit restarts during the window. If restarts happen, drop `--debug` (keep `--profile` and JSON format; lose per-cycle samples; fall back to Option B for that attempt) and re-plan.
+- **Memory:** unit has `MemoryHigh=512M`/`MemoryMax=640M`. JSON emission buffers are bounded — not a real concern, but noted.
+- **CPU:** `CPUAffinity=1-2` is unchanged by the drop-in.
+
+### Q5 — Observer-effect (corrected)
+- What runs regardless of flags: `PerfTimer.__enter__/__exit__` (two `perf_counter()` calls) and `profiler.record()` into deques. The MEASUREMENT itself is always on; only the LOG EMISSION is gated.
+- What `--profile` adds: one `profiler.report()` INFO log every ~60s. Negligible.
+- What `--debug` adds (the observer-effect):
+  1. `PerfTimer.__exit__` emits a formatted `label: X.Xms` DEBUG line per timer per cycle (~11 timer contexts × 20Hz ≈ 220 lines/sec). Same under JSON capture, just as JSON rather than plain text.
+  2. `record_cycle_profiling` builds the `extra` dict (~16 dict insertions + `round()` per cycle) and calls `logger.debug("Cycle timing", extra=extra)` once per cycle (~20 lines/sec).
+- Under JSON formatter: same line count, slightly higher CPU per line (JSON serialization vs string format). Strictly additive, absent in steady-state production.
+- **Bound:** the previous research's "this is an upper bound" framing is correct; only the cross-check method was broken. The corrected observer-effect protocol is the adjacent-window ON/OFF estimate described in "How observer-effect is bounded" above. If skipped, use the documented caveat — D-03 is structural enough that the caveat doesn't change the verdict shape (an upper-bound `cycle_total` that still passes is a strong pass).
+
+### Q6 — Driven segment (D-02) — unchanged from previous
+The driven segment exists because `autorate_router_write_*` only fires on rate change (flash-wear guard at `wan_controller.py` `rates_changed`-gated block). A quiet household leaves those labels at zero counts. To force sustained rate changes:
 
 ```bash
-scripts/phase213-baseline-capture.sh --host dallas --flent-duration <sec> --tests tcp_upload,rrul --wans spectrum
+# From the dev VM, inside the 1h capture window:
+scripts/phase213-baseline-capture.sh --host dallas --flent-duration 60 --tests tcp_upload,rrul --wans spectrum
 ```
 
-Phase 213 used `flent_duration=60`, netperf host `dallas`, Spectrum dev bind `10.10.110.226`, and saw Spectrum upload pegged near ceiling for ~81% of `tcp_upload` samples — confirming `rrul`/`tcp_upload` reliably saturate and provoke control activity. Discretion: a single 60s `rrul` + 60s `tcp_upload` inside the 1h window is the minimum to populate the router-write labels; the planner may extend. **Sequencing:** run the driven segment *inside* the ≥1h capture window so its samples land in the same log/deques. [VERIFIED: `scripts/phase191-flent-capture.sh:158-164`; `.planning/phases/213-experience-baseline-harness/213-REPORT.md:13,17-25,97-98`]
+Phase 213 used `flent_duration=60`, netperf host `dallas`, Spectrum dev bind `10.10.110.226`, and saw Spectrum upload pegged at ceiling for ~81% of `tcp_upload` samples — confirming `rrul`/`tcp_upload` reliably saturate and provoke control activity. **Acceptance:** after capture, the artifact must have `autorate_router_write_download.count > 0` OR `autorate_router_write_upload.count > 0`. If both are zero, the driven segment fell outside the window or the flent run didn't saturate — investigate before declaring the capture valid.
 
-### Q7 — Runbook content (D-07)
-`docs/PROFILING.md` does not exist (only `docs/archive/PROFILING.md` does). House style of the active perf doc (`docs/PERFORMANCE.md`): H1 title, short intro paragraph, `## Section` headers, fenced `bash` blocks, a "Production Standard / Operational Guardrails" framing, and explicit links to archived material. `docs/TESTING.md` follows the same convention. The new runbook should mirror this: enable (drop-in) → drive load → capture → revert → analyze → interpret-against-D-03-bars, with the `--profile`+`--debug` requirement and the regex/format caveat called out prominently. It should link to (not duplicate) `docs/PERFORMANCE.md §Profiling Workflow` and supersede the stale archived `docs/archive/PROFILING.md` parser commands (which point the collector at a `--profile`-only log — see Pitfall 1). [VERIFIED: `docs/PERFORMANCE.md:1-84`, `docs/archive/PROFILING.md:26-235`]
+### Q7 — Runbook content (D-07) — unchanged framing, corrected commands
+`docs/PROFILING.md` does not exist (only `docs/archive/PROFILING.md` does). House style: H1 title, short intro, `## Section` headers, fenced `bash` blocks, "Production Standard / Operational Guardrails" framing (per `docs/PERFORMANCE.md` and `docs/TESTING.md`). Required sections:
 
-### Q8 — Archived baselines (informational only, per D-04)
-- **v1.0** (`PROFILING-ANALYSIS.md`): cycle_total avg **41.1ms** (Spectrum) / **31.4ms** (other), RTT measurement **98%+** of cycle, but **at the old 2-second interval** → 2.1% budget utilization, ~1959ms headroom. *Citable as: "RTT historically dominated; absolute RTT excellent" — but the % and headroom are NOT comparable to 50ms.* (`:9,31-32,46-47,87-88`)
-- **v1.9** (`47-RESEARCH.md`): explicitly frames the 50ms shift — expected **cycle_total 30-45ms**, **RTT 20-40ms (dominant)**, router comms 0ms (skipped) or 15-25ms (on rate change), at 50ms cycles consuming 60-80% of budget. **It also pre-flagged the exact regex risk** this research confirms: "The regex pattern `(\w+): (\d+\.\d+)ms` should still work, but report generation may need updating" (`:213`). *Citable as the most relevant prior expectation for what "healthy at 50ms" looks like.* (`:11,84-87,213`)
+1. **Pre-flight.** Check service is running, healthy, no existing drop-in. Confirm `flent` available on dev VM and Spectrum dev bind IP / netperf host still valid.
+2. **Enable.** `systemctl edit wanctl@spectrum` with the exact drop-in (Environment=WANCTL_LOG_FORMAT=json + --profile --debug); daemon-reload + restart.
+3. **Drive load.** Phase 213 harness invocation inside the window.
+4. **Capture.** ≥1h. Tail `journalctl -u wanctl@spectrum` for overrun/restart warnings.
+5. **Revert + verify.** `systemctl revert`; daemon-reload + restart; verify `systemctl cat` and `ps -ef` show no remnant.
+6. **Retrieve.** scp the rotated `/var/log/wanctl/spectrum_debug.log*` set and journald dump.
+7. **Analyze.** Concatenate; run the JSON parser; run `wanctl-history --ingestion-rate --from --to`; run the jq verdict pipeline.
+8. **Interpret against D-03 bars.** Numeric headroom bar (`avg < 40ms AND p99 < 50ms`) AND dominance (`max category % < 40`). Both pass = no-action; either fails = promote.
+9. **Caveat language.** Observer-effect notes; storage-write attribution caveat.
 
-Use these as context-setting in the summary ("prior expectation: RTT-dominant, 30-45ms at 50ms"), never as a pass/fail gate (D-04).
+The runbook should explicitly supersede `docs/archive/PROFILING.md`'s parser commands (which point the regex collector at a `--profile`-only main log — broken assumption that this phase corrects).
+
+### Q8 — Archived baselines (informational only, per D-04) — unchanged
+- **v1.0** (`PROFILING-ANALYSIS.md`): cycle_total avg **41.1ms** (Spectrum) / **31.4ms** (other), RTT measurement **98%+** of cycle — but at the **2-second** interval, so 2.1% budget utilization, ~1959ms headroom. Citable as "RTT historically dominated; absolute RTT excellent." **Not comparable to 50ms budget.**
+- **v1.9** (`47-RESEARCH.md`): pre-flagged the regex risk this phase is now correcting (`:213`); expected 50ms-era cycle_total of 30-45ms, RTT 20-40ms (dominant), router comms 0ms (skipped) or 15-25ms (on rate change). Most relevant prior expectation for "healthy at 50ms."
+
+Use as context-setting in the summary; never as a pass/fail gate (D-04).
 
 ## Runtime State Inventory
 
-This is a measurement phase, but the capture mutates live service config transiently. The systemd drop-in IS runtime state that must be reverted.
+Measurement phase, but capture mutates live service config transiently. The systemd drop-in IS runtime state that must be reverted.
 
 | Category | Items Found | Action Required |
 |----------|-------------|------------------|
-| Stored data | None new written to datastores by this phase. The committed `.profile.json` is derived from logs, not a DB. | None |
-| Live service config | **systemd drop-in** `/etc/systemd/system/wanctl@spectrum.service.d/override.conf` (added by `systemctl edit`). This is live config NOT in git. | **MUST `systemctl revert wanctl@spectrum` + daemon-reload + restart** after capture (D-05). Verify drop-in dir is gone. |
-| OS-registered state | The `wanctl@spectrum` unit instance itself (already registered; not modified — only overridden). | None beyond the revert above. |
-| Secrets/env vars | None touched. `EnvironmentFile=-/etc/wanctl/secrets` unchanged. | None |
+| Stored data | None new written to datastores by this phase. The committed `.profile.json` is derived from logs, not a DB. Storage attribution reads existing per-WAN SQLite DB. | None |
+| Live service config | **systemd drop-in** `/etc/systemd/system/wanctl@spectrum.service.d/override.conf` (added by `systemctl edit`, sets `WANCTL_LOG_FORMAT=json` + `--profile --debug` ExecStart). Live config NOT in git. | **MUST `systemctl revert wanctl@spectrum` + daemon-reload + restart** after capture (D-05). Verify drop-in dir is gone. |
+| OS-registered state | The `wanctl@spectrum` unit instance itself (already registered; not modified — only overridden). | None beyond the revert. |
+| Secrets / env vars | The drop-in adds `WANCTL_LOG_FORMAT=json` for the window. `EnvironmentFile=-/etc/wanctl/secrets` unchanged. | Reverted with the drop-in. |
 | Build artifacts | None. No `src/` change, no reinstall. `/opt/wanctl` code untouched. | None |
 
-**The canonical revert check:** after the phase, `systemctl cat wanctl@spectrum` should show ONLY the base unit (no drop-in), and the running ExecStart must NOT contain `--profile`/`--debug`. This is the single most important safety gate.
+**The canonical revert check (single most important safety gate):** post-phase, `systemctl cat wanctl@spectrum` shows base unit only (no `[Service]` override block); `ps -ef | grep autorate_continuous` shows neither `--profile` nor `--debug` nor `WANCTL_LOG_FORMAT=json`.
 
 ## Common Pitfalls
 
-### Pitfall 1: Analyzer scripts return "No timing measurements found" against a `--profile`-only log
-**What goes wrong:** You run `--profile` (the flag D-05 names), grep confirms `=== Profiling Report ===` lines exist, but `profiling_collector.py`/`analyze_profiling.py` report no data and exit 1.
-**Why it happens:** The regex `(\w+): (\d+\.\d+)ms` only matches `PerfTimer.__exit__` DEBUG output (`label: 40.5ms`). The `report()` output is `label: count=1200, min=12.3ms, avg=15.4ms, ...` — after the label's colon comes `count=`, not a digit, so the regex captures nothing. **Verified empirically:**
-```
-REPORT-format line ('autorate_cycle_total: count=1200, min=12.3ms, ...'): []  (no match)
-PerfTimer DEBUG line ('autorate_rtt_measurement: 40.5ms'):                [('autorate_rtt_measurement','40.5')]  (match)
-JSON-formatted line:                                                       []  (no match)
-```
-**How to avoid:** Capture with **`--debug`** (in addition to `--profile`) so the parseable per-sample lines exist, and ensure the log is **text format** (`WANCTL_LOG_FORMAT` unset/`text`; JSON breaks the regex too — `logging_utils.py:105-119,132-134`). Confirm the deployed Spectrum env does not set `WANCTL_LOG_FORMAT=json`.
-**Fallback (observer-effect-clean):** if `--debug` proves too heavy (watchdog/disk), skip it and derive numbers from (a) the `--profile` `report()` aggregates read by eye / a small custom parser, and (b) `/health cycle_budget.subsystems` polled across the window. This loses per-sample granularity but is still sufficient for the D-03 bars (avg + p95/p99 + dominance %).
-**Warning signs:** collector exits with `WARNING: No timing measurements found`; `report()` text present but JSON empty.
+### Pitfall 1: Re-inheriting the regex / text-DEBUG assumption
+**What goes wrong:** Capturing in text format under `--debug` and feeding `scripts/profiling_collector.py` produces per-subsystem stats but **zero `autorate_cycle_total` samples**. The D-03 headroom verdict is uncomputable from that artifact.
+**Why it happens:** The regex `(\w+): (\d+\.\d+)ms` (`profiling_collector.py:38-46`) matches PerfTimer DEBUG lines (`label: X.Xms`), but `cycle_total` is logged only as a structured `extra` field on the `"Cycle timing"` message — never as text matching that pattern.
+**How to avoid:** Use Option A (JSON capture + JSON parser). Don't re-use the regex collector for cycle_total.
+**Warning sign:** `grep -c "autorate_cycle_total:" spectrum_debug.log` returns 0. Either capture format is wrong (text instead of JSON), or the wrong source file was pulled, or `--debug` wasn't actually applied.
 
-### Pitfall 2: Attributing storage-write cost from the cycle profile
-**What goes wrong:** Looking for an `autorate_storage_*` label to satisfy PERF-02's "storage writes" category and finding none, or worse, inventing one.
-**Why it happens:** SQLite writes are off the hot path (DeferredIOWorker). There is intentionally no hot-path storage timer.
-**How to avoid:** Report storage-write load via `wanctl-history --ingestion-rate --wan spectrum` as a separate, non-hot-path metric. State in the summary that storage is not a cycle_total contributor by design.
+### Pitfall 2: Pulling the wrong log file
+**What goes wrong:** Retrieving `/var/log/wanctl/spectrum.log` and finding INFO-level lines only (no per-cycle records). Parsing produces empty results.
+**Why it happens:** Main file handler is INFO-only (`logging_utils.py:200-201`); the debug file handler writes a separate file at `config.debug_log` (`logging_utils.py:209-214`) which for Spectrum is `/var/log/wanctl/spectrum_debug.log` (`configs/spectrum.yaml:154`).
+**How to avoid:** Pull `/var/log/wanctl/spectrum_debug.log*` (with all rotated backups) and/or `journalctl -u wanctl@spectrum -o cat`. The runbook lists the exact `scp` invocation.
 
-### Pitfall 3: Double-counting router sub-timers in the dominance test
-**What goes wrong:** Summing `router_communication` + `router_apply_*` + `router_write_*` overstates router cost above 100%.
-**Why it happens:** The sub-timers are nested inside the parent `autorate_router_communication` timer.
-**How to avoid:** Use `autorate_router_communication` as the category total for the >40% test; use sub-timers only for drill-down narrative.
+### Pitfall 3: Cross-checking observer-effect with `/health` in the same window
+**What goes wrong:** Reporting `health.cycle_time_ms.avg - debug.cycle_total_avg ≈ 0` as the observer-effect figure.
+**Why it happens:** `_build_cycle_budget` (`health_check.py:101`) reads `profiler.stats("autorate_cycle_total")` — the same in-process profiler the DEBUG records draw from. Same data source; delta by construction is ~0.
+**How to avoid:** Use adjacent-window ON/OFF estimate, or downgrade to documented caveat. See "How observer-effect is bounded" above.
 
-### Pitfall 4: Log rotation evicts the capture window
-**What goes wrong:** At DEBUG + 20Hz the main log grows fast (~240 lines/sec); default RotatingFileHandler is 10MB × 3 backups — a 1h DEBUG capture can roll over and lose early samples.
-**Why it happens:** `RotatingFileHandler(max_bytes, backup_count)` defaults (`logging_utils.py:200`).
-**How to avoid:** Either retrieve `/var/log/wanctl/spectrum.log*` (all backups) and concatenate in chronological order before parsing, or capture from `journalctl -u wanctl@spectrum --since ... --until ...` to a file (journal retains regardless of file rotation) and parse that. Check `max_bytes`/`backup_count` in the deployed Spectrum config before starting.
+### Pitfall 4: Storage-window misalignment
+**What goes wrong:** `wanctl-history --ingestion-rate --wan spectrum` runs later in the day and reports the last-hour write-rate that doesn't overlap the capture window.
+**Why it happens:** `_resolve_time_range` (`history.py:616-624`) defaults to `now - 3600, now` when no `--from`/`--to` provided.
+**How to avoid:** Always pass `--from <ISO> --to <ISO>` matching the capture window. Record the start/end timestamps when the drop-in goes in and out.
 
-### Pitfall 5: Driven segment runs outside the capture window
-**What goes wrong:** Router-write labels stay at 0 because the flent run happened before/after `--profile` was active.
-**How to avoid:** Run the flent `rrul`/`tcp_upload` strictly *inside* the enabled window; verify afterward that `autorate_router_write_*` have non-zero counts in the artifact.
+### Pitfall 5: Driven segment outside the capture window
+**What goes wrong:** flent run happened before/after `--profile --debug` was active; router-write labels stay at count=0.
+**How to avoid:** Run the flent harness AFTER `restart` and BEFORE `revert`. Verify post-capture by querying the artifact for non-zero `autorate_router_write_*.count`.
+
+### Pitfall 6: Log rotation evicts the capture window
+**What goes wrong:** At ~240 records/sec × ~150 bytes/record ≈ ~36 KB/sec, a 10MB file rolls every ~5 min. With `backupCount=3`, the rotation window is ~20 min — a 1h capture loses the first ~40 min of samples from the file unless backups are pulled.
+**Why it happens:** `RotatingFileHandler(maxBytes=10_485_760, backupCount=3)` defaults (`logging_utils.py:196-197,211`).
+**How to avoid:** Pull `/var/log/wanctl/spectrum_debug.log*` (with all rotated backups) and concatenate oldest→newest. Belt-and-braces: also save `journalctl -u wanctl@spectrum --since <start> --until <end> -o cat` — journald isn't rotation-bound by the file handler. The Wave 0 pre-flight should check the deployed rotation config (`max_bytes`/`backup_count`) — if it's been tuned away from the defaults, recompute expected file lifetime.
+
+### Pitfall 7: Committing raw DEBUG capture to the repo
+**What goes wrong:** `.planning/perf/spectrum_debug.ndjson` lands in git, leaking production operating details and bloating history.
+**How to avoid:** `.gitignore` `.planning/perf/capture/` (or any equivalent capture subdir); commit only the aggregate `.profile.json`, the ingestion JSON, the summary, and the runbook. If any raw excerpt is needed in the summary, scrub it manually first.
 
 ## Code Examples
 
-### Verify the `--profile` flag exists on the deployed binary
+### Verify Spectrum log format before capture (Wave 0 gate)
+
 ```bash
-# (archived runbook pattern, docs/archive/PROFILING.md:91)
-ssh <spectrum-host> '/usr/bin/python3 /opt/wanctl/autorate_continuous.py --help | grep -- --profile'
+# If the file starts with '{', it's already JSON-format (likely WANCTL_LOG_FORMAT=json is set somewhere).
+# Either way, the drop-in's explicit Environment= sets JSON for the capture window.
+ssh <spectrum-host> 'head -1 /var/log/wanctl/spectrum.log'
+ssh <spectrum-host> 'systemctl show wanctl@spectrum -p Environment'
 ```
 
-### Produce the committed artifact + breakdown (after retrieving the log)
-```bash
-LOG=/path/to/spectrum-capture.log   # DEBUG, text-format, full window (concatenated if rotated)
+### Drop-in (paste into `systemctl edit wanctl@spectrum`)
 
-# D-06 artifact:
-.venv/bin/python scripts/profiling_collector.py "$LOG" --all --output json \
-  > .planning/perf/v1.45-baseline-spectrum-$(date +%Y%m%d).profile.json
-
-# Dominance / utilization / headroom markdown (50ms budget):
-.venv/bin/python scripts/analyze_profiling.py --log-file "$LOG" --budget 50 \
-  --output /tmp/v1.45-spectrum-analysis.md
-
-# Storage-write attribution (separate from cycle profile):
-.venv/bin/python -m wanctl.history --ingestion-rate --wan spectrum
+```ini
+[Service]
+Environment=WANCTL_LOG_FORMAT=json
+ExecStart=
+ExecStart=/usr/bin/python3 /opt/wanctl/autorate_continuous.py --config /etc/wanctl/spectrum.yaml --profile --debug
 ```
 
-### Live no-observer-effect cross-check during the window
+### Post-capture revert verification
+
 ```bash
-ssh <spectrum-host> 'curl -s http://127.0.0.1:9101/health | python3 -m json.tool' \
-  | python3 -c "import sys,json; h=json.load(sys.stdin); print(json.dumps(h['wans'][0]['cycle_budget'], indent=2))"
+ssh <spectrum-host> 'systemctl cat wanctl@spectrum | grep -E "^Environment|^ExecStart"'
+# Expected: matches checked-in deploy/systemd/wanctl@.service exactly; no drop-in lines.
+ssh <spectrum-host> 'ps -ef | grep [a]utorate_continuous'
+# Expected: no --profile, no --debug in the running command.
+```
+
+### Sanity check the capture before committing the artifact
+
+```bash
+# 1. Count "Cycle timing" records with cycle_total_ms present
+jq -c 'select(.message == "Cycle timing") | .cycle_total_ms' \
+    .planning/perf/capture/spectrum_debug.ndjson | wc -l
+# Expected: >= 60000
+
+# 2. Confirm driven-segment landing (non-zero router-write counts)
+jq -c 'select(.message == "Cycle timing")
+       | select((.router_write_download_ms // 0) > 0 or (.router_write_upload_ms // 0) > 0)' \
+    .planning/perf/capture/spectrum_debug.ndjson | wc -l
+# Expected: > 0
+```
+
+### Storage attribution (window-aligned)
+
+```bash
+.venv/bin/python -m wanctl.history --ingestion-rate --wan spectrum \
+    --from 2026-05-30T18:00:00 --to 2026-05-30T19:00:00 --json \
+  > .planning/perf/v1.45-baseline-spectrum-20260530.ingestion.json
 ```
 
 ## State of the Art
 
-| Old Approach | Current Approach | When Changed | Impact |
+| Old approach | Current approach | When changed | Impact |
 |--------------|------------------|--------------|--------|
-| 2-second control interval, 2-4% budget | 50ms (20Hz), 60-80% budget | v1.0 → ~v1.9 | Profiling overhead now matters; <1ms-per-cycle overhead requirement is real (`47-RESEARCH.md:11`). |
-| Per-cycle DEBUG/profiling payload always built | Gated behind DEBUG/profile (the original todo's hot-path optimization) | mid-April 2026 | Enabling `--debug` re-activates the gated path → the observer-effect this phase must caveat. |
-| `--ingestion-rate` not available | `wanctl-history --ingestion-rate` (v1.44 Phase 208) | v1.44 | Provides the only viable storage-write attribution path. |
+| 2-second control interval, 2-4% budget | 50ms (20Hz), 60-80% budget expected | v1.0 → ~v1.9 | Profiling overhead matters; per-cycle DEBUG cost is real. |
+| Per-cycle DEBUG/profiling payload always built | Gated behind DEBUG/profile (original todo's hot-path optimization) | mid-April 2026 | Enabling `--debug` re-activates the gated path → the observer-effect this phase must caveat. |
+| `--ingestion-rate` not available | `wanctl-history --ingestion-rate` with `--from`/`--to` (v1.44 Phase 208) | v1.44 | Only viable storage-write attribution path; must use explicit window. |
+| Regex-collector cycle_total assumption | JSON-format DEBUG + offline JSON parser (this phase) | v1.45 (Phase 217) | Cycle_total is in structured `extra=`, not in the message string; this is the corrected data path. |
 
-**Deprecated/outdated:**
-- `docs/archive/PROFILING.md` parser commands point the collector at a `--profile`-only main log and will return no data unless DEBUG is also on. The new `docs/PROFILING.md` must correct this.
-- Archived v1.0 utilization/headroom percentages (2s interval) — not comparable to 50ms.
+**Deprecated / outdated:**
+- `docs/archive/PROFILING.md` parser commands (point regex collector at a `--profile`-only main log; would return no cycle_total today regardless).
+- v1.0 utilization/headroom percentages (2s interval; not comparable to 50ms).
+- Previous 217-RESEARCH.md "primary recommendation: capture in text DEBUG, parse cycle_total with the existing collector" — superseded by Option A above.
 
 ## Validation Architecture
 
-This is a measurement phase. "Validation" = the deliverables exist, are well-formed, and the decision is justified by the data. No new unit tests are required (no `src/` change). The Validation Architecture is artifact/procedure validation.
+This is a measurement phase. "Validation" = the deliverables exist, are well-formed, and the decision is justified by the data. No new unit tests required (no `src/` change). Validation = artifact + procedure validation.
+
+### Test Framework
+| Property | Value |
+|----------|-------|
+| Framework | pytest (existing) — only relevant if a future phase wants a unit test on the new JSON parser; not required by this phase |
+| Config file | `pyproject.toml` (existing) |
+| Quick run command | `.venv/bin/pytest tests/test_perf_profiler.py -q` (sanity that the profiler core didn't change) |
+| Full suite command | `make ci` |
 
 ### Phase Requirements → Validation Map
 | Req | Behavior | Validation type | Check |
 |-----|----------|-----------------|-------|
-| PERF-01 | ≥1h Spectrum profile captured + committed; todo closed/promoted | Artifact existence + content | `.planning/perf/v1.45-baseline-spectrum-<date>.profile.json` exists, parses as JSON, `autorate_cycle_total.count` ≥ ~72000 (1h × 20Hz × 0.5 safety) and `autorate_router_write_*` counts > 0 (driven segment landed). Todo file moved to `done/` or a follow-on phase opened. |
-| PERF-02 | Dominant cost category identified | Analysis output | `analyze_profiling.py` markdown ranks subsystems; the 4 PERF-02 hot-path categories are rolled up; >40% dominance test computed; storage write-rate reported separately via `wanctl-history --ingestion-rate`. |
-| PERF-03 | Explicit deprioritize/promote decision | Summary content | 1-page summary states the D-03 verdict (headroom comfortable? any category >40%?) and the explicit decision sentence. |
+| PERF-01 | ≥1h Spectrum profile captured + committed; todo closed/promoted | Artifact existence + content | Committed `.planning/perf/v1.45-baseline-spectrum-<date>.profile.json` parses as JSON; `autorate_cycle_total.count >= 60000`; `autorate_router_write_download.count > 0` OR `autorate_router_write_upload.count > 0`; todo moved to `done/` (no-action) or a follow-on phase opened (promote). |
+| PERF-02 | Dominant cost category identified | Analysis output | Summary computes `category_pct` for all 4 hot-path categories; storage write-rate reported separately from window-aligned `wanctl-history --ingestion-rate`; dominance boolean (`max(category_pct) < 40`) stated explicitly. |
+| PERF-03 | Explicit deprioritize/promote decision | Summary content | 1-page summary states the D-03 verdict pair (`passes_headroom` boolean, `passes_dominance` boolean) and the explicit decision sentence. |
 
-### Acceptance criteria the planner can write (falsifiable)
-- Artifact JSON contains keys for all five health-block labels and the four PERF-02 hot-path categories, with `avg_ms`, `p95_ms`, `p99_ms`, `count`.
-- `autorate_cycle_total.avg_ms` and `.p99_ms` are reported with explicit headroom vs 50ms.
-- Dominance verdict: `max(category % of cycle_total) {<= | >} 40%` stated as a boolean.
-- `autorate_router_write_download.count > 0` OR `autorate_router_write_upload.count > 0` (proves the driven segment exercised the change-gated path).
-- Observer-effect caveat present in the summary (DEBUG inflation noted; `/health` cross-check delta reported).
-- `systemctl cat wanctl@spectrum` shows no drop-in post-phase (revert verified).
-- `docs/PROFILING.md` exists and contains the enable→capture→revert→analyze sequence.
+### Sampling rate
+- **During capture:** tail `journalctl -u wanctl@spectrum -f` for `<wan>: Cycle overrun: ...` warnings (rate-limited at `perf_profiler.py:279-284`, fires 1st, 3rd, every 10th — any cluster of overruns is a sign the DEBUG cost is too heavy on the host). One unit restart during the window invalidates that segment of the capture.
+- **Post-capture, pre-commit:** the two `jq` sanity checks above (cycle-timing record count, driven-segment landed).
+- **Phase gate:** revert verified, artifact + summary + runbook committed, all acceptance criteria above pass, todo state transitioned.
 
-### Sampling / cross-checks
-- **Per-capture:** tail `journalctl -u wanctl@spectrum -f` during the window for overrun warnings / restarts.
-- **Post-capture:** triangulate DEBUG-log avg vs `--profile` `report()` avg vs `/health` snapshot avg.
-- **Phase gate:** revert verified; artifact + summary + runbook committed.
-
-### Wave 0 gaps
-- Create `.planning/perf/` directory (does not exist).
-- Confirm `flent` available on the dev VM (Phase 213 used 2.1.1) and Spectrum dev bind IP / netperf host `dallas` still valid.
-- Confirm deployed Spectrum `WANCTL_LOG_FORMAT` is text (not json) and capture/concatenate rotated logs.
-- Decide post-processing helper vs jq for category roll-up + >40% verdict (small, not a new tool).
+### Wave 0 gaps (the planner must seed before the capture)
+- Create `.planning/perf/` (does not exist).
+- `.gitignore` `.planning/perf/capture/` for raw-log retrieval.
+- Confirm deployed Spectrum `WANCTL_LOG_FORMAT` and rotation config (`max_bytes`, `backup_count`); the drop-in's explicit `Environment=` makes JSON capture deterministic regardless of host env, but knowing the rotation config sets correct retrieval expectations.
+- Confirm `flent` available on the dev VM and Spectrum dev bind IP / netperf host `dallas` still valid (Phase 213 used 2.1.1 / Py 3.12.3).
+- Decide: adjacent ON/OFF windows for observer-effect (recommended) or documented caveat only.
+- Decide: parser script final name and location (`scripts/profiling_collector_json.py` recommended; planner picks).
 
 ## Environment Availability
 
-| Dependency | Required By | Available | Version | Fallback |
+| Dependency | Required by | Available | Version | Fallback |
 |------------|------------|-----------|---------|----------|
-| `flent` (on dev VM) | Driven segment (D-02) | ✓ (Phase 213) | 2.1.1 / Py 3.12.3 | If absent, skip driven segment → router-write labels stay 0 → note the gap (steady-state still captured). |
+| Root `systemctl edit/revert wanctl@spectrum` on Spectrum host | Drop-in (D-05) | ✓ (assumed; Phase 212/213 used the same host) | — | None — hard requirement. |
+| `WANCTL_LOG_FORMAT` env switch | Option A capture | ✓ (`logging_utils.py:115`) | — | None — Option A depends on it. |
+| `flent` on dev VM | Driven segment (D-02) | ✓ (Phase 213 used 2.1.1) | 2.1.1 / Py 3.12.3 | If absent: skip driven segment, router-write labels stay 0, summary notes the gap. Steady-state still captured. |
 | netperf host `dallas` | flent target | ✓ (Phase 213) | — | Any reachable netperf server. |
-| Spectrum host SSH + `/health` :9101 | Capture, retrieval, cross-check | ✓ (assumed; Phase 212/213 used it) | — | — |
-| `systemctl edit`/`revert` (root on Spectrum host) | Drop-in (D-05) | ✓ (assumed) | — | None — required for D-05. |
-| `wanctl-history` | Storage attribution (PERF-02) | ✓ (`history.py`, v1.44) | 1.45 | If unavailable, note storage-write attribution as unmeasured. |
-| `.venv` with project deps | Run analysis scripts | ✓ (repo) | — | — |
+| Spectrum `/health` on :9101 | Low-cadence sanity track; adjacent-window observer-effect estimate | ✓ (assumed; Phase 213 poller used `:9101`) | — | Skip; degrades observer-effect to caveat-only. |
+| `wanctl-history` with `--from`/`--to` | PERF-02 storage attribution | ✓ (`history.py`, v1.44) | 1.45 | If unavailable: note storage as unmeasured. |
+| `jq` (workstation) | Verdict computation | ✓ (standard) | any | Pure-Python replacement in the parser script. |
+| `.venv` with project deps (workstation) | Run new JSON parser; run `wanctl.history` CLI | ✓ (repo) | — | — |
 
-**Missing dependencies with no fallback:** root access to `systemctl edit/revert wanctl@spectrum` on the production host (D-05 hard requirement).
-**Missing dependencies with fallback:** `flent` (degrades the driven segment, not the whole phase).
+**Missing dependencies with no fallback:** root access to `systemctl edit/revert wanctl@spectrum` on the production host (D-05 hard requirement); `WANCTL_LOG_FORMAT` env handling in `setup_logging` (Option A foundation — confirmed present).
+
+**Missing dependencies with fallback:** `flent` (degrades only the driven segment), `/health` (degrades observer-effect protocol).
 
 ## Assumptions Log
 
-| # | Claim | Section | Risk if Wrong |
+Every claim above is either verified against current source or explicitly tagged here as an assumption the planner should validate or the operator should confirm at capture time.
+
+| # | Claim | Section | Risk if wrong |
 |---|-------|---------|---------------|
-| A1 | Deployed Spectrum logs are **text** format (`WANCTL_LOG_FORMAT` unset → default text). | Pitfall 1, Q3 | If json, the analyzer regex matches nothing even at DEBUG; capture wasted. **Verify before capture** by checking the live log file. |
-| A2 | The Spectrum production host allows root `systemctl edit`/`revert` and runs the `wanctl@spectrum` instance. | Q4, Env | If not, D-05 capture path is blocked; needs operator. |
-| A3 | flent dev-VM bind IP (`10.10.110.226`) and netperf host `dallas` from Phase 213 are still valid. | Q6 | Driven segment fails to bind/route; router-write labels stay 0. Re-confirm from current bind map. |
-| A4 | `/health` is served on `:9101` for Spectrum (CLAUDE.md quick-ref + Phase 213 poller used `10.10.110.223:9101`). | Validation, Q4 | Cross-check unavailable; fall back to log-only. |
-| A5 | Default RotatingFileHandler size means a 1h DEBUG capture rotates; concatenation needed. | Pitfall 4 | If max_bytes is large, no concat needed (harmless over-caution). Check deployed config. |
-| A6 | ~11 PerfTimer DEBUG emissions/cycle is the dominant observer-effect; exact ms is disk-dependent. | Q5 | If DEBUG cost is larger than assumed and stalls the loop, watchdog restarts the window → fall back to no-`--debug` path. |
+| A1 | `WANCTL_LOG_FORMAT=json` set via systemd `Environment=` propagates through `setup_logging` to BOTH the main and debug handlers for the running daemon. | Capture mechanics; Q4 | [VERIFIED via `logging_utils.py:115,185,193,202,213` — same `formatter` instance is set on both file handlers and the console.] |
+| A2 | JSONFormatter actually emits the `extra=` keys verbatim alongside the standard fields. | Per-record JSON shape | [VERIFIED via `logging_utils.py:91-96` — walks `record.__dict__` and includes every non-internal key. The list of excluded attrs at `:47-72` does NOT include `cycle_total_ms` or any `*_ms` extras.] |
+| A3 | `record_cycle_profiling` is reached whenever `--debug` is on (no other guard prevents emission once DEBUG is enabled at the logger). | Per-record JSON shape | [VERIFIED via `perf_profiler.py:287` — single `if logger.isEnabledFor(logging.DEBUG):` gate; nothing else above it skips the structured log path.] |
+| A4 | The drop-in's `ExecStart=` clear-then-set pattern works for this unit. | Capture mechanics | [VERIFIED — `ExecStart` is a single-value directive in systemd's grammar; the clear+set pattern is documented in `systemd.service(5)`. The previous research already exercised this assumption against archived `docs/PERFORMANCE.md` instructions.] |
+| A5 | Spectrum host runs the `wanctl@spectrum` instance and allows root `systemctl edit/revert`. | Capture mechanics; Env | [ASSUMED — Phase 212/213 evidence; operator should confirm.] |
+| A6 | flent dev-VM bind IP (`10.10.110.226`) and netperf host `dallas` from Phase 213 are still valid. | Q6 | [ASSUMED — re-confirm from current bind map at Wave 0.] |
+| A7 | `/health` is served on `:9101` for Spectrum. | Observer-effect estimate; Validation | [ASSUMED — Phase 213 poller used `10.10.110.223:9101`; confirm host IP.] |
+| A8 | Default rotation config (`max_bytes=10_485_760`, `backup_count=3`) is in effect on the deployed Spectrum host. | Pitfall 6 | [ASSUMED — Wave 0 should check `getattr(config, "max_bytes", ...)` on the running config. If the deployed config has larger values, the rotation window is wider; if smaller, narrower.] |
+| A9 | DEBUG JSON emission cost on the production disk stays well under the 30s `WatchdogSec` threshold (i.e. no per-cycle stall pushes the loop past 30s). | Capture mechanics; Q4 | [ASSUMED — strictly additive I/O; historical evidence is the prior gated-DEBUG hot-path optimization was a few % cost on the loop, not a 30s stall. Operator should monitor `journalctl` during the window.] |
+| A10 | `wanctl-history --ingestion-rate` `--from`/`--to` flags are wired the same as the rest of the time-range args. | Q3; PERF-02 storage | [VERIFIED via `history.py:616-624` — `_resolve_time_range` accepts `args.from_ts`/`args.to_ts`. The argparser includes them via the shared `--from`/`--to` flags (standard wanctl-history CLI shape).] |
+| A11 | `OperationProfiler.stats()` math (`perf_profiler.py:132-153`) is appropriate to apply over the full 1h sample set, not just the 100-sample rolling deque. | Q1; analysis | [VERIFIED — the math itself is pure (sort + index percentile), bounded only by input list size; the offline parser feeds it the full 1h sample list, not the rolling deque. The deque only exists in the running daemon to bound memory.] |
 
-## Open Questions (RESOLVED)
+## Open Questions
 
-1. **Is the deployed Spectrum log text or JSON?** **RESOLVED — Plan 02 Task 1 pre-flight check verifies via `ssh <host> 'head -1 /var/log/wanctl/spectrum.log'`; the drop-in includes `Environment=WANCTL_LOG_FORMAT=text` as the fallback. Capture proceeds only after text-format confirmation.**
-   - Known: default is text (`logging_utils.py:115`); JSON breaks the analyzer regex.
-   - Unclear: whether the production env sets `WANCTL_LOG_FORMAT=json`.
-   - Recommendation: Wave-0 task — `ssh <host> 'head -1 /var/log/wanctl/spectrum.log'`; if JSON, either temporarily force text in the drop-in (`Environment=WANCTL_LOG_FORMAT=text`) or write a JSON-aware parser step.
-
-2. **`--debug` observer-effect magnitude on this specific host.** **RESOLVED — Plan 02 Task 2 captures a mid-window `/health` snapshot; Plan 03 Task 2 reports the delta between DEBUG-log `autorate_cycle_total.avg_ms` and `/health cycle_budget.cycle_time_ms.avg` as the observer-effect figure. Explicit caveat path if the snapshot is missing.**
-   - Known: it's strictly additive (~240 log writes/sec) and absent in steady-state.
-   - Unclear: the actual ms delta on the production disk.
-   - Recommendation: measure it directly — compare DEBUG-log `cycle_total` avg vs `/health` `cycle_budget.cycle_time_ms.avg` taken in the same window. Report the delta as the observer-effect figure (turns a caveat into a number; satisfies the D-03 honesty requirement).
-
-3. **Driven-segment duration.** **RESOLVED (Discretion) — Plan 02 Task 2 invokes `scripts/phase213-baseline-capture.sh --flent-duration 60 --tests tcp_upload,rrul` (60s rrul + 60s tcp_upload) inside the 1h window; sufficient to populate the change-gated router-write labels.** (Discretion) Minimum 60s `rrul` + 60s `tcp_upload` to populate router-write labels; planner may extend within the 1h window.
+1. **Does the JSONFormatter output for a real `record_cycle_profiling` call actually contain `cycle_total_ms` (and the per-subsystem `*_ms` extras) as top-level JSON keys?** — RESOLVED by static analysis (A2 above), but the planner's Wave 0 MUST verify in production conditions before committing to the full 1h window. Concrete Wave 0 check: 5-minute pilot capture with the drop-in, then `jq 'select(.message == "Cycle timing") | keys' spectrum_debug.log | head -1` to inspect actual keys. If `cycle_total_ms` is missing for any reason (e.g. a logging filter strips it), abort and re-evaluate before the full window.
+2. **Will the production disk sustain ~240 JSON records/sec at DEBUG without watchdog impact?** — UNKNOWN. Mitigation: the 5-minute pilot also serves as the disk-cost check (tail `journalctl -u wanctl@spectrum -f` for overrun warnings or restarts).
+3. **Observer-effect estimate vs documented caveat — which does the operator prefer?** — DEFERRED to operator/planner; both shapes accepted (see "How observer-effect is bounded"). Recommendation: do the adjacent ON/OFF estimate (10 min total, cheap).
+4. **Driven-segment duration tuning beyond the Phase 213 default (60s rrul + 60s tcp_upload)?** — DISCRETION (CONTEXT.md). The default populates the change-gated router-write labels; longer durations give richer router-write distributions but don't change the dominance verdict shape.
 
 ## Sources
 
 ### Primary (HIGH confidence — current code/config/docs in repo)
-- `src/wanctl/perf_profiler.py:25-302` — PerfTimer, OperationProfiler, record_cycle_profiling, report format, PROFILE_REPORT_INTERVAL.
-- `src/wanctl/wan_controller.py:2408-2462,2540-2614,751-762,4384-4386` — timings dict, run_cycle PerfTimer wiring, rates_changed gate, profiling_enabled.
-- `src/wanctl/health_check.py:78-151,259-269` — `_build_cycle_budget`, subsystem label list, /health surface.
-- `src/wanctl/autorate_continuous.py:294-298,490-497,518-528` — `--profile` flag, `_configure_controller_flags`, DeferredIOWorker.
-- `src/wanctl/logging_utils.py:17-219` — JSONFormatter, get_log_format, setup_logging handler levels.
-- `scripts/profiling_collector.py:22-234`, `scripts/analyze_profiling.py:23-322` — regex, JSON/markdown output, percentage/dominance logic.
-- `src/wanctl/history.py:438-715` — `--ingestion-rate`.
-- `deploy/systemd/wanctl@.service` — ExecStart, WatchdogSec, Restart, CPUAffinity, Memory limits.
-- `configs/spectrum.yaml:152-157` — main_log path.
-- `docs/PERFORMANCE.md:1-84`, `docs/archive/PROFILING.md:26-370` — existing profiling workflow + house style.
-- `scripts/phase213-baseline-capture.sh`, `scripts/phase191-flent-capture.sh:158-164` — driven-segment invocation.
-- Empirical regex verification (this session) — confirmed `(\w+): (\d+\.\d+)ms` matches only PerfTimer DEBUG lines.
+- `src/wanctl/perf_profiler.py:25-302` — PerfTimer, OperationProfiler (deque maxlen 100), `record_cycle_profiling` (`total_ms` computation, `"Cycle timing"` DEBUG with structured extras, `report()` cadence).
+- `src/wanctl/logging_utils.py:17-223` — JSONFormatter (preserves all non-internal `extra=` keys), text formatter (drops extras), `get_log_format`, `setup_logging` (main handler INFO, debug handler DEBUG only when `debug=True`, formatter shared across handlers).
+- `src/wanctl/wan_controller.py:2408-2462` — `_record_profiling`, 15-label timings dict, delegation to `record_cycle_profiling`.
+- `src/wanctl/health_check.py:78-151` — `_build_cycle_budget` reads `profiler.stats("autorate_cycle_total")`; rolling-5s-window snapshots; 9-label subsystems breakdown (omits router-write sub-labels).
+- `src/wanctl/autorate_continuous.py:295,494` — `--profile` flag wiring.
+- `src/wanctl/history.py:599-715` — `--ingestion-rate`; `_resolve_time_range` default-last-hour at `:616-624`.
+- `scripts/profiling_collector.py:22-80` — regex `(\w+): (\d+\.\d+)ms`, `calculate_statistics` schema (reused by Option A's new parser).
+- `configs/spectrum.yaml:152-154` — `main_log` / `debug_log` paths.
+- `deploy/systemd/wanctl@.service` — base unit ExecStart, WatchdogSec, CPUAffinity, memory limits.
+- `docs/PERFORMANCE.md:1-84`, `docs/archive/PROFILING.md` — existing profiling workflow + house style (corrected by the new docs/PROFILING.md per D-07).
 
 ### Secondary (informational only, per D-04)
-- `.planning/milestones/v1.0-phases/01-measurement-infrastructure-profiling/PROFILING-ANALYSIS.md:9,31-47,87-88` — 2s-interval RTT-dominant baseline.
-- `.planning/milestones/v1.9-phases/47-cycle-profiling-infrastructure/47-RESEARCH.md:11,84-87,213` — 50ms expectations + pre-flagged regex risk.
-- `.planning/phases/213-experience-baseline-harness/213-REPORT.md:13,17-25,97-98` — harness params, flent 2.1.1, dallas, bind map.
+- `.planning/milestones/v1.0-phases/01-measurement-infrastructure-profiling/PROFILING-ANALYSIS.md` — 2s-interval RTT-dominant baseline.
+- `.planning/milestones/v1.9-phases/47-cycle-profiling-infrastructure/47-RESEARCH.md` — 50ms expectations + pre-flagged regex risk.
+- `.planning/phases/213-experience-baseline-harness/213-REPORT.md` — harness params (flent 2.1.1, dallas, bind map).
+- `.planning/phases/217-production-cycle-budget-baseline/217-REVIEWS.md` — Codex peer-review of the previous RESEARCH/PLANS, with orchestrator-verified citations driving this refresh.
 
 ## Metadata
 
 **Confidence breakdown:**
-- Standard stack / tooling: HIGH — all components read directly from current source.
-- Capture mechanics (D-05): HIGH — drop-in pattern corroborated by unit file + existing PERFORMANCE.md.
-- Regex/format gap (central risk): HIGH — empirically verified.
-- Subsystem→category map: HIGH — direct from timings dict; storage-gap is a structural fact, not an assumption.
-- Observer-effect magnitude: MEDIUM — mechanism HIGH, absolute ms cost host-dependent (A6/Q2).
-- Driven-segment params (IPs/host): MEDIUM — from Phase 213 evidence, should be re-confirmed live (A3).
+- Standard stack / tooling: HIGH — read directly from current source.
+- Capture mechanics (D-05): HIGH — drop-in pattern is `systemd.unit(5)` standard; `WANCTL_LOG_FORMAT=json` propagation verified through `setup_logging`.
+- JSON capture data path (Option A): HIGH — JSONFormatter `extra` preservation verified; `record_cycle_profiling` emission path verified; offline parser is straightforward.
+- Subsystem→category map: HIGH — direct from timings dict; storage-gap is structural, not assumed.
+- D-03 numeric headroom bar: HIGH — aligned with existing `/health.warning_threshold_pct=80` and a structurally honest p99-under-budget criterion.
+- Observer-effect estimate: MEDIUM — adjacent-window ON/OFF is honest but depends on stable household load during the comparison; documented caveat is a sound fallback.
+- Production disk performance under DEBUG JSON load: MEDIUM — strictly additive, almost certainly fine, but Wave 0 5-min pilot is the right gate.
+- Driven-segment params (IPs/host): MEDIUM — from Phase 213 evidence; re-confirm live.
 
-**Research date:** 2026-05-29
+**Research date:** 2026-05-29 (refresh)
 **Valid until:** ~30 days (stable; the only fast-moving inputs are live host facts in the Assumptions Log).
+**Supersedes:** the prior 217-RESEARCH.md of the same date, whose regex/text-DEBUG/cycle_total assumption was broken by Codex peer-review and confirmed broken against current source.
