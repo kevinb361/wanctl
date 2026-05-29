@@ -1,0 +1,721 @@
+{
+  "alerting": {
+    "active_cooldowns": [],
+    "enabled": true,
+    "fire_count": 261
+  },
+  "consecutive_failures": 0,
+  "disk_space": {
+    "free_bytes": 23005569024,
+    "free_pct": 74.5,
+    "path": "/var/lib/wanctl",
+    "status": "ok",
+    "total_bytes": 30878322688
+  },
+  "router_reachable": true,
+  "status": "healthy",
+  "storage": {
+    "checkpoint": {
+      "busy": 0,
+      "checkpointed_pages": 0,
+      "maintenance_lock_skipped_total": 0,
+      "wal_pages": 0
+    },
+    "files": {
+      "db_bytes": 466497536,
+      "db_exists": true,
+      "shm_bytes": 229376,
+      "shm_exists": true,
+      "total_bytes": 471382544,
+      "wal_bytes": 4655632,
+      "wal_exists": true
+    },
+    "pending_writes": 1,
+    "queue": {
+      "drained_total": 130031042,
+      "error_total": 3808
+    },
+    "status": "ok",
+    "writes": {
+      "failure_total": 23,
+      "last_duration_ms": 0.9187059476971626,
+      "lock_failure_total": 0,
+      "max_duration_ms": 4059.721206780523,
+      "success_total": 4833877,
+      "volume_total": 130031043
+    }
+  },
+  "summary": {
+    "alerts": {
+      "active_cooldowns": 0,
+      "enabled": true,
+      "fire_count": 261,
+      "status": "idle"
+    },
+    "degraded_wans": [],
+    "router_reachable": true,
+    "rows": [
+      {
+        "burst_active": false,
+        "burst_trigger_count": 61,
+        "download_rate_mbps": 920.0,
+        "download_state": "GREEN",
+        "name": "spectrum",
+        "router_reachable": true,
+        "runtime_status": "ok",
+        "status": "ok",
+        "storage_status": "ok",
+        "upload_rate_mbps": 18.0,
+        "upload_state": "GREEN"
+      }
+    ],
+    "service": "autorate",
+    "status": "healthy",
+    "wan_count": 1,
+    "warning_wans": []
+  },
+  "uptime_seconds": 244463.8,
+  "version": "1.45.0",
+  "wan_count": 1,
+  "wans": [
+    {
+      "asymmetry_gate": {
+        "active": false,
+        "damping_factor": 0.5,
+        "downstream_streak": 0,
+        "enabled": false,
+        "last_result_age_sec": null
+      },
+      "background_workers": {
+        "cake_stats": {
+          "available": true,
+          "cadence_sec": 1.0,
+          "cycle_time_ms": {
+            "avg": 3.6,
+            "max": 42.3,
+            "p95": 5.2,
+            "p99": 8.1
+          },
+          "overlap": {
+            "active_now": false,
+            "episodes": 12,
+            "last_apply_finished_monotonic": 2650055.583,
+            "last_apply_started_monotonic": 2650055.582,
+            "last_dump_elapsed_ms": 3.121,
+            "last_dump_finished_monotonic": 2650102.364,
+            "last_dump_started_monotonic": 2650102.362,
+            "last_overlap_monotonic": 2623069.33,
+            "last_overlap_ms": 2.825,
+            "max_overlap_ms": 3.981,
+            "slow_apply_with_overlap_count": 2
+          },
+          "staleness_sec": 0.574,
+          "utilization_pct": 0.4
+        },
+        "irtt": {
+          "available": false,
+          "cadence_sec": null,
+          "staleness_sec": null
+        },
+        "rtt": {
+          "available": true,
+          "cadence_sec": 0.25,
+          "cycle_time_ms": {
+            "avg": 27.3,
+            "max": 81.0,
+            "p95": 40.4,
+            "p99": 50.2
+          },
+          "staleness_sec": 0.252,
+          "utilization_pct": 10.9
+        }
+      },
+      "baseline_rtt_ms": 22.48,
+      "cake_signal": {
+        "burst": {
+          "active": false,
+          "last_accel_ms": 15.9,
+          "last_delta_ms": 117.6,
+          "last_reason": "Burst confirmed from RTT acceleration 15.9ms after 3 consecutive spikes",
+          "last_trigger_ago_sec": 5680.8,
+          "trigger_count": 61
+        },
+        "detection": {
+          "dl_backlog_suppressed_count": 13088,
+          "dl_dwell_bypassed_count": 0,
+          "dl_recovery_probe": {
+            "above_ceiling_pct": true,
+            "probe_ceiling_pct": 0.95,
+            "probe_multiplier": 1.0,
+            "probe_multiplier_factor": 1.0,
+            "probe_step_count": 614
+          },
+          "dl_refractory_remaining": 0,
+          "refractory_cycles": 40,
+          "ul_backlog_suppressed_count": 12521,
+          "ul_dwell_bypassed_count": 37,
+          "ul_recovery_probe": {
+            "above_ceiling_pct": true,
+            "probe_ceiling_pct": 0.95,
+            "probe_multiplier": 1.0,
+            "probe_multiplier_factor": 1.0,
+            "probe_step_count": 48670
+          },
+          "ul_refractory_remaining": 0
+        },
+        "download": {
+          "backlog_bytes": 0,
+          "cold_start": false,
+          "drop_rate": 0.0,
+          "peak_delay_us": 59,
+          "tins": [
+            {
+              "backlog_bytes": 0,
+              "drop_delta": 0,
+              "name": "BestEffort",
+              "peak_delay_us": 59
+            }
+          ],
+          "total_drop_rate": 0.0
+        },
+        "upload": {
+          "backlog_bytes": 0,
+          "cold_start": false,
+          "drop_rate": 0.0,
+          "peak_delay_us": 591,
+          "tins": [
+            {
+              "backlog_bytes": 0,
+              "drop_delta": 0,
+              "name": "BestEffort",
+              "peak_delay_us": 591
+            }
+          ],
+          "total_drop_rate": 0.0
+        }
+      },
+      "cycle_budget": {
+        "cycle_time_ms": {
+          "avg": 0.7,
+          "p95": 0.9,
+          "p99": 1.4
+        },
+        "overrun_count": 53,
+        "status": "ok",
+        "subsystems": {
+          "cake_stats": {
+            "avg": 0.1,
+            "p95": 0.1,
+            "p99": 0.1
+          },
+          "congestion_assess": {
+            "avg": 0.1,
+            "p95": 0.1,
+            "p99": 0.2
+          },
+          "ewma_spike": {
+            "avg": 0.0,
+            "p95": 0.0,
+            "p99": 0.0
+          },
+          "irtt_observation": {
+            "avg": 0.0,
+            "p95": 0.0,
+            "p99": 0.0
+          },
+          "logging_metrics": {
+            "avg": 0.1,
+            "p95": 0.1,
+            "p99": 0.1
+          },
+          "post_cycle": {
+            "avg": 0.1,
+            "p95": 0.1,
+            "p99": 0.4
+          },
+          "router_communication": {
+            "avg": 0.0,
+            "p95": 0.0,
+            "p99": 0.0
+          },
+          "rtt_measurement": {
+            "avg": 0.0,
+            "p95": 0.1,
+            "p99": 0.1
+          },
+          "signal_processing": {
+            "avg": 0.1,
+            "p95": 0.2,
+            "p99": 0.2
+          }
+        },
+        "utilization_pct": 1.4,
+        "warning_threshold_pct": 80.0
+      },
+      "download": {
+        "current_rate_mbps": 920.0,
+        "hysteresis": {
+          "alert_threshold_per_min": 180,
+          "deadband_ms": 3.0,
+          "dwell_bypassed_count": 0,
+          "dwell_counter": 0,
+          "dwell_cycles": 5,
+          "green_required": 5,
+          "green_streak": 131,
+          "last_zone": "GREEN",
+          "suppressions_completed_window_by_cause": {
+            "backlog_recovery": 0,
+            "dwell_hold": 0,
+            "other": 0
+          },
+          "suppressions_completed_window_count": 0,
+          "suppressions_lifetime_by_cause": {
+            "backlog_recovery": 13088,
+            "dwell_hold": 0,
+            "other": 0
+          },
+          "suppressions_per_min": 0,
+          "transitions_suppressed": 0,
+          "window_start_epoch": 1780065719.4789028
+        },
+        "state": "GREEN",
+        "state_reason": "green_stable"
+      },
+      "fusion": {
+        "active_source": "icmp_only",
+        "bypass_active": false,
+        "bypass_count": 0,
+        "bypass_offset_ms": null,
+        "bypass_reason": null,
+        "correlation_window_avg": null,
+        "enabled": true,
+        "fused_rtt_ms": null,
+        "heal_grace_active": false,
+        "heal_state": "no_healer",
+        "icmp_rtt_ms": 25.68,
+        "icmp_weight": 0.7,
+        "irtt_rtt_ms": null,
+        "irtt_weight": 0.3,
+        "pearson_correlation": null
+      },
+      "irtt": {
+        "available": false,
+        "reason": "disabled"
+      },
+      "load_rtt_ms": 26.08,
+      "measurement": {
+        "active_reflector_hosts": [
+          "1.1.1.1",
+          "9.9.9.9",
+          "208.67.222.222"
+        ],
+        "available": true,
+        "raw_rtt_ms": 25.68,
+        "stale": false,
+        "staleness_sec": 0.252,
+        "state": "healthy",
+        "successful_count": 3,
+        "successful_reflector_hosts": [
+          "1.1.1.1",
+          "9.9.9.9",
+          "208.67.222.222"
+        ]
+      },
+      "name": "spectrum",
+      "reflector_quality": {
+        "available": true,
+        "hosts": {
+          "1.1.1.1": {
+            "measurements": 50,
+            "score": 1.0,
+            "status": "active"
+          },
+          "208.67.222.222": {
+            "measurements": 50,
+            "score": 1.0,
+            "status": "active"
+          },
+          "9.9.9.9": {
+            "measurements": 50,
+            "score": 1.0,
+            "status": "active"
+          }
+        }
+      },
+      "router_connectivity": {
+        "consecutive_failures": 0,
+        "is_reachable": true,
+        "last_failure_time": null,
+        "last_failure_type": null,
+        "outage_duration_seconds": null
+      },
+      "runtime": {
+        "cycle_status": "ok",
+        "memory_status": "ok",
+        "process": "autorate",
+        "rss_bytes": 99688448,
+        "status": "ok",
+        "swap_bytes": 0,
+        "swap_status": "ok"
+      },
+      "signal_arbitration": {
+        "active_primary_signal": "queue",
+        "cake_av_delay_delta_us": 6,
+        "control_decision_reason": "green_stable",
+        "refractory_active": false,
+        "rtt_confidence": 0.0
+      },
+      "signal_quality": {
+        "confidence": 0.871,
+        "jitter_ms": 1.389,
+        "outlier_rate": 0.2,
+        "total_outliers": 1099079,
+        "variance_ms2": 74.988,
+        "warming_up": false
+      },
+      "storage": {
+        "checkpoint": {
+          "busy": 0,
+          "checkpointed_pages": 0,
+          "maintenance_lock_skipped_total": 0,
+          "wal_pages": 0
+        },
+        "files": {
+          "db_bytes": 466497536,
+          "db_exists": true,
+          "shm_bytes": 229376,
+          "shm_exists": true,
+          "total_bytes": 471382544,
+          "wal_bytes": 4655632,
+          "wal_exists": true
+        },
+        "pending_writes": 1,
+        "queue": {
+          "drained_total": 130031042,
+          "error_total": 3808
+        },
+        "status": "ok",
+        "writes": {
+          "failure_total": 23,
+          "last_duration_ms": 0.9187059476971626,
+          "lock_failure_total": 0,
+          "max_duration_ms": 4059.721206780523,
+          "success_total": 4833877,
+          "volume_total": 130031043
+        }
+      },
+      "tuning": {
+        "enabled": true,
+        "last_run_ago_sec": 3261.9,
+        "parameters": {
+          "baseline_rtt_max": {
+            "bounds": {
+              "max": 100.0,
+              "min": 25.0
+            },
+            "current_value": 25.3
+          },
+          "baseline_rtt_min": {
+            "bounds": {
+              "max": 30.0,
+              "min": 5.0
+            },
+            "current_value": 19.6
+          },
+          "hampel_window_size": {
+            "bounds": {
+              "max": 15.0,
+              "min": 5.0
+            },
+            "current_value": 15.0
+          }
+        },
+        "recent_adjustments": [
+          {
+            "confidence": 0.333,
+            "new_value": 19.3,
+            "old_value": 19.6,
+            "parameter": "baseline_rtt_min",
+            "rationale": "p5=21.5ms * 0.9 = 19.3ms (530 samples)"
+          },
+          {
+            "confidence": 0.333,
+            "new_value": 26.2,
+            "old_value": 25.2,
+            "parameter": "baseline_rtt_max",
+            "rationale": "p95=23.8ms * 1.1 = 26.2ms (530 samples)"
+          },
+          {
+            "confidence": 0.371,
+            "new_value": 19.6,
+            "old_value": 19.3,
+            "parameter": "baseline_rtt_min",
+            "rationale": "p5=21.8ms * 0.9 = 19.6ms (604 samples)"
+          },
+          {
+            "confidence": 0.445,
+            "new_value": 26.0,
+            "old_value": 26.2,
+            "parameter": "baseline_rtt_max",
+            "rationale": "p95=23.7ms * 1.1 = 26.0ms (691 samples)"
+          },
+          {
+            "confidence": 0.39,
+            "new_value": 25.3,
+            "old_value": 26.0,
+            "parameter": "baseline_rtt_max",
+            "rationale": "p95=23.0ms * 1.1 = 25.3ms (620 samples)"
+          }
+        ],
+        "safety": {
+          "locked_parameters": [],
+          "pending_observation": false,
+          "revert_count": 0
+        }
+      },
+      "upload": {
+        "anti_windup_cycles": 60,
+        "anti_windup_triggers": 0,
+        "cake_aligned": true,
+        "current_rate_mbps": 18.0,
+        "docsis_mode_active": true,
+        "floor_hit_cycles_total": 0,
+        "headroom_exhausted_streak": 0,
+        "headroom_state": "AVAILABLE",
+        "hysteresis": {
+          "alert_threshold_per_min": 180,
+          "deadband_ms": 3.0,
+          "dwell_counter": 0,
+          "dwell_cycles": 5,
+          "green_required": 3,
+          "green_streak": 5,
+          "last_zone": "GREEN",
+          "suppressions_completed_window_by_cause": {
+            "backlog_recovery": 20,
+            "dwell_hold": 2,
+            "other": 0
+          },
+          "suppressions_completed_window_count": 22,
+          "suppressions_lifetime_by_cause": {
+            "backlog_recovery": 12521,
+            "dwell_hold": 60721,
+            "other": 0
+          },
+          "suppressions_per_min": 6,
+          "transitions_suppressed": 60721,
+          "window_start_epoch": 1780065719.4789045
+        },
+        "max_delay_delta_us": 31,
+        "red_decay_delta_max_pct": 0.1,
+        "red_decay_step_pct": 0.02,
+        "red_streak": 0,
+        "rtt_integral_ms_s": 5.883,
+        "setpoint_mbps": 12.0,
+        "state": "GREEN",
+        "state_reason": "green_stable",
+        "zone_trace": [
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN",
+          "GREEN"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "congestion": {
+    "dl_state": "GREEN",
+    "ul_state": "GREEN"
+  },
+  "download": {
+    "current_rate": 920000000,
+    "green_streak": 114,
+    "red_streak": 0,
+    "soft_red_streak": 0
+  },
+  "ewma": {
+    "baseline_rtt": 22.478806557717387,
+    "load_rtt": 25.37842453360857
+  },
+  "last_applied": {
+    "dl_rate": 920000000,
+    "ul_rate": 18000000
+  },
+  "timestamp": "2026-05-29T09:42:29.054740",
+  "upload": {
+    "current_rate": 18000000,
+    "green_streak": 211,
+    "red_streak": 0,
+    "soft_red_streak": 0
+  }
+}
