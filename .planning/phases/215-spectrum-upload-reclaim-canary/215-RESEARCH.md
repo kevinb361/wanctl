@@ -312,18 +312,21 @@ scripts/canary-check.sh --ssh cake-shaper        # exit 0 = PASS
 | A3 | `--flent-duration` ≥120s for canary legs gives enough floor-hit/alert observation | §3 | Too short → under-samples rare RED bursts; operator sets per D-05. |
 | A4 | Spectrum `cooldown_sec: 600` → ~≤3 firings/event budget for the alert gate | §5 | Matches config comment (line 239) and STATE line 135; if alert semantics changed, re-derive budget. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Baseline-freshness choice (D-05 discretion):** reuse `RUN-20260527T222043Z` extracted numbers (p95=53.4, p99=69.0, throughput median 11.43) as the reference, or capture a fresh 18-leg in the same A/B session?
    - What we know: D-10 wants same-session legs to control Phase 214 time-of-day sensitivity.
    - Recommendation: capture a fresh 18-leg in-session AND keep the re-extracted `RUN-20260527T222043Z` numbers as a sanity cross-check.
+   - **RESOLVED:** fresh in-session leg-A captured in Plan 03 Task 2 STEP A (moved out of Plan 02 per cross-AI REVIEW-5 so leg-A/leg-B are guaranteed back-to-back); the `RUN-20260527T222043Z` numbers (and derived 58.7/75.9/12.9 bounds) are pinned in Plan 01 as documented static fallback/sanity constants used only when no `--baseline-extract` is supplied.
 
 2. **Observation-window duration for floor-hit/alert accumulation:**
    - What we know: floor-hit and alert events are rare; 60s legs saw 0 of each at baseline.
    - Recommendation: ≥120s loaded legs; document the choice in the plan.
+   - **RESOLVED:** `--flent-duration 120` used for both legs in Plans 02/03.
 
 3. **VOID threshold on `signal_outlier_rate`:** the baseline window peaked at 0.933 (single spike) but averaged 0.20 and `measurement_state` stayed healthy.
    - Recommendation: VOID on a sustained/quantile basis (e.g., p90 of `signal_outlier_rate` over the window, or any `measurement_state=collapsed`), not a single-sample peak, OR on `FlentExtractionError`.
+   - **RESOLVED:** Plan 01 pins VOID = `signal_outlier_rate_p90 >= 0.30` OR any `measurement_state == collapsed` sample OR `FlentExtractionError`; warn-bloat = load_rtt-minus-baseline excursion > 75 ms sustained over ≥5 consecutive samples.
 
 ## Environment Availability
 
