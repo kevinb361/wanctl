@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.46
 milestone_name: Internet Quality Recovery
 current_phase: 215
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 215 context gathered
-last_updated: "2026-05-29T14:17:47.603Z"
+stopped_at: Completed 215-01-PLAN.md
+last_updated: "2026-05-29T14:27:40.579Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 17
-  completed_plans: 14
-  percent: 43
+  completed_plans: 15
+  percent: 88
 ---
 
 # Session State
@@ -23,21 +23,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 215 — spectrum upload reclaim canary
+**Current focus:** Phase 215 — spectrum-upload-reclaim-canary
 
 ## Current Position
 
-Phase: 215 (spectrum-upload-reclaim-canary) — READY TO PLAN
-Plan: Not started (Phase 214 complete, 6/6)
+Phase: 215 (spectrum-upload-reclaim-canary) — EXECUTING
+Plan: 2 of 3
 **Last shipped milestone:** v1.45 Flapping Peak-Counter Window Repair (shipped 2026-05-27 — VERIFY-01 DEFERRED)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.46 Internet Quality Recovery
 **Current phase:** 215
-**Current plan:** Not started
+**Current plan:** 2
 **Status:** Ready to execute
 **Last activity:** 2026-05-29
 
-Progress: [████████░░░░░░░░░░░░] 3/7 phases complete (212, 213, 214)
+Progress: [█████████░] 88%
 
 ## Phase Structure (v1.46)
 
@@ -117,9 +117,9 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Last session: 2026-05-29T13:08:55.369Z
-Stopped at: Phase 215 context gathered
-Resume file: .planning/phases/215-spectrum-upload-reclaim-canary/215-CONTEXT.md
+Last session: 2026-05-29T14:27:28.231Z
+Stopped at: Completed 215-01-PLAN.md
+Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
 ## Operator Next Steps
@@ -174,6 +174,7 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [214-06]: Official three-window Spectrum/Dallas matrix verdict is `ambiguous` (daytime/prime-time p99 606/560ms ambiguous, off-peak p99 120ms pass), primary driver `reflector_loss`, signal disposition `none`. Historical catastrophic `p99 > 1000ms` was NOT reproduced and there was no in-window journal corroboration for reflector fail bursts, so Form B/C signals are deferred and the folded `tcp_12down` todo is carried-narrower rather than closed.
 - [214-06]: Supplemental Vultr Dallas/Chicago runs (severe loaded p99 745/651ms) are NOT part of the canonical matrix but keep target/path sensitivity a live hypothesis for Phase 215+.
 - [214 UAT]: Phase 214 verified read-only via 8/8 UAT against committed fixtures; mutation-boundary pytest enforces zero `src/wanctl` diff, making the no-mutation attestation testable rather than asserted. No `*-SECURITY.md` was produced (security gate waived for a strictly read-only investigation per operator).
+- [215-01]: Upload extraction excludes ambiguous `TCP totals`; the reclaim gate derives p95/p99/throughput bounds from leg-A inputs, keeps Phase 213 numbers as fallback constants, and maps VOID to exit 2 for set-e-safe Plan 03 branching.
 
 ## Performance Metrics
 
@@ -197,3 +198,4 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 | Phase 214 P03 | 10min | 2 tasks | 5 files |
 | Phase 214 P04 | 12min | 2 tasks | 5 files |
 | Phase 214 P05 | 10min | 2 tasks | 4 files |
+| Phase 215 P01 | 5min | 2 tasks | 5 files |
