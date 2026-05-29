@@ -74,7 +74,7 @@ continuous_monitoring:
   # Upload parameters (Phase 2A: unchanged, 3-state)
   upload:
     floor_mbps: 8 # Keeps upstream from going too conservative
-    ceiling_mbps: 18 # Latency-first gaming-server soak 2026-04-29; stopped-controller sweep had best p95/p99 at 18Mbit
+    ceiling_mbps: 20 # Latency-first gaming-server soak 2026-04-29; stopped-controller sweep had best p95/p99 at 18Mbit
     step_up_mbps: 5 # Phase 135 validated 2026-04-03 (was 1, +17.6% UL throughput)
     factor_down: 0.90 # Phase 135 validated 2026-04-03 (was 0.85, gentler decay wins on UL)
     factor_down_yellow: 1.0 # 200-10 R5: hold during YELLOW; restores QueueController default for Spectrum per 200-09
