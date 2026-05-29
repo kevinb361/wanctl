@@ -71,13 +71,14 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.46 active — Phase 213 complete; Phase 214 ready next.
-**Tests:** Phase 213 verification passed 15/15 after live serialized Spectrum→ATT baseline capture; Phase 212 verification passed 16/16 after read-only production inventory/drift audit; Phase 210 alerting suites and hot-path regression slice passing; Phase 211 SAFE-10 manual closeout passed against `21ee630` with `AWK_EXIT=0`.
+**Version:** v1.46 active — Phase 214 complete; Phase 215 ready next.
+**Tests:** Phase 214 UAT passed 8/8 (read-only investigation: analyzer CLIs, fail-closed extractor, mutation-boundary guard) with the 52-test `tests/test_phase214_*.py` suite green; Phase 213 verification passed 15/15 after live serialized Spectrum→ATT baseline capture; Phase 212 verification passed 16/16 after read-only production inventory/drift audit; Phase 210 alerting suites and hot-path regression slice passing; Phase 211 SAFE-10 manual closeout passed against `21ee630` with `AWK_EXIT=0`.
 **LOC:** ~40,915 Python (src/)
 **Milestones:** 46 shipped or shipped-with-deferral (v1.0-v1.45); v1.46 active.
 **Active milestone:** v1.46 Internet Quality Recovery.
 
-**Latest:** v1.46 Phase 213 Experience Baseline Harness complete — read-only harness, live serialized Spectrum→ATT evidence, signal-sheet classification, and operator report recommend Phase 215 primary with Phase 216/214 as runners-up.
+**Latest:** v1.46 Phase 214 Measurement Collapse Investigation complete — read-only analyzer pipeline (matrix wrapper, fail-closed flent extractor, per-second aligner, six-driver classifier, matrix aggregator) plus the official three-window Spectrum/Dallas matrix. Verdict `ambiguous`, primary driver `reflector_loss`, signal disposition `none`: daytime/prime-time stayed in the high-tail ambiguous band (p99 606/560ms) with one-cycle measurement collapse while `/health` read healthy, but the historical catastrophic `p99 > 1000ms` was not reproduced and there was no in-window journal corroboration. Folded `tcp_12down` todo carried-narrower; zero `src/wanctl`/RouterOS/service/steering/yaml mutation, enforced by passing mutation-boundary tests.
+**Previous:** v1.46 Phase 213 Experience Baseline Harness complete — read-only harness, live serialized Spectrum→ATT evidence, signal-sheet classification, and operator report recommend Phase 215 primary with Phase 216/214 as runners-up.
 **Previous:** v1.46 Phase 212 Production Inventory And Drift Audit complete — read-only evidence captured from `cake-shaper`, drift classified without production mutation, final report preserves downstream constraints for Phase 213/214/215 and the `/health` vs user-perceived-quality distinction.
 **Previous:** v1.46 Internet Quality Recovery opened — evidence-first project reset focused on real user-perceived quality, production drift, measurement collapse, conservative upload reclaim, refractory/recovery semantics, and cycle-budget baseline.
 **Older:** v1.45 Flapping Peak-Counter Window Repair shipped-with-deferral — windowed peak accumulator is live on Spectrum and ATT at `1.45.0`; VERIFY-01 production observation is deferred to v1.46/watch-list by operator sign-off, and phase directories/REQUIREMENTS/spine todo remain in place.
@@ -812,4 +813,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-05-27 — v1.45 Flapping Peak-Counter Window Repair shipped with VERIFY-01 deferred to v1.46/watch-list by operator sign-off. SAFE-10 closeout passed; no archive directory was created, and REQUIREMENTS.md plus the v1.45 spine todo remain in place._
+_Last updated: 2026-05-29 after Phase 214 — Measurement Collapse Investigation complete (UAT 8/8, MEAS-01/02/03 validated). Matrix verdict `ambiguous`/`reflector_loss`/`signal none`; folded `tcp_12down` todo carried-narrower. Read-only phase: zero controller/production mutation, enforced by mutation-boundary tests. Next: Phase 215 Spectrum Upload Reclaim Canary._

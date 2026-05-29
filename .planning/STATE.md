@@ -4,16 +4,16 @@ milestone: v1.46
 milestone_name: Internet Quality Recovery
 current_phase: 214
 current_plan: 6
-status: executing
-stopped_at: Paused 214-06-PLAN.md at Task 1 live bounded reproduction matrix checkpoint
-last_updated: "2026-05-28T03:06:31.318Z"
+status: ready_to_plan
+stopped_at: Phase 214 complete (6/6) — ready to discuss Phase 215
+last_updated: 2026-05-29T12:31:42.170Z
 last_activity: 2026-05-28
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 14
-  completed_plans: 13
-  percent: 93
+  completed_plans: 20
+  percent: 29
 ---
 
 # Session State
@@ -23,21 +23,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 214 — measurement-collapse-investigation
+**Current focus:** Phase 215 — spectrum upload reclaim canary
 
 ## Current Position
 
-Phase: 214 (measurement-collapse-investigation) — EXECUTING
-Plan: 6 of 6
+Phase: 215 (spectrum-upload-reclaim-canary) — READY TO PLAN
+Plan: Not started (Phase 214 complete, 6/6)
 **Last shipped milestone:** v1.45 Flapping Peak-Counter Window Repair (shipped 2026-05-27 — VERIFY-01 DEFERRED)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.46 Internet Quality Recovery
-**Current phase:** 214
-**Current plan:** 6
-**Status:** Ready to execute
-**Last activity:** 2026-05-28
+**Current phase:** 215
+**Current plan:** Not started
+**Status:** Ready to plan
+**Last activity:** 2026-05-29
 
-Progress: [█████████░] 93%
+Progress: [████████░░░░░░░░░░░░] 3/7 phases complete (212, 213, 214)
 
 ## Phase Structure (v1.46)
 
@@ -117,14 +117,16 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Stopped at: Paused 214-06-PLAN.md at Task 1 live bounded reproduction matrix checkpoint
-Resume file: .planning/phases/214-measurement-collapse-investigation/214-06-PLAN.md
+Last session: 2026-05-29
+Stopped at: Phase 214 complete (UAT 8/8, 0 issues), ready to plan Phase 215
+Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
 ## Operator Next Steps
 
-- Run `/gsd-verify-work 212` to verify Phase 212 output, then plan Phase 213.
-- Phase 213 should consume `.planning/phases/212-production-inventory-and-drift-audit/212-REPORT.md` as the live-state constraint source.
+- Run `/gsd-plan-phase 215` to plan the Spectrum upload reclaim canary. Phase 215 should consume `.planning/phases/214-measurement-collapse-investigation/evidence/matrix-summary.json` and the Phase 213 baseline as constraint sources.
+- Carry the folded `tcp_12down` todo as narrower next steps: Phase 214 left `ambiguous`/`reflector_loss`/`signal none`; the unresolved gap is severe user-visible p99 without journal corroboration, plus target/path sensitivity shown by supplemental Vultr runs.
+- Phase 214 official-window flent raw artifacts remain external symlinks into `~/flent-results/`; only the supplemental Vultr `.flent.gz` is committed in-repo. The official matrix is not re-derivable from a fresh clone alone.
 - Leave Phase 218 alone until a natural production flapping event creates a qualifying `peak_transition_count > 30` row.
 
 ## Decisions (v1.45)
@@ -169,6 +171,9 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [214-05]: Matrix aggregation requires off-peak, daytime, and prime-time Spectrum signal sheets by default; operator partial override is explicit and produces `verdict="partial"`, never `pass`.
 - [214-05]: Mutation-boundary fallback base selection rejects stale `origin/main` merge-bases that already include protected-path diffs, then falls back to `HEAD~10` unless `PHASE214_BASE_SHA` is set.
 - [214-05]: Forbidden mutation regex is command/assignment-form anchored and tightened so narrative prose beginning with `restart wanctl` does not self-invalidate the guard.
+- [214-06]: Official three-window Spectrum/Dallas matrix verdict is `ambiguous` (daytime/prime-time p99 606/560ms ambiguous, off-peak p99 120ms pass), primary driver `reflector_loss`, signal disposition `none`. Historical catastrophic `p99 > 1000ms` was NOT reproduced and there was no in-window journal corroboration for reflector fail bursts, so Form B/C signals are deferred and the folded `tcp_12down` todo is carried-narrower rather than closed.
+- [214-06]: Supplemental Vultr Dallas/Chicago runs (severe loaded p99 745/651ms) are NOT part of the canonical matrix but keep target/path sensitivity a live hypothesis for Phase 215+.
+- [214 UAT]: Phase 214 verified read-only via 8/8 UAT against committed fixtures; mutation-boundary pytest enforces zero `src/wanctl` diff, making the no-mutation attestation testable rather than asserted. No `*-SECURITY.md` was produced (security gate waived for a strictly read-only investigation per operator).
 
 ## Performance Metrics
 
