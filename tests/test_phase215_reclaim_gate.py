@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -206,3 +207,41 @@ def test_gate_writes_parse_abort_to_later_output_dir(tmp_path: Path) -> None:
         "exit_code": 2,
         "reason": "unknown_argument:--bad-option",
     }
+
+
+def test_gate_rejects_remote_yaml_host_that_looks_like_ssh_option(tmp_path: Path) -> None:
+    if shutil.which("ssh") is None:
+        pytest.skip("ssh unavailable")
+
+    health = _write_health(tmp_path / "health.ndjson")
+    baseline = _write_json(tmp_path / "baseline.json", _extract(50.0, 70.0, 11.0))
+    candidate = _write_json(tmp_path / "candidate.json", _extract(52.0, 72.0, 12.6))
+    out_dir = tmp_path / "out"
+    proc = subprocess.run(
+        [
+            "bash",
+            str(SCRIPT),
+            "--baseline-extract",
+            str(baseline),
+            "--candidate-extract",
+            str(candidate),
+            "--baseline-health",
+            str(health),
+            "--candidate-health",
+            str(health),
+            "--output-dir",
+            str(out_dir),
+            "--remote-yaml",
+            "-oProxyCommand=sh:/tmp/spectrum.yaml",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+
+    verdict = json.loads((out_dir / "verdict.json").read_text(encoding="utf-8"))
+    assert proc.returncode == 2
+    assert "host contains unsafe characters" in (proc.stderr + proc.stdout)
+    assert verdict["verdict"] == "abort"
+    assert verdict["exit_code"] == 2
+    assert verdict["reason"] == "remote_yaml_invalid"
