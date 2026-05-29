@@ -4,16 +4,16 @@ milestone: v1.46
 milestone_name: Internet Quality Recovery
 current_phase: 215
 current_plan: 3
-status: executing
+status: verifying
 stopped_at: Completed 215-02-PLAN.md
-last_updated: "2026-05-29T14:45:51.005Z"
+last_updated: "2026-05-29T15:10:22.656Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 17
-  completed_plans: 16
-  percent: 94
+  completed_plans: 17
+  percent: 100
 ---
 
 # Session State
@@ -34,10 +34,10 @@ Plan: 3 of 3
 **Active milestone:** v1.46 Internet Quality Recovery
 **Current phase:** 215
 **Current plan:** 3
-**Status:** Ready to execute
+**Status:** Phase complete — ready for verification
 **Last activity:** 2026-05-29
 
-Progress: [█████████░] 94%
+Progress: [██████████] 100%
 
 ## Phase Structure (v1.46)
 
@@ -117,8 +117,8 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Last session: 2026-05-29T14:45:30.706Z
-Stopped at: Completed 215-02-PLAN.md
+Last session: 2026-05-29T15:10:22.628Z
+Stopped at: Completed 215-03-PLAN.md
 Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
@@ -176,6 +176,8 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [214 UAT]: Phase 214 verified read-only via 8/8 UAT against committed fixtures; mutation-boundary pytest enforces zero `src/wanctl` diff, making the no-mutation attestation testable rather than asserted. No `*-SECURITY.md` was produced (security gate waived for a strictly read-only investigation per operator).
 - [215-01]: Upload extraction excludes ambiguous `TCP totals`; the reclaim gate derives p95/p99/throughput bounds from leg-A inputs, keeps Phase 213 numbers as fallback constants, and maps VOID to exit 2 for set-e-safe Plan 03 branching.
 - [215-02]: Snapshot A acceptance allows an absent retained `wanctl_config_snapshot` DB row; repo config ceiling=18, deployed config ceiling=18, and bound Spectrum `/health` evidence form the pre-mutation rollback anchor when the exact read-only query returns no row.
+- [215-03]: Bounded VOID exhausted on three ceiling-20 leg-B attempts, so Spectrum was targeted-rolled back to upload ceiling 18; no ceiling-20 WIN was kept.
+- [215-03]: Gate remote-yaml preflight now uses `sudo -n python3 -c` after heredoc-over-SSH quoting blocked deployed-ceiling validation.
 
 ## Performance Metrics
 
@@ -201,3 +203,4 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 | Phase 214 P05 | 10min | 2 tasks | 4 files |
 | Phase 215 P01 | 5min | 2 tasks | 5 files |
 | Phase 215 P02 | 4min | 1 tasks | 8 files |
+| Phase 215 P03 | 18min | 2 tasks | 35 files |
