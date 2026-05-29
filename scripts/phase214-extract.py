@@ -24,6 +24,7 @@ from typing import Any
 
 PING_SERIES = "Ping (ms) ICMP"
 THROUGHPUT_KEYS = ("TCP download sum", "TCP totals", "TCP download avg")
+UPLOAD_THROUGHPUT_KEYS = ("TCP upload sum", "TCP upload avg", "TCP upload")
 
 
 class FlentExtractionError(RuntimeError):
@@ -128,6 +129,28 @@ def extract_flent_throughput(path: Path) -> dict[str, Any]:
     raise FlentExtractionError(f"{path}: no usable TCP download series found")
 
 
+def extract_flent_upload_throughput(path: Path) -> dict[str, Any]:
+    """Return TCP upload throughput stats from upload-specific series only."""
+    data = _load_flent(path)
+    results = data.get("results")
+    if not isinstance(results, dict):
+        raise FlentExtractionError(f"{path}: results missing or not an object")
+
+    for key in UPLOAD_THROUGHPUT_KEYS:
+        values = _numeric_values(results.get(key))
+        if values:
+            values.sort()
+            n = len(values)
+            return {
+                "throughput_median_mbps": statistics.median(values),
+                "throughput_p95_mbps": values[min(n - 1, int(n * 0.95))],
+                "throughput_max_mbps": values[-1],
+                "sample_count": n,
+                "series_key_used": key,
+            }
+    raise FlentExtractionError(f"{path}: no usable TCP upload series found")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--flent-gz", required=True, type=Path)
@@ -138,10 +161,18 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     try:
-        out = {
-            "latency": extract_flent_latency(args.flent_gz),
-            "throughput": extract_flent_throughput(args.flent_gz),
-        }
+        out = {"latency": extract_flent_latency(args.flent_gz)}
+        throughput_errors: list[FlentExtractionError] = []
+        try:
+            out["throughput"] = extract_flent_throughput(args.flent_gz)
+        except FlentExtractionError as exc:
+            throughput_errors.append(exc)
+        try:
+            out["upload_throughput"] = extract_flent_upload_throughput(args.flent_gz)
+        except FlentExtractionError as exc:
+            throughput_errors.append(exc)
+        if "throughput" not in out and "upload_throughput" not in out:
+            raise throughput_errors[0]
     except FlentExtractionError as exc:
         print(f"FlentExtractionError: {exc}", file=sys.stderr)
         return 1
