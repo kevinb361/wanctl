@@ -397,7 +397,13 @@ scripts/phase213-classify.py:146-159 # lag = float(green_after or 0); non-recove
 
 **This table is intentionally empty — every factual claim in this research is VERIFIED, not assumed.**
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> Both questions are planner-discretion framing questions, not load-bearing research gaps; both
+> are addressed by the plan. Q1 → handled as an optional tooling NOTE in 216-01 Task 2 (acceptance
+> criteria #7), explicitly NOT a RECOV control-design follow-up. Q2 → handled by the D-04a reopen
+> criteria in 216-01 Task 3 (close now on test + no-symptom basis; reopen on a real production
+> `signal_arbitration.refractory_active == true` event).
 
 1. **Should 216 seed a classifier-hardening follow-up?**
    - What we know: `phase213-classify.py` has two real bugs (per-WAN merge + cumulative deltization
