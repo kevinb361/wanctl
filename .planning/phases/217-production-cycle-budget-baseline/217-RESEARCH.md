@@ -409,19 +409,19 @@ This is a measurement phase. "Validation" = the deliverables exist, are well-for
 | A5 | Default RotatingFileHandler size means a 1h DEBUG capture rotates; concatenation needed. | Pitfall 4 | If max_bytes is large, no concat needed (harmless over-caution). Check deployed config. |
 | A6 | ~11 PerfTimer DEBUG emissions/cycle is the dominant observer-effect; exact ms is disk-dependent. | Q5 | If DEBUG cost is larger than assumed and stalls the loop, watchdog restarts the window → fall back to no-`--debug` path. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Is the deployed Spectrum log text or JSON?**
+1. **Is the deployed Spectrum log text or JSON?** **RESOLVED — Plan 02 Task 1 pre-flight check verifies via `ssh <host> 'head -1 /var/log/wanctl/spectrum.log'`; the drop-in includes `Environment=WANCTL_LOG_FORMAT=text` as the fallback. Capture proceeds only after text-format confirmation.**
    - Known: default is text (`logging_utils.py:115`); JSON breaks the analyzer regex.
    - Unclear: whether the production env sets `WANCTL_LOG_FORMAT=json`.
    - Recommendation: Wave-0 task — `ssh <host> 'head -1 /var/log/wanctl/spectrum.log'`; if JSON, either temporarily force text in the drop-in (`Environment=WANCTL_LOG_FORMAT=text`) or write a JSON-aware parser step.
 
-2. **`--debug` observer-effect magnitude on this specific host.**
+2. **`--debug` observer-effect magnitude on this specific host.** **RESOLVED — Plan 02 Task 2 captures a mid-window `/health` snapshot; Plan 03 Task 2 reports the delta between DEBUG-log `autorate_cycle_total.avg_ms` and `/health cycle_budget.cycle_time_ms.avg` as the observer-effect figure. Explicit caveat path if the snapshot is missing.**
    - Known: it's strictly additive (~240 log writes/sec) and absent in steady-state.
    - Unclear: the actual ms delta on the production disk.
    - Recommendation: measure it directly — compare DEBUG-log `cycle_total` avg vs `/health` `cycle_budget.cycle_time_ms.avg` taken in the same window. Report the delta as the observer-effect figure (turns a caveat into a number; satisfies the D-03 honesty requirement).
 
-3. **Driven-segment duration.** (Discretion) Minimum 60s `rrul` + 60s `tcp_upload` to populate router-write labels; planner may extend within the 1h window.
+3. **Driven-segment duration.** **RESOLVED (Discretion) — Plan 02 Task 2 invokes `scripts/phase213-baseline-capture.sh --flent-duration 60 --tests tcp_upload,rrul` (60s rrul + 60s tcp_upload) inside the 1h window; sufficient to populate the change-gated router-write labels.** (Discretion) Minimum 60s `rrul` + 60s `tcp_upload` to populate router-write labels; planner may extend within the 1h window.
 
 ## Sources
 
