@@ -1,0 +1,11 @@
+label=supplemental-zylone-offpeak-20260529T061507Z
+wan=spectrum
+local_bind=10.10.110.226
+host=zylone.org
+duration=30
+ref=471b989
+timestamp=20260529-011507
+capture_dir=.planning/phases/214-measurement-collapse-investigation/evidence/supplemental-vultr/supplemental-zylone-offpeak-20260529T061507Z/spectrum/20260529-011507
+tcp_12down_raw=.planning/phases/214-measurement-collapse-investigation/evidence/supplemental-vultr/supplemental-zylone-offpeak-20260529T061507Z/spectrum/20260529-011507/tcp_12down-2026-05-29T011507.986177.supplemental-zylone-offpeak-20260529T061507Z-spectrum-tcp_12down.flent.gz
+tcp_12down_plot=.planning/phases/214-measurement-collapse-investigation/evidence/supplemental-vultr/supplemental-zylone-offpeak-20260529T061507Z/spectrum/20260529-011507/supplemental-zylone-offpeak-20260529T061507Z-spectrum-tcp_12down.png
+tcp_12down_summary=.planning/phases/214-measurement-collapse-investigation/evidence/supplemental-vultr/supplemental-zylone-offpeak-20260529T061507Z/spectrum/20260529-011507/supplemental-zylone-offpeak-20260529T061507Z-spectrum-tcp_12down.summary.txt

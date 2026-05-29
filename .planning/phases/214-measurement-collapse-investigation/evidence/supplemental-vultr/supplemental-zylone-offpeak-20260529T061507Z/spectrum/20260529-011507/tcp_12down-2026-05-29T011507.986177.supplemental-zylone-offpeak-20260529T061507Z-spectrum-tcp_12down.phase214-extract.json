@@ -1,0 +1,21 @@
+{
+  "latency": {
+    "max_ms": 769.0,
+    "mean_ms": 534.1909547738693,
+    "min_ms": 13.2,
+    "p50_ms": 745.0,
+    "p95_ms": 761.0,
+    "p99_ms": 767.0,
+    "ping_command": "/usr/bin/ping -n -D -i 0.20 -w 40  -I 10.10.110.226  zylone.org",
+    "sample_count": 199,
+    "window_end_utc": "2026-05-29T06:15:48.199723+00:00",
+    "window_start_utc": "2026-05-29T06:15:08.199723+00:00"
+  },
+  "throughput": {
+    "sample_count": 151,
+    "series_key_used": "TCP download sum",
+    "throughput_max_mbps": 317.0430328012414,
+    "throughput_median_mbps": 277.55984052271776,
+    "throughput_p95_mbps": 307.0373851059891
+  }
+}

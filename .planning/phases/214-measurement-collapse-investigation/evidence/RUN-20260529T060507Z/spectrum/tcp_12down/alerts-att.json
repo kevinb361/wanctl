@@ -1,0 +1,7 @@
+{
+  "wan": "att",
+  "db": "/var/lib/wanctl/metrics-att.db",
+  "present": true,
+  "rows": [],
+  "summary": []
+}

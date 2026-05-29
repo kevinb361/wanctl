@@ -1,0 +1,21 @@
+{
+  "wan": "spectrum",
+  "db": "/var/lib/wanctl/metrics-spectrum.db",
+  "present": true,
+  "rows": [
+    {
+      "timestamp": 1780013124,
+      "alert_type": "hard_red_ul",
+      "severity": "critical",
+      "wan_name": "spectrum",
+      "details": "{\"delta_ms\": 128.5, \"threshold_ms\": 75.0, \"direction\": \"upload\"}"
+    }
+  ],
+  "summary": [
+    {
+      "alert_type": "hard_red_ul",
+      "severity": "critical",
+      "count": 1
+    }
+  ]
+}
