@@ -186,7 +186,17 @@ Plans:
 3. Pending todo `2026-04-15-profile-post-hotpath-baseline-on-production-wan` is closed or promoted to an optimization phase.
 4. If cycle budget is healthy, performance work is explicitly deprioritized in favor of quality/tuning work.
 
-**Plans:** TBD by `/gsd-plan-phase 217`
+**Plans:** 3 plans
+
+Plans:
+**Wave 1** *(parallel; no file overlap — repo docs/helper runs alongside the live capture)*
+
+- [ ] 217-01-PLAN.md — Repo scaffolding: create `.planning/perf/`, author `docs/PROFILING.md` runbook (D-07), write `scripts/profiling_categorize.py` category/dominance helper (autonomous)
+- [ ] 217-02-PLAN.md — Live Spectrum capture: transient `--profile --debug` systemd drop-in, ≥1h window + driven RRUL/upload segment, revert+verify, retrieve raw log (non-autonomous; live production host)
+
+**Wave 2** *(blocked on 217-01 + 217-02)*
+
+- [ ] 217-03-PLAN.md — Analysis + artifact + 1-page summary + D-03/D-04 close-or-promote verdict + close/promote the profiling todo (autonomous)
 
 #### Phase 218: Deferred v1.45 VERIFY Watch-List Closure
 
