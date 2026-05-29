@@ -1,0 +1,48 @@
+May 29 09:55:41 cake-shaper systemd[1]: Stopping wanctl@spectrum.service - wanctl Adaptive CAKE Autorate Daemon - spectrum...
+May 29 09:55:41 cake-shaper wanctl-spectrum[3716280]: 2026-05-29 09:55:41,885 [spectrum] [INFO] Shutdown requested, exiting gracefully...
+May 29 09:55:41 cake-shaper wanctl-spectrum[3716280]: 2026-05-29 09:55:41,889 [spectrum] [INFO] Background RTT thread stopped
+May 29 09:55:42 cake-shaper wanctl-spectrum[3716280]: 2026-05-29 09:55:42,014 [spectrum] [INFO] Daemon shutdown complete (0.1s)
+May 29 09:55:42 cake-shaper systemd[1]: wanctl@spectrum.service: Deactivated successfully.
+May 29 09:55:42 cake-shaper systemd[1]: Stopped wanctl@spectrum.service - wanctl Adaptive CAKE Autorate Daemon - spectrum.
+May 29 09:55:42 cake-shaper systemd[1]: wanctl@spectrum.service: Consumed 4h 44min 31.988s CPU time, 229.2M memory peak.
+May 29 09:55:42 cake-shaper systemd[1]: Started wanctl@spectrum.service - wanctl Adaptive CAKE Autorate Daemon - spectrum.
+May 29 09:55:42 cake-shaper wanctl-spectrum[1139882]: Unknown config key: cake_params.diffserv in /etc/wanctl/spectrum.yaml (SAFE-06: ignored by daemon — verify your YAML matches the deployed binary)
+May 29 09:55:42 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:42,928 [spectrum] [INFO] === Continuous CAKE Controller - spectrum ===
+May 29 09:55:42 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:42,928 [spectrum] [INFO] Download: GREEN=550M, YELLOW=350M, SOFT_RED=275M, RED=200M, ceiling=920M, step=10.0M, factor=0.85
+May 29 09:55:42 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:42,928 [spectrum] [INFO] Upload: GREEN=8M, YELLOW=8M, RED=8M, ceiling=20M, step=5.0M, factor=0.9
+May 29 09:55:42 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:42,929 [spectrum] [INFO] Download Thresholds: GREEN→YELLOW=15ms, YELLOW→SOFT_RED=75ms, SOFT_RED→RED=100ms
+May 29 09:55:42 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:42,929 [spectrum] [INFO] Upload Thresholds: GREEN→YELLOW=15ms, YELLOW→RED=75ms
+May 29 09:55:42 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:42,929 [spectrum] [INFO] EWMA: baseline_alpha=0.001, load_alpha=0.5
+May 29 09:55:42 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:42,929 [spectrum] [INFO] Ping: hosts=['1.1.1.1', '9.9.9.9', '208.67.222.222'], median-of-three=True
+May 29 09:55:43 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:43,207 [spectrum] [INFO] Initializing CAKE on spec-router (download): {'diffserv': 'besteffort', 'split-gso': True, 'ack-filter': False, 'ingress': False, 'ecn': True, 'memlimit': '64mb', 'rtt': '100ms', 'download_interface': 'spec-router', 'upload_interface': 'spec-modem', 'mpu': 64, 'wash': True, 'overhead_keyword': 'docsis', 'bandwidth': '920000kbit'}
+May 29 09:55:43 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:43,218 [spectrum] [INFO] Initialized CAKE on spec-router: bandwidth 920000kbit besteffort docsis mpu 64 memlimit 64mb rtt 100ms split-gso no-ack-filter wash
+May 29 09:55:43 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:43,220 [spectrum] [INFO] Initializing CAKE on spec-modem (upload): {'diffserv': 'besteffort', 'split-gso': True, 'ack-filter': False, 'ingress': False, 'ecn': False, 'memlimit': '64mb', 'rtt': '100ms', 'download_interface': 'spec-router', 'upload_interface': 'spec-modem', 'mpu': 64, 'wash': True, 'overhead_keyword': 'docsis', 'bandwidth': '20000kbit'}
+May 29 09:55:43 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:43,226 [spectrum] [INFO] Initialized CAKE on spec-modem: bandwidth 20000kbit besteffort docsis mpu 64 memlimit 64mb rtt 100ms split-gso no-ack-filter wash
+May 29 09:55:43 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:43,229 [spectrum] [INFO] LinuxCakeAdapter ready: download=spec-router, upload=spec-modem
+May 29 09:55:43 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:43,230 [spectrum] [INFO] phase201 docsis_mode active: setpoint_mbps=12 window_s=2.0 threshold_ms_s=30.0
+May 29 09:55:43 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:43,230 [spectrum] [INFO] spectrum: Metrics history enabled, db=/var/lib/wanctl/metrics-spectrum.db
+May 29 09:55:43 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:43,398 [spectrum] [INFO] spectrum: CAKE signal enabled (drop_rate=True, backlog=True, peak_delay=False, metrics=True, tc=1.0s, drop_thresh=5.0, backlog_thresh=5000, refractory=40, probe_mult=1.0, probe_ceil=95%)
+May 29 09:55:43 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:43,401 [spectrum] [INFO] spectrum: Restored 3 tuning params: baseline_rtt_max=25.3, baseline_rtt_min=19.6, hampel_window_size=15.0
+May 29 09:55:43 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:43,401 [spectrum] [INFO] Startup stage: entering _init_storage
+May 29 09:55:43 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:43,402 [spectrum] [INFO] Startup storage: opening writer connection for /var/lib/wanctl/metrics-spectrum.db
+May 29 09:55:43 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:43,404 [spectrum] [INFO] Startup storage: writer connection ready
+May 29 09:55:43 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:43,405 [spectrum] [INFO] Startup storage: recording config snapshot
+May 29 09:55:43 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:43,405 [spectrum] [INFO] Startup storage: config snapshot recorded
+May 29 09:55:43 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:43,405 [spectrum] [INFO] Startup storage: maintenance lock acquired, running startup maintenance
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,323 [spectrum] [INFO] Startup maintenance: deferring downsampling to periodic maintenance because startup time budget 20.0s is active
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,324 [spectrum] [INFO] Startup maintenance: deleted=239199 rows, downsampled=0 rows
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,324 [spectrum] [INFO] Startup storage: startup maintenance complete (deleted=239199, downsampling={}, error=None)
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,324 [spectrum] [INFO] Startup stage: _init_storage complete
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,325 [spectrum] [INFO] Startup stage: starting metrics/health servers
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,326 [spectrum] [INFO] Prometheus metrics available at http://10.10.110.223:9100/metrics
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,327 [spectrum] [INFO] Startup stage: metrics/health servers started
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,329 [spectrum] [INFO] Background RTT thread started
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,330 [spectrum] [INFO] Starting daemon mode with 0.05s cycle interval
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,330 [spectrum] [INFO] Systemd watchdog support enabled
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,331 [spectrum] [WARNING] spectrum: No RTT data available (background thread starting)
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,332 [spectrum] [WARNING] spectrum: All ICMP pings failed - running fallback checks
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,339 [spectrum] [WARNING] spectrum: External pings failed but gateway 10.10.110.1 reachable - likely WAN issue, not container networking
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,374 [spectrum] [INFO] spectrum: TCP connectivity verified, RTT=17.3ms (from 2 targets)
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,374 [spectrum] [WARNING] spectrum: External pings failed but gateway and TCP reachable - ICMP filtering detected
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,374 [spectrum] [WARNING] spectrum: ICMP unavailable - using TCP RTT=17.3ms as fallback
+May 29 09:55:45 cake-shaper wanctl-spectrum[1139882]: 2026-05-29 09:55:45,382 [spectrum] [INFO] spectrum: ICMP recovered after 1 cycles
