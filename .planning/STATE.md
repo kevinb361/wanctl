@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.46
 milestone_name: Internet Quality Recovery
-current_phase: 214
-current_plan: 6
-status: ready_to_plan
-stopped_at: Phase 214 complete (6/6) — ready to discuss Phase 215
-last_updated: 2026-05-29T12:31:42.170Z
-last_activity: 2026-05-28
+current_phase: 215
+current_plan: Not started
+status: planning
+stopped_at: Phase 215 context gathered
+last_updated: "2026-05-29T13:08:55.394Z"
+last_activity: 2026-05-29
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 14
-  completed_plans: 20
-  percent: 29
+  completed_plans: 14
+  percent: 43
 ---
 
 # Session State
@@ -117,9 +117,9 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Last session: 2026-05-29
-Stopped at: Phase 214 complete (UAT 8/8, 0 issues), ready to plan Phase 215
-Resume file: None
+Last session: 2026-05-29T13:08:55.369Z
+Stopped at: Phase 215 context gathered
+Resume file: .planning/phases/215-spectrum-upload-reclaim-canary/215-CONTEXT.md
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
 ## Operator Next Steps
