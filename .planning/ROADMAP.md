@@ -140,7 +140,20 @@ Plans:
 3. Snapshot A rollback and success/rollback gates are documented before any production mutation.
 4. Canary either improves operator-relevant quality without gate regression or rolls back cleanly with evidence.
 
-**Plans:** TBD by `/gsd-plan-phase 215`
+**Plans:** 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 215-01-PLAN.md — Wave 0 tooling: upload-throughput extractor fix + phase215-reclaim-gate.sh + offline tests (BLOCKER; no production touch)
+
+**Wave 2** *(blocked on 215-01)*
+
+- [ ] 215-02-PLAN.md — Snapshot A capture (revert anchor) + in-session ceiling-18 leg-A baseline (read-only)
+
+**Wave 3** *(blocked on 215-02; non-autonomous — operator approves the single production mutation)*
+
+- [ ] 215-03-PLAN.md — Mutate ceiling 18→20 + deploy + restart + leg-B + gate verdict + keep-or-rollback + 215-REPORT.md
 
 #### Phase 216: Recovery/Refractory Decision
 
@@ -191,7 +204,7 @@ Plans:
 | 212. Production Inventory And Drift Audit | 3/3 | Complete    | 2026-05-27 |
 | 213. Experience Baseline Harness | 5/5 | Complete    | 2026-05-27 |
 | 214. Measurement Collapse Investigation | 6/6 | Complete    | 2026-05-29 |
-| 215. Spectrum Upload Reclaim Canary | 0/? | Pending | — |
+| 215. Spectrum Upload Reclaim Canary | 0/3 | Planned | — |
 | 216. Recovery/Refractory Decision | 0/? | Pending | — |
 | 217. Production Cycle-Budget Baseline | 0/? | Pending | — |
 | 218. Deferred v1.45 VERIFY Watch-List Closure | 0/? | Waiting on natural event | — |
