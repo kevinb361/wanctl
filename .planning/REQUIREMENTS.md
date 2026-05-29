@@ -49,8 +49,8 @@ created: 2026-05-27
 
 ### Performance Baseline (PERF)
 
-- [ ] **PERF-01**: The pending post-hotpath production profiling todo is closed or promoted by capturing at least one hour of current production cycle-budget data.
-- [ ] **PERF-02**: The profile identifies whether RTT measurement, CAKE stats, router communication, logging/metrics, or storage writes are now the dominant hot-path cost.
+- [x] **PERF-01**: The pending post-hotpath production profiling todo is closed or promoted by capturing at least one hour of current production cycle-budget data.
+- [x] **PERF-02**: The profile identifies whether RTT measurement, CAKE stats, router communication, logging/metrics, or storage writes are now the dominant hot-path cost.
 - [ ] **PERF-03**: If cycle budget is healthy, performance work is explicitly deprioritized in favor of quality/tuning work.
 
 ### Carry-Forward Production Verification (VERIFY)
@@ -93,8 +93,8 @@ created: 2026-05-27
 | RECOV-01   | 216   | Complete |
 | RECOV-02   | 216   | Complete |
 | RECOV-03   | 216   | Complete |
-| PERF-01    | 217   | Pending |
-| PERF-02    | 217   | Pending |
+| PERF-01    | 217   | Complete |
+| PERF-02    | 217   | Complete |
 | PERF-03    | 217   | Pending |
 | VERIFY-01  | 218   | Pending |
 | VERIFY-02  | 218   | Pending |
