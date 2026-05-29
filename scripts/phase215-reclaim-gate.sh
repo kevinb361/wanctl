@@ -170,7 +170,12 @@ if [[ -n "$REMOTE_YAML" ]]; then
         write_preflight_abort "remote_yaml_invalid"
         exit "$EXIT_ABORT"
     fi
-    if ! deployed_ceiling="$(ssh "$remote_host" "sudo -n python3 - '$remote_path'" <<'PY'
+    if [[ ! "$remote_host" =~ ^[A-Za-z0-9._@-]+$ || "$remote_host" == -* ]]; then
+        printf 'ABORT: --remote-yaml host contains unsafe characters\n' >&2
+        write_preflight_abort "remote_yaml_invalid"
+        exit "$EXIT_ABORT"
+    fi
+    if ! deployed_ceiling="$(ssh -- "$remote_host" "sudo -n python3 - '$remote_path'" <<'PY'
 import re
 import sys
 from pathlib import Path
