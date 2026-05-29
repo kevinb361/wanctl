@@ -58,7 +58,15 @@ require_command() {
 write_parse_abort() {
     local reason="$1"
     mkdir -p "$OUTPUT_DIR"
-    printf '{"exit_code":2,"reason":"%s","verdict":"abort"}\n' "$reason" >"$OUTPUT_DIR/verdict.json"
+    python3 - "$OUTPUT_DIR/verdict.json" "$reason" <<'PY'
+import json
+import sys
+
+path, reason = sys.argv[1:]
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump({"verdict": "abort", "exit_code": 2, "reason": reason}, handle, indent=2, sort_keys=True)
+    handle.write("\n")
+PY
 }
 
 need_value() {
@@ -116,6 +124,7 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         *)
             printf 'ABORT: unknown argument: %s\n' "$1" >&2
+            write_parse_abort "unknown_argument:${1}"
             exit "$EXIT_ABORT"
             ;;
     esac
@@ -123,6 +132,7 @@ done
 
 if [[ -z "$CANDIDATE_EXTRACT" || -z "$CANDIDATE_HEALTH" ]]; then
     printf 'ABORT: --candidate-extract and --candidate-health are required\n' >&2
+    write_parse_abort "missing_required_candidate_inputs"
     exit "$EXIT_ABORT"
 fi
 

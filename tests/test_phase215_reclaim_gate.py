@@ -83,6 +83,18 @@ def _run_gate(tmp_path: Path, candidate: dict, health: Path) -> tuple[int, dict,
     return proc.returncode, verdict, proc.stderr + proc.stdout
 
 
+def _run_parse_error(tmp_path: Path, *args: str) -> tuple[int, dict, str]:
+    out_dir = tmp_path / "out"
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), "--output-dir", str(out_dir), *args],
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    verdict = json.loads((out_dir / "verdict.json").read_text(encoding="utf-8"))
+    return proc.returncode, verdict, proc.stderr + proc.stdout
+
+
 def test_gate_passes_when_throughput_wins_and_rollback_gates_clear(tmp_path: Path) -> None:
     health = _write_health(tmp_path / "health.ndjson")
     rc, verdict, output = _run_gate(tmp_path, _extract(52.0, 72.0, 12.6), health)
@@ -127,3 +139,28 @@ def test_gate_voids_when_candidate_window_is_collapsed(tmp_path: Path) -> None:
     assert verdict["exit_code"] == 2
     assert verdict["signal_outlier_rate_p90"] == 0.30
     assert verdict["measurement_state_collapsed"] is True
+
+
+def test_gate_writes_abort_verdict_when_required_inputs_are_missing(tmp_path: Path) -> None:
+    rc, verdict, output = _run_parse_error(tmp_path)
+
+    assert rc == 2
+    assert "ABORT: --candidate-extract and --candidate-health are required" in output
+    assert verdict == {
+        "verdict": "abort",
+        "exit_code": 2,
+        "reason": "missing_required_candidate_inputs",
+    }
+
+
+def test_gate_writes_json_escaped_abort_verdict_for_unknown_arguments(tmp_path: Path) -> None:
+    unknown_arg = '--bad-"arg\nline'
+    rc, verdict, output = _run_parse_error(tmp_path, unknown_arg)
+
+    assert rc == 2
+    assert f"ABORT: unknown argument: {unknown_arg}" in output
+    assert verdict == {
+        "verdict": "abort",
+        "exit_code": 2,
+        "reason": f"unknown_argument:{unknown_arg}",
+    }
