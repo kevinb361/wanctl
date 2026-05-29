@@ -259,6 +259,16 @@ def number(value: Any) -> float | None:
     return None
 
 
+def required_finite_metric(payload: dict[str, Any], *path: str) -> float:
+    cur: Any = payload
+    for key in path:
+        cur = cur[key]
+    value = float(cur)
+    if not math.isfinite(value):
+        raise ValueError("non-finite metric")
+    return value
+
+
 def floor_counter(sample: dict[str, Any]) -> int | None:
     value = nested(sample, "wans", "0", "upload", "floor_hit_cycles_total")
     if value is None:
@@ -349,9 +359,9 @@ except Exception as exc:  # noqa: BLE001 - extraction/read failure is a scored V
 
 try:
     if baseline:
-        baseline_p95 = float(baseline["latency"]["p95_ms"])
-        baseline_p99 = float(baseline["latency"]["p99_ms"])
-        baseline_median = float(baseline["upload_throughput"]["throughput_median_mbps"])
+        baseline_p95 = required_finite_metric(baseline, "latency", "p95_ms")
+        baseline_p99 = required_finite_metric(baseline, "latency", "p99_ms")
+        baseline_median = required_finite_metric(baseline, "upload_throughput", "throughput_median_mbps")
         derived_p95_bound = baseline_p95 * 1.10
         derived_p99_bound = baseline_p99 * 1.10
         derived_win_bound = baseline_median + 1.5
@@ -365,9 +375,9 @@ try:
         derived_win_bound = FALLBACK_WIN_BOUND
         threshold_source = "static_fallback"
 
-    candidate_p95 = float(candidate["latency"]["p95_ms"])
-    candidate_p99 = float(candidate["latency"]["p99_ms"])
-    candidate_throughput = float(candidate["upload_throughput"]["throughput_median_mbps"])
+    candidate_p95 = required_finite_metric(candidate, "latency", "p95_ms")
+    candidate_p99 = required_finite_metric(candidate, "latency", "p99_ms")
+    candidate_throughput = required_finite_metric(candidate, "upload_throughput", "throughput_median_mbps")
 except (KeyError, TypeError, ValueError) as exc:
     raise SystemExit(write({"verdict": "void", "reason": f"required_metric_missing_or_invalid:{exc}"}, EXIT_ABORT))
 floor_hit_delta = floor_delta(candidate_health)
