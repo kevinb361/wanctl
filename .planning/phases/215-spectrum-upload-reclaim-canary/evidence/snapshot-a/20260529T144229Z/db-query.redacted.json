@@ -1,0 +1,7 @@
+{
+  "loaded_ceiling_mbps": null,
+  "query": "SELECT json_extract(labels, '$.autorate.upload_ceiling_mbps') FROM metrics WHERE metric_name='wanctl_config_snapshot' AND wan_name='spectrum' ORDER BY timestamp DESC LIMIT 1;",
+  "return_code": 0,
+  "status": "absent_config_snapshot_row",
+  "stdout": ""
+}
