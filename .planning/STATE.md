@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.46
 milestone_name: Internet Quality Recovery
 current_phase: 216
-current_plan: Not started
+current_plan: 1
 status: executing
 stopped_at: Phase 216 context gathered
-last_updated: "2026-05-29T17:22:33.341Z"
+last_updated: "2026-05-29T17:32:04.102Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 7
@@ -23,18 +23,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 216 — recovery/refractory decision
+**Current focus:** Phase 216 — recovery-refractory-decision
 
 ## Current Position
 
-Phase: 215 (spectrum-upload-reclaim-canary) — EXECUTING
-Plan: 3 of 3
+Phase: 216 (recovery-refractory-decision) — EXECUTING
+Plan: 1 of 1
 **Last shipped milestone:** v1.45 Flapping Peak-Counter Window Repair (shipped 2026-05-27 — VERIFY-01 DEFERRED)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.46 Internet Quality Recovery
 **Current phase:** 216
-**Current plan:** Not started
-**Status:** Ready to execute
+**Current plan:** 1
+**Status:** Executing Phase 216
 **Last activity:** 2026-05-29
 
 Progress: [██████████] 100%
@@ -69,7 +69,7 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 | Category | Item | Status |
 |----------|------|--------|
 | debug_sessions | knowledge-base | unknown |
-| threads | phase-196-queue-primary-refractory-semantics-investigation | in_progress |
+| threads | phase-196-queue-primary-refractory-semantics-investigation | closed (Phase 216, no-change / resolved-by-197, 2026-05-29) |
 | todos | 2026-04-08-investigate-tcp-12down-latency-spikes-under-multi-flow-downl | pending (tuning; reproduction matrix not re-run post-v1.40) |
 | todos | 2026-04-15-profile-post-hotpath-baseline-on-production-wan | pending (rescoped to post-v1.44 baseline) |
 | todos | 2026-04-17-investigate-steering-degraded-on-clean-restart | pending (low-pri; spot-checked GOOD on 2026-05-26) |
