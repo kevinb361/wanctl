@@ -18,14 +18,19 @@ def _load_extractor():
     return module
 
 
-def _write_flent(tmp_path: Path, results: dict[str, list[float]]) -> Path:
+def _write_flent(
+    tmp_path: Path,
+    results: dict[str, list[float]],
+    ping_values: list[float] | None = None,
+) -> Path:
     flent_gz = tmp_path / "sample.flent.gz"
+    ping_values = [10.0, 12.0] if ping_values is None else ping_values
     payload = {
         "metadata": {
             "T0": "2026-05-29T00:00:00+00:00",
             "TOTAL_LENGTH": 10,
         },
-        "raw_values": {"Ping (ms) ICMP": [{"val": 10.0}, {"val": 12.0}]},
+        "raw_values": {"Ping (ms) ICMP": [{"val": value} for value in ping_values]},
         "results": results,
     }
     with gzip.open(flent_gz, "wt") as fh:
@@ -62,3 +67,21 @@ def test_extract_upload_throughput_fails_closed_on_tcp_totals_only(tmp_path: Pat
 
     with pytest.raises(extractor.FlentExtractionError, match="no usable TCP upload series found"):
         extractor.extract_flent_upload_throughput(flent_gz)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_extract_upload_throughput_fails_closed_on_non_finite_samples(tmp_path: Path, value: float) -> None:
+    extractor = _load_extractor()
+    flent_gz = _write_flent(tmp_path, {"TCP upload": [1.0, value, 3.0]})
+
+    with pytest.raises(extractor.FlentExtractionError, match="non-finite numeric sample"):
+        extractor.extract_flent_upload_throughput(flent_gz)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_extract_latency_fails_closed_on_non_finite_ping_samples(tmp_path: Path, value: float) -> None:
+    extractor = _load_extractor()
+    flent_gz = _write_flent(tmp_path, {"TCP upload": [1.0, 3.0]}, ping_values=[10.0, value, 12.0])
+
+    with pytest.raises(extractor.FlentExtractionError, match="non-finite numeric sample"):
+        extractor.extract_flent_latency(flent_gz)
