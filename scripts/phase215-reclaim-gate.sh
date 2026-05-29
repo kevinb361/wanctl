@@ -85,6 +85,16 @@ OUTPUT_DIR="."
 EXPECTED_CEILING="20"
 REMOTE_YAML="${PHASE215_REMOTE_YAML_SSH:-}"
 
+for ((i = 1; i <= $#; i++)); do
+    if [[ "${!i}" == "--output-dir" ]]; then
+        next=$((i + 1))
+        if [[ $next -le $# && -n "${!next:-}" && "${!next}" != --* ]]; then
+            OUTPUT_DIR="${!next}"
+        fi
+        break
+    fi
+done
+
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
         --baseline-extract)
