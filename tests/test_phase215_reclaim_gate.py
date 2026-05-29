@@ -188,3 +188,21 @@ def test_gate_writes_json_escaped_abort_verdict_for_unknown_arguments(tmp_path: 
         "exit_code": 2,
         "reason": f"unknown_argument:{unknown_arg}",
     }
+
+
+def test_gate_writes_parse_abort_to_later_output_dir(tmp_path: Path) -> None:
+    out_dir = tmp_path / "out"
+    proc = subprocess.run(
+        ["bash", str(SCRIPT), "--bad-option", "--output-dir", str(out_dir)],
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+
+    verdict = json.loads((out_dir / "verdict.json").read_text(encoding="utf-8"))
+    assert proc.returncode == 2
+    assert verdict == {
+        "verdict": "abort",
+        "exit_code": 2,
+        "reason": "unknown_argument:--bad-option",
+    }
