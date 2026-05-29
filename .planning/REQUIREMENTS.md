@@ -38,8 +38,8 @@ created: 2026-05-27
 ### Conservative Throughput Reclaim (RECLAIM)
 
 - [ ] **RECLAIM-01**: Spectrum upload operating points are evaluated against current production evidence, including `setpoint_mbps: 12`, `ceiling_mbps: 18`, typical plan upload `40 Mbps`, latency, floor-hit counts, suppression counters, and user-perceived upload quality.
-- [ ] **RECLAIM-02**: At most one upload knob changes per canary cycle, with Snapshot A rollback, explicit success gates, and explicit rollback gates.
-- [ ] **RECLAIM-03**: Any successful reclaim canary improves operator-relevant throughput or perceived quality without increasing floor-hit cycles, alert spam, or p95/p99 latency beyond approved bounds.
+- [x] **RECLAIM-02**: At most one upload knob changes per canary cycle, with Snapshot A rollback, explicit success gates, and explicit rollback gates.
+- [x] **RECLAIM-03**: Any successful reclaim canary improves operator-relevant throughput or perceived quality without increasing floor-hit cycles, alert spam, or p95/p99 latency beyond approved bounds.
 
 ### Recovery And Refractory Semantics (RECOV)
 
@@ -88,8 +88,8 @@ created: 2026-05-27
 | MEAS-02    | 214   | Complete |
 | MEAS-03    | 214   | Complete |
 | RECLAIM-01 | 215   | Pending |
-| RECLAIM-02 | 215   | Pending |
-| RECLAIM-03 | 215   | Pending |
+| RECLAIM-02 | 215   | Complete |
+| RECLAIM-03 | 215   | Complete |
 | RECOV-01   | 216   | Pending |
 | RECOV-02   | 216   | Pending |
 | RECOV-03   | 216   | Pending |
