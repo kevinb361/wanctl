@@ -28,7 +28,7 @@
 
 - [x] **Phase 212: Production Inventory And Drift Audit** — Establish exact live production state before interpreting quality symptoms. (completed 2026-05-27)
 - [x] **Phase 213: Experience Baseline Harness** — Capture controlled evidence for what “internet quality is not good enough” means operationally. (completed 2026-05-27)
-- [ ] **Phase 214: Measurement Collapse Investigation** — Resolve bad `tcp_12down` p99 latency while health remains `GREEN`.
+- [x] **Phase 214: Measurement Collapse Investigation** — Resolve bad `tcp_12down` p99 latency while health remains `GREEN`. (completed 2026-05-29)
 - [ ] **Phase 215: Spectrum Upload Reclaim Canary** — Safely test whether conservative Spectrum upload settings are leaving useful quality on the table.
 - [ ] **Phase 216: Recovery/Refractory Decision** — Close the queue-primary refractory semantics thread with an evidence-backed decision.
 - [ ] **Phase 217: Production Cycle-Budget Baseline** — Close or promote the pending post-hotpath profiling todo with current production data.
@@ -105,7 +105,7 @@ Plans:
 3. Any proposed degraded-measurement signal starts observational unless evidence supports control-path use.
 4. Pending todo `2026-04-08-investigate-tcp-12down-latency-spikes-under-multi-flow-downl` is closed or explicitly carried with narrower next steps.
 
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete
 Plans:
 **Wave 1** *(parallel; no file overlap)*
 
@@ -126,7 +126,7 @@ Plans:
 
 **Wave 5** *(blocked on 214-05; non-autonomous — operator live runs + REPORT authorship)*
 
-- [ ] 214-06-PLAN.md — Live three-window matrix capture + author `214-REPORT.md` + close/carry folded todo
+- [x] 214-06-PLAN.md — Live three-window matrix capture + author `214-REPORT.md` + close/carry folded todo
 
 #### Phase 215: Spectrum Upload Reclaim Canary
 
@@ -190,7 +190,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 212. Production Inventory And Drift Audit | 3/3 | Complete    | 2026-05-27 |
 | 213. Experience Baseline Harness | 5/5 | Complete    | 2026-05-27 |
-| 214. Measurement Collapse Investigation | 5/6 | In Progress|  |
+| 214. Measurement Collapse Investigation | 6/6 | Complete    | 2026-05-29 |
 | 215. Spectrum Upload Reclaim Canary | 0/? | Pending | — |
 | 216. Recovery/Refractory Decision | 0/? | Pending | — |
 | 217. Production Cycle-Budget Baseline | 0/? | Pending | — |
