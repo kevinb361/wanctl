@@ -1,0 +1,71 @@
+{
+  "aligned_row_count": 61,
+  "artifact_paths": {
+    "aligned_window_json": ".planning/phases/214-measurement-collapse-investigation/evidence/RUN-20260529T060507Z/spectrum/tcp_12down/aligned-window.json",
+    "flent_gz": ".planning/phases/214-measurement-collapse-investigation/evidence/RUN-20260529T060507Z/spectrum/tcp_12down/flent/tcp_12down-2026-05-29T010518.303987.phase213-20260529T060507Z-tcp_12down-spectrum-tcp_12down.flent.gz",
+    "health_ndjson": "",
+    "journal_ndjson": ""
+  },
+  "drivers": {
+    "cake_queue_mismatch": {
+      "evidence": "no CAKE queue mismatch evidence",
+      "fired": false,
+      "first_unix": null,
+      "score": 0
+    },
+    "external_path": {
+      "evidence": "not evaluated because another driver fired",
+      "fired": false,
+      "first_unix": null,
+      "score": 0
+    },
+    "icmp_udp_divergence": {
+      "evidence": "no ICMP/UDP divergence evidence",
+      "fired": false,
+      "first_unix": 1780034719,
+      "score": 0
+    },
+    "reflector_loss": {
+      "consecutive_zero_cycles": 0,
+      "evidence": "no reflector-loss evidence",
+      "fired": false,
+      "first_unix": null,
+      "score": 0,
+      "total_zero_cycles": 0
+    },
+    "stale_cached_rtt": {
+      "evidence": "no stale cached RTT evidence",
+      "fired": false,
+      "first_unix": null,
+      "score": 0
+    },
+    "steering_behavior": {
+      "evidence": "no steering behavior evidence",
+      "fired": false,
+      "first_unix": null,
+      "score": 0
+    }
+  },
+  "ended_utc": "2026-05-29T06:05:58.510087+00:00",
+  "evidence_summary": "Primary driver external_path: not evaluated because another driver fired",
+  "latency": {
+    "max_ms": 141.0,
+    "mean_ms": 35.4565,
+    "min_ms": 15.0,
+    "p50_ms": 32.7,
+    "p95_ms": 62.2,
+    "p99_ms": 120.0,
+    "sample_count": 200,
+    "window_end_utc": "2026-05-29T06:05:58.510087+00:00",
+    "window_start_utc": "2026-05-29T06:05:18.510087+00:00"
+  },
+  "phase": 214,
+  "primary_driver": "external_path",
+  "ranked": [],
+  "run_dir": "RUN-20260529T060507Z",
+  "signal_disposition": "none",
+  "started_utc": "2026-05-29T06:05:18.510087+00:00",
+  "verdict": "pass",
+  "wan": "spectrum",
+  "window": "off-peak"
+}

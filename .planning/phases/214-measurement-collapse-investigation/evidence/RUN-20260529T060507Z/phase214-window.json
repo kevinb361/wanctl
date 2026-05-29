@@ -1,0 +1,12 @@
+{
+  "phase": 214,
+  "window": "off-peak",
+  "flent_duration_sec": 30,
+  "started_utc": "2026-05-29T06:05:07Z",
+  "ended_utc": "2026-05-29T06:06:21Z",
+  "attempted_at_utc": "2026-05-29T06:05:07Z",
+  "git_head_sha": "471b989",
+  "mutation_posture": "read-only",
+  "phase214_base_sha": "471b98927039bcb4c05c02fd63b9bdc98d3e2ca6",
+  "journalctl_command": "sudo -n journalctl --since=@1780034717 --until=@1780034764 -u wanctl@spectrum -o json"
+}

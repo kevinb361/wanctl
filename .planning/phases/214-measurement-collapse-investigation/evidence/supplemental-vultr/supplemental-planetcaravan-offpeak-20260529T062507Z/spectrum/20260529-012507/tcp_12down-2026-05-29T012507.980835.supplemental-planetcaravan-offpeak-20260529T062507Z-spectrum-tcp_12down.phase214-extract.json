@@ -1,0 +1,21 @@
+{
+  "latency": {
+    "max_ms": 702.0,
+    "mean_ms": 482.236,
+    "min_ms": 35.0,
+    "p50_ms": 651.0,
+    "p95_ms": 689.0,
+    "p99_ms": 701.0,
+    "ping_command": "/usr/bin/ping -n -D -i 0.20 -w 40  -I 10.10.110.226  planetcaravan.org",
+    "sample_count": 200,
+    "window_end_utc": "2026-05-29T06:25:48.213222+00:00",
+    "window_start_utc": "2026-05-29T06:25:08.213222+00:00"
+  },
+  "throughput": {
+    "sample_count": 151,
+    "series_key_used": "TCP download sum",
+    "throughput_max_mbps": 327.019116937554,
+    "throughput_median_mbps": 277.8870659206098,
+    "throughput_p95_mbps": 311.1318920759884
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "spectrum": {
+    "wan": "spectrum",
+    "db": "/var/lib/wanctl/metrics-spectrum.db",
+    "present": true,
+    "rows": [
+      {
+        "timestamp": 1779980731,
+        "alert_type": "hard_red_ul",
+        "severity": "critical",
+        "wan_name": "spectrum",
+        "details": "{\"delta_ms\": 111.2, \"threshold_ms\": 75.0, \"direction\": \"upload\"}"
+      },
+      {
+        "timestamp": 1779980755,
+        "alert_type": "burst_churn_dl",
+        "severity": "warning",
+        "wan_name": "spectrum",
+        "details": "{\"trigger_count\": 3, \"window_sec\": 300, \"last_delta_ms\": 463.9, \"last_accel_ms\": 12.5}"
+      }
+    ],
+    "summary": [
+      {
+        "alert_type": "burst_churn_dl",
+        "severity": "warning",
+        "count": 1
+      },
+      {
+        "alert_type": "hard_red_ul",
+        "severity": "critical",
+        "count": 1
+      }
+    ]
+  },
+  "att": {
+    "wan": "att",
+    "db": "/var/lib/wanctl/metrics-att.db",
+    "present": true,
+    "rows": [],
+    "summary": []
+  },
+  "steering": {
+    "wan": "steering",
+    "db": "/var/lib/wanctl/metrics.db",
+    "present": true,
+    "rows": [],
+    "summary": []
+  }
+}

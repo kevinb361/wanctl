@@ -1,0 +1,20 @@
+
+Summary of tcp_12down test run from 2026-05-29 06:15:07.986177
+  Title: 'supplemental-zylone-offpeak-20260529T061507Z-spectrum-tcp_12down'
+
+                             avg       median       99th %          # data pts
+ Ping (ms) ICMP   :       534.18       745.00       766.02 ms              200
+ TCP download avg :        22.32          N/A          N/A Mbits/s         200
+ TCP download sum :       267.80          N/A          N/A Mbits/s         200
+ TCP download::1  :        23.89        23.10        40.60 Mbits/s         200
+ TCP download::10 :        21.32        20.39        55.44 Mbits/s         200
+ TCP download::11 :        22.29        20.84        51.36 Mbits/s         200
+ TCP download::12 :        21.10        17.74        53.94 Mbits/s         200
+ TCP download::2  :        22.69        23.54        44.98 Mbits/s         200
+ TCP download::3  :        22.16        20.32        45.25 Mbits/s         200
+ TCP download::4  :        22.12        16.70        58.78 Mbits/s         200
+ TCP download::5  :        23.40        31.99        43.17 Mbits/s         200
+ TCP download::6  :        21.88        20.88        60.63 Mbits/s         200
+ TCP download::7  :        23.36        12.23        67.80 Mbits/s         200
+ TCP download::8  :        21.94        15.19        70.51 Mbits/s         200
+ TCP download::9  :        21.65        12.57        69.70 Mbits/s         200

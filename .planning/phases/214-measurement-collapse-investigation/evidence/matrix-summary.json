@@ -1,0 +1,54 @@
+{
+  "ended_utc": "2026-05-29T06:05:58.510087+00:00",
+  "git_head_sha": "471b98927039bcb4c05c02fd63b9bdc98d3e2ca6",
+  "missing_windows": [],
+  "mutation_posture": "read-only",
+  "partial_reason": null,
+  "phase": 214,
+  "primary_driver": "reflector_loss",
+  "ranked_drivers": [
+    "reflector_loss"
+  ],
+  "signal_disposition": "none",
+  "started_utc": "2026-05-28T15:05:18.384207+00:00",
+  "verdict": "ambiguous",
+  "windows": [
+    {
+      "p50_ms": 37.0,
+      "p95_ms": 267.0,
+      "p99_ms": 606.0,
+      "primary_driver": "reflector_loss",
+      "ranked": [
+        "reflector_loss"
+      ],
+      "run_dir": "RUN-20260528T150507Z",
+      "signal_disposition": "none",
+      "verdict": "ambiguous",
+      "window": "daytime"
+    },
+    {
+      "p50_ms": 37.0,
+      "p95_ms": 106.0,
+      "p99_ms": 560.0,
+      "primary_driver": "reflector_loss",
+      "ranked": [
+        "reflector_loss"
+      ],
+      "run_dir": "RUN-20260529T000507Z",
+      "signal_disposition": "none",
+      "verdict": "ambiguous",
+      "window": "prime-time"
+    },
+    {
+      "p50_ms": 32.7,
+      "p95_ms": 62.2,
+      "p99_ms": 120.0,
+      "primary_driver": "external_path",
+      "ranked": [],
+      "run_dir": "RUN-20260529T060507Z",
+      "signal_disposition": "none",
+      "verdict": "pass",
+      "window": "off-peak"
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "buckets": {
+    "download_recovery_lag": {
+      "evidence_rows": [
+        {
+          "cake_dl_peak_delay_us_p99": 9622.0,
+          "test": "tcp_12down",
+          "time_to_green_after_red_sec": 0.0,
+          "wan": "spectrum"
+        }
+      ],
+      "flagged": false,
+      "operator_note": "No download recovery lag threshold exceeded."
+    },
+    "external_isp": {
+      "evidence_rows": [
+        {
+          "curl_ttfb_p99_ms": 0.0,
+          "flent_throughput_drop_pct_vs_plan": 0.0,
+          "signal_outlier_rate_max": 0.933,
+          "test": "tcp_12down",
+          "wan": "spectrum"
+        }
+      ],
+      "flagged": false,
+      "operator_note": "No external-ISP AND-gate crossed."
+    },
+    "measurement_collapse": {
+      "evidence_rows": [
+        {
+          "flent_median": 0.0,
+          "flent_p99": 0.0,
+          "signal_outlier_rate_max": 0.933,
+          "test": "tcp_12down",
+          "wan": "spectrum"
+        }
+      ],
+      "flagged": false,
+      "operator_note": "No measurement-collapse threshold crossed."
+    },
+    "refractory_semantics": {
+      "evidence_rows": [
+        {
+          "backlog_suppressed_delta": 18928.0,
+          "pct_samples_refractory_active": 0.0,
+          "test": "tcp_12down",
+          "wan": "spectrum"
+        }
+      ],
+      "flagged": true,
+      "operator_note": "Refractory/backlog suppression activity observed during test windows."
+    },
+    "steering_drift": {
+      "evidence_rows": [
+        {
+          "cake_read_failures_delta": 0.0,
+          "good_count_delta": 0.0,
+          "green_rtt_ms": null,
+          "green_samples_required": null,
+          "pre_post_state_transition": "present -> present",
+          "red_count_delta": 0.0,
+          "red_rtt_ms": null,
+          "red_samples_required": null,
+          "test": "tcp_12down",
+          "wan": "spectrum",
+          "yellow_rtt_ms": null
+        }
+      ],
+      "flagged": false,
+      "operator_note": "No raw steering transition or counter delta observed."
+    },
+    "upload_ceiling_setpoint": {
+      "evidence_rows": [],
+      "flagged": false,
+      "operator_note": "No upload ceiling peg detected."
+    }
+  },
+  "phase": 213,
+  "recommended_next_phase": {
+    "primary": 216,
+    "rationale": "Primary bucket: refractory_semantics",
+    "runners_up": [
+      214,
+      215
+    ]
+  },
+  "run_dir": ".planning/phases/214-measurement-collapse-investigation/evidence/RUN-20260528T150507Z",
+  "threshold_constants": {
+    "BUCKET_1_PCT_AT_CEILING": 0.8,
+    "BUCKET_2_PEAK_DELAY_US": 50000,
+    "BUCKET_2_TIME_TO_GREEN_SEC": 30,
+    "BUCKET_3_OUTLIER_RATE_MAX": 0.3,
+    "BUCKET_3_P99_VS_MEDIAN_MULT": 5,
+    "BUCKET_5_BACKLOG_SUPPRESSED_DELTA": 100,
+    "BUCKET_5_PCT_REFRACTORY_ACTIVE": 0.05,
+    "BUCKET_6_OUTLIER_RATE_MAX": 0.1,
+    "BUCKET_6_THROUGHPUT_DROP_PCT": 0.3,
+    "BUCKET_6_TTFB_P99_MS": 2000,
+    "BUCKET_KEYS": [
+      "upload_ceiling_setpoint",
+      "download_recovery_lag",
+      "measurement_collapse",
+      "steering_drift",
+      "refractory_semantics",
+      "external_isp"
+    ]
+  }
+}
