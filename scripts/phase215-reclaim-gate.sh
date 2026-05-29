@@ -291,26 +291,29 @@ try:
 except Exception as exc:  # noqa: BLE001 - extraction/read failure is a scored VOID/abort boundary.
     raise SystemExit(write({"verdict": "void", "reason": f"candidate_or_baseline_unreadable:{exc}"}, EXIT_ABORT))
 
-if baseline:
-    baseline_p95 = float(baseline["latency"]["p95_ms"])
-    baseline_p99 = float(baseline["latency"]["p99_ms"])
-    baseline_median = float(baseline["upload_throughput"]["throughput_median_mbps"])
-    derived_p95_bound = baseline_p95 * 1.10
-    derived_p99_bound = baseline_p99 * 1.10
-    derived_win_bound = baseline_median + 1.5
-    threshold_source = "baseline_extract"
-else:
-    baseline_p95 = BASELINE_REF_P95
-    baseline_p99 = BASELINE_REF_P99
-    baseline_median = BASELINE_REF_MEDIAN
-    derived_p95_bound = FALLBACK_P95_BOUND
-    derived_p99_bound = FALLBACK_P99_BOUND
-    derived_win_bound = FALLBACK_WIN_BOUND
-    threshold_source = "static_fallback"
+try:
+    if baseline:
+        baseline_p95 = float(baseline["latency"]["p95_ms"])
+        baseline_p99 = float(baseline["latency"]["p99_ms"])
+        baseline_median = float(baseline["upload_throughput"]["throughput_median_mbps"])
+        derived_p95_bound = baseline_p95 * 1.10
+        derived_p99_bound = baseline_p99 * 1.10
+        derived_win_bound = baseline_median + 1.5
+        threshold_source = "baseline_extract"
+    else:
+        baseline_p95 = BASELINE_REF_P95
+        baseline_p99 = BASELINE_REF_P99
+        baseline_median = BASELINE_REF_MEDIAN
+        derived_p95_bound = FALLBACK_P95_BOUND
+        derived_p99_bound = FALLBACK_P99_BOUND
+        derived_win_bound = FALLBACK_WIN_BOUND
+        threshold_source = "static_fallback"
 
-candidate_p95 = float(candidate["latency"]["p95_ms"])
-candidate_p99 = float(candidate["latency"]["p99_ms"])
-candidate_throughput = float(candidate["upload_throughput"]["throughput_median_mbps"])
+    candidate_p95 = float(candidate["latency"]["p95_ms"])
+    candidate_p99 = float(candidate["latency"]["p99_ms"])
+    candidate_throughput = float(candidate["upload_throughput"]["throughput_median_mbps"])
+except (KeyError, TypeError, ValueError) as exc:
+    raise SystemExit(write({"verdict": "void", "reason": f"required_metric_missing_or_invalid:{exc}"}, EXIT_ABORT))
 floor_hit_delta = floor_delta(candidate_health)
 alert_fire_delta = spectrum_alert_events(candidate_health)
 outliers = [value for sample in candidate_health if (value := upload_number(sample, "signal_outlier_rate")) is not None]
