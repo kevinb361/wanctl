@@ -30,7 +30,7 @@
 - [x] **Phase 213: Experience Baseline Harness** — Capture controlled evidence for what “internet quality is not good enough” means operationally. (completed 2026-05-27)
 - [x] **Phase 214: Measurement Collapse Investigation** — Resolve bad `tcp_12down` p99 latency while health remains `GREEN`. (completed 2026-05-29)
 - [x] **Phase 215: Spectrum Upload Reclaim Canary** — Safely test whether conservative Spectrum upload settings are leaving useful quality on the table. (completed 2026-05-29)
-- [ ] **Phase 216: Recovery/Refractory Decision** — Close the queue-primary refractory semantics thread with an evidence-backed decision.
+- [x] **Phase 216: Recovery/Refractory Decision** — Close the queue-primary refractory semantics thread with an evidence-backed decision. (completed 2026-05-29)
 - [ ] **Phase 217: Production Cycle-Budget Baseline** — Close or promote the pending post-hotpath profiling todo with current production data.
 - [ ] **Phase 218: Deferred v1.45 VERIFY Watch-List Closure** — Only execute when a natural qualifying flapping event exists; close VERIFY-01/ALERT-03 and archive retained v1.45 phases if passing.
 
@@ -167,12 +167,12 @@ Plans:
 3. Any approved code design preserves Phase 160 cascade safety while retaining valid queue-delay signal where needed for queue-primary classification.
 4. If code work is needed, a follow-up phase is created rather than slipping unplanned behavior changes into the decision phase.
 
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 **Wave 1**
 
-- [ ] 216-01-PLAN.md — Confirm exit criteria, author 216-REPORT.md (no-change / resolved-by-197), close the Phase 196 thread + STATE.md mirror (decision-only; no control-path mutation).
+- [x] 216-01-PLAN.md — Confirm exit criteria, author 216-REPORT.md (no-change / resolved-by-197), close the Phase 196 thread + STATE.md mirror (decision-only; no control-path mutation).
 
 #### Phase 217: Production Cycle-Budget Baseline
 
@@ -210,7 +210,7 @@ Plans:
 | 213. Experience Baseline Harness | 5/5 | Complete    | 2026-05-27 |
 | 214. Measurement Collapse Investigation | 6/6 | Complete    | 2026-05-29 |
 | 215. Spectrum Upload Reclaim Canary | 3/3 | Complete    | 2026-05-29 |
-| 216. Recovery/Refractory Decision | 0/? | Pending | — |
+| 216. Recovery/Refractory Decision | 1/1 | Complete   | 2026-05-29 |
 | 217. Production Cycle-Budget Baseline | 0/? | Pending | — |
 | 218. Deferred v1.45 VERIFY Watch-List Closure | 0/? | Waiting on natural event | — |
 
