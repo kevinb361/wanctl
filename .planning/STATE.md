@@ -4,15 +4,15 @@ milestone: v1.46
 milestone_name: Internet Quality Recovery
 current_phase: 216
 current_plan: 1
-status: verifying
-stopped_at: Completed 216-01-PLAN.md
-last_updated: "2026-05-29T17:38:09.373Z"
+status: ready_to_plan
+stopped_at: Phase 216 complete (1/1) — ready to discuss Phase 217
+last_updated: 2026-05-29T17:49:21.944Z
 last_activity: 2026-05-29
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 18
-  completed_plans: 18
+  completed_plans: 24
   percent: 71
 ---
 
@@ -23,7 +23,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 216 — recovery-refractory-decision
+**Current focus:** Phase 217 — production cycle budget baseline
 
 ## Current Position
 
@@ -32,9 +32,9 @@ Plan: 1 of 1
 **Last shipped milestone:** v1.45 Flapping Peak-Counter Window Repair (shipped 2026-05-27 — VERIFY-01 DEFERRED)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.46 Internet Quality Recovery
-**Current phase:** 216
-**Current plan:** 1
-**Status:** Phase complete — ready for verification
+**Current phase:** 217
+**Current plan:** Not started
+**Status:** Ready to plan
 **Last activity:** 2026-05-29
 
 Progress: [██████████] 100%
