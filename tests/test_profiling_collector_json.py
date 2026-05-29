@@ -4,7 +4,6 @@ import json
 import subprocess
 import sys
 
-
 SCRIPT = "scripts/profiling_collector_json.py"
 
 
