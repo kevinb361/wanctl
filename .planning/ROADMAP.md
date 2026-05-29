@@ -204,7 +204,7 @@ Plans:
 | 212. Production Inventory And Drift Audit | 3/3 | Complete    | 2026-05-27 |
 | 213. Experience Baseline Harness | 5/5 | Complete    | 2026-05-27 |
 | 214. Measurement Collapse Investigation | 6/6 | Complete    | 2026-05-29 |
-| 215. Spectrum Upload Reclaim Canary | 3/3 | Complete   | 2026-05-29 |
+| 215. Spectrum Upload Reclaim Canary | 3/3 | Complete    | 2026-05-29 |
 | 216. Recovery/Refractory Decision | 0/? | Pending | — |
 | 217. Production Cycle-Budget Baseline | 0/? | Pending | — |
 | 218. Deferred v1.45 VERIFY Watch-List Closure | 0/? | Waiting on natural event | — |
