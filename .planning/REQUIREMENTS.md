@@ -43,9 +43,9 @@ created: 2026-05-27
 
 ### Recovery And Refractory Semantics (RECOV)
 
-- [ ] **RECOV-01**: The Phase 196 queue-primary refractory semantics thread is closed with a concrete decision: no change, config-only tune, or code design phase.
-- [ ] **RECOV-02**: If a code design is approved, it preserves Phase 160 cascade safety while keeping valid queue-delay signal available where needed for queue-primary classification.
-- [ ] **RECOV-03**: Recovery lag after transient congestion is measured from production artifacts before changing `green_required`, `step_up`, backlog suppression, or refractory behavior.
+- [x] **RECOV-01**: The Phase 196 queue-primary refractory semantics thread is closed with a concrete decision: no change, config-only tune, or code design phase.
+- [x] **RECOV-02**: If a code design is approved, it preserves Phase 160 cascade safety while keeping valid queue-delay signal available where needed for queue-primary classification.
+- [x] **RECOV-03**: Recovery lag after transient congestion is measured from production artifacts before changing `green_required`, `step_up`, backlog suppression, or refractory behavior.
 
 ### Performance Baseline (PERF)
 
@@ -90,9 +90,9 @@ created: 2026-05-27
 | RECLAIM-01 | 215   | Complete |
 | RECLAIM-02 | 215   | Complete |
 | RECLAIM-03 | 215   | Complete |
-| RECOV-01   | 216   | Pending |
-| RECOV-02   | 216   | Pending |
-| RECOV-03   | 216   | Pending |
+| RECOV-01   | 216   | Complete |
+| RECOV-02   | 216   | Complete |
+| RECOV-03   | 216   | Complete |
 | PERF-01    | 217   | Pending |
 | PERF-02    | 217   | Pending |
 | PERF-03    | 217   | Pending |

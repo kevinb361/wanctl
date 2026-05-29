@@ -4,16 +4,16 @@ milestone: v1.46
 milestone_name: Internet Quality Recovery
 current_phase: 216
 current_plan: 1
-status: executing
-stopped_at: Phase 216 context gathered
-last_updated: "2026-05-29T17:32:04.102Z"
+status: verifying
+stopped_at: Completed 216-01-PLAN.md
+last_updated: "2026-05-29T17:38:09.373Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 18
-  completed_plans: 17
-  percent: 57
+  completed_plans: 18
+  percent: 71
 ---
 
 # Session State
@@ -34,7 +34,7 @@ Plan: 1 of 1
 **Active milestone:** v1.46 Internet Quality Recovery
 **Current phase:** 216
 **Current plan:** 1
-**Status:** Executing Phase 216
+**Status:** Phase complete — ready for verification
 **Last activity:** 2026-05-29
 
 Progress: [██████████] 100%
@@ -117,9 +117,9 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Last session: 2026-05-29T16:51:28.139Z
-Stopped at: Phase 216 context gathered
-Resume file: .planning/phases/216-recovery-refractory-decision/216-CONTEXT.md
+Last session: 2026-05-29T17:37:18.182Z
+Stopped at: Completed 216-01-PLAN.md
+Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
 ## Operator Next Steps
@@ -178,6 +178,9 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [215-02]: Snapshot A acceptance allows an absent retained `wanctl_config_snapshot` DB row; repo config ceiling=18, deployed config ceiling=18, and bound Spectrum `/health` evidence form the pre-mutation rollback anchor when the exact read-only query returns no row.
 - [215-03]: Bounded VOID exhausted on three ceiling-20 leg-B attempts, so Spectrum was targeted-rolled back to upload ceiling 18; no ceiling-20 WIN was kept.
 - [215-03]: Gate remote-yaml preflight now uses `sudo -n python3 -c` after heredoc-over-SSH quoting blocked deployed-ceiling validation.
+- [216-01]: Closed Phase 196 as no-change / resolved-by-197; Phase 197's tests are the semantic proof and Phase 213 only shows no current symptom.
+- [216-01]: Treated Phase 213 `backlog_suppressed_delta=14451` as a zero-weight cross-WAN merge artifact over a cumulative lifetime counter.
+- [216-01]: RECOV-03 is satisfied only as a no-change gate/waiver; future tuning still requires a real transient/refractory production artifact.
 
 ## Performance Metrics
 
@@ -204,3 +207,4 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 | Phase 215 P01 | 5min | 2 tasks | 5 files |
 | Phase 215 P02 | 4min | 1 tasks | 8 files |
 | Phase 215 P03 | 18min | 2 tasks | 35 files |
+| Phase 216 P01 | 3.3min | 3 tasks | 5 files |
