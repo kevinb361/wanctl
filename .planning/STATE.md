@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.46
 milestone_name: Internet Quality Recovery
 current_phase: 217
-current_plan: Not started
+current_plan: 1
 status: executing
-stopped_at: Phase 217 context gathered
-last_updated: "2026-05-29T20:32:11.781Z"
+stopped_at: Completed 217-01-PLAN.md
+last_updated: "2026-05-29T21:01:21.186Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 21
-  completed_plans: 18
+  completed_plans: 19
   percent: 71
 ---
 
@@ -23,21 +23,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 217 — production cycle budget baseline
+**Current focus:** Phase 217 — production-cycle-budget-baseline
 
 ## Current Position
 
-Phase: 216 (recovery-refractory-decision) — EXECUTING
-Plan: 1 of 1
+Phase: 217 (production-cycle-budget-baseline) — EXECUTING
+Plan: 2 of 3
 **Last shipped milestone:** v1.45 Flapping Peak-Counter Window Repair (shipped 2026-05-27 — VERIFY-01 DEFERRED)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.46 Internet Quality Recovery
 **Current phase:** 217
-**Current plan:** Not started
+**Current plan:** 1
 **Status:** Ready to execute
 **Last activity:** 2026-05-29
 
-Progress: [██████████] 100%
+Progress: [█████████░] 90%
 
 ## Phase Structure (v1.46)
 
@@ -117,9 +117,9 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Last session: 2026-05-29T17:57:47.107Z
-Stopped at: Phase 217 context gathered
-Resume file: .planning/phases/217-production-cycle-budget-baseline/217-CONTEXT.md
+Last session: 2026-05-29T21:01:21.158Z
+Stopped at: Completed 217-01-PLAN.md
+Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
 ## Operator Next Steps
@@ -208,3 +208,4 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 | Phase 215 P02 | 4min | 1 tasks | 8 files |
 | Phase 215 P03 | 18min | 2 tasks | 35 files |
 | Phase 216 P01 | 3.3min | 3 tasks | 5 files |
+| Phase 217 P01 | 4min | 3 tasks | 5 files |

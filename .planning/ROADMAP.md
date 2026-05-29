@@ -186,12 +186,12 @@ Plans:
 3. Pending todo `2026-04-15-profile-post-hotpath-baseline-on-production-wan` is closed or promoted to an optimization phase.
 4. If cycle budget is healthy, performance work is explicitly deprioritized in favor of quality/tuning work.
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 **Wave 1** *(parallel; no file overlap — repo docs/helper runs alongside the live capture)*
 
-- [ ] 217-01-PLAN.md — Repo scaffolding: create `.planning/perf/`, author `docs/PROFILING.md` runbook (D-07), write `scripts/profiling_categorize.py` category/dominance helper (autonomous)
+- [x] 217-01-PLAN.md — Repo scaffolding: create `.planning/perf/`, author `docs/PROFILING.md` runbook (D-07), write `scripts/profiling_categorize.py` category/dominance helper (autonomous)
 - [ ] 217-02-PLAN.md — Live Spectrum capture: transient `--profile --debug` systemd drop-in, ≥1h window + driven RRUL/upload segment, revert+verify, retrieve raw log (non-autonomous; live production host)
 
 **Wave 2** *(blocked on 217-01 + 217-02)*
@@ -221,7 +221,7 @@ Plans:
 | 214. Measurement Collapse Investigation | 6/6 | Complete    | 2026-05-29 |
 | 215. Spectrum Upload Reclaim Canary | 3/3 | Complete    | 2026-05-29 |
 | 216. Recovery/Refractory Decision | 1/1 | Complete    | 2026-05-29 |
-| 217. Production Cycle-Budget Baseline | 0/? | Pending | — |
+| 217. Production Cycle-Budget Baseline | 1/3 | In Progress|  |
 | 218. Deferred v1.45 VERIFY Watch-List Closure | 0/? | Waiting on natural event | — |
 
 ### Coverage
