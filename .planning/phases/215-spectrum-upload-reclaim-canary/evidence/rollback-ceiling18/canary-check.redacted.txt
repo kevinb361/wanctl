@@ -1,0 +1,37 @@
+
+[0;34m[1m═══════════════════════════════════════════════════════════════════════════════════[0m
+[0;34m[1m  wanctl Post-Deploy Canary Check - 2026-05-29 10:06:54[0m
+[0;34m[1m═══════════════════════════════════════════════════════════════════════════════════[0m
+
+[0;34m[INFO][0m Checking autorate spectrum via http://10.10.110.223:9101/health
+[0;32m[PASS][0m autorate spectrum: top-level status healthy
+[0;34m[INFO][0m autorate spectrum: storage status=ok, db=445MB, wal=5.1MB, shm=32KB, total=450MB
+[0;32m[PASS][0m autorate spectrum: version 1.45.0
+[1;33m[WARN][0m autorate spectrum: uptime 8.5s is below 10s
+[0;32m[PASS][0m autorate spectrum/spectrum: router reachable
+[0;32m[PASS][0m autorate spectrum/spectrum: storage ok
+[0;32m[PASS][0m autorate spectrum/spectrum: runtime ok
+[0;32m[PASS][0m autorate spectrum/spectrum: download state healthy
+[0;32m[PASS][0m autorate spectrum/spectrum: upload state healthy
+[0;34m[INFO][0m Checking autorate att via http://10.10.110.227:9101/health
+[0;32m[PASS][0m autorate att: top-level status healthy
+[0;34m[INFO][0m autorate att: storage status=ok, db=417MB, wal=4.5MB, shm=224KB, total=421MB
+[0;32m[PASS][0m autorate att: version 1.45.0
+[0;32m[PASS][0m autorate att: uptime 163422.3s
+[0;32m[PASS][0m autorate att/att: router reachable
+[0;32m[PASS][0m autorate att/att: storage ok
+[0;32m[PASS][0m autorate att/att: runtime ok
+[0;32m[PASS][0m autorate att/att: download state healthy
+[0;32m[PASS][0m autorate att/att: upload state healthy
+[0;34m[INFO][0m Checking steering steering via http://127.0.0.1:9102/health
+[0;32m[PASS][0m steering steering: top-level status healthy
+[0;34m[INFO][0m steering steering: storage status=ok, db=779MB, wal=4.1MB, shm=32KB, total=783MB
+[0;32m[PASS][0m steering steering/steering: router reachable
+[0;32m[PASS][0m steering steering/steering: storage ok
+[0;32m[PASS][0m steering steering/steering: runtime ok
+
+[1mSummary[0m
+-------
+Errors:   0
+Warnings: 1
+

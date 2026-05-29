@@ -1,0 +1,21 @@
+{
+  "latency": {
+    "max_ms": 77.1,
+    "mean_ms": 30.375154320987654,
+    "min_ms": 13.0,
+    "p50_ms": 29.2,
+    "p95_ms": 45.6,
+    "p99_ms": 57.6,
+    "ping_command": "/usr/bin/ping -n -D -i 0.20 -w 130  -I 10.10.110.226  dallas",
+    "sample_count": 648,
+    "window_end_utc": "2026-05-29T15:05:51.106669+00:00",
+    "window_start_utc": "2026-05-29T15:03:41.106669+00:00"
+  },
+  "upload_throughput": {
+    "sample_count": 596,
+    "series_key_used": "TCP upload",
+    "throughput_max_mbps": 25.218440943475322,
+    "throughput_median_mbps": 15.29909187886127,
+    "throughput_p95_mbps": 22.15506331288212
+  }
+}

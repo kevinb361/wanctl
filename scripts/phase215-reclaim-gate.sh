@@ -117,7 +117,17 @@ if [[ -n "$REMOTE_YAML" ]]; then
         printf 'ABORT: --remote-yaml must be host:/absolute/safe/path\n' >&2
         exit "$EXIT_ABORT"
     fi
-    deployed_ceiling="$(ssh "$remote_host" "python3 - <<'PY'\nimport re\nfrom pathlib import Path\ntext = Path('$remote_path').read_text(encoding='utf-8')\ninside = False\nfor line in text.splitlines():\n    if re.match(r'^  upload:', line):\n        inside = True\n        continue\n    if inside and re.match(r'^  [A-Za-z_]+:', line):\n        inside = False\n    if inside:\n        m = re.match(r'^    ceiling_mbps:\\s*([0-9.]+)', line)\n        if m:\n            print(m.group(1))\n            raise SystemExit(0)\nraise SystemExit(1)\nPY")"
+    deployed_ceiling="$(ssh "$remote_host" "sudo -n python3 -c \"import re; from pathlib import Path; text=Path('$remote_path').read_text(encoding='utf-8'); inside=False
+for line in text.splitlines():
+    if re.match(r'^  upload:', line):
+        inside=True; continue
+    if inside and re.match(r'^  [A-Za-z_]+:', line):
+        inside=False
+    if inside:
+        m=re.match(r'^    ceiling_mbps:\\\\s*([0-9.]+)', line)
+        if m:
+            print(m.group(1)); raise SystemExit(0)
+raise SystemExit(1)\"")"
     if [[ "$deployed_ceiling" != "$EXPECTED_CEILING" ]]; then
         python3 - "$VERDICT" "$EXPECTED_CEILING" "$deployed_ceiling" <<'PY'
 import json, sys
