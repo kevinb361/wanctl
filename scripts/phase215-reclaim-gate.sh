@@ -55,6 +55,20 @@ require_command() {
     fi
 }
 
+write_parse_abort() {
+    local reason="$1"
+    mkdir -p "$OUTPUT_DIR"
+    printf '{"exit_code":2,"reason":"%s","verdict":"abort"}\n' "$reason" >"$OUTPUT_DIR/verdict.json"
+}
+
+need_value() {
+    if [[ "$#" -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+        printf 'ABORT: %s requires a value\n' "$1" >&2
+        write_parse_abort "missing_option_value:${1}"
+        exit "$EXIT_ABORT"
+    fi
+}
+
 BASELINE_EXTRACT=""
 CANDIDATE_EXTRACT=""
 BASELINE_HEALTH=""
@@ -66,30 +80,37 @@ REMOTE_YAML="${PHASE215_REMOTE_YAML_SSH:-}"
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
         --baseline-extract)
+            need_value "$@"
             BASELINE_EXTRACT="$2"
             shift 2
             ;;
         --candidate-extract)
+            need_value "$@"
             CANDIDATE_EXTRACT="$2"
             shift 2
             ;;
         --baseline-health)
+            need_value "$@"
             BASELINE_HEALTH="$2"
             shift 2
             ;;
         --candidate-health)
+            need_value "$@"
             CANDIDATE_HEALTH="$2"
             shift 2
             ;;
         --output-dir)
+            need_value "$@"
             OUTPUT_DIR="$2"
             shift 2
             ;;
         --expected-ceiling)
+            need_value "$@"
             EXPECTED_CEILING="$2"
             shift 2
             ;;
         --remote-yaml)
+            need_value "$@"
             REMOTE_YAML="$2"
             shift 2
             ;;
