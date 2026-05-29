@@ -167,7 +167,12 @@ Plans:
 3. Any approved code design preserves Phase 160 cascade safety while retaining valid queue-delay signal where needed for queue-primary classification.
 4. If code work is needed, a follow-up phase is created rather than slipping unplanned behavior changes into the decision phase.
 
-**Plans:** TBD by `/gsd-plan-phase 216`
+**Plans:** 1 plan
+
+Plans:
+**Wave 1**
+
+- [ ] 216-01-PLAN.md — Confirm exit criteria, author 216-REPORT.md (no-change / resolved-by-197), close the Phase 196 thread + STATE.md mirror (decision-only; no control-path mutation).
 
 #### Phase 217: Production Cycle-Budget Baseline
 
