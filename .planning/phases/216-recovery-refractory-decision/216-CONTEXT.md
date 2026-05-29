@@ -33,40 +33,64 @@ later, gated, single-knob phases — not 216.
 ## Implementation Decisions
 
 ### Evidence Basis (RECOV-03)
-- **D-01:** Close the thread on the **existing Phase 213 passive baseline**
-  (`RUN-20260527T222043Z`). The phase does **not** run a new active capture or
-  provoke a refractory event. Rationale: 213 already measured
-  `time_to_green_after_red_sec=0.0` on both WANs and `pct_samples_refractory_active=0.0`
-  — i.e., under real test load the live system is not lagging and refractory
-  never engaged. That absence is itself evidence. Active provocation adds
-  production load + mutation risk that 213 explicitly deferred, and is not
-  needed to make the verdict. RECOV-03's "measured from production artifacts"
-  bar is satisfied by the 213 recovery-lag rows.
+- **D-01:** Use the **existing Phase 213 passive baseline**
+  (`RUN-20260527T222043Z`) to decide that **no new production capture is
+  justified** — NOT to claim it validates refractory-active semantics. The phase
+  does **not** run a new active capture or provoke a refractory event. Critical
+  framing (per cross-AI review): Phase 213 had `pct_samples_refractory_active=0.0`,
+  so the refractory code path was *never exercised* during the baseline. 213
+  therefore shows **"no current symptom under this load"**, NOT "refractory
+  behavior is correct." The recovery-lag rows (`time_to_green_after_red_sec=0.0`)
+  are also suspect: they most likely mean "no RED/SOFT_RED was observed," not
+  "RED recovered instantly." Worse, `213-REVIEW.md` §WR-02 documents a classifier
+  bug (`phase213-classify.py:146-159`): a window that enters RED and never recovers
+  computes `lag = float(green_after or 0)` and is logged as `0` seconds — so a zero
+  row can mean "never recovered." Do not read these zeros as positive recovery
+  evidence. Active provocation adds production
+  load + mutation risk that 213 deferred and is not justified by current symptoms.
+- **D-01a (RECOV-03 scope):** RECOV-03's "measured from production artifacts" bar
+  is satisfied **only for a no-change decision** — because no recovery/refractory
+  tuning is being made, no transient-congestion measurement is required. It is
+  **NOT** satisfied as evidence supporting any *future* tuning: that would require
+  a production artifact containing an actual transient/refractory event
+  (`arb_refractory_active > 0`), which the 213 run does not contain. Any future
+  tune/code phase must capture that event first.
 
 ### Backlog-Suppression Flag Handling
 - **D-02:** The 213 classifier flagged `refractory_semantics` as runner-up
   **solely** on `backlog_suppressed_delta` (~14451, near-identical across all
   five ATT tests; 13097–14451 on Spectrum) while `pct_samples_refractory_active=0.0`.
   Before this flag is allowed to influence the verdict, the researcher MUST
-  determine whether `backlog_suppressed_delta` is a **real per-event distress
-  counter** or a **per-cycle / per-window accumulation artifact**. The identical
-  14451 across unrelated ATT tests strongly suggests an artifact (e.g., a
-  monotonic counter delta scaled by window length), not material suppression
-  activity. Resolve the metric's semantics by reading the counter source and the
-  213 classifier, not by capturing new data.
+  **prove (not assume)** whether `backlog_suppressed_delta` is a **real per-event
+  distress counter** or a **per-cycle / per-window accumulation artifact**. The
+  identical 14451 across unrelated ATT tests strongly suggests an artifact, but
+  the report MUST show the counter provenance explicitly:
+  - The classifier merges **all** `health-*.ndjson` files per target test window
+    (`scripts/phase213-classify.py:98`), then computes the delta as `max - min`
+    over **cumulative lifetime counters** (`scripts/phase213-classify.py:271`).
+  - The underlying counter increments on **backlog-suppressing GREEN recovery, not
+    refractory itself** (`src/wanctl/queue_controller.py:265`).
+  - The report must state whether any *target-WAN-only, per-file* delta remains
+    meaningful after stripping the merge + cumulative-counter artifact.
+  Resolve the semantics by reading the counter source and the classifier, not by
+  capturing new data.
 
 ### Phase 197 Reconciliation
 - **D-03:** Treat **Phase 197 as the de-facto resolution** of the Phase 196
   conflict. Phase 197 shipped the split-semantics arbitration — suppress RTT-veto
   during refractory and return queue-primary directly via
   `ARBITRATION_REASON_QUEUE_DURING_REFRACTORY` (live in `wan_controller.py:101`).
-  216 validates that shipped behavior against the 213 evidence and closes the
-  thread as **resolved-by-197** unless evidence contradicts it. Note: 197 took a
-  *different* route than the thread's original candidate design (split
-  `dl_cake_for_detection` from `dl_cake_for_arbitration`); the thread was never
-  updated to reflect 197, which is why it is stale-open. The original split
-  design is NOT pursued on its own merits unless 213 evidence shows 197 is
-  insufficient.
+  **The semantic proof that 197 resolved the conflict is Phase 197's own code +
+  replay tests** (`tests/test_phase_197_replay.py`, asserting the
+  `queue_during_refractory` / `rtt_fallback_during_refractory` branches) plus any
+  existing post-197 production validation — **NOT** the Phase 213 baseline. Phase
+  213's role in D-03 is narrow: confirm there is **no current live symptom** of the
+  original regression, not to validate the refractory-active branch (213 has zero
+  refractory-active samples to validate against). Note: 197 took a *different*
+  route than the thread's original candidate design (split `dl_cake_for_detection`
+  from `dl_cake_for_arbitration`); the thread was never updated to reflect 197,
+  which is why it is stale-open. The original split design is NOT pursued on its
+  own merits unless the 197 code/tests are shown insufficient.
 
 ### Deliverable / Thread Closure
 - **D-04:** Produce a **`216-REPORT.md`** with the evidence-cited verdict, then
@@ -74,6 +98,12 @@ later, gated, single-knob phases — not 216.
   verdict is "config tune" or "code design", seed a follow-up phase in ROADMAP.md
   (do not implement here). Report style mirrors the operator-first closeout of
   212/213/214/215 reports.
+- **D-04a (reopen criteria):** The thread closeout MUST record explicit reopen
+  triggers, since the close is based on absence-of-symptom rather than an exercised
+  refractory window. Reopen the refractory thread (or open a new follow-up) if a
+  natural production artifact later shows `arb_refractory_active > 0` accompanied by
+  any of: RTT fallback during what should be queue-primary load, measurable recovery
+  lag after RED/SOFT_RED, or throughput collapse during the refractory window.
 
 ### Hard Constraints (carry-forward, non-negotiable)
 - **D-05:** RECOV-02 / Phase 160 cascade safety is preserved by construction —
@@ -86,11 +116,18 @@ later, gated, single-knob phases — not 216.
   threshold-name comparison.
 
 ### Expected Landing (not pre-decided — the phase produces the verdict)
-- The evidence currently leans **no-change / resolved-by-197**: recovery lag = 0,
-  refractory 0% active, and the only flag is the likely-artifact backlog counter.
-  This is the operator's read going in, NOT a locked verdict. The planner/
-  researcher must confirm D-02 (artifact check) and D-03 (197 validation) before
-  the report records the final call.
+- The evidence currently leans **no-change / resolved-by-197**, but this is the
+  operator's prior, NOT a locked verdict, and the framing matters (per review):
+  213 shows *no current symptom*; the 0% refractory-active rate means it does NOT
+  prove correctness. The verdict does not "write itself" — it requires meeting
+  explicit exit criteria:
+  - **Exit criterion 1 (D-02):** backlog flag is shown to be a merge/cumulative-counter
+    artifact (or, if real, re-opens the analysis).
+  - **Exit criterion 2 (D-03):** Phase 197's code + replay tests are confirmed to
+    cover the refractory-active arbitration branches.
+  - **Exit criterion 3 (D-01):** Phase 213 confirms no current live symptom of the
+    original regression.
+  Only with all three met does the report land on no-change / resolved-by-197.
 
 ### Claude's Discretion
 - Planner retains discretion on: exact report structure, whether the artifact
@@ -119,10 +156,13 @@ later, gated, single-knob phases — not 216.
 - `.planning/phases/213-experience-baseline-harness/evidence/RUN-20260527T222043Z/signal-sheet.md` — refractory_semantics section (`backlog_suppressed_delta`, `pct_samples_refractory_active`), download recovery-lag rows.
 - `.planning/phases/213-experience-baseline-harness/evidence/RUN-20260527T222043Z/signal-sheet.json` — machine-readable signal sheet for the artifact check (D-02).
 - `.planning/phases/213-experience-baseline-harness/213-CONTEXT.md` — 213 decisions; especially the steering-drift carry-forward (D-08/D-14) and the deferred "active steering toggle to force bucket evidence → Phase 216" note.
+- `.planning/phases/213-experience-baseline-harness/213-REVIEW.md` §WR-02 — **MUST read before relying on recovery-lag rows.** Documents that `analyze_download_recovery` (`scripts/phase213-classify.py:146-159`) leaves `green_after=None` when a window enters RED/SOFT_RED and never returns to GREEN, then computes `lag = float(green_after or 0)` — so a **non-recovery is logged as `0` seconds**. A `time_to_green_after_red_sec=0.0` row is therefore NOT proof of fast recovery; it may mean "never recovered" or "no RED observed." The verdict must not treat these zeros as positive recovery evidence.
+- `scripts/phase213-classify.py:98,271` — the classifier merges all per-WAN `health-*.ndjson` per window (`:98`) and computes `backlog_suppressed_delta` as `max-min` over cumulative lifetime counters (`:271`); read both for the D-02 artifact provenance.
 
 ### Phase 197 — the shipped fix (D-03 validation target)
 - `.planning/milestones/v1.40-phases/197-queue-primary-refractory-semantics-split-dl-cake-for-detecti/197-01-PLAN.md` — the implemented split-semantics arbitration (D-04/D-06/D-07): suppress RTT-veto during refractory, `queue_during_refractory` + `rtt_fallback_during_refractory` reasons.
 - `.planning/milestones/v1.40-phases/197-queue-primary-refractory-semantics-split-dl-cake-for-detecti/197-DISCUSSION-LOG.md` — the design decisions D-01..D-11 behind 197.
+- `tests/test_phase_197_replay.py` — **the actual semantic proof for D-03**: replay tests asserting the `queue_during_refractory` / `rtt_fallback_during_refractory` arbitration branches. The verdict's "197 is validated" claim rests on these, not on 213.
 
 ### Original Conflict Provenance
 - `.planning/phases/196-spectrum-a-b-soak-and-att-regression-canary/196-12-SUMMARY.md` — Phase 196 corrected-Spectrum throughput regression that opened the thread.
@@ -180,13 +220,17 @@ later, gated, single-knob phases — not 216.
 
 - The crux to settle is a single empirical question: is the 213
   `backlog_suppressed_delta` (~14451, eerily constant across ATT tests) a real
-  distress signal or a counter/window artifact? Settle that, validate 197
-  against the recovery-lag=0 evidence, and the verdict writes itself.
-- Frame the report as "the Phase 196 thread is closed because Phase 197 already
-  resolved the original throughput regression, and current baseline evidence
-  confirms no recovery lag" — unless the artifact check surprises us.
+  distress signal or a merge/cumulative-counter artifact? Settle that, confirm
+  Phase 197's code/tests cover the refractory branches, and confirm 213 shows no
+  live symptom — then the report meets its exit criteria.
+- Frame the report honestly: "the Phase 196 thread is closed because Phase 197's
+  shipped code + replay tests resolve the original throughput regression, and the
+  current Phase 213 baseline shows no live symptom." Do NOT write "Phase 213
+  validated refractory semantics" — 213 never exercised the refractory path
+  (0% active).
 - Keep the verdict honest: "no-change" here means "no NEW change; 197's shipped
-  change stands and is validated", not "nothing was ever done".
+  change stands and is validated by its own tests", not "nothing was ever done"
+  and not "213 proved it correct".
 
 </specifics>
 
