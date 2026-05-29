@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
+import math
 import statistics
 import sys
 from datetime import datetime, timedelta
@@ -48,10 +49,24 @@ def _parse_flent_time(path: Path, value: Any) -> datetime:
         raise FlentExtractionError(f"{path}: metadata.T0/TIME is not ISO8601: {value}") from exc
 
 
+def _finite_float(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    converted = float(value)
+    if not math.isfinite(converted):
+        raise FlentExtractionError("non-finite numeric sample")
+    return converted
+
+
 def _numeric_values(series: Any) -> list[float]:
     if not isinstance(series, list):
         return []
-    return [float(value) for value in series if isinstance(value, (int, float))]
+    values = []
+    for value in series:
+        converted = _finite_float(value)
+        if converted is not None:
+            values.append(converted)
+    return values
 
 
 def extract_flent_latency(path: Path) -> dict[str, Any]:
@@ -74,7 +89,12 @@ def extract_flent_latency(path: Path) -> dict[str, Any]:
     if not isinstance(series, list) or not series:
         raise FlentExtractionError(f"{path}: raw_values['{PING_SERIES}'] missing or empty")
 
-    values = [float(sample["val"]) for sample in series if isinstance(sample, dict) and "val" in sample]
+    values = []
+    for sample in series:
+        if isinstance(sample, dict) and "val" in sample:
+            converted = _finite_float(sample["val"])
+            if converted is not None:
+                values.append(converted)
     if not values:
         raise FlentExtractionError(f"{path}: ping series has no usable 'val' entries")
     values.sort()
