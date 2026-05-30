@@ -240,7 +240,8 @@ def print_digest(db_paths: list[Path]) -> dict[str, int]:
                 hard_red_rows = _query_digest_rows(conn)
             except (sqlite3.OperationalError, sqlite3.DatabaseError) as exc:
                 print(
-                    f"{_DIGEST_SKIP_PREFIX} (hard-red query) wan={wan_name} db={db_path}: {exc}",
+                    f"operator-summary digest: hard-red query failed "
+                    f"wan={wan_name} db={db_path}: {exc}",
                     file=sys.stderr,
                 )
                 counts["read_skipped"] += 1
@@ -334,6 +335,12 @@ def main() -> int:
             print("no readable WAN DBs - try sudo", file=sys.stderr)
             return 0
         if counts["readable"] > 0 and counts["printed"] == 0:
+            if counts["write_skipped"] == 0 and counts["read_skipped"] > 0:
+                print(
+                    "operator-summary digest: hard-red output unavailable",
+                    file=sys.stderr,
+                )
+                return 1
             print(
                 "operator-summary digest: all output writes failed",
                 file=sys.stderr,
