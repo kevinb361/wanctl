@@ -120,7 +120,11 @@ def main(argv: list[str] | None = None) -> int:
         if cycle_records == 0:
             print("ERROR: no Cycle timing records in input", file=sys.stderr)
             return 2
-        write_output(build_profile(samples), args.output)
+        profile = build_profile(samples)
+        if "autorate_cycle_total" not in profile:
+            print("ERROR: no autorate_cycle_total samples in input", file=sys.stderr)
+            return 2
+        write_output(profile, args.output)
     except Exception as exc:  # pragma: no cover - unexpected CLI failure path
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

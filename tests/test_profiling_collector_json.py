@@ -108,3 +108,24 @@ def test_writes_output_file_and_fails_with_exit_2_when_no_cycle_timing(tmp_path)
 
     assert empty_result.returncode == 2
     assert "ERROR: no Cycle timing records in input" in empty_result.stderr
+
+
+def test_fails_when_cycle_timing_has_no_cycle_total_samples(tmp_path):
+    ndjson = tmp_path / "missing_total.ndjson"
+    write_ndjson(
+        ndjson,
+        [
+            json.dumps({"message": "Cycle timing", "not_a_timer": 1.0}),
+            json.dumps({"message": "Cycle timing", "cycle_total_ms": None}),
+        ],
+    )
+
+    result = subprocess.run(
+        [sys.executable, SCRIPT, str(ndjson)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 2
+    assert "ERROR: no autorate_cycle_total samples in input" in result.stderr
