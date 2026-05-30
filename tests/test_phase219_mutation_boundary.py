@@ -30,7 +30,8 @@ if backends_dir.exists():
         str(path.relative_to(REPO_ROOT)) for path in sorted(backends_dir.glob("**/*.py"))
     )
 FORBIDDEN_SRC_PATHS.extend(
-    str(path.relative_to(REPO_ROOT)) for path in sorted((REPO_ROOT / "src/wanctl").glob("fusion*.py"))
+    str(path.relative_to(REPO_ROOT))
+    for path in sorted((REPO_ROOT / "src/wanctl").glob("fusion*.py"))
 )
 
 # Line-anchored command/assignment forms only. Narrative references to the same

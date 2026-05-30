@@ -11,7 +11,6 @@ import pytest
 from wanctl.history import main
 from wanctl.storage.writer import MetricsWriter
 
-
 BASE_TS = 1767225600
 METRIC_NAMES = (
     "wanctl_rtt_ms",
@@ -149,7 +148,9 @@ class TestIngestionRateBucketed:
         payload = json.loads(capsys.readouterr().out)
         assert len(payload["rows"]) == 8
         pairs = {(row["table_name"], row["window_seconds"]) for row in payload["rows"]}
-        assert pairs == {(metric_name, window) for metric_name in METRIC_NAMES for window in (60, 300)}
+        assert pairs == {
+            (metric_name, window) for metric_name in METRIC_NAMES for window in (60, 300)
+        }
 
     @pytest.mark.xfail(reason="Wave 1 helper not yet implemented", strict=False)
     def test_per_db_read_failure_emits_null_row(self, tmp_path, monkeypatch, capsys):
