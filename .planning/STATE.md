@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.47
 milestone_name: Measurement Evidence Closure
-status: executing
-stopped_at: Completed 219-03-PLAN.md
-last_updated: "2026-05-30T14:27:27.348Z"
+status: verifying
+stopped_at: Completed 219-04-PLAN.md
+last_updated: "2026-05-30T16:55:10.767Z"
 last_activity: 2026-05-30
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 3
-  percent: 0
+  completed_plans: 4
+  percent: 33
 ---
 
 # Session State
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-05-30 after v1.46 milestone close + v1.4
 
 ## Current Position
 
-Phase: 219 (ingestion-rate-observability-scope-d) — EXECUTING
+Phase: 219 (ingestion-rate-observability-scope-d) — COMPLETE
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-30
 
 ## Phase Structure (v1.47)
@@ -123,8 +123,8 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ## Session Continuity
 
-Last session: 2026-05-30T14:26:57.841Z
-Stopped at: Completed 219-03-PLAN.md
+Last session: 2026-05-30T16:55:10.738Z
+Stopped at: Completed 219-04-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 
@@ -147,6 +147,10 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 - [219-03]: Used in-process `per_wan_ingestion_rate_bucketed` import for operator-summary digest to avoid subprocess overhead while staying out-of-band.
 - [219-03]: Pre-gathered ingestion rows before hard-red queries so D-22 hard-red failures cannot suppress ingestion-rate lines.
 - [219-03]: Preserved `printed` as hard-red-only and added `ingestion_printed` as the D-26 counter.
+- [219-04]: D-19 kept the cron script at `scripts/phase219_ingestion_digest.py` so direct and `python -m scripts.phase219_ingestion_digest` invocation both work.
+- [219-04]: D-21 reused `wanctl.state_utils.atomic_write_json` for collision-safe ingestion snapshot writes despite the normal scripts-to-src boundary.
+- [219-04]: D-23 validates `wanctl-history` subprocess stdout with `json.loads` before atomic persistence.
+- [219-04]: D-27 production profile passed avg/p99 gates with cron active: 2.857ms avg, 6.4ms p99 over 73,603 samples.
 
 ## Decisions (v1.46)
 
@@ -219,3 +223,4 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 | Phase 219 P01 | 5min | 3 tasks | 4 files |
 | Phase 219 P02 | 7min | 3 tasks | 2 files |
 | Phase 219 P03 | 6min | 2 tasks | 3 files |
+| Phase 219 P04 | checkpointed; production capture 62min | 4 tasks | 5 files |

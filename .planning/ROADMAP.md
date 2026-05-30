@@ -21,7 +21,7 @@
 
 ### 🟢 v1.47 Measurement Evidence Closure (Phases 219–221)
 
-- [ ] **Phase 219: Ingestion-Rate Observability (Scope D)** — Per-WAN per-table SQLite ingestion-rate visibility as additive extensions to `wanctl-history --ingestion-rate`; ships first to support Phase 218 audit evidence regardless of v1.47 timing.
+- [x] **Phase 219: Ingestion-Rate Observability (Scope D)** — Per-WAN per-table SQLite ingestion-rate visibility as additive extensions to `wanctl-history --ingestion-rate`; ships first to support Phase 218 audit evidence regardless of v1.47 timing.
 - [ ] **Phase 220: Matrix Runner (Scope A1)** — Target/path/window matrix wrapper + stdlib aggregator + Wave 0 tests + pre-registered CRITERIA gate (kill / defect / close-with-prejudice rule).
 - [ ] **Phase 221: Matrix Evidence + Closeout (Scope A2)** — Operator-driven matrix execution against pre-registered criteria; explicit verdict report; folded `tcp_12down` todo closed-or-carried with close-with-prejudice rule.
 
@@ -67,7 +67,7 @@ Full v1.46 roadmap archived to `milestones/v1.46-ROADMAP.md`. v1.46 stats and ac
 - [x] 219-01-PLAN.md — Wave 0 test scaffolds (golden-fixture pin, cron-script xfailed scaffold, SAFE-11 boundary clone)
 - [x] 219-02-PLAN.md — Wave 1: core CLI extension (--by-table + --rolling, public per_wan_ingestion_rate_bucketed, envelope formatter, v1.44 envelope test migration)
 - [x] 219-03-PLAN.md — Wave 2: operator-summary --digest ingestion block (tie-break + tolerance)
-- [ ] 219-04-PLAN.md — Wave 3: cron snapshot script + docs/CONFIGURATION.md staleness paragraph
+- [x] 219-04-PLAN.md — Wave 3: cron snapshot script + docs/CONFIGURATION.md staleness paragraph
 
 ### Phase 220: Matrix Runner (Scope A1)
 
@@ -109,7 +109,7 @@ Full v1.46 roadmap archived to `milestones/v1.46-ROADMAP.md`. v1.46 stats and ac
 
 | Phase | Milestone | Plans Complete | Status   | Completed  |
 | ----- | --------- | -------------- | -------- | ---------- |
-| 219. Ingestion-Rate Observability (Scope D)   | v1.47       | 3/4 | In Progress|  |
+| 219. Ingestion-Rate Observability (Scope D)   | v1.47       | 4/4 | Complete   | 2026-05-30 |
 | 220. Matrix Runner (Scope A1)                 | v1.47       | 0/? | Not started             | —          |
 | 221. Matrix Evidence + Closeout (Scope A2)    | v1.47       | 0/? | Not started             | —          |
 | 218. Deferred v1.45 VERIFY Watch-List Closure | v1.46 carry | 0/? | Deferred (event-gated; parallel to v1.47)  | —          |
