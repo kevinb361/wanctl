@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.46
 milestone_name: Internet Quality Recovery
 current_phase: 217
-current_plan: 1
+current_plan: 3
 status: executing
-stopped_at: Completed 217-01-PLAN.md
-last_updated: "2026-05-29T21:01:21.186Z"
-last_activity: 2026-05-29
+stopped_at: Completed 217-02-PLAN.md
+last_updated: "2026-05-30T00:49:05.376Z"
+last_activity: 2026-05-30
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 21
-  completed_plans: 19
-  percent: 71
+  completed_plans: 20
+  percent: 95
 ---
 
 # Session State
@@ -28,16 +28,16 @@ See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
 ## Current Position
 
 Phase: 217 (production-cycle-budget-baseline) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 **Last shipped milestone:** v1.45 Flapping Peak-Counter Window Repair (shipped 2026-05-27 — VERIFY-01 DEFERRED)
 **Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
 **Active milestone:** v1.46 Internet Quality Recovery
 **Current phase:** 217
-**Current plan:** 1
+**Current plan:** 3
 **Status:** Ready to execute
-**Last activity:** 2026-05-29
+**Last activity:** 2026-05-30
 
-Progress: [█████████░] 90%
+Progress: [██████████] 95%
 
 ## Phase Structure (v1.46)
 
@@ -117,8 +117,8 @@ Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope
 
 ## Session Continuity
 
-Last session: 2026-05-29T21:01:21.158Z
-Stopped at: Completed 217-01-PLAN.md
+Last session: 2026-05-30T00:48:33.167Z
+Stopped at: Completed 217-02-PLAN.md
 Resume file: None
 Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
@@ -181,6 +181,8 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [216-01]: Closed Phase 196 as no-change / resolved-by-197; Phase 197's tests are the semantic proof and Phase 213 only shows no current symptom.
 - [216-01]: Treated Phase 213 `backlog_suppressed_delta=14451` as a zero-weight cross-WAN merge artifact over a cumulative lifetime counter.
 - [216-01]: RECOV-03 is satisfied only as a no-change gate/waiver; future tuning still requires a real transient/refractory production artifact.
+- [217-02]: Accepted the operator-gated Spectrum pilot and full capture after revert proof showed no `--profile`/`--debug`/`WANCTL_LOG_FORMAT` residue; Plan 03 can consume `.planning/perf/217-capture-window.json` and gitignored raw capture artifacts.
+- [217-02]: Final passing capture used live `journalctl` streaming because post-hoc retention preserved only the tail of the first one-hour attempt; the analysis NDJSON was filtered to JSON records only and validated at 71,560 cycle samples with router-write coverage present.
 
 ## Performance Metrics
 
@@ -209,3 +211,4 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 | Phase 215 P03 | 18min | 2 tasks | 35 files |
 | Phase 216 P01 | 3.3min | 3 tasks | 5 files |
 | Phase 217 P01 | 4min | 3 tasks | 5 files |
+| Phase 217 P02 | 3h 40m | 3 tasks | 2 files |
