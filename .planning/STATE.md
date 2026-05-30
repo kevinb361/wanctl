@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.47
 milestone_name: Measurement Evidence Closure
-status: verifying
-stopped_at: Completed 219-04-PLAN.md
-last_updated: "2026-05-30T16:55:10.767Z"
+status: ready_to_plan
+stopped_at: Phase 219 complete (4/4) — ready to discuss Phase 220
+last_updated: 2026-05-30T17:20:04.161Z
 last_activity: 2026-05-30
 progress:
   total_phases: 3
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-30 after v1.46 milestone close + v1.47 milestone open)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 219 — ingestion-rate-observability-scope-d
+**Current focus:** Phase 220 — matrix runner (scope a1)
 
 ## Current Position
 
-Phase: 219 (ingestion-rate-observability-scope-d) — COMPLETE
-Plan: 4 of 4
+Phase: 220
+Plan: Not started
 Status: Phase complete — ready for verification
 Last activity: 2026-05-30
 
@@ -84,7 +84,7 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ### v1.46-shipped-with-VERIFY-01-02-deferred
 
-- **Status:** Ready to execute
+- **Status:** Ready to plan
 - **Operator sign-off:** Kevin — 2026-05-30, via /gsd-progress → Acknowledge & close path: "fix STATE drift then complete milestone". 18/20 v1.46 requirements satisfied; VERIFY-01/02 carry forward as watch-list.
 - **Why this is acceptable:** v1.46 spine (DRIFT/BASE/MEAS/RECLAIM/RECOV/PERF) is complete and decoupled from VERIFY. VERIFY watch closure requires production-side natural evidence that cannot be hastened without invalidating the metric.
 
