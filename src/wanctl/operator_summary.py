@@ -6,6 +6,7 @@ import argparse
 import json
 import sqlite3
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
@@ -13,11 +14,13 @@ from urllib.request import urlopen
 
 from tabulate import tabulate
 
+from wanctl.history import per_wan_ingestion_rate_bucketed
 from wanctl.storage.db_utils import discover_wan_dbs
 
 # TOOL-03 / D-14: stable stderr prefix for per-DB digest skips. Tests assert on
 # this prefix plus wan=/db= context, not the full OS error text.
 _DIGEST_SKIP_PREFIX = "operator-summary digest: skipped"
+_DIGEST_INGESTION_PREFIX = "operator-summary digest: ingestion-rate"
 
 
 def _decode_payload(raw: str, source: str) -> dict[str, Any]:
@@ -149,23 +152,78 @@ def _format_digest_line(wan_name: str, rows: list[sqlite3.Row]) -> str:
     )
 
 
-def print_digest(db_paths: list[Path]) -> dict[str, int]:
-    """Print per-DB hard-red digest and return read/write accounting.
+def _format_ingestion_digest_line(wan_name: str, rows: list[dict]) -> str:
+    """Format one compact per-WAN ingestion-rate digest line."""
+    usable_rows = [
+        row
+        for row in rows
+        if row.get("table_name") and row.get("rows_per_sec") is not None
+    ]
+    if not usable_rows:
+        return f"{_DIGEST_INGESTION_PREFIX} wan={wan_name} total_rps=n/a top=n/a"
 
-    Only DB-open failures are classified as skipped. Query-time failures (for
-    example a missing alerts table) bubble to main() so schema/corruption faults
-    remain real command failures instead of permission skips.
-    """
-    counts = {"readable": 0, "printed": 0, "read_skipped": 0, "write_skipped": 0}
+    total_rps = sum(float(row["rows_per_sec"]) for row in usable_rows)
+    if total_rps == 0:
+        return f"{_DIGEST_INGESTION_PREFIX} wan={wan_name} total_rps=n/a top=n/a"
+
+    sorted_rows = sorted(
+        usable_rows,
+        key=lambda row: float(row["rows_per_sec"]),
+        reverse=True,
+    )
+    top1 = sorted_rows[0]
+    top1_name = str(top1["table_name"])
+    if len(sorted_rows) == 1:
+        top_token = top1_name
+    else:
+        top2 = sorted_rows[1]
+        top2_rps = float(top2["rows_per_sec"])
+        if top2_rps == 0 or float(top1["rows_per_sec"]) >= 1.20 * top2_rps:
+            top_token = top1_name
+        else:
+            names = sorted([top1_name, str(top2["table_name"])])
+            top_token = f"mixed:{names[0]}/{names[1]}"
+
+    return f"{_DIGEST_INGESTION_PREFIX} wan={wan_name} total_rps={total_rps:.2f} top={top_token}"
+
+
+def print_digest(db_paths: list[Path]) -> dict[str, int]:
+    """Print per-DB hard-red digest and ingestion-rate accounting."""
+    counts = {
+        "readable": 0,
+        "printed": 0,
+        "read_skipped": 0,
+        "write_skipped": 0,
+        "ingestion_printed": 0,
+    }
     if not db_paths:
         print("no WAN DBs discovered")
         return counts
 
+    now = int(time.time())
+    ingestion_data: dict[Path, list[dict] | None] = {}
+    for db_path in db_paths:
+        wan_name = _wan_name_from_db_path(db_path)
+        try:
+            ingestion_rows, _failures = per_wan_ingestion_rate_bucketed(
+                [db_path],
+                start_ts=now - 3600,
+                end_ts=now,
+                wan=None,
+            )
+        except (sqlite3.OperationalError, sqlite3.DatabaseError, OSError) as exc:
+            print(
+                f"{_DIGEST_SKIP_PREFIX} (ingestion) wan={wan_name} db={db_path}: {exc}",
+                file=sys.stderr,
+            )
+            counts["read_skipped"] += 1
+            ingestion_data[db_path] = None
+        else:
+            ingestion_data[db_path] = ingestion_rows
+
     for db_path in db_paths:
         wan_name = _wan_name_from_db_path(db_path)
 
-        # Narrow guard: catch permission/IO failures around DB OPEN only. Query
-        # OperationalError (missing table/bad SQL) must bubble to main().
         try:
             conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
         except (sqlite3.OperationalError, OSError) as exc:
@@ -178,10 +236,18 @@ def print_digest(db_paths: list[Path]) -> dict[str, int]:
 
         counts["readable"] += 1
         try:
-            rows = _query_digest_rows(conn)
+            try:
+                hard_red_rows = _query_digest_rows(conn)
+            except (sqlite3.OperationalError, sqlite3.DatabaseError) as exc:
+                print(
+                    f"{_DIGEST_SKIP_PREFIX} (hard-red query) wan={wan_name} db={db_path}: {exc}",
+                    file=sys.stderr,
+                )
+                counts["read_skipped"] += 1
+                continue
         finally:
             conn.close()
-        line = _format_digest_line(wan_name, rows)
+        line = _format_digest_line(wan_name, hard_red_rows)
 
         try:
             print(line)
@@ -193,6 +259,23 @@ def print_digest(db_paths: list[Path]) -> dict[str, int]:
             counts["write_skipped"] += 1
             continue
         counts["printed"] += 1
+
+    for db_path in db_paths:
+        wan_name = _wan_name_from_db_path(db_path)
+        gathered_rows = ingestion_data.get(db_path)
+        if gathered_rows is None:
+            continue
+        line = _format_ingestion_digest_line(wan_name, gathered_rows)
+        try:
+            print(line)
+        except OSError as exc:
+            print(
+                f"{_DIGEST_SKIP_PREFIX} (ingestion-write) wan={wan_name} db={db_path}: {exc}",
+                file=sys.stderr,
+            )
+            counts["write_skipped"] += 1
+            continue
+        counts["ingestion_printed"] += 1
 
     return counts
 
