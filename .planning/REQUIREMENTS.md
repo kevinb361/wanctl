@@ -89,4 +89,31 @@ Defer unless Phase 218 audit evidence proves CLI-only insufficient. If escalated
 
 ## Traceability
 
-(Filled by roadmap.)
+Every v1.47 REQ-ID is mapped to exactly one phase. SAFE-11 is cross-cutting and re-verified at each phase boundary (mirrors v1.45 SAFE-10, v1.44 SAFE-08/09, v1.43 SAFE-07 pattern); it is listed on all three phases.
+
+| Requirement | Phase | Scope | Status |
+|-------------|-------|-------|--------|
+| INGEST-01 | Phase 219 | D (Ingestion-Rate Observability) | Pending |
+| INGEST-02 | Phase 219 | D (Ingestion-Rate Observability) | Pending |
+| INGEST-03 | Phase 219 | D (Ingestion-Rate Observability) | Pending |
+| INGEST-04 | Phase 219 | D (Ingestion-Rate Observability) | Pending |
+| INGEST-05 | Phase 219 | D (Ingestion-Rate Observability) | Pending |
+| SAFE-11 (Phase 219 boundary) | Phase 219 | Cross-cutting | Pending |
+| CRITERIA-01 | Phase 220 | A1 (Matrix Runner) | Pending |
+| CRITERIA-02 | Phase 220 | A1 (Matrix Runner) | Pending |
+| MATRIX-01 | Phase 220 | A1 (Matrix Runner) | Pending |
+| MATRIX-02 | Phase 220 | A1 (Matrix Runner) | Pending |
+| MATRIX-03 | Phase 220 | A1 (Matrix Runner) | Pending |
+| MATRIX-04 | Phase 220 | A1 (Matrix Runner) | Pending |
+| AGGREGATE-01 | Phase 220 | A1 (Matrix Runner) | Pending |
+| AGGREGATE-02 | Phase 220 | A1 (Matrix Runner) | Pending |
+| AGGREGATE-03 | Phase 220 | A1 (Matrix Runner) | Pending |
+| SAFE-11 (Phase 220 boundary) | Phase 220 | Cross-cutting | Pending |
+| CLOSEOUT-01 | Phase 221 | A2 (Matrix Evidence + Closeout) | Pending |
+| CLOSEOUT-02 | Phase 221 | A2 (Matrix Evidence + Closeout) | Pending |
+| CLOSEOUT-03 | Phase 221 | A2 (Matrix Evidence + Closeout) | Pending |
+| SAFE-11 (Phase 221 boundary) | Phase 221 | Cross-cutting | Pending |
+
+**Coverage:** 18 unique REQ-IDs (INGEST x5, CRITERIA x2, MATRIX x4, AGGREGATE x3, CLOSEOUT x3, SAFE-11 x1) mapped across 3 phases. SAFE-11 appears as a phase-boundary gate three times because it is re-verified at every phase boundary; this is not a duplicate mapping, it is the v1.43-onward SAFE-cross-cutting convention.
+
+**Phase 218 fallback:** If Phase 218 (event-gated v1.45 VERIFY watch-list) fires during v1.47 matrix execution BEFORE INGEST-01..05 ship, the fallback is the v1.44 Phase 208 `wanctl-history --ingestion-rate` CLI as-is (per-WAN totals, no per-table breakdown). Phase 218 is parallel to v1.47, not a v1.47 gate, and is not counted in v1.47 traceability.

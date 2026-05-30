@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.47
 milestone_name: Measurement Evidence Closure
 status: planning
-last_updated: "2026-05-30T02:47:13.451Z"
+last_updated: "2026-05-30T03:15:00.000Z"
 last_activity: 2026-05-30
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,62 +17,68 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
+See: .planning/PROJECT.md (updated 2026-05-30 after v1.46 milestone close + v1.47 milestone open)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 218 — deferred v1.45 verify watch list closure
+**Current focus:** Phase 219 — Ingestion-Rate Observability (Scope D, D-first per Pitfall 11)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 219 (next; not yet planned)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-30 — Milestone v1.47 started
+Status: Roadmap committed; ready for `/gsd-plan-phase 219`
+Last activity: 2026-05-30 — v1.47 ROADMAP.md created with 3-phase LOCKED scope (Phases 219, 220, 221); D-first per Pitfall 11; Phase 218 parallel event-gated.
 
-## Phase Structure (v1.46)
+## Phase Structure (v1.47)
 
 | Phase | Goal | REQ-IDs |
 |-------|------|---------|
-| 212 | Production inventory and drift audit for Spectrum, ATT, and steering | DRIFT-01, DRIFT-02, DRIFT-03 |
-| 213 | Experience baseline harness for normal use, RRUL, and `tcp_12down` evidence capture | BASE-01, BASE-02, BASE-03 |
-| 214 | Measurement-collapse investigation for bad p99 latency while health remains GREEN | MEAS-01, MEAS-02, MEAS-03 |
-| 215 | Spectrum upload reclaim canary after baseline evidence | RECLAIM-01, RECLAIM-02, RECLAIM-03 |
-| 216 | Queue-primary recovery/refractory semantics decision | RECOV-01, RECOV-02, RECOV-03 |
-| 217 | Production cycle-budget baseline and profiling todo closure | PERF-01, PERF-02, PERF-03 |
-| 218 | Deferred v1.45 VERIFY watch-list closure when natural event exists | VERIFY-01, VERIFY-02 |
+| 219 | Per-WAN per-table SQLite ingestion-rate observability as additive `wanctl-history --ingestion-rate` extensions to support Phase 218 audit evidence regardless of v1.47 timing | INGEST-01, INGEST-02, INGEST-03, INGEST-04, INGEST-05, SAFE-11 |
+| 220 | Target/path/window matrix runner with pre-registered CRITERIA gate (kill/defect/close-with-prejudice), stdlib aggregator with Mann-Whitney U + bootstrap CI, Wave 0 tests | CRITERIA-01, CRITERIA-02, MATRIX-01, MATRIX-02, MATRIX-03, MATRIX-04, AGGREGATE-01, AGGREGATE-02, AGGREGATE-03, SAFE-11 |
+| 221 | Operator-driven matrix execution, closeout decision report with explicit verdict, folded `tcp_12down` todo closed-or-carried with close-with-prejudice rule | CLOSEOUT-01, CLOSEOUT-02, CLOSEOUT-03, SAFE-11 |
 
-**Ordering rationale:** Start read-only with live inventory and user-experience baseline before any tuning. Measurement collapse and upload reclaim should be evidence-driven. Recovery/refractory decisions wait for current baseline data. Phase 218 is a watch-list cleanup phase and only executes when a natural production flapping event exists.
+**Ordering rationale:** D-first per Pitfall 11 — ship ingestion-rate observability before matrix-execution phase so Phase 218 has the tool available if it fires during v1.47. Scope D is fully independent of Scope A technically (different files, different surfaces). A1 (harness + pre-registered criteria) before A2 (operator-driven evidence) because the matrix YAML pre-registers kill/defect thresholds in CONTEXT before any live data exists that could bias them (Pitfall 2). A2 evidence collection cannot start until A1's wrapper exists. Closeout report cannot be written until evidence exists.
+
+**Phase 218 is parallel, not part of v1.47.** Phase 218 stays open as an event-gated watch-list item carried from v1.45 + v1.46; it runs alongside v1.47 but is not a v1.47 gate. v1.47 phase numbering starts at 219 with Phase 218 reserved.
 
 ## Cross-Cutting Invariants
 
-**v1.46 safety posture:**
+**v1.47 safety posture:**
 
-- No production tuning before baseline evidence and rollback gates.
-- One knob per production canary.
-- Do not treat `/health.status == healthy` or `GREEN` as sufficient proof of good user experience.
-- v1.45 VERIFY-01 remains carried as a watch-list item and must not block quality work.
+- **Read-only milestone.** No controller threshold/algorithm/CAKE/steering changes from matrix results. v1.47 closeout may recommend, never implement. Tuning belongs to v1.48+ after evidence isolates a cause.
+- **SAFE-11 mutation-boundary at every phase boundary** — expanded allowlist beyond `src/wanctl/`: `configs/`, `deploy/systemd/`, `scripts/`, `tests/fixtures/phase22*/`, `docs/`. Controller-path files (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) remain forbidden. Phase 219 Scope D additive edits to `src/wanctl/history.py` are explicitly allowlisted.
+- **Stdlib-only mandate carries from Phase 214 D-10** — no SciPy/NumPy/pandas; Mann-Whitney U + bootstrap percentile CI implemented in `statistics`/`random`.
+- **Pre-registered kill/defect criteria** — must be written in `220-CONTEXT.md` BEFORE any live matrix cell run. Quantitative and time-bound. Locked at Phase 220 plan time, never edited after first live run.
+- **Close-with-prejudice rule** — if matrix verdict is again `ambiguous`, the folded `tcp_12down` todo is closed-with-prejudice; no v1.48+ follow-up may reopen without independent new evidence (e.g., a real production p99 incident captured in DB). "Carried-narrower forever" is explicitly disallowed.
+- **Canonical control cell mandatory** — Phase 214 canonical `dallas` reflector present in EVERY window; supplemental Vultr cells are separated from canonical in the report; matrix is never Vultr-only.
+- **Per-replicate IP-pinning + mtr/traceroute snapshot** — Pitfall 4 (BGP path mid-run change) mitigated by per-cell harness verification.
+- **Cycle budget guard** — post-deploy `cycle_total.avg_ms ≤ 3.0`, `p99_ms ≤ 7.5` (Phase 217 anchor: 2.883 / 6.9 over 71,560 samples).
+- **`/health` is never quality** — Pitfall 12; always paired with flent evidence in reports.
+- **Phase 218 fallback** — if Phase 218 fires before INGEST-01..05 ship, fall back to v1.44 Phase 208 `wanctl-history --ingestion-rate` CLI as-is (per-WAN totals, no per-table breakdown). Documented to prevent re-litigation mid-incident.
 
-## Deferred Items (carried from v1.46 close)
+## Deferred Items (carried from v1.46 close, preserved into v1.47)
 
-Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipped with VERIFY-01/VERIFY-02 deferred — Phase 218 retained as an event-gated watch-list item for the next qualifying natural DOCSIS flapping event. v1.47 scope is TBD.
+Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipped with VERIFY-01/VERIFY-02 deferred — Phase 218 retained as an event-gated watch-list item for the next qualifying natural DOCSIS flapping event. v1.47 scope is LOCKED at 3 phases (219, 220, 221) per joint Claude + Codex operator decision 2026-05-30; deferred items below remain parallel to v1.47.
 
 | Category | Item | Status |
 |----------|------|--------|
-| requirements | VERIFY-01 | deferred to Phase 218 — needs natural production flapping event with `peak_transition_count > 30` |
-| requirements | VERIFY-02 | deferred to Phase 218 — gated on VERIFY-01 + ALERT-03 per-`cooldown_sec` bucket audit |
-| phases | Phase 218 (Deferred v1.45 VERIFY Watch-List Closure) | carried as event-gated watch item; no synthetic event generation per ROADMAP |
+| requirements | VERIFY-01 | deferred to Phase 218 — needs natural production flapping event with `peak_transition_count > 30`; parallel to v1.47 |
+| requirements | VERIFY-02 | deferred to Phase 218 — gated on VERIFY-01 + ALERT-03 per-`cooldown_sec` bucket audit; parallel to v1.47 |
+| requirements | STEER-DRIFT-01 | deferred — steering runtime `1.39` vs source `1.45` alignment pending operator approval at v1.47+ planning; NOT in v1.47 scope |
+| requirements | RECLAIM-04 | deferred — Spectrum upload reclaim re-attempt requires fundamentally different probe shape after Phase 215 bounded VOID; NOT in v1.47 scope |
+| phases | Phase 218 (Deferred v1.45 VERIFY Watch-List Closure) | carried as event-gated watch item; no synthetic event generation per ROADMAP; parallel to v1.47 |
 | debug_sessions | knowledge-base | unknown (index file, not active investigation) |
-| todos | 2026-04-08-investigate-tcp-12down-latency-spikes-under-multi-flow-downl | pending — Phase 214 left `ambiguous`/`reflector_loss`/`signal none`; v1.47 candidate |
-| todos | 2026-04-17-ingestion-rate-tool | pending — would improve metrics.db write-rate observability for 218 evidence audit |
-| todos | 2026-04-17-investigate-steering-degraded-on-clean-restart | pending — Phase 212 spot-check `current-state-good/reproduction-not-attempted` |
-| todos | 2026-04-17-monitor-flapping-peak-count-on-next-docsis-event | pending — primary 218 trigger; closes with VERIFY-01 |
+| todos | 2026-04-08-investigate-tcp-12down-latency-spikes-under-multi-flow-downl | **TARGETED BY v1.47 Phase 220/221** — confirm-or-kill via canonical 3-target × 2-path × 3-window matrix; closeout records verdict and close-or-carry decision |
+| todos | 2026-04-17-ingestion-rate-tool | **TARGETED BY v1.47 Phase 219** — additive `--by-table` + `--rolling` extensions to `wanctl-history --ingestion-rate` |
+| todos | 2026-04-17-investigate-steering-degraded-on-clean-restart | pending — Phase 212 spot-check `current-state-good/reproduction-not-attempted`; NOT in v1.47 scope |
+| todos | 2026-04-17-monitor-flapping-peak-count-on-next-docsis-event | pending — primary Phase 218 trigger; closes with VERIFY-01; parallel to v1.47 |
 | todos | 2026-04-24-resolve-att-cake-primary-canary-after-phase-196 | pending (gated on Phase 191 closure; ATT canary already deployed in v1.45) |
 | todos | 2026-04-15-profile-post-hotpath-baseline-on-production-wan | **CLOSED 2026-05-30 by Phase 217** — see 217-03 SUMMARY |
 | seeds | SEED-003-v143-d14-watchdog-recalibration | dormant |
 | seeds | SEED-004-v143-target-edge-churn-instrumentation | dormant |
-| seeds | SEED-005-v143-conservative-ul-tuning-sweep | dormant |
-| seeds | SEED-006-v145-silicom-bypass-tooling-and-harness | dormant |
-| seeds | SEED-007-v145-storage-hygiene-fire-on-change | dormant |
+| seeds | SEED-005-v143-conservative-ul-tuning-sweep | dormant; explicitly out-of-scope for v1.47 |
+| seeds | SEED-006-v145-silicom-bypass-tooling-and-harness | dormant; explicitly out-of-scope for v1.47 |
+| seeds | SEED-007-v145-storage-hygiene-fire-on-change | dormant; explicitly out-of-scope for v1.47 |
 | quick_tasks | 12 orphan slugs from older milestones | metadata noise; candidate for `/gsd-cleanup` retroactive sweep |
 
 ### v1.46-shipped-with-VERIFY-01-02-deferred
@@ -81,32 +87,11 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 - **Operator sign-off:** Kevin — 2026-05-30, via /gsd-progress → Acknowledge & close path: "fix STATE drift then complete milestone". 18/20 v1.46 requirements satisfied; VERIFY-01/02 carry forward as watch-list.
 - **Why this is acceptable:** v1.46 spine (DRIFT/BASE/MEAS/RECLAIM/RECOV/PERF) is complete and decoupled from VERIFY. VERIFY watch closure requires production-side natural evidence that cannot be hastened without invalidating the metric.
 
-### Previous deferred items (v1.44 close — superseded)
-
-Retained for traceability; superseded by the v1.46 entries above.
-
-| Category | Item | Status |
-|----------|------|--------|
-| debug_sessions | knowledge-base | unknown |
-| threads | phase-196-queue-primary-refractory-semantics-investigation | closed (Phase 216, no-change / resolved-by-197, 2026-05-29) |
-| todos | 2026-04-08-investigate-tcp-12down-latency-spikes-under-multi-flow-downl | pending (tuning; reproduction matrix not re-run post-v1.40) |
-| todos | 2026-04-15-profile-post-hotpath-baseline-on-production-wan | pending (rescoped to post-v1.44 baseline) |
-| todos | 2026-04-17-investigate-steering-degraded-on-clean-restart | pending (low-pri; spot-checked GOOD on 2026-05-26) |
-| todos | 2026-04-17-monitor-flapping-peak-count-on-next-docsis-event | **PROMOTED TO v1.45 SPINE** — confirmed bug, root cause located, Design Option A selected; will close when VERIFY-01 satisfied |
-| todos | 2026-04-24-resolve-att-cake-primary-canary-after-phase-196 | pending (gated on Phase 191 closure) |
-| seeds | SEED-003-v143-d14-watchdog-recalibration | dormant |
-| seeds | SEED-004-v143-target-edge-churn-instrumentation | dormant |
-| seeds | SEED-005-v143-conservative-ul-tuning-sweep | dormant |
-| seeds | SEED-006-v145-silicom-bypass-tooling-and-harness | dormant (planted 2026-05-26) |
-| seeds | SEED-007-v145-storage-hygiene-fire-on-change | dormant (planted 2026-05-26) |
-
-**Note on SEED-006/007 naming:** Both seeds are named `v145-*` but are NOT consumed by the v1.45 milestone. v1.45 spine is the flapping-peak bug fix only. SEED-006/007 may be candidates for v1.46+ depending on operator scoping.
-
 ### v1.45-shipped-with-VERIFY-01-deferred
 
 - **Status:** v1.45 shipped pending production verification.
 - **Operator sign-off:** Kevin — 2026-05-27T17:53:06Z, via prompt: "Just defer. I am tired of waiting. We can circle back to it later if needed. I want to cleanly move to 1.446" (`1.446` interpreted as v1.46).
-- **Carry-forward task:** Close VERIFY-01 in v1.46 (or later) when a qualifying production DOCSIS event produces an alerts row with `details.peak_transition_count > 30` on either WAN.
+- **Carry-forward task:** Close VERIFY-01 in v1.46 (or later) when a qualifying production DOCSIS event produces an alerts row with `details.peak_transition_count > 30` on either WAN. Now lives as Phase 218 watch-list; parallel to v1.47.
 - **Reference:** `.planning/phases/211-production-verification-milestone-closure/211-VERIFY-01-evidence/EVIDENCE.md` (deferral narrative + BRANCH-B flag).
 - **Synthetic proof:** Phase 210 unit + integration tests (`132/132` alerting/integration slice passing); production observation is the open gate.
 - **ALERT-03 note:** ALERT-03 production audit is deferred with VERIFY-01 because no qualifying production episode exists to bucket by `cooldown_sec`.
@@ -115,50 +100,47 @@ Retained for traceability; superseded by the v1.46 entries above.
 
 ### Roadmap Evolution
 
+- **2026-05-30 (v1.47 ROADMAP commit):** v1.47 ROADMAP.md created with 3-phase LOCKED scope per joint Claude + Codex operator decision: Phase 219 (Scope D — Ingestion-Rate Observability, D-first per Pitfall 11) → Phase 220 (Scope A1 — Matrix Runner with pre-registered CRITERIA gate) → Phase 221 (Scope A2 — Matrix Evidence + Closeout). Phase numbering starts at 219; Phase 218 reserved as parallel event-gated v1.45 VERIFY watch-list. SAFE-11 cross-cutting at every phase boundary (mirrors v1.45 SAFE-10, v1.44 SAFE-08/09, v1.43 SAFE-07 pattern). All 20 v1.47 REQ-IDs mapped: INGEST-01..05 + SAFE-11 → Phase 219; CRITERIA-01..02 + MATRIX-01..04 + AGGREGATE-01..03 + SAFE-11 → Phase 220; CLOSEOUT-01..03 + SAFE-11 → Phase 221. Stdlib-only mandate carries from Phase 214 D-10 (no SciPy/NumPy/pandas).
 - 2026-05-27: v1.46 roadmap opened as Internet Quality Recovery after operator reassessment that v1.45 production-observation wait was stalling useful work while internet quality felt worse than it should. Scope is evidence-first quality recovery: production drift audit, experience baseline, measurement-collapse investigation, conservative upload reclaim, recovery/refractory decision, cycle-budget baseline, and deferred v1.45 VERIFY watch-list closure. Phase numbering continues from v1.45 (last phase 211) → v1.46 starts at Phase 212.
 - 2026-05-26: v1.45 roadmap drafted with 2 phases (210, 211). All 8 v1.45 REQ-IDs mapped (ALERT-01..03, TEST-01..03, VERIFY-01, SAFE-10). Phase numbering continues from v1.44 (last phase 209). Spine: `2026-04-17-monitor-flapping-peak-count-on-next-docsis-event` confirmed-bug todo. Two-phase split made explicit because VERIFY-01 is a production-gate that cannot be satisfied at PR-merge time. SAFE-10 cross-cutting at every phase boundary (mirrors v1.44 SAFE-08/SAFE-09 mechanism).
 
-### Key Design Decision (carried forward from REQUIREMENTS.md)
+### Key v1.47 Design Decisions (carried from PROJECT.md + REQUIREMENTS.md + research SUMMARY.md)
 
-- **Design Option A** selected (per-direction windowed peak accumulator independent of deque-clear). Option B (rename payload to `transition_count_at_fire`) explicitly rejected because it would lose the intensity signal that motivated the metric in the first place. Decision ratified by Codex round-2 peer review 2026-05-26.
+- **3 phases LOCKED.** Joint Claude + Codex operator decision 2026-05-30. Not 2, not 4. ARCHITECTURE proposed A1/A2 as sub-plans of a single phase; FEATURES proposed 3 separate phases; PITFALLS pushed D before matrix execution. Resolved as 3 phases, D first.
+- **D-first ordering** prevents Pitfall 11: ingestion-rate tool must be available if Phase 218 fires during v1.47 matrix execution window. Scope D and Scope A are technically independent (different files, different surfaces).
+- **Pre-registered kill/defect criteria** in `220-CONTEXT.md` BEFORE any live matrix cell run. Prevents Pitfall 2 (threshold-after-data bias). Locked at Phase 220 plan time; never edited after first live run.
+- **Close-with-prejudice rule** prevents Pitfall 2's degenerate case: "carried-narrower forever." If matrix verdict is again `ambiguous`, the folded todo is closed-with-prejudice; no v1.48+ follow-up without independent new production evidence.
+- **Canonical control cell** in every window (Phase 214 canonical `dallas`). Prevents Pitfall 1 (confirmation bias on Vultr supplemental). Matrix is never Vultr-only; supplemental cells are separated from canonical in the report.
+- **Stdlib-only statistics.** Mann-Whitney U (two-sided, normal approximation) + bootstrap 95% percentile CI (B=2000, `random.Random(seed)` for determinism). Pinned-fixture golden tests compensate for absence of SciPy verification.
+- **SAFE-11 expanded allowlist.** Mutation-boundary now covers `src/wanctl/`, `configs/`, `deploy/systemd/`, `scripts/`, `tests/fixtures/phase22*/`, `docs/`. Fixtures encode evidence (`observed_*.json`), never controller specifications (`expected_behavior_*.json` forbidden). `docs/` edits describe new CLI tools only — no threshold-tuning language, no future-tuning prediction. Phase 219 Scope D additive edits to `src/wanctl/history.py` are explicitly allowlisted.
+- **Optional `/health.metrics.ingestion` block deferred.** If Phase 218 audit evidence proves CLI-only insufficient, escalation is additive-only, numeric-only, ARCH-09 payload-shape contract + ARCH-12 DeferredIOWorker mandatory. Counters never live on the 50ms control thread. Post-deploy `cycle_total.avg_ms ≤ 3.0`, `p99_ms ≤ 7.5` required.
 
-### Root Cause (carried forward from todo)
+### Open Gaps from research SUMMARY (to settle at Phase 220 plan time)
 
-- `src/wanctl/wan_controller.py:4322-4323` (DL) and `:4353-4354` (UL): in-fire `deque.clear()` + `self._dl_peak_transitions = 0` (and UL equivalent) destroys window state at the exact moment the alert fires.
-- `peak = max(peak, len(deque))` runs immediately before the fire check (line 4307 DL), so at fire-time `peak == len(deque) == flap_threshold == 30` by construction.
-- Production data over 30 days (20+ Spectrum + 3 ATT flapping events) confirms `peak_transition_count == transition_count == 30` for every event.
-- Existing tests at `tests/test_alert_engine.py:1615-1649` (`TestFlappingDequeClear`) assert clear-after-fire semantics and must be updated for Option A.
-
-### Alerting Boundary
-
-- `alert_engine.py` semantics (cooldown_sec per-rule dedup, see `:50,68,181-184,229`) are NOT changed in v1.45. Only `wan_controller.py` peak tracking changes.
-- `min_hold_sec` (`wan_controller.py:4288-4292`, 1.0s default) is a separate dwell filter and is also unchanged.
+- Exact matrix cell count and per-cell replicate budget: FEATURES.md estimates 90 flent runs (5 targets × 3 paths × 2 windows × 3 runs) but also notes a bounded variant at ~30 cells. Operator decision at Phase 220 CONTEXT and matrix YAML authoring.
+- Scope D escalation decision timing: Phase 219 CONTEXT should make the CLI-vs-daemon escalation trigger and fallback (v1.44 Phase 208 CLI as-is) explicit so it is not re-litigated mid-phase.
 
 ## Session Continuity
 
-Last session: 2026-05-30T00:48:33.167Z
-Stopped at: Completed 217-02-PLAN.md
+Last session: 2026-05-30 — v1.47 ROADMAP.md committed (3-phase LOCKED scope)
+Stopped at: Roadmap committed; awaiting `/gsd-plan-phase 219`
 Resume file: None
-Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
+Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Run `/gsd-plan-phase 219` to materialize Phase 219 Scope D ingestion-rate observability plans.
+- Phase 218 stays watch-only; alert-window query for `peak_transition_count > 30` runs in parallel.
 
-## Decisions (v1.45)
+## Decisions (v1.47)
 
-- [v1.45 Roadmap]: Two-phase split selected over single-phase. Rationale: VERIFY-01 cannot be satisfied at PR-merge time — it requires a real production flapping event after deploy. Making the production-gate an explicit phase boundary (Phase 211) mirrors v1.44 Phase 209 production-canary pattern and avoids burying the closure gate as a milestone-close deferral.
-- [v1.45 Roadmap]: ALERT-03 (alert-once-per-`cooldown_sec`-window, no per-cycle log-spam; amended 2026-05-26 per codex peer review from "per episode" to "per cooldown_sec window" after live-config audit found Spectrum=600s, ATT=300s default — making "per episode" mathematically infeasible at the documented Spectrum cooldown intent of ~3 firings per 30-min event) paired into Phase 211 rather than Phase 210 because end-to-end behavior is only verifiable in production under a real sustained event. Phase 210 tests establish the mechanism (cooldown_sec retained, deque-clear-on-fire retained); Phase 211 confirms it holds in production.
-- [v1.45 Roadmap]: SAFE-10 owned primarily by Phase 210 (PR-merge-time verification) and re-verified at Phase 211 (milestone-close) to catch drift between merge and deploy.
-- [v1.45 Roadmap]: Plan materialization deferred to `/gsd-plan-phase` per milestone convention; no `.planning/phases/210-*` or `.planning/phases/211-*` directories created during roadmap phase.
-- [210-02]: Flapping tests now assert `peak_transition_count` from `_dl_peak_window_transitions` / `_ul_peak_window_transitions` deques, with fixed-threshold second-fire coverage for DL and UL.
-- [210-02]: Threshold-mutation integration coverage was adjusted because identical `flap_window` pruning makes the old `peak=35` / `transition=30` payload expectation impossible under the accepted two-deque design.
-- [210-03]: SAFE-10 baseline uses v1.44 archive marker `21ee630` as the local equivalent close point because `c9932d2` resolves to an earlier v1.42-era commit in this checkout.
-- [211-01]: Spectrum v1.45 canary deploy verified via bound production health endpoint `http://10.10.110.223:9101/health`; loopback `127.0.0.1:9101` is not listening in current production config.
-- [211-01]: `scripts/deploy.sh spectrum cake-shaper` copied v1.45 code but did not restart the running daemon; orchestrator restarted `wanctl@spectrum.service`, after which `/health.version` returned `1.45.0` and the Spectrum 7d observation window opened at approximately `2026-05-26T18:48:06Z`.
-- [211-02]: Operator approved ATT rollout before the original T+24h gate; ATT Snapshot A `20260527T174231Z` was captured, `./scripts/deploy.sh att cake-shaper` ran, and `wanctl@att.service` required restart before bound health endpoint `http://10.10.110.227:9101/health` returned `1.45.0 healthy`.
-- [211-02]: Operator explicitly chose early D-04(b) deferral before the full 7d observation window elapsed. VERIFY-01 remains open for v1.46/watch-list; Plan 211-03 must follow Branch B and must not archive active phase directories with `git mv`.
-- [v1.45 deferral close]: v1.45 shipped with VERIFY-01 DEFERRED by operator sign-off at 2026-05-27T17:53:06Z; ALERT-03 audit is deferred because no qualifying production episode exists; SAFE-10 manual audit passed against `21ee630` with `AWK_EXIT=0`; carry-forward task is to close VERIFY-01 in v1.46/watch-list when a qualifying DOCSIS event appears.
+- [v1.47 Roadmap]: 3-phase LOCKED scope per joint Claude + Codex operator decision 2026-05-30. ARCHITECTURE's "single phase with A1/A2 sub-plans" rejected; FEATURES's "3 phases" + PITFALLS's "D first" ratified. Final order: 219 (D) → 220 (A1) → 221 (A2).
+- [v1.47 Roadmap]: Phase 218 reserved as parallel event-gated v1.45 VERIFY watch-list; v1.47 phases start at 219. Phase 218 is NOT a v1.47 gate and is NOT counted in v1.47 progress.
+- [v1.47 Roadmap]: SAFE-11 cross-cutting at every phase boundary; mapped to all three v1.47 phases (mirrors v1.45 SAFE-10, v1.44 SAFE-08/09, v1.43 SAFE-07 pattern). Expanded allowlist beyond `src/wanctl/` to cover `configs/`, `deploy/systemd/`, `scripts/`, `tests/fixtures/phase22*/`, `docs/`.
+- [v1.47 Roadmap]: Plan materialization deferred to `/gsd-plan-phase` per milestone convention; no `.planning/phases/219-*`/`220-*`/`221-*` directories created during roadmap phase.
+- [v1.47 Roadmap]: Stdlib-only mandate (`statistics`, `random`, `math`, `json`, `sqlite3`, `gzip`) carries forward from Phase 214 D-10. No SciPy/NumPy/pandas. Mann-Whitney U + bootstrap percentile CI in stdlib.
+- [v1.47 Roadmap]: Close-with-prejudice rule for `carried_narrower` verdict locked in CRITERIA-02 to prevent the degenerate "ambiguous forever" outcome.
+- [v1.47 Roadmap]: Phase 218 fallback documented: if Phase 218 fires before INGEST-01..05 ship, fall back to v1.44 Phase 208 `wanctl-history --ingestion-rate` CLI as-is (per-WAN totals, no per-table breakdown). Prevents re-litigation mid-incident.
 
 ## Decisions (v1.46)
 
@@ -188,7 +170,7 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 - [214-05]: Mutation-boundary fallback base selection rejects stale `origin/main` merge-bases that already include protected-path diffs, then falls back to `HEAD~10` unless `PHASE214_BASE_SHA` is set.
 - [214-05]: Forbidden mutation regex is command/assignment-form anchored and tightened so narrative prose beginning with `restart wanctl` does not self-invalidate the guard.
 - [214-06]: Official three-window Spectrum/Dallas matrix verdict is `ambiguous` (daytime/prime-time p99 606/560ms ambiguous, off-peak p99 120ms pass), primary driver `reflector_loss`, signal disposition `none`. Historical catastrophic `p99 > 1000ms` was NOT reproduced and there was no in-window journal corroboration for reflector fail bursts, so Form B/C signals are deferred and the folded `tcp_12down` todo is carried-narrower rather than closed.
-- [214-06]: Supplemental Vultr Dallas/Chicago runs (severe loaded p99 745/651ms) are NOT part of the canonical matrix but keep target/path sensitivity a live hypothesis for Phase 215+.
+- [214-06]: Supplemental Vultr Dallas/Chicago runs (severe loaded p99 745/651ms) are NOT part of the canonical matrix but keep target/path sensitivity a live hypothesis for v1.47.
 - [214 UAT]: Phase 214 verified read-only via 8/8 UAT against committed fixtures; mutation-boundary pytest enforces zero `src/wanctl` diff, making the no-mutation attestation testable rather than asserted. No `*-SECURITY.md` was produced (security gate waived for a strictly read-only investigation per operator).
 - [215-01]: Upload extraction excludes ambiguous `TCP totals`; the reclaim gate derives p95/p99/throughput bounds from leg-A inputs, keeps Phase 213 numbers as fallback constants, and maps VOID to exit 2 for set-e-safe Plan 03 branching.
 - [215-02]: Snapshot A acceptance allows an absent retained `wanctl_config_snapshot` DB row; repo config ceiling=18, deployed config ceiling=18, and bound Spectrum `/health` evidence form the pre-mutation rollback anchor when the exact read-only query returns no row.
