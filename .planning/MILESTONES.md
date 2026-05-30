@@ -1,5 +1,36 @@
 # Project Milestones: wanctl
 
+## v1.46 Internet Quality Recovery (Shipped: 2026-05-30 — VERIFY-01/02 DEFERRED)
+
+**Delivered:** Evidence-first quality recovery across Spectrum, ATT, and steering. Production drift inventoried; experience baseline harness shipped; measurement-collapse classifier returned `ambiguous`/`reflector_loss` (severe loaded p99 NOT reproduced in official window); upload-reclaim canary tried ceiling 18→20, bounded VOID exhausted, Spectrum rolled back to 18; Phase 196 refractory thread closed as no-change/resolved-by-197; production cycle-budget profiled at 71,560 timing samples, profiling baseline todo closed as no-action. v1.45 VERIFY-01/02 carried forward to Phase 218 as event-gated watch-list.
+
+**Phases completed:** 6 of 7 (Phase 218 deferred — event-gated on natural DOCSIS flapping event)
+**Plans:** 21 / 21 plannable
+**Tasks:** 42
+
+**Key accomplishments:**
+
+1. **Phase 212 — Production drift audit:** Read-only Spectrum/ATT/steering inventory with D-08 secret-safe redaction; steering runtime `1.39` vs source `1.45` surfaced as known unaligned drift.
+2. **Phase 213 — Experience baseline harness:** Single-command per-WAN baseline harness with co-sampled health/CAKE/SQLite/steering capture and offline six-bucket signal classification.
+3. **Phase 214 — Measurement collapse investigation:** Fail-closed flent ping percentile extractor + per-second alignment + six-driver classifier; canonical Spectrum matrix verdict `ambiguous`/`reflector_loss`/`signal none`.
+4. **Phase 215 — Spectrum upload reclaim canary:** One-knob ceiling 18→20 canary with Snapshot A rollback anchor; bounded VOID exhausted on three attempts; Spectrum safely rolled back to ceiling 18.
+5. **Phase 216 — Recovery/refractory decision:** Closed Phase 196 queue-primary refractory semantics thread as no-change / resolved-by-197 with evidence-cited rationale.
+6. **Phase 217 — Cycle-budget baseline:** Operator-gated Spectrum profiling captured 71,560 JSON Cycle records with router-write coverage; production safely reverted; profiling baseline todo closed as no-action.
+
+**Stats:**
+
+- 156 commits (bab4a59..d27fa81)
+- 76 source/test/script/deploy files changed (+8,101 LOC, additive)
+- 21 plans across 6 phases (Phase 218 deferred)
+- Timeline: 2026-05-27 → 2026-05-30 (~3 days)
+- Git range: `docs(212): capture phase context` → `docs(phase-217): evolve PROJECT after completion`
+
+**Known deferred items at close:** 2 (VERIFY-01, VERIFY-02 — both carried to Phase 218 as event-gated watch-list; see STATE.md "Deferred Items (carried from v1.46 close)")
+
+**What's next:** v1.47 — TBD. Phase 218 stays open until a natural production DOCSIS flapping event produces a qualifying `peak_transition_count > 30` row. Candidate v1.47 scope inputs: `tcp_12down` target/path sensitivity (Phase 214 follow-up), steering version-drift alignment (Phase 212 carry), Spectrum upload reclaim re-attempt with revised gate, ingestion-rate observability tool.
+
+---
+
 ## v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (Shipped: 2026-05-26)
 
 **Phases completed:** 5 phases, 27 plans, 68 tasks

@@ -671,6 +671,60 @@ _A living document updated after each milestone. Lessons feed forward into futur
 
 ---
 
+## Milestone: v1.46 — Internet Quality Recovery
+
+**Shipped:** 2026-05-30 (shipped-with-deferral)
+**Phases:** 6 of 7 (Phase 218 deferred — event-gated) | **Plans:** 21
+**Timeline:** 2026-05-27 → 2026-05-30 (~3 days)
+
+### What Was Built
+
+- **Phase 212 — Production drift audit.** Read-only Spectrum/ATT/steering inventory with D-08 secret-safe redaction; steering runtime `1.39` vs source `1.45` surfaced as known unaligned drift.
+- **Phase 213 — Experience baseline harness.** Single-command per-WAN baseline harness with co-sampled `/health`/CAKE/SQLite/steering capture and offline six-bucket signal classification, producing the Phase 215 upload-reclaim recommendation.
+- **Phase 214 — Measurement collapse investigation.** Fail-closed flent ping percentile extractor + per-second alignment + six-driver classifier. Canonical Spectrum/Dallas verdict `ambiguous`/`reflector_loss`/`signal none`; severe loaded p99 NOT reproduced in the official window; `tcp_12down` folded todo carried-narrower.
+- **Phase 215 — Spectrum upload reclaim canary.** Snapshot A rollback anchor + one-knob ceiling `18 → 20` canary; bounded VOID exhausted on three attempts; Spectrum safely rolled back to ceiling 18 with proof.
+- **Phase 216 — Recovery/refractory decision.** Phase 196 queue-primary refractory thread closed as no-change / resolved-by-197 with evidence-cited rationale.
+- **Phase 217 — Production cycle-budget baseline.** Operator-gated Spectrum profiling captured `71,560` JSON Cycle records (`cycle_total.avg_ms=2.883`, `p99=6.9ms`); profiling baseline todo closed as no-action — performance is not the quality limit.
+
+### What Worked
+
+- **Evidence-first spine held.** No production tuning before baseline evidence. Phase 215's canary was the first mutation, after 212–214 supplied a tested reclaim verdict gate.
+- **Codex peer review at four explicit decision points** (215 plan, 216 round-2, 217 research force-refresh, milestone close). Each surfaced material issues or confirmed shape decisions.
+- **Snapshot A rollback anchor + one-knob canary discipline.** Tested rather than assumed; the negative result is high-value.
+- **Read-only-until-evidence with pytest-enforced mutation boundaries.** Phases 212–214 + 216 asserted zero `src/wanctl/` mutation, tested in CI rather than asserted.
+- **Pivoted to live `journalctl` streaming** in Phase 217 when post-hoc retention truncated the first capture; `71,560` samples in one window with router-write coverage.
+
+### What Was Inefficient
+
+- **Steering version drift surfaced without a fix path.** Phase 212 documented runtime `1.39` vs source `1.45`; alignment carries into v1.47.
+- **Phase 214 supplemental Vultr runs are NOT part of the canonical matrix.** Severe loaded p99 (Dallas 745ms / Chicago 651ms) keeps the `tcp_12down` hypothesis live but couldn't fold back into the verdict.
+- **Phase 217's first capture hour was lost to journal truncation** before the live-streaming pivot. Default to live streaming for any window > ~30 min.
+- **12 orphan `quick_tasks` slugs visible in `audit-open`** at milestone close are metadata noise; `/gsd-cleanup` retroactive sweep not run during v1.46.
+- **v1.45 retrospective never written** before v1.46 opened; future retrospective walks have a gap at v1.45.
+
+### Patterns Established
+
+- **Event-gated phase as a first-class artifact.** Phase 218 sits in ROADMAP visible-but-unplanned (`disk_status: no_directory`), gated on a natural production trigger. The no-synthetic-generation rule is now ROADMAP-encoded.
+- **Read-only investigation phases with pytest-enforced mutation boundaries.** Standardizes a "controller source diff == 0" gate testable from pytest, not just asserted.
+- **Negative reclaim canary with documented rollback.** Snapshot A → bounded VOID budget → targeted rollback → committed proof.
+- **Codex consulted at milestone close on milestone-shape, not just plan quality.** First use of cross-AI advisor for "should we start v1.47 vs drain backlog vs stand by."
+
+### Key Lessons
+
+1. `/health.GREEN` is not proof of user-perceived quality. Phase 214's `ambiguous` verdict at GREEN with one-cycle measurement collapse is the canonical example.
+2. A tested negative result with rollback is more valuable than an untested optimistic deploy (Phase 215).
+3. Performance is rarely the quality bottleneck at current scale (`p99=6.9ms` vs 50ms budget); deprioritize PERF in v1.47 until evidence flips.
+4. Defer the right things, not the convenient things. VERIFY-01/02 → Phase 218 is honest accounting, not procrastination.
+5. Live `journalctl` streaming beats post-hoc retention for any window > ~30 min.
+
+### Cost Observations
+
+- Model mix: opus-heavy planning + verification + close; sonnet/haiku for execution. Codex (gpt-5.5 xhigh) consulted at four explicit decision points.
+- 156 commits total in the milestone range (`bab4a59..d27fa81`); 76 source/test/script/deploy files changed (+8,101 LOC, additive — no controller-path mutations outside Phase 215's YAML config knob).
+- Milestone-close commits target: 3 (safety checkpoint, REQUIREMENTS removal, tag). Pattern from v1.44 held.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution

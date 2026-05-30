@@ -2,18 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.46
 milestone_name: Internet Quality Recovery
-current_phase: 217
-current_plan: 3
-status: ready_to_plan
-stopped_at: Phase 217 complete (3/3) — ready to discuss Phase 218
-last_updated: 2026-05-30T01:56:08.011Z
-last_activity: 2026-05-30
+status: verifying
+stopped_at: Completed 217-02-PLAN.md
+last_updated: "2026-05-30T02:09:43.062Z"
+last_activity: 2026-05-30 — Milestone v1.46 completed and archived
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 21
-  completed_plans: 27
-  percent: 71
+  completed_plans: 21
+  percent: 86
 ---
 
 # Session State
@@ -27,17 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-27 after v1.46 milestone open)
 
 ## Current Position
 
-Phase: 217 (production-cycle-budget-baseline) — EXECUTING
-Plan: 3 of 3
-**Last shipped milestone:** v1.45 Flapping Peak-Counter Window Repair (shipped 2026-05-27 — VERIFY-01 DEFERRED)
-**Recently archived:** v1.44 (2026-05-26), v1.43 (2026-05-13), v1.42 (2026-05-06), v1.41 (2026-05-06), v1.40 (2026-05-03)
-**Active milestone:** v1.46 Internet Quality Recovery
-**Current phase:** 218
-**Current plan:** Not started
-**Status:** Ready to plan
-**Last activity:** 2026-05-30
-
-Progress: [██████████] 95%
+Phase: Milestone v1.46 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-05-30 — Milestone v1.46 completed and archived
 
 ## Phase Structure (v1.46)
 
@@ -62,9 +53,38 @@ Progress: [██████████] 95%
 - Do not treat `/health.status == healthy` or `GREEN` as sufficient proof of good user experience.
 - v1.45 VERIFY-01 remains carried as a watch-list item and must not block quality work.
 
-## Deferred Items (carried from v1.44 close)
+## Deferred Items (carried from v1.46 close)
 
-Items acknowledged and deferred at v1.44 milestone close 2026-05-26. v1.45 scope is alerting-only and does not pull any of these forward.
+Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipped with VERIFY-01/VERIFY-02 deferred — Phase 218 retained as an event-gated watch-list item for the next qualifying natural DOCSIS flapping event. v1.47 scope is TBD.
+
+| Category | Item | Status |
+|----------|------|--------|
+| requirements | VERIFY-01 | deferred to Phase 218 — needs natural production flapping event with `peak_transition_count > 30` |
+| requirements | VERIFY-02 | deferred to Phase 218 — gated on VERIFY-01 + ALERT-03 per-`cooldown_sec` bucket audit |
+| phases | Phase 218 (Deferred v1.45 VERIFY Watch-List Closure) | carried as event-gated watch item; no synthetic event generation per ROADMAP |
+| debug_sessions | knowledge-base | unknown (index file, not active investigation) |
+| todos | 2026-04-08-investigate-tcp-12down-latency-spikes-under-multi-flow-downl | pending — Phase 214 left `ambiguous`/`reflector_loss`/`signal none`; v1.47 candidate |
+| todos | 2026-04-17-ingestion-rate-tool | pending — would improve metrics.db write-rate observability for 218 evidence audit |
+| todos | 2026-04-17-investigate-steering-degraded-on-clean-restart | pending — Phase 212 spot-check `current-state-good/reproduction-not-attempted` |
+| todos | 2026-04-17-monitor-flapping-peak-count-on-next-docsis-event | pending — primary 218 trigger; closes with VERIFY-01 |
+| todos | 2026-04-24-resolve-att-cake-primary-canary-after-phase-196 | pending (gated on Phase 191 closure; ATT canary already deployed in v1.45) |
+| todos | 2026-04-15-profile-post-hotpath-baseline-on-production-wan | **CLOSED 2026-05-30 by Phase 217** — see 217-03 SUMMARY |
+| seeds | SEED-003-v143-d14-watchdog-recalibration | dormant |
+| seeds | SEED-004-v143-target-edge-churn-instrumentation | dormant |
+| seeds | SEED-005-v143-conservative-ul-tuning-sweep | dormant |
+| seeds | SEED-006-v145-silicom-bypass-tooling-and-harness | dormant |
+| seeds | SEED-007-v145-storage-hygiene-fire-on-change | dormant |
+| quick_tasks | 12 orphan slugs from older milestones | metadata noise; candidate for `/gsd-cleanup` retroactive sweep |
+
+### v1.46-shipped-with-VERIFY-01-02-deferred
+
+- **Status:** v1.46 shipped with VERIFY-01 and VERIFY-02 deferred to Phase 218 as a continuation of the v1.45 deferral. Phase 218 is event-gated on a natural production DOCSIS flapping event with `details.peak_transition_count > 30` on either WAN. No synthetic event generation per ROADMAP constraint.
+- **Operator sign-off:** Kevin — 2026-05-30, via /gsd-progress → Acknowledge & close path: "fix STATE drift then complete milestone". 18/20 v1.46 requirements satisfied; VERIFY-01/02 carry forward as watch-list.
+- **Why this is acceptable:** v1.46 spine (DRIFT/BASE/MEAS/RECLAIM/RECOV/PERF) is complete and decoupled from VERIFY. VERIFY watch closure requires production-side natural evidence that cannot be hastened without invalidating the metric.
+
+### Previous deferred items (v1.44 close — superseded)
+
+Retained for traceability; superseded by the v1.46 entries above.
 
 | Category | Item | Status |
 |----------|------|--------|
@@ -124,10 +144,7 @@ Archived v1.44 evidence: `.planning/milestones/v1.44-phases/`
 
 ## Operator Next Steps
 
-- Run `/gsd-plan-phase 215` to plan the Spectrum upload reclaim canary. Phase 215 should consume `.planning/phases/214-measurement-collapse-investigation/evidence/matrix-summary.json` and the Phase 213 baseline as constraint sources.
-- Carry the folded `tcp_12down` todo as narrower next steps: Phase 214 left `ambiguous`/`reflector_loss`/`signal none`; the unresolved gap is severe user-visible p99 without journal corroboration, plus target/path sensitivity shown by supplemental Vultr runs.
-- Phase 214 official-window flent raw artifacts remain external symlinks into `~/flent-results/`; only the supplemental Vultr `.flent.gz` is committed in-repo. The official matrix is not re-derivable from a fresh clone alone.
-- Leave Phase 218 alone until a natural production flapping event creates a qualifying `peak_transition_count > 30` row.
+- Start the next milestone with /gsd-new-milestone
 
 ## Decisions (v1.45)
 

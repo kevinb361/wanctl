@@ -8,40 +8,46 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.46 Internet Quality Recovery
+## Recently Shipped-with-Deferral: v1.46 Internet Quality Recovery
 
-**Goal:** Restore user-perceived internet quality by measuring real production behavior, identifying whether conservative upload limits, recovery lag, measurement collapse, steering/version drift, or refractory semantics are causing degraded experience, then reclaim throughput safely with evidence-backed canaries.
+**Shipped:** 2026-05-30 (Phases 212–217 complete; Phase 218 carried as event-gated v1.45 VERIFY watch-list)
 
-**Target features:**
-- Production inventory and drift audit for Spectrum, ATT, and steering.
-- Experience baseline harness covering normal use, upload/download, RRUL, and `tcp_12down` with matching `/health`, CAKE, alert, and steering evidence.
-- Measurement-collapse investigation for cases where p99 latency is bad while health remains `GREEN`.
-- Conservative Spectrum upload reclaim canary after baseline evidence, one knob at a time with rollback gates.
-- Queue-primary refractory/recovery decision using current evidence rather than stale Phase 196 assumptions.
-- Production cycle-budget baseline to close or promote the pending post-hotpath profiling todo.
+**Delivered:** Evidence-first quality recovery. Production drift inventoried; experience baseline harness operational; measurement-collapse classifier returned `ambiguous`/`reflector_loss` with severe loaded p99 NOT reproduced in the official Spectrum/Dallas window; upload-reclaim canary tried ceiling 18→20 and rolled back safely after bounded VOID exhausted on three attempts; Phase 196 refractory thread closed as no-change/resolved-by-197; production cycle-budget profiled at 71,560 timing samples and the profiling baseline todo closed as no-action. v1.45 VERIFY-01/02 carried forward to Phase 218.
 
-**Key context:**
-- v1.45 shipped-with-deferral so the alerting proof gate no longer blocks quality work.
-- Spectrum is live on `1.45.0` and was healthy at configured ceilings during scoping; the quality concern is not explained by a current floor clamp.
-- Spectrum upload remains intentionally conservative (`setpoint_mbps: 12`, `ceiling_mbps: 18`) relative to a 40 Mbps plan anchor and should be evaluated with baseline evidence before any tune.
-- ATT/steering version/config drift, the pending `tcp_12down` bad-p99 todo, and the Phase 196 refractory thread are first-class inputs.
+**Key outcomes:**
+- Production state inventoried with D-08 secret-safe redaction; **steering runtime `1.39` vs source `1.45` drift surfaced** as known unaligned.
+- Single-command per-WAN experience baseline harness with offline six-bucket signal classification.
+- Six-driver measurement-collapse classifier; canonical Spectrum verdict `ambiguous`/`reflector_loss`/`signal none`.
+- One-knob upload ceiling canary (`18 → 20`) with Snapshot A rollback anchor; **no quality reclaim** at ceiling 20 — Spectrum safely rolled back to 18.
+- Phase 196 queue-primary refractory thread closed as no-change/resolved-by-197 with evidence cite.
+- Spectrum profiled at 50ms cycle interval: `cycle_total.avg_ms=2.883`, `cycle_total.p99_ms=6.9` over `71560` JSON Cycle samples; performance is **not** the quality limit.
 
-## Recently Shipped-with-Deferral: v1.45 Flapping Peak-Counter Window Repair
+**Carry-forward (Phase 218):**
+- VERIFY-01 / VERIFY-02 event-gated on natural production DOCSIS flapping event with `details.peak_transition_count > 30` on either WAN. **No synthetic event generation per ROADMAP constraint.**
+- Phase 218 plans only when qualifying evidence exists; archives the retained v1.45 phase directories if VERIFY-01 + ALERT-03 pass.
 
-**Goal:** Restore the intensity signal in `flapping_dl` / `flapping_ul` alert payloads by tracking peak transition count via a windowed accumulator that survives the per-fire deque clear, so production operators can see oscillation intensity above the trigger threshold.
+## Next Milestone: v1.47 — TBD
 
-**Target features:**
-- Per-direction windowed peak accumulator independent of deque-clear-on-fire (validated in Phase 210)
-- Preserved alert-once-per-episode semantics (deque clear retained; `alert_engine.fire()` `cooldown_sec` continues to dedupe)
-- Updated `TestFlappingDequeClear` semantics + new tests asserting `peak_transition_count > flap_threshold` during sustained oscillation (validated in Phase 210)
-- Production verification: at least one real flapping event shows `peak > flap_threshold` after deployment — deferred to v1.46/watch-list by operator sign-off
+Start with `/gsd-new-milestone`. Candidate scope inputs from v1.46 carry:
+- `tcp_12down` target/path sensitivity — Phase 214 carried-narrower; supplemental Vultr Dallas/Chicago severe p99 (745/651ms) keeps the hypothesis live.
+- Steering version-drift alignment — runtime `1.39` vs source `1.45`; alignment pending operator approval.
+- Spectrum upload reclaim re-attempt with a revised gate — Phase 215 returned bounded VOID at ceiling 20.
+- Ingestion-rate observability tool — would improve metrics.db write-rate visibility for Phase 218 evidence audit.
 
-**Key context:**
-- Confirmed bug per 2026-05-26 backlog triage (Codex peer-reviewed across two rounds); production alerts table shows `peak == transition_count == 30` across 20+ Spectrum `flapping_ul` events (2026-05-21→25) + 3 ATT `flapping_dl` events
-- Root cause located at `src/wanctl/wan_controller.py:4322-4323` (DL) and `:4353-4354` (UL): in-fire `deque.clear()` + `peak = 0` destroys window state
-- Design Option A selected over Option B (rename) — preserves the intensity signal that motivated the metric
-- Alerting-only change; controller-threshold / arbitration boundaries unchanged
-- v1.45 shipped-with-deferral on 2026-05-27; VERIFY-01 and the dependent ALERT-03 production audit remain open carry-forward items.
+<details>
+<summary>Archived v1.45 milestone goals (collapsed for brevity)</summary>
+
+### v1.45 Flapping Peak-Counter Window Repair (shipped-with-deferral 2026-05-27 — VERIFY-01 deferred → Phase 218)
+
+**Goal:** Restore the intensity signal in `flapping_dl` / `flapping_ul` alert payloads by tracking peak transition count via a windowed accumulator that survives the per-fire deque clear.
+
+**Shipped:** Per-direction windowed peak accumulator independent of deque-clear-on-fire (Phase 210); preserved alert-once-per-episode semantics; updated `TestFlappingDequeClear` + new tests asserting `peak_transition_count > flap_threshold` during sustained oscillation; Spectrum + ATT deployed at `1.45.0`.
+
+**Deferred:** Production verification — at least one real flapping event with `peak > flap_threshold` — operator sign-off 2026-05-27. Carry-forward now rolled into v1.46 Phase 218 (event-gated, no synthetic generation).
+
+**Root cause located:** `src/wanctl/wan_controller.py:4322-4323` (DL) and `:4353-4354` (UL) — in-fire `deque.clear()` + `peak = 0` destroyed window state at the exact moment the alert fired. Design Option A (windowed peak accumulator) selected over Option B (rename payload) to preserve the intensity signal.
+
+</details>
 
 <details>
 <summary>Archived v1.44 milestone goals (collapsed for brevity)</summary>
@@ -71,11 +77,11 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.46 active — Phase 217 complete; Phase 218 is deferred until a natural v1.45 VERIFY watch-list event exists.
+**Version:** v1.46 shipped-with-deferral 2026-05-30 — Phases 212–217 complete; Phase 218 is event-gated, waiting for a qualifying natural DOCSIS flapping event. Next milestone v1.47 TBD.
 **Tests:** Phase 217 verification passed 12/12 after the production cycle-budget baseline; final full regression suite passed `5221 passed, 6 skipped, 2 deselected`. Phase 216 verification passed 11/11 after the no-change / resolved-by-197 refractory decision closeout; Phase 215 verification passed 25/25 after the approved Spectrum upload reclaim canary rolled back safely on bounded VOID; Phase 214 UAT passed 8/8; Phase 213 verification passed 15/15; Phase 212 verification passed 16/16; Phase 210 alerting suites and hot-path regression slice passing; Phase 211 SAFE-10 manual closeout passed against `21ee630` with `AWK_EXIT=0`.
 **LOC:** ~40,915 Python (src/)
-**Milestones:** 46 shipped or shipped-with-deferral (v1.0-v1.45); v1.46 active.
-**Active milestone:** v1.46 Internet Quality Recovery.
+**Milestones:** 47 shipped or shipped-with-deferral (v1.0–v1.46); v1.47 not yet opened.
+**Active milestone:** none — `/gsd-new-milestone` to open v1.47.
 
 **Latest:** v1.46 Phase 217 Production Cycle-Budget Baseline complete — Spectrum `1.45.0` was profiled with a validated live journal streaming capture after a pilot and short rehearsal; `71560` cycle records produced `cycle_total.avg_ms=2.883`, `cycle_total.p99_ms=6.9`, and dominant category `logging_metrics=8.26%`. The profiling todo is closed as no-action, performance work is deprioritized in favor of quality/tuning work, and the JSON collector now fails closed if `autorate_cycle_total` samples are absent.
 **Previous:** v1.46 Phase 216 Recovery/Refractory Decision complete — the Phase 196 queue-primary refractory semantics thread is closed as `no-change / resolved-by-197`; Phase 197 replay tests are the semantic proof, Phase 213 only shows no current symptom, and RECOV-03 is satisfied only as a no-change gate/waiver rather than a basis for future tuning. No control-path code, YAML config, systemd unit, script, test, RouterOS surface, or production service was changed.
@@ -141,9 +147,10 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 </details>
 
-## Recently Archived / Shipped: v1.39, v1.41, v1.42, v1.43, v1.44, v1.45
+## Recently Archived / Shipped: v1.39, v1.41, v1.42, v1.43, v1.44, v1.45, v1.46
 
-- **v1.45 Flapping Peak-Counter Window Repair** (shipped-with-deferral 2026-05-27, VERIFY-01 deferred to v1.46/watch-list; no archive directory yet) — `.planning/phases/211-production-verification-milestone-closure/211-03-SUMMARY.md`
+- **v1.46 Internet Quality Recovery** (shipped-with-deferral 2026-05-30, VERIFY-01/02 deferred to Phase 218 event-gated watch-list; 6 phases, 21 plans, 42 tasks) — `.planning/milestones/v1.46-ROADMAP.md`
+- **v1.45 Flapping Peak-Counter Window Repair** (shipped-with-deferral 2026-05-27, VERIFY-01 deferred → rolled into v1.46 Phase 218; no archive directory yet) — `.planning/phases/211-production-verification-milestone-closure/211-03-SUMMARY.md`
 - **v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration** (shipped 2026-05-26, audit `passed` 16/16 after 206 restamp) — `.planning/milestones/v1.44-ROADMAP.md`
 - **v1.43 UL Suppression Metrics & Gate Calibration** (shipped 2026-05-13, audit `passed` 15/15) — `.planning/milestones/v1.43-ROADMAP.md`
 - **v1.42 DOCSIS-Aware UL Congestion Control** (shipped 2026-05-06, gaps_found Route B) — `.planning/milestones/v1.42-ROADMAP.md`
@@ -466,19 +473,48 @@ thresholds or steering behavior.
 - ✓ SAFE-07 — Milestone-closeout invariant held: zero control-path source diff between Phase 201 close (`b72b463`) and v1.43 close, verified at every phase boundary by `scripts/check-safe07-source-diff.sh`; only planned `src/wanctl/__init__.py` version bump permitted
 - ✓ Boundary-marker remediation cycle (Plans 204-07..10) re-derived CALIB-01/04 evidence under corrected post-`d44e2fd` aggregator; Branch A threshold 175 superseded Branch B threshold 150 after FAIL-A at `secondary_value=151.0`
 
+**v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration (shipped 2026-05-26, audit `passed`):**
+
+- ✓ TOPO-01..07 — Tin-agnostic CAKE signal + per-WAN `allow_wash` gate; A/B replay harness with deterministic golden NDJSON; predeploy gate with JSON-sourced thresholds (RRUL p99 >5%, restart-rate, transition-rate); Spectrum committed config migrated to `920Mbit besteffort wash`; 24h soak `20260521T222622Z` passed with rollback gates green — Phases 205, 206, 209
+- ✓ HRDN-01..04 — SAFE-07 source-diff verifier fail-closed on dirty/staged/untracked surfaces; `soak-capture.sh` bounded-blip tolerance with sidecar diagnostics; `secondary_gate_legacy` retired from live summaries — Phase 207
+- ✓ TOOL-01..03 — Watchdog fail-closed on bad gate columns/statistics; `wanctl-history --ingestion-rate` with `--wan` filtering; `wanctl-operator-summary --digest` tolerates per-WAN open/write failures without masking schema corruption — Phase 208
+- ✓ SAFE-08/SAFE-09 — ATT byte-identical; zero controller-path source diff from `6508d68`; five-file SAFE-09 allowlist operator-approved
+
+**v1.45 Flapping Peak-Counter Window Repair (shipped-with-deferral 2026-05-27, VERIFY-01 → Phase 218):**
+
+- ✓ ALERT-01/02/03 — Per-direction windowed peak accumulator independent of deque-clear-on-fire; alert-once-per-`cooldown_sec` semantics preserved (`alert_engine.fire()` dedupe unchanged); Spectrum + ATT deployed at `1.45.0` — Phase 210, 211
+- ✓ TEST-01..03 — Updated `TestFlappingDequeClear` for Option A; new tests asserting `peak_transition_count > flap_threshold` during sustained oscillation; `132/132` alerting/integration slice passing — Phase 210
+- ✓ SAFE-10 — Manual closeout against `21ee630` with `AWK_EXIT=0` — Phase 211
+- ◐ VERIFY-01 — Production verification deferred via operator sign-off 2026-05-27; **carried forward to v1.46 Phase 218** (event-gated, no synthetic generation)
+
+**v1.46 Internet Quality Recovery (shipped-with-deferral 2026-05-30, 18/20 v1.46 REQ-IDs satisfied):**
+
+- ✓ DRIFT-01..03 — Read-only Spectrum/ATT/steering inventory with service/version/endpoint/config/health/persisted-state classification; D-08 secret-safe redaction; steering runtime `1.39` vs source `1.45` surfaced as known unaligned drift — Phase 212
+- ✓ BASE-01..03 — Single-command per-WAN baseline harness with co-sampled `/health`, CAKE state, SQLite alert windows, current rates, measurement quality, steering state; offline six-bucket signal classification produced Phase 215 upload-reclaim recommendation — Phase 213
+- ✓ MEAS-01..03 — Fail-closed flent ping percentile extractor (raw `Ping (ms) ICMP`, sorted-index method, pinned fixture) + per-second alignment + six-driver classifier; canonical Spectrum/Dallas verdict `ambiguous`/`reflector_loss`/`signal none`; severe loaded p99 NOT reproduced in official window; `tcp_12down` folded todo **carried narrower**, not closed — Phase 214
+- ✓ RECLAIM-01..03 — Snapshot A rollback anchor (read-only); approved one-knob Spectrum upload canary `18 → 20`; **bounded VOID exhausted on three attempts**, Spectrum safely rolled back to ceiling 18 — Phase 215
+- ✓ RECOV-01..03 — Phase 196 queue-primary refractory semantics thread closed as **no-change / resolved-by-197** with evidence-cited rationale; Phase 213 confirmed no current symptom; RECOV-03 satisfied only as a no-change gate/waiver — Phase 216
+- ✓ PERF-01..03 — Production-safe JSON cycle-budget capture with stdlib NDJSON parser; operator-gated Spectrum profiling window captured `71,560` JSON Cycle records (`cycle_total.avg_ms=2.883`, `p99=6.9ms`); dominant category `logging_metrics=8.26%`; profiling baseline todo **closed as no-action** — performance is not the quality limit — Phase 217
+- ◐ VERIFY-01/02 — Deferred to Phase 218 (event-gated; carried forward from v1.45 + extended to ALERT-03 per-`cooldown_sec` bucket audit)
+
 ### Active
 
 (none — next milestone to be defined via `/gsd-new-milestone`)
 
 ### Deferred
 
-- [ ] SSH connection pooling — Low ROI, REST API already optimal
-- [ ] CAKE stats caching — Not needed, flash wear protection working
-- [ ] Prometheus/Grafana export (OBSV-01 through OBSV-04) — Infrastructure not yet deployed, deferred from v1.23
-- [ ] v1.39 measurement-validation gates (TIME-03/04, MEAS-06, VALN-02/03) — superseded by v1.40+ measurement axis; not retroactively retargetable
-- [ ] VALN-05b ATT cake-primary canary — administratively deferred since v1.40; gating phrase historical; disposition unchanged at v1.43 boundary, requires its own ADR for resolution
-- [ ] SEED-005 — Conservative UL tuning sweep. v1.44 candidate; prereqs (METRIC-01 + OBSV-05 + CALIB-01 live in production with clean baseline soak under recalibrated threshold) **now met** at v1.43 close.
-- [ ] SEED-001 — Spectrum topology-correct CAKE mode (920Mbit besteffort wash). Dormant; triggers on cake_signal.py / EXCLUDED_PARAMS / CAKE-mode work.
+- [ ] **VERIFY-01 / VERIFY-02 (v1.45 + v1.46)** — Phase 218 event-gated; needs natural production DOCSIS flapping event with `peak_transition_count > 30` on either WAN; no synthetic event generation per ROADMAP.
+- [ ] **tcp_12down target/path sensitivity (v1.46 carry)** — Phase 214 canonical Spectrum/Dallas matrix `ambiguous`/`reflector_loss` with severe loaded p99 NOT reproduced; supplemental Vultr Dallas/Chicago (p99 745/651ms) keep the hypothesis live for v1.47.
+- [ ] **Steering runtime/source version-drift alignment (v1.46 carry)** — Phase 212 surfaced runtime `1.39` vs source `1.45`; alignment pending operator approval.
+- [ ] **Spectrum upload reclaim re-attempt (v1.46 carry)** — Phase 215 bounded VOID exhausted at ceiling 20; revised gate / different probe shape for v1.47.
+- [ ] **Ingestion-rate observability tool (v1.46 carry)** — would improve metrics.db write-rate visibility for Phase 218 evidence audit.
+- [ ] SSH connection pooling — Low ROI, REST API already optimal.
+- [ ] CAKE stats caching — Not needed, flash wear protection working.
+- [ ] Prometheus/Grafana export (OBSV-01..04) — Infrastructure not yet deployed; deferred from v1.23.
+- [ ] v1.39 measurement-validation gates (TIME-03/04, MEAS-06, VALN-02/03) — superseded by v1.40+ measurement axis; not retroactively retargetable.
+- [ ] VALN-05b ATT cake-primary canary — administratively deferred since v1.40; gating phrase historical; requires its own ADR for resolution.
+- [ ] SEED-006 — Silicom bypass NIC tooling + test harness. Dormant; candidate for v1.47+ depending on scoping.
+- [ ] SEED-007 — Storage hygiene (autorate flat-gauge fire-on-change + CAKE tin skip-on-unchanged consumer audit). Dormant; candidate for v1.47+ depending on PERF evidence.
 - ✓ WR-01 — `scripts/check-safe07-source-diff.sh` dirty-tree fail-closed gap resolved in v1.44 Phase 207 (unstaged, staged, and untracked `src/wanctl/` surfaces covered).
 - ✓ WR-02 — `scripts/soak-capture.sh` transient capture abort gap resolved in v1.44 Phase 207 with bounded failure tolerance and sidecar TSV diagnostics.
 - ✓ `secondary_gate_legacy` block removal — completed in v1.44 Phase 207; live soak summaries now emit only `secondary_gate_completed_window`.
@@ -794,6 +830,10 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | v1.43 phase order 002 → 004 → 003 (not seed-priority order) | The 24h Spectrum soak is the milestone's most expensive evidence primitive; SEED-004 per-sample delta must be live before that soak fires so one run produces both recalibration baseline and target-edge distribution | ✓ Encoded in ROADMAP (joint Codex+Claude scope decision) | 2026-05-06 |
 | v1.43 closeout invariant: no controller tuning | SEED-005 conservative UL tuning sweep is structurally barred from v1.43 to keep the observe/calibrate/tune boundary clean; v1.42 RETRO Lesson #1 was metric-semantics framing, and tuning under unverified observability would re-confound the evidence | ✓ Encoded as SAFE-07 milestone invariant | 2026-05-06 |
 | Decisions made jointly with Codex are explicitly recorded | Avoids re-deriving same decisions in future sessions; Codex's reasoning over the seed dependency DAG and soak economics belongs in project memory | ✓ Joint Claude+Codex scope decision row added | 2026-05-06 |
+| v1.46 spine: drift audit → baseline harness → measurement-collapse → reclaim canary → recovery decision → cycle budget | Evidence-first quality recovery — observe before tuning; never treat `/health.GREEN` as proof of user-perceived quality | ✓ All 6 phases shipped; classifier returned `ambiguous`/`reflector_loss`; reclaim VOID; performance is not the limit | 2026-05-30 |
+| v1.46 reclaim canary stops at first bounded VOID, no force-promote | Production control loop: a tested negative answer with rollback anchor beats unverified optimism | ✓ Spectrum rolled back to ceiling 18 after 3 ceiling-20 attempts; no quality reclaim claimed | 2026-05-30 |
+| Phase 218 (v1.45 + v1.46 VERIFY) deferred to event-gated watch | Synthetic event generation would invalidate the very metric VERIFY is designed to measure; production-side natural evidence is the only sound trigger | ✓ Encoded in ROADMAP as no-synthetic-generation rule | 2026-05-30 |
+| Codex consulted at v1.46 close on milestone-shape decision | Independent second opinion on whether to start v1.47 vs drain backlog vs stand by; Codex recommended A + tiny B housekeeping, matching primary analysis | ✓ Recorded in /gsd-progress conversation; v1.47 path chosen | 2026-05-30 |
 
 ## Evolution
 
@@ -816,4 +856,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-05-29 after Phase 214 — Measurement Collapse Investigation complete (UAT 8/8, MEAS-01/02/03 validated). Matrix verdict `ambiguous`/`reflector_loss`/`signal none`; folded `tcp_12down` todo carried-narrower. Read-only phase: zero controller/production mutation, enforced by mutation-boundary tests. Next: Phase 215 Spectrum Upload Reclaim Canary._
+_Last updated: 2026-05-30 after v1.46 Internet Quality Recovery shipped-with-deferral. Phases 212–217 complete (6 phases, 21 plans, 42 tasks, 156 commits). VERIFY-01/02 carried to Phase 218 as event-gated watch-list (no synthetic event generation). v1.45 deferral now rolled forward through v1.46. Next milestone v1.47 TBD via `/gsd-new-milestone`._
