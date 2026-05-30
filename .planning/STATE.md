@@ -2,9 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.47
 milestone_name: Measurement Evidence Closure
-status: planning
-last_updated: "2026-05-30T03:15:00.000Z"
-last_activity: 2026-05-30
+status: verifying
+stopped_at: Phase 219 context gathered
+last_updated: "2026-05-30T03:23:50.075Z"
+last_activity: 2026-05-30 — v1.47 ROADMAP.md created with 3-phase LOCKED scope (Phases 219, 220, 221); D-first per Pitfall 11; Phase 218 parallel event-gated.
 progress:
   total_phases: 3
   completed_phases: 0
@@ -122,9 +123,9 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ## Session Continuity
 
-Last session: 2026-05-30 — v1.47 ROADMAP.md committed (3-phase LOCKED scope)
-Stopped at: Roadmap committed; awaiting `/gsd-plan-phase 219`
-Resume file: None
+Last session: 2026-05-30T03:23:50.044Z
+Stopped at: Phase 219 context gathered
+Resume file: .planning/phases/219-ingestion-rate-observability-scope-d/219-CONTEXT.md
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 
 ## Operator Next Steps
