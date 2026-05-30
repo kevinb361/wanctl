@@ -787,6 +787,7 @@ def per_wan_ingestion_rate_bucketed(
     start_ts: int,
     end_ts: int,
     wan: str | None,
+    metrics: list[str] | None = None,
 ) -> tuple[list[dict], int]:
     """Return per-WAN x metric_name ingestion-rate rows.
 
@@ -807,6 +808,10 @@ def per_wan_ingestion_rate_bucketed(
                 if wan:
                     where += " AND wan_name = ?"
                     params.append(wan)
+                if metrics:
+                    placeholders = ",".join("?" for _ in metrics)
+                    where += f" AND metric_name IN ({placeholders})"
+                    params.extend(metrics)
                 sql = (
                     "SELECT metric_name, COUNT(*) FROM metrics "
                     f"{where} GROUP BY metric_name ORDER BY metric_name"
@@ -900,6 +905,7 @@ def _handle_ingestion_rate_query(
                 start_ts=win_start,
                 end_ts=win_end,
                 wan=args.wan,
+                metrics=metrics_list,
             )
         else:
             rows, failures = _per_wan_ingestion_rate(

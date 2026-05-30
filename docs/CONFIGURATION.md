@@ -409,7 +409,11 @@ before disk write; malformed payloads are logged to stderr and the script
 returns 1 without writing a partial or garbage file.
 
 ```cron
-*/5 * * * * wanctl /opt/wanctl/.venv/bin/python -m scripts.phase219_ingestion_digest >> /var/log/wanctl/ingestion-digest.log 2>&1
+PYTHONPATH=/opt:/opt/wanctl
+WANCTL_STATE_DIR=/var/lib/wanctl
+WANCTL_LOG_DIR=/var/log/wanctl
+WANCTL_RUN_DIR=/run/wanctl
+*/5 * * * * wanctl /usr/bin/python3 -m scripts.phase219_ingestion_digest >> /var/log/wanctl/ingestion-digest.log 2>&1
 ```
 
 Before the first cron tick, create the snapshot directory with the expected

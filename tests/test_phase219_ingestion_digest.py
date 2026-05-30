@@ -107,3 +107,16 @@ class TestPhase219IngestionDigest:
         assert result.returncode == 1
         assert "malformed JSON" in result.stderr
         assert not list(tmp_path.glob("*.json"))
+
+    def test_negative_max_snapshots_returns_1_no_crash(self, tmp_path):
+        result = _run_script(
+            "--snapshot-dir",
+            str(tmp_path),
+            "--max-snapshots",
+            "-1",
+            "--payload-from-stdin",
+        )
+
+        assert result.returncode == 1
+        assert "--max-snapshots must be non-negative" in result.stderr
+        assert not list(tmp_path.glob("*.json"))
