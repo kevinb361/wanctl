@@ -386,4 +386,37 @@ The representative schema above covers the core autorate path. Production config
 - `tuning`: adaptive runtime parameter tuning with safety bounds.
 - `cake_params`: required for `linux-cake` and `linux-cake-netlink` transports. Per-WAN `allow_wash` flag (default `false`) controls whether the CAKE qdisc may strip DSCP markings on egress. Enable `allow_wash: true` only on WANs whose carrier strips markings upstream (consumer DOCSIS cable, most consumer fiber); keep `allow_wash: false` on transparent-bridge or marking-preserving links. See [BRIDGE_QOS.md](BRIDGE_QOS.md) for the per-WAN decision guide.
 
+ ### Ingestion-Rate Snapshot Staleness (Phase 219)
+
+`wanctl-history --ingestion-rate --by-table` and
+`wanctl-history --ingestion-rate --rolling=60,300,3600 --json` emit the Phase
+219 envelope `{schema_version: 1, rows: [...]}`. Each row carries
+`_snapshot_unix` and `_snapshot_age_sec`. `_snapshot_unix` is captured once per
+invocation and `_snapshot_age_sec = now - _snapshot_unix` at emit. For direct
+CLI use the age is normally near zero; it becomes useful when reading a stored
+snapshot file later. The default mode (`--ingestion-rate` alone with neither
+`--by-table` nor `--rolling`) preserves the v1.44 legacy envelope unchanged.
+`table_name` in the JSON envelope is the `metric_name` of the row in the
+metrics SQL table.
+
+The snapshot writer `scripts/phase219_ingestion_digest.py` persists the JSON
+envelope to `/var/lib/wanctl/snapshots/ingestion/<unix_ts>.json`. It reuses
+`wanctl.state_utils.atomic_write_json` for collision-safe writes under
+concurrent invocations and keeps the 288 most recent files, which is about 24h
+at a 5-minute cron cadence and about a 3MB ceiling. This is a cron-orchestrated
+evidence primitive, not a systemd service. Subprocess output is JSON-validated
+before disk write; malformed payloads are logged to stderr and the script
+returns 1 without writing a partial or garbage file.
+
+```cron
+*/5 * * * * wanctl /opt/wanctl/.venv/bin/python -m scripts.phase219_ingestion_digest >> /var/log/wanctl/ingestion-digest.log 2>&1
+```
+
+Before the first cron tick, create the snapshot directory with the expected
+owner: `sudo install -d -m 0755 -o wanctl -g wanctl /var/lib/wanctl/snapshots/ingestion`.
+
+The staleness contract here mirrors the v1.38 `measurement_stale` /
+`measurement_staleness_sec` pattern — readers compute age relative to a captured
+timestamp rather than rely on file mtime.
+
 See [CONFIG_SCHEMA.md](CONFIG_SCHEMA.md) for the exhaustive key reference, [SUBSYSTEMS.md](SUBSYSTEMS.md) for operational internals, and [PERFORMANCE.md](PERFORMANCE.md) for timing and cycle-budget guidance.
