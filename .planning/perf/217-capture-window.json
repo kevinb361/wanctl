@@ -1,0 +1,61 @@
+{
+  "phase": "217",
+  "wan": "spectrum",
+  "wanctl_version": "1.45.0",
+  "window": {
+    "start_utc": "2026-05-29T23:43:16Z",
+    "end_utc": "2026-05-30T00:44:16Z"
+  },
+  "driven_segment": {
+    "start_utc": "2026-05-30T00:13:16Z",
+    "end_utc": "2026-05-30T00:16:37Z",
+    "tests": [
+      "tcp_upload",
+      "rrul"
+    ],
+    "host": "dallas",
+    "exit_code": 0
+  },
+  "pilot": {
+    "duration_min": 5,
+    "cycle_total_ms_present": true,
+    "overrun_warnings": 0,
+    "unit_restarts": 0
+  },
+  "observer_effect": {
+    "off_window_collected": true,
+    "off_window": {
+      "start_utc": "2026-05-29T23:38:14Z",
+      "end_utc": "2026-05-29T23:43:15Z"
+    },
+    "on_window_collected": true,
+    "on_window": {
+      "start_utc": "2026-05-29T23:43:21Z",
+      "end_utc": "2026-05-29T23:48:22Z"
+    }
+  },
+  "capture": {
+    "method": "live-journalctl-stream",
+    "cycle_timing_count": 71560,
+    "first_cycle_ts": "2026-05-29T23:43:19.365Z",
+    "last_cycle_ts": "2026-05-30T00:44:16.900Z",
+    "parser_exit": 0,
+    "parser_cycle_total_count": 71560,
+    "overrun_warnings": 2
+  },
+  "revert_verified": true,
+  "revert_proof": {
+    "systemctl_cat_profile_debug_matches": 0,
+    "process_profile_debug_matches": 0,
+    "service_active": "active",
+    "health_status": "healthy"
+  },
+  "validation": {
+    "cycle_timing_records": 71560,
+    "router_write_records": 401,
+    "router_write_coverage": "present",
+    "cycle_total_types": [
+      "number"
+    ]
+  }
+}
