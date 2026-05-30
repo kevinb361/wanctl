@@ -31,7 +31,7 @@
 - [x] **Phase 214: Measurement Collapse Investigation** — Resolve bad `tcp_12down` p99 latency while health remains `GREEN`. (completed 2026-05-29)
 - [x] **Phase 215: Spectrum Upload Reclaim Canary** — Safely test whether conservative Spectrum upload settings are leaving useful quality on the table. (completed 2026-05-29)
 - [x] **Phase 216: Recovery/Refractory Decision** — Close the queue-primary refractory semantics thread with an evidence-backed decision. (completed 2026-05-29)
-- [ ] **Phase 217: Production Cycle-Budget Baseline** — Close or promote the pending post-hotpath profiling todo with current production data.
+- [x] **Phase 217: Production Cycle-Budget Baseline** — Close or promote the pending post-hotpath profiling todo with current production data. (completed 2026-05-30)
 - [ ] **Phase 218: Deferred v1.45 VERIFY Watch-List Closure** — Only execute when a natural qualifying flapping event exists; close VERIFY-01/ALERT-03 and archive retained v1.45 phases if passing.
 
 ### Phase Details
@@ -186,7 +186,7 @@ Plans:
 3. Pending todo `2026-04-15-profile-post-hotpath-baseline-on-production-wan` is closed or promoted to an optimization phase.
 4. If cycle budget is healthy, performance work is explicitly deprioritized in favor of quality/tuning work.
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 **Wave 1** *(parallel; no file overlap — repo docs/helper runs alongside the live capture)*
@@ -196,7 +196,7 @@ Plans:
 
 **Wave 2** *(blocked on 217-01 + 217-02)*
 
-- [ ] 217-03-PLAN.md — Analysis + artifact + 1-page summary + D-03/D-04 close-or-promote verdict + close/promote the profiling todo (autonomous)
+- [x] 217-03-PLAN.md — Analysis + artifact + 1-page summary + D-03/D-04 close-or-promote verdict + close/promote the profiling todo (autonomous)
 
 #### Phase 218: Deferred v1.45 VERIFY Watch-List Closure
 
@@ -221,7 +221,7 @@ Plans:
 | 214. Measurement Collapse Investigation | 6/6 | Complete    | 2026-05-29 |
 | 215. Spectrum Upload Reclaim Canary | 3/3 | Complete    | 2026-05-29 |
 | 216. Recovery/Refractory Decision | 1/1 | Complete    | 2026-05-29 |
-| 217. Production Cycle-Budget Baseline | 2/3 | In Progress|  |
+| 217. Production Cycle-Budget Baseline | 3/3 | Complete   | 2026-05-30 |
 | 218. Deferred v1.45 VERIFY Watch-List Closure | 0/? | Waiting on natural event | — |
 
 ### Coverage
