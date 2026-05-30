@@ -33,15 +33,15 @@ Bounded read-only evidence milestone. Two scopes: A (tcp_12down target/path sens
 
 ### INGEST — Ingestion-Rate Observability (Scope D, Phase 219)
 
-- [ ] **INGEST-01**: `wanctl-history --ingestion-rate --by-table` flag added additively to `src/wanctl/history.py`. Output is per-WAN × per-table rows/sec for the configured window. Per-table read failures emit `null` for that table rather than aborting (tolerant pattern from v1.44 TOOL-03).
-- [ ] **INGEST-02**: `wanctl-history --ingestion-rate --rolling=60,300,3600` flag added additively. Output includes a rolling-window block for each specified window in one call. Default behavior (no `--rolling`, no `--by-table`) is unchanged from v1.44 Phase 208.
-- [ ] **INGEST-03**: JSON output mode carries `schema_version: 1` plus per-snapshot staleness fields (`_snapshot_unix` and `_snapshot_age_sec` on every snapshot row).
+- [x] **INGEST-01**: `wanctl-history --ingestion-rate --by-table` flag added additively to `src/wanctl/history.py`. Output is per-WAN × per-table rows/sec for the configured window. Per-table read failures emit `null` for that table rather than aborting (tolerant pattern from v1.44 TOOL-03).
+- [x] **INGEST-02**: `wanctl-history --ingestion-rate --rolling=60,300,3600` flag added additively. Output includes a rolling-window block for each specified window in one call. Default behavior (no `--rolling`, no `--by-table`) is unchanged from v1.44 Phase 208.
+- [x] **INGEST-03**: JSON output mode carries `schema_version: 1` plus per-snapshot staleness fields (`_snapshot_unix` and `_snapshot_age_sec` on every snapshot row).
 - [ ] **INGEST-04**: `wanctl-operator-summary --digest` surfaces a compact ingestion-rate block (per-WAN totals + dominant-table) sourced from the new bucketed output. Read tolerance from v1.44 TOOL-03 carries forward.
 - [ ] **INGEST-05**: `scripts/phase219-ingestion-digest.py` is cron-callable (not a systemd unit) and calls extended `wanctl-history --ingestion-rate` in JSON mode for snapshot capture. Golden SQLite fixture in `tests/test_history_ingestion_rate_bucketed.py` pins schema_version=1 and `--by-table` + `--rolling` output shape.
 
 ### SAFE — Cross-Cutting Read-Only Discipline (Phases 219/220/221)
 
-- [ ] **SAFE-11**: Mutation-boundary pytest covers expanded allowlist beyond `src/wanctl/`: `configs/`, `deploy/systemd/`, `scripts/`, `tests/fixtures/phase22*/`, `docs/`. Test fails closed at every phase boundary. Test fixtures encode evidence (`observed_*.json` shape), never controller specifications (`expected_behavior_*.json` forbidden). `docs/` edits restricted to describing new CLI tools — no threshold-tuning language, no future tuning predictions. Phase 219 Scope D additive edits to `src/wanctl/history.py` are explicitly allowlisted; controller-path files (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, alert_engine, fusion) remain forbidden.
+- [x] **SAFE-11**: Mutation-boundary pytest covers expanded allowlist beyond `src/wanctl/`: `configs/`, `deploy/systemd/`, `scripts/`, `tests/fixtures/phase22*/`, `docs/`. Test fails closed at every phase boundary. Test fixtures encode evidence (`observed_*.json` shape), never controller specifications (`expected_behavior_*.json` forbidden). `docs/` edits restricted to describing new CLI tools — no threshold-tuning language, no future tuning predictions. Phase 219 Scope D additive edits to `src/wanctl/history.py` are explicitly allowlisted; controller-path files (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, alert_engine, fusion) remain forbidden.
 
 ### Phase 218 Fallback (Documented Carry)
 
@@ -93,12 +93,12 @@ Every v1.47 REQ-ID is mapped to exactly one phase. SAFE-11 is cross-cutting and 
 
 | Requirement | Phase | Scope | Status |
 |-------------|-------|-------|--------|
-| INGEST-01 | Phase 219 | D (Ingestion-Rate Observability) | Pending |
-| INGEST-02 | Phase 219 | D (Ingestion-Rate Observability) | Pending |
-| INGEST-03 | Phase 219 | D (Ingestion-Rate Observability) | Pending |
+| INGEST-01 | Phase 219 | D (Ingestion-Rate Observability) | Complete |
+| INGEST-02 | Phase 219 | D (Ingestion-Rate Observability) | Complete |
+| INGEST-03 | Phase 219 | D (Ingestion-Rate Observability) | Complete |
 | INGEST-04 | Phase 219 | D (Ingestion-Rate Observability) | Pending |
 | INGEST-05 | Phase 219 | D (Ingestion-Rate Observability) | Pending |
-| SAFE-11 (Phase 219 boundary) | Phase 219 | Cross-cutting | Pending |
+| SAFE-11 (Phase 219 boundary) | Phase 219 | Cross-cutting | Complete |
 | CRITERIA-01 | Phase 220 | A1 (Matrix Runner) | Pending |
 | CRITERIA-02 | Phase 220 | A1 (Matrix Runner) | Pending |
 | MATRIX-01 | Phase 220 | A1 (Matrix Runner) | Pending |
