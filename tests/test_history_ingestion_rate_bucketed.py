@@ -357,6 +357,6 @@ class TestOperatorSummaryDigest:
 
         captured = capsys.readouterr()
         assert "operator-summary digest: ingestion-rate wan=spectrum" in captured.out
-        assert "operator-summary digest: skipped (hard-red query) wan=spectrum" in captured.err
+        assert "operator-summary digest: hard-red query failed wan=spectrum" in captured.err
         assert counts["ingestion_printed"] == 1
         assert counts["read_skipped"] >= 1
