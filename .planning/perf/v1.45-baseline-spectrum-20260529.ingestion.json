@@ -1,0 +1,8 @@
+{
+  "status": "unmeasured",
+  "reason": "wanctl-history unavailable in dev checkout: No metrics databases found. ",
+  "window": {
+    "start_utc": "2026-05-29T23:43:16Z",
+    "end_utc": "2026-05-30T00:44:16Z"
+  }
+}
