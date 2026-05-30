@@ -221,7 +221,7 @@ Plans:
 | 214. Measurement Collapse Investigation | 6/6 | Complete    | 2026-05-29 |
 | 215. Spectrum Upload Reclaim Canary | 3/3 | Complete    | 2026-05-29 |
 | 216. Recovery/Refractory Decision | 1/1 | Complete    | 2026-05-29 |
-| 217. Production Cycle-Budget Baseline | 3/3 | Complete   | 2026-05-30 |
+| 217. Production Cycle-Budget Baseline | 3/3 | Complete    | 2026-05-30 |
 | 218. Deferred v1.45 VERIFY Watch-List Closure | 0/? | Waiting on natural event | — |
 
 ### Coverage
