@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.47
 milestone_name: Measurement Evidence Closure
 status: executing
-stopped_at: Completed 219-02-PLAN.md
-last_updated: "2026-05-30T14:10:58.397Z"
+stopped_at: Completed 219-03-PLAN.md
+last_updated: "2026-05-30T14:27:27.348Z"
 last_activity: 2026-05-30
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-30 after v1.46 milestone close + v1.4
 ## Current Position
 
 Phase: 219 (ingestion-rate-observability-scope-d) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-05-30
 
@@ -123,8 +123,8 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ## Session Continuity
 
-Last session: 2026-05-30T14:10:58.366Z
-Stopped at: Completed 219-02-PLAN.md
+Last session: 2026-05-30T14:26:57.841Z
+Stopped at: Completed 219-03-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 
@@ -144,6 +144,9 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 - [v1.47 Roadmap]: Phase 218 fallback documented: if Phase 218 fires before INGEST-01..05 ship, fall back to v1.44 Phase 208 `wanctl-history --ingestion-rate` CLI as-is (per-WAN totals, no per-table breakdown). Prevents re-litigation mid-incident.
 - [219-02]: D-17 version-fork preserved the v1.44 ingestion-rate JSON envelope unless `--by-table` or `--rolling` is set.
 - [219-02]: D-18 bucketed ingestion reads use a single `GROUP BY metric_name` pass and emit one null row per failed DB/window.
+- [219-03]: Used in-process `per_wan_ingestion_rate_bucketed` import for operator-summary digest to avoid subprocess overhead while staying out-of-band.
+- [219-03]: Pre-gathered ingestion rows before hard-red queries so D-22 hard-red failures cannot suppress ingestion-rate lines.
+- [219-03]: Preserved `printed` as hard-red-only and added `ingestion_printed` as the D-26 counter.
 
 ## Decisions (v1.46)
 
@@ -215,3 +218,4 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 | Phase 217 P02 | 3h 40m | 3 tasks | 2 files |
 | Phase 219 P01 | 5min | 3 tasks | 4 files |
 | Phase 219 P02 | 7min | 3 tasks | 2 files |
+| Phase 219 P03 | 6min | 2 tasks | 3 files |
