@@ -301,6 +301,12 @@ def create_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print last-24h hard-red alert digest from discovered WAN DBs",
     )
+    parser.add_argument(
+        "--db",
+        type=Path,
+        default=None,
+        help="With --digest: read one explicit WAN metrics DB instead of auto-discovery",
+    )
     return parser
 
 
@@ -310,7 +316,7 @@ def main() -> int:
 
     if args.digest:
         try:
-            db_paths = discover_wan_dbs()
+            db_paths = [args.db] if args.db is not None else discover_wan_dbs()
         except OSError as exc:
             print(
                 f"operator-summary digest: discovery failed ({exc})",
