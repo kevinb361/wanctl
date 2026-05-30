@@ -684,22 +684,30 @@ def _resolve_time_range(args: argparse.Namespace) -> tuple[int, int]:
     return now - 3600, now
 
 
+def _parse_rolling_seconds(rolling: str) -> list[int]:
+    """Parse and validate the --rolling comma-list."""
+    try:
+        rolling_secs = [int(s.strip()) for s in rolling.split(",") if s.strip()]
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "--rolling values must be positive integers"
+        ) from exc
+    if any(window_sec <= 0 for window_sec in rolling_secs):
+        raise argparse.ArgumentTypeError("--rolling values must be positive integers")
+    if len(rolling_secs) > 16:
+        raise argparse.ArgumentTypeError("--rolling accepts at most 16 windows")
+    return rolling_secs
+
+
 def _resolve_rolling_windows(
     args: argparse.Namespace, now: int
 ) -> list[tuple[int, int, int]]:
     """Resolve ingestion-rate windows, optionally from --rolling seconds."""
     if args.rolling:
-        try:
-            rolling_secs = [int(s.strip()) for s in args.rolling.split(",") if s.strip()]
-        except ValueError as exc:
-            raise argparse.ArgumentTypeError(
-                "--rolling values must be positive integers"
-            ) from exc
-        if any(window_sec <= 0 for window_sec in rolling_secs):
-            raise argparse.ArgumentTypeError("--rolling values must be positive integers")
-        if len(rolling_secs) > 16:
-            raise argparse.ArgumentTypeError("--rolling accepts at most 16 windows")
-        return [(now - window_sec, now, window_sec) for window_sec in rolling_secs]
+        return [
+            (now - window_sec, now, window_sec)
+            for window_sec in _parse_rolling_seconds(args.rolling)
+        ]
 
     start_ts, end_ts = _resolve_time_range(args)
     return [(start_ts, end_ts, max(end_ts - start_ts, 1))]
@@ -851,13 +859,15 @@ def per_wan_ingestion_rate_bucketed(
     return rows, failures
 
 
-def _handle_special_query(
+def _handle_ingestion_rate_query(
     args: argparse.Namespace, db_paths: list[Path], start_ts: int, end_ts: int
-) -> int | None:
-    """Handle special query modes (tins, tuning, alerts). Returns exit code or None."""
-    if args.ingestion_rate:
-        filtered_paths = _filter_db_paths_by_wan(db_paths, args.wan)
-        metrics_list = [m.strip() for m in args.metrics.split(",")] if args.metrics else None
+) -> int:
+    """Handle --ingestion-rate, preserving legacy mode unless new flags opt in."""
+    filtered_paths = _filter_db_paths_by_wan(db_paths, args.wan)
+    metrics_list = [m.strip() for m in args.metrics.split(",")] if args.metrics else None
+
+    # D-17 version-fork: default mode preserves v1.44 envelope unchanged.
+    if not (args.by_table or args.rolling):
         rows, failures = _per_wan_ingestion_rate(
             filtered_paths,
             start_ts=start_ts,
@@ -873,6 +883,53 @@ def _handle_special_query(
         else:
             print(format_ingestion_rate_table(rows, start_ts, end_ts))
         return 0
+
+    # NEW path: --by-table OR --rolling triggers the Phase 219 envelope.
+    snapshot_unix = int(time.time())
+    try:
+        windows = _resolve_rolling_windows(args, now=end_ts)
+    except argparse.ArgumentTypeError as exc:
+        print(f"wanctl-history: error: {exc}", file=sys.stderr)
+        return 2
+    all_rows: list[dict] = []
+    total_failures = 0
+    for win_start, win_end, _win_sec in windows:
+        if args.by_table:
+            rows, failures = per_wan_ingestion_rate_bucketed(
+                filtered_paths,
+                start_ts=win_start,
+                end_ts=win_end,
+                wan=args.wan,
+            )
+        else:
+            rows, failures = _per_wan_ingestion_rate(
+                filtered_paths,
+                start_ts=win_start,
+                end_ts=win_end,
+                wan=args.wan,
+                metrics=metrics_list,
+            )
+            for row in rows:
+                row.setdefault("table_name", None)
+        all_rows.extend(rows)
+        total_failures += failures
+    if filtered_paths and total_failures == len(filtered_paths) * len(windows):
+        print("All metrics databases failed to read.", file=sys.stderr)
+        return 1
+    if args.json_output:
+        print(format_ingestion_rate_envelope_json(all_rows, snapshot_unix))
+    else:
+        print(format_ingestion_rate_table(all_rows, start_ts, end_ts))
+    return 0
+
+
+def _handle_special_query(
+    args: argparse.Namespace, db_paths: list[Path], start_ts: int, end_ts: int
+) -> int | None:
+    """Handle special query modes (tins, tuning, alerts). Returns exit code or None."""
+    if args.ingestion_rate:
+        # if args.by_table or args.rolling: _resolve_rolling_windows(args, now=end_ts)
+        return _handle_ingestion_rate_query(args, db_paths, start_ts, end_ts)
 
     if args.tins:
         granularity = select_granularity(start_ts, end_ts)
@@ -950,6 +1007,11 @@ def main() -> int:
 
     if (args.by_table or args.rolling) and not args.ingestion_rate:
         parser.error("--by-table and --rolling requires --ingestion-rate")
+    if args.rolling:
+        try:
+            _parse_rolling_seconds(args.rolling)
+        except argparse.ArgumentTypeError as exc:
+            parser.error(str(exc))
 
     if args.db is not None:
         if not args.db.exists():

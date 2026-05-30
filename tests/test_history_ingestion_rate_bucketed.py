@@ -81,7 +81,6 @@ class TestIngestionRateBucketed:
             ],
         )
 
-    @pytest.mark.xfail(reason="Wave 1 helper not yet implemented", strict=False)
     def test_schema_version_pinned(self, tmp_path, monkeypatch, capsys):
         """New-mode JSON pins schema_version=1 and deterministic snapshots."""
         db_path = tmp_path / "metrics-spectrum.db"
@@ -100,7 +99,6 @@ class TestIngestionRateBucketed:
             assert row["row_count"] == 60
             assert row["window_seconds"] == 60
 
-    @pytest.mark.xfail(reason="Wave 1 helper not yet implemented", strict=False)
     def test_by_table_emits_per_metric_row(self, tmp_path, monkeypatch, capsys):
         """--by-table emits one non-null table_name row per metric_name."""
         db_path = tmp_path / "metrics-spectrum.db"
@@ -114,7 +112,6 @@ class TestIngestionRateBucketed:
         assert {row["table_name"] for row in rows} == set(METRIC_NAMES)
         assert all(row["row_count"] == 60 for row in rows)
 
-    @pytest.mark.xfail(reason="Wave 1 helper not yet implemented", strict=False)
     def test_rolling_emits_one_row_per_window(self, tmp_path, monkeypatch, capsys):
         """--rolling without --by-table emits one row per requested window."""
         db_path = tmp_path / "metrics-spectrum.db"
@@ -131,7 +128,6 @@ class TestIngestionRateBucketed:
         assert len(payload["rows"]) == 2
         assert {row["window_seconds"] for row in payload["rows"]} == {60, 300}
 
-    @pytest.mark.xfail(reason="Wave 1 helper not yet implemented", strict=False)
     def test_by_table_and_rolling_cartesian(self, tmp_path, monkeypatch, capsys):
         """--by-table plus --rolling emits metric_name x window rows."""
         db_path = tmp_path / "metrics-spectrum.db"
@@ -152,7 +148,6 @@ class TestIngestionRateBucketed:
             (metric_name, window) for metric_name in METRIC_NAMES for window in (60, 300)
         }
 
-    @pytest.mark.xfail(reason="Wave 1 helper not yet implemented", strict=False)
     def test_per_db_read_failure_emits_null_row(self, tmp_path, monkeypatch, capsys):
         """Per-DB-level null, NOT per-metric-level null, on DB read failure."""
         spectrum_db = tmp_path / "metrics-spectrum.db"
@@ -203,7 +198,6 @@ class TestIngestionRateBucketed:
         assert len(att_rows) == 4
         assert all(row["row_count"] is not None for row in att_rows)
 
-    @pytest.mark.xfail(reason="Wave 1 helper not yet implemented", strict=False)
     def test_default_mode_back_compat_v1_44_envelope(self, tmp_path, monkeypatch, capsys):
         """Default --ingestion-rate --json keeps the v1.44 envelope per D-17."""
         db_path = tmp_path / "metrics-spectrum.db"
