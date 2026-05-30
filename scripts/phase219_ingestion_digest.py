@@ -100,6 +100,9 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     """Write one ingestion-rate snapshot and return a cron-friendly status code."""
     args = _build_parser().parse_args(argv)
+    if args.max_snapshots < 0:
+        print("phase219-ingestion-digest: --max-snapshots must be non-negative", file=sys.stderr)
+        return 1
     snapshot_ts = (
         args.inject_timestamp if args.inject_timestamp is not None else int(time.time())
     )

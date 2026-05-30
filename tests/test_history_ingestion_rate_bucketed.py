@@ -113,6 +113,25 @@ class TestIngestionRateBucketed:
         assert {row["table_name"] for row in rows} == set(METRIC_NAMES)
         assert all(row["row_count"] == 60 for row in rows)
 
+    def test_by_table_honors_metrics_filter(self, tmp_path, monkeypatch, capsys):
+        """--metrics narrows bucketed --by-table output to requested metric_name rows."""
+        db_path = tmp_path / "metrics-spectrum.db"
+        self._seed_metrics(db_path)
+        self._run_history(
+            monkeypatch,
+            db_path,
+            "--by-table",
+            "--metrics",
+            "wanctl_rtt_ms,wanctl_state",
+        )
+
+        assert main() == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert {row["table_name"] for row in payload["rows"]} == {
+            "wanctl_rtt_ms",
+            "wanctl_state",
+        }
+
     def test_rolling_emits_one_row_per_window(self, tmp_path, monkeypatch, capsys):
         """--rolling without --by-table emits one row per requested window."""
         db_path = tmp_path / "metrics-spectrum.db"
