@@ -9,7 +9,6 @@ from pathlib import Path
 
 import pytest
 
-
 SCRIPT_PATH = Path(__file__).resolve().parent.parent / "scripts" / "phase219_ingestion_digest.py"
 MAX_SNAPSHOTS_DEFAULT = 288
 
@@ -91,7 +90,9 @@ class TestPhase219IngestionDigest:
     @pytest.mark.xfail(reason="scripts/phase219_ingestion_digest.py lands in plan 04", strict=False)
     def test_snapshot_dir_created_with_mode_0o755(self, tmp_path, monkeypatch):
         module = _load_script()
-        monkeypatch.setattr(module, "_call_history", lambda *_args, **_kwargs: json.dumps({"rows": []}))
+        monkeypatch.setattr(
+            module, "_call_history", lambda *_args, **_kwargs: json.dumps({"rows": []})
+        )
         snapshot_dir = tmp_path / "ingestion"
 
         rc = _invoke_main(module, "--snapshot-dir", str(snapshot_dir), "--payload-from-stdin")
