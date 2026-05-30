@@ -827,20 +827,23 @@ except (sqlite3.OperationalError, OSError) as exc:
 | A6 | Phase 219 deploys nothing on the hot path → success criterion #5 cycle-budget gates pass by construction | §R8 | LOW — code map confirms zero controller-path touches |
 | A7 | The new bucketed helper should be **public** (no leading underscore) so operator_summary.py can import without convention break | §R3 | LOW — recommendation; planner may choose either fork |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Q1: Default-mode envelope (R2) — replace v1.44 unconditionally or fork on flag?**
    - What we know: CONTEXT.md "Claude's Discretion" §3 leans replace-unconditionally. v1.44 envelope shape is pinned by `tests/test_history_cli.py:896-921`.
    - What's unclear: are external consumers (e.g., Phase 218 fallback docs, ops scripts on `cake-shaper`) pinned to v1.44 shape?
    - Recommendation: **replace unconditionally**, update v1.44 tests to new envelope, document the break in phase SUMMARY's "Schema Change" subsection. Phase 218 fallback per ROADMAP simply *uses* `wanctl-history --ingestion-rate` — does not pin a JSON shape.
+   - **RESOLVED: replace v1.44 envelope unconditionally.** Plan 02 Task 3 rewrites `tests/test_history_cli.py::TestIngestionRateCli` envelope pins to the Phase 219 envelope (`{schema_version: 1, rows: [...]}` with `_snapshot_unix` and `_snapshot_age_sec` on every row, including default-mode invocations without `--by-table`/`--rolling`).
 
 2. **Q2: New helper visibility (R3) — `_per_wan_ingestion_rate_bucketed` vs `per_wan_ingestion_rate_bucketed`?**
    - What we know: Operator-summary needs to import it. Single-underscore is "private" convention.
    - Recommendation: **public name** (`per_wan_ingestion_rate_bucketed`). Existing `_per_wan_ingestion_rate` keeps its underscore.
+   - **RESOLVED: public name `per_wan_ingestion_rate_bucketed` (no leading underscore).** Plan 02 Task 1 lands the public helper in `src/wanctl/history.py`; plan 03 Task 1 imports it from `src/wanctl/operator_summary.py` without a private-name convention break.
 
 3. **Q3: Where does the `tests/test_phase219_ingestion_digest.py` live in the success-criteria checklist?**
    - INGEST-05 specifies the golden SQLite fixture test in `tests/test_history_ingestion_rate_bucketed.py`. It does NOT specifically require a separate test for `phase219-ingestion-digest.py` script behavior.
    - Recommendation: **include both** in the plan. The cron script needs its own unit test for retention + atomic-write semantics (it's the most failure-prone surface). Cite INGEST-05 success criterion #3 as covering it.
+   - **RESOLVED: yes, include a separate `tests/test_phase219_ingestion_digest.py` file.** Plan 01 Task 2 lands the xfailed scaffold; plan 04 Task 2 flips the markers to green. INGEST-05 success criterion #3 (atomic-write + count-based retention) is covered there rather than folded into the golden-SQLite-fixture test.
 
 ## Environment Availability
 

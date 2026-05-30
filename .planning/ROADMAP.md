@@ -62,7 +62,12 @@ Full v1.46 roadmap archived to `milestones/v1.46-ROADMAP.md`. v1.46 stats and ac
   4. Mutation-boundary pytest (SAFE-11) passes green for the Phase 219 allowlist: additive edits to `src/wanctl/history.py` are explicitly allowlisted; controller-path files (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) remain untouched.
   5. Post-deploy production cycle budget unchanged within Phase 217 baseline tolerance: `cycle_total.avg_ms ≤ 3.0` and `p99_ms ≤ 7.5` (matches v1.46 Phase 217 anchor + small headroom).
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+- [ ] 219-01-PLAN.md — Wave 0 test scaffolds (golden-fixture pin, cron-script xfailed scaffold, SAFE-11 boundary clone)
+- [ ] 219-02-PLAN.md — Wave 1: core CLI extension (--by-table + --rolling, public per_wan_ingestion_rate_bucketed, envelope formatter, v1.44 envelope test migration)
+- [ ] 219-03-PLAN.md — Wave 2: operator-summary --digest ingestion block (tie-break + tolerance)
+- [ ] 219-04-PLAN.md — Wave 3: cron snapshot script + docs/CONFIGURATION.md staleness paragraph
 
 ### Phase 220: Matrix Runner (Scope A1)
 
@@ -104,7 +109,7 @@ Full v1.46 roadmap archived to `milestones/v1.46-ROADMAP.md`. v1.46 stats and ac
 
 | Phase | Milestone | Plans Complete | Status   | Completed  |
 | ----- | --------- | -------------- | -------- | ---------- |
-| 219. Ingestion-Rate Observability (Scope D)   | v1.47       | 0/? | Not started             | —          |
+| 219. Ingestion-Rate Observability (Scope D)   | v1.47       | 0/4 | Not started             | —          |
 | 220. Matrix Runner (Scope A1)                 | v1.47       | 0/? | Not started             | —          |
 | 221. Matrix Evidence + Closeout (Scope A2)    | v1.47       | 0/? | Not started             | —          |
 | 218. Deferred v1.45 VERIFY Watch-List Closure | v1.46 carry | 0/? | Deferred (event-gated; parallel to v1.47)  | —          |
