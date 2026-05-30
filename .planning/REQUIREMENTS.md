@@ -36,7 +36,7 @@ Bounded read-only evidence milestone. Two scopes: A (tcp_12down target/path sens
 - [x] **INGEST-01**: `wanctl-history --ingestion-rate --by-table` flag added additively to `src/wanctl/history.py`. Output is per-WAN × per-table rows/sec for the configured window. Per-table read failures emit `null` for that table rather than aborting (tolerant pattern from v1.44 TOOL-03).
 - [x] **INGEST-02**: `wanctl-history --ingestion-rate --rolling=60,300,3600` flag added additively. Output includes a rolling-window block for each specified window in one call. Default behavior (no `--rolling`, no `--by-table`) is unchanged from v1.44 Phase 208.
 - [x] **INGEST-03**: JSON output mode carries `schema_version: 1` plus per-snapshot staleness fields (`_snapshot_unix` and `_snapshot_age_sec` on every snapshot row).
-- [ ] **INGEST-04**: `wanctl-operator-summary --digest` surfaces a compact ingestion-rate block (per-WAN totals + dominant-table) sourced from the new bucketed output. Read tolerance from v1.44 TOOL-03 carries forward.
+- [x] **INGEST-04**: `wanctl-operator-summary --digest` surfaces a compact ingestion-rate block (per-WAN totals + dominant-table) sourced from the new bucketed output. Read tolerance from v1.44 TOOL-03 carries forward.
 - [ ] **INGEST-05**: `scripts/phase219-ingestion-digest.py` is cron-callable (not a systemd unit) and calls extended `wanctl-history --ingestion-rate` in JSON mode for snapshot capture. Golden SQLite fixture in `tests/test_history_ingestion_rate_bucketed.py` pins schema_version=1 and `--by-table` + `--rolling` output shape.
 
 ### SAFE — Cross-Cutting Read-Only Discipline (Phases 219/220/221)
