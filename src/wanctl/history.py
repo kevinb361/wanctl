@@ -18,6 +18,7 @@ import logging
 import re
 import sqlite3
 import sys
+import time
 from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -615,13 +616,34 @@ Examples:
 
 def _resolve_time_range(args: argparse.Namespace) -> tuple[int, int]:
     """Resolve start/end timestamps from CLI arguments."""
-    now = int(datetime.now().timestamp())
+    now = int(time.time())
 
     if args.last:
         return now - int(args.last.total_seconds()), now
     if args.from_ts:
         return args.from_ts, args.to_ts if args.to_ts else now
     return now - 3600, now
+
+
+def _resolve_rolling_windows(
+    args: argparse.Namespace, now: int
+) -> list[tuple[int, int, int]]:
+    """Resolve ingestion-rate windows, optionally from --rolling seconds."""
+    if args.rolling:
+        try:
+            rolling_secs = [int(s.strip()) for s in args.rolling.split(",") if s.strip()]
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(
+                "--rolling values must be positive integers"
+            ) from exc
+        if any(window_sec <= 0 for window_sec in rolling_secs):
+            raise argparse.ArgumentTypeError("--rolling values must be positive integers")
+        if len(rolling_secs) > 16:
+            raise argparse.ArgumentTypeError("--rolling accepts at most 16 windows")
+        return [(now - window_sec, now, window_sec) for window_sec in rolling_secs]
+
+    start_ts, end_ts = _resolve_time_range(args)
+    return [(start_ts, end_ts, max(end_ts - start_ts, 1))]
 
 
 def _filter_db_paths_by_wan(db_paths: list[Path], wan: str | None) -> list[Path]:
@@ -689,6 +711,84 @@ def _per_wan_ingestion_rate(
                 "rows_per_sec": (count / window_seconds) if window_seconds > 0 else 0.0,
             }
         )
+    return rows, failures
+
+
+def per_wan_ingestion_rate_bucketed(
+    db_paths: list[Path],
+    *,
+    start_ts: int,
+    end_ts: int,
+    wan: str | None,
+) -> tuple[list[dict], int]:
+    """Return per-WAN x metric_name ingestion-rate rows.
+
+    A database open/query failure emits one null row for that DB/window so callers
+    can distinguish a read failure from a successful empty window.
+    """
+    rows: list[dict] = []
+    failures = 0
+    window_seconds = max(end_ts - start_ts, 1)
+    for db_path in db_paths:
+        stem = db_path.stem
+        wan_name = stem.removeprefix("metrics-") if stem.startswith("metrics-") else stem
+        try:
+            conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+            try:
+                where = "WHERE timestamp BETWEEN ? AND ?"
+                params: list[int | str] = [start_ts, end_ts]
+                if wan:
+                    where += " AND wan_name = ?"
+                    params.append(wan)
+                sql = (
+                    "SELECT metric_name, COUNT(*) FROM metrics "
+                    f"{where} GROUP BY metric_name ORDER BY metric_name"
+                )
+                metric_counts = [
+                    (str(metric_name), int(count))
+                    for metric_name, count in conn.execute(sql, params).fetchall()
+                ]
+            finally:
+                conn.close()
+        except (sqlite3.DatabaseError, OSError) as exc:
+            logger.warning("Failed bucketed count for %s: %s", db_path.name, exc)
+            failures += 1
+            rows.append(
+                {
+                    "wan_db": str(db_path),
+                    "wan_name": wan_name,
+                    "table_name": None,
+                    "window_seconds": window_seconds,
+                    "row_count": None,
+                    "rows_per_sec": None,
+                }
+            )
+            continue
+
+        if not metric_counts:
+            rows.append(
+                {
+                    "wan_db": str(db_path),
+                    "wan_name": wan_name,
+                    "table_name": None,
+                    "window_seconds": window_seconds,
+                    "row_count": 0,
+                    "rows_per_sec": 0.0,
+                }
+            )
+            continue
+
+        for metric_name, count in metric_counts:
+            rows.append(
+                {
+                    "wan_db": str(db_path),
+                    "wan_name": wan_name,
+                    "table_name": metric_name,
+                    "window_seconds": window_seconds,
+                    "row_count": count,
+                    "rows_per_sec": (count / window_seconds) if window_seconds > 0 else 0.0,
+                }
+            )
     return rows, failures
 
 
