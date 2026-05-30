@@ -26,13 +26,20 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - VERIFY-01 / VERIFY-02 event-gated on natural production DOCSIS flapping event with `details.peak_transition_count > 30` on either WAN. **No synthetic event generation per ROADMAP constraint.**
 - Phase 218 plans only when qualifying evidence exists; archives the retained v1.45 phase directories if VERIFY-01 + ALERT-03 pass.
 
-## Next Milestone: v1.47 — TBD
+## Current Milestone: v1.47 Measurement Evidence Closure
 
-Start with `/gsd-new-milestone`. Candidate scope inputs from v1.46 carry:
-- `tcp_12down` target/path sensitivity — Phase 214 carried-narrower; supplemental Vultr Dallas/Chicago severe p99 (745/651ms) keeps the hypothesis live.
-- Steering version-drift alignment — runtime `1.39` vs source `1.45`; alignment pending operator approval.
-- Spectrum upload reclaim re-attempt with a revised gate — Phase 215 returned bounded VOID at ceiling 20.
-- Ingestion-rate observability tool — would improve metrics.db write-rate visibility for Phase 218 evidence audit.
+**Goal:** Confirm or kill the `tcp_12down` target/path sensitivity hypothesis left live by Phase 214 with evidence-first read-only analysis, and land an ingestion-rate observability tool that supports Phase 218 evidence audits.
+
+**Target features:**
+- `tcp_12down` target/path sensitivity matrix — deliberate matrix against the Phase 214 baseline to confirm or kill the Vultr Dallas/Chicago severe p99 (`745`/`651`ms) hypothesis.
+- Ingestion-rate observability tool — per-WAN `metrics.db` write-rate visibility integrated into existing operator surfaces, sized for Phase 218 audit evidence and routine ops.
+- Closeout decision report — explicit verdict (defect located, hypothesis killed, or carried-narrower with rationale); no production tuning unless evidence isolates a cause.
+
+**Key context (carried from v1.46 close 2026-05-30):**
+- Read-only until evidence isolates a cause. No threshold, CAKE, or steering policy changes without measurement-resilience proof.
+- Performance is NOT the quality limit (Phase 217: `cycle_total.avg_ms=2.883`, `p99=6.9` over `71,560` samples).
+- Phase 218 watch-list runs in parallel — not a v1.47 gate.
+- Joint Claude + Codex scope decision 2026-05-30. Deferred to v1.47+: steering runtime/source version-drift alignment, Spectrum upload reclaim re-attempt with revised probe shape, SEED-005/006/007.
 
 <details>
 <summary>Archived v1.45 milestone goals (collapsed for brevity)</summary>
@@ -77,11 +84,11 @@ Start with `/gsd-new-milestone`. Candidate scope inputs from v1.46 carry:
 
 ## Current State
 
-**Version:** v1.46 shipped-with-deferral 2026-05-30 — Phases 212–217 complete; Phase 218 is event-gated, waiting for a qualifying natural DOCSIS flapping event. Next milestone v1.47 TBD.
+**Version:** v1.47 Measurement Evidence Closure opened 2026-05-30 — joint Claude + Codex scope decision A (tcp_12down target/path sensitivity closure) + D (ingestion-rate observability); 3 phases planned. v1.46 shipped-with-deferral 2026-05-30 — Phases 212–217 complete; Phase 218 stays event-gated on a qualifying natural DOCSIS flapping event and runs in parallel with v1.47.
 **Tests:** Phase 217 verification passed 12/12 after the production cycle-budget baseline; final full regression suite passed `5221 passed, 6 skipped, 2 deselected`. Phase 216 verification passed 11/11 after the no-change / resolved-by-197 refractory decision closeout; Phase 215 verification passed 25/25 after the approved Spectrum upload reclaim canary rolled back safely on bounded VOID; Phase 214 UAT passed 8/8; Phase 213 verification passed 15/15; Phase 212 verification passed 16/16; Phase 210 alerting suites and hot-path regression slice passing; Phase 211 SAFE-10 manual closeout passed against `21ee630` with `AWK_EXIT=0`.
 **LOC:** ~40,915 Python (src/)
 **Milestones:** 47 shipped or shipped-with-deferral (v1.0–v1.46); v1.47 not yet opened.
-**Active milestone:** none — `/gsd-new-milestone` to open v1.47.
+**Active milestone:** v1.47 Measurement Evidence Closure — 3 phases, evidence-first read-only, primary scope A + co-scoped D.
 
 **Latest:** v1.46 Phase 217 Production Cycle-Budget Baseline complete — Spectrum `1.45.0` was profiled with a validated live journal streaming capture after a pilot and short rehearsal; `71560` cycle records produced `cycle_total.avg_ms=2.883`, `cycle_total.p99_ms=6.9`, and dominant category `logging_metrics=8.26%`. The profiling todo is closed as no-action, performance work is deprioritized in favor of quality/tuning work, and the JSON collector now fails closed if `autorate_cycle_total` samples are absent.
 **Previous:** v1.46 Phase 216 Recovery/Refractory Decision complete — the Phase 196 queue-primary refractory semantics thread is closed as `no-change / resolved-by-197`; Phase 197 replay tests are the semantic proof, Phase 213 only shows no current symptom, and RECOV-03 is satisfied only as a no-change gate/waiver rather than a basis for future tuning. No control-path code, YAML config, systemd unit, script, test, RouterOS surface, or production service was changed.
@@ -150,7 +157,7 @@ Start with `/gsd-new-milestone`. Candidate scope inputs from v1.46 carry:
 ## Recently Archived / Shipped: v1.39, v1.41, v1.42, v1.43, v1.44, v1.45, v1.46
 
 - **v1.46 Internet Quality Recovery** (shipped-with-deferral 2026-05-30, VERIFY-01/02 deferred to Phase 218 event-gated watch-list; 6 phases, 21 plans, 42 tasks) — `.planning/milestones/v1.46-ROADMAP.md`
-- **v1.45 Flapping Peak-Counter Window Repair** (shipped-with-deferral 2026-05-27, VERIFY-01 deferred → rolled into v1.46 Phase 218; no archive directory yet) — `.planning/phases/211-production-verification-milestone-closure/211-03-SUMMARY.md`
+- **v1.45 Flapping Peak-Counter Window Repair** (shipped-with-deferral 2026-05-27, VERIFY-01 deferred → rolled into v1.46 Phase 218; archived 2026-05-30 alongside v1.47 open) — `.planning/milestones/v1.45-phases/211-production-verification-milestone-closure/211-03-SUMMARY.md`
 - **v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration** (shipped 2026-05-26, audit `passed` 16/16 after 206 restamp) — `.planning/milestones/v1.44-ROADMAP.md`
 - **v1.43 UL Suppression Metrics & Gate Calibration** (shipped 2026-05-13, audit `passed` 15/15) — `.planning/milestones/v1.43-ROADMAP.md`
 - **v1.42 DOCSIS-Aware UL Congestion Control** (shipped 2026-05-06, gaps_found Route B) — `.planning/milestones/v1.42-ROADMAP.md`
@@ -856,4 +863,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-05-30 after v1.46 Internet Quality Recovery shipped-with-deferral. Phases 212–217 complete (6 phases, 21 plans, 42 tasks, 156 commits). VERIFY-01/02 carried to Phase 218 as event-gated watch-list (no synthetic event generation). v1.45 deferral now rolled forward through v1.46. Next milestone v1.47 TBD via `/gsd-new-milestone`._
+_Last updated: 2026-05-30 — v1.47 Measurement Evidence Closure opened via `/gsd-new-milestone`. Joint Claude + Codex scope decision: A (tcp_12down target/path sensitivity closure) + D (ingestion-rate observability tool); 3 phases planned. Read-only posture until evidence isolates a cause. Phase 218 watch-list continues event-gated in parallel. Steering version-drift alignment (B), Spectrum upload reclaim re-attempt (C), and SEED-005/006/007 (E/F/G) deferred to v1.47+._
