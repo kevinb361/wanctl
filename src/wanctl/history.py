@@ -439,20 +439,39 @@ def format_tins_json(results: list[dict]) -> str:
 def format_ingestion_rate_table(rows: list[dict], start_ts: int, end_ts: int) -> str:
     """Format per-WAN ingestion rate as an operator-readable table."""
     window_seconds = max(end_ts - start_ts, 1)
-    headers = ["WAN", "Database", "Window", "Rows", "Rows/sec", "Mean Rows/sec"]
+    show_bucket_columns = not (
+        all(r.get("table_name") is None for r in rows)
+        and len({r["window_seconds"] for r in rows}) <= 1
+    )
+    headers = ["WAN", "Database"]
+    if show_bucket_columns:
+        headers.extend(["Table", "Window(s)"])
+    else:
+        headers.append("Window")
+    headers.extend(["Rows", "Rows/sec", "Mean Rows/sec"])
     table_rows = []
     for r in rows:
-        mean = r["row_count"] / window_seconds if window_seconds > 0 else 0.0
-        table_rows.append(
+        row_window_seconds = r.get("window_seconds", window_seconds)
+        row_count = r.get("row_count")
+        rows_per_sec = r.get("rows_per_sec")
+        mean = (
+            row_count / row_window_seconds
+            if row_count is not None and row_window_seconds > 0
+            else None
+        )
+        table_row = [r["wan_name"], r["wan_db"]]
+        if show_bucket_columns:
+            table_row.extend([r.get("table_name") or "", row_window_seconds])
+        else:
+            table_row.append(f"{format_timestamp(start_ts)}..{format_timestamp(end_ts)}")
+        table_row.extend(
             [
-                r["wan_name"],
-                r["wan_db"],
-                f"{format_timestamp(start_ts)}..{format_timestamp(end_ts)}",
-                r["row_count"],
-                format_value(r["rows_per_sec"]),
-                format_value(mean),
+                row_count if row_count is not None else "",
+                format_value(rows_per_sec) if rows_per_sec is not None else "",
+                format_value(mean) if mean is not None else "",
             ]
         )
+        table_rows.append(table_row)
     return tabulate(table_rows, headers=headers, tablefmt="simple")  # type: ignore[no-any-return]
 
 
@@ -488,6 +507,26 @@ def format_ingestion_rate_json(rows: list[dict], start_ts: int, end_ts: int) -> 
         ],
     }
     return json.dumps(payload, indent=2)
+
+
+def format_ingestion_rate_envelope_json(rows: list[dict], snapshot_unix: int) -> str:
+    """Format Phase 219 NEW-mode ingestion-rate rows as a versioned envelope."""
+    now = int(time.time())
+    output_rows = []
+    for row in rows:
+        output_rows.append(
+            {
+                "wan_name": row["wan_name"],
+                "wan_db": row["wan_db"],
+                "table_name": row.get("table_name"),
+                "window_seconds": row["window_seconds"],
+                "row_count": row.get("row_count"),
+                "rows_per_sec": row.get("rows_per_sec"),
+                "_snapshot_unix": snapshot_unix,
+                "_snapshot_age_sec": max(0, now - snapshot_unix),
+            }
+        )
+    return json.dumps({"schema_version": 1, "rows": output_rows}, indent=2)
 
 
 # =============================================================================
@@ -564,6 +603,26 @@ Examples:
             "Show per-WAN metrics ingestion rate (rows/sec) over the selected window. "
             "Unreadable DBs appear as 0-row entries; cross-check with --wan/--last for "
             "suspicious zero-rate WANs."
+        ),
+    )
+    filter_group.add_argument(
+        "--by-table",
+        dest="by_table",
+        action="store_true",
+        help=(
+            "With --ingestion-rate: emit per-WAN x per-metric_name rows. "
+            "The table_name JSON field is the metrics table's metric_name."
+        ),
+    )
+    filter_group.add_argument(
+        "--rolling",
+        dest="rolling",
+        metavar="SECS,SECS,...",
+        type=str,
+        default=None,
+        help=(
+            "With --ingestion-rate: comma-separated rolling window sizes in seconds, "
+            "e.g. 60,300,3600."
         ),
     )
     filter_group.add_argument(
@@ -888,6 +947,9 @@ def main() -> int:
     """
     parser = create_parser()
     args = parser.parse_args()
+
+    if (args.by_table or args.rolling) and not args.ingestion_rate:
+        parser.error("--by-table and --rolling requires --ingestion-rate")
 
     if args.db is not None:
         if not args.db.exists():
