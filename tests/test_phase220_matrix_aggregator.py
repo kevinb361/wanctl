@@ -14,7 +14,7 @@ PIN_MWU_2 = 0.26748958
 PIN_BOOTSTRAP_1 = (-2.0, -2.0)
 PIN_BOOTSTRAP_2 = (-2.0, 1.0)
 
-xfail = lambda item: (lambda: pytest.xfail("aggregator not implemented yet — plan 02"))
+xfail = lambda item: (setattr(item, "pytestmark", [pytest.mark.xfail(reason="aggregator not implemented yet — plan 02", strict=True)]), item)[1]
 load_aggregator = lambda: importlib.import_module("scripts.phase220_matrix_aggregator")
 scenario = lambda name: SCENARIOS / name
 check = lambda condition, message="assertion failed": None if condition else (_ for _ in ()).throw(AssertionError(message))
