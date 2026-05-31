@@ -11,7 +11,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WRAPPER = REPO_ROOT / "scripts/phase220-target-path-matrix.sh"
 EVIDENCE = REPO_ROOT / ".planning/phases/220-matrix-runner-scope-a1/evidence"
-xfail = lambda item: (lambda: pytest.xfail("wrapper script not implemented yet — plan 03"))
+xfail = lambda item: (setattr(item, "pytestmark", [pytest.mark.xfail(reason="wrapper script not implemented yet — plan 03", strict=True)]), item)[1]
 check = lambda condition, message="assertion failed": None if condition else (_ for _ in ()).throw(AssertionError(message))
 skip_missing = lambda: pytest.skip("wrapper script not implemented yet — plan 03") if not WRAPPER.exists() else None
 run = lambda *args, env=None: subprocess.run([str(WRAPPER), *args], cwd=REPO_ROOT, capture_output=True, text=True, timeout=20, env=env or (os.environ | {"PHASE220_BASE_SHA": "TEST_BASE_SHA"}))
