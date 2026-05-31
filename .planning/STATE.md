@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.47
 milestone_name: Measurement Evidence Closure
 status: executing
-stopped_at: Completed 220-01-PLAN.md
-last_updated: "2026-05-31T11:33:04.002Z"
+stopped_at: Completed 220-02-PLAN.md
+last_updated: "2026-05-31T11:42:42.168Z"
 last_activity: 2026-05-31
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 8
-  completed_plans: 5
+  completed_plans: 6
   percent: 33
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-30 after v1.46 milestone close + v1.4
 ## Current Position
 
 Phase: 220 (matrix-runner-scope-a1) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-05-31
 
@@ -123,8 +123,8 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ## Session Continuity
 
-Last session: 2026-05-31T11:31:34.880Z
-Stopped at: Completed 220-01-PLAN.md
+Last session: 2026-05-31T11:42:35.056Z
+Stopped at: Completed 220-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 
@@ -225,3 +225,4 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 | Phase 219 P03 | 6min | 2 tasks | 3 files |
 | Phase 219 P04 | checkpointed; production capture 62min | 4 tasks | 5 files |
 | Phase 220 P01 | 10min | 5 tasks | 31 files |
+| Phase 220 P02 | 7min | 3 tasks | 4 files |
