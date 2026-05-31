@@ -17,7 +17,7 @@ Bounded read-only evidence milestone. Two scopes: A (tcp_12down target/path sens
 - [x] **MATRIX-01**: `scripts/phase220-matrix.yaml` defines the canonical cell list with at minimum (a) Phase 214 canonical `dallas` reflector as the control cell present in EVERY window, (b) Vultr Dallas + Vultr Chicago as the supplemental hypothesis targets, (c) Spectrum + ATT as the path axis, (d) off-peak + daytime + prime-time as the window axis. `base_sha` field anchors mutation-boundary across multi-day runs.
 - [x] **MATRIX-02**: `scripts/phase220-target-path-matrix.sh` per-cell wrapper carries the Phase 214 Wrapper Composition Pattern verbatim: gate entry → triple-check `src/wanctl/` cleanliness via D-14 guard → window-hour gate → delegate to `phase213-baseline-capture.sh` → pull journal via SSH → write phase-owned sidecar manifest. Zero edits to existing Phase 213/214 scripts.
 - [x] **MATRIX-03**: Source-bind + egress IP verification per cell (Phase 213 harness enforces; harness fails closed on bind/egress mismatch). Per-replicate mtr/traceroute snapshot captured to detect mid-run BGP path changes.
-- [ ] **MATRIX-04**: Per-cell run delegates analysis to the unchanged Phase 214 fail-closed extractor + per-second aligner + six-driver classifier (`reflector_loss`, `loss`, `jitter`, `queue_delay`, `host_kernel`, `signal_none`).
+- [x] **MATRIX-04**: Per-cell run delegates analysis to the unchanged Phase 214 fail-closed extractor + per-second aligner + six-driver classifier (`reflector_loss`, `loss`, `jitter`, `queue_delay`, `host_kernel`, `signal_none`).
 
 ### AGGREGATE — Stdlib Aggregator + Matrix Verdict (Scope A, Phase 220)
 
