@@ -1,0 +1,50 @@
+phase: 220
+schema_version: 1
+base_sha: "PENDING_PLAN_02_COMMIT"
+locked_at: "2026-05-30"
+driver_allowlist: ["reflector_loss", "cake_queue_mismatch"]
+
+thresholds:
+  canonical_control_p99_kill_ms: 200
+  canonical_min_windows_kill: 2
+  canonical_max_windows_kill_total: 3
+  supplemental_defect_p99_ms: 500
+  supplemental_defect_min_windows: 2
+  supplemental_carry_multiplier_of_control: 1.5
+
+windows:
+  off-peak: { hours: [1, 2, 3, 4, 5] }
+  daytime: { hours: [10, 11, 12, 13, 14, 15, 16] }
+  prime-time: { hours: [19, 20, 21, 22] }
+
+targets:
+  - { name: dallas, kind: canonical, host: dallas }
+  - { name: vultr-dallas, kind: supplemental, host: vultr-dallas }
+  - { name: vultr-chicago, kind: supplemental, host: vultr-chicago }
+
+paths:
+  # Bind IPs verified against `ip -4 addr show` on 2026-05-31:
+  # spectrum=10.10.110.226 and att=10.10.110.233 are both bound on enp6s18.
+  # egress_signature is REQUIRED non-empty for name=att after Plan 02 finalizes this scaffold.
+  # Plan 01 keeps att.egress_signature empty because Plan 02 must replace it with live-captured ATT egress before wrapper implementation consumes the YAML.
+  - { name: spectrum, bind_map: "spectrum=10.10.110.226", egress_signature: "70.123.224.169" }
+  - { name: att, bind_map: "att=10.10.110.233", egress_signature: "" }
+
+cells:
+  # Plan 01 stub — Plan 02 expands to full 18-cell Cartesian product.
+  - { cell_id: "dallas__spectrum__daytime", target: dallas, path: spectrum, window: daytime, replicates: 3, inter_cell_delay_sec: 60 }
+  - { cell_id: "dallas__att__daytime", target: dallas, path: att, window: daytime, replicates: 3, inter_cell_delay_sec: 60 }
+  - { cell_id: "vultr-dallas__spectrum__daytime", target: vultr-dallas, path: spectrum, window: daytime, replicates: 3, inter_cell_delay_sec: 60 }
+  - { cell_id: "vultr-chicago__spectrum__daytime", target: vultr-chicago, path: spectrum, window: daytime, replicates: 3, inter_cell_delay_sec: 60 }
+
+statistical:
+  mwu:
+    seed: 220
+    tie_correction: "wilcoxon-mid-rank"
+    continuity_correction: false
+  bootstrap_ci:
+    seed: 220
+    B: 2000
+    method: "percentile"
+    statistic: "median_difference"
+    alpha: 0.05
