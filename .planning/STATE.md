@@ -151,6 +151,8 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 - [219-04]: D-21 reused `wanctl.state_utils.atomic_write_json` for collision-safe ingestion snapshot writes despite the normal scripts-to-src boundary.
 - [219-04]: D-23 validates `wanctl-history` subprocess stdout with `json.loads` before atomic persistence.
 - [219-04]: D-27 production profile passed avg/p99 gates with cron active: 2.857ms avg, 6.4ms p99 over 73,603 samples.
+- [220-03]: YAML base_sha remains the only source-floor authority; PHASE220_BASE_SHA is accepted only when it matches YAML.
+- [220-03]: ATT egress validation is hard-fail by default; missing egress_signature exits 4 before curl and mismatched live egress exits 2.
 
 ## Decisions (v1.46)
 
@@ -226,3 +228,4 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 | Phase 219 P04 | checkpointed; production capture 62min | 4 tasks | 5 files |
 | Phase 220 P01 | 10min | 5 tasks | 31 files |
 | Phase 220 P02 | 7min | 3 tasks | 4 files |
+| Phase 220 P03 | 6min | 2 tasks | 2 files |
