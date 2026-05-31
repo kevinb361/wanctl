@@ -162,16 +162,17 @@ print("\n".join(values))
 PY
 }
 
-mapfile -t CONFIG < <(load_cell_config)
-YAML_BASE_SHA="${CONFIG[0]}"
-TARGET_KIND="${CONFIG[1]}"
-TARGET_NAME="${CONFIG[2]}"
-TARGET="${CONFIG[3]}"
-PATH_NAME="${CONFIG[4]}"
-BIND_MAP="${CONFIG[5]}"
-WINDOW_NAME="${CONFIG[6]}"
-CONTROL_P99_KILL_MS="${CONFIG[7]}"
-ATT_EGRESS_EXPECTED="${CONFIG[8]}"
+CONFIG_OUTPUT="$(load_cell_config)"
+mapfile -t CONFIG <<<"$CONFIG_OUTPUT"
+YAML_BASE_SHA="${CONFIG[0]:-}"
+TARGET_KIND="${CONFIG[1]:-}"
+TARGET_NAME="${CONFIG[2]:-}"
+TARGET="${CONFIG[3]:-}"
+PATH_NAME="${CONFIG[4]:-}"
+BIND_MAP="${CONFIG[5]:-}"
+WINDOW_NAME="${CONFIG[6]:-}"
+CONTROL_P99_KILL_MS="${CONFIG[7]:-}"
+ATT_EGRESS_EXPECTED="${CONFIG[8]:-}"
 
 if [[ -n "${PHASE220_BASE_SHA:-}" && "$PHASE220_BASE_SHA" != "$YAML_BASE_SHA" ]]; then
   echo "REFUSED: env PHASE220_BASE_SHA=$PHASE220_BASE_SHA disagrees with scripts/phase220-matrix.yaml base_sha=$YAML_BASE_SHA (YAML is authoritative; cycle 3 H3 fix)" >&2
