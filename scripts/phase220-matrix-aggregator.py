@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: N803, N999
 """Phase 220 target/path/window matrix aggregator.
 
 Reads Phase 220 per-cell manifests plus Phase 214 signal-sheet outputs and
@@ -70,7 +71,7 @@ def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
 def load_matrix_definition(yaml_path: Path) -> dict[str, Any]:
     parsed = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
     if not isinstance(parsed, dict):
-        raise ValueError("phase220-matrix.yaml must parse to a mapping")
+        raise TypeError("phase220-matrix.yaml must parse to a mapping")
     if parsed.get("schema_version") != SCHEMA_VERSION:
         raise ValueError("phase220-matrix.yaml schema_version must be 1")
 
