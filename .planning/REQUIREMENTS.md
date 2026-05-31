@@ -9,21 +9,21 @@ Bounded read-only evidence milestone. Two scopes: A (tcp_12down target/path sens
 
 ### CRITERIA — Pre-Registered Decision Rules (Scope A, Phase 220 gate)
 
-- [ ] **CRITERIA-01**: Kill criteria and defect criteria for the `tcp_12down` target/path sensitivity hypothesis are written into `220-CONTEXT.md` BEFORE any live matrix cell run. Both are quantitative and time-bound (e.g., kill: canonical control cell p99 ≤ 200ms on ≥ 2/3 windows AND zero supplemental cell exceeds 1.5x control p99 across all windows; defect: ≥ 1 supplemental cell p99 > 500ms reproduced across ≥ 2 windows with corroborating reflector_loss / loss / queue_delay driver — exact thresholds locked at Phase 220 plan time, never edited after first live run).
+- [x] **CRITERIA-01**: Kill criteria and defect criteria for the `tcp_12down` target/path sensitivity hypothesis are written into `220-CONTEXT.md` BEFORE any live matrix cell run. Both are quantitative and time-bound (e.g., kill: canonical control cell p99 ≤ 200ms on ≥ 2/3 windows AND zero supplemental cell exceeds 1.5x control p99 across all windows; defect: ≥ 1 supplemental cell p99 > 500ms reproduced across ≥ 2 windows with corroborating reflector_loss / loss / queue_delay driver — exact thresholds locked at Phase 220 plan time, never edited after first live run).
 - [ ] **CRITERIA-02**: Close-with-prejudice rule documented: if matrix verdict is again `ambiguous`, the folded `2026-04-08-investigate-tcp-12down` todo is closed-with-prejudice and no v1.48+ follow-up may reopen the thread without independent new evidence (e.g., a real production p99 incident captured in DB).
 
 ### MATRIX — Target/Path Matrix Definition + Runner (Scope A, Phase 220)
 
 - [ ] **MATRIX-01**: `scripts/phase220-matrix.yaml` defines the canonical cell list with at minimum (a) Phase 214 canonical `dallas` reflector as the control cell present in EVERY window, (b) Vultr Dallas + Vultr Chicago as the supplemental hypothesis targets, (c) Spectrum + ATT as the path axis, (d) off-peak + daytime + prime-time as the window axis. `base_sha` field anchors mutation-boundary across multi-day runs.
-- [ ] **MATRIX-02**: `scripts/phase220-target-path-matrix.sh` per-cell wrapper carries the Phase 214 Wrapper Composition Pattern verbatim: gate entry → triple-check `src/wanctl/` cleanliness via D-14 guard → window-hour gate → delegate to `phase213-baseline-capture.sh` → pull journal via SSH → write phase-owned sidecar manifest. Zero edits to existing Phase 213/214 scripts.
-- [ ] **MATRIX-03**: Source-bind + egress IP verification per cell (Phase 213 harness enforces; harness fails closed on bind/egress mismatch). Per-replicate mtr/traceroute snapshot captured to detect mid-run BGP path changes.
+- [x] **MATRIX-02**: `scripts/phase220-target-path-matrix.sh` per-cell wrapper carries the Phase 214 Wrapper Composition Pattern verbatim: gate entry → triple-check `src/wanctl/` cleanliness via D-14 guard → window-hour gate → delegate to `phase213-baseline-capture.sh` → pull journal via SSH → write phase-owned sidecar manifest. Zero edits to existing Phase 213/214 scripts.
+- [x] **MATRIX-03**: Source-bind + egress IP verification per cell (Phase 213 harness enforces; harness fails closed on bind/egress mismatch). Per-replicate mtr/traceroute snapshot captured to detect mid-run BGP path changes.
 - [ ] **MATRIX-04**: Per-cell run delegates analysis to the unchanged Phase 214 fail-closed extractor + per-second aligner + six-driver classifier (`reflector_loss`, `loss`, `jitter`, `queue_delay`, `host_kernel`, `signal_none`).
 
 ### AGGREGATE — Stdlib Aggregator + Matrix Verdict (Scope A, Phase 220)
 
-- [ ] **AGGREGATE-01**: `scripts/phase220-matrix-aggregator.py` forks `phase214-matrix-summary.py` and extends to a (target × path × window) cube rollup. Stdlib-only (`statistics`, `random`, `math`, `json`); no SciPy/NumPy/pandas.
-- [ ] **AGGREGATE-02**: Per-cell vs per-target/path/window rollup vs matrix-level verdict are emitted as distinct fields. Supplemental-vs-canonical cells are separated in the report; the canonical control cell is never aggregated with supplemental cells.
-- [ ] **AGGREGATE-03**: Statistical comparison uses Mann-Whitney U (two-sided, normal approximation) + bootstrap 95% percentile CI (B=2000, seeded via `random.Random(seed)`). Golden-test fixtures with pinned p-values + CI bounds make the statistics testable. Wave 0 unit tests with pinned `.flent.gz` fixtures land BEFORE any live cell run.
+- [x] **AGGREGATE-01**: `scripts/phase220-matrix-aggregator.py` forks `phase214-matrix-summary.py` and extends to a (target × path × window) cube rollup. Stdlib-only (`statistics`, `random`, `math`, `json`); no SciPy/NumPy/pandas.
+- [x] **AGGREGATE-02**: Per-cell vs per-target/path/window rollup vs matrix-level verdict are emitted as distinct fields. Supplemental-vs-canonical cells are separated in the report; the canonical control cell is never aggregated with supplemental cells.
+- [x] **AGGREGATE-03**: Statistical comparison uses Mann-Whitney U (two-sided, normal approximation) + bootstrap 95% percentile CI (B=2000, seeded via `random.Random(seed)`). Golden-test fixtures with pinned p-values + CI bounds make the statistics testable. Wave 0 unit tests with pinned `.flent.gz` fixtures land BEFORE any live cell run.
 
 ### CLOSEOUT — Decision Report + Folded Todo (Scope A, Phase 221)
 
