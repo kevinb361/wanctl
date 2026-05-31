@@ -74,6 +74,8 @@ Command: `.venv/bin/python scripts/phase220-precompute-pins.py`
 
 The same literal values are embedded in `tests/test_phase220_matrix_aggregator.py`; no `TODO_FILL_AT_IMPL_TIME` placeholders remain.
 
+Plan 02 reproduced these pins with `scripts/phase220-matrix-aggregator.py` before flipping the Wave 0 xfail scaffolds to passing tests.
+
 ## Task Commits
 
 1. **Task 0: Matrix YAML scaffold** — `2969289` (feat)
