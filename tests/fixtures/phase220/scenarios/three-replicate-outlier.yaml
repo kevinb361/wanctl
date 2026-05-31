@@ -1,0 +1,7 @@
+scenario_name: three-replicate-outlier
+expected_matrix_verdict: carried_narrower_with_close_with_prejudice_rule
+expected_per_target_rollup: {canonical_dallas: cell_kill_clear, vultr_dallas: cell_defect, vultr_chicago: absent}
+expected_per_path_rollup: {spectrum: cell_defect, att: absent}
+expected_per_window_rollup: {off-peak: absent, daytime: cell_defect, prime-time: absent}
+expected_per_cell_median_p99_ms: {"vultr-dallas__spectrum__daytime": 610.0}
+cells: [canonical_dallas_daytime, vultr_dallas_spectrum_daytime, vultr_dallas_spectrum_daytime__r2, vultr_dallas_spectrum_daytime__r3]

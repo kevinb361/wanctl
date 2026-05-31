@@ -1,0 +1,6 @@
+scenario_name: driver-orthogonal-corroborated-defect
+expected_matrix_verdict: defect_located
+expected_per_target_rollup: {canonical_dallas: cell_kill_clear, vultr_dallas: cell_defect, vultr_chicago: cell_defect}
+expected_per_path_rollup: {spectrum: cell_defect, att: cell_defect}
+expected_per_window_rollup: {off-peak: absent, daytime: cell_defect, prime-time: cell_defect}
+cells: [canonical_dallas_daytime, canonical_dallas_prime-time, vultr_dallas_spectrum_daytime, vultr_dallas_spectrum_prime-time, vultr_chicago_att_daytime]
