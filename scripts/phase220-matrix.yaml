@@ -2,7 +2,7 @@ phase: 220
 schema_version: 1
 # SOURCE-FLOOR anchor: finalized by Plan 02 Task 3 with `git rev-parse HEAD` immediately before commit.
 # The wrapper compares protected source paths against this SHA and allows HEAD to move ahead later.
-base_sha: "PENDING_PLAN_02_COMMIT"
+base_sha: "50f3d5136830c284b190b29de939a84406531ecc"
 locked_at: "2026-05-30"
 # R1 mapping: CONTEXT {loss, queue_delay} maps to Phase 214 {reflector_loss, cake_queue_mismatch}; jitter, host_kernel, signal_none are excluded.
 driver_allowlist: ["reflector_loss", "cake_queue_mismatch"]
