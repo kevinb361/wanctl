@@ -4,8 +4,8 @@ milestone: v1.47
 milestone_name: Measurement Evidence Closure
 status: executing
 stopped_at: Phase 220 context gathered
-last_updated: "2026-05-31T03:14:37.313Z"
-last_activity: 2026-05-31 -- Phase 220 planning complete
+last_updated: "2026-05-31T11:20:02.072Z"
+last_activity: 2026-05-31 -- Phase 220 execution started
 progress:
   total_phases: 3
   completed_phases: 1
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-30 after v1.46 milestone close + v1.47 milestone open)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 220 — matrix runner (scope a1)
+**Current focus:** Phase 220 — matrix-runner-scope-a1
 
 ## Current Position
 
-Phase: 220
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-31 -- Phase 220 planning complete
+Phase: 220 (matrix-runner-scope-a1) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 220
+Last activity: 2026-05-31 -- Phase 220 execution started
 
 ## Phase Structure (v1.47)
 
@@ -84,7 +84,7 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ### v1.46-shipped-with-VERIFY-01-02-deferred
 
-- **Status:** Ready to execute
+- **Status:** Executing Phase 220
 - **Operator sign-off:** Kevin — 2026-05-30, via /gsd-progress → Acknowledge & close path: "fix STATE drift then complete milestone". 18/20 v1.46 requirements satisfied; VERIFY-01/02 carry forward as watch-list.
 - **Why this is acceptable:** v1.46 spine (DRIFT/BASE/MEAS/RECLAIM/RECOV/PERF) is complete and decoupled from VERIFY. VERIFY watch closure requires production-side natural evidence that cannot be hastened without invalidating the metric.
 
