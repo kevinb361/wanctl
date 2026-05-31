@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.47
 milestone_name: Measurement Evidence Closure
 status: executing
-stopped_at: Phase 220 context gathered
-last_updated: "2026-05-31T11:20:02.072Z"
-last_activity: 2026-05-31 -- Phase 220 execution started
+stopped_at: Completed 220-01-PLAN.md
+last_updated: "2026-05-31T11:33:04.002Z"
+last_activity: 2026-05-31
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 8
-  completed_plans: 4
+  completed_plans: 5
   percent: 33
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-30 after v1.46 milestone close + v1.4
 ## Current Position
 
 Phase: 220 (matrix-runner-scope-a1) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 220
-Last activity: 2026-05-31 -- Phase 220 execution started
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-05-31
 
 ## Phase Structure (v1.47)
 
@@ -84,7 +84,7 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ### v1.46-shipped-with-VERIFY-01-02-deferred
 
-- **Status:** Executing Phase 220
+- **Status:** Ready to execute
 - **Operator sign-off:** Kevin — 2026-05-30, via /gsd-progress → Acknowledge & close path: "fix STATE drift then complete milestone". 18/20 v1.46 requirements satisfied; VERIFY-01/02 carry forward as watch-list.
 - **Why this is acceptable:** v1.46 spine (DRIFT/BASE/MEAS/RECLAIM/RECOV/PERF) is complete and decoupled from VERIFY. VERIFY watch closure requires production-side natural evidence that cannot be hastened without invalidating the metric.
 
@@ -123,9 +123,9 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ## Session Continuity
 
-Last session: 2026-05-31T02:25:35.126Z
-Stopped at: Phase 220 context gathered
-Resume file: .planning/phases/220-matrix-runner-scope-a1/220-CONTEXT.md
+Last session: 2026-05-31T11:31:34.880Z
+Stopped at: Completed 220-01-PLAN.md
+Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 
 ## Operator Next Steps
@@ -224,3 +224,4 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 | Phase 219 P02 | 7min | 3 tasks | 2 files |
 | Phase 219 P03 | 6min | 2 tasks | 3 files |
 | Phase 219 P04 | checkpointed; production capture 62min | 4 tasks | 5 files |
+| Phase 220 P01 | 10min | 5 tasks | 31 files |

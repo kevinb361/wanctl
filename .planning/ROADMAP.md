@@ -85,7 +85,7 @@ Full v1.46 roadmap archived to `milestones/v1.46-ROADMAP.md`. v1.46 stats and ac
   5. Mutation-boundary pytest (SAFE-11) passes green against the expanded allowlist (`scripts/`, `tests/fixtures/phase22*/`, `docs/`, `configs/`, `deploy/systemd/`); `src/wanctl/` controller surface remains untouched; `docs/` edits describe new CLI tools only — no threshold-tuning language, no future-tuning prediction.
 
 **Plans**: 4 plans
-  - [ ] 220-01-PLAN.md — Wave 0 test scaffolds (mutation-boundary green; aggregator + wrapper xfail) + synthetic fixtures
+  - [x] 220-01-PLAN.md — Wave 0 test scaffolds (mutation-boundary green; aggregator + wrapper xfail) + synthetic fixtures
   - [ ] 220-02-PLAN.md — `scripts/phase220-matrix.yaml` (locked CRITERIA-01 thresholds + 18 cells) + `scripts/phase220-matrix-aggregator.py` (cube rollup + MWU + bootstrap CI)
   - [ ] 220-03-PLAN.md — `scripts/phase220-target-path-matrix.sh` per-cell wrapper composing Phase 213/214 unchanged
   - [ ] 220-04-PLAN.md — `docs/PHASE220-MATRIX-RUNNER.md` + wet daytime control cell rehearsal evidence (operator-driven checkpoint)
@@ -114,7 +114,7 @@ Full v1.46 roadmap archived to `milestones/v1.46-ROADMAP.md`. v1.46 stats and ac
 | Phase | Milestone | Plans Complete | Status   | Completed  |
 | ----- | --------- | -------------- | -------- | ---------- |
 | 219. Ingestion-Rate Observability (Scope D)   | v1.47       | 4/4 | Complete    | 2026-05-30 |
-| 220. Matrix Runner (Scope A1)                 | v1.47       | 0/? | Not started             | —          |
+| 220. Matrix Runner (Scope A1)                 | v1.47       | 1/4 | In Progress|  |
 | 221. Matrix Evidence + Closeout (Scope A2)    | v1.47       | 0/? | Not started             | —          |
 | 218. Deferred v1.45 VERIFY Watch-List Closure | v1.46 carry | 0/? | Deferred (event-gated; parallel to v1.47)  | —          |
 | 217. Production Cycle-Budget Baseline         | v1.46       | 3/3 | Complete                | 2026-05-30 |
