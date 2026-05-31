@@ -75,3 +75,21 @@ None — single reviewer (Codex) this cycle.
 4. Lift `paths[].egress_signature` from "optional" in Plan 03 to "required when path_name=='att'" in Plan 02's final schema. Otherwise MATRIX-03 silently degrades on a missing-field path.
 5. Move the ATT egress `att_egress_check` marker into the dry-run branch (currently emitted only in the live branch after the dry-run exits), so `test_wrapper_validates_att_egress_when_path_is_att` can find it.
 6. Fix Plan 01's `<verification>` + `<success_criteria>`: explicitly allow the scripts/ allowlist {`phase220-matrix.yaml`, `phase220-precompute-pins.py`} and align the fixture-count assertions (10 signal-sheets + 10 cell-manifests + 6 scenarios) with the `files_modified` list.
+
+---
+
+## Cycle 3 Replan Disposition (2026-05-30)
+
+Cycle-3 replan applied (this file is the convergence anchor). Each of the 5 outstanding HIGHs is resolved in the updated PLAN.md files:
+
+| # | Concern | Cycle 3 Resolution | Files Touched |
+|---|---------|-------------------|---------------|
+| H3 | base_sha env override bypass | YAML is now AUTHORITATIVE in 220-03-PLAN. Env disagreement → exit 4. `test_missing_base_sha_returns_4` renamed to `test_missing_base_sha_in_yaml_returns_4`. New `test_env_base_sha_disagrees_with_yaml_returns_4` asserts the cycle-3 contract. | 220-03-PLAN.md step 4, Task 2 tests 7 + 7b, wrapper grep checks |
+| H4 | three-channel drift tests under-enforced | Added staged + committed-since-base test variants for BOTH phase213-baseline-capture.sh AND phase214-classify.py. Six drift tests total (3 channels × 2 scripts). Throwaway-branch teardown documented; cleanup asserted. | 220-03-PLAN.md Task 2 tests 9/9b/9c + 10/10b/10c + acceptance criteria + branch cleanup |
+| H5 | replicate-outlier fixture pin disagreement | Picked `[610, 800, 590] → 610` consistently. 220-01-PLAN.md test text now reads `[610, 800, 590] → 610` matching the fixture spec at line 431. Success criteria adds an end-to-end consistency assertion across aggregator test, signal-sheet fixtures, and scenario YAML. | 220-01-PLAN.md Task 2 test_replicate_aggregation_median_p99_three_replicates + success_criteria |
+| H6 | egress_signature optional + dry-run marker missing | (a) 220-02-PLAN canonical schema now REQUIRES non-empty `paths[name=att].egress_signature`; `load_matrix_definition` raises ValueError on missing/empty. (b) 220-03-PLAN moves the `att_egress_check:` marker into the dry-run preamble (step 9) BEFORE the dry-run echo. (c) Missing egress_signature is hard-fail (exit 4) by default, no warn-continue. New test `test_wrapper_hard_fails_when_att_egress_signature_missing_in_yaml` locks the contract. | 220-02-PLAN.md paths schema + load_matrix_definition + Task 1 acceptance + must_haves; 220-03-PLAN.md Task 1 step 9 + step 10.a2 + Task 2 test 11/11b + acceptance |
+| NEW HIGH (Plan 01) | self-contradicting verification + drifting fixture counts | 220-01-PLAN.md `<verification>` block rewritten to allow the scripts/ allowlist {phase220-matrix.yaml, phase220-precompute-pins.py} via `comm -23` subset check. Acceptance criteria for fixture counts changed from `== 9` to `== 10` to match the files_modified frontmatter exactly (10 signal-sheets, 10 cell-manifests, 6 scenarios). must_haves truths updated. `<success_criteria>` no longer says "tests/ only". | 220-01-PLAN.md verification + success_criteria + acceptance criteria + must_haves truths |
+
+CYCLE_3_VERDICT: convergence claimed — all 5 outstanding HIGHs from cycle 2 have explicit, test-backed resolutions in the updated PLAN.md files. New HIGHs introduced by this replan: none expected (changes are tightening, not surface expansion). Cycle-3 reviewer should validate the resolution table line-by-line against the PLAN.md commits.
+
+Replan commit: pending — committed at the end of cycle-3 plan-phase execution.
