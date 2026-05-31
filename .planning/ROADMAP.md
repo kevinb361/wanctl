@@ -84,7 +84,11 @@ Full v1.46 roadmap archived to `milestones/v1.46-ROADMAP.md`. v1.46 stats and ac
   4. Wave 0 unit tests pass green: pinned `.flent.gz` fixtures + Mann-Whitney U + bootstrap 95% percentile CI golden-test seeds (`B=2000`, `random.Random(seed)`) land BEFORE any live supplemental-cell run.
   5. Mutation-boundary pytest (SAFE-11) passes green against the expanded allowlist (`scripts/`, `tests/fixtures/phase22*/`, `docs/`, `configs/`, `deploy/systemd/`); `src/wanctl/` controller surface remains untouched; `docs/` edits describe new CLI tools only — no threshold-tuning language, no future-tuning prediction.
 
-**Plans**: TBD
+**Plans**: 4 plans
+  - [ ] 220-01-PLAN.md — Wave 0 test scaffolds (mutation-boundary green; aggregator + wrapper xfail) + synthetic fixtures
+  - [ ] 220-02-PLAN.md — `scripts/phase220-matrix.yaml` (locked CRITERIA-01 thresholds + 18 cells) + `scripts/phase220-matrix-aggregator.py` (cube rollup + MWU + bootstrap CI)
+  - [ ] 220-03-PLAN.md — `scripts/phase220-target-path-matrix.sh` per-cell wrapper composing Phase 213/214 unchanged
+  - [ ] 220-04-PLAN.md — `docs/PHASE220-MATRIX-RUNNER.md` + wet daytime control cell rehearsal evidence (operator-driven checkpoint)
 
 ### Phase 221: Matrix Evidence + Closeout (Scope A2)
 
