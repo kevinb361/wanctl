@@ -1,0 +1,6 @@
+scenario_name: all-clean
+expected_matrix_verdict: hypothesis_killed
+expected_per_target_rollup: {canonical_dallas: cell_kill_clear, vultr_dallas: absent, vultr_chicago: absent}
+expected_per_path_rollup: {spectrum: cell_kill_clear, att: absent}
+expected_per_window_rollup: {off-peak: cell_kill_clear, daytime: cell_kill_clear, prime-time: cell_kill_clear}
+cells: [canonical_dallas_off-peak, canonical_dallas_daytime, canonical_dallas_prime-time]

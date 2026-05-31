@@ -1,0 +1,1 @@
+{"run_dir":"test_fixture/canonical_dallas_prime-time","window":"prime-time","wan":"spectrum","verdict":"pass","primary_driver":null,"ranked":[],"latency":{"p50_ms":14.0,"p95_ms":32.0,"p99_ms":120.0},"per_second_samples_ms":[10.0,12.0,11.5,13.0,14.0,12.5,11.0,10.5,13.5,12.0],"signal_disposition":"none","started_utc":"2026-05-30T19:00:00Z","ended_utc":"2026-05-30T19:00:30Z"}
