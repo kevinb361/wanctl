@@ -1,95 +1,80 @@
 ---
 phase: 220
 reviewers: [codex]
-reviewed_at: 2026-05-30T22:55:00
-cycle: 2
+reviewed_at: 2026-05-30T23:30:00
+cycle: 3
 plans_reviewed: [220-01-PLAN.md, 220-02-PLAN.md, 220-03-PLAN.md, 220-04-PLAN.md]
-prior_cycle_reference: commit 3d69de7 (cycle 1) → replan commit 62fa143 → cycle 2 (this file)
+prior_cycle_reference: commit 3d69de7 (cycle 1) → replan 62fa143 → cycle 2 (7146dc8) → replan a5ee4a7 → cycle 3 (this file)
+final_cycle: true
 ---
 
-# Cross-AI Plan Review — Phase 220 (matrix-runner-scope-a1) — Cycle 2
+# Cross-AI Plan Review — Phase 220 (matrix-runner-scope-a1) — Cycle 3 (FINAL)
 
-This is **cycle 2 of a convergence loop**. Cycle 1 raised 6 HIGH concerns; replan commit `62fa143` claimed to address all 6. Cycle 2 verifies resolution and looks for new HIGHs introduced by the changes.
+This is **cycle 3 of 3** — the final automated cycle of the convergence loop. Cycle 2 raised 5 outstanding HIGH concerns. Cycle 3 replan commit `a5ee4a7` claims to resolve all 5. This review verifies resolution line-by-line and looks for new HIGHs introduced by cycle-3 changes.
 
 ## Codex Review
 
-**Cycle-1 HIGH Disposition**
+Reviewed on-disk plans at `a5ee4a7`.
 
-| Plan | H1 Plan03 deps | H2 driver_orthogonal | H3 base_sha | H4 213/214 drift guard | H5 replicates | H6 ATT egress |
-|---|---|---|---|---|---|---|
-| Plan 01 | FULLY RESOLVED | FULLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED |
-| Plan 02 | FULLY RESOLVED | FULLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | NOT RESOLVED |
-| Plan 03 | FULLY RESOLVED | FULLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED |
-| Plan 04 | FULLY RESOLVED | FULLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED |
+**HIGH Disposition**
 
-**Why Not Converged**
+1. **H3 base_sha env override: FULLY RESOLVED.**
+   Plan 03 says YAML is the single source: `.planning/phases/220-matrix-runner-scope-a1/220-03-PLAN.md:24`, and the implementation step removes env precedence: lines `139-147` include "YAML is authoritative. There is NO env-precedence override" plus env/YAML disagreement exit `4`. Tests are renamed/added at lines `292-293`.
 
-H1 is fixed: Plan 03 is now Wave 2 and depends on `220-02`.
+2. **H4 three-channel drift tests: FULLY RESOLVED.**
+   Plan 03 requires all three channels for both scripts at line `22`. Wrapper checks are specified at lines `160-165`. The six test variants are explicit at lines `295-300`, with acceptance requiring all `16` tests and exact names at lines `314` and `318`, plus branch cleanup at line `319`.
 
-H2 is fixed: the distinct `(target, path)` pair rule prevents same-path window repeats or replicate reruns from satisfying driver orthogonality. The planned negative test is the right shape.
+3. **H5 replicate-outlier pin: FULLY RESOLVED.**
+   Plan 01 consistently uses `[610.0, 800.0, 590.0] -> 610.0`: aggregator test text at line `397`, fixture values at lines `431-433`, scenario YAML expectation at line `468`, and end-to-end success criterion at line `534`.
 
-H3 is still partial: Plan 03 says to prefer env `PHASE220_BASE_SHA` over YAML (`220-03-PLAN.md:138`), while the invariant says YAML is the source-floor. That creates a bypass: set env to a later SHA and drift can pass. It also conflicts with the missing-env test expecting exit 4.
+4. **H6 egress_signature: FULLY RESOLVED.**
+   Plan 02 requires non-empty ATT egress at line `24`; final schema requires it at lines `161-167`; acceptance checks non-empty YAML at line `199`; `load_matrix_definition` raises `ValueError` on missing/empty at lines `229-232`. Plan 03 hard-fails dry-run/live missing values at lines `183-193` and `199-214`, and tests the dry-run marker plus missing-YAML hard fail at lines `301-302`.
 
-H4 is still partial: wrapper-time script drift checks are specified, but tests only exercise unstaged drift, not staged or committed-since-base drift. The same env override issue can also bypass committed drift checks.
+5. **NEW Plan 01 self-contradiction: FULLY RESOLVED.**
+   Counts are aligned to `10/10/6` at Plan 01 lines `54`, `479-481`, and `531`. The scripts verification now uses a precise subset allowlist with `comm -23` for only `scripts/phase220-matrix.yaml` and `scripts/phase220-precompute-pins.py` at lines `523-524`; success criteria also confines touched files to that allowlist at line `532`.
 
-H5 is still partial: replicate grouping is now specified, but fixture/test pins conflict. One test says `[580, 800, 590] -> 590` (`220-01-PLAN.md:397`), while fixture/scenario text says `[610, 800, 590] -> 610` (`220-01-PLAN.md:431`).
+**New HIGHs**
 
-H6 is not fully fixed: Plan 02's final `paths` schema drops `egress_signature` entirely (`220-02-PLAN.md:159`), while Plan 03 only hard-fails when that field is set. ATT therefore defaults to warning/continue, which degrades MATRIX-03. Also, Plan 03 exits dry-run before the ATT egress block, but the dry-run test expects `att_egress_check`.
+None found.
 
-**NEW HIGHs Introduced**
+Wave ordering is coherent: Plan 03 is Wave 2 and depends on both `220-01` and `220-02` at Plan 03 lines `5-8`; Plan 01 explicitly allows the temporary empty ATT scaffold only because Plan 02 fills it before Plan 03 at Plan 01 lines `216-219`; Plan 02 requires the non-empty final value.
 
-- **HIGH (new): Plan 01 is internally non-executable as written.** It now modifies `scripts/phase220-matrix.yaml` and `scripts/phase220-precompute-pins.py`, but final verification still says `git diff --stat scripts/` must be zero and success criteria still say only `tests/` and fixtures are touched (`220-01-PLAN.md:517`). Fixture counts are also stale: files list 10 signal/manifests, acceptance expects 9. This can block Wave 0 before Plan 02/03 ever run.
+**Residual cleanup, not HIGH:** Plan 03 still has stale summary text saying "All eight tests" and "post-flight only re-snapshots on divergence" at lines `364-365`, while the actual task/acceptance text requires 16 tests and always-post mtr. It should be cleaned up, but it does not override the explicit task and acceptance gates.
 
-CYCLE_2_VERDICT: unconverged; unresolved-HIGH count: 5
+CYCLE_3_VERDICT: converged; unresolved-HIGH count: 0
 
 ---
 
 ## Consensus Summary
 
-Only Codex was invoked for this cycle.
+Only Codex was invoked for this cycle (matches operator selection `--codex`).
 
-### Cycle 1 HIGHs — Resolution Status
+### Cycle 2 HIGHs — Cycle 3 Resolution Status
 
-| # | Concern | Status |
-|---|---------|--------|
-| H1 | Plan 03 parallel-safety | FULLY RESOLVED — Plan 03 now in Wave 2, depends_on includes 220-02; Plan 01 ships scaffold |
-| H2 | driver_orthogonal overly permissive | FULLY RESOLVED — tightened to require ≥2 distinct (target, path) pairs; new fixture + test |
-| H3 | base_sha semantics inconsistent | PARTIALLY RESOLVED — source-floor anchor declared, but Plan 03 still allows env override of YAML, creating a bypass |
-| H4 | D-14 wrapper-time 213/214 immutability | PARTIALLY RESOLVED — wrapper checks specified, but tests only exercise unstaged channel; env override re-opens the same hole |
-| H5 | Replicate aggregation | PARTIALLY RESOLVED — grouping + median rule specified, but the [580,800,590]→590 vs [610,800,590]→610 pin disagreement breaks the contract |
-| H6 | ATT egress validation | NOT FULLY RESOLVED — `egress_signature` is referenced in Plan 03 but missing from Plan 02's canonical schema; ATT defaults to warn/continue, degrading MATRIX-03; dry-run ordering also conflicts with the test marker |
+| # | Concern | Cycle 3 Status | Verification Anchor |
+|---|---------|----------------|---------------------|
+| H3 | base_sha env override bypass | FULLY RESOLVED | 220-03-PLAN.md lines 24, 139-147, 292-293 |
+| H4 | three-channel drift tests under-enforced | FULLY RESOLVED | 220-03-PLAN.md lines 22, 160-165, 295-300, 314, 318-319 |
+| H5 | replicate-outlier fixture pin disagreement | FULLY RESOLVED | 220-01-PLAN.md lines 397, 431-433, 468, 534 |
+| H6 | egress_signature optional + dry-run marker missing | FULLY RESOLVED | 220-02-PLAN.md lines 24, 161-167, 199, 229-232; 220-03-PLAN.md lines 183-193, 199-214, 301-302 |
+| NEW (Plan 01) | self-contradicting verification + drifting counts | FULLY RESOLVED | 220-01-PLAN.md lines 54, 479-481, 523-524, 531-532 |
 
-### New HIGHs Introduced By Replan
+### New HIGHs Introduced By Cycle-3 Replan
 
-1. **Plan 01 self-contradiction (HIGH, new)** — Plan 01 now touches `scripts/phase220-matrix.yaml` (Task 0) and `scripts/phase220-precompute-pins.py` (Task 0b), but the plan's own `<verification>` and `<success_criteria>` still mandate `git diff --stat scripts/` == 0 and "no files outside tests/ touched." Wave 0 cannot land cleanly until this is reconciled. Fixture-count acceptance criteria also drift (files list 10, acceptance expects 9).
+None.
+
+### Residual Items (NOT HIGH — for execution-phase cleanup)
+
+1. **Plan 03 success_criteria stale summary text.** Lines `364-365` of `220-03-PLAN.md` still read "All eight tests" and "post-flight only re-snapshots on divergence", which contradict the cycle-3 acceptance gate at line `314` (16 tests) and the Task 1 post-flight always-snapshot logic. The acceptance criteria are the binding contract; the summary lines are residual prose drift. Recommend a one-line touch-up during execution phase, not a fourth review cycle.
 
 ### Divergent Views
 
 None — single reviewer (Codex) this cycle.
 
-### Recommended Cycle-3 Fixes (concise)
+### Convergence Verdict
 
-1. Pick one base_sha source authoritatively (recommend: YAML wins; env is read-only echo for traceability). Remove the env-precedence path in `220-03-PLAN.md:138` and align `test_missing_base_sha_returns_4` against the YAML-absent failure mode.
-2. Extend wrapper-drift tests to also stage a commit on a throwaway branch and assert exit 4 against the `committed-since-base_sha` channel (and the staged channel). Otherwise H4's three-channel claim is contractually un-enforced.
-3. Reconcile the replicate-outlier fixture: choose either `[580, 800, 590] -> 590` OR `[610, 800, 590] -> 610` and propagate across Plan 01 Task 2's test names, scenario YAMLs (`three-replicate-outlier.yaml`), and the `__r2/__r3` signal-sheet p99_ms literals. The current text has both pins, which is unimplementable.
-4. Lift `paths[].egress_signature` from "optional" in Plan 03 to "required when path_name=='att'" in Plan 02's final schema. Otherwise MATRIX-03 silently degrades on a missing-field path.
-5. Move the ATT egress `att_egress_check` marker into the dry-run branch (currently emitted only in the live branch after the dry-run exits), so `test_wrapper_validates_att_egress_when_path_is_att` can find it.
-6. Fix Plan 01's `<verification>` + `<success_criteria>`: explicitly allow the scripts/ allowlist {`phase220-matrix.yaml`, `phase220-precompute-pins.py`} and align the fixture-count assertions (10 signal-sheets + 10 cell-manifests + 6 scenarios) with the `files_modified` list.
+**CONVERGED.** All five HIGH concerns from cycle 2 are fully resolved with line-cited verification anchors in the cycle-3 plan text. No new HIGHs were introduced by the cycle-3 changes. Wave ordering (Plan 01 scaffold → Plan 02 fill → Plan 03 consume) is internally consistent.
 
----
+Cycle 3 verdict: **converged; unresolved-HIGH count: 0**
 
-## Cycle 3 Replan Disposition (2026-05-30)
-
-Cycle-3 replan applied (this file is the convergence anchor). Each of the 5 outstanding HIGHs is resolved in the updated PLAN.md files:
-
-| # | Concern | Cycle 3 Resolution | Files Touched |
-|---|---------|-------------------|---------------|
-| H3 | base_sha env override bypass | YAML is now AUTHORITATIVE in 220-03-PLAN. Env disagreement → exit 4. `test_missing_base_sha_returns_4` renamed to `test_missing_base_sha_in_yaml_returns_4`. New `test_env_base_sha_disagrees_with_yaml_returns_4` asserts the cycle-3 contract. | 220-03-PLAN.md step 4, Task 2 tests 7 + 7b, wrapper grep checks |
-| H4 | three-channel drift tests under-enforced | Added staged + committed-since-base test variants for BOTH phase213-baseline-capture.sh AND phase214-classify.py. Six drift tests total (3 channels × 2 scripts). Throwaway-branch teardown documented; cleanup asserted. | 220-03-PLAN.md Task 2 tests 9/9b/9c + 10/10b/10c + acceptance criteria + branch cleanup |
-| H5 | replicate-outlier fixture pin disagreement | Picked `[610, 800, 590] → 610` consistently. 220-01-PLAN.md test text now reads `[610, 800, 590] → 610` matching the fixture spec at line 431. Success criteria adds an end-to-end consistency assertion across aggregator test, signal-sheet fixtures, and scenario YAML. | 220-01-PLAN.md Task 2 test_replicate_aggregation_median_p99_three_replicates + success_criteria |
-| H6 | egress_signature optional + dry-run marker missing | (a) 220-02-PLAN canonical schema now REQUIRES non-empty `paths[name=att].egress_signature`; `load_matrix_definition` raises ValueError on missing/empty. (b) 220-03-PLAN moves the `att_egress_check:` marker into the dry-run preamble (step 9) BEFORE the dry-run echo. (c) Missing egress_signature is hard-fail (exit 4) by default, no warn-continue. New test `test_wrapper_hard_fails_when_att_egress_signature_missing_in_yaml` locks the contract. | 220-02-PLAN.md paths schema + load_matrix_definition + Task 1 acceptance + must_haves; 220-03-PLAN.md Task 1 step 9 + step 10.a2 + Task 2 test 11/11b + acceptance |
-| NEW HIGH (Plan 01) | self-contradicting verification + drifting fixture counts | 220-01-PLAN.md `<verification>` block rewritten to allow the scripts/ allowlist {phase220-matrix.yaml, phase220-precompute-pins.py} via `comm -23` subset check. Acceptance criteria for fixture counts changed from `== 9` to `== 10` to match the files_modified frontmatter exactly (10 signal-sheets, 10 cell-manifests, 6 scenarios). must_haves truths updated. `<success_criteria>` no longer says "tests/ only". | 220-01-PLAN.md verification + success_criteria + acceptance criteria + must_haves truths |
-
-CYCLE_3_VERDICT: convergence claimed — all 5 outstanding HIGHs from cycle 2 have explicit, test-backed resolutions in the updated PLAN.md files. New HIGHs introduced by this replan: none expected (changes are tightening, not surface expansion). Cycle-3 reviewer should validate the resolution table line-by-line against the PLAN.md commits.
-
-Replan commit: pending — committed at the end of cycle-3 plan-phase execution.
+Phase 220 may proceed to execution.
