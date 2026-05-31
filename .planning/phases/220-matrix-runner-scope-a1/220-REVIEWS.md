@@ -1,123 +1,77 @@
 ---
 phase: 220
 reviewers: [codex]
-reviewed_at: 2026-05-30T22:22:33
+reviewed_at: 2026-05-30T22:55:00
+cycle: 2
 plans_reviewed: [220-01-PLAN.md, 220-02-PLAN.md, 220-03-PLAN.md, 220-04-PLAN.md]
+prior_cycle_reference: commit 3d69de7 (cycle 1) → replan commit 62fa143 → cycle 2 (this file)
 ---
 
-# Cross-AI Plan Review — Phase 220 (matrix-runner-scope-a1)
+# Cross-AI Plan Review — Phase 220 (matrix-runner-scope-a1) — Cycle 2
+
+This is **cycle 2 of a convergence loop**. Cycle 1 raised 6 HIGH concerns; replan commit `62fa143` claimed to address all 6. Cycle 2 verifies resolution and looks for new HIGHs introduced by the changes.
 
 ## Codex Review
 
-## Summary
+**Cycle-1 HIGH Disposition**
 
-Phase 220 has the right overall shape: read-only, tests-first, explicit criteria, immutable matrix definition, and a human checkpoint before Phase 221. The phase goal is achievable. As written, though, there are several plan-level contradictions that can invalidate the evidence rules without touching controller code. The biggest issues are dependency ordering, base-SHA semantics, driver-corroboration logic, replicate aggregation, and the fact that the live D-14 guard protects `src/wanctl/` but not the Phase 213/214 analyzer scripts whose immutability is central to the phase.
+| Plan | H1 Plan03 deps | H2 driver_orthogonal | H3 base_sha | H4 213/214 drift guard | H5 replicates | H6 ATT egress |
+|---|---|---|---|---|---|---|
+| Plan 01 | FULLY RESOLVED | FULLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED |
+| Plan 02 | FULLY RESOLVED | FULLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | NOT RESOLVED |
+| Plan 03 | FULLY RESOLVED | FULLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED |
+| Plan 04 | FULLY RESOLVED | FULLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED | PARTIALLY RESOLVED |
 
-## Strengths
+**Why Not Converged**
 
-- Strong read-only posture. The plan keeps controller code out of scope and adds SAFE-11 mutation-boundary coverage.
-- Good pre-registration intent. Thresholds, windows, targets, driver mapping, and close-with-prejudice rules are documented before live supplemental runs.
-- Tests-first structure is mostly sound. Wave 0 plants the contract before Wave 1 implementation.
-- Reuse of Phase 213/214 surfaces is the right default for this phase.
-- Operator checkpoint in Plan 04 is appropriate. A live Spectrum/dallas rehearsal should not be fully autonomous.
-- The driver-vocabulary reconciliation in research is valuable and catches a real mismatch against `phase214-classify.py`.
-- MTR/traceroute capture is the right kind of evidence for BGP/path drift, even though the current mechanics need tightening.
+H1 is fixed: Plan 03 is now Wave 2 and depends on `220-02`.
 
-## Concerns
+H2 is fixed: the distinct `(target, path)` pair rule prevents same-path window repeats or replicate reruns from satisfying driver orthogonality. The planned negative test is the right shape.
 
-- **HIGH: Plan 03 is not actually parallel-safe with Plan 02.** Plan 03 depends on `scripts/phase220-matrix.yaml`, but that file is created in Plan 02. The metadata says Plan 03 only depends on 220-01. Either make Plan 03 depend on 220-02 or move a minimal matrix YAML scaffold into Plan 01.
+H3 is still partial: Plan 03 says to prefer env `PHASE220_BASE_SHA` over YAML (`220-03-PLAN.md:138`), while the invariant says YAML is the source-floor. That creates a bypass: set env to a later SHA and drift can pass. It also conflicts with the missing-env test expecting exit 4.
 
-- **HIGH: `driver_orthogonal` contradicts the intended carry scenario.** As written, “>= 2 defect cells share the same primary driver” means `vultr_dallas_spectrum_daytime` plus `vultr_dallas_spectrum_prime-time` already satisfies driver corroboration. That makes the planned “two-window non-corroborated carries” scenario become `defect_located`. Driver-orthogonal must require a different target or path, or it is not orthogonal.
+H4 is still partial: wrapper-time script drift checks are specified, but tests only exercise unstaged drift, not staged or committed-since-base drift. The same env override issue can also bypass committed drift checks.
 
-- **HIGH: Base-SHA semantics are inconsistent.** Plan 02 says `base_sha` is the parent commit before the Plan 02 commit lands. Plan 04 then says `git rev-parse HEAD` must equal YAML `base_sha`, which will be false after Plans 02/03/04 commits. Define `base_sha` as either “controller/analyzer source floor” or “exact repo HEAD”, then make all tests, docs, and operator protocol match that.
+H5 is still partial: replicate grouping is now specified, but fixture/test pins conflict. One test says `[580, 800, 590] -> 590` (`220-01-PLAN.md:397`), while fixture/scenario text says `[610, 800, 590] -> 610` (`220-01-PLAN.md:431`).
 
-- **HIGH: Live D-14 guard does not protect Phase 213/214 script immutability.** The actual Phase 214 wrapper guards only `src/wanctl/`. The plan relies on pytest to catch edits to `scripts/phase213-*` and `scripts/phase214-*`, but a multi-day live run can happen after script drift. Add wrapper-time diff checks for Phase 213/214 scripts against `base_sha`, or record and enforce script hashes.
+H6 is not fully fixed: Plan 02's final `paths` schema drops `egress_signature` entirely (`220-02-PLAN.md:159`), while Plan 03 only hard-fails when that field is set. ATT therefore defaults to warning/continue, which degrades MATRIX-03. Also, Plan 03 exits dry-run before the ATT egress block, but the dry-run test expects `att_egress_check`.
 
-- **HIGH: Replicate aggregation is under-specified and under-tested.** The phase says per-cell p99 is the median of replicate p99s, but fixtures are single-replicate and the aggregator API consumes `median_p99_ms` without specifying grouping from `cell_id__rN`. Add explicit grouping rules and tests for 3 replicates with one outlier.
+**NEW HIGHs Introduced**
 
-- **HIGH: ATT egress verification is overclaimed.** `phase213-baseline-capture.sh` hard-fails Spectrum egress but does not appear to hard-fail ATT egress. MATRIX-03 says source-bind and egress mismatch fail closed per cell. Add wrapper-level ATT egress validation or revise the claim.
+- **HIGH (new): Plan 01 is internally non-executable as written.** It now modifies `scripts/phase220-matrix.yaml` and `scripts/phase220-precompute-pins.py`, but final verification still says `git diff --stat scripts/` must be zero and success criteria still say only `tests/` and fixtures are touched (`220-01-PLAN.md:517`). Fixture counts are also stale: files list 10 signal/manifests, acceptance expects 9. This can block Wave 0 before Plan 02/03 ever run.
 
-- **MEDIUM: ATT bind IP looks suspect.** The Phase 213 usage example uses `att=10.10.110.233`, while the plan/research suggests `att=10.10.110.227`, which is also used as an ATT health endpoint in the harness. Verify live `ip -4 addr show` before locking YAML.
-
-- **MEDIUM: TODO golden pins weaken pre-registration.** The TODO_FILL_AT_IMPL_TIME pins will force implementation-time fill, but they still give the implementer discretion after seeing the code. Better to compute pins with a tiny independent reference script before Plan 01 lands, then lock them in Wave 0.
-
-- **MEDIUM: “stdlib-only” is not cleanly defined.** The aggregator plan imports `yaml` and may import `src.wanctl.state_utils.atomic_write_json`. PyYAML is not stdlib, and importing `src.wanctl` contradicts the Phase 214 aggregator precedent of no wanctl imports. Either explicitly allow PyYAML as existing project dependency and no wanctl imports, or use an inline atomic writer.
-
-- **MEDIUM: MTR post-flight logic can miss mid-run path changes.** Capturing post-flight only when pre-flight differs from the previous cell does not detect a path change during the current cell. Capture pre and post for every replicate, then compare same-cell pre/post.
-
-- **MEDIUM: xfail flip discipline is loose.** Plans 02/03 allow “mark strict=False with reason=now passing.” Do not leave xfail markers on implemented tests. Remove them outright.
-
-- **LOW/MEDIUM: Plan-checker substitution is acceptable only if artifacts are preserved.** Inline validators are fine as a workaround, but commit or cite their outputs. Run the canonical plan-structure check once outside the nested-agent limitation before execution if possible.
-
-- **LOW/MEDIUM: Plan 04 checkpoint is operationally right but too overloaded.** The dual task-block/checkpoint style may satisfy schema but is easy for automation to misread. Split “write docs/protocol” and “blocking operator evidence” as distinct plan artifacts with an explicit `BLOCKED_PENDING_OPERATOR_REHEARSAL` state.
-
-## Suggestions
-
-- Make 220-03 depend on 220-02, unless Plan 01 creates the matrix YAML scaffold.
-- Redefine `driver_orthogonal` as “same driver across different target or different path,” then update fixtures accordingly.
-- Add a replicate-grouping test: 3 manifests/sheets for one cell, median p99 wins, one bad replicate does not fire defect.
-- Add live wrapper checks for `scripts/phase213-*` and `scripts/phase214-*` diffs against `base_sha`.
-- Resolve `PHASE220_BASE_SHA` behavior: required env var or YAML fallback, not both. Align the missing-env test with that decision.
-- Compute MWU/bootstrap pins before implementation and store the exact sample arrays as fixtures.
-- Avoid importing `src.wanctl.*` from the aggregator. Inline `tempfile` + `os.replace` is simpler and keeps scope clean.
-- Change Plan 04 protocol from “HEAD equals base_sha” to “`src/wanctl/` and Phase 213/214 scripts have zero diff against base_sha,” if base_sha remains a source-floor anchor.
-
-## Risk Assessment
-
-**Overall risk: HIGH as written.** Production risk is low because the controller surface remains off-limits, but evidence-validity risk is high. The current contradictions can produce a runner that appears green while using mutable analyzer scripts, incorrect corroboration logic, weak replicate handling, or an impossible operator protocol. After fixing the dependency, corroboration, base-SHA, replicate, and live guard issues, this drops to **MEDIUM/LOW** for a read-only tooling phase.
-
+CYCLE_2_VERDICT: unconverged; unresolved-HIGH count: 5
 
 ---
 
 ## Consensus Summary
 
-Only Codex was invoked for this review cycle. Below summarizes Codex's findings for the planner's `--reviews` ingest.
+Only Codex was invoked for this cycle.
 
-### Agreed Strengths
+### Cycle 1 HIGHs — Resolution Status
 
-- Read-only posture is held: controller surface stays untouched, SAFE-11 mutation-boundary coverage is added explicitly.
-- Pre-registration intent is correct: kill / defect / close-with-prejudice rules are written before any live supplemental cell run.
-- Tests-first wave structure (Wave 0 xfail plant → Wave 1 implementation flip → Wave 2 operator checkpoint) is sound.
-- Reuse of Phase 213/214 surfaces is the right default; analyzer chain is composed unchanged.
-- Operator checkpoint in Plan 04 is appropriate — a live Spectrum/`dallas` rehearsal should not be fully autonomous.
-- Driver-vocabulary reconciliation in research is valuable (catches a real mismatch against `phase214-classify.py`).
+| # | Concern | Status |
+|---|---------|--------|
+| H1 | Plan 03 parallel-safety | FULLY RESOLVED — Plan 03 now in Wave 2, depends_on includes 220-02; Plan 01 ships scaffold |
+| H2 | driver_orthogonal overly permissive | FULLY RESOLVED — tightened to require ≥2 distinct (target, path) pairs; new fixture + test |
+| H3 | base_sha semantics inconsistent | PARTIALLY RESOLVED — source-floor anchor declared, but Plan 03 still allows env override of YAML, creating a bypass |
+| H4 | D-14 wrapper-time 213/214 immutability | PARTIALLY RESOLVED — wrapper checks specified, but tests only exercise unstaged channel; env override re-opens the same hole |
+| H5 | Replicate aggregation | PARTIALLY RESOLVED — grouping + median rule specified, but the [580,800,590]→590 vs [610,800,590]→610 pin disagreement breaks the contract |
+| H6 | ATT egress validation | NOT FULLY RESOLVED — `egress_signature` is referenced in Plan 03 but missing from Plan 02's canonical schema; ATT defaults to warn/continue, degrading MATRIX-03; dry-run ordering also conflicts with the test marker |
 
-### Agreed Concerns (HIGH-severity, single-reviewer signal — treat as if unanimous)
+### New HIGHs Introduced By Replan
 
-1. **Plan 03 is not parallel-safe with Plan 02.** Plan 03 depends on `scripts/phase220-matrix.yaml`, created in Plan 02. Either make Plan 03 depend on 220-02, or move a minimal matrix YAML scaffold into Plan 01.
-2. **`driver_orthogonal` contradicts the intended carry scenario.** As written, two same-target/same-path cells sharing a primary driver satisfy "driver corroboration," which collapses the planned two-window non-corroborated carry. Driver-orthogonal must require a different target or path.
-3. **Base-SHA semantics are inconsistent across plans.** Plan 02 defines `base_sha` as the parent commit before Plan 02 lands; Plan 04 says `git rev-parse HEAD` must equal YAML `base_sha`, which is false after Plans 02/03/04 commit. Choose one semantic and propagate.
-4. **Live D-14 guard does not protect Phase 213/214 analyzer-script immutability.** D-14 only guards `src/wanctl/`. Multi-day live runs can drift `scripts/phase213-*` and `scripts/phase214-*` without pytest catching it before evidence collection. Add wrapper-time hash/diff checks.
-5. **Replicate aggregation is under-specified and under-tested.** Per-cell p99 = median of replicate p99s, but fixtures are single-replicate and grouping from `cell_id__rN` is not pinned. Add 3-replicate + one-outlier grouping test.
-6. **ATT egress verification is overclaimed.** `phase213-baseline-capture.sh` hard-fails Spectrum egress but does not appear to hard-fail ATT egress. Add wrapper-level ATT egress validation or revise MATRIX-03 claim.
-
-### Agreed Concerns (MEDIUM-severity)
-
-- **ATT bind IP looks suspect.** Phase 213 example uses `att=10.10.110.233`; plan/research uses `att=10.10.110.227` (which is also an ATT health endpoint). Verify live `ip -4 addr show` before locking YAML.
-- **TODO golden pins weaken pre-registration.** Compute MWU/bootstrap pins with a small independent reference script BEFORE Plan 01 lands, then lock them in Wave 0 fixtures. Implementer discretion after seeing the code defeats the pre-registration intent.
-- **"stdlib-only" is not cleanly defined.** Aggregator may import `yaml` (PyYAML, not stdlib) and `src.wanctl.state_utils.atomic_write_json` (contradicts Phase 214 no-wanctl-imports precedent). Either explicitly allow PyYAML and forbid wanctl imports, or use inline `tempfile` + `os.replace`.
-- **MTR post-flight logic can miss mid-run path changes.** Capturing post-flight only when pre-flight differs from previous cell does not detect a path change during the current cell. Capture pre+post per replicate; compare same-cell.
-- **xfail flip discipline is loose.** Do not leave `strict=False, reason="now passing"` markers on implemented tests. Remove xfail markers outright in Wave 1.
-
-### Agreed Concerns (LOW/MEDIUM)
-
-- **Plan-checker substitution is acceptable if artifacts are preserved.** Inline validators are fine as workaround, but commit or cite their outputs. If possible, run the canonical plan-structure check outside the nested-agent limitation before execution.
-- **Plan 04 checkpoint is operationally right but overloaded.** Dual task-block / checkpoint style may satisfy schema but is easy for automation to misread. Split "write docs/protocol" and "blocking operator evidence" as distinct plan artifacts with explicit `BLOCKED_PENDING_OPERATOR_REHEARSAL` state.
+1. **Plan 01 self-contradiction (HIGH, new)** — Plan 01 now touches `scripts/phase220-matrix.yaml` (Task 0) and `scripts/phase220-precompute-pins.py` (Task 0b), but the plan's own `<verification>` and `<success_criteria>` still mandate `git diff --stat scripts/` == 0 and "no files outside tests/ touched." Wave 0 cannot land cleanly until this is reconciled. Fixture-count acceptance criteria also drift (files list 10, acceptance expects 9).
 
 ### Divergent Views
 
-None — single reviewer (Codex) this cycle. Surface for divergence checking only if a second reviewer is added.
+None — single reviewer (Codex) this cycle.
 
-### Top Suggestions To Incorporate Via `/gsd:plan-phase 220 --reviews`
+### Recommended Cycle-3 Fixes (concise)
 
-1. Re-anchor `base_sha` semantics consistently across Plans 02 and 04 (recommend: "controller/analyzer source floor", not "exact repo HEAD").
-2. Redefine `driver_orthogonal` to require a different target OR path (not same-cell-window pair).
-3. Make Plan 03 explicitly depend on Plan 02, OR add a minimal matrix YAML scaffold to Plan 01.
-4. Add wrapper-time immutability check for `scripts/phase213-*` and `scripts/phase214-*` against `base_sha`.
-5. Add explicit replicate-grouping rule + 3-replicate-with-outlier test fixture.
-6. Add ATT egress hard-fail at wrapper layer, or revise MATRIX-03 claim to match capture-script reality.
-7. Compute MWU/bootstrap golden pins with an independent reference script BEFORE Plan 01 commits — eliminate TODO_FILL placeholders.
-8. Decide aggregator imports: stdlib-only (inline atomic write) OR allow PyYAML explicitly; forbid `src.wanctl.*` imports either way.
-9. Capture mtr/traceroute pre AND post per replicate; compare same-cell pre/post for mid-run BGP drift detection.
-10. Strip xfail markers in Wave 1 instead of flipping `strict=False`.
-11. Split Plan 04 Task 3 into separate "docs/protocol writeup" task and "operator-blocking checkpoint" task.
+1. Pick one base_sha source authoritatively (recommend: YAML wins; env is read-only echo for traceability). Remove the env-precedence path in `220-03-PLAN.md:138` and align `test_missing_base_sha_returns_4` against the YAML-absent failure mode.
+2. Extend wrapper-drift tests to also stage a commit on a throwaway branch and assert exit 4 against the `committed-since-base_sha` channel (and the staged channel). Otherwise H4's three-channel claim is contractually un-enforced.
+3. Reconcile the replicate-outlier fixture: choose either `[580, 800, 590] -> 590` OR `[610, 800, 590] -> 610` and propagate across Plan 01 Task 2's test names, scenario YAMLs (`three-replicate-outlier.yaml`), and the `__r2/__r3` signal-sheet p99_ms literals. The current text has both pins, which is unimplementable.
+4. Lift `paths[].egress_signature` from "optional" in Plan 03 to "required when path_name=='att'" in Plan 02's final schema. Otherwise MATRIX-03 silently degrades on a missing-field path.
+5. Move the ATT egress `att_egress_check` marker into the dry-run branch (currently emitted only in the live branch after the dry-run exits), so `test_wrapper_validates_att_egress_when_path_is_att` can find it.
+6. Fix Plan 01's `<verification>` + `<success_criteria>`: explicitly allow the scripts/ allowlist {`phase220-matrix.yaml`, `phase220-precompute-pins.py`} and align the fixture-count assertions (10 signal-sheets + 10 cell-manifests + 6 scenarios) with the `files_modified` list.
