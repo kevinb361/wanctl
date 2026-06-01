@@ -303,10 +303,27 @@ if [[ ! -d "$TEST_DIR" ]]; then
   exit 5
 fi
 
-mapfile -t FLENT_FILES < <(find "$TEST_DIR/flent" -maxdepth 1 -type f -name '*.flent.gz' -print 2>/dev/null | sort)
+FLENT_FILES=()
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  mapfile -t FLENT_FILES < <(find "$TEST_DIR/flent" -maxdepth 1 -type f -name '*.flent.gz' -print 2>/dev/null | sort)
+  (( ${#FLENT_FILES[@]} > 0 )) && break
+  sleep 1
+done
 if (( ${#FLENT_FILES[@]} != 1 )); then
-  echo "ERROR: expected exactly one flent.gz under $TEST_DIR/flent, found ${#FLENT_FILES[@]}" >&2
-  exit 5
+  MANIFEST_FLENT=""
+  if [[ -f "$TEST_DIR/flent/manifest.txt" ]]; then
+    while IFS= read -r manifest_line; do
+      case "$manifest_line" in
+        tcp_12down_raw=*) MANIFEST_FLENT="${manifest_line#tcp_12down_raw=}"; break ;;
+      esac
+    done < "$TEST_DIR/flent/manifest.txt"
+  fi
+  if [[ -f "$MANIFEST_FLENT" ]]; then
+    FLENT_FILES=("$MANIFEST_FLENT")
+  else
+    echo "ERROR: expected exactly one flent.gz under $TEST_DIR/flent, found ${#FLENT_FILES[@]}" >&2
+    exit 5
+  fi
 fi
 FLENT_GZ="${FLENT_FILES[0]}"
 HEALTH_NDJSON="${TEST_DIR}/health-${WAN}.ndjson"
