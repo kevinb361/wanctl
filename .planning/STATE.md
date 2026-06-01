@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.47
 milestone_name: Measurement Evidence Closure
-status: ready_to_plan
-stopped_at: Phase 220 complete (4/4) — ready to discuss Phase 221
-last_updated: 2026-06-01T15:54:33.683Z
+status: planning
+stopped_at: Phase 221 context gathered
+last_updated: "2026-06-01T16:04:00.612Z"
 last_activity: 2026-06-01
 progress:
   total_phases: 3
@@ -123,9 +123,9 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ## Session Continuity
 
-Last session: 2026-06-01T15:38:16Z
-Stopped at: Completed 220-04-PLAN.md
-Resume file: None
+Last session: 2026-06-01T16:04:00.570Z
+Stopped at: Phase 221 context gathered
+Resume file: .planning/phases/221-matrix-evidence-closeout-scope-a2/221-CONTEXT.md
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 
 ## Operator Next Steps
