@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.47
 milestone_name: Measurement Evidence Closure
 status: executing
-stopped_at: Phase 221 context gathered
-last_updated: "2026-06-01T18:19:39.667Z"
-last_activity: 2026-06-01 -- Phase 221 execution started
+stopped_at: Completed 221-01-PLAN.md
+last_updated: "2026-06-01T18:27:16.933Z"
+last_activity: 2026-06-01
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 12
-  completed_plans: 8
+  completed_plans: 9
   percent: 67
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-30 after v1.46 milestone close + v1.4
 ## Current Position
 
 Phase: 221 (matrix-evidence-closeout-scope-a2) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 221
-Last activity: 2026-06-01 -- Phase 221 execution started
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-06-01
 
 ## Phase Structure (v1.47)
 
@@ -84,7 +84,7 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ### v1.46-shipped-with-VERIFY-01-02-deferred
 
-- **Status:** Executing Phase 221
+- **Status:** Ready to execute
 - **Operator sign-off:** Kevin — 2026-05-30, via /gsd-progress → Acknowledge & close path: "fix STATE drift then complete milestone". 18/20 v1.46 requirements satisfied; VERIFY-01/02 carry forward as watch-list.
 - **Why this is acceptable:** v1.46 spine (DRIFT/BASE/MEAS/RECLAIM/RECOV/PERF) is complete and decoupled from VERIFY. VERIFY watch closure requires production-side natural evidence that cannot be hastened without invalidating the metric.
 
@@ -123,9 +123,9 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ## Session Continuity
 
-Last session: 2026-06-01T16:04:00.570Z
-Stopped at: Phase 221 context gathered
-Resume file: .planning/phases/221-matrix-evidence-closeout-scope-a2/221-CONTEXT.md
+Last session: 2026-06-01T18:27:09.734Z
+Stopped at: Completed 221-01-PLAN.md
+Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 
 ## Operator Next Steps
@@ -232,3 +232,4 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 | Phase 220 P02 | 7min | 3 tasks | 4 files |
 | Phase 220 P03 | 6min | 2 tasks | 2 files |
 | Phase 220 P04 | checkpointed; wet rehearsal completed 2026-06-01 | 3 tasks | 8 files |
+| Phase 221 P01 | 5 min | 3 tasks | 3 files |
