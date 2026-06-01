@@ -285,3 +285,83 @@ Replan again:
 3. Plan 03: replace the symlink snapshot with either (a) a copy-tree (cp -r --dereference) or (b) a YAML-list-based aggregator allowlist (out of SAFE-11 scope) or (c) prune invalid sidecars in-place via an operator step.
 4. Plan 03: fix field-name expectations and acceptance checks to match `verdict` and the four orthogonal_corroboration keys.
 5. Decide BGP policy: either restore D-10 exclusion (aggregator JSON gets a `final_verdict_after_bgp_overlay` field; CLOSEOUT.md mirrors that) OR explicitly amend CONTEXT D-10 to caveat-only.
+
+---
+
+# Cross-AI Plan Review — Phase 221 (Cycle 3)
+
+- reviewers: [codex]
+- reviewed_at: 2026-06-01T17:18:33Z
+- replan_commit: bdd9e6e
+- plans_reviewed: [221-01-PLAN.md, 221-02-PLAN.md, 221-03-PLAN.md, 221-04-PLAN.md]
+- prior_cycle: cycle 2 raised 5 HIGHs (see above)
+
+## Codex Review (Cycle 3)
+
+**Summary**
+
+Cycle 3 is better grounded in the actual Phase 220 files, but it is not ready. It closes the schema-name mistakes and mostly fixes current-evidence dedup, but the marker commit procedure is executable-broken, the BGP overlay contract is internally contradictory, and the curated evidence copy now has a real symlink/escape problem.
+
+**Cycle-2 HIGH Disposition**
+
+| # | Disposition | Evidence |
+|---|---|---|
+| 1. Phase 221 base-SHA marker missing | **UNRESOLVED** | Plan 01 adds the right marker requirement at `221-01-PLAN.md:137`, but the shell guard at `221-01-PLAN.md:145` exits even when the marker is absent because `(test -z ... || echo ...) && exit 0` always reaches `exit 0`. Current `git log` has no Phase 221 marker. |
+| 2. Plan 02 sidecar dedup over-count | **FULLY RESOLVED for current evidence** | Plan 02 dedups on `(base_cell_id, replicate_index, run_dir_canonical)` at `221-02-PLAN.md:211`. Current duplicate manifests both have `cell_id: dallas__spectrum__daytime__r1` and same `run_dir`. |
+| 3. Curated symlink not traversed | **PARTIALLY RESOLVED** | Plan 03 replaces symlink farm with real copied dirs at `221-03-PLAN.md:255` and `:269`. That fixes traversal, but `--dereference` follows internal symlinks outside the evidence root, and current evidence has `flent -> /home/kevin/flent-results/...`. Manifests keep `run_dir` pointing back to live evidence, and the aggregator reads `run_dir/.../signal-sheet.json` first at `scripts/phase220-matrix-aggregator.py:452`. |
+| 4. Aggregator field names wrong | **FULLY RESOLVED** | Plan 03 now names `per_cell`, `verdict`, and `path_orthogonal/target_orthogonal/driver_orthogonal/satisfied` at `221-03-PLAN.md:23`. Matches actual aggregator output at `scripts/phase220-matrix-aggregator.py:311` and per-cell `verdict` assignment at `:243`. |
+| 5. BGP/D-10 exclusion | **PARTIALLY RESOLVED** | Plan 03 adds overlay fields and final verdict at `221-03-PLAN.md:25`, but the same plan still says "no BGP-overlay verdict flip" at `:61`, verifies `MD.verdict == j['matrix_verdict']` at `:766`, and marks done as "BGP caveat reported but does NOT flip verdict" at `:768`. |
+
+**New Concerns (Cycle 3)**
+
+- **HIGH:** Plan 01 marker command will not create the marker commit. The shell guard `(test -z ... || echo ...) && exit 0` always reaches `exit 0` regardless of marker presence. Fix the control flow before execution.
+
+- **HIGH:** `cp -r --dereference` is not safe here. It will follow current evidence symlinks under `RUN-*/spectrum/tcp_12down/flent` to `/home/kevin/flent-results/...`, escaping the curated root. Use a bounded copier that copies only required files, rejects escaping symlinks, and rewrites copied `phase220-cell.json` `run_dir` to the snapshot path.
+
+- **HIGH:** BGP overlay recomputes the locked matrix verdict with hand-copied logic that is not equivalent to the aggregator. Aggregator control p99 is overwritten by canonical cells per window at `scripts/phase220-matrix-aggregator.py:236`; the overlay counts any canonical cell under threshold at `221-03-PLAN.md:479`. That can change verdicts even when `bgp_excluded_cells` is empty.
+
+- **MEDIUM:** `mtr_post_flag` uses only the latest replicate at `221-02-PLAN.md:228` and `221-03-PLAN.md:419`. D-10 should exclude a defect cell if any contributing replicate has `path_change_detected: true`.
+
+- **MEDIUM:** Dedup is sufficient for the current duplicate, but not for a valid re-run of the same replicate index in a different `run_dir`. Counting should collapse by `(base_cell_id, replicate_index)` for credit, with `run_dir` retained only for audit.
+
+**Suggestions**
+
+- Replace Task 0 guard with an explicit `if marker_exists; then skip; else git commit --allow-empty ...; fi`.
+- Build curated evidence using Python: validate sidecars, choose winner manifests, copy only `phase220-cell.json`, `signal-sheet.json`, `mtr-pre/post`, and needed nested signal sheets; reject symlinks whose resolved target is outside the evidence root.
+- Do not hand-copy aggregator verdict logic. Import `scripts/phase220-matrix-aggregator.py` read-only and call `matrix_verdict()` on `per_cell minus bgp_excluded_cells`.
+- Add a hard assertion: if `bgp_excluded_cells == []`, then `final_verdict_after_bgp_overlay == matrix_verdict`.
+- Remove all stale Plan 03 text and verifiers that still bind §1 to raw `matrix_verdict`.
+
+**Overall Risk Assessment**
+
+**HIGH.** The marker base-SHA fix currently will not execute, and the BGP overlay can produce a non-Phase-220 verdict while claiming to apply the locked algorithm. The symlink dereference issue is also unsafe enough to block execution.
+
+**Verdict**
+
+**needs-another-replan-cycle**
+
+## Consensus Summary (Cycle 3)
+
+Only Codex was invoked this cycle, so consensus is single-reviewer; findings are grounded in direct file inspection of the aggregator code, wrapper script, and live evidence.
+
+### Cycle 2 HIGH Disposition (rollup)
+
+- FULLY RESOLVED: 1 (aggregator field names)
+- FULLY RESOLVED for current evidence: 1 (Plan 02 sidecar dedup — works for present duplicates; weakness flagged for re-runs)
+- PARTIALLY RESOLVED: 2 (curated symlink traversal — copy approach works but unsafe; BGP/D-10 exclusion — overlay fields added but contract still says no flip)
+- UNRESOLVED: 1 (Phase 221 base-SHA marker — shell guard logic broken)
+
+### Current HIGH Concerns (3 unresolved)
+
+1. **Phase 221 marker commit guard is broken** — Plan 01 Task 0 shell control flow `(test -z ... || echo ...) && exit 0` always succeeds and skips the `git commit --allow-empty` step, so the marker is never created and the mutation-boundary base-SHA falls through to Phase 220.
+2. **`cp -r --dereference` follows symlinks outside the curated evidence root** — current evidence has `flent -> /home/kevin/flent-results/...`; deref copy will escape the snapshot scope and inflate it with unrelated data. Need a bounded copier that rejects escaping symlinks and rewrites `run_dir` fields.
+3. **BGP overlay reimplements verdict logic divergently from the aggregator** — overlay applies per-cell threshold counting that differs from the aggregator's per-window canonical-control p99 override; can change the verdict even when `bgp_excluded_cells == []`. Also, Plan 03 has contradictory text: adds overlay fields/final_verdict_after_bgp_overlay but still asserts `MD.verdict == j['matrix_verdict']` and says "BGP caveat reported but does NOT flip verdict."
+
+### Recommended Next Step
+
+Replan again:
+1. Plan 01 Task 0: rewrite the marker guard as `if ! git log --grep='^docs(phase-221): begin phase execution' --pretty=%H | grep -q .; then git commit --allow-empty -m 'docs(phase-221): begin phase execution'; fi`. Add an acceptance check that `git log --grep=...` resolves to a single commit BEFORE the mutation-boundary test runs.
+2. Plan 03: replace `cp -r --dereference` with a Python builder that (a) validates each sidecar, (b) copies only `phase220-cell.json`, `signal-sheet.json`, `mtr-pre/post`, and required nested signal sheets, (c) rejects symlinks whose `Path.resolve()` escapes the evidence root, (d) rewrites copied `phase220-cell.json["run_dir"]` to the snapshot path so the aggregator's `signal-sheet.json` lookup stays inside the curated tree.
+3. Plan 03: pick one BGP contract and apply it everywhere. Either (a) call `matrix_verdict()` from `scripts/phase220-matrix-aggregator.py` with `bgp_excluded_cells` removed from `per_cell` (single source of truth), or (b) keep the markdown-only caveat and drop all `final_verdict_after_bgp_overlay` schema. Add an invariant assertion `bgp_excluded_cells == [] → final_verdict == matrix_verdict`.
+4. Plan 02 + Plan 03: change `mtr_post_flag` derivation to OR across all contributing replicates (any replicate with `path_change_detected: true` flags the cell), not just the latest replicate.
+5. Plan 02: change dedup credit to `(base_cell_id, replicate_index)` collapse with `run_dir` retained for audit only, so future legitimate re-runs of the same replicate slot don't double-count.
