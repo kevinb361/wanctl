@@ -2,13 +2,18 @@
 phase: 221
 slug: matrix-evidence-closeout-scope-a2
 status_vocabulary: [pending, partial, complete, incomplete]
-last_session_utc: 2026-06-01T00:00:00Z
+last_session_utc: "2026-06-01T18:29:33Z"
 completed_replicates: 1
 target_replicates: 54
 canonical_target: dallas
 supplemental_targets: [vultr-dallas, vultr-chicago]
 canonical_complete: 0
 supplemental_incomplete: 0
+quarantined_run_dirs:
+  - .planning/phases/220-matrix-runner-scope-a1/evidence/RUN-20260601T150527Z
+duplicate_sidecars:
+  - .planning/phases/220-matrix-runner-scope-a1/evidence/dallas__spectrum__daytime__r1/phase220-cell.json
+unexpected_cell_ids: []
 ---
 
 # Phase 221 — Matrix Evidence Ledger
@@ -31,18 +36,52 @@ supplemental_incomplete: 0
 - **INVALID:** ANY canonical control cell `incomplete` in any window OR > 2 supplemental cells `incomplete`. Phase 221 reopens for replan; no closeout written; Plan 02 writes `221-MATRIX-INVALID.md` and halts.
 - **VALID with footnote:** ≤ 2 supplemental cells `incomplete` AND all 6 canonical cells `complete`. Plan 03 fires at this state too — see "Plan 03 Readiness Signal" below.
 
+## Operator Runbook
+
+### Per-Window Operator Session (out-of-Claude-session)
+
+Operator picks a calendar day matching ONE of the three window-hour gates from Phase 220 YAML:
+- off-peak: hours 01–05 local
+- daytime: hours 10–16 local
+- prime-time: hours 19–22 local
+
+Within the gate, operator runs ONE OR MORE cells for that window. Each cell-replicate is ONE wrapper invocation:
+
+```bash
+./scripts/phase220-target-path-matrix.sh \
+  --cell <cell_id> \
+  --replicate <N>
+```
+
+Per CONTEXT D-02: multiple cells inside the same window-slot on the same day are permitted; Phase 220 60s inter-cell spacing already covers this.
+
+Per CONTEXT D-08: on replicate failure, RE-RUN the same `--cell/--replicate` invocation. Up to 3 total attempts per replicate index. After 3 failed attempts on the same replicate, operator MUST add an `attempts:3` token to the ledger row's `notes` column for that cell (or `attempts:2`/`attempts:1` if the operator is recording partial progress). Plan 02's next session reads this annotation and marks the cell `incomplete` if `attempts >= 3 AND valid_replicates < 3`. The wrapper writes NO sidecar on hard failure, so this annotation IS the failure record.
+
+See `docs/PHASE220-MATRIX-RUNNER.md` for wrapper invocation details (read-only — Phase 221 does not modify).
+
+### Per-Claude-Session Ledger Update Protocol
+
+1. Claude globs `.planning/phases/220-matrix-runner-scope-a1/evidence/**/phase220-cell.json` and filters to VALID sidecars (`schema_version == 1` AND `cell_id` non-null). Invalid/null sidecars (e.g. the historical `RUN-20260601T150527Z/` false-start) are added to frontmatter `quarantined_run_dirs[]` and skipped.
+2. Claude deduplicates valid sidecars by `(base_cell_id, replicate_index)`, preserving dropped sidecar paths in `duplicate_sidecars[]`, then groups by base cell_id and reconciles each of 18 ledger rows against the grouped state per Task 1.
+3. Claude bumps frontmatter `completed_replicates`, `canonical_complete`, `supplemental_incomplete`, and `last_session_utc`.
+4. Claude detects matrix-fail (canonical incomplete OR supplemental_incomplete > 2). If triggered → Task 3 (write 221-MATRIX-INVALID.md, halt). Otherwise → commit ledger and exit.
+5. Claude DOES NOT invoke `scripts/phase220-matrix-aggregator.py`. Aggregator runs only in Plan 03 after readiness latch sets.
+
+### Calendar Spread Guidance (CONTEXT D-02)
+
+The 18 cells × 3 replicates spread across at minimum 3 calendar days (one per window-slot) and realistically 1–2 weeks (operator availability + alignment with off-peak hours). The matrix is run-to-completion per CONTEXT D-01 — even if kill OR defect criteria appear satisfied mid-matrix, every replicate completes before Plan 03 fires.
+
+### BGP Path-Change Reporting (CONTEXT D-10)
+
+The `mtr_post_flag` column derives from `phase220-cell.json["path_change_detected"]` using OR-across-all-contributing-replicates. The wrapper writes `mtr-post-<N>.txt` UNCONDITIONALLY per replicate (line 372 of `scripts/phase220-target-path-matrix.sh`) — file existence is NOT a usable BGP signal. A `complete 3/3` cell with `mtr_post_flag: true` is still `complete`; the flag affects §6 decision-tree exclusion in Plan 03 (cells with `mtr_post_flag: true` AND `cell_verdict: cell_defect` are excluded from defect-corroboration arguments) but does NOT downgrade ledger status here.
+
 ## Plan 03 Readiness Signal (resolves Codex Plan 02 HIGH deadlock)
 
 Plan 03 is ready to fire when EITHER:
-1. `completed_replicates: 54` AND all 18 cells `complete` (canonical happy path), OR
-2. All 6 canonical cells `complete` AND between 0 and 2 supplemental cells `incomplete` AND every other supplemental cell is `complete` (D-09 valid-with-footnote path), OR
-3. `221-MATRIX-INVALID.md` exists (matrix-fail short-circuit; Plan 03 writes nothing).
+- Ledger frontmatter shows `canonical_complete: 6` AND `supplemental_incomplete: 0..2` AND every other supplemental cell `complete` (success path including D-09 valid-with-footnote — resolves Codex Plan 02 HIGH deadlock), OR
+- File `.planning/phases/221-matrix-evidence-closeout-scope-a2/221-MATRIX-INVALID.md` exists (failure path — Plan 03 short-circuits and the phase reopens for replan).
 
-Acceptance encoded via two frontmatter helper fields maintained by Plan 02:
-- `canonical_complete: <0..6>` — number of canonical cells with status=complete
-- `supplemental_incomplete: <0..12>` — number of supplemental cells with status=incomplete
-
-Plan 03 reads frontmatter and fires iff (canonical_complete == 6 AND supplemental_incomplete <= 2) OR matrix-fail file present.
+Plan 03 will refuse to write `221-CLOSEOUT.md` if neither condition is met. When the success branch first becomes true, Plan 02 latches the time in frontmatter as `plan_03_ready_at_utc`.
 
 ## Cell Status
 
