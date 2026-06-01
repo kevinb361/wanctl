@@ -6,8 +6,8 @@ status_vocabulary:
   - partial
   - complete
   - incomplete
-last_session_utc: '2026-06-01T18:52:51Z'
-completed_replicates: 6
+last_session_utc: '2026-06-01T20:03:19Z'
+completed_replicates: 18
 target_replicates: 54
 canonical_target: dallas
 supplemental_targets:
@@ -102,16 +102,16 @@ Rehearsal row substitutions: `last_replicate_utc` is `started_utc` from `.planni
 | dallas__att__daytime | 3/3 | daytime | att | dallas | 2026-06-01T18:48:24Z | d8a82bb7 | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | canonical control; bgp-flagged |
 | dallas__att__prime-time | 0/3 | prime-time | att | dallas | — | — | — | — | pending | canonical control |
 | vultr-dallas__spectrum__off-peak | 0/3 | off-peak | spectrum | vultr-dallas | — | — | — | — | pending | supplemental |
-| vultr-dallas__spectrum__daytime | 0/3 | daytime | spectrum | vultr-dallas | — | — | — | — | pending | supplemental; attempts:1 dns-resolution-failed vultr-dallas unresolved 2026-06-01 |
+| vultr-dallas__spectrum__daytime | 3/3 | daytime | spectrum | vultr-dallas | 2026-06-01T19:32:14Z | 03f5fa17 | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
 | vultr-dallas__spectrum__prime-time | 0/3 | prime-time | spectrum | vultr-dallas | — | — | — | — | pending | supplemental |
 | vultr-dallas__att__off-peak | 0/3 | off-peak | att | vultr-dallas | — | — | — | — | pending | supplemental |
-| vultr-dallas__att__daytime | 0/3 | daytime | att | vultr-dallas | — | — | — | — | pending | supplemental |
+| vultr-dallas__att__daytime | 3/3 | daytime | att | vultr-dallas | 2026-06-01T19:40:47Z | f0ad6009 | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
 | vultr-dallas__att__prime-time | 0/3 | prime-time | att | vultr-dallas | — | — | — | — | pending | supplemental |
 | vultr-chicago__spectrum__off-peak | 0/3 | off-peak | spectrum | vultr-chicago | — | — | — | — | pending | supplemental |
-| vultr-chicago__spectrum__daytime | 0/3 | daytime | spectrum | vultr-chicago | — | — | — | — | pending | supplemental |
+| vultr-chicago__spectrum__daytime | 3/3 | daytime | spectrum | vultr-chicago | 2026-06-01T19:49:20Z | 22f1dd6e | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
 | vultr-chicago__spectrum__prime-time | 0/3 | prime-time | spectrum | vultr-chicago | — | — | — | — | pending | supplemental |
 | vultr-chicago__att__off-peak | 0/3 | off-peak | att | vultr-chicago | — | — | — | — | pending | supplemental |
-| vultr-chicago__att__daytime | 0/3 | daytime | att | vultr-chicago | — | — | — | — | pending | supplemental |
+| vultr-chicago__att__daytime | 3/3 | daytime | att | vultr-chicago | 2026-06-01T19:57:55Z | e5c80d3d | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
 | vultr-chicago__att__prime-time | 0/3 | prime-time | att | vultr-chicago | — | — | — | — | pending | supplemental |
 
 ## Evidence Durability Policy
