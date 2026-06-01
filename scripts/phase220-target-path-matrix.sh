@@ -288,14 +288,29 @@ STARTED_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 PRE_MTR="${TMPDIR:-/tmp}/phase220-mtr-pre-${CELL_ID}-${REPLICATE}.txt"
 mtr --no-dns --report -c 10 "$TARGET" > "$PRE_MTR"
 
+mapfile -t BEFORE_RUNS < <(find "$EVIDENCE_ROOT" -mindepth 1 -maxdepth 1 -type d -name 'RUN-*' -printf '%f\n' 2>/dev/null | sort)
 "${DELEGATE_CMD[@]}"
 ENDED_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-RUN_DIR="$(find "$EVIDENCE_ROOT" -mindepth 1 -maxdepth 1 -type d -name 'RUN-*' -printf '%f\n' 2>/dev/null | sort | tail -n 1)"
-if [[ -z "$RUN_DIR" ]]; then
-  echo "ERROR: no RUN-* directory found under $EVIDENCE_ROOT after delegated capture" >&2
+mapfile -t AFTER_RUNS < <(find "$EVIDENCE_ROOT" -mindepth 1 -maxdepth 1 -type d -name 'RUN-*' -printf '%f\n' 2>/dev/null | sort)
+NEW_RUNS=()
+for after_run in "${AFTER_RUNS[@]}"; do
+  found="false"
+  for before_run in "${BEFORE_RUNS[@]}"; do
+    if [[ "$after_run" == "$before_run" ]]; then
+      found="true"
+      break
+    fi
+  done
+  if [[ "$found" == "false" ]]; then
+    NEW_RUNS+=("$after_run")
+  fi
+done
+if (( ${#NEW_RUNS[@]} != 1 )); then
+  echo "ERROR: expected exactly one new RUN-* directory after delegated capture, found ${#NEW_RUNS[@]}" >&2
   exit 5
 fi
+RUN_DIR="${NEW_RUNS[0]}"
 RUN_DIR="${EVIDENCE_ROOT}/${RUN_DIR}"
 TEST_DIR="${RUN_DIR}/${WAN}/${TESTS}"
 if [[ ! -d "$TEST_DIR" ]]; then

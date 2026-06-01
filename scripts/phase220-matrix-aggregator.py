@@ -90,7 +90,9 @@ def load_matrix_definition(yaml_path: Path) -> dict[str, Any]:
     return parsed
 
 
-def group_replicates_by_base_cell_id(per_replicate_inputs: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+def group_replicates_by_base_cell_id(
+    per_replicate_inputs: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for record in per_replicate_inputs:
         cell_id = str(record.get("cell_id") or record.get("manifest", {}).get("cell_id") or "")
@@ -104,7 +106,9 @@ def collapse_replicate_p99(values: list[float]) -> float:
 
 
 def _primary_driver_for_replicates(replicate_records: list[dict[str, Any]]) -> str | None:
-    drivers = [record.get("primary_driver") for record in replicate_records if record.get("primary_driver")]
+    drivers = [
+        record.get("primary_driver") for record in replicate_records if record.get("primary_driver")
+    ]
     if not drivers:
         return None
     counts = Counter(str(driver) for driver in drivers)
@@ -139,7 +143,9 @@ def collapse_replicates_to_cell(replicate_records: list[dict[str, Any]]) -> dict
         "path_name": str(first["path_name"]),
         "window_name": str(first["window_name"]),
         "is_canonical": bool(first.get("is_canonical") or first.get("target_kind") == "canonical"),
-        "target_kind": "canonical" if first.get("is_canonical") or first.get("target_kind") == "canonical" else "supplemental",
+        "target_kind": "canonical"
+        if first.get("is_canonical") or first.get("target_kind") == "canonical"
+        else "supplemental",
         "median_p99_ms": float(statistics.median(p99_values)),
         "primary_driver": _primary_driver_for_replicates(replicate_records),
         "ranked": first.get("ranked") or first.get("ranked_drivers") or [],
@@ -160,10 +166,21 @@ def cell_verdict(
     allowlist = set(driver_allowlist)
     p99 = float(cell["median_p99_ms"])
     if bool(cell.get("is_canonical")) or cell.get("target_kind") == "canonical":
-        return "cell_kill_clear" if p99 <= float(resolved["canonical_control_p99_kill_ms"]) else "cell_carry"
-    if p99 > float(resolved["supplemental_defect_p99_ms"]) and cell.get("primary_driver") in allowlist:
+        return (
+            "cell_kill_clear"
+            if p99 <= float(resolved["canonical_control_p99_kill_ms"])
+            else "cell_carry"
+        )
+    if (
+        p99 > float(resolved["supplemental_defect_p99_ms"])
+        and cell.get("primary_driver") in allowlist
+    ):
         return "cell_defect"
-    if control_p99_for_window is not None and p99 <= float(resolved["supplemental_carry_multiplier_of_control"]) * control_p99_for_window:
+    if (
+        control_p99_for_window is not None
+        and p99
+        <= float(resolved["supplemental_carry_multiplier_of_control"]) * control_p99_for_window
+    ):
         return "cell_kill_clear"
     return "cell_carry"
 
@@ -208,7 +225,12 @@ def _orthogonal_corroboration(defect_cells: list[dict[str, Any]]) -> dict[str, b
     }
 
 
-def matrix_verdict(cells: list[dict[str, Any]], *, thresholds: dict[str, Any], driver_allowlist: set[str] | list[str]) -> dict[str, Any]:
+def matrix_verdict(
+    cells: list[dict[str, Any]],
+    *,
+    thresholds: dict[str, Any],
+    driver_allowlist: set[str] | list[str],
+) -> dict[str, Any]:
     resolved = {**DEFAULT_THRESHOLDS, **dict(thresholds)}
     control_by_window: dict[str, float | None] = {window: None for window in WINDOW_CHOICES}
     for cell in cells:
@@ -234,11 +256,20 @@ def matrix_verdict(cells: list[dict[str, Any]], *, thresholds: dict[str, Any], d
         by_path[str(cell["path_name"])].append(cell)
         by_window[str(cell["window_name"])].append(cell)
 
-    defect_cells = [cell for cell in annotated if cell["verdict"] == "cell_defect" and not cell.get("is_canonical")]
+    defect_cells = [
+        cell
+        for cell in annotated
+        if cell["verdict"] == "cell_defect" and not cell.get("is_canonical")
+    ]
     pair_to_windows: dict[tuple[str, str], set[str]] = defaultdict(set)
     for cell in defect_cells:
-        pair_to_windows[(str(cell["target_name"]), str(cell["path_name"]))].add(str(cell["window_name"]))
-    reproduced = any(len(windows) >= int(resolved["supplemental_defect_min_windows"]) for windows in pair_to_windows.values())
+        pair_to_windows[(str(cell["target_name"]), str(cell["path_name"]))].add(
+            str(cell["window_name"])
+        )
+    reproduced = any(
+        len(windows) >= int(resolved["supplemental_defect_min_windows"])
+        for windows in pair_to_windows.values()
+    )
     orthogonal = _orthogonal_corroboration(defect_cells)
 
     if reproduced and orthogonal["satisfied"]:
@@ -256,10 +287,19 @@ def matrix_verdict(cells: list[dict[str, Any]], *, thresholds: dict[str, Any], d
             if cell.get("is_canonical"):
                 continue
             control = control_by_window.get(str(cell["window_name"]))
-            if control is not None and float(cell["median_p99_ms"]) > float(resolved["supplemental_carry_multiplier_of_control"]) * control:
+            if control is None:
                 no_supplemental_exceeds_control = False
                 break
-        if clean_control_windows >= int(resolved["canonical_min_windows_kill"]) and no_supplemental_exceeds_control:
+            if (
+                float(cell["median_p99_ms"])
+                > float(resolved["supplemental_carry_multiplier_of_control"]) * control
+            ):
+                no_supplemental_exceeds_control = False
+                break
+        if (
+            clean_control_windows >= int(resolved["canonical_min_windows_kill"])
+            and no_supplemental_exceeds_control
+        ):
             verdict = "hypothesis_killed"
         else:
             verdict = "carried_narrower_with_close_with_prejudice_rule"
@@ -285,13 +325,22 @@ def matrix_verdict(cells: list[dict[str, Any]], *, thresholds: dict[str, Any], d
     }
 
 
-def mann_whitney_u(x: list[float], y: list[float], *, continuity_correction: bool = False) -> dict[str, Any]:
+def mann_whitney_u(
+    x: list[float], y: list[float], *, continuity_correction: bool = False
+) -> dict[str, Any]:
     n_x = len(x)
     n_y = len(y)
     empty = n_x == 0 or n_y == 0
     all_identical = bool(x or y) and len(set(float(value) for value in [*x, *y])) == 1
     if empty or all_identical or (n_x == 1 and n_y == 1):
-        return {"u_x": None, "u_y": None, "z": None, "p": None, "degenerate": True, "tie_correction": "wilcoxon-mid-rank"}
+        return {
+            "u_x": None,
+            "u_y": None,
+            "z": None,
+            "p": None,
+            "degenerate": True,
+            "tie_correction": "wilcoxon-mid-rank",
+        }
 
     pooled = [(float(value), "x") for value in x] + [(float(value), "y") for value in y]
     pooled.sort(key=lambda item: item[0])
@@ -316,14 +365,28 @@ def mann_whitney_u(x: list[float], y: list[float], *, continuity_correction: boo
     tie_sum = sum(size**3 - size for size in tie_sizes if size >= 2)
     sigma_sq = (n_x * n_y / 12.0) * ((n_total + 1) - tie_sum / (n_total * (n_total - 1)))
     if sigma_sq <= 0:
-        return {"u_x": None, "u_y": None, "z": None, "p": None, "degenerate": True, "tie_correction": "wilcoxon-mid-rank"}
+        return {
+            "u_x": None,
+            "u_y": None,
+            "z": None,
+            "p": None,
+            "degenerate": True,
+            "tie_correction": "wilcoxon-mid-rank",
+        }
     adjusted_u = u_x
     if continuity_correction and u_x != mu:
         adjusted_u = u_x - 0.5 if u_x > mu else u_x + 0.5
     z = (adjusted_u - mu) / math.sqrt(sigma_sq)
     phi = 0.5 * (1.0 + math.erf(abs(z) / math.sqrt(2.0)))
     p_value = 2.0 * (1.0 - phi)
-    return {"u_x": u_x, "u_y": u_y, "z": z, "p": p_value, "degenerate": False, "tie_correction": "wilcoxon-mid-rank"}
+    return {
+        "u_x": u_x,
+        "u_y": u_y,
+        "z": z,
+        "p": p_value,
+        "degenerate": False,
+        "tie_correction": "wilcoxon-mid-rank",
+    }
 
 
 def bootstrap_ci_median_difference(
@@ -337,7 +400,15 @@ def bootstrap_ci_median_difference(
     empty = not x or not y
     all_identical = bool(x or y) and len(set(float(value) for value in [*x, *y])) == 1
     if empty or all_identical or (len(x) == 1 and len(y) == 1):
-        return {"ci_lower": None, "ci_upper": None, "point_estimate": None, "B": B, "seed": seed, "degenerate": True, "alpha": alpha}
+        return {
+            "ci_lower": None,
+            "ci_upper": None,
+            "point_estimate": None,
+            "B": B,
+            "seed": seed,
+            "degenerate": True,
+            "alpha": alpha,
+        }
     x_values = [float(value) for value in x]
     y_values = [float(value) for value in y]
     rng = random.Random(seed)
@@ -378,31 +449,73 @@ def _record_from_paths(signal_path: Path, manifest_path: Path) -> dict[str, Any]
     }
 
 
+def _signal_path_for_manifest(manifest_path: Path) -> Path:
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    candidates = []
+    run_dir = manifest.get("run_dir")
+    path_name = manifest.get("path_name")
+    if isinstance(run_dir, str) and run_dir and isinstance(path_name, str) and path_name:
+        candidates.append(Path(run_dir) / path_name / "tcp_12down" / "signal-sheet.json")
+    candidates.append(manifest_path.parent / "signal-sheet.json")
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    raise FileNotFoundError(f"missing signal-sheet.json for {manifest_path}")
+
+
 def _records_from_scenario(scenario_path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     scenario = yaml.safe_load(scenario_path.read_text(encoding="utf-8"))
     base = scenario_path.parents[1]
     records = []
     for name in scenario.get("cells", []):
-        records.append(_record_from_paths(base / "signal-sheets" / f"{name}.json", base / "cell-manifests" / f"{name}.json"))
+        records.append(
+            _record_from_paths(
+                base / "signal-sheets" / f"{name}.json", base / "cell-manifests" / f"{name}.json"
+            )
+        )
     return scenario, records
 
 
 def aggregate_scenario(scenario_path: Path, yaml_path: Path = DEFAULT_YAML_PATH) -> dict[str, Any]:
     definition = load_matrix_definition(yaml_path)
     _scenario, records = _records_from_scenario(scenario_path)
-    cells = [collapse_replicates_to_cell(group) for group in group_replicates_by_base_cell_id(records).values()]
-    return matrix_verdict(cells, thresholds=definition["thresholds"], driver_allowlist=definition["driver_allowlist_set"])
+    cells = [
+        collapse_replicates_to_cell(group)
+        for group in group_replicates_by_base_cell_id(records).values()
+    ]
+    return matrix_verdict(
+        cells,
+        thresholds=definition["thresholds"],
+        driver_allowlist=definition["driver_allowlist_set"],
+    )
 
 
-def aggregate(evidence_root: Path, yaml_path: Path, *, output_path: Path | None = None) -> dict[str, Any]:
+def aggregate(
+    evidence_root: Path, yaml_path: Path, *, output_path: Path | None = None
+) -> dict[str, Any]:
     definition = load_matrix_definition(yaml_path)
     records: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
     for manifest_path in sorted(evidence_root.glob("**/phase220-cell.json")):
-        signal_path = manifest_path.parent / "signal-sheet.json"
-        if signal_path.exists():
-            records.append(_record_from_paths(signal_path, manifest_path))
-    cells = [collapse_replicates_to_cell(group) for group in group_replicates_by_base_cell_id(records).values()]
-    summary = matrix_verdict(cells, thresholds=definition["thresholds"], driver_allowlist=definition["driver_allowlist_set"])
+        signal_path = _signal_path_for_manifest(manifest_path)
+        record = _record_from_paths(signal_path, manifest_path)
+        key = (
+            str(record["cell_id"]),
+            str(json.loads(manifest_path.read_text(encoding="utf-8")).get("run_dir", "")),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        records.append(record)
+    cells = [
+        collapse_replicates_to_cell(group)
+        for group in group_replicates_by_base_cell_id(records).values()
+    ]
+    summary = matrix_verdict(
+        cells,
+        thresholds=definition["thresholds"],
+        driver_allowlist=definition["driver_allowlist_set"],
+    )
     if output_path is not None:
         _atomic_write_json(output_path, summary)
     return summary
