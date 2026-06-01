@@ -22,8 +22,10 @@ Usage:
 
 Runs one Phase 220 target/path/window matrix cell by resolving the cell from
 scripts/phase220-matrix.yaml, refusing protected source drift, then delegating
-traffic generation to scripts/phase213-baseline-capture.sh unchanged. Dry runs
-execute gates and print the planned delegate command prefixed with DRY-RUN:.
+traffic generation to scripts/phase213-baseline-capture.sh unchanged, then
+runs the unchanged Phase 214 align/classify scripts to emit the per-cell
+signal-sheet. Dry runs execute gates and print the planned delegate command
+prefixed with DRY-RUN:.
 
 Options:
   --cell <cell_id>          Required matrix cell id from scripts/phase220-matrix.yaml
@@ -295,6 +297,45 @@ if [[ -z "$RUN_DIR" ]]; then
   exit 5
 fi
 RUN_DIR="${EVIDENCE_ROOT}/${RUN_DIR}"
+TEST_DIR="${RUN_DIR}/${WAN}/${TESTS}"
+if [[ ! -d "$TEST_DIR" ]]; then
+  echo "ERROR: expected per-test directory missing after delegated capture: $TEST_DIR" >&2
+  exit 5
+fi
+
+mapfile -t FLENT_FILES < <(find "$TEST_DIR/flent" -maxdepth 1 -type f -name '*.flent.gz' -print 2>/dev/null | sort)
+if (( ${#FLENT_FILES[@]} != 1 )); then
+  echo "ERROR: expected exactly one flent.gz under $TEST_DIR/flent, found ${#FLENT_FILES[@]}" >&2
+  exit 5
+fi
+FLENT_GZ="${FLENT_FILES[0]}"
+HEALTH_NDJSON="${TEST_DIR}/health-${WAN}.ndjson"
+JOURNAL_NDJSON="${TEST_DIR}/journal-window.ndjson"
+ALERTS_JSON="${TEST_DIR}/alerts-${WAN}.json"
+
+if [[ ! -f "$HEALTH_NDJSON" ]]; then
+  echo "ERROR: expected health artifact missing after delegated capture: $HEALTH_NDJSON" >&2
+  exit 5
+fi
+
+.venv/bin/python scripts/phase214-align.py \
+  --flent-gz "$FLENT_GZ" \
+  --health-ndjson "$HEALTH_NDJSON" \
+  --journal-ndjson "$JOURNAL_NDJSON" \
+  --alerts-json "$ALERTS_JSON" \
+  --output-json "$TEST_DIR/aligned-window.json" \
+  --output-csv "$TEST_DIR/aligned-window.csv"
+
+.venv/bin/python scripts/phase214-classify.py \
+  --aligned-window "$TEST_DIR/aligned-window.json" \
+  --flent-gz "$FLENT_GZ" \
+  --health-ndjson "$HEALTH_NDJSON" \
+  --journal-ndjson "$JOURNAL_NDJSON" \
+  --window-label "$WINDOW_NAME" \
+  --run-dir "$(basename "$RUN_DIR")" \
+  --wan "$WAN" \
+  --output-json "$TEST_DIR/signal-sheet.json" \
+  --output-md "$TEST_DIR/signal-sheet.md"
 
 POST_MTR="${RUN_DIR}/mtr-post-${REPLICATE}.txt"
 mtr --no-dns --report -c 10 "$TARGET" > "$POST_MTR"
@@ -321,9 +362,13 @@ jq -n \
   --arg run_dir "$RUN_DIR" \
   --argjson path_change_detected "$PATH_CHANGE_DETECTED" \
   --argjson canonical_control_p99_kill_ms "${CONTROL_P99_KILL_MS:-0}" \
-  '{schema_version, phase, target_kind, target_name, path_name, window_name,
-    replicate_index, cell_id, base_sha, mtr_snapshot_path, started_utc,
-    ended_utc, run_dir, path_change_detected, canonical_control_p99_kill_ms}' \
+  '{schema_version: $schema_version, phase: $phase, target_kind: $target_kind,
+    target_name: $target_name, path_name: $path_name, window_name: $window_name,
+    replicate_index: $replicate_index, cell_id: $cell_id, base_sha: $base_sha,
+    mtr_snapshot_path: $mtr_snapshot_path, started_utc: $started_utc,
+    ended_utc: $ended_utc, run_dir: $run_dir,
+    path_change_detected: $path_change_detected,
+    canonical_control_p99_kill_ms: $canonical_control_p99_kill_ms}' \
   > "${RUN_DIR}/phase220-cell.json"
 
 # Caller may run cells back-to-back; default sleep enforces CONTEXT.md 60s spacing.

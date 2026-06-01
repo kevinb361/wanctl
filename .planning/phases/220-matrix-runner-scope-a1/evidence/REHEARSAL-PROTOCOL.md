@@ -55,7 +55,8 @@ Do not use HEAD equality against `BASE_SHA`; that would reject later Plan 02/03/
    - `<RUN_DIR>/spectrum/tcp_12down/signal-sheet.json`
    - `<RUN_DIR>/phase220-cell.json`
    - `<RUN_DIR>/mtr-pre-1.txt`
-   - `<RUN_DIR>/spectrum/tcp_12down/journal-window.ndjson`
+   - `<RUN_DIR>/spectrum/tcp_12down/aligned-window.json`
+   - `<RUN_DIR>/spectrum/tcp_12down/journal-window.ndjson` when journal capture is available
 
 5. Read the Phase 220 rehearsal verdict:
 
