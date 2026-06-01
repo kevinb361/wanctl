@@ -22,7 +22,7 @@
 ### 🟢 v1.47 Measurement Evidence Closure (Phases 219–221)
 
 - [x] **Phase 219: Ingestion-Rate Observability (Scope D)** — Per-WAN per-table SQLite ingestion-rate visibility as additive extensions to `wanctl-history --ingestion-rate`; ships first to support Phase 218 audit evidence regardless of v1.47 timing.
-- [ ] **Phase 220: Matrix Runner (Scope A1)** — Target/path/window matrix wrapper + stdlib aggregator + Wave 0 tests + pre-registered CRITERIA gate (kill / defect / close-with-prejudice rule).
+- [x] **Phase 220: Matrix Runner (Scope A1)** — Target/path/window matrix wrapper + stdlib aggregator + Wave 0 tests + pre-registered CRITERIA gate (kill / defect / close-with-prejudice rule).
 - [ ] **Phase 221: Matrix Evidence + Closeout (Scope A2)** — Operator-driven matrix execution against pre-registered criteria; explicit verdict report; folded `tcp_12down` todo closed-or-carried with close-with-prejudice rule.
 
 ### 🔄 Event-Gated Watch (Carried from v1.45 + v1.46; parallel to v1.47)
@@ -88,7 +88,7 @@ Full v1.46 roadmap archived to `milestones/v1.46-ROADMAP.md`. v1.46 stats and ac
   - [x] 220-01-PLAN.md — Wave 0 test scaffolds (mutation-boundary green; aggregator + wrapper xfail) + synthetic fixtures
   - [x] 220-02-PLAN.md — `scripts/phase220-matrix.yaml` (locked CRITERIA-01 thresholds + 18 cells) + `scripts/phase220-matrix-aggregator.py` (cube rollup + MWU + bootstrap CI)
   - [x] 220-03-PLAN.md — `scripts/phase220-target-path-matrix.sh` per-cell wrapper composing Phase 213/214 unchanged
-  - [ ] 220-04-PLAN.md — `docs/PHASE220-MATRIX-RUNNER.md` + wet daytime control cell rehearsal evidence (operator-driven checkpoint)
+  - [x] 220-04-PLAN.md — `docs/PHASE220-MATRIX-RUNNER.md` + wet daytime control cell rehearsal evidence (operator-driven checkpoint)
 
 ### Phase 221: Matrix Evidence + Closeout (Scope A2)
 
@@ -114,7 +114,7 @@ Full v1.46 roadmap archived to `milestones/v1.46-ROADMAP.md`. v1.46 stats and ac
 | Phase | Milestone | Plans Complete | Status   | Completed  |
 | ----- | --------- | -------------- | -------- | ---------- |
 | 219. Ingestion-Rate Observability (Scope D)   | v1.47       | 4/4 | Complete    | 2026-05-30 |
-| 220. Matrix Runner (Scope A1)                 | v1.47       | 3/4 | In Progress|  |
+| 220. Matrix Runner (Scope A1)                 | v1.47       | 4/4 | Complete   | 2026-06-01 |
 | 221. Matrix Evidence + Closeout (Scope A2)    | v1.47       | 0/? | Not started             | —          |
 | 218. Deferred v1.45 VERIFY Watch-List Closure | v1.46 carry | 0/? | Deferred (event-gated; parallel to v1.47)  | —          |
 | 217. Production Cycle-Budget Baseline         | v1.46       | 3/3 | Complete                | 2026-05-30 |
