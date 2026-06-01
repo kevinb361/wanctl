@@ -99,16 +99,16 @@ Every v1.47 REQ-ID is mapped to exactly one phase. SAFE-11 is cross-cutting and 
 | INGEST-04 | Phase 219 | D (Ingestion-Rate Observability) | Complete |
 | INGEST-05 | Phase 219 | D (Ingestion-Rate Observability) | Complete |
 | SAFE-11 (Phase 219 boundary) | Phase 219 | Cross-cutting | Complete |
-| CRITERIA-01 | Phase 220 | A1 (Matrix Runner) | Pending |
-| CRITERIA-02 | Phase 220 | A1 (Matrix Runner) | Pending |
-| MATRIX-01 | Phase 220 | A1 (Matrix Runner) | Pending |
-| MATRIX-02 | Phase 220 | A1 (Matrix Runner) | Pending |
-| MATRIX-03 | Phase 220 | A1 (Matrix Runner) | Pending |
-| MATRIX-04 | Phase 220 | A1 (Matrix Runner) | Pending |
-| AGGREGATE-01 | Phase 220 | A1 (Matrix Runner) | Pending |
-| AGGREGATE-02 | Phase 220 | A1 (Matrix Runner) | Pending |
-| AGGREGATE-03 | Phase 220 | A1 (Matrix Runner) | Pending |
-| SAFE-11 (Phase 220 boundary) | Phase 220 | Cross-cutting | Pending |
+| CRITERIA-01 | Phase 220 | A1 (Matrix Runner) | Complete |
+| CRITERIA-02 | Phase 220 | A1 (Matrix Runner) | Complete |
+| MATRIX-01 | Phase 220 | A1 (Matrix Runner) | Complete |
+| MATRIX-02 | Phase 220 | A1 (Matrix Runner) | Complete |
+| MATRIX-03 | Phase 220 | A1 (Matrix Runner) | Complete |
+| MATRIX-04 | Phase 220 | A1 (Matrix Runner) | Complete |
+| AGGREGATE-01 | Phase 220 | A1 (Matrix Runner) | Complete |
+| AGGREGATE-02 | Phase 220 | A1 (Matrix Runner) | Complete |
+| AGGREGATE-03 | Phase 220 | A1 (Matrix Runner) | Complete |
+| SAFE-11 (Phase 220 boundary) | Phase 220 | Cross-cutting | Complete |
 | CLOSEOUT-01 | Phase 221 | A2 (Matrix Evidence + Closeout) | Pending |
 | CLOSEOUT-02 | Phase 221 | A2 (Matrix Evidence + Closeout) | Pending |
 | CLOSEOUT-03 | Phase 221 | A2 (Matrix Evidence + Closeout) | Pending |

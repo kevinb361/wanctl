@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.47
 milestone_name: Measurement Evidence Closure
 status: executing
-stopped_at: Completed 220-02-PLAN.md
-last_updated: "2026-05-31T11:51:08.164Z"
-last_activity: 2026-05-31
+stopped_at: Completed 220-04-PLAN.md
+last_updated: "2026-06-01T15:38:16.000Z"
+last_activity: 2026-06-01
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 8
-  completed_plans: 7
-  percent: 33
+  completed_plans: 8
+  percent: 67
 ---
 
 # Session State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-30 after v1.46 milestone close + v1.47 milestone open)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 220 — matrix-runner-scope-a1
+**Current focus:** Phase 221 — matrix-evidence-closeout
 
 ## Current Position
 
-Phase: 220 (matrix-runner-scope-a1) — EXECUTING
-Plan: 4 of 4
-Status: Ready to execute
-Last activity: 2026-05-31
+Phase: 221 (matrix-evidence-closeout) — READY
+Plan: TBD
+Status: Phase 220 complete; ready to plan/execute Phase 221
+Last activity: 2026-06-01
 
 ## Phase Structure (v1.47)
 
@@ -123,8 +123,8 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ## Session Continuity
 
-Last session: 2026-05-31T11:51:08.141Z
-Stopped at: Completed 220-02-PLAN.md
+Last session: 2026-06-01T15:38:16Z
+Stopped at: Completed 220-04-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 
@@ -153,6 +153,8 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 - [219-04]: D-27 production profile passed avg/p99 gates with cron active: 2.857ms avg, 6.4ms p99 over 73,603 samples.
 - [220-03]: YAML base_sha remains the only source-floor authority; PHASE220_BASE_SHA is accepted only when it matches YAML.
 - [220-03]: ATT egress validation is hard-fail by default; missing egress_signature exits 4 before curl and mismatched live egress exits 2.
+- [220-04]: Wet dallas/Spectrum daytime rehearsal reproduced the Phase 214 canonical anchor: verdict `ambiguous`, primary_driver `reflector_loss`, comparison `✓ MATCH`.
+- [220-04]: Phase 220 source-floor semantics are operator-facing and verified as protected-path drift checks against base_sha, not exact HEAD equality.
 
 ## Decisions (v1.46)
 
@@ -229,3 +231,4 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 | Phase 220 P01 | 10min | 5 tasks | 31 files |
 | Phase 220 P02 | 7min | 3 tasks | 4 files |
 | Phase 220 P03 | 6min | 2 tasks | 2 files |
+| Phase 220 P04 | checkpointed; wet rehearsal completed 2026-06-01 | 3 tasks | 8 files |
