@@ -1,13 +1,19 @@
 ---
 phase: 221
 slug: matrix-evidence-closeout-scope-a2
-status_vocabulary: [pending, partial, complete, incomplete]
-last_session_utc: "2026-06-01T18:29:33Z"
-completed_replicates: 1
+status_vocabulary:
+  - pending
+  - partial
+  - complete
+  - incomplete
+last_session_utc: '2026-06-01T18:52:51Z'
+completed_replicates: 6
 target_replicates: 54
 canonical_target: dallas
-supplemental_targets: [vultr-dallas, vultr-chicago]
-canonical_complete: 0
+supplemental_targets:
+  - vultr-dallas
+  - vultr-chicago
+canonical_complete: 2
 supplemental_incomplete: 0
 quarantined_run_dirs:
   - .planning/phases/220-matrix-runner-scope-a1/evidence/RUN-20260601T150527Z
@@ -90,13 +96,13 @@ Rehearsal row substitutions: `last_replicate_utc` is `started_utc` from `.planni
 | cell_id | replicates | window | path | target | last_replicate_utc | mtr_pre_sha256 | mtr_post_flag | base_sha | status | notes |
 |---------|------------|--------|------|--------|--------------------|----------------|---------------|----------|--------|-------|
 | dallas__spectrum__off-peak | 0/3 | off-peak | spectrum | dallas | — | — | — | — | pending | canonical control |
-| dallas__spectrum__daytime | 1/3 | daytime | spectrum | dallas | 2026-06-01T15:33:49Z | 07371ae2 | true | 50f3d5136830c284b190b29de939a84406531ecc | partial | Phase 220-04 wet rehearsal r1 only; verdict ambiguous, primary_driver reflector_loss |
+| dallas__spectrum__daytime | 3/3 | daytime | spectrum | dallas | 2026-06-01T18:39:35Z | 54e4d89a | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | r1 rehearsal + daytime r2-r3 canonical replicates; primary_driver details in Phase 220 sidecars; bgp-flagged |
 | dallas__spectrum__prime-time | 0/3 | prime-time | spectrum | dallas | — | — | — | — | pending | canonical control |
 | dallas__att__off-peak | 0/3 | off-peak | att | dallas | — | — | — | — | pending | canonical control |
-| dallas__att__daytime | 0/3 | daytime | att | dallas | — | — | — | — | pending | canonical control |
+| dallas__att__daytime | 3/3 | daytime | att | dallas | 2026-06-01T18:48:24Z | d8a82bb7 | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | canonical control; bgp-flagged |
 | dallas__att__prime-time | 0/3 | prime-time | att | dallas | — | — | — | — | pending | canonical control |
 | vultr-dallas__spectrum__off-peak | 0/3 | off-peak | spectrum | vultr-dallas | — | — | — | — | pending | supplemental |
-| vultr-dallas__spectrum__daytime | 0/3 | daytime | spectrum | vultr-dallas | — | — | — | — | pending | supplemental |
+| vultr-dallas__spectrum__daytime | 0/3 | daytime | spectrum | vultr-dallas | — | — | — | — | pending | supplemental; attempts:1 dns-resolution-failed vultr-dallas unresolved 2026-06-01 |
 | vultr-dallas__spectrum__prime-time | 0/3 | prime-time | spectrum | vultr-dallas | — | — | — | — | pending | supplemental |
 | vultr-dallas__att__off-peak | 0/3 | off-peak | att | vultr-dallas | — | — | — | — | pending | supplemental |
 | vultr-dallas__att__daytime | 0/3 | daytime | att | vultr-dallas | — | — | — | — | pending | supplemental |
