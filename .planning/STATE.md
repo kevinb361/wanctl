@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.47
 milestone_name: Measurement Evidence Closure
-status: planning
+status: executing
 stopped_at: Phase 221 context gathered
-last_updated: "2026-06-01T16:04:00.612Z"
-last_activity: 2026-06-01
+last_updated: "2026-06-01T16:24:37.176Z"
+last_activity: 2026-06-01 -- Phase 221 planning complete
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 8
+  total_plans: 12
   completed_plans: 8
   percent: 67
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-05-30 after v1.46 milestone close + v1.4
 
 Phase: 221
 Plan: Not started
-Status: Phase 220 complete; ready to plan/execute Phase 221
-Last activity: 2026-06-01
+Status: Ready to execute
+Last activity: 2026-06-01 -- Phase 221 planning complete
 
 ## Phase Structure (v1.47)
 
@@ -84,7 +84,7 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ### v1.46-shipped-with-VERIFY-01-02-deferred
 
-- **Status:** Ready to plan
+- **Status:** Ready to execute
 - **Operator sign-off:** Kevin — 2026-05-30, via /gsd-progress → Acknowledge & close path: "fix STATE drift then complete milestone". 18/20 v1.46 requirements satisfied; VERIFY-01/02 carry forward as watch-list.
 - **Why this is acceptable:** v1.46 spine (DRIFT/BASE/MEAS/RECLAIM/RECOV/PERF) is complete and decoupled from VERIFY. VERIFY watch closure requires production-side natural evidence that cannot be hastened without invalidating the metric.
 
