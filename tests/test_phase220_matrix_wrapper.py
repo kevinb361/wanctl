@@ -47,7 +47,9 @@ def _run(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedP
     )
 
 
-def _dry_run(cell: str = "dallas__spectrum__daytime", hour: str = "12") -> subprocess.CompletedProcess[str]:
+def _dry_run(
+    cell: str = "dallas__spectrum__daytime", hour: str = "12"
+) -> subprocess.CompletedProcess[str]:
     return _run("--dry-run", "--test-hour", hour, "--cell", cell, "--replicate", "1")
 
 
@@ -55,7 +57,9 @@ def _run_dirs() -> set[Path]:
     return set(EVIDENCE.glob("RUN-*")) if EVIDENCE.exists() else set()
 
 
-def _git(*args: str, check: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+def _git(
+    *args: str, check: bool = True, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(
         ["git", *args],
         cwd=REPO_ROOT,
@@ -128,7 +132,16 @@ def test_missing_base_sha_in_yaml_returns_4(tmp_path: Path) -> None:
     env = os.environ.copy()
     env.pop("PHASE220_BASE_SHA", None)
     env["PHASE220_MATRIX_YAML"] = str(clone)
-    result = _run("--dry-run", "--test-hour", "12", "--cell", "dallas__spectrum__daytime", "--replicate", "1", env=env)
+    result = _run(
+        "--dry-run",
+        "--test-hour",
+        "12",
+        "--cell",
+        "dallas__spectrum__daytime",
+        "--replicate",
+        "1",
+        env=env,
+    )
     assert result.returncode == 4
     assert "base_sha" in result.stderr
 
@@ -172,11 +185,15 @@ def test_wrapper_refuses_script_drift_unstaged(script_rel: str, expected: str) -
 
 
 def test_wrapper_refuses_when_phase213_script_drifts_unstaged() -> None:
-    test_wrapper_refuses_script_drift_unstaged("scripts/phase213-baseline-capture.sh", "scripts/phase213-* has unstaged diff")
+    test_wrapper_refuses_script_drift_unstaged(
+        "scripts/phase213-baseline-capture.sh", "scripts/phase213-* has unstaged diff"
+    )
 
 
 def test_wrapper_refuses_when_phase214_classifier_drifts_unstaged() -> None:
-    test_wrapper_refuses_script_drift_unstaged("scripts/phase214-classify.py", "scripts/phase214-* has unstaged diff")
+    test_wrapper_refuses_script_drift_unstaged(
+        "scripts/phase214-classify.py", "scripts/phase214-* has unstaged diff"
+    )
 
 
 @pytest.mark.parametrize(
@@ -199,17 +216,24 @@ def test_wrapper_refuses_script_drift_staged(script_rel: str, expected: str) -> 
 
 
 def test_wrapper_refuses_when_phase213_script_drifts_staged() -> None:
-    test_wrapper_refuses_script_drift_staged("scripts/phase213-baseline-capture.sh", "scripts/phase213-* has staged diff")
+    test_wrapper_refuses_script_drift_staged(
+        "scripts/phase213-baseline-capture.sh", "scripts/phase213-* has staged diff"
+    )
 
 
 def test_wrapper_refuses_when_phase214_classifier_drifts_staged() -> None:
-    test_wrapper_refuses_script_drift_staged("scripts/phase214-classify.py", "scripts/phase214-* has staged diff")
+    test_wrapper_refuses_script_drift_staged(
+        "scripts/phase214-classify.py", "scripts/phase214-* has staged diff"
+    )
 
 
 @pytest.mark.parametrize(
     ("script_rel", "expected"),
     [
-        ("scripts/phase213-baseline-capture.sh", "scripts/phase213-* has committed diff since base_sha"),
+        (
+            "scripts/phase213-baseline-capture.sh",
+            "scripts/phase213-* has committed diff since base_sha",
+        ),
         ("scripts/phase214-classify.py", "scripts/phase214-* has committed diff since base_sha"),
     ],
 )
@@ -271,6 +295,14 @@ def test_wrapper_phase220_cell_sidecar_uses_jq_variables() -> None:
     assert "phase: $phase" in source
     assert "target_kind: $target_kind" in source
     assert "canonical_control_p99_kill_ms: $canonical_control_p99_kill_ms" in source
+
+
+def test_wrapper_requires_exactly_one_new_run_dir_after_delegate() -> None:
+    source = WRAPPER.read_text(encoding="utf-8")
+    assert "BEFORE_RUNS" in source
+    assert "AFTER_RUNS" in source
+    assert "NEW_RUNS" in source
+    assert "expected exactly one new RUN-* directory" in source
 
 
 def test_wrapper_hard_fails_when_att_egress_signature_missing_in_yaml(tmp_path: Path) -> None:
