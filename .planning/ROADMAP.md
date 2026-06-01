@@ -114,7 +114,7 @@ Full v1.46 roadmap archived to `milestones/v1.46-ROADMAP.md`. v1.46 stats and ac
 | Phase | Milestone | Plans Complete | Status   | Completed  |
 | ----- | --------- | -------------- | -------- | ---------- |
 | 219. Ingestion-Rate Observability (Scope D)   | v1.47       | 4/4 | Complete    | 2026-05-30 |
-| 220. Matrix Runner (Scope A1)                 | v1.47       | 4/4 | Complete   | 2026-06-01 |
+| 220. Matrix Runner (Scope A1)                 | v1.47       | 4/4 | Complete    | 2026-06-01 |
 | 221. Matrix Evidence + Closeout (Scope A2)    | v1.47       | 0/? | Not started             | —          |
 | 218. Deferred v1.45 VERIFY Watch-List Closure | v1.46 carry | 0/? | Deferred (event-gated; parallel to v1.47)  | —          |
 | 217. Production Cycle-Budget Baseline         | v1.46       | 3/3 | Complete                | 2026-05-30 |
