@@ -365,3 +365,86 @@ Replan again:
 3. Plan 03: pick one BGP contract and apply it everywhere. Either (a) call `matrix_verdict()` from `scripts/phase220-matrix-aggregator.py` with `bgp_excluded_cells` removed from `per_cell` (single source of truth), or (b) keep the markdown-only caveat and drop all `final_verdict_after_bgp_overlay` schema. Add an invariant assertion `bgp_excluded_cells == [] → final_verdict == matrix_verdict`.
 4. Plan 02 + Plan 03: change `mtr_post_flag` derivation to OR across all contributing replicates (any replicate with `path_change_detected: true` flags the cell), not just the latest replicate.
 5. Plan 02: change dedup credit to `(base_cell_id, replicate_index)` collapse with `run_dir` retained for audit only, so future legitimate re-runs of the same replicate slot don't double-count.
+
+---
+
+# Cross-AI Plan Review — Phase 221 (Cycle 4)
+
+- reviewers: [codex]
+- reviewed_at: 2026-06-01T17:42:35Z
+- replan_commit: b5a7dc9
+- plans_reviewed: [221-01-PLAN.md, 221-02-PLAN.md, 221-03-PLAN.md, 221-04-PLAN.md]
+- prior_cycle: cycle 3 raised 3 HIGHs (see above)
+
+## Codex Review (Cycle 4)
+
+**Summary**
+
+Cycle 4 lands the three structural fixes Cycle 3 asked for: the marker-commit guard is now explicit `if/then/else/fi` with a post-create SHA self-test, the curated evidence copier is a bounded Python builder that rejects escaping symlinks and rewrites copied `phase220-cell.json["run_dir"]`, and the BGP overlay now imports and reuses the aggregator's `matrix_verdict()` / `load_matrix_definition()` as the single source of truth. However, one structural leak remains: Plan 03 §10 Todo Disposition and the closeout-commit message still key off raw `<matrix_verdict>` instead of `<final_verdict_after_bgp_overlay>`. That is the exact "raw-vs-post-overlay verdict can diverge" defect class Cycle 3 was trying to eliminate, and it is the only remaining HIGH.
+
+**Cycle-3 HIGH Disposition**
+
+| # | Cycle-3 HIGH | Disposition | Evidence |
+|---|---|---|---|
+| 1 | Marker commit guard broken | **FULLY RESOLVED at plan level** | Plan 01 now uses explicit `if ...; then ...; else git commit --allow-empty ...; fi` and a post-create SHA self-test asserting marker reachable from HEAD: `221-01-PLAN.md:148`, `221-01-PLAN.md:163`. Live `git log` at `b5a7dc9` still has no marker (expected — Task 0 lands it at execution time). |
+| 2 | `cp -r --dereference` symlink escape + stale `run_dir` | **FULLY RESOLVED** | Plan 03 replaces dereference copy with a bounded Python copier that rejects symlinks escaping `SOURCE_ROOT` (`221-03-PLAN.md:425`) and rewrites copied manifest `run_dir` to the snapshot path (`221-03-PLAN.md:456`). Matches aggregator's manifest-driven signal-sheet lookup at `scripts/phase220-matrix-aggregator.py:452`. Live evidence confirms external `flent -> /home/kevin/flent-results/...` symlinks exist, so the bounded copier is necessary. |
+| 3 | BGP overlay divergent / contradictory | **PARTIALLY RESOLVED** | Core overlay logic is correct: Plan 03 imports the aggregator and calls `matrix_verdict()` directly (`221-03-PLAN.md:602`, `:642`); aggregator at `scripts/phase220-matrix-aggregator.py:228` is the real source of truth. But Plan 03 §10 Todo Disposition (`221-03-PLAN.md:884`, `:888`) and the closeout-commit message (`221-03-PLAN.md:915`) still substitute raw `<matrix_verdict>` instead of `<final_verdict_after_bgp_overlay>`. Plan 04 enforces markdown verdict equality against the JSON final, but §10 in markdown is still bound to the raw value, so conditional CRITERIA-02 inclusion can key off the wrong verdict when D-10 flips it. |
+
+**Per-Plan Strengths**
+
+| Plan | Strengths |
+|---|---|
+| 221-01 | Marker guard is executable. Phase 221 base-SHA resolver and Phase 220 script-freeze gates are explicit: `221-01-PLAN.md:224`, `:230`. |
+| 221-02 | Discovery matches real wrapper output. Quarantines invalid sidecars. Dedups by `(base_cell_id, replicate_index)` collapse with `run_dir` retained as audit. ORs `path_change_detected` across replicates: `221-02-PLAN.md:212`, `:214`, `:232`. |
+| 221-03 | Plan reflects actual aggregator schema: per-cell dict, per-cell `verdict`, four `orthogonal_corroboration.*` keys: matches `scripts/phase220-matrix-aggregator.py:311`. Bounded copy plus aggregator-as-library overlay are the correct shape. |
+| 221-04 | Todo closure mechanics improved: `mkdir -p`, `git mv`, targeted frontmatter insertion, final SAFE-11 invocation via shared base-SHA resolver: `221-04-PLAN.md:186`, `:222`, `:432`. |
+
+**New Concerns (Cycle 4)**
+
+| Severity | Plan | Finding |
+|---|---|---|
+| **HIGH** | 221-03 | §10 Todo Disposition and closeout-commit message still key off raw `<matrix_verdict>`, not `<final_verdict_after_bgp_overlay>`. If D-10 flips the verdict, §10 reports the wrong verdict and the conditional CRITERIA-02 carry block can be omitted or wrongly included. References: `221-03-PLAN.md:884`, `:888`, `:915`. |
+| **MEDIUM** | 221-01 | Empty-marker acceptance check looks fragile: `git log --format=%H --name-only \| tail -1` returns the marker commit's hash on an empty commit, not a zero-changed-files signal — likely a false negative. Suggested replacement: `git diff-tree --no-commit-id --name-only -r "$MARKER_SHA" \| wc -l` must equal 0. Reference: `221-01-PLAN.md:180`. |
+| **MEDIUM** | 221-02 / 221-03 | `duplicate_sidecars` schema is ambiguous between plans. Plan 02 records `run_dir_canonical` per audit entry (`221-02-PLAN.md:218`); Plan 03 treats each entry as a string path with `Path(p).parent` (`221-03-PLAN.md:389`). Either standardize on `list[str]` or `list[dict]` and update both. |
+| **MEDIUM** | 221-03 | Acceptance check greps for `"BGP Caveat"` but the planned §7 header is `"BGP Overlay"` — the check can fail despite correct content. References: `221-03-PLAN.md:823`, `:931`. |
+| **LOW** | 221-02 / 221-03 | Some prose still describes `mtr_post_flag` as the latest-replicate value while executable logic does OR-across-replicates — purge stale text. References: `221-02-PLAN.md:355`, `221-03-PLAN.md:300`. |
+
+**Suggestions**
+
+- Plan 03: replace every `<matrix_verdict>` placeholder in §10 and the closeout-commit-message template with `<final_verdict_after_bgp_overlay>`. Conditional CRITERIA-02 inclusion must key off the post-overlay value.
+- Plan 01: replace the empty-marker acceptance check with `git diff-tree --no-commit-id --name-only -r "$MARKER_SHA" \| wc -l \| grep -q '^0$'`.
+- Plans 02/03: define `duplicate_sidecars` as a single concrete schema (recommend `list[str]` for simplicity) and align both plans.
+- Plan 03: rename the §7 BGP section consistently across the plan and acceptance grep, OR widen the grep to `BGP Overlay\|BGP-Change Footnote\|BGP Caveat`.
+- Plans 02/03: scrub remaining "latest replicate" wording for `mtr_post_flag` derivation.
+
+**Overall Risk Assessment**
+
+**HIGH.** Three Cycle-3 structural fixes landed cleanly. The remaining HIGH is narrow but operationally consequential — the §10 verdict-source leak can publish the wrong todo-disposition verdict in exactly the corner case (D-10 BGP overlay flips matrix verdict) the new overlay machinery was built to handle correctly. The MEDIUMs are mechanical execution-risk issues (acceptance grep false-negatives, schema drift between plans) that can compound under operator fatigue but are not blocking by themselves.
+
+**Verdict**
+
+`needs-another-replan-cycle`
+
+## Consensus Summary (Cycle 4)
+
+Only Codex was invoked this cycle, so consensus is single-reviewer; findings are grounded in direct file inspection of the aggregator code, wrapper script, live evidence symlinks, and live `git log`.
+
+### Cycle 3 HIGH Disposition (rollup)
+
+- FULLY RESOLVED: 2 (marker-commit guard at plan level, bounded copier with manifest run_dir rewrite)
+- PARTIALLY RESOLVED: 1 (BGP overlay — core overlay correctly uses aggregator as library; §10 Todo Disposition + closeout-commit message still reference raw `matrix_verdict` instead of `final_verdict_after_bgp_overlay`)
+- UNRESOLVED: 0
+
+### Current HIGH Concerns (1 unresolved)
+
+1. **Plan 03 §10 + closeout commit message still cite raw `matrix_verdict`** — When D-10 BGP overlay flips the verdict, §10 Todo Disposition publishes the pre-overlay value and the conditional CRITERIA-02 close-with-prejudice carry block can be wrongly omitted or wrongly included. Plan 04 enforces markdown==JSON final equality on §1, but §10's verdict substitution is bound to the raw aggregator output. References: `221-03-PLAN.md:884`, `:888`, `:915`.
+
+### Recommended Next Step
+
+Replan once more (targeted, low-churn):
+
+1. Plan 03: replace `<matrix_verdict>` with `<final_verdict_after_bgp_overlay>` in §10 verdict substitution and in the closeout-commit-message template; gate conditional CRITERIA-02 inclusion on the post-overlay value.
+2. Plan 01: replace the empty-marker acceptance check with `git diff-tree` zero-changed-files form to remove the false-negative risk.
+3. Plans 02/03: align `duplicate_sidecars` schema to a single concrete type and update consumers.
+4. Plan 03: reconcile §7 BGP-section header naming with the acceptance grep.
+5. Plans 02/03: remove remaining "latest replicate" `mtr_post_flag` prose.
