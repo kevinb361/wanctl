@@ -1,0 +1,5 @@
+2026-06-01T15:34:05+00:00	phase213-steering-snapshot pre spectrum/tcp_12down
+2026-06-01T15:34:15+00:00	phase191-flent-capture --tests tcp_12down --wan spectrum --local-bind 10.10.110.226
+2026-06-01T15:35:03+00:00	normalized flent spectrum/tcp_12down -> /home/kevin/flent-results/phase213/phase213-20260601T153405Z-tcp_12down/spectrum/20260601-103415
+2026-06-01T15:35:13+00:00	phase213-steering-snapshot post spectrum/tcp_12down
+2026-06-01T15:35:13+00:00	phase213-alert-window spectrum/tcp_12down

@@ -1,0 +1,32 @@
+{
+  "phase": 213,
+  "run_id": "RUN-20260601T153405Z",
+  "started_utc": "2026-06-01T15:34:05+00:00",
+  "ended_utc": "2026-06-01T15:35:19+00:00",
+  "host_dev_vm": "dev",
+  "source_ip": "10.10.110.226",
+  "netperf_host": "dallas",
+  "flent_version": "Starting Flent 2.1.1 using Python 3.12.3.",
+  "wanctl_version_dev_repo": "1.45.0",
+  "wanctl_version_spectrum_runtime": "offline-fixture",
+  "wanctl_version_att_runtime": "offline-fixture",
+  "wanctl_version_steering_runtime": "offline-fixture",
+  "git_head_sha": "e1c5495",
+  "tests_ordered": [
+    {
+      "wan": "spectrum",
+      "test": "tcp_12down",
+      "test_start_unix": 1780328055,
+      "test_end_unix": 1780328103
+    }
+  ],
+  "redaction_posture": "D-08 key pattern (password|secret|token|credential|auth|key|private) applied to *.redacted.json artifacts",
+  "mutation_posture": "evidence-only: dev-VM traffic generation plus read-only snapshots; no production mutation",
+  "bind_map": {
+    "att": "fixture",
+    "spectrum": "10.10.110.226"
+  },
+  "bind_map_egress_observed": {
+    "spectrum": "70.123.224.169"
+  }
+}
