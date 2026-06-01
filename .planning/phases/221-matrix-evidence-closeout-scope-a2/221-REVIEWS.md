@@ -187,3 +187,101 @@ Open a planning iteration (`/gsd:plan-phase 221 --reviews`) to:
 6. Resolve the D-09 vs `==54` readiness deadlock — decide whether Plan 03 accepts a valid-with-footnote state.
 7. Fix the ledger row regex and the `complete 3/3` vs `partial 1/3` contradiction in Plan 01.
 8. Specify evidence durability and align the final-diff allowlist in Plan 04.
+
+---
+
+# Cross-AI Plan Review — Phase 221 (Cycle 2)
+
+- reviewers: [codex]
+- reviewed_at: 2026-06-01T16:57:03Z
+- replan_commit: 66a8d78
+- plans_reviewed: [221-01-PLAN.md, 221-02-PLAN.md, 221-03-PLAN.md, 221-04-PLAN.md]
+- prior_cycle: cycle 1 raised 8 HIGHs (see above)
+
+## Codex Review (Cycle 2)
+
+**Summary**
+Cycle 2 fixes several of the original shape mismatches, but it is not ready to execute. I would not run these plans yet.
+
+Main blockers: Plan 03 still mismatches the actual aggregator schema, the curated symlink evidence root will not be traversed by the aggregator, Plan 02 double-counts duplicate sidecars, and the new Phase 221 mutation-boundary base-SHA chain will fail unless a phase-start marker commit exists first.
+
+**Cycle 1 HIGH Disposition**
+
+1. **Plan 01 BGP detection signal**: **FULLY RESOLVED**
+   Plans now consistently use `phase220-cell.json["path_change_detected"]`, not `mtr-post-*` existence. This matches `scripts/phase220-target-path-matrix.sh`, which always writes `mtr-post-*`.
+
+2. **Plan 02 evidence discovery glob mismatch**: **PARTIALLY RESOLVED**
+   Discovery now targets `**/phase220-cell.json` and filters `schema_version == 1`, which matches the wrapper better. But it groups duplicate valid sidecars without deduping `(cell_id, run_dir)`. Current evidence has two manifests for the same replicate: `RUN-20260601T153405Z/...` and `dallas__spectrum__daytime__r1/...`.
+
+3. **Plan 02 failure handling assumed nonexistent fields**: **FULLY RESOLVED**
+   The replan now explicitly uses operator-maintained `attempts:<N>` ledger annotations because hard failures emit no sidecar. That is acceptable for an operator-driven plan.
+
+4. **Plan 02 / Plan 03 D-09 readiness deadlock**: **FULLY RESOLVED**
+   Readiness now allows `canonical_complete == 6` with `supplemental_incomplete <= 2`, instead of requiring raw `completed_replicates == 54`.
+
+5. **Plan 03 aggregator schema mismatch**: **PARTIALLY RESOLVED**
+   The plan fixed the big `cells[]` vs `per_cell` mismatch, but still expects wrong fields:
+   - Actual per-cell verdict key is `verdict`, not `cell_verdict`.
+   - Actual `orthogonal_corroboration` keys are `path_orthogonal`, `target_orthogonal`, `driver_orthogonal`, `satisfied`, not `*_corroborated`.
+
+6. **Plan 03 aggregator KeyError on live evidence root**: **PARTIALLY RESOLVED**
+   Quarantining invalid sidecars is the right idea. But Plan 03's symlink snapshot does not work with the aggregator's `Path.glob("**/phase220-cell.json")`; reviewer's curated symlink test produced an empty `per_cell` dict. The KeyError is avoided, but by feeding the aggregator no records.
+
+7. **Plan 03/04 verdict contract conflict**: **FULLY RESOLVED mechanically**
+   The markdown verdict now must equal `JSON.matrix_verdict`, and Plan 04 checks that. However, this introduces a new semantic HIGH below because it drops the D-10 BGP exclusion from verdict effect.
+
+8. **Plan 04 preflight equality conflict**: **FULLY RESOLVED**
+   Same as above: equality is now explicit and verified.
+
+**New Concerns (Cycle 2)**
+
+- **HIGH: Phase 221 mutation-boundary test likely fails immediately.**
+  There is no `docs(phase-221): begin phase execution` marker commit in git log. The resolver falls back to `scripts/phase220-matrix.yaml` `base_sha` (`50f3d...`). From that SHA to HEAD, `scripts/phase220-*` and `docs/PHASE220-MATRIX-RUNNER.md` already differ, so `test_no_phase220_scripts_diff` / final diff checks will fail unless the plan creates or requires a Phase 221 start marker before running the test.
+
+- **HIGH: Plan 02 overcounts duplicate valid sidecars.** (extends cycle-1 HIGH #2)
+  Current evidence has two valid `dallas__spectrum__daytime__r1` manifests with the same `run_dir`. Plan 02 counts manifests, not unique `(cell_id, replicate_index, run_dir)`. That can turn one real replicate into `2/3` and can prematurely latch readiness.
+
+- **HIGH: Plan 03 curated symlink root is not traversed.** (extends cycle-1 HIGH #6)
+  The aggregator uses `evidence_root.glob("**/phase220-cell.json")`; in practice it did not recurse into symlinked directories. The dry run can exit 0 with zero records, and the real run will fail later or produce useless output.
+
+- **HIGH: Plan 03 still names aggregator fields incorrectly.** (extends cycle-1 HIGH #5)
+  Update the plan to use per-cell `verdict` and `orthogonal_corroboration.{path_orthogonal,target_orthogonal,driver_orthogonal,satisfied}`.
+
+- **HIGH: BGP handling now violates CONTEXT D-10.** (new semantic regression introduced by the verdict-contract fix)
+  D-10 says BGP-flagged `cell_defect` cells are excluded from defect-corroboration arguments. Cycle 2 makes BGP a caveat only and keeps the aggregator verdict unchanged. That can allow `defect_located` based on path-ambiguous cells.
+
+- **MEDIUM: Evidence durability remains local-only.**
+  The plan explicitly does not commit raw evidence. That may be acceptable, but the closeout report will cite paths and hashes into local Phase 220 evidence. This should be called out as an audit limitation.
+
+**Overall Risk Assessment**
+Still **HIGH**. The intent is better than Cycle 1, but execution will likely fail before closeout, and there is one semantic regression around BGP exclusion.
+
+**Verdict**
+**needs-another-replan-cycle**
+
+## Consensus Summary (Cycle 2)
+
+Only Codex was invoked this cycle, so consensus is single-reviewer; findings are grounded in direct file inspection of the aggregator code, wrapper script, and live evidence.
+
+### Cycle 1 HIGH Disposition (rollup)
+
+- FULLY RESOLVED: 5 (BGP signal, failure-handling fields, D-09 deadlock, verdict-contract conflict, preflight equality)
+- PARTIALLY RESOLVED: 3 (evidence discovery deduplication, aggregator schema field names, aggregator KeyError via symlink farm)
+- UNRESOLVED: 0
+
+### Current HIGH Concerns (5 unresolved)
+
+1. **Phase 221 base-SHA marker missing** — mutation-boundary test will likely fail on first commit because `docs(phase-221): begin phase execution` does not exist; resolver falls back to Phase 220 base_sha against which Phase 220 scripts already differ.
+2. **Plan 02 sidecar dedup gap** — duplicate manifests for the same `(cell_id, run_dir)` are counted as separate replicates; can over-credit a cell to 2/3 and prematurely latch Plan 03 readiness.
+3. **Plan 03 symlink curated-root not traversed** — aggregator's `Path.glob("**/phase220-cell.json")` does not recurse into symlinked dirs; the dry-run gate produces empty `per_cell` instead of catching real problems.
+4. **Plan 03 aggregator field names still wrong** — `cell_verdict` should be `verdict`; `*_corroborated` should be `path_orthogonal`/`target_orthogonal`/`driver_orthogonal`/`satisfied`.
+5. **BGP handling violates CONTEXT D-10** — making BGP a caveat-only (no verdict effect) drops the D-10 requirement to exclude BGP-flagged defect cells from defect-corroboration; can allow path-ambiguous `defect_located`.
+
+### Recommended Next Step
+
+Replan again:
+1. Add a Plan 0 (or Plan 01 task) that lands a `docs(phase-221): begin phase execution` marker commit BEFORE the mutation-boundary test runs, so `resolve_phase221_base_sha()` resolves to a commit after the existing Phase 220 script churn.
+2. Plan 02: dedup by `(base_cell_id, replicate_index, run_dir)` tuple; explicitly handle the rehearsal + RUN-* duplicate.
+3. Plan 03: replace the symlink snapshot with either (a) a copy-tree (cp -r --dereference) or (b) a YAML-list-based aggregator allowlist (out of SAFE-11 scope) or (c) prune invalid sidecars in-place via an operator step.
+4. Plan 03: fix field-name expectations and acceptance checks to match `verdict` and the four orthogonal_corroboration keys.
+5. Decide BGP policy: either restore D-10 exclusion (aggregator JSON gets a `final_verdict_after_bgp_overlay` field; CLOSEOUT.md mirrors that) OR explicitly amend CONTEXT D-10 to caveat-only.
