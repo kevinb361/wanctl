@@ -448,3 +448,76 @@ Replan once more (targeted, low-churn):
 3. Plans 02/03: align `duplicate_sidecars` schema to a single concrete type and update consumers.
 4. Plan 03: reconcile §7 BGP-section header naming with the acceptance grep.
 5. Plans 02/03: remove remaining "latest replicate" `mtr_post_flag` prose.
+
+---
+
+# Cross-AI Plan Review — Phase 221 (Cycle 5, FINAL)
+
+- reviewers: [codex]
+- reviewed_at: 2026-06-01T18:05:00Z
+- replan_commit: 7c9727c
+- plans_reviewed: [221-01-PLAN.md, 221-02-PLAN.md, 221-03-PLAN.md, 221-04-PLAN.md]
+- prior_cycle: cycle 4 raised 1 HIGH (see above)
+- cycle_role: final cycle of extended convergence loop (5/5)
+
+## Codex Review (Cycle 5)
+
+### Cycle-4 HIGH Disposition
+
+**FULLY RESOLVED.**
+
+Live plan evidence:
+
+- `221-03-PLAN.md:881` — §10 explicitly states the verdict source is `JSON.final_verdict_after_bgp_overlay`, not raw `matrix_verdict`.
+- `221-03-PLAN.md:886` — §10 template now uses `**Verdict applied:** <final_verdict_after_bgp_overlay>`.
+- `221-03-PLAN.md:890` — CRITERIA-02 carry block keys off `final_verdict_after_bgp_overlay`.
+- `221-03-PLAN.md:917` — closeout commit-message template now uses `<final_verdict_after_bgp_overlay>` and explicitly rejects raw `matrix_verdict`.
+- `221-03-PLAN.md:934` — acceptance check keys carry behavior on `JSON.final_verdict_after_bgp_overlay`.
+- `221-03-PLAN.md:935` — acceptance check verifies §10 "Verdict applied" equals `JSON.final_verdict_after_bgp_overlay`.
+
+Plan 04 also consumes the post-overlay verdict: `221-04-PLAN.md:93` says verdict extraction uses the post-overlay verdict, and `221-04-PLAN.md:141` verifies MD verdict against `JSON.final_verdict_after_bgp_overlay`, not raw `matrix_verdict`.
+
+### New HIGH Concerns
+
+None found.
+
+Codex searched the live Plan 01-04 files for residual `<matrix_verdict>` / verdict-template leaks. Remaining raw `matrix_verdict` references are traceability or §6 pre/post narration (intentional pre/post BGP-overlay contrast and the invariant assertion), not §10 disposition or commit-template sources.
+
+### Verdict
+
+`ready-to-execute`
+
+### Overall Risk Assessment
+
+**LOW** for this final-cycle review scope. The targeted replan is confined to `221-03-PLAN.md` at commit `7c9727c`, replaces the actual leak points, adds acceptance checks for §10 and carry behavior, and leaves Plan 04 aligned to the post-overlay verdict source.
+
+## Consensus Summary (Cycle 5)
+
+Only Codex was invoked this cycle, so consensus is single-reviewer; findings are grounded in direct file inspection of live plan files at commit `7c9727c`.
+
+### Cycle 4 HIGH Disposition (rollup)
+
+- FULLY RESOLVED: 1 (Plan 03 §10 + closeout commit-message template now substitute `<final_verdict_after_bgp_overlay>` instead of raw `<matrix_verdict>`; acceptance checks added to enforce; Plan 04 already aligned to the post-overlay verdict source).
+- PARTIALLY RESOLVED: 0
+- UNRESOLVED: 0
+
+### Current HIGH Concerns (0 unresolved)
+
+None.
+
+### Convergence Loop Summary (Cycles 1 → 5)
+
+| Cycle | HIGHs raised | Verdict |
+|---|---|---|
+| 1 | 8 | needs-another-replan-cycle |
+| 2 | 5 | needs-another-replan-cycle |
+| 3 | 3 | needs-another-replan-cycle |
+| 4 | 1 | needs-another-replan-cycle |
+| 5 | 0 | ready-to-execute |
+
+The extended convergence loop achieved monotonic HIGH-count reduction across all 5 cycles. Cycle 5 closes the loop with zero unresolved HIGHs; cycle-4 MEDIUMs were intentionally deferred per scope.
+
+### Recommended Next Step
+
+Proceed to execution: `/gsd:execute-phase 221`.
+
