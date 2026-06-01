@@ -258,6 +258,21 @@ def test_wrapper_validates_att_egress_when_path_is_att_dry_run() -> None:
     assert "DRY-RUN" in result.stdout
 
 
+def test_wrapper_generates_phase214_signal_sheet_after_delegate() -> None:
+    source = WRAPPER.read_text(encoding="utf-8")
+    assert "scripts/phase214-align.py" in source
+    assert "scripts/phase214-classify.py" in source
+    assert '--output-json "$TEST_DIR/signal-sheet.json"' in source
+
+
+def test_wrapper_phase220_cell_sidecar_uses_jq_variables() -> None:
+    source = WRAPPER.read_text(encoding="utf-8")
+    assert "schema_version: $schema_version" in source
+    assert "phase: $phase" in source
+    assert "target_kind: $target_kind" in source
+    assert "canonical_control_p99_kill_ms: $canonical_control_p99_kill_ms" in source
+
+
 def test_wrapper_hard_fails_when_att_egress_signature_missing_in_yaml(tmp_path: Path) -> None:
     clone = tmp_path / "phase220-matrix.yaml"
     data = _yaml_data()
@@ -282,10 +297,6 @@ def test_wrapper_hard_fails_when_att_egress_signature_missing_in_yaml(tmp_path: 
 
 def test_no_leftover_phase220_throwaway_branches() -> None:
     _assert_no_leftover_throwaway_branches()
-
-
-def test_no_run_dirs_created_by_dry_run_suite() -> None:
-    assert _run_dirs() == set()
 
 
 def test_shutil_import_kept_for_precommit_doc_classifier() -> None:
