@@ -1,0 +1,73 @@
+{
+  "aligned_row_count": 61,
+  "artifact_paths": {
+    "aligned_window_json": ".planning/phases/220-matrix-runner-scope-a1/evidence/RUN-20260601T153405Z/spectrum/tcp_12down/aligned-window.json",
+    "flent_gz": "/home/kevin/flent-results/phase213/phase213-20260601T153405Z-tcp_12down/spectrum/20260601-103415/tcp_12down-2026-06-01T103416.429018.phase213-20260601T153405Z-tcp_12down-spectrum-tcp_12down.flent.gz",
+    "health_ndjson": ".planning/phases/220-matrix-runner-scope-a1/evidence/RUN-20260601T153405Z/spectrum/tcp_12down/health-spectrum.ndjson",
+    "journal_ndjson": ".planning/phases/220-matrix-runner-scope-a1/evidence/RUN-20260601T153405Z/spectrum/tcp_12down/journal-window.ndjson"
+  },
+  "drivers": {
+    "cake_queue_mismatch": {
+      "evidence": "no CAKE queue mismatch evidence",
+      "fired": false,
+      "first_unix": null,
+      "score": 0
+    },
+    "external_path": {
+      "evidence": "not evaluated because another driver fired",
+      "fired": false,
+      "first_unix": null,
+      "score": 0
+    },
+    "icmp_udp_divergence": {
+      "evidence": "no ICMP/UDP divergence evidence",
+      "fired": false,
+      "first_unix": 1780328057,
+      "score": 0
+    },
+    "reflector_loss": {
+      "consecutive_zero_cycles": 1,
+      "evidence": "1 zero-success cycles; max low-success run 1; 0 reflector fail events; 0 reflector deprioritization events",
+      "fired": true,
+      "first_unix": 1780328066,
+      "score": 1,
+      "total_zero_cycles": 1
+    },
+    "stale_cached_rtt": {
+      "evidence": "no stale cached RTT evidence",
+      "fired": false,
+      "first_unix": 1780328066,
+      "score": 0
+    },
+    "steering_behavior": {
+      "evidence": "no steering behavior evidence",
+      "fired": false,
+      "first_unix": null,
+      "score": 0
+    }
+  },
+  "ended_utc": "2026-06-01T15:34:56.639825+00:00",
+  "evidence_summary": "Primary driver reflector_loss: 1 zero-success cycles; max low-success run 1; 0 reflector fail events; 0 reflector deprioritization events",
+  "latency": {
+    "max_ms": 206.0,
+    "mean_ms": 36.84141414141414,
+    "min_ms": 16.7,
+    "p50_ms": 34.1,
+    "p95_ms": 62.6,
+    "p99_ms": 90.6,
+    "sample_count": 198,
+    "window_end_utc": "2026-06-01T15:34:56.639825+00:00",
+    "window_start_utc": "2026-06-01T15:34:16.639825+00:00"
+  },
+  "phase": 214,
+  "primary_driver": "reflector_loss",
+  "ranked": [
+    "reflector_loss"
+  ],
+  "run_dir": "RUN-20260601T153405Z",
+  "signal_disposition": "none",
+  "started_utc": "2026-06-01T15:34:16.639825+00:00",
+  "verdict": "ambiguous",
+  "wan": "spectrum",
+  "window": "daytime"
+}
