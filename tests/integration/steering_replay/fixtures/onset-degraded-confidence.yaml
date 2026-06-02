@@ -1,0 +1,4930 @@
+name: onset-degraded-confidence
+description: Production-parity confidence-mode smoke fixture with derived sustain
+  plus hold-down budget.
+harness_mode: confidence
+cycle_budget_derivation:
+  mode: confidence
+  source: configs/steering.yaml
+  assessment_interval_sec: 0.05
+  sustain_duration_sec: 2.0
+  recovery_sustain_sec: 3.0
+  hold_down_duration_sec: 30.0
+  derived_sustain_cycles: 40
+  derived_recovery_cycles: 60
+  derived_hold_down_cycles: 600
+corpus_source: synthesized-from-spine-contract
+derivation: binary on/off + confidence-controller timing parity with production config
+pre_state:
+  steering_pre_state:
+    current_state: SPECTRUM_GOOD
+    good_count: 0
+    red_count: 0
+    transitions: []
+    last_transition_time: null
+  autorate_state_by_cycle:
+    default:
+      ewma:
+        baseline_rtt: 25.0
+      congestion:
+        dl_state: GREEN
+cycles:
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 50.0
+    cake_drops: 1
+    queued_packets: 60
+  expected_decision:
+    current_state: SPECTRUM_DEGRADED
+    effective_mangle_state: true
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
