@@ -1,10 +1,11 @@
 ---
 phase: 223
 reviewers: [codex]
-reviewed_at: 2026-06-02T16:42:11Z
-cycles: [1, 2]
+reviewed_at: 2026-06-02T17:09:46Z
+cycles: [1, 2, 3]
 cycle_1_reviewed_at: 2026-06-02T16:21:21Z
 cycle_2_reviewed_at: 2026-06-02T16:42:11Z
+cycle_3_reviewed_at: 2026-06-02T17:09:46Z
 plans_reviewed: [223-01-PLAN.md, 223-02-PLAN.md, 223-03-PLAN.md]
 ---
 
@@ -145,3 +146,92 @@ Strict decrease from 3 → 1; convergence loop continues.
 
 ### Divergent Views
 None — single-reviewer cycle.
+
+---
+
+## Cycle 3 — Codex Review (post-revision, final convergence cycle)
+
+Reviewing plans after commit c76ca48 which addressed the Cycle 2 HIGH (offline I/O seams) by adopting **option (a) FULL I/O SEAL** end-to-end via `daemon.run_cycle()`, plus all 5 Cycle 2 MEDIUMs. Goal: verify each Cycle 2 finding is actually addressed in revised plan text, catch new HIGHs introduced by the full-seal revision, validate `daemon.cake_reader` post-construction injection feasibility, confirm SAFE-12 still holds, and verify the new `restart_persistence_verdict` dimension is well-defined.
+
+### Cycle 3 Summary
+
+Cycle 3 closes the Cycle 2 HIGH at the plan level and materially closes all five Cycle 2 MEDIUMs. The revised Plan 01 now chooses FULL I/O SEAL, drives `daemon.run_cycle()`, adds CAKE/live-RTT/socket/urlopen/state/metrics seals, and records `daemon_io_paths_exercised`. Plan 02 schema drift is fixed in the append step. Plan 03 cleanly splits restart persistence from the three spine invariants. **No unresolved HIGHs remain. Two new MEDIUM executor hazards surface.**
+
+### Cycle-2 HIGH Closure Verdict
+
+- **HIGH: Offline I/O seams — FULLY RESOLVED.**
+  Plan 01 explicitly chooses option (a) FULL I/O SEAL at `223-01-PLAN.md:148`. Inventory must cover CAKE stats, live RTT/urlopen, state saves, and metrics DB writes at `223-01-PLAN.md:159`. Task 02 adds `FakeCakeReader`, `FixtureBaselineLoader`, `_seal_urlopen`, and `_seal_socket` at `223-01-PLAN.md:202`. Task 04 requires `daemon.run_cycle()` end-to-end, `daemon_io_paths_exercised`, and zero urlopen/socket calls at `223-01-PLAN.md:307`.
+
+### Cycle-2 MEDIUM Closure Verdicts
+
+- **MEDIUM #1 (stale schema names): FULLY RESOLVED** for executable schema. Plan 02 Task 03 uses `steering_interactions` and `baseline_rtt_per_cycle`, and its verify command asserts `mangle_toggles` / `baseline_rtt_reads` are absent from the row at `223-02-PLAN.md:256`. Minor stale prose remains in artifact-description text ("mangle toggles" at `223-02-PLAN.md:33`), but not as a schema field.
+
+- **MEDIUM #2 (confidence-mode coverage): FULLY RESOLVED.** Plan 01 adds `onset-degraded-confidence.yaml`, derives cycle counts from `configs/steering.yaml` against `ASSESSMENT_INTERVAL_SECONDS = 0.05`, requires `len(cycles) >= derived_sustain_cycles + derived_hold_down_cycles`, and adds a too-short fixture gate at `223-01-PLAN.md:271` and `223-01-PLAN.md:333`.
+
+- **MEDIUM #3 (Phase 212 archive path): FULLY RESOLVED.** Plan 01 cites `.planning/milestones/v1.46-phases/212-production-inventory-and-drift-audit/`, rejects `.planning/phases/212-*`, and requires `provenance_note` fallback if no concrete row exists at `223-01-PLAN.md:269`.
+
+- **MEDIUM #4 (`restart_persistence_verdict` split): FULLY RESOLVED.** Plan 03 defines `restart_persistence_verdict` as a separate dimension, maps `reproduced-bug` to `restart_persistence_verdict = breaks` (NOT to invariant-1 binary-on/off breaks), and includes it in corpus rollup at `223-03-PLAN.md:100` and `223-03-PLAN.md:115`.
+
+- **MEDIUM #5 (`__getattr__` denial logging): FULLY RESOLVED.** `FakeRouterTransport.__getattr__` must log method + cycle and append a denial entry to `interactions_log` before raising, and the verify command calls `t.run_cmd('foo')` and checks the denial row at `223-01-PLAN.md:200` and `223-01-PLAN.md:219`. `FakeCakeReader` gets identical denial behavior at `223-01-PLAN.md:202`.
+
+### New Concerns (Cycle 3)
+
+- **MEDIUM:** Constructor-time config file I/O is not explicitly sealed. Live `SteeringConfig._derive_primary_health_url()` reads `topology.primary_wan_config`, defaulting to `/etc/wanctl/<wan>.yaml`, during config initialization at `src/wanctl/steering/daemon.py:192` and `:209`. Plan 01 broadly says inspect config seams and reject "any other resolved file path," but `daemon_factory` should explicitly set `topology.primary_wan_config` and `config_file_path` to temp fixtures before constructing `SteeringConfig`.
+
+- **MEDIUM:** Plan 01 frontmatter `files_modified` is stale relative to the full-seal tasks. It omits required files such as `fake_cake_reader.py`, `fake_live_rtt_source.py`, `test_io_seal.py`, `test_cycle_budget_gate.py`, `onset-degraded-from-phase212.yaml`, and `onset-degraded-confidence.yaml`, despite later tasks requiring them. If GSD tooling uses frontmatter manifests, evidence/file accounting can drift.
+
+### `daemon.cake_reader` Injection Feasibility
+
+Post-construction assignment is feasible in current live code. `__init__` calls `_init_cake_reader()` once at `src/wanctl/steering/daemon.py:1144`; `_init_cake_reader()` assigns plain `self.cake_reader = CakeStatsReader(...)` at `:1170`. No property/descriptor/`__slots__` found, and no later `_init_cake_reader()` recall in the daemon path. Plan 01 requires the inventory to verify this and Task 02 asserts `daemon.cake_reader is fake_cake_reader`; documented fallback is to mark the seam `needs-edit` in the inventory.
+
+### `restart_persistence_verdict` Definition Review
+
+The new dimension is well-defined and deterministic. The rollup includes four dimensions, with corpus `breaks` triggered if any invariant verdict or any applicable `restart_persistence_verdict` is `breaks`. The only nuance is overlap with invariant 3 (autorate-baseline authority), which Plan 03 explicitly acknowledges in its Methodology section. The specific mapping rule for `clean-restart-degraded` (`reproduced-bug` → `restart_persistence_verdict = breaks`, with invariant-1 `binary_on_off` computed independently) removes ambiguity.
+
+### SAFE-12 Posture
+
+Plans do not mutate controller-path source. The allowlist is correctly limited to `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, `backends/`, `alert_engine.py`, and `fusion*.py`. Reviewer additionally checked the current worktree against `bee343b0c2f16207101aec82007a5e55fa9b6407`; controller-path diff and porcelain status are empty.
+
+### Cycle 3 HIGH Count
+
+**0 unresolved HIGHs.**
+
+### Risk Assessment
+
+**LOW-MEDIUM.** The plan now has the right daemon-path fidelity and closes the prior review loop. Remaining risk is executor hygiene, not plan architecture: constructor-time config path reads need explicit temp overrides, and frontmatter should be brought back in sync with required harness files.
+
+---
+
+## Cycle 3 — Consensus Summary
+
+Single-reviewer cycle (Codex only).
+
+### HIGH Count Transition
+
+| Cycle | HIGH count | Status |
+|-------|-----------|--------|
+| 1     | 3         | Initial — fake API, confidence timing, PROOF-02 keying |
+| 2     | 1         | Cycle 1 HIGHs all FULLY RESOLVED; one new HIGH (I/O seams) |
+| 3     | 0         | Cycle 2 HIGH FULLY RESOLVED; all 5 Cycle 2 MEDIUMs FULLY RESOLVED; 2 new MEDIUMs (config-file I/O sealing, frontmatter drift) |
+
+**Convergence achieved.** Strict decrease 3 → 1 → 0 across three cycles. The convergence loop terminates at cycle 3 with zero unresolved HIGHs.
+
+### Cycle 3 — Strengths
+- All 6 Cycle 2 findings (1 HIGH + 5 MEDIUMs) close with verifiable plan-level mechanisms (schema fields, acceptance criteria, in-plan assertions, verify commands).
+- The FULL I/O SEAL choice (option (a)) is the right architectural call: PROOF-03 spine-invariant verdicts now reflect actual daemon `run_cycle()` execution, not test-side surrogates. The `daemon_io_paths_exercised` audit trail is the right safety net.
+- `daemon.cake_reader` post-construction injection is feasible against live source (verified by reviewer) AND Plan 01 has a documented `needs-edit` fallback path if Task 01 inventory discovers a blocker.
+- `restart_persistence_verdict` is a clean architectural split — the symptom is restart-persistence / measurement-authority, not a binary-on/off invariant break.
+- SAFE-12 verified in live worktree: zero controller-path diff vs `bee343b0c2f16207101aec82007a5e55fa9b6407`.
+
+### Cycle 3 — Outstanding MEDIUMs (carry into execute-phase as executor hygiene)
+
+1. **Config-file I/O sealing.** `SteeringConfig._derive_primary_health_url()` reads `topology.primary_wan_config` at construction time (defaults to `/etc/wanctl/<wan>.yaml`). `daemon_factory` should explicitly override `topology.primary_wan_config` and `config_file_path` to temp fixtures before constructing `SteeringConfig`. (Not a HIGH because the autouse `_seal_urlopen` + `_seal_socket` fixtures would catch any actual live I/O, but the construction-time file read could still touch a production config file — surface it during execute-phase, not a replan blocker.)
+
+2. **Frontmatter `files_modified` drift.** Plan 01 frontmatter lacks `fake_cake_reader.py`, `fake_live_rtt_source.py`, `test_io_seal.py`, `test_cycle_budget_gate.py`, `onset-degraded-from-phase212.yaml`, `onset-degraded-confidence.yaml`. Update frontmatter at execute-phase entry (not a replan blocker — the task bodies and acceptance criteria are the binding contract).
+
+### Divergent Views
+None — single-reviewer cycle.
+
+### Convergence Disposition
+
+Cycle 3 produced 0 HIGHs. Strict decrease maintained across all three cycles (3 → 1 → 0). **Loop terminates cleanly without escalation or stall.** Plans are convergence-approved for execute-phase. The two outstanding MEDIUMs are executor-hygiene items, not replan blockers.
