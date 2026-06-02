@@ -75,22 +75,24 @@ Explicitly excluded from v1.48 to preserve single-thesis discipline.
 
 ## Traceability
 
-_To be filled by the roadmapper. Each REQ-ID will map to exactly one phase; coverage must be 100%._
+Filled by the roadmapper 2026-06-02. All 11 REQ-IDs map cleanly. SAFE-12 is a cross-phase controller-path zero-diff invariant verified at every phase boundary (matching SAFE-07/08/09/11 precedent through v1.43–v1.47).
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| DRIFT-01 | TBD | not_started |
-| DRIFT-02 | TBD | not_started |
-| DRIFT-03 | TBD | not_started |
-| DRIFT-04 | TBD | not_started |
-| PROOF-01 | TBD | not_started |
-| PROOF-02 | TBD | not_started |
-| PROOF-03 | TBD | not_started |
-| CANARY-01 | TBD | not_started |
-| CANARY-02 | TBD | not_started |
-| CANARY-03 | TBD | not_started |
-| SAFE-12 | spans all v1.48 phases | not_started |
+| DRIFT-01 | Phase 222 | not_started |
+| DRIFT-02 | Phase 222 | not_started |
+| DRIFT-03 | Phase 222 | not_started |
+| DRIFT-04 | Phase 222 | not_started |
+| PROOF-01 | Phase 223 | not_started |
+| PROOF-02 | Phase 223 | not_started |
+| PROOF-03 | Phase 223 | not_started |
+| CANARY-01 | Phase 224 | not_started |
+| CANARY-02 | Phase 224 | not_started |
+| CANARY-03 | Phase 224 | not_started |
+| SAFE-12 | spans all v1.48 phases (222, 223, 224) | not_started |
+
+**Coverage:** 11/11 REQ-IDs mapped. No orphans. SAFE-12 listed on every phase's requirements line per cross-phase invariant precedent.
 
 ---
 
-_Last updated: 2026-06-02 — v1.48 opened. Requirements drafted from joint Claude + Codex scope review; single-thesis discipline preserved. Phase mapping pending roadmapper spawn._
+_Last updated: 2026-06-02 — v1.48 roadmap created. Phase mapping complete (Phases 222–224); SAFE-12 cross-cutting._

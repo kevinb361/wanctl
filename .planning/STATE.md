@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.48
 milestone_name: Steering Runtime Drift Closure
 status: planning
-last_updated: "2026-06-02T14:00:36.145Z"
+last_updated: "2026-06-02T14:08:24.000Z"
 last_activity: 2026-06-02
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-02 after v1.47 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** v1.48 Steering Runtime Drift Closure — defining requirements + roadmap. Sliced audit → staging proof → production canary alignment of live steering daemon (runtime `1.39`) with current source (`1.45`).
+**Current focus:** v1.48 Steering Runtime Drift Closure — roadmap created, awaiting phase planning. Sliced audit (Phase 222) → staging proof (Phase 223) → production canary (Phase 224) alignment of live steering daemon (runtime `1.39`) with current source (`1.45`).
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Not started (roadmap created; awaiting `/gsd-plan-phase 222`)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-02 — Milestone v1.48 started
+Status: Roadmap complete; phase planning pending
+Last activity: 2026-06-02 — v1.48 ROADMAP.md written, 11/11 REQ-IDs mapped across Phases 222–224, SAFE-12 cross-cutting invariant declared.
 
 ## Deferred Items (carried into next milestone)
 
@@ -35,25 +35,25 @@ Items acknowledged at v1.47 milestone close 2026-06-02. v1.47 shipped 18/18 REQs
 
 | Category | Item | Status |
 |----------|------|--------|
-| requirements | VERIFY-01 | deferred to Phase 218 — needs natural production flapping event with `peak_transition_count > 30`; runs parallel to next milestone |
-| requirements | VERIFY-02 | deferred to Phase 218 — gated on VERIFY-01 + ALERT-03 per-`cooldown_sec` bucket audit; runs parallel to next milestone |
-| requirements | STEER-DRIFT-01 | deferred — steering runtime `1.39` vs source `1.45` alignment pending operator approval; candidate v1.48+ scope |
-| requirements | RECLAIM-04 | deferred — Spectrum upload reclaim re-attempt requires fundamentally different probe shape after Phase 215 bounded VOID; candidate v1.48+ scope |
-| phases | Phase 218 (Deferred v1.45 VERIFY Watch-List Closure) | carried as event-gated watch item; no synthetic event generation per ROADMAP; runs parallel to next milestone |
+| requirements | VERIFY-01 | deferred to Phase 218 — needs natural production flapping event with `peak_transition_count > 30`; runs parallel to v1.48 |
+| requirements | VERIFY-02 | deferred to Phase 218 — gated on VERIFY-01 + ALERT-03 per-`cooldown_sec` bucket audit; runs parallel to v1.48 |
+| requirements | STEER-DRIFT-01 | **ACTIVE in v1.48** — addressed by Phases 222–224 (audit → proof → canary) |
+| requirements | RECLAIM-04 | deferred indefinitely — Spectrum upload reclaim re-attempt requires fundamentally different probe shape after Phase 215 bounded VOID; NOT in v1.48 |
+| phases | Phase 218 (Deferred v1.45 VERIFY Watch-List Closure) | carried as event-gated watch item; no synthetic event generation per ROADMAP; runs parallel to v1.48 |
 | debug_sessions | knowledge-base | unknown (index file, not active investigation) |
 | todos | 2026-04-08-investigate-tcp-12down-latency-spikes-under-multi-flow-downl | **CLOSED 2026-06-02 by v1.47 Phase 221** — close-with-prejudice rule per CRITERIA-02; no v1.48+ reopen without independent new production evidence |
 | todos | 2026-04-17-ingestion-rate-tool | **CLOSED 2026-05-30 by v1.47 Phase 219** — additive `--by-table` + `--rolling` extensions + cron snapshot shipped |
-| todos | 2026-04-17-investigate-steering-degraded-on-clean-restart | pending — Phase 212 spot-check `current-state-good/reproduction-not-attempted`; candidate v1.48+ scope |
-| todos | 2026-04-17-monitor-flapping-peak-count-on-next-docsis-event | pending — primary Phase 218 trigger; closes with VERIFY-01; runs parallel to next milestone |
-| todos | 2026-04-17-operator-summary-digest-permission-handling | pending — candidate for retroactive sweep |
+| todos | 2026-04-17-investigate-steering-degraded-on-clean-restart | **FOLDED into v1.48 Phase 223** — closes here via reproduction or fail-closed documentation |
+| todos | 2026-04-17-monitor-flapping-peak-count-on-next-docsis-event | pending — primary Phase 218 trigger; closes with VERIFY-01; runs parallel to v1.48 |
+| todos | 2026-04-17-operator-summary-digest-permission-handling | pending — OUT of v1.48 scope; candidate for retroactive sweep |
 | todos | 2026-04-24-resolve-att-cake-primary-canary-after-phase-196 | pending (gated on Phase 191 closure; ATT canary already deployed in v1.45) |
 | todos | 2026-04-15-profile-post-hotpath-baseline-on-production-wan | **CLOSED 2026-05-30 by Phase 217** — see 217-03 SUMMARY |
 | seeds | SEED-003-v143-d14-watchdog-recalibration | dormant |
 | seeds | SEED-004-v143-target-edge-churn-instrumentation | dormant |
-| seeds | SEED-005-v143-conservative-ul-tuning-sweep | dormant; candidate v1.48+ |
-| seeds | SEED-006-v145-silicom-bypass-tooling-and-harness | dormant; candidate v1.48+ |
-| seeds | SEED-007-v145-storage-hygiene-fire-on-change | dormant; candidate v1.48+ |
-| quick_tasks | 12 orphan slugs from older milestones | metadata noise; candidate for `/gsd-cleanup` retroactive sweep |
+| seeds | SEED-005-v143-conservative-ul-tuning-sweep | dormant; OUT of v1.48 (single-thesis) |
+| seeds | SEED-006-v145-silicom-bypass-tooling-and-harness | dormant; OUT of v1.48 (single-thesis) |
+| seeds | SEED-007-v145-storage-hygiene-fire-on-change | dormant; v1.48 runner-up explicitly OUT of v1.48 (single-thesis) |
+| quick_tasks | 12 orphan slugs from older milestones | metadata noise; OUT of v1.48; candidate for `/gsd-cleanup` retroactive sweep |
 
 ### v1.47-shipped-clean
 
@@ -71,12 +71,13 @@ Items acknowledged at v1.47 milestone close 2026-06-02. v1.47 shipped 18/18 REQs
 
 - **Status:** v1.45 shipped pending production verification.
 - **Operator sign-off:** Kevin — 2026-05-27T17:53:06Z, via prompt: "Just defer. I am tired of waiting. We can circle back to it later if needed. I want to cleanly move to 1.446" (`1.446` interpreted as v1.46).
-- **Carry-forward task:** Close VERIFY-01 in v1.46 (or later) when a qualifying production DOCSIS event produces an alerts row with `details.peak_transition_count > 30` on either WAN. Now lives as Phase 218 watch-list; parallel to any next milestone.
+- **Carry-forward task:** Close VERIFY-01 in v1.46 (or later) when a qualifying production DOCSIS event produces an alerts row with `details.peak_transition_count > 30` on either WAN. Now lives as Phase 218 watch-list; parallel to v1.48.
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
+- **2026-06-02 (v1.48 ROADMAP commit):** v1.48 ROADMAP.md created with 3-phase scope per joint Claude + Codex scope review: Phase 222 (Steering Drift Audit — DRIFT-01..04) → Phase 223 (Staging Proof + Clean-Restart Reproduction — PROOF-01..03, folded `steering-degraded-on-clean-restart` todo) → Phase 224 (Production Canary + Rollback Discipline — CANARY-01..03, v1.46 Phase 215 Snapshot A precedent). SAFE-12 declared as cross-phase controller-path zero-diff invariant on all three phases.
 - **2026-06-02 (v1.47 close):** v1.47 Measurement Evidence Closure shipped. Phases 219/220/221 complete; 18/18 REQs satisfied. Folded tcp_12down todo closed with CRITERIA-02 close-with-prejudice rule per the post-D-10-BGP-overlay verdict `carried_narrower_with_close_with_prejudice_rule`. Phase 218 continues parallel as event-gated v1.45 VERIFY watch-list. Phase directories archived to `.planning/milestones/v1.47-phases/`.
 - **2026-05-30 (v1.47 ROADMAP commit):** v1.47 ROADMAP.md created with 3-phase LOCKED scope per joint Claude + Codex operator decision: Phase 219 (Scope D — Ingestion-Rate Observability, D-first per Pitfall 11) → Phase 220 (Scope A1 — Matrix Runner with pre-registered CRITERIA gate) → Phase 221 (Scope A2 — Matrix Evidence + Closeout).
 - 2026-05-27: v1.46 roadmap opened as Internet Quality Recovery after operator reassessment that v1.45 production-observation wait was stalling useful work while internet quality felt worse than it should.
@@ -90,16 +91,27 @@ Items acknowledged at v1.47 milestone close 2026-06-02. v1.47 shipped 18/18 REQs
 
 ## Session Continuity
 
-Last session: 2026-06-02T13:28:24.706Z
-Stopped at: v1.47 milestone complete and archived
+Last session: 2026-06-02T14:08:24.000Z
+Stopped at: v1.48 roadmap created; awaiting `/gsd-plan-phase 222`
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 
 ## Operator Next Steps
 
-- Start the next milestone with `/gsd-new-milestone`
-- Phase 218 stays parallel: alert-window query for `peak_transition_count > 30` runs independently of milestone state.
+- Plan Phase 222 with `/gsd-plan-phase 222` (Steering Drift Audit — read-only delta + contract diff + classification + recommendations).
+- Phase 218 stays parallel: alert-window query for `peak_transition_count > 30` runs independently of v1.48 state.
+
+## Decisions (v1.48)
+
+- [v1.48 Roadmap]: 3-phase sliced scope per joint Claude + Codex review 2026-06-02. Single-thesis discipline. Final order: 222 (Audit) → 223 (Staging Proof + folded steering-degraded-on-clean-restart) → 224 (Production Canary + Snapshot-A rollback).
+- [v1.48 Roadmap]: SAFE-12 declared as cross-phase controller-path zero-diff invariant — listed on every phase's requirements line (not mapped to a separate phase). Same discipline as SAFE-07/08/09/11 through v1.43–v1.47.
+- [v1.48 Roadmap]: Steering daemon source IS in scope for mutation; controller path (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) is NOT.
+- [v1.48 Roadmap]: Spine constraints (binary on/off, only-new-connections rerouted, autorate-baseline-RTT-authoritative) declared immutable across the milestone; every phase's success criteria preserve them.
+- [v1.48 Roadmap]: Phase 218 (v1.45 VERIFY watch) stays parallel and event-gated; NOT renumbered into v1.48.
+- [v1.48 Roadmap]: SEED-007 storage hygiene, operator-summary digest permission sweep, `/gsd-cleanup` orphan sweep, and RECLAIM-04 explicitly OUT of v1.48 scope.
+- [v1.48 Roadmap]: Folded todo `2026-04-17-investigate-steering-degraded-on-clean-restart` closes in Phase 223 either by reproduction or fail-closed documentation.
+- [v1.48 Roadmap]: Phase 224 canary models on v1.46 Phase 215 Snapshot A pattern (pre-deploy snapshot anchor + bounded rollback path + post-deploy health-endpoint gate proof).
 
 ## Decisions (v1.47)
 
