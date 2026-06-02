@@ -1,14 +1,16 @@
 ---
 phase: 223
 reviewers: [codex]
-reviewed_at: 2026-06-02T20:28:46Z
-cycles: [1, 2, 3, 4]
+reviewed_at: 2026-06-02T20:48:23Z
+cycles: [1, 2, 3, 4, 5]
 cycle_1_reviewed_at: 2026-06-02T16:21:21Z
 cycle_2_reviewed_at: 2026-06-02T16:42:11Z
 cycle_3_reviewed_at: 2026-06-02T17:09:46Z
 cycle_4_reviewed_at: 2026-06-02T20:28:46Z
+cycle_5_reviewed_at: 2026-06-02T20:48:23Z
 plans_reviewed: [223-01-PLAN.md, 223-02-PLAN.md, 223-03-PLAN.md, 223-04-PLAN.md]
 cycle_4_focus: 223-04-PLAN.md (gap closure; plans 01-03 post-execution and out of scope)
+cycle_5_focus: 223-04-PLAN.md revision after a12e3a0 (Cycle 4 HIGH + 3 MEDIUMs)
 ---
 
 # Cross-AI Plan Review — Phase 223
@@ -333,3 +335,94 @@ None — single-reviewer cycle.
 ### Cycle 4 Disposition
 
 Cycle 4 produced 1 HIGH. Plan 04 needs revision before execute-phase: either add the acceptance artifact (Task 04-04 step or new Task 04-06) or explicitly accept that truth #9 stays gap-flagged after Plan 04 with a corresponding update to phase status messaging. The MEDIUMs are executor-hygiene items, with the steering-boundary assertion being the most important to add to the SAFE-12 check.
+
+---
+
+## Cycle 5 — Codex Review (Plan 04 revision post-a12e3a0)
+
+**Scope:** Plan 04 only — revision committed at `a12e3a0` (`docs(223-04): incorporate codex review cycle 1 feedback`). Cycle 5 verifies the Cycle 4 HIGH + three MEDIUMs are actually closed without introducing new HIGHs. Plans 01-03 remain post-execution and out of scope.
+
+### Cycle 5 Summary
+
+Plan 04's revision materially closes the Cycle 4 HIGH and all three MEDIUMs. No new HIGH-severity issue. Two Cycle 5 MEDIUMs surface: the proposed `spine-evidence.md` markdown link to the acceptance artifact is off by one directory level, and the verify block still allows `restart_persistence_verdict=preserves` without proving the Plan 02 outcome actually flipped.
+
+### Cycle 4 HIGH Closure Verdict
+
+- **HIGH: Gap #1 risk-acceptance artifact missing — CLOSED, with one link defect to fix.**
+  Task 04-06 is concrete enough for a hard verifier pass: exact path, six required sections (Symptom / Blast Radius / Evidence Links / Default Disposition / Override Path / Sign-Off), blast radius numbers, evidence links, and operator-fillable sign-off line are specified at `223-04-PLAN.md:493` through `223-04-PLAN.md:523`. The closure mechanism comes from `## Default Disposition` text, not from a filled signature line — that is verifier-checkable today.
+
+  **Defect:** The proposed `spine-evidence.md` markdown link is wrong. From `.planning/phases/223-.../evidence/spine-evidence.md`, `../../../../decisions/...` (Plan 04 line 369) resolves outside `.planning/`; the correct relative path is `../../../decisions/phase-224-clean-restart-risk-acceptance.md`. The Task 04-04 verifier at `223-04-PLAN.md:394` only greps for the filename string, so it will not catch the broken link. Track as Cycle 5 MEDIUM #1 below.
+
+### Cycle 4 MEDIUM Closure Verdicts
+
+- **MEDIUM #1: Steering-daemon SAFE-12 boundary — FULLY CLOSED.**
+  Task 04-05 adds `src/wanctl/steering/` to `allowlist_paths`, adds the top-level `steering_daemon_clean` field, and adds a live `git diff bee343b0c2f16207101aec82007a5e55fa9b6407 -- src/wanctl/steering/` empty-result assertion (`223-04-PLAN.md:437`–`471`). Untracked files under `src/wanctl/steering/` would correctly fail the check — that is the intended fail-closed behavior for this boundary.
+
+- **MEDIUM #2: Invariant 3 scope narrowing — FULLY CLOSED.**
+  Methodology language at `223-04-PLAN.md:361`–`365` explicitly narrows invariant 3 to "daemon must not write `spectrum_state.json` during `run_cycle()`" and pushes restart-persistence out to `restart_persistence_verdict`. The verifier cannot reasonably claim invariant 3 should still cover restart-persistence after this revision.
+
+- **MEDIUM #3: Stat-delta edge hardening — FULLY CLOSED.**
+  Fingerprint at `223-04-PLAN.md:210`–`221` now includes `st_mtime_ns + st_ctime_ns + st_size + st_ino + SHA-256 content hash`. Atomic replace with same content is covered by inode/ctime; same-size + same-mtime writes are covered by the hash. The only remaining theoretical edge is a transient write perfectly restored before `run_cycle()` returns — not a practical blocker for this harness.
+
+### New Concerns (Cycle 5)
+
+- **MEDIUM:** **Broken relative link in spine-evidence.md readiness text.** Plan 04 specifies `../../../../decisions/phase-224-clean-restart-risk-acceptance.md` at line 369, but from `.../evidence/spine-evidence.md` the correct relative path is `../../../decisions/phase-224-clean-restart-risk-acceptance.md`. The verifier at line 394 only greps for the filename string and will not detect the broken link. Fix during execute-phase or amend the plan.
+
+- **MEDIUM:** **Restart-persistence mapping not hard-verified against the Plan 02 outcome.** Task 04-04's verify block at `223-04-PLAN.md:390`–`393` allows `clean-restart-degraded.restart_persistence_verdict` to be `breaks` OR `preserves`, while the acceptance criterion at `223-04-PLAN.md:419` says `preserves` is only valid if the Plan 02 outcome flipped. Add a JSON assertion: if `clean-restart-reproduction.json#outcome == reproduced-bug`, then `spine-evidence.json#fixtures[clean-restart-degraded].restart_persistence_verdict == breaks`. Without this, a stale or incorrect verdict could pass the verify block.
+
+- **LOW:** **Task-ordering prose is inconsistent.** Task 04-06's SAFE-12 note at `223-04-PLAN.md:525` says "The Task 04-05 boundary check runs after this task," but Task 04-05 appears before Task 04-06 in the tasks block. Not a functional blocker (`.planning/` is outside SAFE-12, so order doesn't affect the boundary check verdict), but should be cleaned up for clarity.
+
+- **Existing LOWs remain LOW:** the `fixture_paths()` default flip is still broader than necessary; the spine-evidence recomputation helper remains optional/ad hoc. Neither is elevated by this revision.
+
+### Non-Issues Investigated
+
+- **`.planning/decisions/` path collision:** no existing convention conflict; directory is new and the artifact path is unambiguous.
+- **Schema-equivalence assertion vs Phase 222:** the Plan 03/04 schema check at `223-04-PLAN.md:467`–`469` asserts every Phase 222 top-level key is present in the new artifact, but allows extra keys. Adding `steering_daemon_clean` does NOT break the assertion.
+- **Task ordering (04-06 → 04-04 dependency):** Task 04-04 acceptance criteria reference the Task 04-06 artifact path, and Task 04-04 itself notes Task 04-06 is the producer. As long as 04-06 executes before 04-04's regeneration finishes, the spine-evidence link is valid. No circularity.
+
+### Cycle 5 HIGH Count
+
+**0 unresolved HIGHs.**
+
+### Risk Assessment
+
+**Medium until the two Cycle 5 MEDIUMs are patched; Low after that.** The plan remains safely scoped to harness/tests/evidence/docs and does not introduce controller-path or steering-daemon mutation. Both new MEDIUMs are mechanical fixes (one path correction, one extra JSON assertion) suitable for execute-phase pickup or a small plan amendment.
+
+---
+
+## Cycle 5 — Consensus Summary
+
+Single-reviewer cycle (Codex only).
+
+### HIGH Count Transition
+
+| Cycle | HIGH count | Status |
+|-------|-----------|--------|
+| 1     | 3         | Initial — fake API, confidence timing, PROOF-02 keying |
+| 2     | 1         | Cycle 1 HIGHs all FULLY RESOLVED; one new HIGH (I/O seams) |
+| 3     | 0         | Cycle 2 HIGH FULLY RESOLVED; all 5 Cycle 2 MEDIUMs FULLY RESOLVED; 2 new MEDIUMs |
+| 4     | 1         | New HIGH on Plan 04 — Gap #1 closure mechanism does not satisfy verification language |
+| 5     | 0         | Cycle 4 HIGH FULLY RESOLVED via Task 04-06 acceptance artifact; all 3 Cycle 4 MEDIUMs FULLY RESOLVED; 2 new MEDIUMs (link defect, verify-block hardening) |
+
+**Convergence achieved on Plan 04 revision.** Strict decrease 1 → 0 across the Plan 04 sub-loop (Cycle 4 → Cycle 5). Across the full phase loop, the trajectory is 3 → 1 → 0 → 1 → 0; the Cycle 4 HIGH was a Plan 04-specific finding that has now closed.
+
+### Cycle 5 — Strengths
+- Task 04-06 is a clean, verifier-friendly artifact specification (exact path, six named sections, evidence links, blast radius numbers, sign-off line).
+- The `steering_daemon_clean` field + live `git diff` assertion turns the steering-daemon boundary from plan-text-only into verify-block-enforced.
+- Invariant 3 scope narrowing in methodology removes the verifier's ambiguity about restart-persistence vs daemon-write authority.
+- Hardened fingerprint (`st_mtime_ns + st_ctime_ns + st_size + st_ino + SHA-256`) addresses every practical stat-delta edge.
+- SAFE-12 posture remains intact by construction: no proposed edit to controller-path source or `src/wanctl/steering/`.
+
+### Cycle 5 — Outstanding MEDIUMs (carry into execute-phase or amend)
+
+1. **Broken markdown link in spine-evidence.md Phase 224 Readiness section.** Fix `../../../../decisions/...` → `../../../decisions/...` at Plan 04 line 369; the grep verifier at line 394 won't catch this.
+
+2. **Hard-verify restart-persistence mapping against Plan 02 outcome.** Add to Task 04-04 verify block: `outcome == reproduced-bug` ⇒ `restart_persistence_verdict == breaks`.
+
+### Divergent Views
+
+None — single-reviewer cycle.
+
+### Cycle 5 Disposition
+
+Cycle 5 produced 0 HIGHs. **Plan 04 revision is convergence-approved for execute-phase.** The two outstanding MEDIUMs are mechanical fixes — pickup either as a small plan amendment or as executor-hygiene items during execute-phase. The Plan 04 sub-loop closed cleanly: Cycle 4 (1 HIGH) → Cycle 5 (0 HIGHs).
