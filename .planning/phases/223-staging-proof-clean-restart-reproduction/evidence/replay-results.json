@@ -51256,245 +51256,245 @@
       "baseline_rtt_per_cycle": [
         {
           "cycle": 0,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 1,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 2,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 3,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 4,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 5,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 6,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 7,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 8,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 9,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 10,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 11,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 12,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 13,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 14,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 15,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 16,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 17,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 18,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 19,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 20,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 21,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 22,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 23,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 24,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 25,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 26,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 27,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 28,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 29,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 30,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 31,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 32,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 33,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
         },
         {
           "cycle": 34,
-          "baseline_read_path": "/tmp/pytest-of-kevin/pytest-1491/test_clean_restart_reproductio0/steering-replay/clean-restart-degraded/spectrum_state.json",
+          "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
           "baseline_read_value": 25.0,
           "baseline_loader_called": true,
           "spectrum_state_write_attempted": true
