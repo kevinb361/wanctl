@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import logging
 from typing import Any
 
@@ -32,7 +31,8 @@ class FakeRouterTransport:
         self.current_cycle = int(idx)
 
     def _timestamp(self) -> str:
-        return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        cycle = max(self.current_cycle, 0)
+        return f"2026-06-02T00:00:{cycle % 60:02d}Z"
 
     def _record(self, method: str, result: Any, **extra: Any) -> None:
         entry = {

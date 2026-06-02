@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -36,7 +35,8 @@ class FixtureBaselineLoader(BaselineLoader):
         self.current_cycle = int(idx)
 
     def _timestamp(self) -> str:
-        return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        cycle = max(self.current_cycle, 0)
+        return f"2026-06-02T00:00:{cycle % 60:02d}Z"
 
     def _load_target_wan_health(self) -> dict[str, Any] | None:
         return None
