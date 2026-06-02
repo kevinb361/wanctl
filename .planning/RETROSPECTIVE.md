@@ -725,6 +725,57 @@ _A living document updated after each milestone. Lessons feed forward into futur
 
 ---
 
+## Milestone: v1.47 — Measurement Evidence Closure
+
+**Shipped:** 2026-06-02
+**Phases:** 3 (219, 220, 221) | **Plans:** 12 | **Tasks:** 40
+
+### What Was Built
+
+- **Scope D (Phase 219, D-first per Pitfall 11):** Additive `wanctl-history --ingestion-rate --by-table` + `--rolling=60,300,3600` flags with `schema_version: 1` envelope and per-snapshot staleness fields; `wanctl-operator-summary --digest` ingestion-rate block; cron-callable `scripts/phase219_ingestion_digest.py` with atomic-write snapshot persistence + count-based retention.
+- **Scope A1 (Phase 220, matrix runner):** Pre-registered 18-cell `scripts/phase220-matrix.yaml` with locked CRITERIA-01 thresholds, ATT egress signature, and `base_sha` source-floor anchor; stdlib + PyYAML cube aggregator with Mann-Whitney U + bootstrap 95% percentile CI (B=2000, seeded); per-cell wrapper composing Phase 213 + Phase 214 unchanged. Wet daytime dallas/Spectrum rehearsal reproduced the Phase 214 anchor.
+- **Scope A2 (Phase 221, evidence + closeout):** 54/54 deduplicated valid replicates across 18 cells captured over multi-day operator-driven windows; closeout JSON + 11-section human-readable report with pre-/post-D-10-BGP-overlay verdict trace; folded `tcp_12down` todo closed with CRITERIA-02 close-with-prejudice rule attached verbatim.
+
+### What Worked
+
+- **Pre-registered CRITERIA prevented threshold-after-data bias.** CRITERIA-01 thresholds were written into `220-CONTEXT.md` before any live cell ran and were never edited after. The post-D-10 verdict flip was made by an unambiguous, pre-existing rule — not a post-hoc reinterpretation.
+- **D-first ordering paid off.** Scope D shipped first per Pitfall 11 so Phase 218 had the tool available regardless of v1.47 timing. By the time Scope A started, the observability surface was already proven.
+- **Wet daytime canonical rehearsal before any supplemental cells ran.** The Phase 220 daytime dallas/Spectrum control cell reproduced the Phase 214 canonical anchor verdict (`ambiguous`/`reflector_loss`/`✓ MATCH`) — proof the harness was faithful before any supplemental Vultr cells contributed evidence.
+- **Wrapper composition over fork.** The Phase 220 wrapper composes Phase 213 capture and Phase 214 analyzer chain unchanged; the cube aggregator is a forked `phase214-matrix-summary.py` extended to (target × path × window). Zero edits to existing Phase 213/214 scripts kept the upstream chains stable.
+- **Close-with-prejudice rule as a forcing function.** CRITERIA-02 was the explicit antidote to Pitfall 2's degenerate "carried-narrower forever" outcome. Without it, the post-overlay `carried_narrower` verdict would have been a third repeat-this-experiment-later thread. With it, the folded todo is genuinely closed.
+- **D-10 BGP overlay as a separate verdict layer.** Raw aggregator output (`defect_located` on three cells) is preserved for audit; the post-overlay verdict is authoritative. Separating raw evidence from interpretation makes the reasoning replayable.
+
+### What Was Inefficient
+
+- **The wet rehearsal harness needed a repair before reproducing the Phase 214 anchor.** Phase 220 Plan 04 was checkpointed once; the rehearsal landed only after the harness issue was fixed. A dry-run pass against synthetic fixtures would have caught the issue earlier.
+- **Phase 221 evidence collection spanned multiple operator-driven days.** This is inherent to the matrix design (off-peak + daytime + prime-time × multiple replicates) but means Plan 03 readiness was latched only after 54/54 deduplicated replicates landed across many sessions.
+- **The traceability table in REQUIREMENTS.md still showed CLOSEOUT-01/02/03 + SAFE-11 (Phase 221) as "Pending" at milestone-close time even though the checkboxes were checked.** Minor bookkeeping inconsistency — caught and corrected during archive.
+
+### Patterns Established
+
+- **Cube aggregator over flat aggregator.** Phase 214's flat per-window aggregator became Phase 220's (target × path × window) cube aggregator with axis rollups. The pattern is reusable for any future "target/path/window" investigation.
+- **Pre-registered CRITERIA in CONTEXT.md.** Locked at plan time, immutable after first live run. Pre-registration is the cleanest defense against the "we'll figure out thresholds after we see the data" anti-pattern.
+- **BGP overlay layer separate from raw verdict.** Post-overlay verdict is authoritative; raw verdict is audit-preserved. Cleanly separates "what the data says" from "what the data says under our locked exclusion rule."
+- **SAFE-N expanded allowlist with explicit forbidden list.** SAFE-11 covers `configs/`, `deploy/systemd/`, `scripts/`, `tests/fixtures/phase22*/`, `docs/`, plus additive `src/wanctl/history.py` for Scope D; controller-path files (`wan_controller.py`, etc.) are explicitly forbidden. Allowlist-with-explicit-forbidden makes the boundary inspectable.
+- **Phase-boundary mutation-boundary pytest.** Re-runnable at every phase boundary, not just at milestone close. Makes the no-mutation attestation testable rather than asserted.
+
+### Key Lessons
+
+1. **Pre-register decision rules before evidence exists.** CRITERIA-01 + CRITERIA-02 locked at Phase 220 plan time were the single biggest defense against confirmation bias when raw evidence came back ambiguous.
+2. **The close-with-prejudice rule is what makes a "carried-narrower" verdict genuinely closeable.** Without an explicit "no reopen without independent new evidence" clause, a hypothesis carries forever. With it, the thread ends here unless production produces new evidence.
+3. **A control cell in every window is non-negotiable for matrix designs.** The Phase 214 canonical `dallas` reflector in every Phase 220/221 window is what made the BGP-contaminated Vultr cells separable from the canonical signal.
+4. **Wrapper composition + stdlib-only mandate keeps complexity bounded.** Forking `phase214-matrix-summary.py` was lighter than adding SciPy/NumPy/pandas dependencies. Pinned-fixture golden tests compensate for absence of SciPy verification.
+5. **Read-only milestone discipline pays compounding dividends.** No controller mutation triggered by matrix results means v1.48+ inherits a known-good baseline; tuning under unverified evidence would re-confound the next milestone's signal.
+
+### Cost Observations
+
+- Model mix: opus-heavy planning + verification + closeout; sonnet/haiku for execution. Codex (gpt-5.5 xhigh) consulted at v1.46 close for milestone-shape decision (recommended A + tiny B housekeeping, matching primary analysis).
+- 107 commits total in the milestone range (`8c50309..613bec1`); 522 files changed (+26,702 / -447 — mostly evidence fixtures + per-replicate matrix sidecars). Source surface delta: 15 files, +3,361 / -28.
+- Multi-day operator-driven matrix execution window — calendar time substantially exceeded agent time.
+- Milestone-close commits target: 3 (phase archival, MILESTONES/PROJECT/ROADMAP doc commit + REQUIREMENTS deletion, tag). Pattern from v1.44/v1.46 held.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
