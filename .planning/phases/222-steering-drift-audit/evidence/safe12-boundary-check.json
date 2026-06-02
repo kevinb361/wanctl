@@ -1,0 +1,17 @@
+{
+  "baseline_tag": "v1.47",
+  "baseline_commit": "bee343b0c2f16207101aec82007a5e55fa9b6407",
+  "head_commit": "26ab23e5f048500fbaed4275543444edb68171cb",
+  "audit_timestamp_utc": "2026-06-02T15:45:18Z",
+  "allowlist_paths": [
+    "src/wanctl/wan_controller.py",
+    "src/wanctl/queue_controller.py",
+    "src/wanctl/cake_signal.py",
+    "src/wanctl/backends/",
+    "src/wanctl/alert_engine.py",
+    "src/wanctl/fusion_healer.py"
+  ],
+  "per_path_diff": {},
+  "dirty_tree": {},
+  "passed": false
+}
