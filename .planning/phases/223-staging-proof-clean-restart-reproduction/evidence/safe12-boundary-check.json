@@ -1,0 +1,91 @@
+{
+  "baseline_tag": "v1.47",
+  "baseline_commit": "bee343b0c2f16207101aec82007a5e55fa9b6407",
+  "head_commit": "aac7e594c9bf2e8b8c23559a593b63f0165a07f3",
+  "audit_timestamp_utc": "2026-06-02T18:04:31Z",
+  "allowlist_paths": [
+    "src/wanctl/wan_controller.py",
+    "src/wanctl/queue_controller.py",
+    "src/wanctl/cake_signal.py",
+    "src/wanctl/backends/",
+    "src/wanctl/alert_engine.py",
+    "src/wanctl/fusion_healer.py"
+  ],
+  "per_path_diff": {
+    "src/wanctl/wan_controller.py": {
+      "added": 0,
+      "removed": 0,
+      "lines": []
+    },
+    "src/wanctl/queue_controller.py": {
+      "added": 0,
+      "removed": 0,
+      "lines": []
+    },
+    "src/wanctl/cake_signal.py": {
+      "added": 0,
+      "removed": 0,
+      "lines": []
+    },
+    "src/wanctl/backends/": {
+      "added": 0,
+      "removed": 0,
+      "lines": []
+    },
+    "src/wanctl/alert_engine.py": {
+      "added": 0,
+      "removed": 0,
+      "lines": []
+    },
+    "src/wanctl/fusion_healer.py": {
+      "added": 0,
+      "removed": 0,
+      "lines": []
+    }
+  },
+  "dirty_tree": {
+    "unstaged": [],
+    "staged": [],
+    "untracked": [],
+    "status_porcelain": []
+  },
+  "passed": true,
+  "committed_clean": true,
+  "dirty_tree_clean": true,
+  "phase": "223",
+  "invariant": "SAFE-12",
+  "reproducibility": [
+    "git rev-parse v1.47^{commit}",
+    "git rev-parse HEAD",
+    "git diff bee343b0c2f16207101aec82007a5e55fa9b6407 -- src/wanctl/wan_controller.py",
+    "git diff bee343b0c2f16207101aec82007a5e55fa9b6407 -- src/wanctl/queue_controller.py",
+    "git diff bee343b0c2f16207101aec82007a5e55fa9b6407 -- src/wanctl/cake_signal.py",
+    "git diff bee343b0c2f16207101aec82007a5e55fa9b6407 -- src/wanctl/backends/",
+    "git diff bee343b0c2f16207101aec82007a5e55fa9b6407 -- src/wanctl/alert_engine.py",
+    "git diff bee343b0c2f16207101aec82007a5e55fa9b6407 -- src/wanctl/fusion_healer.py",
+    "git diff -- src/wanctl/wan_controller.py",
+    "git diff -- src/wanctl/queue_controller.py",
+    "git diff -- src/wanctl/cake_signal.py",
+    "git diff -- src/wanctl/backends/",
+    "git diff -- src/wanctl/alert_engine.py",
+    "git diff -- src/wanctl/fusion_healer.py",
+    "git diff --cached -- src/wanctl/wan_controller.py",
+    "git diff --cached -- src/wanctl/queue_controller.py",
+    "git diff --cached -- src/wanctl/cake_signal.py",
+    "git diff --cached -- src/wanctl/backends/",
+    "git diff --cached -- src/wanctl/alert_engine.py",
+    "git diff --cached -- src/wanctl/fusion_healer.py",
+    "git ls-files --others --exclude-standard -- src/wanctl/wan_controller.py",
+    "git ls-files --others --exclude-standard -- src/wanctl/queue_controller.py",
+    "git ls-files --others --exclude-standard -- src/wanctl/cake_signal.py",
+    "git ls-files --others --exclude-standard -- src/wanctl/backends/",
+    "git ls-files --others --exclude-standard -- src/wanctl/alert_engine.py",
+    "git ls-files --others --exclude-standard -- src/wanctl/fusion_healer.py",
+    "git status --porcelain -- src/wanctl/wan_controller.py",
+    "git status --porcelain -- src/wanctl/queue_controller.py",
+    "git status --porcelain -- src/wanctl/cake_signal.py",
+    "git status --porcelain -- src/wanctl/backends/",
+    "git status --porcelain -- src/wanctl/alert_engine.py",
+    "git status --porcelain -- src/wanctl/fusion_healer.py"
+  ]
+}
