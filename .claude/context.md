@@ -99,6 +99,7 @@ Use these as the primary current docs:
 ## Current Validation Note
 
 - v1.47 Phase 221 Plan 03 writes the read-only matrix closeout artifacts only: `221-CLOSEOUT.json` is the Phase 220 aggregator output amended with D-10 BGP-overlay fields, and `221-CLOSEOUT.md` mirrors `final_verdict_after_bgp_overlay` while preserving raw `matrix_verdict` for audit. No controller, threshold, CAKE, steering, RouterOS, Phase 220 harness/script/YAML, deployment, or active docs behavior changes are part of this closeout.
+- v1.47 Phase 221 Plan 03 metadata updates mark CLOSEOUT-01/CLOSEOUT-02 and SAFE-11 status only; folded todo closure remains Plan 04 and `closeout_commit_for_todo` stays `PENDING_PLAN_04_COMMIT` until that move is committed.
 - v1.47 Phase 221 Wave 0 adds `tests/test_phase221_mutation_boundary.py` as the SAFE-11 closeout guard: Phase 221 anchors to the `docs(phase-221): begin phase execution` marker, freezes Phase 220 scripts, and keeps the Phase 221 script allowlist empty while the evidence ledger/closeout artifacts evolve under `.planning/phases/221-matrix-evidence-closeout-scope-a2/`.
 - v1.47 Phase 221 Plan 02 reconciled the operator-run Phase 220 evidence ledger to 54/54 deduplicated valid replicates, latched Plan 03 readiness (`canonical_complete: 6`, `supplemental_incomplete: 0`), and intentionally left aggregation/reporting to Plan 03.
 - v1.47 Phase 221 Plan 01 completed the Wave 0 closeout metadata: `221-01-SUMMARY.md` records the marker/test/ledger commits, and `ROADMAP.md` / `STATE.md` now advance Phase 221 to Plan 02 of 4.
