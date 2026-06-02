@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.48
 milestone_name: Steering Runtime Drift Closure
 status: executing
-stopped_at: v1.48 roadmap created; awaiting `/gsd-plan-phase 222`
-last_updated: "2026-06-02T15:34:29.892Z"
-last_activity: 2026-06-02 -- Phase 222 planning complete
+stopped_at: Completed 222-01-PLAN.md
+last_updated: "2026-06-02T15:43:27.866Z"
+last_activity: 2026-06-02
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-02 after v1.47 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** v1.48 Steering Runtime Drift Closure — roadmap created, awaiting phase planning. Sliced audit (Phase 222) → staging proof (Phase 223) → production canary (Phase 224) alignment of live steering daemon (runtime `1.39`) with current source (`1.45`).
+**Current focus:** Phase 222 — steering-drift-audit
 
 ## Current Position
 
-Phase: Not started (roadmap created; awaiting `/gsd-plan-phase 222`)
-Plan: —
+Phase: 222 (steering-drift-audit) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-02 -- Phase 222 planning complete
+Last activity: 2026-06-02
 
 ## Deferred Items (carried into next milestone)
 
@@ -92,15 +92,15 @@ Items acknowledged at v1.47 milestone close 2026-06-02. v1.47 shipped 18/18 REQs
 
 ## Session Continuity
 
-Last session: 2026-06-02T14:08:24.000Z
-Stopped at: v1.48 roadmap created; awaiting `/gsd-plan-phase 222`
+Last session: 2026-06-02T15:43:00.492Z
+Stopped at: Completed 222-01-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 
 ## Operator Next Steps
 
-- Plan Phase 222 with `/gsd-plan-phase 222` (Steering Drift Audit — read-only delta + contract diff + classification + recommendations).
+- Execute Phase 222 Plan 02 (contract diff + disposition recommendations) using Plan 01 evidence.
 - Phase 218 stays parallel: alert-window query for `peak_transition_count > 30` runs independently of v1.48 state.
 
 ## Decisions (v1.48)
@@ -113,6 +113,9 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 - [v1.48 Roadmap]: SEED-007 storage hygiene, operator-summary digest permission sweep, `/gsd-cleanup` orphan sweep, and RECLAIM-04 explicitly OUT of v1.48 scope.
 - [v1.48 Roadmap]: Folded todo `2026-04-17-investigate-steering-degraded-on-clean-restart` closes in Phase 223 either by reproduction or fail-closed documentation.
 - [v1.48 Roadmap]: Phase 224 canary models on v1.46 Phase 215 Snapshot A pattern (pre-deploy snapshot anchor + bounded rollback path + post-deploy health-endpoint gate proof).
+- [222-01]: Used v1.39 tag commit as conservative steering runtime baseline because Phase 212 did not identify a more precise deployed-binary commit.
+- [222-01]: Pinned all Plan 01 diff/log endpoints to v1.47-peeled source-floor commit `bee343b0c2f16207101aec82007a5e55fa9b6407`; audit_head is diagnostics only.
+- [222-01]: Classified `84ad6aa` as behavior-changing because it tightens RouterOS parsed-record handling and numeric RTT source acceptance in the steering decision path.
 
 ## Decisions (v1.47)
 
@@ -165,3 +168,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 221 P02 | 3min | 3 tasks | 2 files |
 | Phase 221 P03 | 5 min | 3 tasks | 3 files |
 | Phase 221 P04 | 4 min | 6 tasks | 4 files |
+| Phase 222 P01 | 4min 12s | 5 tasks | 7 files |

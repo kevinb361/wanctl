@@ -51,7 +51,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
   3. Operator can read a per-milestone change classification (behavior-changing / behavior-preserving / observability-only) covering every commit that touched steering source.
   4. Operator can read explicit go / mitigate / no-go recommendation per finding, with rationale citing the contract diff.
   5. SAFE-12 verified at phase boundary: zero controller-path source diff vs v1.47 close (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion all byte-identical).
-**Plans:** TBD
+**Plans:** 1/3 plans executed
 
 #### Phase 223: Staging Proof + Clean-Restart Reproduction
 
@@ -83,7 +83,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 222. Steering Drift Audit | 0/? | Not started | — |
+| 222. Steering Drift Audit | 1/3 | In Progress|  |
 | 223. Staging Proof + Clean-Restart Reproduction | 0/? | Not started | — |
 | 224. Production Canary + Rollback Discipline | 0/? | Not started | — |
 
