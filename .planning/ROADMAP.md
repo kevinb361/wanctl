@@ -23,7 +23,7 @@
 
 - [x] **Phase 219: Ingestion-Rate Observability (Scope D)** — Per-WAN per-table SQLite ingestion-rate visibility as additive extensions to `wanctl-history --ingestion-rate`; ships first to support Phase 218 audit evidence regardless of v1.47 timing.
 - [x] **Phase 220: Matrix Runner (Scope A1)** — Target/path/window matrix wrapper + stdlib aggregator + Wave 0 tests + pre-registered CRITERIA gate (kill / defect / close-with-prejudice rule).
-- [ ] **Phase 221: Matrix Evidence + Closeout (Scope A2)** — Operator-driven matrix execution against pre-registered criteria; explicit verdict report; folded `tcp_12down` todo closed-or-carried with close-with-prejudice rule.
+- [x] **Phase 221: Matrix Evidence + Closeout (Scope A2)** — Operator-driven matrix execution against pre-registered criteria; explicit verdict report; folded `tcp_12down` todo closed-or-carried with close-with-prejudice rule.
 
 ### 🔄 Event-Gated Watch (Carried from v1.45 + v1.46; parallel to v1.47)
 
