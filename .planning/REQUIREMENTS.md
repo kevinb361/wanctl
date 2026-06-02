@@ -29,7 +29,7 @@ Bounded read-only evidence milestone. Two scopes: A (tcp_12down target/path sens
 
 - [x] **CLOSEOUT-01**: `221-CLOSEOUT.md` records one explicit verdict from `{defect_located, hypothesis_killed, carried_narrower_with_close_with_prejudice_rule}` against the CRITERIA-01 thresholds. No single-cell `defect_located` declaration without corroboration across an orthogonal axis (target or path or driver).
 - [x] **CLOSEOUT-02**: Per-cell verdict table + matrix-level verdict + per-driver attribution appear in the report. Each cell row carries replicate count, run timestamps, mtr snapshot reference, and classifier output.
-- [ ] **CLOSEOUT-03**: Folded `2026-04-08-investigate-tcp-12down` todo is updated with the verdict and either marked closed (any verdict ≠ `carried_narrower`) or carried forward with the explicit close-with-prejudice rule attached.
+- [x] **CLOSEOUT-03**: Folded `2026-04-08-investigate-tcp-12down` todo is updated with the verdict and either marked closed (any verdict ≠ `carried_narrower`) or carried forward with the explicit close-with-prejudice rule attached.
 
 ### INGEST — Ingestion-Rate Observability (Scope D, Phase 219)
 

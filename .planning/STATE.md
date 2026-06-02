@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.47
 milestone_name: Measurement Evidence Closure
-status: executing
-stopped_at: Completed 221-03-PLAN.md
-last_updated: "2026-06-02T12:33:38.539Z"
+status: verifying
+stopped_at: Completed 221-04-PLAN.md
+last_updated: "2026-06-02T12:41:08.306Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 12
-  completed_plans: 11
-  percent: 92
+  completed_plans: 12
+  percent: 100
 ---
 
 # Session State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-30 after v1.46 milestone close + v1.4
 
 Phase: 221 (matrix-evidence-closeout-scope-a2) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-02
 
 ## Phase Structure (v1.47)
@@ -84,7 +84,7 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ### v1.46-shipped-with-VERIFY-01-02-deferred
 
-- **Status:** Ready to execute
+- **Status:** Phase complete — ready for verification
 - **Operator sign-off:** Kevin — 2026-05-30, via /gsd-progress → Acknowledge & close path: "fix STATE drift then complete milestone". 18/20 v1.46 requirements satisfied; VERIFY-01/02 carry forward as watch-list.
 - **Why this is acceptable:** v1.46 spine (DRIFT/BASE/MEAS/RECLAIM/RECOV/PERF) is complete and decoupled from VERIFY. VERIFY watch closure requires production-side natural evidence that cannot be hastened without invalidating the metric.
 
@@ -123,8 +123,8 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ## Session Continuity
 
-Last session: 2026-06-02T12:33:30.624Z
-Stopped at: Completed 221-03-PLAN.md
+Last session: 2026-06-02T12:40:55.079Z
+Stopped at: Completed 221-04-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 
@@ -238,3 +238,4 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 | Phase 221 P01 | 5 min | 3 tasks | 3 files |
 | Phase 221 P02 | 3min | 3 tasks | 2 files |
 | Phase 221 P03 | 5 min | 3 tasks | 3 files |
+| Phase 221 P04 | 4 min | 6 tasks | 4 files |
