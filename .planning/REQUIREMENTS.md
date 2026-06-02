@@ -25,7 +25,7 @@ Each requirement maps to exactly one phase. Operator-centric framing — deliver
 ### Staging Proof (PROOF)
 
 - [x] **PROOF-01**: Operator can run a steering replay or fixture harness offline that exercises the post-drift code against canonical pre-drift behavior captured from the running runtime.
-- [ ] **PROOF-02**: Operator can reproduce the `2026-04-17-investigate-steering-degraded-on-clean-restart` symptom in the staging harness OR document a fail-closed reason why reproduction is not feasible (folded todo closes here either way).
+- [x] **PROOF-02**: Operator can reproduce the `2026-04-17-investigate-steering-degraded-on-clean-restart` symptom in the staging harness OR document a fail-closed reason why reproduction is not feasible (folded todo closes here either way).
 - [ ] **PROOF-03**: Operator can read evidence that staging steering behavior preserves the spine contract (binary on/off, only-new-connections rerouted, autorate-baseline-RTT-authoritative) across the replay corpus.
 
 ### Production Canary (CANARY)
