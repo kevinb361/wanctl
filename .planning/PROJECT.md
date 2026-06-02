@@ -8,6 +8,23 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
+## Current Milestone: v1.48 Steering Runtime Drift Closure
+
+**Goal:** Align the live steering daemon (runtime `1.39`) with current source (`1.45`) through sliced audit → staging proof → production canary, closing six milestones of unabsorbed evolution without compromising the steering spine.
+
+**Target features:**
+- Source vs runtime delta audit + steering contract diff against the spine (binary on/off, only new latency-sensitive connections rerouted, autorate baseline RTT remains authoritative)
+- Offline / staging proof — replay or fixture-driven steering behavior validation; reproduce and resolve folded `2026-04-17-investigate-steering-degraded-on-clean-restart` todo as Phase-2 sub-goal
+- Production alignment canary with explicit rollback, health-endpoint proof, and autorate-baseline-authoritative invariant checks
+
+**Key context:**
+- Single-thesis milestone — SEED-007 storage hygiene, operator-summary digest permission sweep, and `/gsd-cleanup` orphan sweep all explicitly **out of scope**.
+- Joint Claude + Codex scope decision 2026-06-02: STEER-DRIFT-01 selected over runner-up SEED-007 because spine-level drift across six milestones is the highest-leverage bounded risk reduction available post-v1.47.
+- Codex pushback adopted: do NOT absorb six milestones as one big rollout — slice it (audit → staging proof → canary with rollback). RECLAIM-04 stays carried indefinitely (Phase 215 bounded VOID already exhausted; no new probe shape).
+- Expected SAFE-12 invariant: bounded source surface = steering daemon + its tests/configs/units; controller-path (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) remains zero-diff per the same discipline that held SAFE-07/08/09/11 through v1.43–v1.47.
+- Phase 218 (v1.45 VERIFY watch-list) continues event-gated in parallel — not a v1.48 driver.
+- Folded todo: `2026-04-17-investigate-steering-degraded-on-clean-restart` → closes in Phase 2 staging-proof phase.
+
 ## Recently Shipped: v1.47 Measurement Evidence Closure
 
 **Shipped:** 2026-06-02 (Phases 219–221 complete; Phase 218 continues parallel as event-gated v1.45 VERIFY watch-list)
@@ -88,11 +105,11 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.47 Measurement Evidence Closure shipped 2026-06-02 — Phases 219/220/221 complete; tcp_12down hypothesis closed-with-prejudice post-D-10 BGP overlay; Phase 218 continues parallel as event-gated v1.45 VERIFY watch-list. v1.46 shipped-with-deferral 2026-05-30. **Next milestone:** TBD via `/gsd-new-milestone`.
+**Version:** v1.48 Steering Runtime Drift Closure opened 2026-06-02 — defining requirements + roadmap. v1.47 shipped clean 2026-06-02 (Phases 219/220/221, tcp_12down closed-with-prejudice). Phase 218 continues parallel as event-gated v1.45 VERIFY watch-list. **Active milestone:** v1.48 — see Current Milestone section above.
 **Tests:** Phase 221 verification + closeout published `carried_narrower_with_close_with_prejudice_rule` (post-D-10 BGP overlay, authoritative); raw aggregator `defect_located` overlaid. Phase 220 verification passed 5/5 after the repaired wet rehearsal harness reproduced the Phase 214 dallas/Spectrum daytime anchor and the hot-path + Phase 220 regression slice passed `726 passed`. Phase 219 verification passed 5/5 after full regression `5238 passed, 14 skipped, 2 deselected` and production D-27 cycle-budget evidence (`avg_ms=2.857`, `p99_ms=6.4`). Phase 217 verification passed 12/12; Phase 216 verification passed 11/11; Phase 215 verification passed 25/25; Phase 214 UAT passed 8/8; Phase 213 verification passed 15/15; Phase 212 verification passed 16/16.
 **LOC:** ~40,915 Python (src/) — v1.47 source-surface delta was +3,361 / -28 across 15 files (additive observability + matrix tooling; zero controller-path mutation).
 **Milestones:** 48 shipped or shipped-with-deferral (v1.0–v1.47).
-**Active milestone:** none — next defined via `/gsd-new-milestone`. Phase 218 watch continues in parallel.
+**Active milestone:** v1.48 Steering Runtime Drift Closure — defining requirements + roadmap. Phase 218 watch continues in parallel.
 
 **Latest:** v1.47 milestone complete — Phase 221 Matrix Evidence + Closeout (Scope A2) closed the folded `tcp_12down` todo with CRITERIA-02 close-with-prejudice rule attached verbatim; 54/54 deduplicated valid replicates across 18 target/path/window cells; D-10 BGP overlay flipped raw `defect_located` to `carried_narrower_with_close_with_prejudice_rule` because three Spectrum supplemental Vultr cells were BGP-path-contaminated mid-run. No controller, threshold, CAKE, steering, RouterOS, or Phase 213/214 source behavior changed.
 **Previous:** v1.47 Phase 220 Matrix Runner (Scope A1) complete — canonical 18-cell target/path/window YAML with locked CRITERIA thresholds; stdlib/PyYAML aggregator handles fixture and live wrapper evidence; wrapper composes Phase 213 capture with unchanged Phase 214 align/classify output; wet dallas/Spectrum daytime rehearsal matched the Phase 214 anchor (`ambiguous` / `reflector_loss`).
@@ -883,4 +900,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-02 — v1.47 Measurement Evidence Closure shipped. 18-cell target/path/window matrix executed across 54/54 deduplicated valid replicates; D-10 BGP overlay flipped raw `defect_located` to authoritative `carried_narrower_with_close_with_prejudice_rule`. Folded tcp_12down todo closed with CRITERIA-02 close-with-prejudice rule attached verbatim. Phase 219 ingestion-rate observability + Phase 220 matrix runner + Phase 221 closeout all complete; SAFE-11 invariant held end-to-end. Phase 218 (v1.45 VERIFY watch-list) continues event-gated in parallel. Steering version-drift alignment (STEER-DRIFT-01) and Spectrum upload reclaim re-attempt (RECLAIM-04) carried to v1.48+. Next milestone TBD via `/gsd-new-milestone`._
+_Last updated: 2026-06-02 — v1.48 Steering Runtime Drift Closure opened. Single-thesis milestone selected via joint Claude + Codex scope review; goal is sliced audit → staging proof → production canary alignment of live steering daemon (runtime `1.39`) with current source (`1.45`). Folded `steering-degraded-on-clean-restart` todo will close in Phase 2 staging proof. SEED-007, operator-summary digest permission sweep, and orphan-quick-task cleanup explicitly out of scope. RECLAIM-04 carried indefinitely (no new probe shape). Phase 218 (v1.45 VERIFY watch-list) continues event-gated in parallel. Requirements + roadmap next._
