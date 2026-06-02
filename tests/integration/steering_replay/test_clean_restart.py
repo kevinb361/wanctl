@@ -100,6 +100,13 @@ def _build_evidence(result: dict[str, Any], fixture: dict[str, Any]) -> dict[str
         recovery_window=recovery_window,
         enable_calls=enable_calls,
     )
+    baseline_rtt_per_cycle = result["baseline_rtt_per_cycle"]
+    for row in baseline_rtt_per_cycle:
+        row["baseline_read_path"] = "staging-workspace/clean-restart-degraded/spectrum_state.json"
+    per_cycle_rows = result["cycles"]
+    for row in per_cycle_rows:
+        for baseline_read in row.get("baseline_reads", []):
+            baseline_read["read_path"] = "staging-workspace/clean-restart-degraded/spectrum_state.json"
     evidence = {
         "fixture": result["fixture"],
         "harness_mode": result["harness_mode"],
@@ -115,7 +122,7 @@ def _build_evidence(result: dict[str, Any], fixture: dict[str, Any]) -> dict[str
         "disable_steering_call_log": disable_calls,
         "interactions_log": result["steering_interactions"],
         "steering_interactions": result["steering_interactions"],
-        "baseline_rtt_per_cycle": result["baseline_rtt_per_cycle"],
+        "baseline_rtt_per_cycle": baseline_rtt_per_cycle,
         "recovery_cycle_to_GOOD": recovery_cycle,
         "effective_steering_during_recovery_window": recovery_window,
         "final_state": result["final_state"],
@@ -129,7 +136,7 @@ def _build_evidence(result: dict[str, Any], fixture: dict[str, Any]) -> dict[str
             "effective_steering_true_cycles": [
                 idx for idx, enabled in enumerate(recovery_window) if enabled
             ],
-            "per_cycle_rows": result["cycles"],
+            "per_cycle_rows": per_cycle_rows,
         },
         "verdict": "observe",
         "verdict_rationale": f"{outcome}: {rationale}",
