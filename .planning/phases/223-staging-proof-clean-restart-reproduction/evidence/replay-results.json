@@ -1286,14 +1286,14 @@
       "final_state": "SPECTRUM_GOOD",
       "transitions": [
         {
-          "timestamp": "2026-06-02T12:35:17.363984",
+          "timestamp": "2026-06-02T00:10:00Z",
           "from": "SPECTRUM_GOOD",
           "to": "SPECTRUM_DEGRADED",
           "bad_count": 0,
           "good_count": 0
         },
         {
-          "timestamp": "2026-06-02T12:35:19.118485",
+          "timestamp": "2026-06-02T00:10:01Z",
           "from": "SPECTRUM_DEGRADED",
           "to": "SPECTRUM_GOOD",
           "bad_count": 0,
@@ -46876,7 +46876,7 @@
       "final_state": "SPECTRUM_DEGRADED",
       "transitions": [
         {
-          "timestamp": "2026-06-02T12:35:19.305740",
+          "timestamp": "2026-06-02T00:10:00Z",
           "from": "SPECTRUM_GOOD",
           "to": "SPECTRUM_DEGRADED",
           "bad_count": 0,
@@ -47922,7 +47922,7 @@
       "final_state": "SPECTRUM_DEGRADED",
       "transitions": [
         {
-          "timestamp": "2026-06-02T12:35:19.372771",
+          "timestamp": "2026-06-02T00:10:00Z",
           "from": "SPECTRUM_GOOD",
           "to": "SPECTRUM_DEGRADED",
           "bad_count": 0,
@@ -48973,7 +48973,7 @@
       "final_state": "SPECTRUM_GOOD",
       "transitions": [
         {
-          "timestamp": "2026-06-02T12:35:19.460185",
+          "timestamp": "2026-06-02T00:10:00Z",
           "from": "SPECTRUM_DEGRADED",
           "to": "SPECTRUM_GOOD",
           "bad_count": 0,

@@ -164,6 +164,15 @@ def _cycle_expected_matches(observed: dict[str, Any], expected: Any) -> bool:
     return bool(state_ok and mangle_ok and cake_ok)
 
 
+def _stable_transitions(transitions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    stable = []
+    for idx, transition in enumerate(transitions):
+        item = dict(transition)
+        item["timestamp"] = f"2026-06-02T00:10:{idx % 60:02d}Z"
+        stable.append(item)
+    return stable
+
+
 def run_fixture(fixture_path: Path, workspace: Path) -> dict[str, Any]:
     """Run one fixture through `SteeringDaemon.run_cycle()` and return evidence."""
     fixture = yaml.safe_load(Path(fixture_path).read_text())
@@ -259,7 +268,7 @@ def run_fixture(fixture_path: Path, workspace: Path) -> dict[str, Any]:
         "pre_steering_rule_state": bool(pre_rule_state),
         "effective_steering_state_per_cycle": effective_states,
         "final_state": final_state,
-        "transitions": daemon.state_mgr.state.get("transitions", []),
+        "transitions": _stable_transitions(daemon.state_mgr.state.get("transitions", [])),
         "steering_interactions": router.interactions_log,
         "baseline_rtt_per_cycle": baseline_per_cycle,
         "daemon_io_paths_exercised": [c["daemon_io_paths_exercised"] for c in cycles_out],
