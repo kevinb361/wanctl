@@ -1,0 +1,16 @@
+{
+  "commits": [
+    {
+      "sha": "84ad6aa2d5bc7d03ef5069c0b65e7b1cdf930538",
+      "subject": "fix: harden steering and storage utility contracts",
+      "author_date_iso": "2026-04-24T08:56:47-05:00",
+      "files_in_surface": [
+        "src/wanctl/check_steering_validators.py",
+        "src/wanctl/steering/daemon.py"
+      ],
+      "category": "behavior-changing",
+      "rationale": "Tightens the steering contract guard in `RouterOSController.is_steering_active` to ignore non-dict parsed records and narrows `measure_current_rtt` to numeric autorate/IRTT values, changing which malformed inputs can drive the steering decision path.",
+      "milestone_bucket": "v1.39..v1.40"
+    }
+  ]
+}
