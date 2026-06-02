@@ -1,11 +1,10 @@
 ---
 gsd_state_version: 1.0
-milestone: none
-milestone_name: Awaiting next milestone
-status: between_milestones
-stopped_at: v1.47 milestone complete and archived
-last_updated: "2026-06-02T13:28:24.706Z"
-last_activity: 2026-06-02 — Milestone v1.47 completed and archived
+milestone: v1.48
+milestone_name: Steering Runtime Drift Closure
+status: planning
+last_updated: "2026-06-02T14:00:36.145Z"
+last_activity: 2026-06-02
 progress:
   total_phases: 0
   completed_phases: 0
@@ -21,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-02 after v1.47 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Awaiting next milestone — define via `/gsd-new-milestone`.
+**Current focus:** v1.48 Steering Runtime Drift Closure — defining requirements + roadmap. Sliced audit → staging proof → production canary alignment of live steering daemon (runtime `1.39`) with current source (`1.45`).
 
 ## Current Position
 
-Phase: —
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone (v1.47 closed 2026-06-02)
-Last activity: 2026-06-02 — Milestone v1.47 completed and archived
+Status: Defining requirements
+Last activity: 2026-06-02 — Milestone v1.48 started
 
 ## Deferred Items (carried into next milestone)
 
