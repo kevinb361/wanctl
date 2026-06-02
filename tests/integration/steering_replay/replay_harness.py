@@ -121,7 +121,12 @@ def _build_daemon(fixture: dict[str, Any], workspace: Path):
         history_maxlen=config.history_size,
     )
     state_mgr.load()
-    initial_enabled = state_mgr.state.get("current_state") == config.state_degraded
+    initial_enabled = bool(
+        fixture.get(
+            "initial_steering_rule_state",
+            state_mgr.state.get("current_state") == config.state_degraded,
+        )
+    )
     router = FakeRouterTransport(initial_enabled=initial_enabled, logger=logger)
     cake_reader = FakeCakeReader(logger=logger)
     baseline_loader = FixtureBaselineLoader(
