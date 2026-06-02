@@ -1,12 +1,14 @@
 ---
 phase: 223
 reviewers: [codex]
-reviewed_at: 2026-06-02T17:09:46Z
-cycles: [1, 2, 3]
+reviewed_at: 2026-06-02T20:28:46Z
+cycles: [1, 2, 3, 4]
 cycle_1_reviewed_at: 2026-06-02T16:21:21Z
 cycle_2_reviewed_at: 2026-06-02T16:42:11Z
 cycle_3_reviewed_at: 2026-06-02T17:09:46Z
-plans_reviewed: [223-01-PLAN.md, 223-02-PLAN.md, 223-03-PLAN.md]
+cycle_4_reviewed_at: 2026-06-02T20:28:46Z
+plans_reviewed: [223-01-PLAN.md, 223-02-PLAN.md, 223-03-PLAN.md, 223-04-PLAN.md]
+cycle_4_focus: 223-04-PLAN.md (gap closure; plans 01-03 post-execution and out of scope)
 ---
 
 # Cross-AI Plan Review — Phase 223
@@ -235,3 +237,99 @@ None — single-reviewer cycle.
 ### Convergence Disposition
 
 Cycle 3 produced 0 HIGHs. Strict decrease maintained across all three cycles (3 → 1 → 0). **Loop terminates cleanly without escalation or stall.** Plans are convergence-approved for execute-phase. The two outstanding MEDIUMs are executor-hygiene items, not replan blockers.
+
+---
+
+## Cycle 4 — Codex Review (Plan 04 gap closure)
+
+**Scope:** Plan 04 only — the new gap-closure plan committed at 37dc6f5. Plans 01-03 are post-execution and out of scope for this cycle. Plan 04 closes the 2 verification gaps + 2 code-review warnings recorded in `223-VERIFICATION.md` and `223-REVIEW.md`.
+
+### Summary
+
+Plan 04 is mostly well-scoped and correctly avoids controller-path source and steering-daemon edits. It should close Gap #2 and both review warnings. The weak point is Gap #1: documenting "fix vs accept" options is not the same as adding explicit operator risk acceptance, and `corpus_verdict` will still remain `breaks`. As written, a verifier can reasonably say truth #9 is still not closed.
+
+### Strengths
+
+- No proposed edit to SAFE-12 controller-path files.
+- No proposed edit to `src/wanctl/steering/`; harness-only approach is appropriate.
+- `--all` including `clean-restart-degraded` directly fixes the corpus clobber bug.
+- Reclassifying harness seeding vs daemon writes is legitimate; current code hardcodes `spectrum_state_write_attempted=True`.
+- WR-01 and WR-02 fixes are concrete and low-risk.
+- Evidence ordering is right: replay results, clean-restart evidence, spine evidence, SAFE-12 recheck.
+
+### Concerns
+
+- **HIGH:** Gap #1 is not fully closed. "Surface the decision in spine-evidence" does not satisfy "add explicit operator risk acceptance." Either write an actual acceptance artifact or keep Phase 224 blocked. Otherwise `corpus_verdict=breaks` remains and truth #9 can still fail.
+
+- **MEDIUM:** Final SAFE-12 verification checks the controller allowlist but does not enforce the added no-`src/wanctl/steering/` constraint. The plan says not to touch it, but the boundary check should prove it.
+
+- **MEDIUM:** The invariant-3 reclassification is valid only if invariant 3 is explicitly narrowed to "daemon must not write autorate state." The clean-restart issue is still a measurement-authority break, just tracked under `restart_persistence_verdict`.
+
+- **MEDIUM:** `mtime_ns`/`st_size` detection can miss same-size/same-timestamp writes. Better include `st_ctime_ns`, inode, and/or content hash, or instrument writes to the exact spectrum path.
+
+- **LOW:** Flipping `fixture_paths()` default is broader than needed. Safer: make `run_all()` explicitly pass `include_clean_restart=True`, and make tests explicitly pass `False`.
+
+- **LOW:** Spine-evidence recomputation remains ad hoc. A committed small generator or test helper would make future verification less fragile than an inline/optional script.
+
+### Suggestions
+
+- Add a required artifact such as `.planning/decisions/phase-224-clean-restart-risk-acceptance.md`, or explicitly leave `phase_224_readiness: blocked`.
+- Add final verification for `git diff/status -- src/wanctl/steering/`.
+- Rename or supplement the field with `daemon_wrote_spectrum_state` to avoid semantic drift.
+- Assert expected `corpus_verdict` and restart-persistence handling explicitly in verify blocks.
+- Harden the clean-checkout test shell snippet so missing evidence files do not short-circuit before pytest runs.
+
+### Risk Assessment
+
+Overall risk: **MEDIUM**.
+
+Production/code risk is low because Plan 04 stays in harness/test/evidence space. Verification risk is medium because the main remaining gap may still fail: the plan records a choice, not an acceptance or fix, while the corpus remains `breaks`. The recommended default is to revise Plan 04 to require a concrete acceptance artifact or preserve the Phase 224 block explicitly.
+
+---
+
+## Cycle 4 — Consensus Summary
+
+Single-reviewer cycle (Codex only).
+
+### HIGH Count Transition
+
+| Cycle | HIGH count | Status |
+|-------|-----------|--------|
+| 1     | 3         | Initial — fake API, confidence timing, PROOF-02 keying |
+| 2     | 1         | Cycle 1 HIGHs all FULLY RESOLVED; one new HIGH (I/O seams) |
+| 3     | 0         | Cycle 2 HIGH FULLY RESOLVED; all 5 Cycle 2 MEDIUMs FULLY RESOLVED; 2 new MEDIUMs |
+| 4     | 1         | New HIGH on Plan 04 — Gap #1 closure mechanism does not satisfy verification language ("explicit operator risk acceptance"). |
+
+### Cycle 4 — Key Findings
+
+- **SAFE-12 spine intact in plan:** Codex confirms Plan 04 proposes no edits to controller-path source or `src/wanctl/steering/`. The architectural boundary is preserved by construction.
+- **Gap #2 + WR-01 + WR-02 closures look sound.** The harness-side mechanisms (default flip, fixture rename, self-contained test) directly address the verification findings.
+- **Gap #1 invariant-3 reclassification is legitimate** (the hardcoded `True` is genuinely a harness-seeding artifact, not daemon behavior), conditional on the methodology note narrowing invariant 3 to "daemon must not write autorate state."
+- **Gap #1 restart-persistence closure is the weak point.** Plan 04 surfaces the operator decision in `spine-evidence.md` rather than producing a concrete acceptance artifact. The verifier may reasonably reject this as not satisfying "either fix … or add explicit operator risk acceptance."
+
+### Cycle 4 — Outstanding HIGH (requires plan revision before execution)
+
+1. **Gap #1 risk-acceptance artifact missing.** Plan 04 should either:
+   - (a) Commit a concrete `.planning/decisions/phase-224-clean-restart-risk-acceptance.md` artifact with operator sign-off recorded, OR
+   - (b) Keep Phase 224 explicitly blocked in `phase_224_readiness` and accept that truth #9 stays gap-flagged until Phase 224 work (or a follow-up phase) closes it.
+
+   The current "two-options-in-spine-evidence" approach makes the decision visible but does not close the verification gap on its own.
+
+### Cycle 4 — Outstanding MEDIUMs
+
+1. **Steering daemon boundary not asserted in SAFE-12 check.** Plan 04's no-`src/wanctl/steering/` constraint is plan text, not verify-block enforcement. Add `git diff bee343b0c2f16207101aec82007a5e55fa9b6407 -- src/wanctl/steering/` to Task 04-05 (expected empty).
+2. **Invariant 3 scope narrowing should be explicit in methodology.** State that invariant 3 is "no daemon-side write to spectrum_state.json during run_cycle()." The clean-restart issue remains a measurement-authority concern tracked under `restart_persistence_verdict`.
+3. **Stat-delta detection edge cases.** `mtime_ns`/`st_size` can miss same-size/same-timestamp writes on coarse-mtime filesystems. Add `st_ctime_ns` and/or content hash to the detection.
+
+### Cycle 4 — Outstanding LOWs
+
+1. Default-flip on `fixture_paths()` is broader than necessary; explicit pass-through in `run_all()` and tests would be tighter.
+2. Spine-evidence recomputation script is "optional"; committing it as a small helper would reduce future verification fragility.
+
+### Divergent Views
+
+None — single-reviewer cycle.
+
+### Cycle 4 Disposition
+
+Cycle 4 produced 1 HIGH. Plan 04 needs revision before execute-phase: either add the acceptance artifact (Task 04-04 step or new Task 04-06) or explicitly accept that truth #9 stays gap-flagged after Plan 04 with a corresponding update to phase status messaging. The MEDIUMs are executor-hygiene items, with the steering-boundary assertion being the most important to add to the SAFE-12 check.
