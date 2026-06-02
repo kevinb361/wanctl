@@ -1,0 +1,23 @@
+{
+  "baseline_tag": "v1.39",
+  "baseline_commit": "d1c26de6fb284686caf32bebcd0e7c93c7c70476",
+  "source_tag": "v1.47",
+  "source_commit": "bee343b0c2f16207101aec82007a5e55fa9b6407",
+  "audit_head": "2fccf547f8f07fc9ed53f80b6055537c5ec05e9c",
+  "source_version": "1.45.0",
+  "audit_timestamp_utc": "2026-06-02T15:37:07Z",
+  "surface_files": [
+    "src/wanctl/steering/__init__.py",
+    "src/wanctl/steering/daemon.py",
+    "src/wanctl/steering/health.py",
+    "src/wanctl/steering/congestion_assessment.py",
+    "src/wanctl/steering/steering_confidence.py",
+    "src/wanctl/steering/cake_stats.py",
+    "src/wanctl/check_steering_validators.py",
+    "configs/steering.yaml",
+    "deploy/systemd/steering.service",
+    "src/wanctl/dashboard/widgets/steering_panel.py"
+  ],
+  "synthetic_v1_45_bucket": "v1.44..v1.46",
+  "rationale": "Phase 212 evidence identifies steering runtime 1.39.0 but no deployed-binary commit, so the v1.39 tag is the conservative baseline. The audit upper bound is pinned to the v1.47-peeled source-floor commit bee343b0c2f16207101aec82007a5e55fa9b6407, with audit_head recorded only for diagnostics."
+}
