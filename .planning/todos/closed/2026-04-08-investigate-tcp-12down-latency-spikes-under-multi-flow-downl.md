@@ -195,4 +195,4 @@ Narrower follow-up:
 
 ### Close-With-Prejudice Rule (CRITERIA-02, verbatim from REQUIREMENTS.md)
 
-> - [x] **CRITERIA-02**: Close-with-prejudice rule documented: if matrix verdict is again `ambiguous`, the folded `2026-04-08-investigate-tcp_12down` todo is closed-with-prejudice and no v1.48+ follow-up may reopen the thread without independent new evidence (e.g., a real production p99 incident captured in DB).
+> - [x] **CRITERIA-02**: Close-with-prejudice rule documented: if matrix verdict is again `ambiguous`, the folded `2026-04-08-investigate-tcp-12down` todo is closed-with-prejudice and no v1.48+ follow-up may reopen the thread without independent new evidence (e.g., a real production p99 incident captured in DB).
