@@ -26,7 +26,7 @@ Each requirement maps to exactly one phase. Operator-centric framing — deliver
 
 - [x] **PROOF-01**: Operator can run a steering replay or fixture harness offline that exercises the post-drift code against canonical pre-drift behavior captured from the running runtime.
 - [x] **PROOF-02**: Operator can reproduce the `2026-04-17-investigate-steering-degraded-on-clean-restart` symptom in the staging harness OR document a fail-closed reason why reproduction is not feasible (folded todo closes here either way).
-- [ ] **PROOF-03**: Operator can read evidence that staging steering behavior preserves the spine contract (binary on/off, only-new-connections rerouted, autorate-baseline-RTT-authoritative) across the replay corpus.
+- [x] **PROOF-03**: Operator can read evidence that staging steering behavior preserves the spine contract (binary on/off, only-new-connections rerouted, autorate-baseline-RTT-authoritative) across the replay corpus.
 
 ### Production Canary (CANARY)
 
@@ -83,9 +83,9 @@ Filled by the roadmapper 2026-06-02. All 11 REQ-IDs map cleanly. SAFE-12 is a cr
 | DRIFT-02 | Phase 222 | complete |
 | DRIFT-03 | Phase 222 | complete |
 | DRIFT-04 | Phase 222 | complete |
-| PROOF-01 | Phase 223 | not_started |
-| PROOF-02 | Phase 223 | not_started |
-| PROOF-03 | Phase 223 | not_started |
+| PROOF-01 | Phase 223 | complete |
+| PROOF-02 | Phase 223 | complete |
+| PROOF-03 | Phase 223 | complete |
 | CANARY-01 | Phase 224 | not_started |
 | CANARY-02 | Phase 224 | not_started |
 | CANARY-03 | Phase 224 | not_started |
@@ -95,4 +95,4 @@ Filled by the roadmapper 2026-06-02. All 11 REQ-IDs map cleanly. SAFE-12 is a cr
 
 ---
 
-_Last updated: 2026-06-02 — v1.48 roadmap created. Phase mapping complete (Phases 222–224); SAFE-12 cross-cutting._
+_Last updated: 2026-06-02 — Phase 223 staging proof completed; PROOF-01/02/03 complete and SAFE-12 cross-cutting remains passed._

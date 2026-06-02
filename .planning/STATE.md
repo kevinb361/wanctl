@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.48
 milestone_name: Steering Runtime Drift Closure
 status: executing
-stopped_at: Completed 223-02-PLAN.md
-last_updated: "2026-06-02T17:54:54.082Z"
+stopped_at: Completed 223-03-PLAN.md
+last_updated: "2026-06-02T18:12:00.000Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
-  percent: 33
+  completed_plans: 6
+  percent: 67
 ---
 
 # Session State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-02 after v1.47 milestone close)
 
 Phase: 223 (staging-proof-clean-restart-reproduction) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Complete — Phase 224 blocked unless clean-restart risk is fixed or explicitly accepted
 Last activity: 2026-06-02
 
 ## Deferred Items (carried into next milestone)
@@ -92,8 +92,8 @@ Items acknowledged at v1.47 milestone close 2026-06-02. v1.47 shipped 18/18 REQs
 
 ## Session Continuity
 
-Last session: 2026-06-02T17:54:54.050Z
-Stopped at: Completed 223-02-PLAN.md
+Last session: 2026-06-02T18:12:00.000Z
+Stopped at: Completed 223-03-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -122,6 +122,9 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 - [222-03]: Confirmed v1.47 peeled commit `bee343b0c2f16207101aec82007a5e55fa9b6407` as the SAFE-12 controller-path source floor.
 - [222-03]: SAFE-12 boundary verification requires both empty committed controller-path diff and clean staged/unstaged/untracked/porcelain dirty-tree state.
 - [223-01]: Selected FULL I/O SEAL option (a) for the replay harness; all `SteeringDaemon.run_cycle()` live-I/O seams are sealed through constructor injection, post-construction fake CAKE reader assignment, tempdir state, and urlopen/socket guards to preserve daemon-path fidelity without steering-source or controller-path mutation.
+- [223-02]: Classified the pre-enabled-rule clean restart fixture as `reproduced-bug`; steering remains effectively enabled through cycles 0–13 before recovery disables at cycle 14, so Phase 224 must not proceed unless a fix lands or operator accepts risk.
+- [223-03]: Reported restart persistence separately from the three spine invariants; the clean-restart symptom is authority/persistence drift, not a binary-state-shape violation.
+- [223-03]: SAFE-12 passed against v1.47 close `bee343b0c2f16207101aec82007a5e55fa9b6407` with Phase 222 schema compatibility and empty committed/staged/unstaged/untracked/porcelain controller-path checks.
 
 ## Decisions (v1.47)
 
@@ -179,3 +182,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 222 P03 | 4min 10s | 3 tasks | 3 files |
 | Phase 223 P01 | ~45 min | 4 tasks | 20 files |
 | Phase 223 P02 | 16 min | 3 tasks | 9 files |
+| Phase 223 P03 | 11 min | 2 tasks | 5 files |
