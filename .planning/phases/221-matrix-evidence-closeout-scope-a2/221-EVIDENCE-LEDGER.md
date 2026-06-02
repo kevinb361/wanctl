@@ -2,24 +2,25 @@
 phase: 221
 slug: matrix-evidence-closeout-scope-a2
 status_vocabulary:
-  - pending
-  - partial
-  - complete
-  - incomplete
-last_session_utc: '2026-06-01T20:03:19Z'
-completed_replicates: 18
+- pending
+- partial
+- complete
+- incomplete
+last_session_utc: '2026-06-02T12:22:14Z'
+completed_replicates: 54
 target_replicates: 54
 canonical_target: dallas
 supplemental_targets:
-  - vultr-dallas
-  - vultr-chicago
-canonical_complete: 2
+- vultr-dallas
+- vultr-chicago
+canonical_complete: 6
 supplemental_incomplete: 0
 quarantined_run_dirs:
-  - .planning/phases/220-matrix-runner-scope-a1/evidence/RUN-20260601T150527Z
+- .planning/phases/220-matrix-runner-scope-a1/evidence/RUN-20260601T150527Z
 duplicate_sidecars:
-  - .planning/phases/220-matrix-runner-scope-a1/evidence/dallas__spectrum__daytime__r1/phase220-cell.json
+- .planning/phases/220-matrix-runner-scope-a1/evidence/dallas__spectrum__daytime__r1/phase220-cell.json
 unexpected_cell_ids: []
+plan_03_ready_at_utc: '2026-06-02T12:22:14Z'
 ---
 
 # Phase 221 — Matrix Evidence Ledger
@@ -95,24 +96,24 @@ Rehearsal row substitutions: `last_replicate_utc` is `started_utc` from `.planni
 
 | cell_id | replicates | window | path | target | last_replicate_utc | mtr_pre_sha256 | mtr_post_flag | base_sha | status | notes |
 |---------|------------|--------|------|--------|--------------------|----------------|---------------|----------|--------|-------|
-| dallas__spectrum__off-peak | 0/3 | off-peak | spectrum | dallas | — | — | — | — | pending | canonical control |
+| dallas__spectrum__off-peak | 3/3 | off-peak | spectrum | dallas | 2026-06-02T06:05:53Z | 0a2054ab | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | canonical control; bgp-flagged |
 | dallas__spectrum__daytime | 3/3 | daytime | spectrum | dallas | 2026-06-01T18:39:35Z | 54e4d89a | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | r1 rehearsal + daytime r2-r3 canonical replicates; primary_driver details in Phase 220 sidecars; bgp-flagged |
-| dallas__spectrum__prime-time | 0/3 | prime-time | spectrum | dallas | — | — | — | — | pending | canonical control |
-| dallas__att__off-peak | 0/3 | off-peak | att | dallas | — | — | — | — | pending | canonical control |
+| dallas__spectrum__prime-time | 3/3 | prime-time | spectrum | dallas | 2026-06-02T00:05:53Z | 8268a981 | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | canonical control; bgp-flagged |
+| dallas__att__off-peak | 3/3 | off-peak | att | dallas | 2026-06-02T06:14:40Z | 8f43ba55 | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | canonical control; bgp-flagged |
 | dallas__att__daytime | 3/3 | daytime | att | dallas | 2026-06-01T18:48:24Z | d8a82bb7 | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | canonical control; bgp-flagged |
-| dallas__att__prime-time | 0/3 | prime-time | att | dallas | — | — | — | — | pending | canonical control |
-| vultr-dallas__spectrum__off-peak | 0/3 | off-peak | spectrum | vultr-dallas | — | — | — | — | pending | supplemental |
+| dallas__att__prime-time | 3/3 | prime-time | att | dallas | 2026-06-02T00:14:41Z | 62a300e8 | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | canonical control; bgp-flagged |
+| vultr-dallas__spectrum__off-peak | 3/3 | off-peak | spectrum | vultr-dallas | 2026-06-02T06:23:15Z | 9c552afa | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
 | vultr-dallas__spectrum__daytime | 3/3 | daytime | spectrum | vultr-dallas | 2026-06-01T19:32:14Z | 03f5fa17 | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
-| vultr-dallas__spectrum__prime-time | 0/3 | prime-time | spectrum | vultr-dallas | — | — | — | — | pending | supplemental |
-| vultr-dallas__att__off-peak | 0/3 | off-peak | att | vultr-dallas | — | — | — | — | pending | supplemental |
+| vultr-dallas__spectrum__prime-time | 3/3 | prime-time | spectrum | vultr-dallas | 2026-06-02T00:23:16Z | 55b939c5 | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
+| vultr-dallas__att__off-peak | 3/3 | off-peak | att | vultr-dallas | 2026-06-02T06:31:43Z | a649e5f3 | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
 | vultr-dallas__att__daytime | 3/3 | daytime | att | vultr-dallas | 2026-06-01T19:40:47Z | f0ad6009 | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
-| vultr-dallas__att__prime-time | 0/3 | prime-time | att | vultr-dallas | — | — | — | — | pending | supplemental |
-| vultr-chicago__spectrum__off-peak | 0/3 | off-peak | spectrum | vultr-chicago | — | — | — | — | pending | supplemental |
+| vultr-dallas__att__prime-time | 3/3 | prime-time | att | vultr-dallas | 2026-06-02T00:31:46Z | 78b35309 | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
+| vultr-chicago__spectrum__off-peak | 3/3 | off-peak | spectrum | vultr-chicago | 2026-06-02T06:40:12Z | e67144cf | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
 | vultr-chicago__spectrum__daytime | 3/3 | daytime | spectrum | vultr-chicago | 2026-06-01T19:49:20Z | 22f1dd6e | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
-| vultr-chicago__spectrum__prime-time | 0/3 | prime-time | spectrum | vultr-chicago | — | — | — | — | pending | supplemental |
-| vultr-chicago__att__off-peak | 0/3 | off-peak | att | vultr-chicago | — | — | — | — | pending | supplemental |
+| vultr-chicago__spectrum__prime-time | 3/3 | prime-time | spectrum | vultr-chicago | 2026-06-02T00:40:16Z | d99da8d8 | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
+| vultr-chicago__att__off-peak | 3/3 | off-peak | att | vultr-chicago | 2026-06-02T06:48:41Z | ed4630b7 | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
 | vultr-chicago__att__daytime | 3/3 | daytime | att | vultr-chicago | 2026-06-01T19:57:55Z | e5c80d3d | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
-| vultr-chicago__att__prime-time | 0/3 | prime-time | att | vultr-chicago | — | — | — | — | pending | supplemental |
+| vultr-chicago__att__prime-time | 3/3 | prime-time | att | vultr-chicago | 2026-06-02T00:48:46Z | fe6974dc | true | 50f3d5136830c284b190b29de939a84406531ecc | complete | supplemental; bgp-flagged |
 
 ## Evidence Durability Policy
 
