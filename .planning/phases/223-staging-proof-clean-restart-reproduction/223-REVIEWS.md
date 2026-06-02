@@ -525,3 +525,85 @@ None — single-reviewer cycle.
 ### Cycle 6 Disposition
 
 Cycle 6 produced **0 HIGHs**, satisfying the convergence loop's HIGH-zero requirement. However, the MEDIUM B fold is incomplete (vocabulary drift) and is severe enough to crash the Task 04-04 verifier in two of the three valid Plan 02 outcome paths. **Recommend one more surgical revision to close MEDIUM B vocabulary drift + Task 04-06 ordering**, then re-review at Cycle 7. If a strict HIGH-zero policy applies, Plan 04 is technically convergence-approved at Cycle 6, but the MEDIUM B defect would resurface as an execute-phase verifier failure if any future Plan 02 run produces `reproduced-intentional` or `not-reproducible`.
+
+---
+
+## Cycle 7 — Codex Review (Plan 04 revision post-6ee8766)
+
+**Scope:** Plan 04 only — revision committed at `6ee8766` (`docs(223-04): fold codex cycle 3 mediums`). Cycle 7 verifies the two Cycle 6 MEDIUMs (vocabulary drift in Task 04-04's cross-artifact verifier; Task 04-06 ordering brittleness) are now FULLY closed without regressing the Cycle 4 SAFE-12 closure or the Cycle 5 link-depth / link-resolver / daemon-write fingerprint closures. User-extended past the original max-cycles policy on the strength of two clean cycles of HIGH=0.
+
+### Cycle 7 Summary
+
+Both Cycle 6 MEDIUMs are fully closed. The verifier now uses the canonical Plan 02 outcome vocabulary, and Task 04-06 now executes before Task 04-04 inside a single ordered `<tasks>` block. SAFE-12 and Cycle 5 closures remain intact. No new HIGHs or MEDIUMs found.
+
+### Cycle 6 MEDIUM Closure Verdicts
+
+- **MEDIUM 1 (vocabulary drift): FULLY RESOLVED.** Task 04-04 now guards `outcome` against all three canonical values at `223-04-PLAN.md:512` and maps them correctly at `223-04-PLAN.md:516`. This matches Plan 02's vocabulary at `223-02-PLAN.md:188` and Plan 03's mapping at `223-03-PLAN.md:108-113`.
+
+- **MEDIUM 2 (task ordering): FULLY RESOLVED.** Task 04-06 now appears before Task 04-04 (`223-04-PLAN.md:329`, `223-04-PLAN.md:406`). The tasks are siblings in one `<tasks>` block (`223-04-PLAN.md:146`, `223-04-PLAN.md:608`). Executor sanity-check: `execute-plan.md` loads the plan as instructions (`execute-plan.md:151-153`) and processes "Per task" with a hard block before starting the next task (`execute-plan.md:173-181`). No task-level `<depends_on>` tag exists; only plan-level frontmatter exists at `223-04-PLAN.md:6`.
+
+### Cycle 4 HIGH (SAFE-12) Non-Regression
+
+**Intact.** Task 04-05 still requires `steering_daemon_clean: true` and `src/wanctl/steering/` byte-identical to baseline (`223-04-PLAN.md:564`). The verifier asserts `steering_daemon_clean`, `allowlist_paths`, and live `git diff ... -- src/wanctl/steering/` (`223-04-PLAN.md:582`, `223-04-PLAN.md:586-587`, `223-04-PLAN.md:596`). Acceptance criteria preserve the boundary at `223-04-PLAN.md:599-603`.
+
+### Cycle 5 MEDIUM Non-Regression
+
+**Intact.** Link depth remains three `../` at `223-04-PLAN.md:446` and is explained at `223-04-PLAN.md:448`. The link-existence verifier resolves markdown targets and asserts real files at `223-04-PLAN.md:474-495`. Daemon-write detection remains hardened with `st_mtime_ns`, `st_ctime_ns`, `st_size`, `st_ino`, and SHA-256 at `223-04-PLAN.md:210-221`, with verifier checks at `223-04-PLAN.md:235-238`.
+
+### New Concerns (Cycle 7)
+
+None.
+
+### Non-Issues Investigated
+
+A stale parenthetical remains in one acceptance-criteria bullet: `not-reproduced` at `223-04-PLAN.md:544` (Task 04-04's acceptance-criteria list, restating Codex MEDIUM B). The executable verifier is correct at `223-04-PLAN.md:512` and `223-04-PLAN.md:516`, so this is LOW editorial drift — the doc-bullet vocabulary did not get updated in lockstep with the verifier dict — not a MEDIUM. Current HEAD is `6ee8766`; working tree is clean.
+
+### Cycle 7 HIGH Count
+
+**0 unresolved HIGHs.**
+
+### Risk Assessment
+
+**Low** — the Cycle 6 defects were mechanical and are now closed without weakening SAFE-12 or prior verifier hardening.
+
+### Cycle 7 Disposition
+
+**Convergence-approved.** No further revision required for HIGH/MEDIUM closure. One LOW editorial cleanup (acceptance-criteria bullet vocabulary at `223-04-PLAN.md:544`) can be folded opportunistically — does not block execute-phase.
+
+---
+
+## Cycle 7 — Consensus Summary
+
+Single-reviewer cycle (Codex only). User-extended past the standard max-cycles policy because Cycles 5 and 6 had already reached HIGH=0; Cycle 7 closes out the two carryover MEDIUMs from Cycle 6 cleanly.
+
+### HIGH Count Transition
+
+| Cycle | HIGH count | Status |
+|-------|-----------|--------|
+| 1     | 3         | Initial — fake API, confidence timing, PROOF-02 keying |
+| 2     | 1         | Cycle 1 HIGHs all FULLY RESOLVED; one new HIGH (I/O seams) |
+| 3     | 0         | Cycle 2 HIGH FULLY RESOLVED; all 5 Cycle 2 MEDIUMs FULLY RESOLVED; 2 new MEDIUMs |
+| 4     | 1         | New HIGH on Plan 04 — Gap #1 closure mechanism does not satisfy verification language |
+| 5     | 0         | Cycle 4 HIGH FULLY RESOLVED via Task 04-06 acceptance artifact; all 3 Cycle 4 MEDIUMs FULLY RESOLVED; 2 new MEDIUMs (link defect, verify-block hardening) |
+| 6     | 0         | Cycle 5 MEDIUM A FULLY RESOLVED; Cycle 5 MEDIUM B PARTIALLY RESOLVED (vocabulary drift); 1 carryover MEDIUM (task ordering) |
+| 7     | 0         | Both Cycle 6 MEDIUMs FULLY RESOLVED (vocabulary + task ordering); 0 new HIGHs/MEDIUMs; 1 LOW editorial drift on acceptance-criteria bullet |
+
+**Convergence reached.** Three consecutive HIGH=0 cycles (5 → 6 → 7) with Cycle 7 also closing all outstanding MEDIUMs. No new HIGHs/MEDIUMs introduced by the cycle 6 → 7 revision.
+
+### Cycle 7 — Strengths
+
+- Vocabulary fix is mechanically complete: the verifier dict at `223-04-PLAN.md:516` covers all three canonical Plan 02 outcomes and the guard at `:512` rejects any out-of-vocabulary value with a clear failure message.
+- Task reorder is structurally sound: tasks are siblings under one `<tasks>` block and the executor processes them top-to-bottom with a hard acceptance-criteria gate between each task, so 04-06 producing the acceptance artifact before 04-04's link-existence verifier runs is guaranteed by file order alone.
+- SAFE-12 spine (`steering_daemon_clean`, allowlist inclusion of `src/wanctl/steering/`, live `git diff` assertion) and the Cycle 5 hardening (link-depth correctness, path-resolving verifier, daemon-write fingerprint) survive the cycle 6 → 7 edits without damage.
+
+### Cycle 7 — Outstanding LOW (non-blocking)
+
+1. **Acceptance-criteria bullet vocabulary drift.** `223-04-PLAN.md:544` still cites `not-reproduced ⇒ preserves` in the human-readable bullet, while the executable verifier at `:516` uses canonical `not-reproducible`. The verifier is authoritative; the bullet is documentation drift. Fold during execute-phase or in a trivial doc-only commit. Does not block.
+
+### Divergent Views
+
+None — single-reviewer cycle.
+
+### Cycle 7 Disposition
+
+Cycle 7 produced **0 HIGHs and 0 new MEDIUMs**. Both Cycle 6 MEDIUMs are FULLY RESOLVED. Plan 04 is **convergence-approved for execute-phase** with one LOW editorial cleanup that can be picked up opportunistically.
