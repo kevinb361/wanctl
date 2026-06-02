@@ -18,9 +18,9 @@ Each requirement maps to exactly one phase. Operator-centric framing — deliver
 ### Drift Audit (DRIFT)
 
 - [x] **DRIFT-01**: Operator can read a source-vs-runtime delta report listing every diff (file, line count, semantic category) between live steering daemon `1.39` and source `1.45`.
-- [ ] **DRIFT-02**: Operator can read a steering contract diff confirming the spine invariants (binary on/off, only-new-connections rerouted, autorate-baseline-RTT-authoritative) hold across all six unabsorbed milestones.
+- [x] **DRIFT-02**: Operator can read a steering contract diff confirming the spine invariants (binary on/off, only-new-connections rerouted, autorate-baseline-RTT-authoritative) hold across all six unabsorbed milestones.
 - [x] **DRIFT-03**: Operator can read a per-milestone change classification (behavior-changing / behavior-preserving / observability-only) covering every commit in the v1.40 → v1.45 range that touched steering source.
-- [ ] **DRIFT-04**: Operator can read explicit go / mitigate / no-go recommendation per finding, with rationale citing the contract diff.
+- [x] **DRIFT-04**: Operator can read explicit go / mitigate / no-go recommendation per finding, with rationale citing the contract diff.
 
 ### Staging Proof (PROOF)
 
@@ -79,10 +79,10 @@ Filled by the roadmapper 2026-06-02. All 11 REQ-IDs map cleanly. SAFE-12 is a cr
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| DRIFT-01 | Phase 222 | not_started |
-| DRIFT-02 | Phase 222 | not_started |
-| DRIFT-03 | Phase 222 | not_started |
-| DRIFT-04 | Phase 222 | not_started |
+| DRIFT-01 | Phase 222 | complete |
+| DRIFT-02 | Phase 222 | complete |
+| DRIFT-03 | Phase 222 | complete |
+| DRIFT-04 | Phase 222 | complete |
 | PROOF-01 | Phase 223 | not_started |
 | PROOF-02 | Phase 223 | not_started |
 | PROOF-03 | Phase 223 | not_started |

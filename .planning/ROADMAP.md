@@ -34,7 +34,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
 
 **Phase Numbering:** Continues from v1.47 last phase (221). v1.48 starts at Phase 222.
 
-- [ ] **Phase 222: Steering Drift Audit** — Read-only delta report, contract diff, per-milestone change classification, and per-finding go/mitigate/no-go recommendations covering live steering daemon `1.39` vs source `1.45`.
+- [x] **Phase 222: Steering Drift Audit** — Read-only delta report, contract diff, per-milestone change classification, and per-finding go/mitigate/no-go recommendations covering live steering daemon `1.39` vs source `1.45`. (completed 2026-06-02)
 - [ ] **Phase 223: Staging Proof + Clean-Restart Reproduction** — Offline replay/fixture harness exercising post-drift code against pre-drift behavior; reproduce or fail-closed-document the `steering-degraded-on-clean-restart` symptom; preserve spine contract across the replay corpus.
 - [ ] **Phase 224: Production Canary + Rollback Discipline** — Aligned steering daemon deployed with Snapshot-A-pattern pre-deploy snapshot, bounded rollback, post-deploy health-endpoint proof of version alignment and contract invariants, fail-closed rollback within bounded time budget.
 
@@ -51,7 +51,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
   3. Operator can read a per-milestone change classification (behavior-changing / behavior-preserving / observability-only) covering every commit that touched steering source.
   4. Operator can read explicit go / mitigate / no-go recommendation per finding, with rationale citing the contract diff.
   5. SAFE-12 verified at phase boundary: zero controller-path source diff vs v1.47 close (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion all byte-identical).
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 #### Phase 223: Staging Proof + Clean-Restart Reproduction
 
@@ -83,7 +83,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 222. Steering Drift Audit | 2/3 | In Progress|  |
+| 222. Steering Drift Audit | 3/3 | Complete   | 2026-06-02 |
 | 223. Staging Proof + Clean-Restart Reproduction | 0/? | Not started | — |
 | 224. Production Canary + Rollback Discipline | 0/? | Not started | — |
 
