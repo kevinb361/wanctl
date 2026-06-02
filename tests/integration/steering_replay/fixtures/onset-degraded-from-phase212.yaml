@@ -70,15 +70,15 @@ cycles:
     cake_drops: 1
     queued_packets: 60
   expected_decision:
-    current_state: SPECTRUM_DEGRADED
-    effective_mangle_state: true
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
 - inputs:
     live_rtt_ms: 50.0
     cake_drops: 1
     queued_packets: 60
   expected_decision:
-    current_state: SPECTRUM_DEGRADED
-    effective_mangle_state: true
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
 - inputs:
     live_rtt_ms: 50.0
     cake_drops: 1

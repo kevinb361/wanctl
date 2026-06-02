@@ -25,9 +25,14 @@ from wanctl.steering.daemon import (
     create_steering_state_schema,
 )
 
-from .fake_cake_reader import FakeCakeReader
-from .fake_live_rtt_source import FixtureBaselineLoader
-from .fake_router_transport import FakeRouterTransport
+try:
+    from .fake_cake_reader import FakeCakeReader
+    from .fake_live_rtt_source import FixtureBaselineLoader
+    from .fake_router_transport import FakeRouterTransport
+except ImportError:  # direct script import from replay_harness.py
+    from fake_cake_reader import FakeCakeReader  # type: ignore[no-redef]
+    from fake_live_rtt_source import FixtureBaselineLoader  # type: ignore[no-redef]
+    from fake_router_transport import FakeRouterTransport  # type: ignore[no-redef]
 
 PRODUCTION_ROOTS = (
     Path("/var/lib/wanctl"),
