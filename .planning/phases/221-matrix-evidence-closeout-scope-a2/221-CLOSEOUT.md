@@ -7,7 +7,7 @@ bgp_excluded_cells: ["vultr-chicago__spectrum__prime-time", "vultr-dallas__spect
 matrix_base_sha: 50f3d5136830c284b190b29de939a84406531ecc
 phase220_yaml_sha: 62f5532095f9c4e34fe485b3a0510ad26e3cf2ea
 aggregator_run_utc: 2026-06-02T12:28:27Z
-closeout_commit_for_todo: PENDING_PLAN_04_COMMIT
+closeout_commit_for_todo: 5bef67084ec7f738a7577e7ca2dae59c3acd0dda
 closeout_written_utc: 2026-06-02T12:30:57Z
 ---
 
@@ -187,7 +187,7 @@ Phase 214 daytime canonical dallas p99 was 606ms (verdict ambiguous); Phase 221 
 
 **Verdict applied:** carried_narrower_with_close_with_prejudice_rule
 **Todo file:** `.planning/todos/closed/2026-04-08-investigate-tcp-12down-latency-spikes-under-multi-flow-downl.md`
-**Closeout commit for todo move:** `PENDING_PLAN_04_COMMIT`
+**Closeout commit for todo move:** `5bef67084ec7f738a7577e7ca2dae59c3acd0dda`
 
 ### Close-With-Prejudice Rule (CRITERIA-02, verbatim from REQUIREMENTS.md)
 
