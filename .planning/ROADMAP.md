@@ -83,7 +83,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 222. Steering Drift Audit | 3/3 | Complete   | 2026-06-02 |
+| 222. Steering Drift Audit | 3/3 | Complete    | 2026-06-02 |
 | 223. Staging Proof + Clean-Restart Reproduction | 0/? | Not started | — |
 | 224. Production Canary + Rollback Discipline | 0/? | Not started | — |
 
