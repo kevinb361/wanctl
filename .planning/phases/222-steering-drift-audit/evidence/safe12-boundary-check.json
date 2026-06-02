@@ -49,5 +49,7 @@
     "untracked": [],
     "status_porcelain": []
   },
-  "passed": false
+  "passed": true,
+  "committed_clean": true,
+  "dirty_tree_clean": true
 }
