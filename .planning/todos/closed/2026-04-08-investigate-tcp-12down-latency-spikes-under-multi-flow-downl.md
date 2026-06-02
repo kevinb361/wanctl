@@ -7,6 +7,9 @@ files:
   - src/wanctl/wan_controller.py
   - src/wanctl/fusion_healer.py
   - src/wanctl/health_check.py
+closed_by_phase: 221
+verdict: carried_narrower_with_close_with_prejudice_rule
+close_with_prejudice: true
 ---
 
 ## Problem
@@ -179,3 +182,17 @@ Narrower follow-up:
 - require direct journal corroboration for reflector fail bursts or protocol divergence before attributing a future severe p99 run to reflector/protocol collapse
 - preserve the Phase 214 distinction between canonical matrix evidence and supplemental target/path evidence
 - do not close this todo from `/health.status=healthy`, `GREEN`, or one clean off-peak official run alone
+
+## Phase 221 Closeout
+
+**Verdict:** carried_narrower_with_close_with_prejudice_rule
+**Summary:** Phase 221 produced a post-BGP-overlay carried-narrower verdict under the close-with-prejudice rule; raw defect evidence became path-ambiguous under D-10 BGP exclusion or otherwise failed the locked corroboration branch.
+
+**Report:** See `.planning/phases/221-matrix-evidence-closeout-scope-a2/221-CLOSEOUT.md`
+**Matrix base_sha:** `50f3d5136830c284b190b29de939a84406531ecc`
+**Phase 220 YAML SHA:** `62f5532095f9c4e34fe485b3a0510ad26e3cf2ea`
+**Closeout written:** 2026-06-02T12:30:57Z
+
+### Close-With-Prejudice Rule (CRITERIA-02, verbatim from REQUIREMENTS.md)
+
+> - [x] **CRITERIA-02**: Close-with-prejudice rule documented: if matrix verdict is again `ambiguous`, the folded `2026-04-08-investigate-tcp_12down` todo is closed-with-prejudice and no v1.48+ follow-up may reopen the thread without independent new evidence (e.g., a real production p99 incident captured in DB).
