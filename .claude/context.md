@@ -99,6 +99,7 @@ Use these as the primary current docs:
 ## Current Validation Note
 
 - v1.47 Phase 221 Wave 0 adds `tests/test_phase221_mutation_boundary.py` as the SAFE-11 closeout guard: Phase 221 anchors to the `docs(phase-221): begin phase execution` marker, freezes Phase 220 scripts, and keeps the Phase 221 script allowlist empty while the evidence ledger/closeout artifacts evolve under `.planning/phases/221-matrix-evidence-closeout-scope-a2/`.
+- v1.47 Phase 221 Plan 02 reconciled the operator-run Phase 220 evidence ledger to 54/54 deduplicated valid replicates, latched Plan 03 readiness (`canonical_complete: 6`, `supplemental_incomplete: 0`), and intentionally left aggregation/reporting to Plan 03.
 - v1.47 Phase 221 Plan 01 completed the Wave 0 closeout metadata: `221-01-SUMMARY.md` records the marker/test/ledger commits, and `ROADMAP.md` / `STATE.md` now advance Phase 221 to Plan 02 of 4.
 - v1.46 Internet Quality Recovery is the active milestone. v1.45 shipped with VERIFY-01 explicitly deferred under D-04(b): Spectrum and ATT are running `1.45.0` healthy after Phase 211, but natural flapping evidence (`details.peak_transition_count > 30`) remains on the retained watch list for Phase 218-style closure.
 - v1.46 Phase 212 context is captured as a read-only production inventory/drift audit: classify live Spectrum/ATT/steering drift before tuning, redact sensitive config values in artifacts, and avoid production mutation unless an explicit operator approval gate is added later.
