@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.47
 milestone_name: Measurement Evidence Closure
 status: executing
-stopped_at: Completed 221-01-PLAN.md
-last_updated: "2026-06-01T18:27:16.933Z"
-last_activity: 2026-06-01
+stopped_at: Completed 221-02-PLAN.md
+last_updated: "2026-06-02T12:24:50.453Z"
+last_activity: 2026-06-02
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 12
-  completed_plans: 9
-  percent: 67
+  completed_plans: 10
+  percent: 83
 ---
 
 # Session State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-30 after v1.46 milestone close + v1.4
 ## Current Position
 
 Phase: 221 (matrix-evidence-closeout-scope-a2) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
-Last activity: 2026-06-01
+Last activity: 2026-06-02
 
 ## Phase Structure (v1.47)
 
@@ -123,8 +123,8 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ## Session Continuity
 
-Last session: 2026-06-01T18:27:09.734Z
-Stopped at: Completed 221-01-PLAN.md
+Last session: 2026-06-02T12:24:50.425Z
+Stopped at: Completed 221-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 
@@ -155,6 +155,7 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 - [220-03]: ATT egress validation is hard-fail by default; missing egress_signature exits 4 before curl and mismatched live egress exits 2.
 - [220-04]: Wet dallas/Spectrum daytime rehearsal reproduced the Phase 214 canonical anchor: verdict `ambiguous`, primary_driver `reflector_loss`, comparison `✓ MATCH`.
 - [220-04]: Phase 220 source-floor semantics are operator-facing and verified as protected-path drift checks against base_sha, not exact HEAD equality.
+- [221-02]: Plan 03 readiness latched after 54/54 deduplicated valid replicates, canonical_complete=6, supplemental_incomplete=0; aggregator remains deferred to Plan 03.
 
 ## Decisions (v1.46)
 
@@ -233,3 +234,4 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 | Phase 220 P03 | 6min | 2 tasks | 2 files |
 | Phase 220 P04 | checkpointed; wet rehearsal completed 2026-06-01 | 3 tasks | 8 files |
 | Phase 221 P01 | 5 min | 3 tasks | 3 files |
+| Phase 221 P02 | 3min | 3 tasks | 2 files |
