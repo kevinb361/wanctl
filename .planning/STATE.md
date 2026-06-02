@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.47
 milestone_name: Measurement Evidence Closure
 status: executing
-stopped_at: Completed 221-02-PLAN.md
-last_updated: "2026-06-02T12:24:50.453Z"
+stopped_at: Completed 221-03-PLAN.md
+last_updated: "2026-06-02T12:33:38.539Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 12
-  completed_plans: 10
-  percent: 83
+  completed_plans: 11
+  percent: 92
 ---
 
 # Session State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-30 after v1.46 milestone close + v1.4
 ## Current Position
 
 Phase: 221 (matrix-evidence-closeout-scope-a2) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-06-02
 
@@ -123,8 +123,8 @@ Items acknowledged and deferred at v1.46 milestone close 2026-05-30. v1.46 shipp
 
 ## Session Continuity
 
-Last session: 2026-06-02T12:24:50.425Z
-Stopped at: Completed 221-02-PLAN.md
+Last session: 2026-06-02T12:33:30.624Z
+Stopped at: Completed 221-03-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 
@@ -156,6 +156,8 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 - [220-04]: Wet dallas/Spectrum daytime rehearsal reproduced the Phase 214 canonical anchor: verdict `ambiguous`, primary_driver `reflector_loss`, comparison `✓ MATCH`.
 - [220-04]: Phase 220 source-floor semantics are operator-facing and verified as protected-path drift checks against base_sha, not exact HEAD equality.
 - [221-02]: Plan 03 readiness latched after 54/54 deduplicated valid replicates, canonical_complete=6, supplemental_incomplete=0; aggregator remains deferred to Plan 03.
+- [221-03]: Published `carried_narrower_with_close_with_prejudice_rule` as the authoritative post-D-10 BGP-overlay verdict while preserving raw `defect_located` `matrix_verdict` for audit.
+- [221-03]: D-10 BGP overlay excluded three BGP-flagged defect cells using the Phase 220 aggregator `matrix_verdict()` helper as the single source of verdict logic.
 
 ## Decisions (v1.46)
 
@@ -235,3 +237,4 @@ Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 | Phase 220 P04 | checkpointed; wet rehearsal completed 2026-06-01 | 3 tasks | 8 files |
 | Phase 221 P01 | 5 min | 3 tasks | 3 files |
 | Phase 221 P02 | 3min | 3 tasks | 2 files |
+| Phase 221 P03 | 5 min | 3 tasks | 3 files |
