@@ -35,7 +35,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
 **Phase Numbering:** Continues from v1.47 last phase (221). v1.48 starts at Phase 222.
 
 - [x] **Phase 222: Steering Drift Audit** — Read-only delta report, contract diff, per-milestone change classification, and per-finding go/mitigate/no-go recommendations covering live steering daemon `1.39` vs source `1.45`. (completed 2026-06-02)
-- [x] **Phase 223: Staging Proof + Clean-Restart Reproduction** — Offline replay/fixture harness exercising post-drift code against pre-drift behavior; reproduced the `steering-degraded-on-clean-restart` symptom and published spine / SAFE-12 evidence. (completed 2026-06-02)
+- [ ] **Phase 223: Staging Proof + Clean-Restart Reproduction** — Offline replay/fixture harness and evidence published, but verification found blocking gaps; Phase 224 remains blocked until gap closure or explicit operator risk acceptance.
 - [ ] **Phase 224: Production Canary + Rollback Discipline** — Aligned steering daemon deployed with Snapshot-A-pattern pre-deploy snapshot, bounded rollback, post-deploy health-endpoint proof of version alignment and contract invariants, fail-closed rollback within bounded time budget.
 
 ### Phase Details
@@ -84,7 +84,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 222. Steering Drift Audit | 3/3 | Complete    | 2026-06-02 |
-| 223. Staging Proof + Clean-Restart Reproduction | 3/3 | Complete    | 2026-06-02 |
+| 223. Staging Proof + Clean-Restart Reproduction | 3/3 | Gaps Found  | — |
 | 224. Production Canary + Rollback Discipline | 0/? | Not started | — |
 
 ### Coverage
