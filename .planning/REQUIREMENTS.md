@@ -36,7 +36,7 @@ Each requirement maps to exactly one phase. Operator-centric framing — deliver
 
 ### Safety Invariant (SAFE)
 
-- [ ] **SAFE-12**: Controller-path source (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) remains byte-identical to v1.47 close — zero diff verified at each v1.48 phase boundary.
+- [x] **SAFE-12**: Controller-path source (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) remains byte-identical to v1.47 close — zero diff verified at each v1.48 phase boundary.
 
 ---
 
@@ -89,7 +89,7 @@ Filled by the roadmapper 2026-06-02. All 11 REQ-IDs map cleanly. SAFE-12 is a cr
 | CANARY-01 | Phase 224 | not_started |
 | CANARY-02 | Phase 224 | not_started |
 | CANARY-03 | Phase 224 | not_started |
-| SAFE-12 | spans all v1.48 phases (222, 223, 224) | not_started |
+| SAFE-12 | spans all v1.48 phases (222, 223, 224) | complete |
 
 **Coverage:** 11/11 REQ-IDs mapped. No orphans. SAFE-12 listed on every phase's requirements line per cross-phase invariant precedent.
 
