@@ -1,0 +1,64 @@
+{
+  "files": [
+    {
+      "path": "src/wanctl/steering/__init__.py",
+      "added": 0,
+      "removed": 0,
+      "status": "unchanged"
+    },
+    {
+      "path": "src/wanctl/steering/daemon.py",
+      "added": 11,
+      "removed": 8,
+      "status": "modified"
+    },
+    {
+      "path": "src/wanctl/steering/health.py",
+      "added": 0,
+      "removed": 0,
+      "status": "unchanged"
+    },
+    {
+      "path": "src/wanctl/steering/congestion_assessment.py",
+      "added": 0,
+      "removed": 0,
+      "status": "unchanged"
+    },
+    {
+      "path": "src/wanctl/steering/steering_confidence.py",
+      "added": 0,
+      "removed": 0,
+      "status": "unchanged"
+    },
+    {
+      "path": "src/wanctl/steering/cake_stats.py",
+      "added": 0,
+      "removed": 0,
+      "status": "unchanged"
+    },
+    {
+      "path": "src/wanctl/check_steering_validators.py",
+      "added": 5,
+      "removed": 0,
+      "status": "modified"
+    },
+    {
+      "path": "configs/steering.yaml",
+      "added": 0,
+      "removed": 0,
+      "status": "unchanged"
+    },
+    {
+      "path": "deploy/systemd/steering.service",
+      "added": 0,
+      "removed": 0,
+      "status": "unchanged"
+    },
+    {
+      "path": "src/wanctl/dashboard/widgets/steering_panel.py",
+      "added": 0,
+      "removed": 0,
+      "status": "unchanged"
+    }
+  ]
+}
