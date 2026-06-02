@@ -1,5 +1,37 @@
 # Project Milestones: wanctl
 
+## v1.47 Measurement Evidence Closure (Shipped: 2026-06-02)
+
+**Delivered:** Bounded read-only evidence milestone. Scope D (ingestion-rate observability) shipped first per Pitfall 11 to support Phase 218 audit evidence regardless of v1.47 timing. Scope A (`tcp_12down` target/path sensitivity hypothesis) ran an 18-cell target × path × window matrix with pre-registered CRITERIA thresholds locked at Phase 220 plan time. The Phase 221 closeout published `carried_narrower_with_close_with_prejudice_rule` as the authoritative post-D-10-BGP-overlay verdict — raw aggregator returned `defect_located` on three supplemental Vultr cells, but the D-10 BGP overlay excluded those cells because BGP path drift contaminated them mid-run. Folded `2026-04-08-investigate-tcp-12down` todo closed with the CRITERIA-02 close-with-prejudice rule attached verbatim; no v1.48+ reopen permitted without independent new production evidence.
+
+**Phases completed:** 3 phases (219, 220, 221), 12 plans, 40 tasks
+**Phase 218 carried in parallel:** event-gated v1.45 VERIFY watch-list remains open (no synthetic event generation); INGEST-01..05 ingestion-rate tool now available as Phase 218 audit fallback enhancement vs the v1.44 Phase 208 CLI.
+
+**Final verdict on tcp_12down hypothesis:** `carried_narrower_with_close_with_prejudice_rule` (post-D-10 BGP overlay, authoritative). Raw aggregator: `defect_located`. Three BGP-contaminated cells (vultr-chicago/prime-time, vultr-dallas/daytime, vultr-dallas/prime-time on Spectrum) excluded by D-10 rule. CRITERIA-02 rule applied — close-with-prejudice locked in.
+
+**Key accomplishments:**
+
+1. **Phase 219 — Ingestion-Rate Observability (Scope D, D-first per Pitfall 11):** Additive `wanctl-history --ingestion-rate --by-table` and `--rolling=60,300,3600` flags with `schema_version: 1` envelope and per-snapshot staleness fields; `wanctl-operator-summary --digest` emits compact per-WAN ingestion-rate lines from the bucketed helper while preserving hard-red digest accounting and failure isolation; cron-callable `scripts/phase219_ingestion_digest.py` with atomic-write snapshot persistence + count-based retention. D-27 production cycle-budget evidence: `avg_ms=2.857`, `p99_ms=6.4` over 73,603 samples — out-of-band cron path stays within the 50ms control cycle budget.
+2. **Phase 220 — Matrix Runner (Scope A1):** Pre-registered 18-cell `scripts/phase220-matrix.yaml` with locked CRITERIA-01 thresholds, ATT egress signature, and `base_sha` source-floor anchor; stdlib + PyYAML cube aggregator with Mann-Whitney U (two-sided, normal approximation) + bootstrap 95% percentile CI (B=2000, seeded `random.Random`); per-cell wrapper composing Phase 213 capture and Phase 214 analyzer chain unchanged with hard-failing source-drift and ATT egress validation. Wet daytime dallas/Spectrum rehearsal reproduced the Phase 214 canonical anchor (`ambiguous`/`reflector_loss`/`✓ MATCH`).
+3. **Phase 221 — Matrix Evidence + Closeout (Scope A2):** 54/54 deduplicated valid replicates across 18 cells captured across multiple operator-driven days; Phase 221 SAFE-11 boundary guard plus 18-cell evidence ledger seeded with Phase 220 rehearsal replicate; closeout JSON + 11-section human-readable report with pre-/post-D-10-BGP-overlay verdict trace; folded `tcp_12down` todo closed with CRITERIA-02 close-with-prejudice rule attached verbatim and bidirectionally cited from `221-CLOSEOUT.md`.
+4. **SAFE-11 invariant held end-to-end:** Zero controller-path source diff (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) across all three phases. Expanded allowlist (`configs/`, `deploy/systemd/`, `scripts/`, `tests/fixtures/phase22*/`, `docs/`, additive `src/wanctl/history.py` for Scope D) honored at every phase boundary via mutation-boundary pytest. Stdlib-only mandate (no SciPy/NumPy/pandas) carried forward from Phase 214 D-10.
+5. **Read-only milestone closed cleanly:** No controller threshold/algorithm/CAKE/steering changes triggered by matrix results. Tuning explicitly deferred to v1.48+ after evidence isolates a cause.
+
+**Stats:**
+
+- 107 commits (`8c50309..613bec1`)
+- 522 files changed (+26,702 / -447 — mostly evidence fixtures + per-replicate matrix sidecars)
+- Source surface: 15 files changed (+3,361 / -28 across `src/`, `scripts/`, `tests/`, `docs/`)
+- 12 plans across 3 phases
+- Timeline: 2026-05-29 → 2026-06-02 (~5 days, plus multi-day operator-driven matrix execution window)
+- Git range: `chore: archive v1.46 milestone files` → `docs(phase-221): mark roadmap checklist complete`
+
+**Known deferred items at close:** 23 (carry-forward from v1.46 close 2026-05-30, no new v1.47 debt — see STATE.md "Deferred Items"). Categories: 1 debug-session index, 12 quick_task metadata-noise slugs, 5 todos (4 carry-forward + Phase 218 watch primary), 5 dormant seeds.
+
+**What's next:** v1.48 — TBD. Phase 218 stays open until a natural production DOCSIS flapping event produces a qualifying `peak_transition_count > 30` row. Folded `tcp_12down` todo CLOSED with close-with-prejudice (no v1.48+ reopen without independent new evidence). Candidate v1.48 scope inputs: steering runtime/source version-drift alignment (STEER-DRIFT-01, Phase 212 carry), Spectrum upload reclaim re-attempt with revised probe shape (RECLAIM-04), dormant SEEDs 005/006/007.
+
+---
+
 ## v1.46 Internet Quality Recovery (Shipped: 2026-05-30 — VERIFY-01/02 DEFERRED)
 
 **Delivered:** Evidence-first quality recovery across Spectrum, ATT, and steering. Production drift inventoried; experience baseline harness shipped; measurement-collapse classifier returned `ambiguous`/`reflector_loss` (severe loaded p99 NOT reproduced in official window); upload-reclaim canary tried ceiling 18→20, bounded VOID exhausted, Spectrum rolled back to 18; Phase 196 refractory thread closed as no-change/resolved-by-197; production cycle-budget profiled at 71,560 timing samples, profiling baseline todo closed as no-action. v1.45 VERIFY-01/02 carried forward to Phase 218 as event-gated watch-list.

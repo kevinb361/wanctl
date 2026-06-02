@@ -8,7 +8,26 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Recently Shipped-with-Deferral: v1.46 Internet Quality Recovery
+## Recently Shipped: v1.47 Measurement Evidence Closure
+
+**Shipped:** 2026-06-02 (Phases 219–221 complete; Phase 218 continues parallel as event-gated v1.45 VERIFY watch-list)
+
+**Delivered:** Bounded read-only evidence milestone. Scope D (ingestion-rate observability) shipped first per Pitfall 11 to support Phase 218 audit evidence regardless of v1.47 timing. Scope A (`tcp_12down` target/path sensitivity hypothesis) ran an 18-cell target × path × window matrix against pre-registered CRITERIA thresholds locked at Phase 220 plan time. The Phase 221 closeout published `carried_narrower_with_close_with_prejudice_rule` as the authoritative post-D-10-BGP-overlay verdict — raw aggregator returned `defect_located` on three supplemental Vultr cells, but the D-10 BGP overlay excluded those cells because BGP path drift contaminated them mid-run. Folded `2026-04-08-investigate-tcp-12down` todo closed with the CRITERIA-02 close-with-prejudice rule attached verbatim; no v1.48+ reopen permitted without independent new production evidence.
+
+**Key outcomes:**
+- **Phase 219 (Scope D, D-first per Pitfall 11)** — `wanctl-history --ingestion-rate --by-table` and `--rolling=60,300,3600` additive JSON envelope with `schema_version: 1` and per-snapshot staleness fields; `wanctl-operator-summary --digest` ingestion-rate block; cron-callable `scripts/phase219_ingestion_digest.py` with atomic-write snapshot persistence + count-based retention. D-27 production cycle-budget: `avg_ms=2.857`, `p99_ms=6.4` over 73,603 samples.
+- **Phase 220 (Scope A1)** — Pre-registered 18-cell `scripts/phase220-matrix.yaml` with locked CRITERIA-01 thresholds, ATT egress signature, and `base_sha` source-floor anchor; stdlib + PyYAML cube aggregator with Mann-Whitney U + bootstrap 95% percentile CI (B=2000, seeded); per-cell wrapper composing Phase 213/214 unchanged. Wet daytime dallas/Spectrum rehearsal reproduced the Phase 214 anchor (`ambiguous` / `reflector_loss` / `✓ MATCH`).
+- **Phase 221 (Scope A2)** — 54/54 deduplicated valid replicates across 18 cells captured over multi-day operator-driven windows; closeout JSON + 11-section report with pre-/post-D-10-BGP-overlay verdict trace; folded `tcp_12down` todo closed with CRITERIA-02 attached verbatim.
+- **SAFE-11 invariant held end-to-end** — zero controller-path source diff across `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion across all three phases. Expanded allowlist (`configs/`, `deploy/systemd/`, `scripts/`, `tests/fixtures/phase22*/`, `docs/`, additive `src/wanctl/history.py` for Scope D) honored at every phase boundary.
+- **Stdlib-only mandate** carried forward from Phase 214 D-10 — no SciPy/NumPy/pandas.
+
+**Carry-forward (parallel to next milestone):**
+- **Phase 218 (event-gated v1.45 VERIFY watch-list)** — VERIFY-01 / VERIFY-02 still event-gated on natural production DOCSIS flapping event with `details.peak_transition_count > 30`. **No synthetic event generation per ROADMAP constraint.** Plan only when qualifying evidence exists. INGEST-01..05 tool now available as Phase 218 audit fallback enhancement vs the v1.44 Phase 208 CLI as-is.
+
+<details>
+<summary>Archived v1.46 Internet Quality Recovery milestone (collapsed for brevity)</summary>
+
+### v1.46 Internet Quality Recovery (shipped-with-deferral 2026-05-30)
 
 **Shipped:** 2026-05-30 (Phases 212–217 complete; Phase 218 carried as event-gated v1.45 VERIFY watch-list)
 
@@ -22,24 +41,9 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - Phase 196 queue-primary refractory thread closed as no-change/resolved-by-197 with evidence cite.
 - Spectrum profiled at 50ms cycle interval: `cycle_total.avg_ms=2.883`, `cycle_total.p99_ms=6.9` over `71560` JSON Cycle samples; performance is **not** the quality limit.
 
-**Carry-forward (Phase 218):**
-- VERIFY-01 / VERIFY-02 event-gated on natural production DOCSIS flapping event with `details.peak_transition_count > 30` on either WAN. **No synthetic event generation per ROADMAP constraint.**
-- Phase 218 plans only when qualifying evidence exists; archives the retained v1.45 phase directories if VERIFY-01 + ALERT-03 pass.
+**v1.46 carry-forward (now also v1.47 carry):** VERIFY-01 / VERIFY-02 → Phase 218 event-gated.
 
-## Current Milestone: v1.47 Measurement Evidence Closure
-
-**Goal:** Confirm or kill the `tcp_12down` target/path sensitivity hypothesis left live by Phase 214 with evidence-first read-only analysis, and land an ingestion-rate observability tool that supports Phase 218 evidence audits.
-
-**Target features:**
-- `tcp_12down` target/path sensitivity matrix — deliberate matrix against the Phase 214 baseline to confirm or kill the Vultr Dallas/Chicago severe p99 (`745`/`651`ms) hypothesis.
-- Ingestion-rate observability tool — per-WAN `metrics.db` write-rate visibility integrated into existing operator surfaces, sized for Phase 218 audit evidence and routine ops.
-- Closeout decision report — explicit verdict (defect located, hypothesis killed, or carried-narrower with rationale); no production tuning unless evidence isolates a cause.
-
-**Key context (carried from v1.46 close 2026-05-30):**
-- Read-only until evidence isolates a cause. No threshold, CAKE, or steering policy changes without measurement-resilience proof.
-- Performance is NOT the quality limit (Phase 217: `cycle_total.avg_ms=2.883`, `p99=6.9` over `71,560` samples).
-- Phase 218 watch-list runs in parallel — not a v1.47 gate.
-- Joint Claude + Codex scope decision 2026-05-30. Deferred to v1.47+: steering runtime/source version-drift alignment, Spectrum upload reclaim re-attempt with revised probe shape, SEED-005/006/007.
+</details>
 
 <details>
 <summary>Archived v1.45 milestone goals (collapsed for brevity)</summary>
@@ -84,13 +88,14 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.47 Measurement Evidence Closure opened 2026-05-30 — joint Claude + Codex scope decision A (tcp_12down target/path sensitivity closure) + D (ingestion-rate observability); 3 phases planned. v1.46 shipped-with-deferral 2026-05-30 — Phases 212–217 complete; Phase 218 stays event-gated on a qualifying natural DOCSIS flapping event and runs in parallel with v1.47.
-**Tests:** Phase 220 verification passed 5/5 after the repaired wet rehearsal harness reproduced the Phase 214 dallas/Spectrum daytime anchor and the hot-path + Phase 220 regression slice passed `726 passed`. Phase 219 verification passed 5/5 after full regression `5238 passed, 14 skipped, 2 deselected` and production D-27 cycle-budget evidence (`avg_ms=2.857`, `p99_ms=6.4`). Phase 217 verification passed 12/12 after the production cycle-budget baseline; Phase 216 verification passed 11/11 after the no-change / resolved-by-197 refractory decision closeout; Phase 215 verification passed 25/25 after the approved Spectrum upload reclaim canary rolled back safely on bounded VOID; Phase 214 UAT passed 8/8; Phase 213 verification passed 15/15; Phase 212 verification passed 16/16; Phase 210 alerting suites and hot-path regression slice passing; Phase 211 SAFE-10 manual closeout passed against `21ee630` with `AWK_EXIT=0`.
-**LOC:** ~40,915 Python (src/)
-**Milestones:** 47 shipped or shipped-with-deferral (v1.0–v1.46); v1.47 active with Phases 219 and 220 complete.
-**Active milestone:** v1.47 Measurement Evidence Closure — 3 phases, evidence-first read-only, primary scope A + co-scoped D.
+**Version:** v1.47 Measurement Evidence Closure shipped 2026-06-02 — Phases 219/220/221 complete; tcp_12down hypothesis closed-with-prejudice post-D-10 BGP overlay; Phase 218 continues parallel as event-gated v1.45 VERIFY watch-list. v1.46 shipped-with-deferral 2026-05-30. **Next milestone:** TBD via `/gsd-new-milestone`.
+**Tests:** Phase 221 verification + closeout published `carried_narrower_with_close_with_prejudice_rule` (post-D-10 BGP overlay, authoritative); raw aggregator `defect_located` overlaid. Phase 220 verification passed 5/5 after the repaired wet rehearsal harness reproduced the Phase 214 dallas/Spectrum daytime anchor and the hot-path + Phase 220 regression slice passed `726 passed`. Phase 219 verification passed 5/5 after full regression `5238 passed, 14 skipped, 2 deselected` and production D-27 cycle-budget evidence (`avg_ms=2.857`, `p99_ms=6.4`). Phase 217 verification passed 12/12; Phase 216 verification passed 11/11; Phase 215 verification passed 25/25; Phase 214 UAT passed 8/8; Phase 213 verification passed 15/15; Phase 212 verification passed 16/16.
+**LOC:** ~40,915 Python (src/) — v1.47 source-surface delta was +3,361 / -28 across 15 files (additive observability + matrix tooling; zero controller-path mutation).
+**Milestones:** 48 shipped or shipped-with-deferral (v1.0–v1.47).
+**Active milestone:** none — next defined via `/gsd-new-milestone`. Phase 218 watch continues in parallel.
 
-**Latest:** v1.47 Phase 220 Matrix Runner (Scope A1) complete — canonical 18-cell target/path/window YAML with locked CRITERIA thresholds is in place; the stdlib/PyYAML aggregator handles fixture and live wrapper evidence; the wrapper composes Phase 213 capture with unchanged Phase 214 align/classify output; and the wet dallas/Spectrum daytime rehearsal matched the Phase 214 anchor (`ambiguous` / `reflector_loss`). No controller, threshold, CAKE, steering, RouterOS, or Phase 213/214 source behavior changed.
+**Latest:** v1.47 milestone complete — Phase 221 Matrix Evidence + Closeout (Scope A2) closed the folded `tcp_12down` todo with CRITERIA-02 close-with-prejudice rule attached verbatim; 54/54 deduplicated valid replicates across 18 target/path/window cells; D-10 BGP overlay flipped raw `defect_located` to `carried_narrower_with_close_with_prejudice_rule` because three Spectrum supplemental Vultr cells were BGP-path-contaminated mid-run. No controller, threshold, CAKE, steering, RouterOS, or Phase 213/214 source behavior changed.
+**Previous:** v1.47 Phase 220 Matrix Runner (Scope A1) complete — canonical 18-cell target/path/window YAML with locked CRITERIA thresholds; stdlib/PyYAML aggregator handles fixture and live wrapper evidence; wrapper composes Phase 213 capture with unchanged Phase 214 align/classify output; wet dallas/Spectrum daytime rehearsal matched the Phase 214 anchor (`ambiguous` / `reflector_loss`).
 **Previous:** v1.47 Phase 219 Ingestion-Rate Observability complete — `wanctl-history --ingestion-rate` now has additive `--by-table` and `--rolling` Phase 219 JSON envelope modes, `wanctl-operator-summary --digest` emits ingestion-rate lines, and `scripts/phase219_ingestion_digest.py` persists cron-callable snapshots with atomic writes and count-based retention. Production D-27 verified the deployed snapshot path during a 73,603-sample profiling window with `cycle_total.avg_ms=2.857` and `p99_ms=6.4`; the profiling override was reverted and `wanctl@spectrum` returned to the normal ExecStart.
 **Previous:** v1.46 Phase 217 Production Cycle-Budget Baseline complete — Spectrum `1.45.0` was profiled with a validated live journal streaming capture after a pilot and short rehearsal; `71560` cycle records produced `cycle_total.avg_ms=2.883`, `cycle_total.p99_ms=6.9`, and dominant category `logging_metrics=8.26%`. The profiling todo is closed as no-action, performance work is deprioritized in favor of quality/tuning work, and the JSON collector now fails closed if `autorate_cycle_total` samples are absent.
 **Previous:** v1.46 Phase 216 Recovery/Refractory Decision complete — the Phase 196 queue-primary refractory semantics thread is closed as `no-change / resolved-by-197`; Phase 197 replay tests are the semantic proof, Phase 213 only shows no current symptom, and RECOV-03 is satisfied only as a no-change gate/waiver rather than a basis for future tuning. No control-path code, YAML config, systemd unit, script, test, RouterOS surface, or production service was changed.
@@ -156,8 +161,9 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 </details>
 
-## Recently Archived / Shipped: v1.39, v1.41, v1.42, v1.43, v1.44, v1.45, v1.46
+## Recently Archived / Shipped: v1.39, v1.41, v1.42, v1.43, v1.44, v1.45, v1.46, v1.47
 
+- **v1.47 Measurement Evidence Closure** (shipped 2026-06-02; 3 phases, 12 plans, 40 tasks; tcp_12down closed with close-with-prejudice rule per CRITERIA-02 post-D-10 BGP overlay) — `.planning/milestones/v1.47-ROADMAP.md`
 - **v1.46 Internet Quality Recovery** (shipped-with-deferral 2026-05-30, VERIFY-01/02 deferred to Phase 218 event-gated watch-list; 6 phases, 21 plans, 42 tasks) — `.planning/milestones/v1.46-ROADMAP.md`
 - **v1.45 Flapping Peak-Counter Window Repair** (shipped-with-deferral 2026-05-27, VERIFY-01 deferred → rolled into v1.46 Phase 218; archived 2026-05-30 alongside v1.47 open) — `.planning/milestones/v1.45-phases/211-production-verification-milestone-closure/211-03-SUMMARY.md`
 - **v1.44 Topology-Correct CAKE — Spectrum besteffort wash migration** (shipped 2026-05-26, audit `passed` 16/16 after 206 restamp) — `.planning/milestones/v1.44-ROADMAP.md`
@@ -506,6 +512,15 @@ thresholds or steering behavior.
 - ✓ PERF-01..03 — Production-safe JSON cycle-budget capture with stdlib NDJSON parser; operator-gated Spectrum profiling window captured `71,560` JSON Cycle records (`cycle_total.avg_ms=2.883`, `p99=6.9ms`); dominant category `logging_metrics=8.26%`; profiling baseline todo **closed as no-action** — performance is not the quality limit — Phase 217
 - ◐ VERIFY-01/02 — Deferred to Phase 218 (event-gated; carried forward from v1.45 + extended to ALERT-03 per-`cooldown_sec` bucket audit)
 
+**v1.47 Measurement Evidence Closure (shipped 2026-06-02, 18/18 v1.47 REQ-IDs satisfied):**
+
+- ✓ INGEST-01..05 — Per-WAN per-table SQLite ingestion-rate observability: `wanctl-history --ingestion-rate --by-table` and `--rolling=60,300,3600` additive flags with `schema_version: 1` envelope and per-snapshot staleness fields (`_snapshot_unix`, `_snapshot_age_sec`); `wanctl-operator-summary --digest` ingestion-rate block; cron-callable `scripts/phase219_ingestion_digest.py` with atomic-write snapshot persistence + count-based retention. D-27 production cycle-budget: `avg_ms=2.857`, `p99_ms=6.4` over 73,603 samples — Phase 219
+- ✓ CRITERIA-01..02 — Pre-registered kill criteria + defect criteria written into `220-CONTEXT.md` before any live matrix cell run; close-with-prejudice rule documented and locked at Phase 220 plan time, never edited after first live run — Phase 220
+- ✓ MATRIX-01..04 — 18-cell `scripts/phase220-matrix.yaml` with canonical Phase 214 `dallas` control cell in every window, supplemental Vultr Dallas + Vultr Chicago, Spectrum + ATT path axis, off-peak + daytime + prime-time window axis, `base_sha` source-floor anchor; per-cell wrapper composes Phase 213 + Phase 214 unchanged; source-bind + egress IP verification per cell — Phase 220
+- ✓ AGGREGATE-01..03 — Stdlib + PyYAML cube aggregator with replicate-aware verdicts, Mann-Whitney U (two-sided, normal approximation), and bootstrap 95% percentile CI (B=2000, seeded `random.Random`); canonical control cell never aggregated with supplemental cells; pinned `.flent.gz` fixtures + golden p-values/CI bounds — Phase 220
+- ✓ CLOSEOUT-01..03 — `221-CLOSEOUT.md` published `carried_narrower_with_close_with_prejudice_rule` as authoritative post-D-10-BGP-overlay verdict; per-cell verdict table + matrix-level verdict + per-driver attribution; folded `2026-04-08-investigate-tcp-12down` todo closed with CRITERIA-02 rule attached verbatim; bidirectional commit-SHA-anchored cross-cite — Phase 221
+- ✓ SAFE-11 — Mutation-boundary pytest enforced expanded allowlist (`configs/`, `deploy/systemd/`, `scripts/`, `tests/fixtures/phase22*/`, `docs/`, additive `src/wanctl/history.py`) at every phase boundary across all three phases; zero controller-path source diff — Phases 219, 220, 221
+
 ### Active
 
 (none — next milestone to be defined via `/gsd-new-milestone`)
@@ -513,10 +528,8 @@ thresholds or steering behavior.
 ### Deferred
 
 - [ ] **VERIFY-01 / VERIFY-02 (v1.45 + v1.46)** — Phase 218 event-gated; needs natural production DOCSIS flapping event with `peak_transition_count > 30` on either WAN; no synthetic event generation per ROADMAP.
-- [ ] **tcp_12down target/path sensitivity (v1.46 carry)** — Phase 214 canonical Spectrum/Dallas matrix `ambiguous`/`reflector_loss` with severe loaded p99 NOT reproduced; supplemental Vultr Dallas/Chicago (p99 745/651ms) keep the hypothesis live for v1.47.
-- [ ] **Steering runtime/source version-drift alignment (v1.46 carry)** — Phase 212 surfaced runtime `1.39` vs source `1.45`; alignment pending operator approval.
-- [ ] **Spectrum upload reclaim re-attempt (v1.46 carry)** — Phase 215 bounded VOID exhausted at ceiling 20; revised gate / different probe shape for v1.47.
-- [ ] **Ingestion-rate observability tool (v1.46 carry)** — would improve metrics.db write-rate visibility for Phase 218 evidence audit.
+- [ ] **Steering runtime/source version-drift alignment (v1.46 carry → v1.48+)** — Phase 212 surfaced runtime `1.39` vs source `1.45`; alignment pending operator approval.
+- [ ] **Spectrum upload reclaim re-attempt (v1.46 carry → v1.48+)** — Phase 215 bounded VOID exhausted at ceiling 20; revised gate / different probe shape needed.
 - [ ] SSH connection pooling — Low ROI, REST API already optimal.
 - [ ] CAKE stats caching — Not needed, flash wear protection working.
 - [ ] Prometheus/Grafana export (OBSV-01..04) — Infrastructure not yet deployed; deferred from v1.23.
@@ -843,6 +856,11 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | v1.46 reclaim canary stops at first bounded VOID, no force-promote | Production control loop: a tested negative answer with rollback anchor beats unverified optimism | ✓ Spectrum rolled back to ceiling 18 after 3 ceiling-20 attempts; no quality reclaim claimed | 2026-05-30 |
 | Phase 218 (v1.45 + v1.46 VERIFY) deferred to event-gated watch | Synthetic event generation would invalidate the very metric VERIFY is designed to measure; production-side natural evidence is the only sound trigger | ✓ Encoded in ROADMAP as no-synthetic-generation rule | 2026-05-30 |
 | Codex consulted at v1.46 close on milestone-shape decision | Independent second opinion on whether to start v1.47 vs drain backlog vs stand by; Codex recommended A + tiny B housekeeping, matching primary analysis | ✓ Recorded in /gsd-progress conversation; v1.47 path chosen | 2026-05-30 |
+| v1.47 spine: D-first (ingestion-rate) → A1 (matrix runner) → A2 (matrix evidence + closeout) | Scope D ships first per Pitfall 11 to support Phase 218 audit evidence regardless of v1.47 timing; A1 lands pre-registered CRITERIA + harness before any operator-driven evidence collection in A2 | ✓ All 3 phases shipped; 18/18 REQs satisfied; tcp_12down closed with close-with-prejudice | 2026-06-02 |
+| v1.47 pre-registered CRITERIA thresholds locked at Phase 220 plan time | Prevents Pitfall 2 (threshold-after-data bias); thresholds written into `220-CONTEXT.md` before any live cell run, never edited after | ✓ Encoded in CRITERIA-01; YAML SHA replay anchor in closeout report | 2026-06-02 |
+| D-10 BGP overlay applied to raw matrix verdict | BGP path drift mid-run contaminates supplemental Vultr cells; raw aggregator `defect_located` on three cells is not a valid defect locator if the network underneath was a moving target | ✓ Authoritative post-overlay verdict published in `221-CLOSEOUT.md`; raw verdict preserved for audit | 2026-06-02 |
+| Close-with-prejudice rule applied to tcp_12down folded todo | Prevents Pitfall 2's degenerate "carried-narrower forever" outcome; carrying a hypothesis without a forcing function is not closure | ✓ CRITERIA-02 attached verbatim to folded todo; no v1.48+ reopen without independent new production evidence (e.g., real production p99 incident captured in DB) | 2026-06-02 |
+| v1.47 read-only milestone — no controller mutation triggered by matrix results | Tuning under unverified evidence re-confounds the very signal the matrix was designed to measure; v1.47 may recommend, never implement | ✓ Encoded as SAFE-11 milestone invariant; zero controller-path source diff across all three phases | 2026-06-02 |
 
 ## Evolution
 
@@ -865,4 +883,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-05-30 — Phase 219 completed the v1.47 ingestion-rate observability tool with production D-27 cycle-budget evidence. v1.47 continues to Phase 220 matrix runner (Scope A1). Read-only posture remains until evidence isolates a cause. Phase 218 watch-list continues event-gated in parallel. Steering version-drift alignment (B), Spectrum upload reclaim re-attempt (C), and SEED-005/006/007 (E/F/G) deferred to v1.47+._
+_Last updated: 2026-06-02 — v1.47 Measurement Evidence Closure shipped. 18-cell target/path/window matrix executed across 54/54 deduplicated valid replicates; D-10 BGP overlay flipped raw `defect_located` to authoritative `carried_narrower_with_close_with_prejudice_rule`. Folded tcp_12down todo closed with CRITERIA-02 close-with-prejudice rule attached verbatim. Phase 219 ingestion-rate observability + Phase 220 matrix runner + Phase 221 closeout all complete; SAFE-11 invariant held end-to-end. Phase 218 (v1.45 VERIFY watch-list) continues event-gated in parallel. Steering version-drift alignment (STEER-DRIFT-01) and Spectrum upload reclaim re-attempt (RECLAIM-04) carried to v1.48+. Next milestone TBD via `/gsd-new-milestone`._
