@@ -8,6 +8,7 @@
 | onset-degraded | hysteresis-only | 15 | False | SPECTRUM_DEGRADED | matches | All expected decisions matched and no live I/O escaped the harness. |
 | recovery | hysteresis-only | 20 | True | SPECTRUM_GOOD | matches | All expected decisions matched and no live I/O escaped the harness. |
 | steady-good | hysteresis-only | 10 | False | SPECTRUM_GOOD | matches | All expected decisions matched and no live I/O escaped the harness. |
+| clean-restart-degraded | hysteresis-only | 35 | True | SPECTRUM_GOOD | observe | reproduced-bug: effective_steering remained true during recovery-window cycles [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] from pre-enabled boot rule; this violates the binary-on/off + autorate-baseline-authoritative spine contract because persisted DEGRADED kept traffic effectively steered before fresh GOOD-consistent measurements recovered the daemon at cycle 14. |
 
 ## I/O Seal Audit
 
@@ -17,3 +18,4 @@
 - **onset-degraded**: baseline_rtt, cake_stats, live_rtt, state_save
 - **recovery**: baseline_rtt, cake_stats, live_rtt, state_save
 - **steady-good**: baseline_rtt, cake_stats, live_rtt, state_save
+- **clean-restart-degraded**: baseline_rtt, cake_stats, live_rtt, state_save

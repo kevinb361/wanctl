@@ -29,3 +29,13 @@ Low priority. Understanding-level work, not a bug report.
 Live snapshot of `/var/lib/wanctl/steering_state.json` at 2026-05-26: `current_state":"SPECTRUM_GOOD","good_count":0`. State file is in healthy `GOOD` at observation moment — no active DEGRADED persistence to inspect right now. Cannot passively verify the restart-DEGRADED hypothesis without a controlled restart while the daemon is in `SPECTRUM_DEGRADED`, which is rare and operator-disruptive to stage.
 
 Keeping as low-pri observation work. Closes either when (a) we happen to catch a restart during a real DEGRADED period and capture state-file pre/post, or (b) someone explicitly stages the test.
+
+## PROOF-02 Closure (Phase 223)
+
+- **Closure date:** 2026-06-02
+- **Outcome:** `reproduced-bug`
+- **Rationale:** effective_steering remained true during recovery-window cycles [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] from pre-enabled boot rule; this violates the binary-on/off + autorate-baseline-authoritative spine contract because persisted DEGRADED kept traffic effectively steered before fresh GOOD-consistent measurements recovered the daemon at cycle 14.
+- **Evidence:** `.planning/phases/223-staging-proof-clean-restart-reproduction/evidence/clean-restart-reproduction.md`
+- **Corpus row:** `.planning/phases/223-staging-proof-clean-restart-reproduction/evidence/replay-results.md`
+- **Closure status:** Resolved by Phase 223 PROOF-02 annotation; todo remains in `pending/` for operator-controlled archival.
+- **Fix held against Phase 224 pre-canary gate or follow-up phase — NOT landing in v1.48 Phase 223.**
