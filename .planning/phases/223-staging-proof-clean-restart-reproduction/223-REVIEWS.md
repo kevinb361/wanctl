@@ -1,16 +1,18 @@
 ---
 phase: 223
 reviewers: [codex]
-reviewed_at: 2026-06-02T20:48:23Z
-cycles: [1, 2, 3, 4, 5]
+reviewed_at: 2026-06-02T21:01:10Z
+cycles: [1, 2, 3, 4, 5, 6]
 cycle_1_reviewed_at: 2026-06-02T16:21:21Z
 cycle_2_reviewed_at: 2026-06-02T16:42:11Z
 cycle_3_reviewed_at: 2026-06-02T17:09:46Z
 cycle_4_reviewed_at: 2026-06-02T20:28:46Z
 cycle_5_reviewed_at: 2026-06-02T20:48:23Z
+cycle_6_reviewed_at: 2026-06-02T21:01:10Z
 plans_reviewed: [223-01-PLAN.md, 223-02-PLAN.md, 223-03-PLAN.md, 223-04-PLAN.md]
 cycle_4_focus: 223-04-PLAN.md (gap closure; plans 01-03 post-execution and out of scope)
 cycle_5_focus: 223-04-PLAN.md revision after a12e3a0 (Cycle 4 HIGH + 3 MEDIUMs)
+cycle_6_focus: 223-04-PLAN.md revision after 4262c75 (Cycle 5 MEDIUMs A+B folded into Task 04-04 verifier)
 ---
 
 # Cross-AI Plan Review — Phase 223
@@ -426,3 +428,100 @@ None — single-reviewer cycle.
 ### Cycle 5 Disposition
 
 Cycle 5 produced 0 HIGHs. **Plan 04 revision is convergence-approved for execute-phase.** The two outstanding MEDIUMs are mechanical fixes — pickup either as a small plan amendment or as executor-hygiene items during execute-phase. The Plan 04 sub-loop closed cleanly: Cycle 4 (1 HIGH) → Cycle 5 (0 HIGHs).
+
+---
+
+## Cycle 6 — Codex Review (Plan 04 revision post-4262c75)
+
+**Scope:** Plan 04 only — revision committed at `4262c75` (`docs(223-04): fold cycle 5 MEDIUMs into Task 04-04 verifier`). Cycle 6 verifies the two Cycle 5 MEDIUMs (broken markdown link depth; restart-persistence verdict not hard-verified) are actually closed without introducing new HIGHs or regressing the Cycle 4 SAFE-12 closure. Plans 01-03 remain post-execution and out of scope.
+
+### Cycle 6 Summary
+
+Plan 04 at `4262c75` closes MEDIUM A mechanically. MEDIUM B is only **partially closed**: the new cross-artifact consistency verifier uses `not-reproduced`, while Plan 02 / Plan 03 / Task 04-03 use the canonical vocabulary `reproduced-intentional | reproduced-bug | not-reproducible`. A valid `reproduced-intentional` or `not-reproducible` Plan 02 outcome would crash the Cycle 6 assertion. SAFE-12 non-regresses. No new HIGHs.
+
+### Cycle 5 MEDIUM Closure Verdicts
+
+- **MEDIUM A (broken relative markdown link): FULLY CLOSED.**
+  `223-04-PLAN.md:369` uses `../../../decisions/...`, the correct depth from `.planning/phases/223-.../evidence/spine-evidence.md` to `.planning/decisions/`. Prose at `:371` explains the depth correctly. The verifier at `:397-418` catches a `../../../../decisions/...` regression by resolving markdown link targets relative to `spine-evidence.md` and asserting existence. Handles anchors via `split('#', 1)` at `:410`, `./` prefixes through normal path resolution, and repo-root-style `/.planning/...` via `raw[1:]` at `:411-412`. Residual edges: only accepts inline `](...)` markdown links — HTML links / autolinks / ref-style would fail rather than silently pass (acceptable fail-closed behavior). Carry as LOW only: a wrong-depth link could pass if a real file also exists at the wrong resolved path (unlikely in this layout).
+
+- **MEDIUM B (restart-persistence verdict consistency): PARTIALLY CLOSED.**
+  Correct idea, wrong vocabulary. The new hard assertion at `223-04-PLAN.md:420-434` maps only `reproduced-bug → breaks` and `not-reproduced → preserves`. But Plan 02 defines `outcome` as one of `reproduced-intentional | reproduced-bug | not-reproducible` at `223-02-PLAN.md:188` (and verifies that vocabulary at `:219` and `:236`). Plan 03 maps `reproduced-intentional → preserves`, `reproduced-bug → breaks`, `not-reproducible → preserves` at `223-03-PLAN.md:108-113`. Task 04-03 repeats the same vocabulary at `223-04-PLAN.md:282-286`. A valid `reproduced-intentional` or `not-reproducible` outcome would crash the Cycle 6 assertion. Required fix:
+  ```python
+  expected = {
+      "reproduced-bug": "breaks",
+      "reproduced-intentional": "preserves",
+      "not-reproducible": "preserves",
+  }[outcome]
+  ```
+  Does fail closed on missing keys/wrong-shape JSON (KeyError, explicit assertions). Ordering OK: producer test runs at `223-04-PLAN.md:386` before cross-artifact check reads JSON at `:425-426`.
+
+### Cycle 4 HIGH (SAFE-12) Non-Regression
+
+**Intact.** `steering_daemon_clean` still specified at `223-04-PLAN.md:480`, asserted at `:498`. `src/wanctl/steering/` still in `allowlist_paths` at `:502-503`. Live `git diff` assertion remains at `:512`. Acceptance criteria preserve the boundary at `:515-519`.
+
+### New Concerns (Cycle 6)
+
+- **MEDIUM:** **MEDIUM B verifier vocabulary drift.** The new cross-artifact assertion uses non-canonical `not-reproduced` and omits the valid Plan 02 outcomes `reproduced-intentional` and `not-reproducible` (`223-04-PLAN.md:428-432` vs `223-02-PLAN.md:188`, `223-03-PLAN.md:108-113`). Fix is mechanical — extend the expected-map to all three canonical outcomes.
+
+- **MEDIUM:** **Task ordering still brittle.** Task 04-04's link resolver requires the Task 04-06 acceptance artifact to exist on disk, but 04-06 appears after 04-04 in the tasks block (`223-04-PLAN.md:329` task header for 04-04, `:524` task header for 04-06). The execute order must create 04-06 before 04-04's verification runs, or 04-06 should be moved earlier in the file. Not a new defect from this revision (was present before), but the new path-existence verifier elevates it from cosmetic to verifier-blocking.
+
+- **LOW:** **Link verifier fooled by coincident wrong-depth target.** A wrong-depth link could pass if a real file happens to exist at the wrong resolved path. Practically unlikely given the layout.
+
+- **LOW (from Cycle 5, still present):** `fixture_paths()` default flip is broader than necessary; spine-evidence recomputation helper remains optional/ad hoc. Neither elevated by this revision.
+
+### Non-Issues Investigated
+
+- **Verify-block syntax integrity:** the surgical edits did not break the `&&`-chained shell composition or the embedded Python heredoc structure. Both new Python blocks are properly terminated and quoted.
+- **Partial-regeneration failure modes:** if spine-evidence is regenerated but clean-restart-reproduction.json is stale (or vice versa), the cross-artifact assertion will surface the desync as an AssertionError with a regeneration hint — this is the intended fail-closed behavior.
+
+### Cycle 6 HIGH Count
+
+**0 unresolved HIGHs.**
+
+### Risk Assessment
+
+**Medium** — safety boundaries hold, but the MEDIUM B verifier can reject valid evidence (vocabulary drift) and the acceptance-artifact ordering is brittle now that path existence is checked. Both are mechanical fixes.
+
+### Cycle 6 Disposition
+
+**New revision required for MEDIUM B vocabulary fix** (one-line code change in the expected-map dict at `223-04-PLAN.md:428-432`). Task ordering also needs a small clarification (move Task 04-06 earlier, or add an explicit executor note that 04-06 must produce the acceptance artifact before 04-04's regeneration step runs). MEDIUM A is fully closed.
+
+---
+
+## Cycle 6 — Consensus Summary
+
+Single-reviewer cycle (Codex only).
+
+### HIGH Count Transition
+
+| Cycle | HIGH count | Status |
+|-------|-----------|--------|
+| 1     | 3         | Initial — fake API, confidence timing, PROOF-02 keying |
+| 2     | 1         | Cycle 1 HIGHs all FULLY RESOLVED; one new HIGH (I/O seams) |
+| 3     | 0         | Cycle 2 HIGH FULLY RESOLVED; all 5 Cycle 2 MEDIUMs FULLY RESOLVED; 2 new MEDIUMs |
+| 4     | 1         | New HIGH on Plan 04 — Gap #1 closure mechanism does not satisfy verification language |
+| 5     | 0         | Cycle 4 HIGH FULLY RESOLVED via Task 04-06 acceptance artifact; all 3 Cycle 4 MEDIUMs FULLY RESOLVED; 2 new MEDIUMs (link defect, verify-block hardening) |
+| 6     | 0         | Cycle 5 MEDIUM A FULLY RESOLVED; Cycle 5 MEDIUM B PARTIALLY RESOLVED (vocabulary drift); 1 carryover MEDIUM (task ordering) |
+
+**HIGH-level convergence holds.** 0 → 0 across the Plan 04 sub-loop's second iteration (Cycle 5 → Cycle 6). MEDIUM B did not close cleanly — needs one more mechanical revision before the verifier is sound.
+
+### Cycle 6 — Strengths
+
+- MEDIUM A (link depth + path-resolution verifier) lands cleanly with three-`../` correctness and a fail-closed Python resolver that catches the regression a substring grep would miss.
+- SAFE-12 boundary closure intact across the surgical edits — `steering_daemon_clean`, allowlist inclusion of `src/wanctl/steering/`, and the live `git diff` assertion all preserved.
+- Verify-block syntax integrity preserved across the new heredoc additions — no shell or Python quoting damage.
+- Failure mode for partial regeneration of the two Plan 02/03 artifacts is well-handled by the new cross-artifact assertion's actionable error message.
+
+### Cycle 6 — Outstanding MEDIUMs (carry into next revision)
+
+1. **MEDIUM B verifier vocabulary drift.** Extend the expected-map at `223-04-PLAN.md:428-432` to cover all three canonical Plan 02 outcomes (`reproduced-bug → breaks`, `reproduced-intentional → preserves`, `not-reproducible → preserves`). One-line fix to a dict literal.
+
+2. **Task 04-06 ordering.** Task 04-04's link-existence verifier now hard-requires Task 04-06's acceptance artifact on disk. Either move Task 04-06 before Task 04-04 in the file, or add an explicit executor note in Task 04-04 that 04-06 must run first.
+
+### Divergent Views
+
+None — single-reviewer cycle.
+
+### Cycle 6 Disposition
+
+Cycle 6 produced **0 HIGHs**, satisfying the convergence loop's HIGH-zero requirement. However, the MEDIUM B fold is incomplete (vocabulary drift) and is severe enough to crash the Task 04-04 verifier in two of the three valid Plan 02 outcome paths. **Recommend one more surgical revision to close MEDIUM B vocabulary drift + Task 04-06 ordering**, then re-review at Cycle 7. If a strict HIGH-zero policy applies, Plan 04 is technically convergence-approved at Cycle 6, but the MEDIUM B defect would resurface as an execute-phase verifier failure if any future Plan 02 run produces `reproduced-intentional` or `not-reproducible`.
