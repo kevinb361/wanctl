@@ -1,0 +1,86 @@
+name: cake-read-failure
+description: CAKE read failures preserve current state and do not flap steering.
+harness_mode: hysteresis-only
+cycle_budget_derivation:
+  mode: hysteresis-only
+  confidence_disabled: true
+  rationale: cycles chosen against simple hysteresis state machine; confidence controller
+    is bypassed via SteeringConfig.use_confidence_scoring=False
+corpus_source: synthesized-from-spine-contract
+derivation: binary on/off; CAKE-read soft failure preserves last state
+pre_state:
+  steering_pre_state:
+    current_state: SPECTRUM_GOOD
+    good_count: 0
+    red_count: 0
+    transitions: []
+    last_transition_time: null
+  autorate_state_by_cycle:
+    default:
+      ewma:
+        baseline_rtt: 25.0
+      congestion:
+        dl_state: GREEN
+cycles:
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+    cake_read_failures_min: 1
+  cake_stats: null
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+    cake_read_failures_min: 1
+  cake_stats: null
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+    cake_read_failures_min: 1
+  cake_stats: null
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
+- inputs:
+    live_rtt_ms: 25.5
+    cake_drops: 0
+    queued_packets: 0
+  expected_decision:
+    current_state: SPECTRUM_GOOD
+    effective_mangle_state: false
