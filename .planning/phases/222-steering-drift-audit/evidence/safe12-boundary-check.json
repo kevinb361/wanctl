@@ -11,7 +11,43 @@
     "src/wanctl/alert_engine.py",
     "src/wanctl/fusion_healer.py"
   ],
-  "per_path_diff": {},
-  "dirty_tree": {},
+  "per_path_diff": {
+    "src/wanctl/wan_controller.py": {
+      "added": 0,
+      "removed": 0,
+      "lines": []
+    },
+    "src/wanctl/queue_controller.py": {
+      "added": 0,
+      "removed": 0,
+      "lines": []
+    },
+    "src/wanctl/cake_signal.py": {
+      "added": 0,
+      "removed": 0,
+      "lines": []
+    },
+    "src/wanctl/backends/": {
+      "added": 0,
+      "removed": 0,
+      "lines": []
+    },
+    "src/wanctl/alert_engine.py": {
+      "added": 0,
+      "removed": 0,
+      "lines": []
+    },
+    "src/wanctl/fusion_healer.py": {
+      "added": 0,
+      "removed": 0,
+      "lines": []
+    }
+  },
+  "dirty_tree": {
+    "unstaged": [],
+    "staged": [],
+    "untracked": [],
+    "status_porcelain": []
+  },
   "passed": false
 }
