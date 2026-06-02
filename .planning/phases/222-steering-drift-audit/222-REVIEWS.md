@@ -1,11 +1,23 @@
 ---
 phase: 222
-reviewers: [codex]
-reviewed_at: 2026-06-02T15:13:14Z
-plans_reviewed:
-  - 222-01-PLAN.md
-  - 222-02-PLAN.md
-  - 222-03-PLAN.md
+cycles:
+  - cycle: 1
+    reviewers: [codex]
+    reviewed_at: 2026-06-02T15:13:14Z
+    highs_raised: 2
+    plans_reviewed:
+      - 222-01-PLAN.md
+      - 222-02-PLAN.md
+      - 222-03-PLAN.md
+  - cycle: 2
+    reviewers: [codex]
+    reviewed_at: 2026-06-02T15:32:59Z
+    replan_under_review: 247eca6
+    highs_remaining: 0
+    plans_reviewed:
+      - 222-01-PLAN.md
+      - 222-02-PLAN.md
+      - 222-03-PLAN.md
 ---
 
 # Cross-AI Plan Review — Phase 222
@@ -91,3 +103,59 @@ MEDIUM concerns worth incorporating:
 
 ### Divergent Views
 N/A — single reviewer. Re-run with additional CLIs to surface disagreement.
+
+---
+
+# Cycle 2 — Convergence Review
+
+**Reviewed at:** 2026-06-02T15:32:59Z
+**Reviewers:** [codex]
+**Replan under review:** commit `247eca6` ("docs(222): replan Plans 01 and 03 to address Codex HIGH concerns")
+**Plans changed since cycle 1:** 222-01-PLAN.md, 222-03-PLAN.md (222-02-PLAN.md untouched)
+
+## Codex Review — Cycle 2
+
+## Summary
+The replan fully closes both Cycle 1 HIGHs. Plan 222-01 now pins the audit endpoint to the literal v1.47-peeled SHA and treats `audit_head` as diagnostics only. Plan 222-03 now checks committed diff plus staged, unstaged, untracked, and porcelain dirty-tree state, with `passed = committed_clean AND dirty_tree_clean`. No new HIGHs found.
+
+## Cycle 1 HIGH #1 Verdict (floating source ref)
+- Status: FULLY RESOLVED
+- Evidence cite: `222-01-PLAN.md:21` pins `source_commit = bee343b0c2f16207101aec82007a5e55fa9b6407` and says `audit_head` is never used as the diff endpoint; `222-01-PLAN.md:109-110` acceptance requires the literal SHA and says it "MUST NOT be replaced with HEAD"; `222-01-PLAN.md:137` and `222-01-PLAN.md:165` require diff/log ranges use `<baseline_commit>..<source_commit>`, not `HEAD`.
+- Residual risk: None for the Cycle 1 HIGH.
+
+## Cycle 1 HIGH #2 Verdict (dirty-tree blind spot)
+- Status: FULLY RESOLVED
+- Evidence cite: `222-03-PLAN.md:114-125` adds unstaged, staged, untracked, and porcelain checks; `222-03-PLAN.md:135-139` acceptance requires all four dirty-tree arrays; `222-03-PLAN.md:155-161` computes and verifies `passed = committed_clean and dirty_tree_clean`; `222-03-PLAN.md:164-171` acceptance requires dirty-tree failure to block closure.
+- Residual risk: None for the Cycle 1 HIGH.
+
+## New HIGHs introduced this cycle
+- None.
+
+## Remaining MEDIUM / LOW concerns (optional)
+- LOW: Plan 222-02 remains semantically a little loose with `go` meaning "safe to proceed through the staged v1.48 pipeline," not "safe for immediate production." Not a HIGH because Phase 223/224 still gate staging/canary.
+
+## Final verdict
+CYCLE_2_RESULT: HIGHs_remaining=0
+
+---
+
+## Cycle 2 Consensus Summary
+
+Only Codex was invoked for this cycle (single-reviewer convergence check, same reviewer as cycle 1 to keep verdicts apples-to-apples against the cycle-1 findings).
+
+### Cycle 1 HIGHs — Resolution Status
+
+| # | Cycle-1 Concern | Plan | Cycle-2 Status |
+|---|-----------------|------|----------------|
+| 1 | Floating source ref (`HEAD` as audit upper bound) | 222-01 | **FULLY RESOLVED** — pinned to `bee343b…` (v1.47-peeled SHA); `audit_head` diagnostic-only; acceptance asserts literal SHA. |
+| 2 | Dirty-tree blind spot in SAFE-12 check | 222-03 | **FULLY RESOLVED** — HRDN-01 / SAFE-07 fail-closed pattern adopted; `passed = committed_clean AND dirty_tree_clean`; verify exits non-zero on any sub-check fail. |
+
+### New HIGHs Introduced by Replan
+None.
+
+### Remaining Non-HIGH Concerns
+- LOW (Plan 222-02 unchanged from cycle 1): `go` disposition semantics could be tighter (`go_to_staging` rather than "go"). Not a HIGH because Phase 223 (staging proof) and Phase 224 (canary + rollback) explicitly gate production touch; `go` from Phase 222 has no fast-path to production absorption in the v1.48 slicing.
+
+### Convergence Verdict
+**`current_high=0`** — both cycle-1 HIGHs FULLY RESOLVED, no new HIGHs introduced. Convergence loop may terminate; Phase 222 plans are ready for execution.
+
