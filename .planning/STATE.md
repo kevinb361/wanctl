@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.48
 milestone_name: Steering Runtime Drift Closure
 status: executing
-stopped_at: Completed 222-01-PLAN.md
-last_updated: "2026-06-02T15:43:27.866Z"
+stopped_at: Completed 222-03-PLAN.md
+last_updated: "2026-06-02T15:48:35.223Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -92,8 +92,8 @@ Items acknowledged at v1.47 milestone close 2026-06-02. v1.47 shipped 18/18 REQs
 
 ## Session Continuity
 
-Last session: 2026-06-02T15:43:00.492Z
-Stopped at: Completed 222-01-PLAN.md
+Last session: 2026-06-02T15:48:35.194Z
+Stopped at: Completed 222-03-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -116,6 +116,8 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 - [222-01]: Used v1.39 tag commit as conservative steering runtime baseline because Phase 212 did not identify a more precise deployed-binary commit.
 - [222-01]: Pinned all Plan 01 diff/log endpoints to v1.47-peeled source-floor commit `bee343b0c2f16207101aec82007a5e55fa9b6407`; audit_head is diagnostics only.
 - [222-01]: Classified `84ad6aa` as behavior-changing because it tightens RouterOS parsed-record handling and numeric RTT source acceptance in the steering decision path.
+- [222-03]: Confirmed v1.47 peeled commit `bee343b0c2f16207101aec82007a5e55fa9b6407` as the SAFE-12 controller-path source floor.
+- [222-03]: SAFE-12 boundary verification requires both empty committed controller-path diff and clean staged/unstaged/untracked/porcelain dirty-tree state.
 
 ## Decisions (v1.47)
 
@@ -169,3 +171,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 221 P03 | 5 min | 3 tasks | 3 files |
 | Phase 221 P04 | 4 min | 6 tasks | 4 files |
 | Phase 222 P01 | 4min 12s | 5 tasks | 7 files |
+| Phase 222 P03 | 4min 10s | 3 tasks | 3 files |
