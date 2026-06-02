@@ -19,7 +19,6 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PHASE_DIR = REPO_ROOT / ".planning/phases/221-matrix-evidence-closeout-scope-a2"
-ALLOWED_SRC_PATHS = []
 FORBIDDEN_SRC_PATHS = [
     "src/wanctl/wan_controller.py",
     "src/wanctl/queue_controller.py",
