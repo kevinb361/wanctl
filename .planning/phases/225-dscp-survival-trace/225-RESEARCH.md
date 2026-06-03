@@ -109,31 +109,121 @@ a bounded diagnostic probe.
 ## DSCP-03: the gated verdict (decision logic)
 
 The verdict is a deterministic function of the captured evidence, pre-registered here so it cannot
-be reverse-fitted:
+be reverse-fitted. This section was hardened after the cycle-1 Codex review (225-REVIEWS.md): the
+original draft said "if ANY" over AND-joined bullets (self-contradictory), left "meaningful" and
+"negligible" unquantified, had no minimum-sample floor, and had no defined branch for the case where
+the bridge nft counters do not exist. All of those are resolved below **before any capture runs**.
 
-**MARKS DO NOT SURVIVE (early-exit → v1.44 confirmed, milestone may close negative)** if ANY:
-- Bridge `ip dscp set` rule counters (ef/af41/cs1) are negligible under representative load
-  (essentially all DL traffic falls through to BestEffort), AND
-- The deliberately-marked EF probe does NOT arrive with its DSCP intact at the `spec-router` /
-  `spec-modem` CAKE enqueue interface (mark zeroed/stripped upstream of CAKE).
+### Evidence channels (each tagged with a validity state)
 
-→ Conclusion: "diffserv4 remains classification theater — v1.44 confirmed." `diffserv4 wash` would
-classify near-100% into BestEffort exactly as v1.44 found. Phases 226–228 do not run.
+The verdict consumes four direction-split evidence channels. Each channel resolves to one of
+`valid` / `invalid` / `unknown`. A channel that is `invalid` or `unknown` is NEVER silently read as
+a negative signal.
 
-**MARKS DO SURVIVE (proceed → unblock Phase 226)** if:
-- Bridge rule counters show meaningful non-BestEffort marking under representative load, AND/OR
-- The deliberately-marked EF probe arrives with DSCP intact at the CAKE enqueue interface.
+1. **`bridge_counter_signal`** (DL marking, from 225-01 `bridge-mark-counters.txt`).
+   - **CRITICAL — counters may not exist.** The checked-in `deploy/nftables/bridge-qos.nft` rules
+     (`ip dscp set ef|af41|cs1` at L42, L47-49, L53-85, L96, L99-122) carry **no explicit `counter`
+     statement** (verified by Codex and re-verified against the repo). `nft list table bridge qos`
+     may therefore emit no per-rule counters. **Counter ABSENCE maps to
+     `bridge_counter_signal=unknown`, NEVER `negligible`.** 225-01 must emit
+     `COUNTERS_AVAILABLE=true|false` and `COUNTER_MODE=delta|snapshot|unavailable`.
+   - If counters ARE present, the signal must be a **before/after delta over a bounded window**
+     (`COUNTER_MODE=delta`), not a single cumulative snapshot (a snapshot is stale state, not a load
+     measurement). A snapshot-only read is `COUNTER_MODE=snapshot` and is treated as `unknown` for
+     verdict purposes (insufficient to prove a load level).
+2. **`dl_ef_probe`** (DL survival, from 225-02). EF (DSCP 46) survival to the **`spec-router` CAKE
+   enqueue point** on a DL-direction probe that exercises the CRS/Ruckus/bridge classification path.
+3. **`ul_ef_probe`** (UL survival, from 225-02). EF survival to the **`spec-modem` CAKE enqueue
+   point** on a UL probe sourced from cake-shaper. NOTE: a UL probe only proves a local mark reaches
+   spec-modem — it does **not** exercise the DL CRS/Ruckus/bridge path the milestone re-evaluates,
+   so `ul_ef_probe` alone can NEVER drive the negative branch and can NEVER, by itself, unblock a DL
+   diffserv A/B.
+4. **`organic_dl_histogram`** (DL organic marking, from 225-02 `dscp-histogram-spec-router.txt`).
+   Fraction of DL IP packets at the `spec-router` enqueue interface carrying non-zero DSCP.
 
-→ Conclusion: "marks reach the shaper — A/B is warranted." Unblock Phase 226 baseline capture.
+### Pre-registered numeric thresholds (quantifies "meaningful" / "negligible")
 
-**Ambiguous / partial** (e.g. EF probe survives but organic non-BestEffort volume is tiny): record
-as a *qualified proceed* with the caveat that the A/B must measure whether the surviving volume is
-large enough to matter — the GATE-01 "useful non-BestEffort tin separation" threshold in Phase 226
-becomes the tie-breaker. Default lean: proceed, because a clean EF-survival result falsifies the
-strong form of the theater claim.
+- **NEGLIGIBLE marking** (DL): non-BestEffort (DSCP != 0) packets are **< 1.0%** of total DL IP
+  packets at the enqueue interface, AND non-BestEffort bytes (where measurable) are **< 1.0%** of
+  DL bytes, over a valid representative window.
+- **MEANINGFUL marking** (DL): non-BestEffort packets are **≥ 5.0%** of total DL IP packets at the
+  enqueue interface. The 1.0%–5.0% band is the **ambiguous** zone (qualified proceed).
+- **EF probe SURVIVED**: **≥ 90%** of the probe's own 5-tuple-filtered packets arrive at the
+  enqueue interface still carrying DSCP 46. **STRIPPED**: **< 10%** carry DSCP 46. The 10%–90% band
+  is `degraded` (qualified). Survival is decided on the **probe 5-tuple by count**, never on
+  unfiltered histogram presence (background EF or one stray packet must not flip the result).
+- **Representative-load floor (minimum-sample gate)** — a DL histogram window is only `valid` if
+  BOTH: **total captured IP packets ≥ 2000** AND **active seconds (seconds with ≥ 1 captured
+  packet) ≥ 30** within the capture duration. A window below either floor is
+  `organic_dl_histogram=invalid` (quiet window) and CANNOT drive `MARKS_DO_NOT_SURVIVE`.
+- **EF probe sample gate** — an EF-probe result is only `valid` if the probe emitted and the capture
+  recorded **≥ 100 probe-5-tuple packets** at the source side; below that the probe is
+  `unknown`/`degraded`, not a clean negative.
 
-The verdict artifact must state which branch fired, cite the specific counter values / capture
-evidence, and explicitly name the consequence for Phases 226–228.
+### Capture-ordering rule (resolves the CAKE-wash false-negative)
+
+Production Spectrum runs `diffserv: besteffort` + **`allow_wash: true`** (verified at
+`configs/spectrum.yaml:44-45`). CAKE wash strips DSCP **after** tin selection at enqueue. A capture
+taken on the **post-wash egress/transmit side** can falsely show EF stripped even though the mark
+reached CAKE intact — a false negative that would wrongly close the milestone.
+
+**Rule:** the EF-survival and organic-DL evidence MUST be captured at the **pre-wash / ingress-to-CAKE
+observation point** (the DSCP byte as it *arrives* at the enqueue interface, e.g. `-Q in` / ingress
+direction on the bridge member facing the marking stage), NOT on the post-wash transmit side. 225-02
+must record `CAPTURE_POINT=pre_wash_ingress|post_wash_egress|unknown` and `WASH_ORDERING_PROVEN=true|false`.
+If capture ordering relative to wash cannot be proven (`WASH_ORDERING_PROVEN=false` or
+`CAPTURE_POINT=unknown`), the affected survival channel is `unknown` — it CANNOT drive
+`MARKS_DO_NOT_SURVIVE` (an ambiguous capture point must not early-exit the milestone).
+
+### The pre-registered branches (mutually exclusive, evaluated top to bottom)
+
+Fire exactly one. Evaluate in order; the first matching branch wins.
+
+**MARKS_DO_NOT_SURVIVE** (early-exit → v1.44 confirmed, milestone may close negative) — fires ONLY
+when BOTH required negative signals are `valid`, observed, and above the sample-quality floors
+(this is a logical AND of two valid negatives, matching the original intent of the two bullets):
+- `organic_dl_histogram` is `valid` AND shows **NEGLIGIBLE** DL marking (< 1.0%), **AND**
+- `dl_ef_probe` is `valid` AND **STRIPPED** (< 10% of probe packets carry DSCP 46 at the pre-wash
+  enqueue point).
+- Additionally, neither negative may rest on an `unknown` channel: if `bridge_counter_signal=unknown`
+  it does not block this branch (the histogram is the source of truth for DL marking), but the DL
+  histogram and DL EF probe MUST both be `valid`. If either is `invalid`/`unknown`, this branch
+  CANNOT fire → fall through to QUALIFIED.
+
+→ Conclusion: "diffserv4 remains classification theater — v1.44 confirmed." Phases 226–228 do not run.
+
+**MARKS_SURVIVE** (proceed → unblock Phase 226) — fires when DL marking clearly reaches the shaper:
+- `organic_dl_histogram` is `valid` AND shows **MEANINGFUL** DL marking (≥ 5.0%), **OR**
+- `dl_ef_probe` is `valid` AND **SURVIVED** (≥ 90% of probe packets carry DSCP 46 at the pre-wash
+  enqueue point).
+
+→ Conclusion: "marks reach the shaper on the DL path under test — A/B is warranted." Unblock Phase 226.
+
+**MARKS_SURVIVE_QUALIFIED** (the catch-all / fail-safe default) — fires in every remaining case,
+including:
+- ambiguous-band DL marking (1.0%–5.0%) or `degraded` DL EF probe (10%–90%); OR
+- any DL channel is `invalid` (quiet window below the sample floor) or `unknown` (counters absent,
+  wash ordering unproven, or only a UL probe available); OR
+- the only surviving signal is `ul_ef_probe` (UL mark reaches spec-modem) without a `valid` DL
+  channel — a UL-only positive cannot unblock a DL diffserv A/B, nor can it close negative.
+
+→ Conclusion: "evidence is insufficient to early-exit negative and insufficient to clearly unblock;
+proceed with caveat." The verdict records the unblock condition deferred to Phase 226's GATE-01
+"useful non-BestEffort tin separation" threshold as the tie-breaker. **`unknown` ALWAYS maps here,
+never to MARKS_DO_NOT_SURVIVE** — the milestone is never closed negative on absent/ambiguous evidence.
+
+### Verdict artifact requirements
+
+The verdict artifact must:
+- emit a single machine-readable `VERDICT:` line with exactly one of `MARKS_DO_NOT_SURVIVE` /
+  `MARKS_SURVIVE` / `MARKS_SURVIVE_QUALIFIED`;
+- record each of the four channels with its validity state and the concrete value that drove it
+  (counter deltas or `COUNTERS_AVAILABLE=false`; DL/UL probe survival percentages with packet
+  counts; DL non-BestEffort packet fraction; sample-floor pass/fail; `CAPTURE_POINT` /
+  `WASH_ORDERING_PROVEN`);
+- name the explicit consequence for Phases 226–228 (do-not-run + negative close, OR unblock 226 with
+  the proceed condition);
+- restate that it was computed from this pre-registered logic, not reverse-fitted.
 
 ---
 
@@ -160,28 +250,49 @@ evidence, and explicitly name the consequence for Phases 226–228.
 
 ## SAFE-13 (cross-phase invariant)
 
-Controller-path source must be byte-identical to the v1.48 close. Proven idiom from v1.48 Phase 224
-(SAFE-12), reused verbatim with the `v1.48` tag as the anchor:
+Controller-path source must be byte-identical to the v1.48 close. The cycle-1 review found the draft
+SAFE-13 check (`git diff --name-only v1.48 HEAD`) was **weaker** than the SAFE-12 precedent it
+claims to mirror: a name-only committed-diff misses unstaged edits, staged-but-uncommitted edits,
+and untracked files under the protected paths. The v1.48 `safe12-boundary-check.json` recorded a
+strictly stronger artifact. SAFE-13 must match that standard.
+
+**SAFE-13 must run all three git state channels over each protected path, plus per-file sha equality
+against the `v1.48` anchor:**
 
 ```bash
-git diff --name-only v1.48 HEAD -- \
-  src/wanctl/wan_controller.py \
-  src/wanctl/queue_controller.py \
-  src/wanctl/cake_signal.py \
-  src/wanctl/alert_engine.py \
-  src/wanctl/fusion_healer.py \
-  src/wanctl/backends/
-# MUST return zero lines.
+# Channel 1 — committed diff vs anchor (per path):
+git diff --name-only v1.48 HEAD -- <path>        # committed changes
+# Channel 2 — staged (index) changes (per path):
+git diff --name-only --staged -- <path>          # equivalently --cached
+# Channel 3 — working-tree dirty state (per path):
+git status --porcelain -- <path>                 # unstaged + untracked + staged summary
+git ls-files --others --exclude-standard -- <path>   # untracked files explicitly
+# Per-file integrity — sha equality vs the anchor blob:
+git rev-parse v1.48:<path>  vs  sha of HEAD/worktree <path>
 ```
 
-ATT config byte-identical:
-```bash
-git diff --name-only v1.48 HEAD -- configs/att.yaml   # MUST return zero lines.
-```
+Protected controller paths (the six SAFE-12 controller-path entries; Phase 225 does not touch
+steering but the script accepts the same protected set):
+`src/wanctl/wan_controller.py`, `src/wanctl/queue_controller.py`, `src/wanctl/cake_signal.py`,
+`src/wanctl/alert_engine.py`, `src/wanctl/fusion_healer.py`, `src/wanctl/backends/`. Plus ATT config
+byte-identical: `configs/att.yaml`.
+
+The emitted JSON MUST match the v1.48 `safe12-boundary-check.json` shape (strictly stronger than a
+name-only count): `baseline_tag`/`anchor`, `baseline_commit`, `head_commit`, `protected_paths`,
+`per_path_diff` (per-file added/removed/lines), `per_file_sha256_equal` (per-file bool vs anchor),
+`dirty_tree` (`unstaged`/`staged`/`untracked`/`status_porcelain`), `dirty_tree_clean` (bool),
+`committed_clean` (bool), `att_config_diff_count`, `passed` (bool), `checked_at`.
+
+**Fail-closed semantics:** `passed` is true ONLY when committed diff == 0 across all protected paths
+AND `dirty_tree_clean` is true (no staged/unstaged/untracked changes) AND every
+`per_file_sha256_equal` is true AND `att_config_diff_count` == 0. Any dirty or diverged state fails
+the boundary and the verdict gate (225-03) fails closed.
 
 Phase 225 is a pure trace/evidence + new-script phase — it adds capture scripts and evidence
-artifacts only. There is no reason to touch controller-path source, so SAFE-13 is expected to hold
-trivially. The verification is a recorded boundary check, mirroring `safe12-boundary-check.json`.
+artifacts only (all outside the protected paths). There is no reason to touch controller-path
+source, so SAFE-13 is expected to hold trivially. The value is the recorded proof at the SAFE-12
+standard. Reference artifact:
+`.planning/milestones/v1.48-phases/224-production-canary-rollback-discipline/.../safe12-boundary-check.json`.
 
 ---
 
