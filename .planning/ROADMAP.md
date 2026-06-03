@@ -2,7 +2,7 @@
 
 ## Milestones
 
-- 🔄 **v1.48 Steering Runtime Drift Closure** — active (Phases 222–224; sliced audit → staging proof → production canary alignment of live steering daemon `1.39` with source `1.45`)
+- ✅ **v1.48 Steering Runtime Drift Closure** — shipped 2026-06-03 (Phases 222–224; live steering daemon aligned `1.39 → 1.47` in production, canary kept_aligned, SAFE-12 held)
 - ✅ **v1.47 Measurement Evidence Closure** — shipped 2026-06-02 (Phases 219–221; 18/18 REQs satisfied; `tcp_12down` closed-with-prejudice per CRITERIA-02) — `milestones/v1.47-ROADMAP.md`
 - ✅ **v1.46 Internet Quality Recovery** — shipped-with-deferral 2026-05-30 (Phases 212–217; VERIFY-01/02 carried to Phase 218 event-gated watch-list) — `milestones/v1.46-ROADMAP.md`
 - ✅ **v1.45 Flapping Peak-Counter Window Repair** — shipped-with-deferral 2026-05-27 (Phases 210–211; VERIFY-01 deferred → rolled into Phase 218) — `milestones/v1.45-phases/`
@@ -36,7 +36,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
 
 - [x] **Phase 222: Steering Drift Audit** — Read-only delta report, contract diff, per-milestone change classification, and per-finding go/mitigate/no-go recommendations covering live steering daemon `1.39` vs source `1.45`. (completed 2026-06-02)
 - [x] **Phase 223: Staging Proof + Clean-Restart Reproduction** — Offline replay/fixture harness and evidence published, but verification found blocking gaps; Phase 224 remains blocked until gap closure or explicit operator risk acceptance. (completed 2026-06-03)
-- [ ] **Phase 224: Production Canary + Rollback Discipline** — Aligned steering daemon deployed with Snapshot-A-pattern pre-deploy snapshot, bounded rollback, post-deploy health-endpoint proof of version alignment and contract invariants, fail-closed rollback within bounded time budget.
+- [x] **Phase 224: Production Canary + Rollback Discipline** — Aligned steering daemon deployed with Snapshot-A-pattern pre-deploy snapshot, bounded rollback, post-deploy health-endpoint proof of version alignment and contract invariants, fail-closed rollback within bounded time budget.
 
 ### Phase Details
 
@@ -77,14 +77,14 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
   3. Operator can roll back to pre-canary state within a bounded time budget if any contract invariant fires fail-closed during canary observation.
   4. Post-canary state — kept-aligned or rolled-back — is reflected in a published canary report citing the snapshot anchor, gate verdicts, and any rollback reasons.
   5. SAFE-12 verified at phase boundary AND at v1.48 milestone close: zero controller-path source diff vs v1.47 close.
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans executed
 
 Plans:
 - [x] 224-01-PLAN.md — Snapshot A capture wrapper + rollback wrapper + staging rehearsal (measure rollback budget)
 - [x] 224-02-PLAN.md — Spine invariant probe + stdlib gate evaluator with restart-window vs steady-state distinction
 - [x] 224-03-PLAN.md — Risk-acceptance sign-off, Snapshot A capture, production deploy, Leg B post-deploy proof
 - [x] 224-04-PLAN.md — Canary observation window sampling + verdict + conditional rollback execution
-- [ ] 224-05-PLAN.md — SAFE-12 phase-boundary check + 224-REPORT.md canary report
+- [x] 224-05-PLAN.md — SAFE-12 phase-boundary check + 224-REPORT.md canary report
 
 ### Progress
 
@@ -92,7 +92,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 222. Steering Drift Audit | 3/3 | Complete    | 2026-06-02 |
 | 223. Staging Proof + Clean-Restart Reproduction | 4/4 | Complete    | 2026-06-03 |
-| 224. Production Canary + Rollback Discipline | 4/5 | In Progress|  |
+| 224. Production Canary + Rollback Discipline | 5/5 | Complete    | 2026-06-03 |
 
 ### Coverage
 
