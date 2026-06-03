@@ -120,7 +120,27 @@ The verdict consumes four direction-split evidence channels. Each channel resolv
 `valid` / `invalid` / `unknown`. A channel that is `invalid` or `unknown` is NEVER silently read as
 a negative signal.
 
-1. **`bridge_counter_signal`** (DL marking, from 225-01 `bridge-mark-counters.txt`).
+**Channel roles — gating vs corroborating (resolves cycle-2 HIGH-A).** The four channels are NOT
+all equal in the verdict. Exactly two channels are **gating** for the DL diffserv question that the
+milestone re-evaluates: `organic_dl_histogram` and `dl_ef_probe`. The other two —
+`bridge_counter_signal` and `ul_ef_probe` — are **corroborating-only / non-gating**: they may add
+context and may corroborate a positive, but their state (including `unknown`) is NEVER counted among
+the channels that decide the branch. Consequently:
+
+- `bridge_counter_signal=unknown` (the VERIFIED production reality — the `ip dscp set` rules carry no
+  `counter` clause, so counters are absent) is **expected and benign**. Because the bridge-counter
+  channel is corroborating-only, its `unknown` state neither blocks nor forces any branch — it is
+  simply not a gating input. The authoritative DL marking signal is `organic_dl_histogram` (the
+  pre-wash DSCP histogram at the enqueue interface), exactly as established in the prior revision.
+- `ul_ef_probe` is likewise non-gating for the DL verdict (a UL mark reaching spec-modem does not
+  exercise the DL CRS/Ruckus/bridge path); it can corroborate but never decide.
+
+This makes the verdict function **deterministic for the counters-absent case**: an absent/`unknown`
+bridge counter alone can never force a negative verdict, and the "unknown maps to QUALIFIED" rule
+below applies to the two GATING DL channels, not to the corroborating bridge-counter channel.
+
+1. **`bridge_counter_signal`** (DL marking corroboration — **corroborating-only, non-gating**; from
+   225-01 `bridge-mark-counters.txt`).
    - **CRITICAL — counters may not exist.** The checked-in `deploy/nftables/bridge-qos.nft` rules
      (`ip dscp set ef|af41|cs1` at L42, L47-49, L53-85, L96, L99-122) carry **no explicit `counter`
      statement** (verified by Codex and re-verified against the repo). `nft list table bridge qos`
@@ -168,12 +188,33 @@ taken on the **post-wash egress/transmit side** can falsely show EF stripped eve
 reached CAKE intact — a false negative that would wrongly close the milestone.
 
 **Rule:** the EF-survival and organic-DL evidence MUST be captured at the **pre-wash / ingress-to-CAKE
-observation point** (the DSCP byte as it *arrives* at the enqueue interface, e.g. `-Q in` / ingress
-direction on the bridge member facing the marking stage), NOT on the post-wash transmit side. 225-02
-must record `CAPTURE_POINT=pre_wash_ingress|post_wash_egress|unknown` and `WASH_ORDERING_PROVEN=true|false`.
+observation point** (the DSCP byte as it *arrives* at the enqueue interface, BEFORE the CAKE egress
+qdisc applies wash), NOT on the post-wash transmit side.
+
+**Capture direction is NOT self-evident and MUST be proven, not asserted (resolves cycle-2 HIGH-C).**
+The naive `tcpdump -Q in` recipe is directionally wrong for DL: download packets *egress*
+`spec-router` toward the LAN, so host-inbound (`-Q in`) on `spec-router` is not the pre-CAKE enqueue
+point. The correct DL pre-wash observation point is where DL packets **arrive at the CAKE-bearing
+interface from the marking stage** — i.e. inbound on the `spec-router` bridge member that faces
+`spec-modem`/the `spectrum_dl` marking chain (the DSCP byte after the bridge sets it but before the
+`spec-router` egress qdisc washes it). The exact interface + direction must be **derived from the
+live topology** (`ip -d link show`, bridge member roles, and the `iif spec-modem oif spec-router`
+classification path), not assumed.
+
+**`CAPTURE_POINT` is a PROVEN property, not an operator-asserted flag.** 225-02 MUST run a positive
+proof step that establishes, from live evidence, that the chosen capture interface+direction sits
+(a) downstream of the DSCP-setting stage (the byte is observable as set) and (b) upstream of the CAKE
+egress qdisc that applies wash. The script records `CAPTURE_POINT=pre_wash_ingress|post_wash_egress|unknown`,
+`WASH_ORDERING_PROVEN=true|false`, AND a `capture-point-proof.txt` artifact citing the topology
+evidence (interface name, direction, bridge member role, qdisc location relative to the capture hook)
+that justifies the value. **Default until proven is `CAPTURE_POINT=unknown` / `WASH_ORDERING_PROVEN=false`.**
+`pre_wash_ingress` may be recorded ONLY when the proof artifact substantiates it.
+
 If capture ordering relative to wash cannot be proven (`WASH_ORDERING_PROVEN=false` or
 `CAPTURE_POINT=unknown`), the affected survival channel is `unknown` — it CANNOT drive
-`MARKS_DO_NOT_SURVIVE` (an ambiguous capture point must not early-exit the milestone).
+`MARKS_DO_NOT_SURVIVE` (an ambiguous/unproven capture point must not early-exit the milestone), and
+per the gating rule it also cannot satisfy the negative branch's requirement that both gating DL
+channels be `valid`.
 
 ### The pre-registered branches (mutually exclusive, evaluated top to bottom)
 
@@ -182,13 +223,18 @@ Fire exactly one. Evaluate in order; the first matching branch wins.
 **MARKS_DO_NOT_SURVIVE** (early-exit → v1.44 confirmed, milestone may close negative) — fires ONLY
 when BOTH required negative signals are `valid`, observed, and above the sample-quality floors
 (this is a logical AND of two valid negatives, matching the original intent of the two bullets):
-- `organic_dl_histogram` is `valid` AND shows **NEGLIGIBLE** DL marking (< 1.0%), **AND**
+- `organic_dl_histogram` is `valid` AND shows **NEGLIGIBLE** DL marking (< 1.0% packets AND, where
+  measurable, < 1.0% bytes — see the byte-fraction rule under "Pre-registered numeric thresholds"),
+  **AND**
 - `dl_ef_probe` is `valid` AND **STRIPPED** (< 10% of probe packets carry DSCP 46 at the pre-wash
   enqueue point).
-- Additionally, neither negative may rest on an `unknown` channel: if `bridge_counter_signal=unknown`
-  it does not block this branch (the histogram is the source of truth for DL marking), but the DL
-  histogram and DL EF probe MUST both be `valid`. If either is `invalid`/`unknown`, this branch
-  CANNOT fire → fall through to QUALIFIED.
+- This branch is gated EXCLUSIVELY by the two GATING DL channels above (`organic_dl_histogram` and
+  `dl_ef_probe`); both MUST be `valid`. The corroborating-only channels do NOT gate it:
+  `bridge_counter_signal=unknown` (counters absent — the verified production case) neither blocks nor
+  enables this branch, and `ul_ef_probe` is irrelevant to it. If EITHER gating DL channel is
+  `invalid` or `unknown` (quiet window below the sample floor, or capture point not proven pre-wash),
+  this branch CANNOT fire → fall through to QUALIFIED. There is no path by which an absent bridge
+  counter forces a negative close.
 
 → Conclusion: "diffserv4 remains classification theater — v1.44 confirmed." Phases 226–228 do not run.
 
@@ -202,15 +248,40 @@ when BOTH required negative signals are `valid`, observed, and above the sample-
 **MARKS_SURVIVE_QUALIFIED** (the catch-all / fail-safe default) — fires in every remaining case,
 including:
 - ambiguous-band DL marking (1.0%–5.0%) or `degraded` DL EF probe (10%–90%); OR
-- any DL channel is `invalid` (quiet window below the sample floor) or `unknown` (counters absent,
-  wash ordering unproven, or only a UL probe available); OR
-- the only surviving signal is `ul_ef_probe` (UL mark reaches spec-modem) without a `valid` DL
+- a GATING DL channel is `invalid` (quiet window below the sample floor) or `unknown` (wash ordering
+  unproven / `CAPTURE_POINT=unknown`) so the negative branch could not fire and the positive branch
+  was not met; OR
+- the only surviving signal is `ul_ef_probe` (UL mark reaches spec-modem) without a `valid` GATING DL
   channel — a UL-only positive cannot unblock a DL diffserv A/B, nor can it close negative.
 
-→ Conclusion: "evidence is insufficient to early-exit negative and insufficient to clearly unblock;
-proceed with caveat." The verdict records the unblock condition deferred to Phase 226's GATE-01
-"useful non-BestEffort tin separation" threshold as the tie-breaker. **`unknown` ALWAYS maps here,
-never to MARKS_DO_NOT_SURVIVE** — the milestone is never closed negative on absent/ambiguous evidence.
+(Note: an absent/`unknown` `bridge_counter_signal` is NOT itself a reason to land here — it is
+corroborating-only and non-gating; this branch is reached via the gating DL channels or a UL-only
+positive, not via the bridge counter.)
+
+→ Conclusion: "evidence is insufficient to early-exit negative and insufficient to clearly unblock."
+**`unknown` ALWAYS maps here, never to MARKS_DO_NOT_SURVIVE** — the milestone is never closed negative
+on absent/ambiguous evidence.
+
+**Relationship to the Phase 226 gate (resolves cycle-2 HIGH-B — conservative default).** ROADMAP.md
+gates Phase 226 on a **"marks survive"** verdict from Phase 225. `MARKS_SURVIVE_QUALIFIED` is NOT
+"marks survive" — it is the explicit absence of a clear positive. Phase 226 is the phase that builds
+Snapshot A, locks GATE-01 thresholds, and begins **touching production config**, so the
+safety-preserving default is unambiguous:
+
+> **QUALIFIED BLOCKS Phase 226 by default.** Only a `MARKS_SURVIVE` verdict satisfies the ROADMAP.md
+> Phase 226 gate and unblocks it. `MARKS_SURVIVE_QUALIFIED` does NOT auto-unblock Phase 226 and does
+> NOT auto-close the milestone negative. It is a hold state.
+
+A QUALIFIED verdict therefore terminates the autonomous flow and requires an explicit, recorded
+operator decision before Phase 226 may proceed — one of: (a) collect better evidence and re-run the
+Phase 225 capture/verdict (e.g. a longer/representative window, a clean DL EF probe) to reach a clear
+`MARKS_SURVIVE` or `MARKS_DO_NOT_SURVIVE`; or (b) the operator explicitly accepts the documented
+caveat and authorizes Phase 226 to proceed-with-caveat, deferring the volume question to Phase 226's
+GATE-01 "useful non-BestEffort tin separation" tie-breaker. Option (b) is an operator override that
+the verdict artifact must surface as a required decision — it is never taken automatically by the
+verdict logic. This keeps an ambiguous verdict from silently leaking into the production-touching
+phase while preserving a path forward that the roadmap's GATE-01 tie-breaker can adjudicate once a
+human has signed off.
 
 ### Verdict artifact requirements
 
