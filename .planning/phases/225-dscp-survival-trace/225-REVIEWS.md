@@ -15,6 +15,13 @@ cycles:
     prior_high_partial: 3
     new_high_raised: 3
     high_unresolved: 3
+  - cycle: 3
+    reviewed_at: 2026-06-03T20:05:00Z
+    base_commit: 84cd844
+    prior_high_resolved: 2     # HIGH-A, HIGH-B fully resolved
+    prior_high_partial: 1      # HIGH-C (capture-point proof not yet falsifiable)
+    new_high_raised: 1         # DL EF probe lacks source-side DSCP proof
+    high_unresolved: 2
 ---
 
 # Cross-AI Plan Review — Phase 225 (DSCP Survival Trace)
@@ -336,3 +343,111 @@ Feed back into planning:
 Resolve HIGH-A (counters-absent determinism), HIGH-B (QUALIFIED gate relationship to the roadmap),
 and HIGH-C (DL pre-wash capture proof) — then add the byte-fraction threshold (MEDIUM) — before any
 live capture. These are verdict-logic/evidence-integrity fixes, not scripting changes.
+
+---
+
+# ============================ CYCLE 3 (twice-revised plans, commit 84cd844) ============================
+
+Cross-AI reviewer: **Codex** (codex-cli 0.135.0, default model). Claude skipped for independence
+(review invoked from inside Claude Code). Codex verified against `HEAD=84cd844`. The orchestrator
+independently re-verified each disposition and both remaining HIGH claims against the actual file
+lines (all confirmed; annotated `[VERIFIED]`). The cycle-2 replan claimed to resolve all 3 cycle-2
+HIGHs (HIGH-A/B/C) plus the byte-fraction MEDIUM.
+
+## Disposition of the 3 cycle-2 HIGH concerns + MEDIUM
+
+| Item | Cycle-2 concern | Cycle-3 disposition | Evidence |
+|------|-----------------|---------------------|----------|
+| HIGH-A | Counters-absent non-determinism (RESEARCH:188-190 vs 202-213 contradiction) | **RESOLVED** | `bridge_counter_signal` is now corroborating-only / non-gating; only `organic_dl_histogram` + `dl_ef_probe` gate; absent counter (verified production case — nft rules carry no `counter` clause) neither blocks nor forces any branch. 225-RESEARCH.md:123,138,223; 225-03-PLAN.md:150. The prior contradiction is gone. |
+| HIGH-B | QUALIFIED had no defined relationship to the ROADMAP Phase 226 "marks survive" gate | **RESOLVED** | `MARKS_SURVIVE_QUALIFIED` is now an explicit HOLD state that BLOCKS Phase 226 by default; only `MARKS_SURVIVE` satisfies ROADMAP.md:44,65; proceed-with-caveat requires an explicit recorded operator override never taken automatically. 225-RESEARCH.md:265,271,275; 225-03-PLAN.md:60,181. Internally consistent and matches the roadmap gate. |
+| HIGH-C | DL pre-wash capture proof underspecified / directionally wrong | **PARTIALLY RESOLVED** | `-Q in` correctly rejected; default `CAPTURE_POINT=unknown`; unproven point → `unknown` channel that cannot drive a negative verdict (fail-safe). BUT the prescribed "correct" DL point ("inbound on the spec-router bridge member facing spec-modem", 225-RESEARCH.md:197 / 225-02-PLAN.md:83) is still asserted prose and remains directionally suspect for `iif spec-modem oif spec-router` (DL egresses spec-router); `capture-point-proof.txt` cites topology text but does NOT require a *falsifiable* check proving the hook fires before the CAKE-egress wash qdisc. Still a HIGH because the load-bearing DL gating channel rests on an unfalsifiable directional claim. |
+| MEDIUM | NEGLIGIBLE byte-fraction not carried into 225-02/225-03 acceptance | **RESOLVED** | `NONBE_BYTE_PCT` now emitted alongside `NONBE_PKT_PCT` and applied to the full NEGLIGIBLE criterion. 225-02-PLAN.md:20,105; 225-03-PLAN.md:53,162. |
+
+Net: **2 of 3 cycle-2 HIGHs FULLY RESOLVED (HIGH-A, HIGH-B); 1 PARTIALLY RESOLVED (HIGH-C); MEDIUM
+RESOLVED.** One NEW HIGH surfaced this cycle.
+
+## Codex Review (cycle 3)
+
+**Remaining / new HIGH concerns**
+
+- **HIGH-C (carried, PARTIALLY RESOLVED) — DL pre-wash capture point is asserted, not falsifiably
+  proven.** `[VERIFIED]` 225-RESEARCH.md:197 + 225-02-PLAN.md:83 prescribe the DL observation point as
+  "inbound on the spec-router bridge member facing spec-modem." For the stated bridge path
+  `iif spec-modem oif spec-router`, DL is forwarded *out* spec-router, so "inbound on spec-router" is
+  still directionally suspect. `capture-point-proof.txt` is required to cite topology text but no
+  falsifiable check (e.g. observing the byte both pre-wash-marked and post-wash-stripped, or proving
+  the capture hook fires before the egress CAKE qdisc) is mandated. The `unknown`-default fail-safe
+  prevents a wrong negative close, so this is not a *new* contradiction — but the load-bearing DL
+  gating channel's pre-wash claim cannot yet be falsified.
+
+- **HIGH (NEW) — DL EF probe can be counted `STRIPPED` without proving the DL packets were EF before
+  the shaper.** `[VERIFIED]` 225-RESEARCH.md:89 describes the DL probe as a LAN-client `--tos 0xb8`
+  flow "toward an external endpoint (DL return path)." A client's TOS marking marks its *outbound*
+  (UL) packets; it does not establish that the *return-path DL* packets carry EF. 225-02-PLAN.md:125-127
+  records `PROBE_PKTS_SENT`, `PROBE_PKTS_CAPTURED`, `EF_PKTS_AT_ENQUEUE`, `EF_SURVIVAL_PCT`,
+  `EF_SURVIVED` — but NO `EF_PKTS_AT_SOURCE` / source-side DL DSCP proof for the DL 5-tuple. The sample
+  gate (225-02-PLAN.md:19) counts source-side *packets* but does not assert they were DSCP-46 on the DL
+  leg. This leaves a false-negative path: DL packets that were never EF can be counted `STRIPPED`, and
+  combined with a NEGLIGIBLE organic histogram that is exactly the logical-AND that fires
+  `MARKS_DO_NOT_SURVIVE` and closes the milestone negative. The same gating channel that HIGH-C touches
+  thus has a second, independent integrity gap on the source side.
+
+**Remaining MEDIUM**
+
+- **MEDIUM — stale counter prose contradicts the non-gating taxonomy.** `[VERIFIED]` 225-RESEARCH.md:76
+  still calls the bridge counters "the single most valuable read-only signal" and says near-zero
+  counters mean "theater confirmed cheaply." The verdict logic now correctly makes counters non-gating,
+  so this is NOT a residual HIGH-A — but the stale paragraph should be removed/rewritten to avoid
+  implementer confusion.
+- **MEDIUM — SAFE-13 per-file hash for `src/wanctl/backends/` (a directory) underspecified.**
+  `[VERIFIED]` 225-03-PLAN.md:81 lists a directory in the protected set; 225-03-PLAN.md:89 then specifies
+  per-file `<anchor>:<file>` / worktree hash comparison. The script must explicitly expand tracked files
+  under `backends/`, or implementation may hash a tree / fail closed / miss the intended per-file proof.
+
+**Overall risk: HIGH (as a milestone-gating plan).** Mutation risk remains LOW — read-only posture,
+SAFE-13 hardening, gating/corroborating taxonomy, and the QUALIFIED hold-state are genuinely solid and
+cycle-2's HIGH-A and HIGH-B are closed. But **verdict integrity** is still not fully trustworthy: both
+DL gating channels (`organic_dl_histogram` via capture-point proof, and `dl_ef_probe` via source-side
+DSCP proof) rest on claims that are not yet falsifiable, and both feed the negative-close AND.
+
+**Convergence verdict: NOT CONVERGED (2 HIGH remain).**
+
+## Consensus Summary (cycle 3)
+
+Single external reviewer (Codex); orchestrator independently re-verified the dispositions and both
+remaining HIGH claims against the file lines (`[VERIFIED]`). Cycle-2's two verdict-architecture HIGHs
+are genuinely closed: the gating/corroborating taxonomy makes the counters-absent case deterministic
+(HIGH-A), and QUALIFIED is now a hold-state that blocks Phase 226 by default (HIGH-B). The byte-fraction
+MEDIUM is resolved. What remains is narrower and concentrated entirely on the two **DL gating channels**
+that drive the negative close.
+
+### Agreed Strengths (carried + new this cycle)
+- HIGH-A closed: bridge counters corroborating-only; counters-absent (verified production case) is
+  deterministic and benign.
+- HIGH-B closed: QUALIFIED blocks Phase 226 by default; only MARKS_SURVIVE unblocks; operator override
+  is explicit and never automatic.
+- Byte-fraction NEGLIGIBLE criterion now fully wired into 225-02/225-03.
+- Read-only posture and SAFE-13 at the full SAFE-12 standard remain sound.
+
+### Agreed Concerns (highest priority — must fix before capture)
+1. **DL EF probe source-side DSCP proof missing (NEW HIGH, VERIFIED).** Add `EF_PKTS_AT_SOURCE` /
+   source-side DL DSCP verification so a never-EF DL packet cannot be counted `STRIPPED` and feed a
+   negative close. A DL EF probe whose source-side DL marking is unproven must be `unknown`/`degraded`,
+   not a clean negative.
+2. **DL capture-point proof not falsifiable (HIGH-C carried, VERIFIED).** Require a concrete falsifiable
+   check that the capture hook sits before the CAKE-egress wash qdisc (not just cited topology text),
+   or keep the channel `unknown` (which the fail-safe already does).
+3. **Stale counter prose (MEDIUM) + SAFE-13 `backends/` per-file expansion (MEDIUM).** Cleanups, not
+   gating issues.
+
+### Divergent Views
+None — single reviewer. No internal contradictions in the Codex cycle-3 review.
+
+### Recommended Next Step
+Feed back into planning:
+```
+/gsd:plan-phase 225 --reviews
+```
+Both remaining HIGHs are evidence-integrity gaps on the two DL gating channels (capture-point proof +
+DL EF source-side proof), not scripting or architecture issues. Resolve both — and the two MEDIUM
+cleanups — before any live capture, since both feed the milestone-closing negative-close AND.
