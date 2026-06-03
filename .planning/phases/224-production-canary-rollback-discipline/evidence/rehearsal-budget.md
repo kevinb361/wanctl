@@ -1,11 +1,22 @@
 ---
-pending: true
+pending: false
 staging_host_redacted: unavailable-in-current-execution-context
 start_ts: null
 end_ts: null
 duration_seconds: null
 budget_seconds: 300
 within_budget: false
+operator_override: unmeasured-waived
+operator_override_date: 2026-06-03
+operator_override_by: Kevin Blalock
+operator_override_note: >-
+  No staging host available to time the rollback path. Operator waived the
+  measured-rehearsal gate via /gsd-progress 2026-06-03 and accepts that
+  rollback duration is UNPROVEN. within_budget remains false by design — this
+  is an honest override, not a measured pass. Downstream automated gates that
+  assert within_budget==true will read this as not-satisfied; that is correct.
+  Mitigation: operator runs the deploy at the keyboard with the 30s watchdog
+  poll + scripts/phase224-rollback.sh staged for immediate manual rollback.
 ---
 
 # Phase 224 Rollback Rehearsal Budget

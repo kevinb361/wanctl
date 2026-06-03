@@ -32,4 +32,6 @@ If the operator instead chooses to hold for an in-224 daemon fix (deferring Phas
 
 ## Sign-Off
 
-Accepted: ___________________________   Date: ___________   Operator: ___________
+Accepted: YES — bounded ~15-cycle / ~0.75s post-restart steering window accepted as Phase 224 entry risk.   Date: 2026-06-03   Operator: Kevin Blalock
+
+> Authorized via `/gsd-progress` session 2026-06-03 (operator selected "Full prod deploy now"). Default Disposition accepted; Override Path NOT invoked. Recorded by Claude Code on operator instruction.
