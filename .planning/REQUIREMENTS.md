@@ -30,7 +30,7 @@ Each requirement maps to exactly one phase. Operator-centric framing — deliver
 
 ### Production Canary (CANARY)
 
-- [ ] **CANARY-01**: Operator can deploy aligned steering daemon to production with explicit pre-deploy snapshot + rollback path (à la v1.46 Phase 215 Snapshot A pattern).
+- [x] **CANARY-01**: Operator can deploy aligned steering daemon to production with explicit pre-deploy snapshot + rollback path (à la v1.46 Phase 215 Snapshot A pattern).
 - [ ] **CANARY-02**: Operator can observe a post-deploy health-endpoint proof confirming version alignment, contract invariants, and steering decision continuity.
 - [ ] **CANARY-03**: Operator can roll back to pre-canary state within a bounded time budget if any contract invariant fires fail-closed during canary observation.
 
