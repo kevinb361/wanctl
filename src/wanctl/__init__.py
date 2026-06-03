@@ -1,3 +1,3 @@
 """wanctl - Adaptive CAKE bandwidth control for RouterOS."""
 
-__version__ = "1.45.0"
+__version__ = "1.47.0"
