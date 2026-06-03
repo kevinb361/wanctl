@@ -553,245 +553,245 @@
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 1,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 2,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 3,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 4,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 5,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 6,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 7,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 8,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 9,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 10,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 11,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 12,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 13,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 14,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 15,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 16,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 17,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 18,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 19,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 20,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 21,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 22,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 23,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 24,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 25,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 26,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 27,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 28,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 29,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 30,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 31,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 32,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 33,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     },
     {
       "cycle": 34,
       "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
       "baseline_read_value": 25.0,
       "baseline_loader_called": true,
-      "spectrum_state_write_attempted": true
+      "spectrum_state_write_attempted": false
     }
   ],
   "recovery_cycle_to_GOOD": 14,
@@ -1074,7 +1074,7 @@
         }
       ],
       "live_irtt_reads": [],
-      "spectrum_state_write_attempted": true,
+      "spectrum_state_write_attempted": false,
       "daemon_io_paths_exercised": [
         "baseline_rtt",
         "cake_stats",
@@ -1153,7 +1153,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1199,7 +1199,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1245,7 +1245,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1291,7 +1291,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1337,7 +1337,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1383,7 +1383,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1429,7 +1429,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1475,7 +1475,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1521,7 +1521,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1567,7 +1567,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1613,7 +1613,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1659,7 +1659,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1705,7 +1705,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1751,7 +1751,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1803,7 +1803,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1849,7 +1849,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1895,7 +1895,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1941,7 +1941,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -1987,7 +1987,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2033,7 +2033,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2079,7 +2079,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2125,7 +2125,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2171,7 +2171,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2217,7 +2217,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2263,7 +2263,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2309,7 +2309,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2355,7 +2355,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2401,7 +2401,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2447,7 +2447,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2493,7 +2493,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2539,7 +2539,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2585,7 +2585,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2631,7 +2631,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2677,7 +2677,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
@@ -2723,7 +2723,7 @@
           }
         ],
         "live_irtt_reads": [],
-        "spectrum_state_write_attempted": true,
+        "spectrum_state_write_attempted": false,
         "daemon_io_paths_exercised": [
           "baseline_rtt",
           "cake_stats",
