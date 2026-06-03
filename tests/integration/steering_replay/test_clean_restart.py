@@ -243,8 +243,10 @@ def test_clean_restart_reproduction_runs(staging_workspace: Path):
     assert len(evidence["effective_steering_state_per_cycle"]) == evidence["cycles_run"]
 
 
-def test_clean_restart_outcome_is_documented():
-    evidence = json.loads(JSON_EVIDENCE.read_text())
+def test_clean_restart_outcome_is_documented(staging_workspace: Path):
+    fixture = _fixture()
+    result = run_fixture(FIXTURE, staging_workspace / "clean-restart-degraded-doc")
+    evidence = _build_evidence(result, fixture)
     assert evidence["outcome"] in (
         "reproduced-intentional",
         "reproduced-bug",

@@ -44,7 +44,7 @@ pre_state:
 initial_steering_rule_state: true
 observation_targets:
   - pre_steering_rule_state
-  - cycle_1_observed_current_state
+  - cycle_1_observed_state
   - cycle_1_effective_steering_state
   - effective_steering_state_per_cycle
   - enable_steering_call_log
