@@ -21,9 +21,10 @@ set -euo pipefail
 TAG="wanctl-bridge-qos"
 NFT_RULES="/etc/wanctl/bridge-qos.nft"
 
-# Bridge NIC pairs (modem-side, router-side)
-SPECTRUM_NICS=(ens16 ens17)
-ATT_NICS=(ens27 ens28)
+# Bridge NIC pairs (modem-side, router-side). These are stable systemd-networkd
+# names on cake-shaper; the original ens* names may be DOWN after NIC renaming.
+SPECTRUM_NICS=(spec-modem spec-router)
+ATT_NICS=(att-modem att-router)
 
 # ---------------------------------------------------------------------------
 # Functions

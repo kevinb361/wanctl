@@ -15,8 +15,8 @@
 #   Bulk:        CS1 (8), LE (1)
 #
 # Bridge NIC topology:
-#   Spectrum download: iif ens16 (modem) -> oif ens17 (router)
-#   ATT download:      iif ens27 (modem) -> oif ens28 (router)
+#   Spectrum download: iif spec-modem (modem) -> oif spec-router (router)
+#   ATT download:      iif att-modem (modem) -> oif att-router (router)
 #
 # Connection marks:
 #   0x00000004 = Voice (EF)
@@ -130,9 +130,9 @@ table bridge qos {
         type filter hook forward priority -10; policy accept;
 
         # Spectrum download path
-        iif ens16 oif ens17 jump spectrum_dl
+        iif spec-modem oif spec-router jump spectrum_dl
 
         # ATT download path
-        iif ens27 oif ens28 jump att_dl
+        iif att-modem oif att-router jump att_dl
     }
 }
