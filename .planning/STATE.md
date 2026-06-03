@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.48
-milestone_name: Steering Runtime Drift Closure
-status: completed
-stopped_at: v1.48 milestone complete & archived (Phase 224 canary kept_aligned)
-last_updated: "2026-06-03T18:14:27.954Z"
-last_activity: 2026-06-03 — Milestone v1.48 completed and archived
+milestone: v1.49
+milestone_name: Spectrum DSCP Tinning Re-evaluation
+status: planning
+last_updated: "2026-06-03T18:34:04.367Z"
+last_activity: 2026-06-03
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-02 after v1.47 milestone close)
 
 ## Current Position
 
-Phase: Milestone v1.48 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-03 — Milestone v1.48 completed and archived
+Status: Defining requirements
+Last activity: 2026-06-03 — Milestone v1.49 started
 
 ## Deferred Items (carried into next milestone)
 

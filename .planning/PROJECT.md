@@ -8,16 +8,41 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
+## Current Milestone: v1.49 Spectrum DSCP Tinning Re-evaluation
+
+**Goal:** Re-test whether per-tin `diffserv4 wash` CAKE earns its keep on Spectrum now that end-to-end DSCP plumbing exists — confirming or overturning the v1.44 "classification theater" decision with fresh evidence under the current CRS/Ruckus/bridge topology.
+
+**Thesis origin:** Pending todo `2026-06-03-retest-spectrum-diffserv4-wash-after-local-qos-changes` (created 2026-06-03, `area: validation`). Re-opens the decision closed by fulfilled seed SEED-001 — which concluded diffserv4 was theater _because ISPs strip DSCP and the shaper sees unmarked ingress_. The load-bearing premise may no longer hold: CRS switches now apply hardware QoS trust/maps, Ruckus `Tik` QoS mirroring is on, and the cake-shaper bridge can classify download flows into EF/AF41/CS1 _before_ CAKE. v1.49 tests whether marks now survive to CAKE ingress and, if so, whether tinning produces a real latency/jitter win.
+
+**Target features:**
+
+- **DSCP survival trace (read-only):** verify marks survive CRS trust maps → Ruckus mirroring → cake-shaper bridge → CAKE ingress; document where DSCP is set / preserved / stripped. If marks do not arrive at CAKE ingress, diffserv4 remains theater (early-exit finding that confirms v1.44).
+- **Spectrum-only diffserv4-wash A/B:** baseline `920/18 besteffort wash` vs candidate `diffserv4 wash` (DL+UL), under a Snapshot A rollback anchor (v1.44 / v1.46 Phase 215 precedent).
+- **Evidence capture:** `tc -s qdisc` on spec-router/spec-modem, per-tin counters/drops/backlog/delay under load, Spectrum health/state, RRUL/flent latency-under-load, marked-EF-UDP vs unmarked-UDP vs unmarked-bulk-TCP check, restart-count + pressure-state/transition-rate deltas.
+- **Accept/rollback gates:** accept `diffserv4 wash` only on a clear latency/jitter or realtime-flow protection win with no throughput loss, daemon instability, or pressure-state churn; rollback to `besteffort wash` on RRUL p99 regression beyond the v1.44 gate tolerance, higher restart rate, more flapping, UL instability, or no useful non-BestEffort tin separation.
+- **Negative result is a valid close** — "keep besteffort wash" closes the milestone cleanly (v1.46/v1.47 evidence-milestone precedent).
+
+**Key context:**
+
+- **ATT untouched** the entire milestone — Spectrum-only A/B. ATT is a different carrier (DSL, not DOCSIS) with different DSCP behavior; the Spectrum finding does not generalize.
+- **External network gear (CRS / Ruckus / router) is NOT mutated in-milestone** — read-only end-to-end trace only. Any needed gear change is a separate operator-approved action outside v1.49. The cake-shaper bridge nftables rules (wanctl-owned deploy) may change.
+- **SAFE-13** controller-path zero-diff invariant (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) held through the audit + evidence phases; **liftable only if A/B evidence proves a control-path change is warranted** — the "decide after evidence" call is made inside the roadmap, not at milestone open. Same discipline as SAFE-07..12 through v1.43–v1.48.
+- Tin-agnostic CAKE signal + `allow_wash` gate already shipped (v1.44 Phase 205); the controller can already drive diffserv4 wash, so the A/B is expected to be a config (`configs/spectrum.yaml`) + validation exercise, not an algorithm change.
+- Phase numbering continues from v1.48 (last phase 224) → v1.49 starts at **Phase 225**.
+- Phase 218 (v1.45 VERIFY flapping watch-list) continues **event-gated in parallel** — not a v1.49 driver.
+
 ## Recently Shipped: v1.48 Steering Runtime Drift Closure (shipped 2026-06-03)
 
 **Delivered:** Aligned the live steering daemon from runtime `1.39` to source `1.47` via sliced audit → offline proof → production canary, closing six milestones of unabsorbed steering evolution without compromising the spine. Canary verdict `kept_aligned`; SAFE-12 controller-path zero-diff held at every phase boundary and at milestone close. 3 phases (222–224), 12 plans, 11/11 REQs (DRIFT/PROOF/CANARY/SAFE-12). Full detail: `milestones/v1.48-ROADMAP.md`, `phases/224-*/224-REPORT.md`.
 
 **What shipped:**
+
 - Phase 222 — git-history drift audit: the sole behavior-changing steering commit (`84ad6aa`) is contract-preserving (`go` disposition).
 - Phase 223 — offline replay/fixture harness + clean-restart reproduction (fail-closed documented; risk-acceptance committed).
 - Phase 224 — production deploy `1.39 → 1.47`, canary `kept_aligned`, full spine proof (incl. operator-authorized router rule-read `*313`), bounded rollback armed (not fired).
 
 **Key context:**
+
 - Single-thesis milestone — SEED-007 storage hygiene, operator-summary digest permission sweep, and `/gsd-cleanup` orphan sweep all explicitly **out of scope**.
 - Joint Claude + Codex scope decision 2026-06-02: STEER-DRIFT-01 selected over runner-up SEED-007 because spine-level drift across six milestones is the highest-leverage bounded risk reduction available post-v1.47.
 - Codex pushback adopted: do NOT absorb six milestones as one big rollout — slice it (audit → staging proof → canary with rollback). RECLAIM-04 stays carried indefinitely (Phase 215 bounded VOID already exhausted; no new probe shape).
@@ -34,6 +59,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Delivered:** Bounded read-only evidence milestone. Scope D (ingestion-rate observability) shipped first per Pitfall 11 to support Phase 218 audit evidence regardless of v1.47 timing. Scope A (`tcp_12down` target/path sensitivity hypothesis) ran an 18-cell target × path × window matrix against pre-registered CRITERIA thresholds locked at Phase 220 plan time. The Phase 221 closeout published `carried_narrower_with_close_with_prejudice_rule` as the authoritative post-D-10-BGP-overlay verdict — raw aggregator returned `defect_located` on three supplemental Vultr cells, but the D-10 BGP overlay excluded those cells because BGP path drift contaminated them mid-run. Folded `2026-04-08-investigate-tcp-12down` todo closed with the CRITERIA-02 close-with-prejudice rule attached verbatim; no v1.48+ reopen permitted without independent new production evidence.
 
 **Key outcomes:**
+
 - **Phase 219 (Scope D, D-first per Pitfall 11)** — `wanctl-history --ingestion-rate --by-table` and `--rolling=60,300,3600` additive JSON envelope with `schema_version: 1` and per-snapshot staleness fields; `wanctl-operator-summary --digest` ingestion-rate block; cron-callable `scripts/phase219_ingestion_digest.py` with atomic-write snapshot persistence + count-based retention. D-27 production cycle-budget: `avg_ms=2.857`, `p99_ms=6.4` over 73,603 samples.
 - **Phase 220 (Scope A1)** — Pre-registered 18-cell `scripts/phase220-matrix.yaml` with locked CRITERIA-01 thresholds, ATT egress signature, and `base_sha` source-floor anchor; stdlib + PyYAML cube aggregator with Mann-Whitney U + bootstrap 95% percentile CI (B=2000, seeded); per-cell wrapper composing Phase 213/214 unchanged. Wet daytime dallas/Spectrum rehearsal reproduced the Phase 214 anchor (`ambiguous` / `reflector_loss` / `✓ MATCH`).
 - **Phase 221 (Scope A2)** — 54/54 deduplicated valid replicates across 18 cells captured over multi-day operator-driven windows; closeout JSON + 11-section report with pre-/post-D-10-BGP-overlay verdict trace; folded `tcp_12down` todo closed with CRITERIA-02 attached verbatim.
@@ -41,6 +67,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - **Stdlib-only mandate** carried forward from Phase 214 D-10 — no SciPy/NumPy/pandas.
 
 **Carry-forward (parallel to next milestone):**
+
 - **Phase 218 (event-gated v1.45 VERIFY watch-list)** — VERIFY-01 / VERIFY-02 still event-gated on natural production DOCSIS flapping event with `details.peak_transition_count > 30`. **No synthetic event generation per ROADMAP constraint.** Plan only when qualifying evidence exists. INGEST-01..05 tool now available as Phase 218 audit fallback enhancement vs the v1.44 Phase 208 CLI as-is.
 
 <details>
@@ -53,6 +80,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Delivered:** Evidence-first quality recovery. Production drift inventoried; experience baseline harness operational; measurement-collapse classifier returned `ambiguous`/`reflector_loss` with severe loaded p99 NOT reproduced in the official Spectrum/Dallas window; upload-reclaim canary tried ceiling 18→20 and rolled back safely after bounded VOID exhausted on three attempts; Phase 196 refractory thread closed as no-change/resolved-by-197; production cycle-budget profiled at 71,560 timing samples and the profiling baseline todo closed as no-action. v1.45 VERIFY-01/02 carried forward to Phase 218.
 
 **Key outcomes:**
+
 - Production state inventoried with D-08 secret-safe redaction; **steering runtime `1.39` vs source `1.45` drift surfaced** as known unaligned.
 - Single-command per-WAN experience baseline harness with offline six-bucket signal classification.
 - Six-driver measurement-collapse classifier; canonical Spectrum verdict `ambiguous`/`reflector_loss`/`signal none`.
@@ -87,6 +115,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Goal:** Migrate Spectrum CAKE qdisc from `940Mbit diffserv4 nowash` to topology-correct `920Mbit besteffort wash` (validated out-of-band 2026-04-22 flent), removing classification theater that the carrier strips upstream — without disturbing ATT (DSL, separately validated) and without changing controller thresholds/algorithms.
 
 **Shipped features:**
+
 - **Tin-agnostic CAKE signal + allow_wash gate** (Phase 205) — `cake_signal.py` aggregation now handles both single-tin besteffort and multi-tin diffserv4 without per-deployment branching; per-WAN `cake_params.allow_wash: bool = false` permits `wash` only when explicitly enabled; D-08 transparent-bridge protection preserved by default.
 - **A/B replay harness + rollback gates** (Phase 206) — deterministic golden NDJSON-driven A/B replay against the 2026-04-22 out-of-band finding; predeploy gate script with JSON-sourced thresholds (RRUL p99 >5%, restart-rate, transition-rate); fail-closed on malformed inputs (partial counters, zero-duration soak, hidden override, non-finite window).
 - **Soak / harness hardening** (Phase 207, v1.43 closeout-routed) — SAFE-07 source-diff verifier fails closed on dirty/staged/untracked `src/wanctl/` surfaces; `soak-capture.sh` tolerates bounded curl/HTTP/jq blips with sidecar TSV diagnostics; `secondary_gate_legacy` block retired; CALIB-02 YAML promotion routed to NO.
@@ -96,6 +125,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Closeout invariant held:** Zero controller-path source diff from `6508d68` (v1.43 close) through v1.44 close. The five-file SAFE-09 allowlist (`linux_cake.py`, `netlink_cake.py`, `cake_params.py`, `cake_signal.py`, `check_config_validators.py`) was operator-approved before any source mutation. ATT remained `diffserv4 nowash` throughout.
 
 **Key decisions:**
+
 - 2026-05-09: v1.44 thesis B selected from joint Claude + Codex peer review over alternatives A (storage hygiene), C (UL tuning), D (Silicom buildout). Codex caught SEED-003 premature-closure attempt during scoping.
 - 2026-05-14: Phase numbering continues from v1.43 (last phase 204) → v1.44 starts at Phase 205. 16/16 v1.44 REQ-IDs mapped (TOPO 1-7, HRDN 1-4, TOOL 1-3, SAFE 8-9). Spine: SEED-001.
 - 2026-05-19: Plan 209-02 closed Phase 206 TOPO-05 nan/inf gap cross-phase via `math.isfinite()` guard (commit `d70112f`). Ratified by v1.44 audit 2026-05-23 and restamped 2026-05-26.
@@ -141,6 +171,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Goal:** Repair the metric contract behind the failed D-14 secondary watchdog from Phase 201, capture target-edge evidence in the same baseline soak, and recalibrate a soak-grounded D-14 successor gate — without changing controller behavior.
 
 **Shipped features:**
+
 - **Metric semantics fix** (SEED-002, Phase 202) — additive `/health.wans[].upload` completed-window suppression counts with `dwell_hold` / `backlog_recovery` / `other` cause tags; `suppressions_per_min` preserved untouched.
 - **Target-edge churn instrumentation** (SEED-004, Phase 203) — per-sample `load_rtt_delta_us` in soak NDJSON; zone × cause-tag histogram + p50/p95/p99/max aggregation in `soak-summary.json`.
 - **D-14 successor recalibration** (SEED-003, Phase 204) — soak-grounded threshold `175` against `by_cause.dwell_hold.p99`; dual-emission watchdog loaded from `scripts/calib_02_threshold.json`; verification soak `20260512T004208Z` dual gate PASS.
@@ -165,6 +196,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Goal:** Replace RTT-primary DL congestion classification with kernel-local CAKE queue-delay as the primary signal under load, demoting RTT to a confidence-gated secondary. Restore Spectrum DOCSIS throughput without making the controller vulnerable to carrier ICMP/UDP deprioritization. DL-only scope; UL stays RTT-led.
 
 **Target features:**
+
 - Queue-delay delta (`avg_delay_us - base_delay_us` from CAKE) as DL distress primary signal under load
 - RTT demoted to confidence-gated secondary; rtt_confidence derived from ICMP/UDP agreement + queue direction agreement
 - Fusion healer bypass requires BOTH queue-distress AND RTT-distress aligned for 6 cycles; single-path flips never bypass
@@ -172,6 +204,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - Spectrum A/B soak: 24h rtt-blend baseline then 24h cake-primary on same deployment; ATT canary gated on Phase 191 closure
 
 **Key context:**
+
 - 2026-04-23 production measurements: Spectrum DOCSIS 940/40 delivers ~280 Mbps with wanctl active vs 591 Mbps CAKE-only static floor. ATT fusion already disabled (2026-04-17) for same root cause; fusion disabled on Spectrum 2026-04-23 as a workaround. Neither workaround recovers throughput.
 - Root cause: carrier deprioritizes BOTH ICMP and UDP/irtt at different times (ICMP/UDP ratio flipped 1.96 → 0.54 within minutes same test). Fusion.healer correctly suspends on anti-correlation then controller falls back to ICMP-only and clamps on phantom bloat. No YAML tuning recovers because signal itself is carrier-jittered.
 - Architectural decision: CAKE kernel-local queue delay is not vulnerable to carrier deprioritization. Use `base_delay_us` from CAKE (kernel-computed idle reference) — no Python-learned baseline.
@@ -209,6 +242,7 @@ thresholds or steering behavior.
 ### Validated
 
 **v1.48 Steering Runtime Drift Closure (shipped 2026-06-03):**
+
 - ✓ DRIFT-01..04 — steering runtime/source drift audited; sole behavior-changing commit `84ad6aa` contract-preserving (`go`).
 - ✓ PROOF-01..03 — offline replay/fixture harness + clean-restart reproduction; spine contract held across corpus.
 - ✓ CANARY-01..03 — production deploy `1.39 → 1.47` under Snapshot A anchor, canary `kept_aligned`, bounded rollback armed.
@@ -910,4 +944,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-03 — after v1.48 Steering Runtime Drift Closure milestone close. Live steering daemon aligned `1.39 → 1.47` in production via audit → proof → canary; verdict `kept_aligned`, SAFE-12 held at every boundary and milestone close. No active milestone — next defined via `/gsd-new-milestone`. Phase 218 (v1.45 VERIFY watch-list) continues event-gated in parallel._
+_Last updated: 2026-06-03 — v1.49 Spectrum DSCP Tinning Re-evaluation opened via `/gsd-new-milestone`. Thesis: re-test `diffserv4 wash` vs `besteffort wash` on Spectrum under the changed CRS/Ruckus/bridge QoS topology, gated on a read-only DSCP survival trace; ATT untouched; SAFE-13 controller-path freeze held through evidence phases (liftable only on evidence). Phase numbering continues at Phase 225. Phase 218 (v1.45 VERIFY watch-list) continues event-gated in parallel. Prior: v1.48 Steering Runtime Drift Closure shipped 2026-06-03 (`kept_aligned`, SAFE-12 held)._
