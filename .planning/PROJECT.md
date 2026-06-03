@@ -8,14 +8,14 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.48 Steering Runtime Drift Closure
+## Recently Shipped: v1.48 Steering Runtime Drift Closure (shipped 2026-06-03)
 
-**Goal:** Align the live steering daemon (runtime `1.39`) with current source (`1.45`) through sliced audit → staging proof → production canary, closing six milestones of unabsorbed evolution without compromising the steering spine.
+**Delivered:** Aligned the live steering daemon from runtime `1.39` to source `1.47` via sliced audit → offline proof → production canary, closing six milestones of unabsorbed steering evolution without compromising the spine. Canary verdict `kept_aligned`; SAFE-12 controller-path zero-diff held at every phase boundary and at milestone close. 3 phases (222–224), 12 plans, 11/11 REQs (DRIFT/PROOF/CANARY/SAFE-12). Full detail: `milestones/v1.48-ROADMAP.md`, `phases/224-*/224-REPORT.md`.
 
-**Target features:**
-- Source vs runtime delta audit + steering contract diff against the spine (binary on/off, only new latency-sensitive connections rerouted, autorate baseline RTT remains authoritative)
-- Offline / staging proof — replay or fixture-driven steering behavior validation; reproduce and resolve folded `2026-04-17-investigate-steering-degraded-on-clean-restart` todo as Phase-2 sub-goal
-- Production alignment canary with explicit rollback, health-endpoint proof, and autorate-baseline-authoritative invariant checks
+**What shipped:**
+- Phase 222 — git-history drift audit: the sole behavior-changing steering commit (`84ad6aa`) is contract-preserving (`go` disposition).
+- Phase 223 — offline replay/fixture harness + clean-restart reproduction (fail-closed documented; risk-acceptance committed).
+- Phase 224 — production deploy `1.39 → 1.47`, canary `kept_aligned`, full spine proof (incl. operator-authorized router rule-read `*313`), bounded rollback armed (not fired).
 
 **Key context:**
 - Single-thesis milestone — SEED-007 storage hygiene, operator-summary digest permission sweep, and `/gsd-cleanup` orphan sweep all explicitly **out of scope**.
@@ -107,13 +107,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.48 Steering Runtime Drift Closure active. Phase 222 Steering Drift Audit completed 2026-06-02 with 5/5 verification; Phase 223 Staging Proof + Clean-Restart Reproduction completed 2026-06-03 with 11/11 verification after Plan 04 gap closure. Phase 224 Production Canary + Rollback Discipline is next. Phase 218 continues parallel as event-gated v1.45 VERIFY watch-list. **Active milestone:** v1.48 — see Current Milestone section above.
+**Version:** v1.48 Steering Runtime Drift Closure **shipped 2026-06-03** (3/3 phases, 12/12 plans, 11/11 REQs). Phase 222 audit 5/5, Phase 223 proof 11/11, Phase 224 production canary verdict `kept_aligned` with SAFE-12 held at boundary + milestone close. Live steering daemon aligned `1.39 → 1.47` in production; controller path untouched. Phase 218 continues parallel as event-gated v1.45 VERIFY watch-list. **No active milestone — next to be defined via `/gsd-new-milestone`.**
 **Tests:** Phase 223 full post-merge regression passed `5320 passed, 10 skipped, 2 deselected`; steering replay package passed `19 passed`, and `replay_harness.py --all` emits all seven fixtures including `clean-restart-degraded`. Phase 221 verification + closeout published `carried_narrower_with_close_with_prejudice_rule` (post-D-10 BGP overlay, authoritative); raw aggregator `defect_located` overlaid. Phase 220 verification passed 5/5 after the repaired wet rehearsal harness reproduced the Phase 214 dallas/Spectrum daytime anchor and the hot-path + Phase 220 regression slice passed `726 passed`. Phase 219 verification passed 5/5 after full regression `5238 passed, 14 skipped, 2 deselected` and production D-27 cycle-budget evidence (`avg_ms=2.857`, `p99_ms=6.4`). Phase 217 verification passed 12/12; Phase 216 verification passed 11/11; Phase 215 verification passed 25/25; Phase 214 UAT passed 8/8; Phase 213 verification passed 15/15; Phase 212 verification passed 16/16.
 **LOC:** ~40,915 Python (src/) — v1.47 source-surface delta was +3,361 / -28 across 15 files (additive observability + matrix tooling; zero controller-path mutation).
-**Milestones:** 48 shipped or shipped-with-deferral (v1.0–v1.47).
-**Active milestone:** v1.48 Steering Runtime Drift Closure — Phases 222 and 223 complete; Phase 224 production canary + rollback discipline is next. Phase 218 watch continues in parallel.
+**Milestones:** 49 shipped or shipped-with-deferral (v1.0–v1.48).
+**Active milestone:** none — v1.48 shipped 2026-06-03; next milestone to be defined via `/gsd-new-milestone`. Phase 218 watch continues in parallel.
 
-**Latest:** v1.48 Phase 223 Staging Proof + Clean-Restart Reproduction complete — offline replay harness, clean-restart reproduction, spine evidence, SAFE-12 boundary proof, and Plan 04 gap closure passed verification 11/11. Phase 224 may proceed under the committed clean-restart risk-acceptance artifact unless the operator chooses the override path.
+**Latest:** v1.48 Phase 224 Production Canary complete — aligned steering daemon deployed to production `cake-shaper` (`1.39 → 1.47`, healthy in 2s), 16-sample observation window closed `kept_aligned`, all three spine invariants proven (incl. operator-authorized router rule-read), SAFE-12 boundary + milestone-close checks passed, rollback armed but not fired. Residual: rollback wall-clock unproven (no staging host; honestly waived).
 **Previous:** v1.48 Phase 222 Steering Drift Audit complete — read-only evidence packet covers DRIFT-01/02/03/04 plus SAFE-12. The audit found one steering-surface commit between runtime `1.39` and source-floor `v1.47`: `84ad6aa`, classified behavior-changing but preserving binary steering, only-new-connection rerouting, and autorate-baseline authority, so the operator disposition is `go`. No runtime/source mutation, production probe, deploy, controller threshold, CAKE, RouterOS, or production service change occurred.
 **Previous:** v1.47 milestone complete — Phase 221 Matrix Evidence + Closeout (Scope A2) closed the folded `tcp_12down` todo with CRITERIA-02 close-with-prejudice rule attached verbatim; 54/54 deduplicated valid replicates across 18 target/path/window cells; D-10 BGP overlay flipped raw `defect_located` to `carried_narrower_with_close_with_prejudice_rule` because three Spectrum supplemental Vultr cells were BGP-path-contaminated mid-run. No controller, threshold, CAKE, steering, RouterOS, or Phase 213/214 source behavior changed.
 **Previous:** v1.47 Phase 220 Matrix Runner (Scope A1) complete — canonical 18-cell target/path/window YAML with locked CRITERIA thresholds; stdlib/PyYAML aggregator handles fixture and live wrapper evidence; wrapper composes Phase 213 capture with unchanged Phase 214 align/classify output; wet dallas/Spectrum daytime rehearsal matched the Phase 214 anchor (`ambiguous` / `reflector_loss`).
@@ -207,6 +207,12 @@ thresholds or steering behavior.
 ## Requirements
 
 ### Validated
+
+**v1.48 Steering Runtime Drift Closure (shipped 2026-06-03):**
+- ✓ DRIFT-01..04 — steering runtime/source drift audited; sole behavior-changing commit `84ad6aa` contract-preserving (`go`).
+- ✓ PROOF-01..03 — offline replay/fixture harness + clean-restart reproduction; spine contract held across corpus.
+- ✓ CANARY-01..03 — production deploy `1.39 → 1.47` under Snapshot A anchor, canary `kept_aligned`, bounded rollback armed.
+- ✓ SAFE-12 — controller-path zero-diff vs v1.47 at every phase boundary AND milestone close.
 
 **Core Features:**
 
@@ -549,7 +555,7 @@ thresholds or steering behavior.
 ### Deferred
 
 - [ ] **VERIFY-01 / VERIFY-02 (v1.45 + v1.46)** — Phase 218 event-gated; needs natural production DOCSIS flapping event with `peak_transition_count > 30` on either WAN; no synthetic event generation per ROADMAP.
-- [ ] **Steering runtime/source version-drift alignment (v1.46 carry → v1.48+)** — Phase 212 surfaced runtime `1.39` vs source `1.45`; alignment pending operator approval.
+- ✓ **Steering runtime/source version-drift alignment** — RESOLVED in v1.48 (Phases 222–224): live steering daemon aligned `1.39 → 1.47` in production, canary `kept_aligned`, SAFE-12 held.
 - [ ] **Spectrum upload reclaim re-attempt (v1.46 carry → v1.48+)** — Phase 215 bounded VOID exhausted at ceiling 20; revised gate / different probe shape needed.
 - [ ] SSH connection pooling — Low ROI, REST API already optimal.
 - [ ] CAKE stats caching — Not needed, flash wear protection working.
@@ -904,4 +910,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-03 — v1.48 Phase 223 Staging Proof + Clean-Restart Reproduction complete and verified 11/11 after Plan 04 gap closure. Phase 224 production canary + rollback discipline is next, gated by the committed clean-restart risk-acceptance artifact unless the operator chooses the override path. Phase 218 (v1.45 VERIFY watch-list) continues event-gated in parallel._
+_Last updated: 2026-06-03 — after v1.48 Steering Runtime Drift Closure milestone close. Live steering daemon aligned `1.39 → 1.47` in production via audit → proof → canary; verdict `kept_aligned`, SAFE-12 held at every boundary and milestone close. No active milestone — next defined via `/gsd-new-milestone`. Phase 218 (v1.45 VERIFY watch-list) continues event-gated in parallel._

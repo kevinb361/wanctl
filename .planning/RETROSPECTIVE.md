@@ -776,6 +776,48 @@ _A living document updated after each milestone. Lessons feed forward into futur
 
 ---
 
+## Milestone: v1.48 — Steering Runtime Drift Closure
+
+**Shipped:** 2026-06-03
+**Phases:** 3 (222–224) | **Plans:** 12
+
+### What Was Built
+
+- Git-history steering drift audit (runtime `1.39` vs source `1.47`): the sole behavior-changing commit `84ad6aa` is contract-preserving (`go` disposition).
+- Offline SteeringDaemon replay/fixture harness with fake RouterOS/CAKE/baseline seams; clean-restart symptom reproduced and fail-closed documented.
+- Snapshot A capture + targeted rollback wrappers (reversible canary anchor; raw restore artifacts operator-private outside the tree).
+- Read-only spine probe + stdlib restart-window-aware gate evaluator.
+- Production deploy of the aligned steering daemon (`1.39 → 1.47`), 16-sample canary window, verdict `kept_aligned`, all three spine invariants proven, SAFE-12 boundary + milestone-close checks.
+
+### What Worked
+
+- Slicing the six-milestone drift into audit → proof → canary (Codex's pushback) kept each phase bounded and reversible.
+- The tripwire soak (background sampler, exit-on-anomaly) caught a real congestion activate→recover mid-window — stronger evidence than a quiet soak, at near-zero attention cost.
+- Honest gate handling: the unmeasured rollback budget was recorded as `operator_override: unmeasured-waived`, not faked; the credentialless-probe `null` was closed with a real router rule-read, provenance-labeled.
+
+### What Was Inefficient
+
+- Closing the router rule-read gap cost four auto-mode guardrail denials (vault-decrypt guess → cred-file scan → admin-secret-via-sudo → bare "1"). The working path — handing the operator a `! command` — should have been the first move after the first denial.
+- No staging host meant the rollback wall-clock was never measured; the canary shipped with rollback armed but timing-unproven.
+
+### Patterns Established
+
+- `match: null` + `read_error` to separate "unreadable" from "violated" in verification probes.
+- Provenance-labeled composed gate input (real probe value + authoritative out-of-band read) when no single source can produce all-true inputs.
+- Snapshot A redacted/raw evidence split with a rollback wrapper that refuses redacted copies as a restore source.
+- Window-close verdict discipline (`kept_aligned` only when `captured_at >= observation_end_ts`).
+
+### Key Lessons
+
+1. gate-eval `_bool_gate(None) == "fail"` — a credentialless probe's `null` becomes a *rollback* verdict past the restart window. Feed verifiers real values, and only `gate_binary_on_off` carries the restart-window exemption.
+2. `deploy.sh --with-steering` rsyncs the whole `src/wanctl/` tree — controller source on disk is overwritten even though the controller service isn't restarted. SAFE-12 demands a clean local controller path *before* deploy.
+3. After one guardrail denial on a privileged credential read, hand the operator a `! command` — don't escalate to a stronger credential than they named. Frustration ("just find it") is a signal the approach is wrong, not license to push harder.
+
+### Cost Observations
+
+- Model mix: Opus 4.8 (main loop) + Sonnet subagents (project-finalizer) — single extended session.
+- Notable: most wall-clock went to read-only soak/observation windows (background, near-zero token cost), not reasoning.
+
 ## Cross-Milestone Trends
 
 ### Process Evolution

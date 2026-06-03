@@ -1,5 +1,30 @@
 # Project Milestones: wanctl
 
+## v1.48 Steering Runtime Drift Closure (Shipped: 2026-06-03)
+
+**Phases completed:** 3 phases, 12 plans, 31 tasks
+
+**Delivered:** Aligned the live steering daemon `1.39 → 1.47` in production via sliced audit → offline proof → production canary. Canary verdict `kept_aligned`; SAFE-12 controller-path zero-diff held at every phase boundary and milestone close. 11/11 REQs (DRIFT/PROOF/CANARY/SAFE-12). Git range `103c776 → a9a23c5`.
+
+**Key accomplishments:**
+
+- Pinned git-history audit proving the v1.39-to-v1.47 steering surface delta is one behavior-changing hardening commit, with reproducible JSON and operator-readable reports.
+- Steering drift contract audit proving the sole behavior-changing v1.39-to-v1.47 commit preserves the spine and is safe to absorb without mitigation.
+- Fail-closed SAFE-12 controller-path boundary evidence proving zero committed drift and clean staged/unstaged/untracked state against the v1.47 close baseline.
+- Offline SteeringDaemon replay harness with fake RouterOS/CAKE/baseline seams and deterministic PROOF-01 evidence artifacts.
+- Clean-restart replay proof reproducing persisted DEGRADED + pre-enabled steering as an effective-steering bug, with evidence and folded-todo closure annotation.
+- Per-fixture steering-spine verdict evidence plus Phase 222-compatible SAFE-12 controller-path zero-diff proof for the Phase 224 pre-canary gate.
+- Replay harness regeneration now includes clean-restart evidence, daemon-side spectrum write semantics, explicit Phase 224 risk acceptance, and SAFE-12 steering-boundary proof.
+- Snapshot A and targeted rollback wrappers now provide a reversible steering canary anchor, with staging budget evidence explicitly pending until real raw artifacts are available.
+- Read-only steering spine probe plus restart-window-aware gate evaluator now produce canary verdicts from raw `/health` and live spine evidence.
+- Production deploy of the aligned steering daemon under a Snapshot A rollback anchor; canary `kept_aligned` with all three spine invariants proven (binary on/off, only-new-connections, daemon-source fingerprint) including an operator-authorized router rule-read of mangle rule `*313`; bounded rollback armed but not fired.
+
+**Known deferred items at close:** 23 — all pre-existing carry-forward, zero new v1.48 debt (see STATE.md Deferred Items). Acknowledged via `/gsd-complete-milestone` Acknowledge-&-close path 2026-06-03.
+
+**Known residual:** rollback wall-clock unproven (no staging host; honestly waived per `rehearsal-budget.md` `operator_override: unmeasured-waived`).
+
+---
+
 ## v1.47 Measurement Evidence Closure (Shipped: 2026-06-02)
 
 **Delivered:** Bounded read-only evidence milestone. Scope D (ingestion-rate observability) shipped first per Pitfall 11 to support Phase 218 audit evidence regardless of v1.47 timing. Scope A (`tcp_12down` target/path sensitivity hypothesis) ran an 18-cell target × path × window matrix with pre-registered CRITERIA thresholds locked at Phase 220 plan time. The Phase 221 closeout published `carried_narrower_with_close_with_prejudice_rule` as the authoritative post-D-10-BGP-overlay verdict — raw aggregator returned `defect_located` on three supplemental Vultr cells, but the D-10 BGP overlay excluded those cells because BGP path drift contaminated them mid-run. Folded `2026-04-08-investigate-tcp-12down` todo closed with the CRITERIA-02 close-with-prejudice rule attached verbatim; no v1.48+ reopen permitted without independent new production evidence.
