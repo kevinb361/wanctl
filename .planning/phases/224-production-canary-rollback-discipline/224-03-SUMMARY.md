@@ -97,3 +97,23 @@ Plan 04 — canary observation window sampling from `observation_start_ts=2026-0
 verdict, and conditional rollback. Rollback remains armed via `scripts/phase224-rollback.sh
 --snapshot evidence/snapshot-a/20260603T122925Z --raw-dir ~/.wanctl-phase224-raw --ssh-host
 cake-shaper --target-wan spectrum`.
+
+## Addendum — Router Rule-Read Proof (CANARY-02 gap closed)
+
+The spine probe reported `binary_on_off` / `only_new_connections` as `null` (router rule
+read unavailable — no creds in probe env). Closed via an operator-authorized, read-only REST
+mangle read using wanctl's own router credential on cake-shaper (secret never left the host).
+
+Live ADAPTIVE rule `*313` (`evidence/leg-b-postalignment/mangle.main-router.json`,
+`spine-rule-proof.json`):
+- `binary_on_off = true` — single mangle rule toggled via `disabled` flag (binary, not graduated);
+  `disabled=true` consistent with `/health steering.enabled=false`. Off-state proven at rule level.
+- `only_new_connections = true` — `connection-state=new`; existing flows never rerouted.
+- `selector_contract = true` — chain=prerouting, action=mark-routing, connection-state=new,
+  connection-mark=QOS_HIGH,QOS_MEDIUM,GAMES, new-routing-mark=to_ATT, routing-mark=!to_ATT,
+  dst-address=!10.10.0.0/16.
+
+Residual (opportunistic for Plan 04): on-state rule-level capture (`disabled=false` during a live
+activation) not yet taken; the soak caught an activation at the /health layer (cycle 17,
+SPECTRUM_DEGRADED→recover) but not a concurrent rule read. Off-state rule proof + health-layer
+activate/recover is sufficient CANARY-02 evidence.
