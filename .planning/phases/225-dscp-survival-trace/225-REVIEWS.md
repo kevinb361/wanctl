@@ -3,9 +3,29 @@ phase: 225
 reviewers: [codex]
 reviewed_at: 2026-06-03T19:07:05Z
 plans_reviewed: [225-01-PLAN.md, 225-02-PLAN.md, 225-03-PLAN.md]
+cycles:
+  - cycle: 1
+    reviewed_at: 2026-06-03T19:07:05Z
+    high_raised: 6
+    high_unresolved: 6
+  - cycle: 2
+    reviewed_at: 2026-06-03T19:40:00Z
+    base_commit: e280697
+    prior_high_resolved: 3
+    prior_high_partial: 3
+    new_high_raised: 3
+    high_unresolved: 3
 ---
 
 # Cross-AI Plan Review — Phase 225 (DSCP Survival Trace)
+
+This file accumulates review history across cycles. Cycle 1 (below) reviewed the original plans and
+raised 6 HIGH concerns. Cycle 2 (appended at the bottom) reviewed the revised plans (commit
+`e280697`) that claimed to resolve all 6.
+
+---
+
+# ============================ CYCLE 1 (original plans) ============================
 
 Cross-AI reviewer: **Codex** (codex-cli 0.135.0, default model). Claude was skipped for
 independence (review invoked from inside Claude Code). The reviewer's three highest-leverage
@@ -206,3 +226,113 @@ counters and define the `unknown` branch; (b) resolve the ANY/ALL contradiction 
 (c) pre-register numeric thresholds for meaningful/negligible/sample-size/EF-percentage; (d)
 strengthen the SAFE-13 script to the SAFE-12 standard; (e) pin the tcpdump capture point relative to
 CAKE wash and make probe/verdict evidence direction-specific.
+
+---
+
+# ============================ CYCLE 2 (revised plans, commit e280697) ============================
+
+Cross-AI reviewer: **Codex** (codex-cli, default model). Claude skipped for independence (review
+invoked from inside Claude Code). Codex verified against `HEAD=e280697`. The orchestrator
+independently re-verified each of Codex's three NEW HIGH claims against the actual file lines (all
+confirmed; annotated `[VERIFIED]` below). The revised plans + research claimed to resolve all 6
+cycle-1 HIGHs.
+
+## Disposition of the 6 cycle-1 HIGH concerns
+
+| # | Cycle-1 HIGH | Cycle-2 disposition | Evidence |
+|---|--------------|---------------------|----------|
+| 1 | nft counter absence read as "negligible" | **RESOLVED** | Absence → `bridge_counter_signal=unknown`, never `negligible` (225-RESEARCH.md:123, 225-01-PLAN.md:67-73). |
+| 2 | tcpdump capture point vs CAKE wash | **PARTIALLY RESOLVED** | Pre-wash intent + `WASH_ORDERING_PROVEN` flag added, but method still leans on `tcpdump -Q in` with no real proof standard (225-02-PLAN.md:75-83). See NEW HIGH-C. |
+| 3 | SAFE-13 weaker than SAFE-12 precedent | **RESOLVED** | Committed + staged + dirty/untracked + per-file sha + ATT + fail-closed, matching v1.48 shape (225-03-PLAN.md:59-81). |
+| 4 | ANY-vs-AND decision-logic contradiction | **PARTIALLY RESOLVED** | The original ANY/AND contradiction is gone, but a NEW internal contradiction appeared around whether `bridge_counter_signal=unknown` blocks the negative branch. See NEW HIGH-A. |
+| 5 | "meaningful"/"negligible" unquantified + no load floor | **PARTIALLY RESOLVED** | Packet thresholds (<1% / ≥5% / ≥90% / <10%) + sample floor (≥2000 pkts / ≥30 active s / ≥100 probe pkts) pre-registered, but the research's non-BestEffort **byte-fraction** half of NEGLIGIBLE is not carried into the 225-02/225-03 acceptance criteria (225-RESEARCH.md:146 vs 225-03-PLAN.md:133). See NEW MEDIUM. |
+| 6 | UL probe bypasses DL path under test | **RESOLVED** | Four direction-split channels; UL-only positive can neither close negative nor unblock the DL A/B (225-02-PLAN.md:49, 225-03-PLAN.md:141). |
+
+Net: **3 fully RESOLVED, 3 PARTIALLY RESOLVED.** No cycle-1 HIGH regressed to fully unresolved, but
+the partial-resolutions surfaced **3 NEW HIGH** concerns this cycle.
+
+## Codex Review (cycle 2)
+
+**New / remaining HIGH concerns**
+
+- **HIGH-A — DSCP-03 is not deterministic when bridge counters are absent (internal contradiction).**
+  `[VERIFIED]` 225-RESEARCH.md:188-190 (MARKS_DO_NOT_SURVIVE branch) says if `bridge_counter_signal=unknown`
+  "it does not block this branch (the histogram is the source of truth)" — i.e. a negative close can
+  fire with counters absent. But 225-RESEARCH.md:202-205 + 212-213 (QUALIFIED branch) say counters
+  absent / `unknown` maps to QUALIFIED and "`unknown` ALWAYS maps here, never to MARKS_DO_NOT_SURVIVE."
+  These two statements are mutually exclusive for the counters-absent case (the verified production
+  case — the nft rules have no `counter` clause). The verdict function is non-deterministic exactly in
+  the situation that will actually occur. Must pick one rule before any capture.
+
+- **HIGH-B — `MARKS_SURVIVE_QUALIFIED` has no defined relationship to the roadmap's Phase 226 gate.**
+  `[VERIFIED]` ROADMAP.md:44 gates Phase 226 on a "marks survive" verdict from Phase 225. RESEARCH.md:210-211
+  says QUALIFIED means "proceed with caveat" and defers the unblock decision to "Phase 226's GATE-01
+  tie-breaker." QUALIFIED is neither MARKS_SURVIVE nor MARKS_DO_NOT_SURVIVE, yet the research lets it
+  advance toward the mutable A/B (Phase 226 builds Snapshot A + locks thresholds before any candidate
+  deploy). Either QUALIFIED blocks Phase 226 (matching the roadmap gate) or the roadmap gate must be
+  rewritten to admit a third "proceed-with-caveat" state — as written, the catch-all default can leak
+  an ambiguous verdict into the phase that begins touching production config.
+
+- **HIGH-C — pre-wash capture proof is underspecified and likely directionally wrong for DL.**
+  `[VERIFIED]` 225-02-PLAN.md:76 captures the DL histogram on `spec-router` with `tcpdump ... -Q in`.
+  DL packets bound for the LAN *egress* `spec-router`; `-Q in` captures host-inbound traffic, so it is
+  not self-evidently the "DSCP byte as it arrives at the CAKE enqueue point" on the DL path. The plan
+  treats setting `CAPTURE_POINT=pre_wash_ingress` as a flag the operator asserts rather than a proven
+  property; without a concrete proof artifact (e.g. demonstrating the capture hook sits before the
+  `spec-router` CAKE egress qdisc and before wash), the load-bearing DL survival channel rests on an
+  unverified directional assumption. The plan's own fallback (`CAPTURE_POINT=unknown` → channel
+  `unknown`) is the safety net, but combined with HIGH-A/HIGH-B an `unknown` DL channel has an
+  ill-defined verdict consequence.
+
+**Remaining MEDIUM**
+
+- **MEDIUM — NEGLIGIBLE byte-fraction threshold not enforced in the plans.** 225-RESEARCH.md:146-148
+  defines NEGLIGIBLE as non-BestEffort packets <1% **AND** non-BestEffort bytes <1% (where measurable),
+  but 225-02 (`sample-quality.txt`, histograms) and 225-03 (verdict acceptance) only require packet
+  fractions. The byte-fraction half of the pre-registered negative criterion is not carried into the
+  implementing acceptance criteria — a partial implementation of the pre-registered logic.
+
+**Overall risk: HIGH (as a milestone-gating plan).** Mutation risk remains LOW — read-only posture,
+SAFE-13 hardening, and direction-split are genuinely solid. But the **verdict integrity** is not yet
+trustworthy: the counters-absent path is internally contradictory (HIGH-A), the QUALIFIED default has
+no defined gate relationship (HIGH-B), and the DL pre-wash capture rests on an unproven directional
+assumption (HIGH-C). All three are evidence/verdict-logic issues, not scripting issues, and all three
+are exactly the kind of ambiguity that lets a milestone gate close wrong or leak an ambiguous verdict
+downstream.
+
+## Consensus Summary (cycle 2)
+
+Single external reviewer (Codex); orchestrator independently re-verified all three NEW HIGH claims
+against the file lines (`[VERIFIED]`). The revised plans made real progress — the read-only posture,
+SAFE-13 boundary check, counter-absence handling, and direction split are now sound — but the verdict
+decision function still has internal and cross-document contradictions that must be resolved before
+any capture runs.
+
+### Agreed Strengths (carried + new)
+- Counter absence correctly maps to `unknown`, never `negligible` (cycle-1 HIGH-1 closed).
+- SAFE-13 now matches the v1.48 SAFE-12 standard: committed/staged/dirty/untracked + per-file sha +
+  ATT + fail-closed (cycle-1 HIGH-3 closed).
+- Evidence is direction-split; UL-only cannot close negative or unblock the DL A/B (cycle-1 HIGH-6 closed).
+- Numeric packet thresholds + representative-load sample floor pre-registered (cycle-1 HIGH-5 mostly closed).
+
+### Agreed Concerns (highest priority — must fix before capture)
+1. **DSCP-03 counters-absent contradiction (NEW HIGH-A, VERIFIED).** RESEARCH.md:188-190 vs 202-213 give
+   opposite rules for `bridge_counter_signal=unknown`. Pick one.
+2. **QUALIFIED ↔ roadmap-gate mismatch (NEW HIGH-B, VERIFIED).** QUALIFIED "proceed with caveat" vs
+   ROADMAP.md:44 "marks survive" gate for Phase 226. Define whether QUALIFIED blocks Phase 226.
+3. **DL pre-wash capture proof underspecified (NEW HIGH-C, VERIFIED).** `-Q in` on `spec-router` is
+   not self-evidently pre-CAKE/pre-wash on the DL egress path; require a concrete proof artifact.
+4. **Byte-fraction NEGLIGIBLE threshold not implemented (MEDIUM, VERIFIED).** Pre-registered in
+   RESEARCH.md:146 but absent from 225-02/225-03 acceptance.
+
+### Divergent Views
+None — single reviewer. No internal contradictions in the Codex cycle-2 review.
+
+### Recommended Next Step
+Feed back into planning:
+```
+/gsd:plan-phase 225 --reviews
+```
+Resolve HIGH-A (counters-absent determinism), HIGH-B (QUALIFIED gate relationship to the roadmap),
+and HIGH-C (DL pre-wash capture proof) — then add the byte-fraction threshold (MEDIUM) — before any
+live capture. These are verdict-logic/evidence-integrity fixes, not scripting changes.
