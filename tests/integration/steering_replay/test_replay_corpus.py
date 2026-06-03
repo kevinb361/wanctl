@@ -9,7 +9,7 @@ import pytest
 from .replay_harness import fixture_paths, run_fixture
 
 
-@pytest.mark.parametrize("fixture_path", fixture_paths(), ids=lambda p: p.stem)
+@pytest.mark.parametrize("fixture_path", fixture_paths(include_clean_restart=False), ids=lambda p: p.stem)
 def test_replay_fixture_matches(fixture_path: Path, tmp_path: Path):
     result = run_fixture(fixture_path, tmp_path / fixture_path.stem)
     assert result["verdict"] == "matches", result["verdict_rationale"]
@@ -38,7 +38,7 @@ def test_harness_does_not_touch_production_paths():
     assert not offenders, "production path literal outside allowed guard context: " + repr(offenders)
 
 
-@pytest.mark.parametrize("fixture_path", fixture_paths(), ids=lambda p: p.stem)
+@pytest.mark.parametrize("fixture_path", fixture_paths(include_clean_restart=False), ids=lambda p: p.stem)
 def test_full_io_seal_per_fixture(fixture_path: Path, tmp_path: Path):
     result = run_fixture(fixture_path, tmp_path / f"seal-{fixture_path.stem}")
     required = {"baseline_rtt", "cake_stats", "state_save"}

@@ -287,7 +287,7 @@ def run_fixture(fixture_path: Path, workspace: Path) -> dict[str, Any]:
     }
 
 
-def fixture_paths(include_clean_restart: bool = False) -> list[Path]:
+def fixture_paths(include_clean_restart: bool = True) -> list[Path]:
     paths = sorted(FIXTURES_DIR.glob("*.yaml"))
     if include_clean_restart:
         return paths
@@ -317,7 +317,7 @@ def render_markdown(results: list[dict[str, Any]]) -> str:
 
 def run_all(workspace: Path) -> dict[str, Any]:
     results = []
-    for path in fixture_paths():
+    for path in fixture_paths(include_clean_restart=True):
         result = run_fixture(path, workspace / path.stem)
         results.append(result)
     return {"fixtures": results}
