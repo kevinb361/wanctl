@@ -208,12 +208,12 @@ Phase 224 is NOT a walking-skeleton phase. It's a final-phase production canary 
 - **Medium confidence:** Exact decision-section field names (`last_update_cycle` vs `last_cycle_ts`) — needs a quick grep against `src/wanctl/steering/health.py` at plan time. Rollback wall-clock budget — must be measured in staging rehearsal, not assumed.
 - **Low confidence:** Whether `canary-check.sh --skip-steering` behavior + remote-host steering probe interact cleanly via `--ssh`. Staging rehearsal will catch this; plan must include the rehearsal step as gating.
 
-## Open Questions for Plan Time
+## Open Questions (RESOLVED)
 
-1. Does v1.48 bump `__version__` to `1.48.0`? (Recommend: NO. Operator confirms.)
-2. What is the production target host for the canary? (Assumed: `cake-shaper` based on Phase 215 + Snapshot manifest precedent — operator confirms which WAN host(s) and whether the canary is steering-specific so it's the steering host rather than a per-WAN host.)
-3. What is the agreed observation window duration? (Recommend: 15 minutes minimum; operator may extend.)
-4. Is the operator sign-off on `.planning/decisions/phase-224-clean-restart-risk-acceptance.md` captured before or at deploy time? (Recommend: captured immediately before the deploy gate, as part of pre-deploy checklist evidence.)
+1. **Does v1.48 bump `__version__` to `1.48.0`?** RESOLVED — NO bump as the default plan posture. Plans 01/03 capture and assert the in-repo `__version__` value (currently `1.45.0` — Phase 222/223 work preserved the source as-is) as both the pre-deploy and post-deploy expected value. The canary proves alignment of the *aligned daemon code* with production, which is the CANARY-02 contract. If the operator chooses to bump at the canary, that becomes a separate small commit BEFORE Plan 03 Task 2 (snapshot capture) so the snapshot anchor records the pre-bump version and post-deploy proof records the post-bump version. Documented in Plan 05 Notes section.
+2. **Production target host.** RESOLVED — default `cake-shaper`, the steering daemon host (single instance, NOT per-WAN). Plan 03 invocations parameterize on `--ssh-host`; operator may override at deploy time. The Snapshot A manifest records the exact host used.
+3. **Observation window duration.** RESOLVED — default 15 minutes wall-clock, sample cadence 60 seconds (15 samples). Plan 04 parameterizes via `PHASE224_WINDOW_MIN` env var so the operator may extend without re-planning.
+4. **Risk-acceptance sign-off timing.** RESOLVED — captured immediately before Plan 03 Task 2 (snapshot capture) as Plan 03 Task 1 (`checkpoint:human-action`, blocking-human gate). The redacted signed copy at `evidence/risk-acceptance-signed.redacted.md` is checked by Plan 03 Task 2's verify block before any snapshot work proceeds.
 
 ## RESEARCH COMPLETE
 

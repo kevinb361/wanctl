@@ -77,7 +77,14 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
   3. Operator can roll back to pre-canary state within a bounded time budget if any contract invariant fires fail-closed during canary observation.
   4. Post-canary state — kept-aligned or rolled-back — is reflected in a published canary report citing the snapshot anchor, gate verdicts, and any rollback reasons.
   5. SAFE-12 verified at phase boundary AND at v1.48 milestone close: zero controller-path source diff vs v1.47 close.
-**Plans:** TBD
+**Plans:** 5 plans
+
+Plans:
+- [ ] 224-01-PLAN.md — Snapshot A capture wrapper + rollback wrapper + staging rehearsal (measure rollback budget)
+- [ ] 224-02-PLAN.md — Spine invariant probe + stdlib gate evaluator with restart-window vs steady-state distinction
+- [ ] 224-03-PLAN.md — Risk-acceptance sign-off, Snapshot A capture, production deploy, Leg B post-deploy proof
+- [ ] 224-04-PLAN.md — Canary observation window sampling + verdict + conditional rollback execution
+- [ ] 224-05-PLAN.md — SAFE-12 phase-boundary check + 224-REPORT.md canary report
 
 ### Progress
 
@@ -85,7 +92,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
 |-------|----------------|--------|-----------|
 | 222. Steering Drift Audit | 3/3 | Complete    | 2026-06-02 |
 | 223. Staging Proof + Clean-Restart Reproduction | 4/4 | Complete    | 2026-06-03 |
-| 224. Production Canary + Rollback Discipline | 0/? | Not started | — |
+| 224. Production Canary + Rollback Discipline | 0/5 | Planned     | — |
 
 ### Coverage
 
