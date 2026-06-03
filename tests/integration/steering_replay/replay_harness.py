@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import copy
+import hashlib
 import json
 import logging
 import socket
@@ -111,6 +112,20 @@ def _seed_workspace(workspace: Path, fixture: dict[str, Any]) -> None:
     (workspace / "spectrum_state.json").write_text(json.dumps(autorate, indent=2))
 
 
+def _spectrum_fingerprint(path: Path) -> tuple[int, int, int, int, str] | None:
+    """Return a robust fingerprint for daemon-side spectrum-state write detection."""
+    if not path.exists():
+        return None
+    st = path.stat()
+    return (
+        st.st_mtime_ns,
+        st.st_ctime_ns,
+        st.st_size,
+        st.st_ino,
+        hashlib.sha256(path.read_bytes()).hexdigest(),
+    )
+
+
 def _build_daemon(fixture: dict[str, Any], workspace: Path):
     logger = logging.getLogger("steering_replay")
     config = build_replay_config(workspace, fixture["harness_mode"])
@@ -189,13 +204,16 @@ def run_fixture(fixture_path: Path, workspace: Path) -> dict[str, Any]:
         cycles_out: list[dict[str, Any]] = []
         effective_states: list[bool] = []
         mismatches: list[int] = []
+        spectrum_state_writes_per_cycle: list[bool] = []
         autorate_by_cycle = fixture["pre_state"]["autorate_state_by_cycle"]
         for idx, cycle in enumerate(fixture["cycles"]):
             router.set_current_cycle(idx)
             cake_reader.set_current_cycle(idx)
             baseline_loader.set_current_cycle(idx)
             autorate_state = _autorate_state_for_cycle(autorate_by_cycle, idx)
-            (workspace / "spectrum_state.json").write_text(json.dumps(autorate_state, indent=2))
+            spectrum_state_path = workspace / "spectrum_state.json"
+            spectrum_state_path.write_text(json.dumps(autorate_state, indent=2))
+            pre_daemon_spectrum_fp = _spectrum_fingerprint(spectrum_state_path)
             inputs = cycle.get("inputs", {})
             baseline = autorate_state.get("ewma", {}).get("baseline_rtt", 25.0)
             baseline_loader.live_rtt_by_cycle[idx] = inputs.get("live_rtt_ms", baseline)
@@ -207,6 +225,9 @@ def run_fixture(fixture_path: Path, workspace: Path) -> dict[str, Any]:
             before_live = len(baseline_loader.live_rtt_calls)
             before_irtt = len(baseline_loader.live_irtt_calls)
             daemon.run_cycle()
+            post_daemon_spectrum_fp = _spectrum_fingerprint(spectrum_state_path)
+            daemon_wrote_spectrum_state = pre_daemon_spectrum_fp != post_daemon_spectrum_fp
+            spectrum_state_writes_per_cycle.append(daemon_wrote_spectrum_state)
             effective = router.get_rule_status()
             effective_states.append(effective)
             io_paths = []
@@ -229,7 +250,7 @@ def run_fixture(fixture_path: Path, workspace: Path) -> dict[str, Any]:
                 "baseline_reads": baseline_loader.baseline_calls[before_base:],
                 "live_rtt_reads": baseline_loader.live_rtt_calls[before_live:],
                 "live_irtt_reads": baseline_loader.live_irtt_calls[before_irtt:],
-                "spectrum_state_write_attempted": True,
+                "spectrum_state_write_attempted": daemon_wrote_spectrum_state,
                 "daemon_io_paths_exercised": io_paths,
             }
             if fixture["harness_mode"] != "confidence" and not _cycle_expected_matches(
@@ -261,7 +282,7 @@ def run_fixture(fixture_path: Path, workspace: Path) -> dict[str, Any]:
                 "baseline_read_path": reads[-1]["read_path"] if reads else None,
                 "baseline_read_value": reads[-1]["returned_value"] if reads else None,
                 "baseline_loader_called": bool(reads),
-                "spectrum_state_write_attempted": True,
+                "spectrum_state_write_attempted": spectrum_state_writes_per_cycle[idx],
             }
         )
     return {
