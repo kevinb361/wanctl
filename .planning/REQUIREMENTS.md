@@ -75,8 +75,18 @@ Explicit exclusions for v1.49, with reasoning:
 
 ## Traceability
 
-Filled by the roadmapper (phase ← requirement mapping). 100% coverage required before roadmap approval.
+Phase ← requirement mapping. 100% coverage: 13/13 v1.49 REQ-IDs mapped, no orphans, no duplicates. SAFE-13 is a cross-phase invariant verified at every phase boundary and at milestone close (matching SAFE-07/08/09/11/12 precedent through v1.43–v1.48), not mapped to its own phase.
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| _pending roadmap_ | | |
+| DSCP-01 | Phase 225 | Pending |
+| DSCP-02 | Phase 225 | Pending |
+| DSCP-03 | Phase 225 | Pending |
+| AB-01 | Phase 226 | Pending |
+| AB-02 | Phase 226 | Pending |
+| GATE-01 | Phase 226 | Pending |
+| AB-03 | Phase 227 | Pending |
+| AB-04 | Phase 227 | Pending |
+| GATE-02 | Phase 228 | Pending |
+| GATE-03 | Phase 228 | Pending |
+| SAFE-13 | Phases 225, 226, 227, 228 (cross-phase) | Pending |
