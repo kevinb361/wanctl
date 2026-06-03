@@ -1,19 +1,16 @@
 ---
 phase: 223-staging-proof-clean-restart-reproduction
-reviewed: 2026-06-02T18:13:51Z
+reviewed: 2026-06-03T00:30:51Z
 depth: standard
-files_reviewed: 10
+files_reviewed: 7
 files_reviewed_list:
-  - .claude/context.md
   - tests/integration/__init__.py
-  - tests/integration/steering_replay/fake_cake_reader.py
-  - tests/integration/steering_replay/fake_live_rtt_source.py
+  - tests/integration/steering_replay/__init__.py
+  - tests/integration/steering_replay/conftest.py
   - tests/integration/steering_replay/fake_router_transport.py
-  - tests/integration/steering_replay/fixtures/clean-restart-degraded.yaml
   - tests/integration/steering_replay/replay_harness.py
-  - tests/integration/steering_replay/test_clean_restart.py
-  - tests/integration/steering_replay/test_io_seal.py
   - tests/integration/steering_replay/test_replay_corpus.py
+  - tests/integration/steering_replay/test_clean_restart.py
 findings:
   critical: 0
   warning: 2
@@ -24,62 +21,53 @@ status: issues_found
 
 # Phase 223: Code Review Report
 
-**Reviewed:** 2026-06-02T18:13:51Z
+**Reviewed:** 2026-06-03T00:30:51Z
 **Depth:** standard
-**Files Reviewed:** 10
+**Files Reviewed:** 7
 **Status:** issues_found
 
 ## Summary
 
-Reviewed the requested Phase 223 replay harness, fakes, clean-restart fixture, and integration tests for correctness, test reliability, I/O-seal coverage, and production WAN safety assumptions. No critical security or production-mutation issues were found in the reviewed files. Two warning-level evidence/test reliability issues should be fixed so the clean-restart proof remains reproducible and downstream audits can trust the declared observation contract.
+Reviewed the requested offline steering replay integration tests and harness code for correctness, test reliability, I/O-seal behavior, and production-path safety. No critical security issues or live-router mutation paths were found in the reviewed files. Two warning-level reliability issues should be addressed so replay evidence remains trustworthy across harness modes and invocation contexts.
 
 ## Warnings
 
-### WR-01: Clean-restart fixture declares an observation target that evidence never emits
+### WR-01: Confidence-mode fixtures can pass without checking expected decisions
 
-**File:** `tests/integration/steering_replay/fixtures/clean-restart-degraded.yaml:47` and `tests/integration/steering_replay/test_clean_restart.py:118`
+**File:** `tests/integration/steering_replay/replay_harness.py:256-259`
 
-**Issue:** The fixture declares `cycle_1_observed_current_state` as an observation target, but `_build_evidence()` writes the field as `cycle_1_observed_state`. Any downstream checker that verifies every declared `observation_targets` key exists in the JSON evidence will report the proof as incomplete even though the value is present under a different name.
+**Issue:** `run_fixture()` only records decision mismatches when `fixture["harness_mode"] != "confidence"`. Confidence fixtures still carry per-cycle `expected_decision` entries, and `test_replay_fixture_matches()` treats `verdict == "matches"` as proof. With the current guard, a confidence-mode regression in `current_state` or `effective_mangle_state` can be missed as long as the I/O seal remains intact.
 
-**Fix:** Align the contract and emitted evidence. The lowest-churn fix is to update the fixture target to the existing evidence key:
-
-```yaml
-observation_targets:
-  - pre_steering_rule_state
-  - cycle_1_observed_state
-  - cycle_1_effective_steering_state
-```
-
-Alternatively, keep the fixture name and add an alias in `_build_evidence()`:
+**Fix:** Compare expected decisions for confidence fixtures too, or make the skip explicit and cover confidence expectations elsewhere. The lowest-churn fix is to remove the mode guard:
 
 ```python
-"cycle_1_observed_current_state": cycle_1_observed_state,
+expected_decision = cycle.get("expected_decision")
+if not _cycle_expected_matches(observed, expected_decision):
+    mismatches.append(idx)
 ```
 
-### WR-02: Documentation test depends on pre-existing generated evidence
+If confidence fixtures intentionally need partial observation, encode that with `expected_decision: observe` on the specific cycles rather than skipping the whole mode.
 
-**File:** `tests/integration/steering_replay/test_clean_restart.py:246-247`
+### WR-02: Operator-runnable harness depends on caller working directory
 
-**Issue:** `test_clean_restart_outcome_is_documented()` reads `clean-restart-reproduction.json` from `.planning/.../evidence/` without generating it or declaring a dependency on `test_clean_restart_reproduction_runs()`. This makes the test order- and workspace-dependent: it can pass against stale committed evidence, fail when run alone in a clean checkout before the evidence file exists, or race under parallel pytest execution.
+**File:** `tests/integration/steering_replay/conftest.py:121`
 
-**Fix:** Make the test self-contained by generating fresh evidence in the test, or combine the documentation assertions with the producer test. For example:
+**Issue:** `build_replay_config()` reads `Path("configs/steering.yaml")`, which only works when pytest or the operator-runnable `replay_harness.py` is launched from the repository root. Direct script invocation from another directory can fail before replay starts, despite `replay_harness.py` explicitly setting `ROOT` and advertising operator-runnable behavior.
+
+**Fix:** Resolve repository-relative paths from the file location instead of the process CWD. For example:
 
 ```python
-def test_clean_restart_outcome_is_documented(staging_workspace: Path):
-    fixture = _fixture()
-    result = run_fixture(FIXTURE, staging_workspace / "clean-restart-degraded-doc")
-    evidence = _build_evidence(result, fixture)
+ROOT = Path(__file__).resolve().parents[3]
 
-    assert evidence["outcome"] in (
-        "reproduced-intentional",
-        "reproduced-bug",
-        "not-reproducible",
-    )
-    assert len(evidence["outcome_rationale"]) >= 40
+def build_replay_config(workspace: Path, harness_mode: str = "hysteresis-only") -> SteeringConfig:
+    source = yaml.safe_load((ROOT / "configs/steering.yaml").read_text())
+    ...
 ```
+
+Apply the same pattern to any other harness/test helper paths that are meant to work outside a repo-root pytest invocation.
 
 ---
 
-_Reviewed: 2026-06-02T18:13:51Z_
+_Reviewed: 2026-06-03T00:30:51Z_
 _Reviewer: the agent (gsd-code-reviewer)_
 _Depth: standard_
