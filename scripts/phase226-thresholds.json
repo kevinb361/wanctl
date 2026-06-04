@@ -25,9 +25,14 @@
     ],
     "MAGNITUDE_RULE": "non-BE vs BE per-tin delay gap must exceed the Snapshot A baseline 3-run spread",
     "NOISE_BAND_MS": {
-      "value": null,
+      "value": 0.0,
       "source": "phase226 baseline-summary.json tin_queue_delay_spread_ms",
-      "derivation": "max non-BE-vs-BE per-tin delay gap noise band from Snapshot A 3-run spread"
+      "derivation": "max non-BE-vs-BE per-tin delay gap noise band from Snapshot A 3-run spread",
+      "derived_from": {
+        "path": ".planning/phases/226-baseline-capture-threshold-lock-snapshot-a/evidence/baseline/baseline-20260604T113435Z/baseline-summary.json",
+        "sha256": "186f4a72fa346d202e8c2fb20dea769a4950220e9cc373ffa4f3c307bab5a5f6"
+      },
+      "derived_at": "2026-06-04T11:46:50Z"
     }
   },
   "_notes": "GATE-01 single source of truth. GATE-01-THRESHOLDS.md is the prose provenance record and must not duplicate numeric literals. Thresholds are pre-registered and locked before any Phase 227 candidate deploy; Task 1 freezes the tin-separation rule and Task 3 fills only the baseline-derived NOISE_BAND_MS constant."
