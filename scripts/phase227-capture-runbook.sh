@@ -13,6 +13,8 @@ EVIDENCE_DIR=".planning/phases/227-candidate-diffserv4-wash-deploy-matched-captu
 RAW_DIR=""
 DRY_RUN="0"
 FORCE_WINDOW=""
+TCP_REF_PORT="5202"
+EF_REF_PORT="5203"
 
 usage() {
     cat <<'EOF'
@@ -25,6 +27,8 @@ Options:
   --ssh-host HOST      SSH host for read-only checks / rollback target (default: cake-shaper)
   --health-url URL     Spectrum health endpoint (default: http://10.10.110.223:9101/health)
   --force-window TEXT  Pass operator-approved forced-window reason to capture harness
+  --tcp-ref-port PORT  TCP bulk iperf3 reference port passed to capture harness (default: 5202)
+  --ef-ref-port PORT   Marked-EF iperf3 reference port passed to capture harness (default: 5203)
   --dry-run            Print the ordered plan and commands; mutate nothing and run no load
   --help, -h           Show this help
 
@@ -120,11 +124,11 @@ run_capture() {
     tmp_dir="${EVIDENCE_DIR}/.${label}-capture-tmp-$(date -u +%Y%m%dT%H%M%SZ)"
     mkdir -p "$EVIDENCE_DIR"
     if [[ "$DRY_RUN" == "1" ]]; then
-        echo "DRY_RUN: would run scripts/phase226-baseline-capture.sh --output-dir $tmp_dir --marked-ef"
+        echo "DRY_RUN: would run scripts/phase226-baseline-capture.sh --output-dir $tmp_dir --marked-ef --tcp-ref-port $TCP_REF_PORT --ef-ref-port $EF_REF_PORT"
         echo "DRY_RUN: would move generated baseline-<UTC> tree to ${EVIDENCE_DIR}/${label}-<UTC>"
         return 0
     fi
-    local args=(--output-dir "$tmp_dir" --marked-ef --health-url "$HEALTH_URL" --ssh-host "$SSH_HOST")
+    local args=(--output-dir "$tmp_dir" --marked-ef --tcp-ref-port "$TCP_REF_PORT" --ef-ref-port "$EF_REF_PORT" --health-url "$HEALTH_URL" --ssh-host "$SSH_HOST")
     if [[ -n "$FORCE_WINDOW" ]]; then
         args+=(--force-window "$FORCE_WINDOW")
     fi
@@ -189,6 +193,8 @@ while [[ $# -gt 0 ]]; do
         --ssh-host) SSH_HOST="${2:-}"; shift 2 ;;
         --health-url) HEALTH_URL="${2:-}"; shift 2 ;;
         --force-window) FORCE_WINDOW="${2:-}"; shift 2 ;;
+        --tcp-ref-port) TCP_REF_PORT="${2:-}"; shift 2 ;;
+        --ef-ref-port) EF_REF_PORT="${2:-}"; shift 2 ;;
         --dry-run) DRY_RUN="1"; shift ;;
         --help|-h) usage; exit 0 ;;
         precheck|baseline|flip|verify|candidate|abort|plan) SUBCOMMAND="$1"; shift ;;

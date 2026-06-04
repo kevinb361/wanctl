@@ -14,6 +14,7 @@ MODEM_IFACE="spec-modem"
 HEALTH_INTERVAL="1"
 REF_HOST="dallas"
 REF_PORT="5201"
+TCP_REF_PORT=""
 EF_REF_PORT=""
 REF_UDP_RATE="1M"
 MARKED_EF="0"
@@ -40,6 +41,7 @@ Options:
   --health-interval SEC     Continuous health sample interval (default: 1)
   --ref-host HOST           iperf3 reference host (default: dallas)
   --ref-port PORT           iperf3 reference port (default: 5201)
+  --tcp-ref-port PORT       TCP bulk iperf3 reference port (default: REF_PORT)
   --marked-ef              Add an EF-marked UDP reference arm on a distinct iperf3 port
   --ef-ref-port PORT        Marked-EF iperf3 reference port (default: REF_PORT+2)
   --ref-udp-rate RATE       Unmarked UDP reference rate (default: 1M)
@@ -214,6 +216,7 @@ while [[ $# -gt 0 ]]; do
         --health-interval) HEALTH_INTERVAL="${2:-}"; shift 2 ;;
         --ref-host) REF_HOST="${2:-}"; shift 2 ;;
         --ref-port) REF_PORT="${2:-}"; shift 2 ;;
+        --tcp-ref-port) TCP_REF_PORT="${2:-}"; shift 2 ;;
         --marked-ef) MARKED_EF="1"; shift ;;
         --ef-ref-port) EF_REF_PORT="${2:-}"; shift 2 ;;
         --ref-udp-rate) REF_UDP_RATE="${2:-}"; shift 2 ;;
@@ -229,6 +232,9 @@ done
 if [[ -z "$OUTPUT_DIR" ]]; then
     usage >&2
     exit 2
+fi
+if [[ -z "$TCP_REF_PORT" ]]; then
+    TCP_REF_PORT="$REF_PORT"
 fi
 if [[ -n "$TEST_HOUR" && "$DRY_RUN" != "1" ]]; then
     echo "REFUSED: --test-hour is dry-run only" >&2
@@ -248,6 +254,10 @@ if [[ "$MARKED_EF" == "1" && -z "$EF_REF_PORT" ]]; then
 fi
 if [[ "$MARKED_EF" == "1" ]] && ! [[ "$REF_PORT" =~ ^[0-9]+$ && "$EF_REF_PORT" =~ ^[0-9]+$ ]]; then
     echo "ERROR: --ref-port and --ef-ref-port must be numeric ports when --marked-ef is enabled" >&2
+    exit 2
+fi
+if ! [[ "$TCP_REF_PORT" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: --tcp-ref-port must be numeric" >&2
     exit 2
 fi
 if [[ "$MARKED_EF" == "1" && "$EF_REF_PORT" == "$REF_PORT" ]]; then
@@ -283,7 +293,7 @@ else
 fi
 
 if [[ "$DRY_RUN" == "1" ]]; then
-    echo "DRY_RUN: defaults ssh=$SSH_HOST runs=$RUNS duration=$DURATION router=$ROUTER_IFACE modem=$MODEM_IFACE health_interval=$HEALTH_INTERVAL health=$HEALTH_URL bind=$LOCAL_BIND ref=${REF_HOST}:${REF_PORT} udp_rate=$REF_UDP_RATE window=$WINDOW_USED"
+    echo "DRY_RUN: defaults ssh=$SSH_HOST runs=$RUNS duration=$DURATION router=$ROUTER_IFACE modem=$MODEM_IFACE health_interval=$HEALTH_INTERVAL health=$HEALTH_URL bind=$LOCAL_BIND ref=${REF_HOST}:${REF_PORT} tcp_ref=${REF_HOST}:${TCP_REF_PORT} udp_rate=$REF_UDP_RATE window=$WINDOW_USED"
     if [[ "$MARKED_EF" == "1" ]]; then
         echo "DRY_RUN: marked_ef enabled ef_ref_port=$EF_REF_PORT udp_rate=$REF_UDP_RATE mark_probe=dscp_then_tos_then_best_effort reflector_prerequisite=${REF_HOST}:${EF_REF_PORT}"
     fi
@@ -326,7 +336,7 @@ for run in $(seq 1 "$RUNS"); do
     sleep 5
     iperf3 -c "$REF_HOST" -p "$REF_PORT" -u -b "$REF_UDP_RATE" -t "$((DURATION > 5 ? DURATION - 5 : DURATION))" --json >"$run_dir/ref-udp-unmarked.$(printf '%02d' "$run").txt" 2>&1 &
     udp_pid="$!"
-    iperf3 -c "$REF_HOST" -p "$REF_PORT" -t "$((DURATION > 5 ? DURATION - 5 : DURATION))" --json >"$run_dir/ref-tcp-bulk-unmarked.$(printf '%02d' "$run").txt" 2>&1 &
+    iperf3 -c "$REF_HOST" -p "$TCP_REF_PORT" -t "$((DURATION > 5 ? DURATION - 5 : DURATION))" --json >"$run_dir/ref-tcp-bulk-unmarked.$(printf '%02d' "$run").txt" 2>&1 &
     tcp_pid="$!"
     ef_pid=""
     if [[ "$MARKED_EF" == "1" ]]; then
@@ -439,7 +449,7 @@ find "$CAPTURE_DIR" -type f ! -name 'artifact-sha256.txt' -print0 \
     printf '## Captured UTC\n\n- Captured: %s\n\n' "$CAPTURED_UTC"
     printf '## Source Posture\n\nread-only target access; no deploy, restart, mode change, /etc write, nft mutation, or tc mutation. Load generation was client-side RRUL/reference traffic only.\n\n'
     printf '## Baseline State\n\n- %s\n\n' "$BASELINE_LINE"
-    printf '## Run Plan\n\n- runs: %s\n- duration_seconds: %s\n- local_bind: %s\n- health_url: %s\n- router_iface: %s\n- modem_iface: %s\n- ref_host: %s\n- ref_port: %s\n- ref_udp_rate: %s\n- window_used: %s\n- marked_ef: %s\n- ef_ref_port: %s\n- ef_reflector_prerequisite: iperf3 server listening on %s:%s when marked_ef=true\n- ef_mark_method: per-run ref-ef-marking artifacts\n- ef_clean_mark: per-run ref-ef-marking artifacts\n\n' "$RUNS" "$DURATION" "$LOCAL_BIND" "$HEALTH_URL" "$ROUTER_IFACE" "$MODEM_IFACE" "$REF_HOST" "$REF_PORT" "$REF_UDP_RATE" "$WINDOW_USED" "$MARKED_EF" "$EF_REF_PORT" "$REF_HOST" "$EF_REF_PORT"
+    printf '## Run Plan\n\n- runs: %s\n- duration_seconds: %s\n- local_bind: %s\n- health_url: %s\n- router_iface: %s\n- modem_iface: %s\n- ref_host: %s\n- ref_port: %s\n- tcp_ref_port: %s\n- ref_udp_rate: %s\n- window_used: %s\n- marked_ef: %s\n- ef_ref_port: %s\n- ef_reflector_prerequisite: iperf3 server listening on %s:%s when marked_ef=true\n- ef_mark_method: per-run ref-ef-marking artifacts\n- ef_clean_mark: per-run ref-ef-marking artifacts\n\n' "$RUNS" "$DURATION" "$LOCAL_BIND" "$HEALTH_URL" "$ROUTER_IFACE" "$MODEM_IFACE" "$REF_HOST" "$REF_PORT" "$TCP_REF_PORT" "$REF_UDP_RATE" "$WINDOW_USED" "$MARKED_EF" "$EF_REF_PORT" "$REF_HOST" "$EF_REF_PORT"
     printf '## Validity\n\n- validity: %s\n- retained: %s\n- discarded_runs: %s\n- rerun_policy: rerun only on objective invalid-run failure; do not chase smaller spread after a valid retained set.\n\n' "$VALIDITY" "$RETAINED" "$DISCARDED_RUNS_JSON"
     printf '## Artifacts\n\n'
     find "$CAPTURE_DIR" -type f -printf '- %P\n' | sort
