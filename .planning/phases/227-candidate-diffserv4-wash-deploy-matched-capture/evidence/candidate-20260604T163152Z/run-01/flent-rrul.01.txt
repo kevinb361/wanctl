@@ -1,0 +1,22 @@
+
+Summary of rrul test run from 2026-06-04 16:31:53.370729
+
+                             avg       median       99th %          # data pts
+ Ping (ms) ICMP   :       167.75       184.00       312.65 ms              351
+ Ping (ms) UDP BE :       126.74       187.27       321.19 ms              351
+ Ping (ms) UDP BK :       151.75       186.92       307.02 ms              351
+ Ping (ms) UDP EF :       127.55       187.27       328.39 ms              351
+ Ping (ms) avg    :       143.45          N/A          N/A ms              351
+ TCP download BE  :       100.97       100.43       140.66 Mbits/s         351
+ TCP download BK  :         7.17         4.62        66.07 Mbits/s         351
+ TCP download CS5 :        90.87        93.45       134.81 Mbits/s         351
+ TCP download EF  :        66.59        69.85        89.46 Mbits/s         351
+ TCP download avg :        66.40          N/A          N/A Mbits/s         351
+ TCP download sum :       265.60          N/A          N/A Mbits/s         351
+ TCP totals       :       267.60          N/A          N/A Mbits/s         351
+ TCP upload BE    :         0.65         0.66         6.84 Mbits/s         351
+ TCP upload BK    :         0.50         0.46         1.72 Mbits/s         351
+ TCP upload CS5   :         0.42         0.43         1.83 Mbits/s         351
+ TCP upload EF    :         0.43         0.40         1.46 Mbits/s         351
+ TCP upload avg   :         0.50          N/A          N/A Mbits/s         351
+ TCP upload sum   :         2.00          N/A          N/A Mbits/s         351

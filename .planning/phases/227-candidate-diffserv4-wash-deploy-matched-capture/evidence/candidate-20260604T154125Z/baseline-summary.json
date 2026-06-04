@@ -1,0 +1,214 @@
+{
+  "baseline_window": {
+    "floor_hit_cycles": 0,
+    "mean_window_duration_s": 73.0618224143982,
+    "restart_rate": 0.0,
+    "soft_red_dwell_s": 0.0,
+    "transition_rate": 0.0,
+    "windows": [
+      {
+        "duration_s": 71.10578775405884,
+        "floor_hit_cycles": 0,
+        "health_up": true,
+        "max_gap_s": 1.2574474811553955,
+        "restart_rate": 0.0,
+        "sample_count": 61,
+        "soft_red_dwell_s": 0.0,
+        "transition_rate": 0.0
+      },
+      {
+        "duration_s": 76.11125683784485,
+        "floor_hit_cycles": 0,
+        "health_up": true,
+        "max_gap_s": 1.2264471054077148,
+        "restart_rate": 0.0,
+        "sample_count": 66,
+        "soft_red_dwell_s": 0.0,
+        "transition_rate": 0.0
+      },
+      {
+        "duration_s": 71.9684226512909,
+        "floor_hit_cycles": 0,
+        "health_up": true,
+        "max_gap_s": 1.2713520526885986,
+        "restart_rate": 0.0,
+        "sample_count": 62,
+        "soft_red_dwell_s": 0.0,
+        "transition_rate": 0.0
+      }
+    ]
+  },
+  "interfaces": {},
+  "marked_ef": {
+    "clean_mark": true,
+    "ef_ref_port": 5203,
+    "jitter_ms": {
+      "max": 3.097492856866832,
+      "mean": 2.087894986047603,
+      "min": 1.5808471806293245,
+      "spread": 1.5166456762375076,
+      "stddev": 0.713895862148141
+    },
+    "loss_pct": {
+      "max": 8.003369839932603,
+      "mean": 5.265374894692502,
+      "min": 0.02106149957877001,
+      "spread": 7.982308340353833,
+      "stddev": 3.7094955397603875
+    },
+    "mark_method": "dscp",
+    "run_count": 3,
+    "runs": [
+      {
+        "artifact": "ref-udp-marked-ef.01.txt",
+        "ef_clean_mark": true,
+        "ef_mark_method": "dscp",
+        "ef_ref_port": 5203,
+        "jitter_ms": 3.097492856866832,
+        "loss_pct": 8.003369839932603,
+        "ref_tcp_bulk_unmarked_valid": "true",
+        "ref_tcp_bulk_unmarked_validity_reason": "ok",
+        "ref_udp_marked_ef_valid": "true",
+        "ref_udp_marked_ef_validity_reason": "ok",
+        "ref_udp_unmarked_valid": "true",
+        "ref_udp_unmarked_validity_reason": "ok",
+        "run": "run-01",
+        "valid": true,
+        "validity_reason": "ok"
+      },
+      {
+        "artifact": "ref-udp-marked-ef.02.txt",
+        "ef_clean_mark": true,
+        "ef_mark_method": "dscp",
+        "ef_ref_port": 5203,
+        "jitter_ms": 1.5808471806293245,
+        "loss_pct": 7.771693344566133,
+        "ref_tcp_bulk_unmarked_valid": "true",
+        "ref_tcp_bulk_unmarked_validity_reason": "ok",
+        "ref_udp_marked_ef_valid": "true",
+        "ref_udp_marked_ef_validity_reason": "ok",
+        "ref_udp_unmarked_valid": "true",
+        "ref_udp_unmarked_validity_reason": "ok",
+        "run": "run-02",
+        "valid": true,
+        "validity_reason": "ok"
+      },
+      {
+        "artifact": "ref-udp-marked-ef.03.txt",
+        "ef_clean_mark": true,
+        "ef_mark_method": "dscp",
+        "ef_ref_port": 5203,
+        "jitter_ms": 1.5853449206466523,
+        "loss_pct": 0.02106149957877001,
+        "ref_tcp_bulk_unmarked_valid": "true",
+        "ref_tcp_bulk_unmarked_validity_reason": "ok",
+        "ref_udp_marked_ef_valid": "true",
+        "ref_udp_marked_ef_validity_reason": "ok",
+        "ref_udp_unmarked_valid": "true",
+        "ref_udp_unmarked_validity_reason": "ok",
+        "run": "run-03",
+        "valid": true,
+        "validity_reason": "ok"
+      }
+    ],
+    "valid": true,
+    "valid_run_count": 3
+  },
+  "phase": 226,
+  "provenance": {
+    "AB-04": "marked_ef jitter/loss compared against ref_udp_unmarked jitter/loss",
+    "D-07": "RRUL plus unmarked reference flows; marked-EF arm is additive when present",
+    "D-08": "3 runs x 60s mean plus spread",
+    "GATE-01": "matched RRUL plus unmarked reference arms from EF-loaded captures"
+  },
+  "ref_tcp_unmarked": {
+    "retransmits": {
+      "mean": 69.66666666666667,
+      "total": 209
+    },
+    "run_count": 3,
+    "runs": [
+      {
+        "artifact": "ref-tcp-bulk-unmarked.01.txt",
+        "retransmits": 76,
+        "run": "run-01",
+        "throughput_mbps": 8.994366543393175,
+        "valid": true,
+        "validity_reason": "ok"
+      },
+      {
+        "artifact": "ref-tcp-bulk-unmarked.02.txt",
+        "retransmits": 74,
+        "run": "run-02",
+        "throughput_mbps": 4.019358214420939,
+        "valid": true,
+        "validity_reason": "ok"
+      },
+      {
+        "artifact": "ref-tcp-bulk-unmarked.03.txt",
+        "retransmits": 59,
+        "run": "run-03",
+        "throughput_mbps": 9.336057991894274,
+        "valid": true,
+        "validity_reason": "ok"
+      }
+    ],
+    "throughput_mbps": {
+      "max": 9.336057991894274,
+      "mean": 7.449927583236129,
+      "min": 4.019358214420939,
+      "spread": 5.316699777473334,
+      "stddev": 2.4297863976331313
+    },
+    "valid": true,
+    "valid_run_count": 3
+  },
+  "ref_udp_unmarked": {
+    "jitter_ms": {
+      "max": 3.099560477153063,
+      "mean": 2.160313498611785,
+      "min": 1.5936014172403856,
+      "spread": 1.5059590599126775,
+      "stddev": 0.6688621480994411
+    },
+    "loss_pct": {
+      "max": 8.04549283909014,
+      "mean": 5.279415894411681,
+      "min": 0.0,
+      "spread": 8.04549283909014,
+      "stddev": 3.734536407029861
+    },
+    "run_count": 3,
+    "runs": [
+      {
+        "artifact": "ref-udp-unmarked.01.txt",
+        "jitter_ms": 3.099560477153063,
+        "loss_pct": 8.04549283909014,
+        "run": "run-01",
+        "valid": true,
+        "validity_reason": "ok"
+      },
+      {
+        "artifact": "ref-udp-unmarked.02.txt",
+        "jitter_ms": 1.5936014172403856,
+        "loss_pct": 7.792754844144903,
+        "run": "run-02",
+        "valid": true,
+        "validity_reason": "ok"
+      },
+      {
+        "artifact": "ref-udp-unmarked.03.txt",
+        "jitter_ms": 1.787778601441906,
+        "loss_pct": 0.0,
+        "run": "run-03",
+        "valid": true,
+        "validity_reason": "ok"
+      }
+    ],
+    "valid": true,
+    "valid_run_count": 3
+  },
+  "rrul_p99_latency_under_load_ms_mean": 83.2553613287976,
+  "run_count": 3,
+  "schema_version": 1
+}

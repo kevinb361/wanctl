@@ -1,0 +1,3 @@
+Starting Flent 2.1.1 using Python 3.12.3.
+Starting rrul test. Expected run time: 70 seconds.
+Data file written to .planning/phases/227-candidate-diffserv4-wash-deploy-matched-capture/evidence/.candidate-capture-tmp-20260604T163152Z/baseline-20260604T163152Z/run-03/rrul-2026-06-04T113418.315207.flent.gz
