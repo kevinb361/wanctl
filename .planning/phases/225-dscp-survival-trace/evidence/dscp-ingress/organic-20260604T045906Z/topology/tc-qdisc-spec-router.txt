@@ -1,0 +1,1 @@
+qdisc cake 804d: root refcnt 9 bandwidth 920Mbit besteffort triple-isolate nonat wash no-ack-filter split-gso rtt 100ms noatm overhead 18 mpu 64 memlimit 64Mb 

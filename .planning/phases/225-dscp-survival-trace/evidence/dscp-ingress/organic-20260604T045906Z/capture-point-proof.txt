@@ -1,0 +1,29 @@
+WASH_PROOF_METHOD=qdisc_ordering
+TOPOLOGY_EVIDENCE=ip-d-link,bridge-link,nft-bridge-qos,tc-qdisc
+TOPOLOGY_OK=false
+PRE_WASH_DSCP=unknown
+POST_WASH_DSCP=unknown
+DL_CAPTURE_INTERFACE=spec-router
+DL_CAPTURE_DIRECTION_FLAG=
+DL_HOOK_PARENT=unknown
+DL_HOOK_CONTEXT=bridge_forward:iif=spec-modem,oif=spec-router,parent=pre-egress
+DL_WASH_QDISC_HANDLE=804d:
+DL_QDISC_ORDERING_VERDICT=fail
+DL_WASH_PROOF_PASS=false
+DL_CAPTURE_POINT=unknown
+DL_WASH_ORDERING_PROVEN=false
+UL_CAPTURE_INTERFACE=spec-modem
+UL_CAPTURE_DIRECTION_FLAG=-Q out
+UL_HOOK_PARENT=unknown
+UL_HOOK_CONTEXT=bridge_forward:iif=spec-router,oif=spec-modem,parent=pre-egress
+UL_WASH_QDISC_HANDLE=804e:
+UL_QDISC_ORDERING_VERDICT=fail
+UL_WASH_PROOF_PASS=false
+UL_CAPTURE_POINT=unknown
+UL_WASH_ORDERING_PROVEN=false
+WASH_PROOF_PASS=false
+HOOK_PARENT=unknown
+WASH_QDISC_HANDLE=804d:
+CAPTURE_POINT=unknown
+WASH_ORDERING_PROVEN=false
+PROOF_NOTE=Pass rests ONLY on a machine-checkable predicate: a parsed qdisc_ordering relation (ingress/clsact hook qdisc parsed AND CAKE root/egress wash qdisc parsed on the same interface, hook provably upstream of wash) OR a paired_bitflip (PRE_WASH_DSCP set then POST_WASH_DSCP cleared on the same 5-tuple). TOPOLOGY_OK and qdisc handle PRESENCE are SUPPORTING CONTEXT ONLY and never set the proof booleans true; absent the predicate, CAPTURE_POINT stays unknown and WASH_ORDERING_PROVEN stays false.
