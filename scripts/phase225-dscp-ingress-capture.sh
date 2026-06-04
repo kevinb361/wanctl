@@ -18,6 +18,9 @@ PROBE_PORT="5201"
 MIN_PACKETS="2000"
 MIN_ACTIVE_SECONDS="30"
 PACKET_CAP="250000"
+DL_SOURCE_SSH_HOST=""
+DL_SOURCE_IFACE=""
+DL_SOURCE_DIRECTION=""
 
 usage() {
     cat <<'EOF'
@@ -37,6 +40,11 @@ Options:
   --min-packets N          Organic window packet floor (default: 2000)
   --min-active-seconds N   Organic window active-second floor (default: 30)
   --packet-cap N           tcpdump packet cap per window (default: 250000)
+  --dl-source-ssh-host H   SSH host for the DL return-leg SOURCE-side capture
+                           (opt-in; enables a real source-side DL EF proof)
+  --dl-source-iface IFACE  Interface for the DL source-side capture
+  --dl-source-direction F  tcpdump direction flag for the source capture
+                           (e.g. "-Q in"; default: none/bidirectional)
   --help, -h               Show this help
 
 Posture: read-only capture only. No gear config, queue mode, ruleset, or
@@ -300,6 +308,27 @@ run_ssh_capture() {
     fi
 }
 
+# Bounded read-only source-side capture of the DL return leg for the SAME
+# probe 5-tuple, on an operator-supplied SSH host/iface. tcpdump only — no
+# tc/nft/CAKE mutation. Reuses the validated DL_SOURCE_* tokens (Task-1 gate).
+run_source_capture() {
+    local output="$1"
+    local proto_filter="$PROBE_PROTO"
+    local rc=0
+
+    [[ "$PROBE_PROTO" == "tcp" ]] && proto_filter="tcp"
+
+    set +e
+    ssh -o BatchMode=yes "$DL_SOURCE_SSH_HOST" \
+        "sudo -n timeout -k 5 ${DURATION} tcpdump -n -p -i ${DL_SOURCE_IFACE} ${DL_SOURCE_DIRECTION} -c ${PACKET_CAP} -w - '${proto_filter} and host ${PROBE_TARGET} and port ${PROBE_PORT}'" >"$output"
+    rc=$?
+    set -e
+    if [[ "$rc" -ne 0 && "$rc" -ne 124 ]]; then
+        echo "ERROR: DL source-side capture failed on ${DL_SOURCE_SSH_HOST}/${DL_SOURCE_IFACE} with exit ${rc}" >&2
+        exit "$rc"
+    fi
+}
+
 capture_probe_window() {
     local iface="$1"
     local direction_flag="$2"
@@ -465,6 +494,9 @@ while [[ $# -gt 0 ]]; do
         --min-packets) MIN_PACKETS="${2:-}"; shift 2 ;;
         --min-active-seconds) MIN_ACTIVE_SECONDS="${2:-}"; shift 2 ;;
         --packet-cap) PACKET_CAP="${2:-}"; shift 2 ;;
+        --dl-source-ssh-host) DL_SOURCE_SSH_HOST="${2:-}"; shift 2 ;;
+        --dl-source-iface) DL_SOURCE_IFACE="${2:-}"; shift 2 ;;
+        --dl-source-direction) DL_SOURCE_DIRECTION="${2:-}"; shift 2 ;;
         --help|-h) usage; exit 0 ;;
         *) echo "ERROR: unknown argument: $1" >&2; usage >&2; exit 2 ;;
     esac
@@ -517,6 +549,26 @@ if [[ ! "$MIN_PACKETS" =~ ^[0-9]+$ ]]; then
 fi
 if [[ ! "$MIN_ACTIVE_SECONDS" =~ ^[0-9]+$ ]]; then
     echo "ERROR: --min-active-seconds must be a non-negative integer" >&2
+    exit 2
+fi
+# DL source-side capture controls are opt-in; when supplied they are
+# interpolated into a remote SSH command, so they pass the same gate.
+if [[ -n "$DL_SOURCE_SSH_HOST" && ! "$DL_SOURCE_SSH_HOST" =~ ^[A-Za-z0-9_.:@-]+$ ]]; then
+    echo "ERROR: --dl-source-ssh-host contains unsupported characters (allowed: A-Za-z0-9 . : _ @ -)" >&2
+    exit 2
+fi
+if [[ -n "$DL_SOURCE_IFACE" && ! "$DL_SOURCE_IFACE" =~ ^[A-Za-z0-9_.:-]+$ ]]; then
+    echo "ERROR: --dl-source-iface contains unsupported characters (allowed: A-Za-z0-9 . : _ -)" >&2
+    exit 2
+fi
+# Direction flag is a constrained tcpdump selector, not free text.
+if [[ -n "$DL_SOURCE_DIRECTION" && ! "$DL_SOURCE_DIRECTION" =~ ^-Q[[:space:]](in|out|inout)$ ]]; then
+    echo "ERROR: --dl-source-direction must be one of: '-Q in', '-Q out', '-Q inout'" >&2
+    exit 2
+fi
+# Both host and iface are required together to enable a real source capture.
+if [[ -n "$DL_SOURCE_SSH_HOST" && -z "$DL_SOURCE_IFACE" ]] || [[ -z "$DL_SOURCE_SSH_HOST" && -n "$DL_SOURCE_IFACE" ]]; then
+    echo "ERROR: --dl-source-ssh-host and --dl-source-iface must be supplied together" >&2
     exit 2
 fi
 
@@ -603,17 +655,34 @@ else
     } >"$OUTPUT_DIR/ul-ef-probe-result.txt"
 fi
 
+# Tracks whether a REAL source-side DL pcap was produced. Stays false unless
+# opt-in source controls were supplied AND a capture ran — so a non-existent
+# honest source pcap is never asserted as a required artifact (no empty
+# masquerade).
+DL_SOURCE_PCAP_PRESENT="false"
+
 if [[ "$PROBE" == "dl" || "$PROBE" == "both" ]]; then
     capture_probe_window "spec-router" "$DL_DIRECTION_FLAG" "$OUTPUT_DIR/raw/dl-ef-probe.pcap"
-    : >"$OUTPUT_DIR/raw/dl-ef-probe-source.pcap"
-    python3 "$ANALYZER" probe --pcap "$OUTPUT_DIR/raw/dl-ef-probe.pcap" --output "$OUTPUT_DIR/dl-ef-probe-result.txt" --direction dl --source-pcap "$OUTPUT_DIR/raw/dl-ef-probe-source.pcap" --source-capture-point unavailable --probe-proto "$PROBE_PROTO" --probe-port "$PROBE_PORT" --probe-packets-sent unknown
+    if [[ -n "$DL_SOURCE_SSH_HOST" && -n "$DL_SOURCE_IFACE" ]]; then
+        # Path (A): real bounded read-only source-side capture for the same
+        # probe 5-tuple. The analyzer derives DL_SOURCE_EF_PROVEN from this
+        # real pcap (>=100 pkts, >=90% EF, 5-tuple match) — unchanged gating.
+        run_source_capture "$OUTPUT_DIR/raw/dl-ef-probe-source.pcap"
+        DL_SOURCE_PCAP_PRESENT="true"
+        python3 "$ANALYZER" probe --pcap "$OUTPUT_DIR/raw/dl-ef-probe.pcap" --output "$OUTPUT_DIR/dl-ef-probe-result.txt" --direction dl --source-pcap "$OUTPUT_DIR/raw/dl-ef-probe-source.pcap" --source-capture-point "dl_source:${DL_SOURCE_SSH_HOST}/${DL_SOURCE_IFACE}" --probe-proto "$PROBE_PROTO" --probe-port "$PROBE_PORT" --probe-packets-sent unknown
+    else
+        # Path (B): no source controls -> honest unsupported degrade. Do NOT
+        # write an empty pcap. Pass an empty --source-pcap so source_exists is
+        # false; the analyzer then keeps DL_SOURCE_EF_PROVEN=false and the DL
+        # channel degrades (never STRIPPED).
+        python3 "$ANALYZER" probe --pcap "$OUTPUT_DIR/raw/dl-ef-probe.pcap" --output "$OUTPUT_DIR/dl-ef-probe-result.txt" --direction dl --source-pcap "" --source-capture-point unsupported --probe-proto "$PROBE_PROTO" --probe-port "$PROBE_PORT" --probe-packets-sent unknown
+    fi
 else
     : >"$OUTPUT_DIR/raw/dl-ef-probe.pcap"
-    : >"$OUTPUT_DIR/raw/dl-ef-probe-source.pcap"
     {
         printf 'CHANNEL=dl_ef_probe\nPROBE_5TUPLE=not_requested\nPROBE_PROTO=%s\nPROBE_PORT=%s\n' "$PROBE_PROTO" "$PROBE_PORT"
         printf 'PROBE_PKTS_SENT=0\nPROBE_PKTS_CAPTURED=0\nEF_PKTS_AT_ENQUEUE=0\nEF_SURVIVAL_PCT=0.000\n'
-        printf 'SRC_PROBE_PKTS_TOTAL=0\nSRC_EF_PKTS=0\nEF_PKTS_AT_SOURCE=0\nSRC_EF_PCT=0.000\nSRC_CAPTURE_POINT=unavailable\nSRC_ENQUEUE_5TUPLE_MATCH=false\nDL_SOURCE_EF_PROVEN=false\nEF_SURVIVED=degraded\n'
+        printf 'SRC_PROBE_PKTS_TOTAL=0\nSRC_EF_PKTS=0\nEF_PKTS_AT_SOURCE=0\nSRC_EF_PCT=0.000\nSRC_CAPTURE_POINT=unsupported\nSRC_ENQUEUE_5TUPLE_MATCH=false\nDL_SOURCE_EF_PROVEN=false\nEF_SURVIVED=degraded\n'
     } >"$OUTPUT_DIR/dl-ef-probe-result.txt"
 fi
 
@@ -627,7 +696,12 @@ manifest="$OUTPUT_DIR/MANIFEST.md"
     printf -- '- Packet cap: %s packets per capture\n' "$PACKET_CAP"
     printf -- '- Probe mode: %s\n' "$PROBE"
     printf -- '- Probe target: %s\n' "${PROBE_TARGET:-not_requested}"
-    printf -- '- Probe proto/port: %s/%s\n\n' "$PROBE_PROTO" "$PROBE_PORT"
+    printf -- '- Probe proto/port: %s/%s\n' "$PROBE_PROTO" "$PROBE_PORT"
+    if [[ -n "$DL_SOURCE_SSH_HOST" && -n "$DL_SOURCE_IFACE" ]]; then
+        printf -- '- DL source proof: real source-side capture on %s/%s\n\n' "$DL_SOURCE_SSH_HOST" "$DL_SOURCE_IFACE"
+    else
+        printf -- '- DL source proof: unsupported (no --dl-source-ssh-host/--dl-source-iface; DL channel degrades, never STRIPPED)\n\n'
+    fi
     printf '## Source Posture\n\n'
     printf 'Read-only: bounded tcpdump over SSH plus optional bounded low-rate EF probe. No external gear configuration, queue mode, ruleset, or persistent classifier state was changed.\n\n'
     printf '## Capture Point\n\n'
@@ -642,7 +716,11 @@ manifest="$OUTPUT_DIR/MANIFEST.md"
     printf -- '- raw/organic-dl-spec-router.pcap\n'
     printf -- '- raw/organic-ul-spec-modem.pcap\n'
     printf -- '- raw/dl-ef-probe.pcap\n'
-    printf -- '- raw/dl-ef-probe-source.pcap\n'
+    if [[ "$DL_SOURCE_PCAP_PRESENT" == "true" ]]; then
+        printf -- '- raw/dl-ef-probe-source.pcap (real source-side DL capture)\n'
+    else
+        printf -- '- raw/dl-ef-probe-source.pcap: NOT PRODUCED (DL source proof unsupported; no empty pcap written)\n'
+    fi
     printf -- '- raw/ul-ef-probe.pcap\n'
     printf -- '- topology/ip-d-link-show.txt\n'
     printf -- '- topology/bridge-link-show.txt\n'
@@ -665,7 +743,6 @@ for required in \
     "$OUTPUT_DIR/raw/organic-dl-spec-router.pcap" \
     "$OUTPUT_DIR/raw/organic-ul-spec-modem.pcap" \
     "$OUTPUT_DIR/raw/dl-ef-probe.pcap" \
-    "$OUTPUT_DIR/raw/dl-ef-probe-source.pcap" \
     "$OUTPUT_DIR/raw/ul-ef-probe.pcap" \
     "$manifest"; do
     if [[ ! -e "$required" ]]; then
@@ -673,5 +750,17 @@ for required in \
         exit 1
     fi
 done
+
+# The DL source-side pcap is REQUIRED only when a real source capture was run
+# (path A). In the honest-degrade case (path B) it is intentionally absent and
+# must NOT be asserted — no empty pcap masquerades as a capture.
+if [[ "$DL_SOURCE_PCAP_PRESENT" == "true" && ! -s "$OUTPUT_DIR/raw/dl-ef-probe-source.pcap" ]]; then
+    echo "ERROR: DL source-side capture requested but produced no data: $OUTPUT_DIR/raw/dl-ef-probe-source.pcap" >&2
+    exit 1
+fi
+if [[ "$DL_SOURCE_PCAP_PRESENT" != "true" && -e "$OUTPUT_DIR/raw/dl-ef-probe-source.pcap" ]]; then
+    echo "ERROR: stale DL source pcap present without a real source capture: $OUTPUT_DIR/raw/dl-ef-probe-source.pcap" >&2
+    exit 1
+fi
 
 echo "DSCP ingress capture evidence written: $OUTPUT_DIR"
