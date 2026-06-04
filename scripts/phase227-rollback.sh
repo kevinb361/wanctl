@@ -182,11 +182,21 @@ fi
 scripts/deploy.sh spectrum "$SSH_HOST"
 ssh "$SSH_HOST" 'sudo systemctl restart wanctl@spectrum.service'
 
+# Restart returns before wanctl has necessarily re-applied the CAKE qdisc.  Give
+# the daemon a bounded settle window before declaring rollback failure.
+sleep 10
+
 qdisc_tmp="$(mktemp)"
-if ! scripts/phase227-qdisc-verify.sh --expected-mode besteffort --ssh-host "$SSH_HOST" --out "$qdisc_tmp"; then
-    echo "ROLLBACK VERIFY FAILED: qdisc did not return to besteffort on both NICs" >&2
-    exit 1
-fi
+for attempt in 1 2 3; do
+    if scripts/phase227-qdisc-verify.sh --expected-mode besteffort --ssh-host "$SSH_HOST" --out "$qdisc_tmp"; then
+        break
+    fi
+    if [[ "$attempt" == "3" ]]; then
+        echo "ROLLBACK VERIFY FAILED: qdisc did not return to besteffort on both NICs" >&2
+        exit 1
+    fi
+    sleep 5
+done
 health_check >/dev/null
 active="$(service_active)"
 if [[ "$active" != "active" ]]; then
