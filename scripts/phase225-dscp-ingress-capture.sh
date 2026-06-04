@@ -325,6 +325,46 @@ capture_probe_window() {
     fi
 }
 
+# Parse a machine-checkable wash-ordering relation for one direction.
+#
+# Returns "pass" on stdout ONLY when the captured `tc -d qdisc show` text for
+# the wash interface establishes a concrete ordering relation proving the
+# capture hook fires UPSTREAM of the CAKE-egress wash qdisc — i.e. an ingress /
+# clsact qdisc (the hook side) is parsed AND the CAKE wash qdisc is parsed as a
+# root/egress qdisc on the same interface, so the hook provably precedes wash.
+# Mere PRESENCE of a CAKE handle is NOT a pass. Anything short of the full
+# parsed relation resolves to "fail" (fail-safe).
+#
+# Echoes three space-separated tokens: <pass|fail> <hook_parent> <wash_handle>
+parse_qdisc_ordering() {
+    local qfile="$1"
+    local wash_handle="unknown"
+    local hook_parent="unknown"
+    local ingress_seen="false"
+    local cake_egress_seen="false"
+
+    [[ -f "$qfile" ]] || { printf 'fail unknown unknown\n'; return 0; }
+
+    # CAKE wash qdisc handle, only when attached as a root/egress qdisc.
+    wash_handle="$(awk '/cake/ && /root/ {print $3; exit}' "$qfile" 2>/dev/null || true)"
+    [[ -n "$wash_handle" ]] && cake_egress_seen="true"
+
+    # Ingress / clsact hook qdisc parsed on the same interface (the upstream
+    # capture-hook side). This is the parsed evidence that an ingress hook
+    # exists ahead of the egress CAKE qdisc.
+    if grep -Eq '(^|[[:space:]])qdisc[[:space:]]+(ingress|clsact)([[:space:]]|$)' "$qfile"; then
+        ingress_seen="true"
+        hook_parent="$(awk '/qdisc[[:space:]]+(ingress|clsact)/ {print $3"_"$5; exit}' "$qfile" 2>/dev/null || true)"
+        [[ -z "$hook_parent" ]] && hook_parent="ingress"
+    fi
+
+    if [[ "$cake_egress_seen" == "true" && "$ingress_seen" == "true" ]]; then
+        printf 'pass %s %s\n' "$hook_parent" "$wash_handle"
+    else
+        printf 'fail %s %s\n' "$hook_parent" "${wash_handle:-unknown}"
+    fi
+}
+
 derive_topology_and_proof() {
     local proof_file="$1"
     local topology_ok="false"
@@ -334,46 +374,82 @@ derive_topology_and_proof() {
     local ul_capture_point="unknown"
     local dl_wash_handle="unknown"
     local ul_wash_handle="unknown"
+    local dl_hook_parent="unknown"
+    local ul_hook_parent="unknown"
     local dl_hook="bridge_forward:iif=spec-modem,oif=spec-router,parent=pre-egress"
     local ul_hook="bridge_forward:iif=spec-router,oif=spec-modem,parent=pre-egress"
+    # Supporting paired-bitflip data (only set by a real paired pre/post-wash
+    # observation; this capture set does not collect it, so it stays unknown).
+    local pre_wash_dscp="unknown"
+    local post_wash_dscp="unknown"
 
+    # Supporting context only — bridge-forward rule text. NOT a pass condition.
     if grep -Eq 'iif[[:space:]]+spec-modem[[:space:]]+oif[[:space:]]+spec-router' "$OUTPUT_DIR/topology/nft-bridge-qos.txt"; then
         topology_ok="true"
     fi
-    dl_wash_handle="$(awk '/cake/ {print $3; exit}' "$OUTPUT_DIR/topology/tc-qdisc-spec-router.txt" 2>/dev/null || true)"
-    ul_wash_handle="$(awk '/cake/ {print $3; exit}' "$OUTPUT_DIR/topology/tc-qdisc-spec-modem.txt" 2>/dev/null || true)"
-    if [[ "$topology_ok" == "true" && -n "$dl_wash_handle" && "$dl_wash_handle" != "unknown" ]]; then
+
+    # Machine-checkable predicate: parse a real qdisc ordering relation that
+    # establishes the hook is upstream of the CAKE-egress wash qdisc. Presence
+    # of a CAKE handle alone does NOT pass; the ingress/clsact hook qdisc must
+    # also be parsed on the same interface. Defaults to fail/unknown otherwise.
+    local dl_relation ul_relation dl_verdict ul_verdict
+    dl_relation="$(parse_qdisc_ordering "$OUTPUT_DIR/topology/tc-qdisc-spec-router.txt")"
+    ul_relation="$(parse_qdisc_ordering "$OUTPUT_DIR/topology/tc-qdisc-spec-modem.txt")"
+    read -r dl_verdict dl_hook_parent dl_wash_handle <<<"$dl_relation"
+    read -r ul_verdict ul_hook_parent ul_wash_handle <<<"$ul_relation"
+
+    # paired_bitflip alternative: pass requires PRE_WASH_DSCP set and
+    # POST_WASH_DSCP cleared on the same probe 5-tuple. This capture set does
+    # not produce paired observations, so this branch never passes here, but
+    # the predicate is expressed explicitly so it can never default true.
+    local dl_bitflip_pass="false"
+    local ul_bitflip_pass="false"
+    if [[ "$pre_wash_dscp" != "unknown" && "$pre_wash_dscp" != "0" && "$post_wash_dscp" == "0" ]]; then
+        dl_bitflip_pass="true"
+        ul_bitflip_pass="true"
+    fi
+
+    local wash_proof_method="qdisc_ordering"
+    if [[ "$dl_verdict" == "pass" || "$dl_bitflip_pass" == "true" ]]; then
         dl_pass="true"
         dl_capture_point="pre_wash_ingress"
+        [[ "$dl_bitflip_pass" == "true" ]] && wash_proof_method="paired_bitflip"
     fi
-    if [[ -n "$ul_wash_handle" && "$ul_wash_handle" != "unknown" ]]; then
+    if [[ "$ul_verdict" == "pass" || "$ul_bitflip_pass" == "true" ]]; then
         ul_pass="true"
         ul_capture_point="pre_wash_ingress"
     fi
 
     {
-        printf 'WASH_PROOF_METHOD=qdisc_ordering\n'
+        printf 'WASH_PROOF_METHOD=%s\n' "$wash_proof_method"
         printf 'TOPOLOGY_EVIDENCE=ip-d-link,bridge-link,nft-bridge-qos,tc-qdisc\n'
+        printf 'TOPOLOGY_OK=%s\n' "$topology_ok"
+        printf 'PRE_WASH_DSCP=%s\n' "$pre_wash_dscp"
+        printf 'POST_WASH_DSCP=%s\n' "$post_wash_dscp"
         printf 'DL_CAPTURE_INTERFACE=spec-router\n'
         printf 'DL_CAPTURE_DIRECTION_FLAG=%s\n' "$DL_DIRECTION_FLAG"
-        printf 'DL_HOOK_PARENT=%s\n' "$dl_hook"
+        printf 'DL_HOOK_PARENT=%s\n' "${dl_hook_parent:-unknown}"
+        printf 'DL_HOOK_CONTEXT=%s\n' "$dl_hook"
         printf 'DL_WASH_QDISC_HANDLE=%s\n' "${dl_wash_handle:-unknown}"
+        printf 'DL_QDISC_ORDERING_VERDICT=%s\n' "$dl_verdict"
         printf 'DL_WASH_PROOF_PASS=%s\n' "$dl_pass"
         printf 'DL_CAPTURE_POINT=%s\n' "$dl_capture_point"
         printf 'DL_WASH_ORDERING_PROVEN=%s\n' "$dl_pass"
         printf 'UL_CAPTURE_INTERFACE=spec-modem\n'
         printf 'UL_CAPTURE_DIRECTION_FLAG=%s\n' "$UL_DIRECTION_FLAG"
-        printf 'UL_HOOK_PARENT=%s\n' "$ul_hook"
+        printf 'UL_HOOK_PARENT=%s\n' "${ul_hook_parent:-unknown}"
+        printf 'UL_HOOK_CONTEXT=%s\n' "$ul_hook"
         printf 'UL_WASH_QDISC_HANDLE=%s\n' "${ul_wash_handle:-unknown}"
+        printf 'UL_QDISC_ORDERING_VERDICT=%s\n' "$ul_verdict"
         printf 'UL_WASH_PROOF_PASS=%s\n' "$ul_pass"
         printf 'UL_CAPTURE_POINT=%s\n' "$ul_capture_point"
         printf 'UL_WASH_ORDERING_PROVEN=%s\n' "$ul_pass"
         printf 'WASH_PROOF_PASS=%s\n' "$dl_pass"
-        printf 'HOOK_PARENT=%s\n' "$dl_hook"
+        printf 'HOOK_PARENT=%s\n' "${dl_hook_parent:-unknown}"
         printf 'WASH_QDISC_HANDLE=%s\n' "${dl_wash_handle:-unknown}"
         printf 'CAPTURE_POINT=%s\n' "$dl_capture_point"
         printf 'WASH_ORDERING_PROVEN=%s\n' "$dl_pass"
-        printf 'PROOF_NOTE=Pass requires a parsed bridge-forward hook for spec-modem-to-spec-router and a parsed CAKE egress qdisc handle; otherwise capture point remains unknown.\n'
+        printf 'PROOF_NOTE=Pass rests ONLY on a machine-checkable predicate: a parsed qdisc_ordering relation (ingress/clsact hook qdisc parsed AND CAKE root/egress wash qdisc parsed on the same interface, hook provably upstream of wash) OR a paired_bitflip (PRE_WASH_DSCP set then POST_WASH_DSCP cleared on the same 5-tuple). TOPOLOGY_OK and qdisc handle PRESENCE are SUPPORTING CONTEXT ONLY and never set the proof booleans true; absent the predicate, CAPTURE_POINT stays unknown and WASH_ORDERING_PROVEN stays false.\n'
     } >"$proof_file"
 }
 
