@@ -9,6 +9,9 @@ MODEM_IFACE="spec-modem"
 EXPECTED_MODE=""
 OUT_FILE=""
 DRY_RUN="0"
+ROUTER_INPUT=""
+MODEM_INPUT=""
+SIMULATE_SSH_FAILED="0"
 
 ALLOWED_MODE_RE='^(besteffort|diffserv3|diffserv4|precedence|diffserv8)$'
 
@@ -24,6 +27,9 @@ Options:
   --modem-iface IFACE      Modem-side CAKE interface (default: spec-modem)
   --out FILE               Optional JSON proof output
   --dry-run                Print defaults/prereqs only; do not SSH
+  --router-input FILE      Test-only: parse router qdisc output from FILE instead of SSH
+  --modem-input FILE       Test-only: parse modem qdisc output from FILE instead of SSH
+  --simulate-ssh-failed    Test-only: force both proof states to ssh_failed
   --help, -h               Show this help
 EOF
 }
@@ -48,11 +54,13 @@ remote_qdisc_show() {
 }
 
 parse_qdisc_mode() {
-    python3 - <<'PY'
+    local input
+    input="$(cat)"
+    python3 - "$input" <<'PY'
 import re
 import sys
 
-text = sys.stdin.read()
+text = sys.argv[1]
 if not text.strip() or "Cannot find device" in text:
     print("missing")
     raise SystemExit(0)
@@ -109,8 +117,21 @@ PY
 check_iface() {
     local label="$1"
     local iface="$2"
+    local input_file="${3:-}"
     local output
 
+    if [[ "$SIMULATE_SSH_FAILED" == "1" ]]; then
+        printf '%s\n' "ssh_failed"
+        return 0
+    fi
+    if [[ -n "$input_file" ]]; then
+        if [[ ! -r "$input_file" ]]; then
+            printf '%s\n' "missing"
+            return 0
+        fi
+        parse_qdisc_mode <"$input_file"
+        return 0
+    fi
     if ! output="$(remote_qdisc_show "$iface" 2>&1)"; then
         printf '%s\n' "ssh_failed"
         return 0
@@ -126,6 +147,9 @@ while [[ $# -gt 0 ]]; do
         --modem-iface) MODEM_IFACE="${2:-}"; shift 2 ;;
         --out) OUT_FILE="${2:-}"; shift 2 ;;
         --dry-run) DRY_RUN="1"; shift ;;
+        --router-input) ROUTER_INPUT="${2:-}"; shift 2 ;;
+        --modem-input) MODEM_INPUT="${2:-}"; shift 2 ;;
+        --simulate-ssh-failed) SIMULATE_SSH_FAILED="1"; shift ;;
         --help|-h) usage; exit 0 ;;
         *) echo "ERROR: unknown argument: $1" >&2; usage >&2; exit 2 ;;
     esac
@@ -151,9 +175,14 @@ if [[ "$DRY_RUN" == "1" ]]; then
     exit 0
 fi
 
+if [[ -n "$ROUTER_INPUT$MODEM_INPUT" && ( -z "$ROUTER_INPUT" || -z "$MODEM_INPUT" ) ]]; then
+    echo "ERROR: --router-input and --modem-input must be provided together" >&2
+    exit 2
+fi
+
 CHECKED_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-ROUTER_GOT="$(check_iface router "$ROUTER_IFACE")"
-MODEM_GOT="$(check_iface modem "$MODEM_IFACE")"
+ROUTER_GOT="$(check_iface router "$ROUTER_IFACE" "$ROUTER_INPUT")"
+MODEM_GOT="$(check_iface modem "$MODEM_IFACE" "$MODEM_INPUT")"
 
 MATCH="false"
 EXIT_CODE=1
