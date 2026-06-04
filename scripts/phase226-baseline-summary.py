@@ -25,6 +25,11 @@ TIN_RE = re.compile(r"^\s*Tin\s+(?P<name>\S+)")
 SENT_RE = re.compile(r"Sent\s+(?P<bytes>[0-9]+)\s+bytes\s+(?P<packets>[0-9]+)\s+pkt")
 SIMPLE_KV_RE = re.compile(r"(?P<key>Dropped|Backlog)\s+(?P<value>[0-9]+)")
 DELAY_RE = re.compile(r"(?P<label>Avge|Peak)\s+delay\s+(?P<value>[0-9.]+)(?P<unit>us|ms|s)")
+REAL_PKTS_RE = re.compile(r"^\s*pkts\s+(?P<packets>[0-9]+)\s*$")
+REAL_DROPS_RE = re.compile(r"^\s*drops\s+(?P<drops>[0-9]+)\s*$")
+REAL_BACKLOG_RE = re.compile(r"^\s*backlog\s+(?P<backlog>[0-9]+)b\s*$")
+REAL_AV_DELAY_RE = re.compile(r"^\s*av_delay\s+(?P<value>[0-9.]+)(?P<unit>us|ms|s)\s*$")
+REAL_PK_DELAY_RE = re.compile(r"^\s*pk_delay\s+(?P<value>[0-9.]+)(?P<unit>us|ms|s)\s*$")
 
 
 @dataclass(frozen=True)
@@ -58,25 +63,49 @@ def parse_tc_qdisc(text: str) -> dict[str, TinCounters]:
             continue
         if current is None:
             continue
+        real_pkts_match = REAL_PKTS_RE.match(line)
+        if real_pkts_match:
+            tins[current]["packets"] = int(real_pkts_match.group("packets"))
+            continue
+        real_drops_match = REAL_DROPS_RE.match(line)
+        if real_drops_match:
+            tins[current]["drops"] = int(real_drops_match.group("drops"))
+            continue
+        real_backlog_match = REAL_BACKLOG_RE.match(line)
+        if real_backlog_match:
+            tins[current]["backlog_bytes"] = int(real_backlog_match.group("backlog"))
+            continue
+        real_av_delay_match = REAL_AV_DELAY_RE.match(line)
+        if real_av_delay_match:
+            tins[current]["avg_delay_ms"] = _to_ms(
+                real_av_delay_match.group("value"), real_av_delay_match.group("unit")
+            )
+            continue
+        real_pk_delay_match = REAL_PK_DELAY_RE.match(line)
+        if real_pk_delay_match:
+            tins[current]["peak_delay_ms"] = _to_ms(
+                real_pk_delay_match.group("value"), real_pk_delay_match.group("unit")
+            )
+            continue
         sent_match = SENT_RE.search(line)
         if sent_match:
-            tins[current]["packets"] = int(sent_match.group("packets"))
+            tins[current].setdefault("packets", int(sent_match.group("packets")))
         kv_match = SIMPLE_KV_RE.search(line)
         if kv_match:
             key = kv_match.group("key")
             value = int(kv_match.group("value"))
             if key == "Dropped":
-                tins[current]["drops"] = value
+                tins[current].setdefault("drops", value)
             elif key == "Backlog":
-                tins[current]["backlog_bytes"] = value
+                tins[current].setdefault("backlog_bytes", value)
         delay_match = DELAY_RE.search(line)
         if delay_match:
             label = delay_match.group("label")
             ms = _to_ms(delay_match.group("value"), delay_match.group("unit"))
             if label == "Avge":
-                tins[current]["avg_delay_ms"] = ms
+                tins[current].setdefault("avg_delay_ms", ms)
             elif label == "Peak":
-                tins[current]["peak_delay_ms"] = ms
+                tins[current].setdefault("peak_delay_ms", ms)
     return {name: TinCounters(**values) for name, values in tins.items()}
 
 
