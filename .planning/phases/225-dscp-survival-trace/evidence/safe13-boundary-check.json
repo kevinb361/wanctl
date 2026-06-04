@@ -1,0 +1,199 @@
+{
+  "anchor": "v1.48",
+  "att_config_diff": {
+    "configs/att.yaml": {
+      "added": 0,
+      "committed": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      },
+      "lines": [],
+      "removed": 0,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    }
+  },
+  "att_config_diff_count": 0,
+  "att_config_path": "configs/att.yaml",
+  "baseline_commit": "3d5b07e5548c71d4a0028584fa7bc1495a7e2d2c",
+  "checked_at": "2026-06-04T04:04:47Z",
+  "committed_clean": true,
+  "controller_path_diff_count": 0,
+  "dirty_tree": {
+    "staged": [],
+    "status_porcelain": [],
+    "unstaged": [],
+    "untracked": []
+  },
+  "dirty_tree_clean": true,
+  "expanded_protected_files": [
+    "src/wanctl/alert_engine.py",
+    "src/wanctl/backends/__init__.py",
+    "src/wanctl/backends/base.py",
+    "src/wanctl/backends/linux_cake.py",
+    "src/wanctl/backends/linux_cake_adapter.py",
+    "src/wanctl/backends/netlink_cake.py",
+    "src/wanctl/backends/routeros.py",
+    "src/wanctl/cake_signal.py",
+    "src/wanctl/fusion_healer.py",
+    "src/wanctl/queue_controller.py",
+    "src/wanctl/wan_controller.py"
+  ],
+  "head_commit": "baa9b4b6ff0fb5d97a1784ceb7c435895b50c5d2",
+  "notes": "SAFE-13 read-only boundary check; src/wanctl/backends/ expanded to per-file hash targets from anchor/worktree tracked-file union.",
+  "passed": true,
+  "per_file_object_ids": {
+    "configs/att.yaml": {
+      "anchor_blob": "8b0f53d0ec8a8237b30186ad96acd083d9f4dc83",
+      "worktree_blob": "8b0f53d0ec8a8237b30186ad96acd083d9f4dc83"
+    },
+    "src/wanctl/alert_engine.py": {
+      "anchor_blob": "63d7e115aa8e02d664bbb13e3065bd94196d2050",
+      "worktree_blob": "63d7e115aa8e02d664bbb13e3065bd94196d2050"
+    },
+    "src/wanctl/backends/__init__.py": {
+      "anchor_blob": "81200c05a0da83190dea2f79f5c45f802437a194",
+      "worktree_blob": "81200c05a0da83190dea2f79f5c45f802437a194"
+    },
+    "src/wanctl/backends/base.py": {
+      "anchor_blob": "64bea49e4428aab13612505de55bdeea81d4d501",
+      "worktree_blob": "64bea49e4428aab13612505de55bdeea81d4d501"
+    },
+    "src/wanctl/backends/linux_cake.py": {
+      "anchor_blob": "3000e0e38a31a1a1d63cdad5ac9ba6ce60d34865",
+      "worktree_blob": "3000e0e38a31a1a1d63cdad5ac9ba6ce60d34865"
+    },
+    "src/wanctl/backends/linux_cake_adapter.py": {
+      "anchor_blob": "0139dbfd89257241b72df13bd87da48020bc186d",
+      "worktree_blob": "0139dbfd89257241b72df13bd87da48020bc186d"
+    },
+    "src/wanctl/backends/netlink_cake.py": {
+      "anchor_blob": "b4d3845e6fd534e5490f5bbd63aae3e759cca267",
+      "worktree_blob": "b4d3845e6fd534e5490f5bbd63aae3e759cca267"
+    },
+    "src/wanctl/backends/routeros.py": {
+      "anchor_blob": "8c5c8db799ee27f5acc40a27fdc935a74e9cbc84",
+      "worktree_blob": "8c5c8db799ee27f5acc40a27fdc935a74e9cbc84"
+    },
+    "src/wanctl/cake_signal.py": {
+      "anchor_blob": "dab88fc5d493c04b6ad07766a002948dd765ec94",
+      "worktree_blob": "dab88fc5d493c04b6ad07766a002948dd765ec94"
+    },
+    "src/wanctl/fusion_healer.py": {
+      "anchor_blob": "5de7036f740f5296fdec18f438378e30d68e650c",
+      "worktree_blob": "5de7036f740f5296fdec18f438378e30d68e650c"
+    },
+    "src/wanctl/queue_controller.py": {
+      "anchor_blob": "4e1569aa0a82dd4ca25449b47f6754472a8ccc05",
+      "worktree_blob": "4e1569aa0a82dd4ca25449b47f6754472a8ccc05"
+    },
+    "src/wanctl/wan_controller.py": {
+      "anchor_blob": "259f02132bbbbdbc9715849a595ec8b8b6ff75a0",
+      "worktree_blob": "259f02132bbbbdbc9715849a595ec8b8b6ff75a0"
+    }
+  },
+  "per_file_sha256_equal": {
+    "configs/att.yaml": true,
+    "src/wanctl/alert_engine.py": true,
+    "src/wanctl/backends/__init__.py": true,
+    "src/wanctl/backends/base.py": true,
+    "src/wanctl/backends/linux_cake.py": true,
+    "src/wanctl/backends/linux_cake_adapter.py": true,
+    "src/wanctl/backends/netlink_cake.py": true,
+    "src/wanctl/backends/routeros.py": true,
+    "src/wanctl/cake_signal.py": true,
+    "src/wanctl/fusion_healer.py": true,
+    "src/wanctl/queue_controller.py": true,
+    "src/wanctl/wan_controller.py": true
+  },
+  "per_path_diff": {
+    "src/wanctl/alert_engine.py": {
+      "added": 0,
+      "committed": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      },
+      "lines": [],
+      "removed": 0,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    },
+    "src/wanctl/cake_signal.py": {
+      "added": 0,
+      "committed": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      },
+      "lines": [],
+      "removed": 0,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    },
+    "src/wanctl/fusion_healer.py": {
+      "added": 0,
+      "committed": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      },
+      "lines": [],
+      "removed": 0,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    },
+    "src/wanctl/queue_controller.py": {
+      "added": 0,
+      "committed": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      },
+      "lines": [],
+      "removed": 0,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    },
+    "src/wanctl/wan_controller.py": {
+      "added": 0,
+      "committed": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      },
+      "lines": [],
+      "removed": 0,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    }
+  },
+  "protected_paths": [
+    "src/wanctl/wan_controller.py",
+    "src/wanctl/queue_controller.py",
+    "src/wanctl/cake_signal.py",
+    "src/wanctl/alert_engine.py",
+    "src/wanctl/fusion_healer.py",
+    "src/wanctl/backends/"
+  ],
+  "staged_clean": true
+}
