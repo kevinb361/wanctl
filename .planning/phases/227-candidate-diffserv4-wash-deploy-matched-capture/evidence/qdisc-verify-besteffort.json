@@ -1,0 +1,8 @@
+{
+  "checked_utc": "2026-06-04T15:49:25Z",
+  "expected_mode": "besteffort",
+  "match": true,
+  "modem_got": "besteffort",
+  "router_got": "besteffort",
+  "ssh_host": "cake-shaper"
+}

@@ -20,9 +20,9 @@ router:
   transport: "linux-cake-netlink" # Netlink backend — no subprocess fork (p99 16ms→<1ms)
   host: "10.10.99.1"
   user: "admin"
-  ssh_key: "/etc/wanctl/ssh/router.key" # For SSH transport
+  ssh_key: REDACTED
   # REST transport settings (used by steering daemon)
-  password: "${ROUTER_PASSWORD}" # From /etc/wanctl/secrets
+  password: REDACTED
   port: 443
   verify_ssl: false
 

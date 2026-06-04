@@ -1,0 +1,31 @@
+qdisc cake 804d: root refcnt 9 bandwidth 920Mbit diffserv4 triple-isolate nonat wash no-ack-filter split-gso rtt 100ms noatm overhead 18 mpu 64 memlimit 64Mb 
+ Sent 1802727141879 bytes 1881844700 pkt (dropped 657916, overlimits 2653870421 requeues 533153) 
+ backlog 0b 0p requeues 533153
+ memory used: 25060608b of 64Mb
+ capacity estimate: 940Mbit
+ min/max network layer size:           32 /    1500
+ min/max overhead-adjusted size:       64 /    1518
+ average network hdr offset:           14
+
+                   Bulk  Best Effort        Video        Voice
+  thresh      57500Kbit      920Mbit      460Mbit      230Mbit
+  target            5ms          5ms          5ms          5ms
+  interval        100ms        100ms        100ms        100ms
+  pk_delay         13us         48us          6us         10us
+  av_delay          4us         12us          2us          2us
+  sp_delay          2us          0us          1us          1us
+  backlog            0b           0b           0b           0b
+  pkts            96155   1561527378        36589    320842494
+  bytes       131072927 1784297707852      9524561  19282686515
+  way_inds         1866    122774182        18792            2
+  way_miss         6073     10133899        12002         4344
+  way_cols           22          464         2101            0
+  drops               0       657904            0           12
+  marks              29         6585            0            0
+  ack_drop            0            0            0            0
+  sp_flows          312            4            1            1
+  bk_flows            0            1            0            0
+  un_flows            0            0            0            0
+  max_len          1514         1514         1514         1342
+  quantum          1514         1514         1514         1514
+

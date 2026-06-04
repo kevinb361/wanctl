@@ -20,9 +20,9 @@ router:
   transport: "linux-cake-netlink" # Netlink backend — no subprocess fork (p99 16ms→<1ms)
   host: "10.10.99.1"
   user: "admin"
-  ssh_key: "/etc/wanctl/ssh/router.key" # For SSH transport
+  ssh_key: REDACTED
   # REST transport settings (used by steering daemon)
-  password: "${ROUTER_PASSWORD}" # From /etc/wanctl/secrets
+  password: REDACTED
   port: 443
   verify_ssl: false
 
@@ -41,7 +41,7 @@ cake_params:
   rtt: "100ms" # Conservative DOCSIS interval; 1s was diagnostic only, not an operating tune
   ack_filter: false # Silicom validation 2026-04-28; preserve no-ack-filter on upload
   ingress: false # Silicom validation 2026-04-28; ingress on spec-router hurt upload tests
-  diffserv: diffserv4 # Phase 227 (AB-03): candidate diffserv4 wash A/B; leave live for Phase 228 verdict
+  diffserv: besteffort # Phase 209 (TOPO-03): DSCP stripped at DOCSIS CMTS; see docs/BRIDGE_QOS.md
   allow_wash: true # Phase 209 (TOPO-02 gate + D-05): wash bit on; 2026-04-22 flent finding; see docs/BRIDGE_QOS.md
 
 # Continuous monitoring - Expert-tuned for Spectrum Cable

@@ -1,0 +1,6 @@
+ref_udp_unmarked_valid=true
+ref_udp_unmarked_validity_reason=ok
+ref_tcp_bulk_unmarked_valid=true
+ref_tcp_bulk_unmarked_validity_reason=ok
+ref_udp_marked_ef_valid=true
+ref_udp_marked_ef_validity_reason=ok

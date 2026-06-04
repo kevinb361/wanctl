@@ -1,0 +1,311 @@
+{
+  "baseline_window": {
+    "floor_hit_cycles": 0,
+    "mean_window_duration_s": 73.56696597735088,
+    "restart_rate": 0.0,
+    "soft_red_dwell_s": 0.0,
+    "transition_rate": 0.09868456329703637,
+    "windows": [
+      {
+        "duration_s": 75.25149726867676,
+        "floor_hit_cycles": 0,
+        "health_up": true,
+        "max_gap_s": 1.289405107498169,
+        "restart_rate": 0.0,
+        "sample_count": 64,
+        "soft_red_dwell_s": 0.0,
+        "transition_rate": 0.18604280988608932
+      },
+      {
+        "duration_s": 73.30436301231384,
+        "floor_hit_cycles": 0,
+        "health_up": true,
+        "max_gap_s": 1.2790617942810059,
+        "restart_rate": 0.0,
+        "sample_count": 62,
+        "soft_red_dwell_s": 0.0,
+        "transition_rate": 0.05456701123407989
+      },
+      {
+        "duration_s": 72.14503765106201,
+        "floor_hit_cycles": 0,
+        "health_up": true,
+        "max_gap_s": 1.2876408100128174,
+        "restart_rate": 0.0,
+        "sample_count": 61,
+        "soft_red_dwell_s": 0.0,
+        "transition_rate": 0.055443868770939896
+      }
+    ]
+  },
+  "interfaces": {
+    "spec-modem": {
+      "0": {
+        "mean_backlog_bytes_delta": 7878.0,
+        "mean_delay_delta_ms": 1.3103333333333333,
+        "mean_drops_delta": 68.0,
+        "mean_packets_delta": 180697.33333333334,
+        "runs": [
+          {
+            "after_backlog_bytes_delta": 0,
+            "after_drops_delta": 159,
+            "after_minus_before_ge_during": false,
+            "after_packets_delta": 368859,
+            "avg_delay_ms": 1.37,
+            "backlog_bytes_delta": 6122,
+            "drops_delta": 93,
+            "packets_delta": 182327,
+            "peak_delay_ms": 5.39,
+            "tin": "0"
+          },
+          {
+            "after_backlog_bytes_delta": 0,
+            "after_drops_delta": 126,
+            "after_minus_before_ge_during": false,
+            "after_packets_delta": 365882,
+            "avg_delay_ms": 1.64,
+            "backlog_bytes_delta": 12706,
+            "drops_delta": 54,
+            "packets_delta": 174156,
+            "peak_delay_ms": 6.16,
+            "tin": "0"
+          },
+          {
+            "after_backlog_bytes_delta": 0,
+            "after_drops_delta": 116,
+            "after_minus_before_ge_during": false,
+            "after_packets_delta": 380952,
+            "avg_delay_ms": 0.921,
+            "backlog_bytes_delta": 4806,
+            "drops_delta": 57,
+            "packets_delta": 185609,
+            "peak_delay_ms": 4.43,
+            "tin": "0"
+          }
+        ],
+        "stddev_ms": 0.29654716694351035,
+        "tin_queue_delay_spread_ms": 0.7189999999999999
+      }
+    },
+    "spec-router": {
+      "0": {
+        "mean_backlog_bytes_delta": 4037.3333333333335,
+        "mean_delay_delta_ms": 0.077,
+        "mean_drops_delta": 0.0,
+        "mean_packets_delta": 689192.3333333334,
+        "runs": [
+          {
+            "after_backlog_bytes_delta": 0,
+            "after_drops_delta": 0,
+            "after_minus_before_ge_during": false,
+            "after_packets_delta": 1418341,
+            "avg_delay_ms": 0.098,
+            "backlog_bytes_delta": 10598,
+            "drops_delta": 0,
+            "packets_delta": 688900,
+            "peak_delay_ms": 0.254,
+            "tin": "0"
+          },
+          {
+            "after_backlog_bytes_delta": 0,
+            "after_drops_delta": 0,
+            "after_minus_before_ge_during": true,
+            "after_packets_delta": 1444248,
+            "avg_delay_ms": 0.059,
+            "backlog_bytes_delta": 0,
+            "drops_delta": 0,
+            "packets_delta": 677725,
+            "peak_delay_ms": 0.213,
+            "tin": "0"
+          },
+          {
+            "after_backlog_bytes_delta": 0,
+            "after_drops_delta": 0,
+            "after_minus_before_ge_during": false,
+            "after_packets_delta": 1450614,
+            "avg_delay_ms": 0.074,
+            "backlog_bytes_delta": 1514,
+            "drops_delta": 0,
+            "packets_delta": 700952,
+            "peak_delay_ms": 0.255,
+            "tin": "0"
+          }
+        ],
+        "stddev_ms": 0.016062378404209012,
+        "tin_queue_delay_spread_ms": 0.03900000000000001
+      }
+    }
+  },
+  "marked_ef": {
+    "clean_mark": true,
+    "ef_ref_port": 5203,
+    "jitter_ms": {
+      "max": 3.3437603943006766,
+      "mean": 2.819593821179781,
+      "min": 2.390890392540497,
+      "spread": 0.9528700017601794,
+      "stddev": 0.39482081930022295
+    },
+    "loss_pct": {
+      "max": 0.2737994945240101,
+      "mean": 0.15445099691098005,
+      "min": 0.0,
+      "spread": 0.2737994945240101,
+      "stddev": 0.11450088760390403
+    },
+    "mark_method": "dscp",
+    "run_count": 3,
+    "runs": [
+      {
+        "artifact": "ref-udp-marked-ef.01.txt",
+        "ef_clean_mark": true,
+        "ef_mark_method": "dscp",
+        "ef_ref_port": 5203,
+        "jitter_ms": 2.390890392540497,
+        "loss_pct": 0.2737994945240101,
+        "ref_tcp_bulk_unmarked_valid": "true",
+        "ref_tcp_bulk_unmarked_validity_reason": "ok",
+        "ref_udp_marked_ef_valid": "true",
+        "ref_udp_marked_ef_validity_reason": "ok",
+        "ref_udp_unmarked_valid": "true",
+        "ref_udp_unmarked_validity_reason": "ok",
+        "run": "run-01",
+        "valid": true,
+        "validity_reason": "ok"
+      },
+      {
+        "artifact": "ref-udp-marked-ef.02.txt",
+        "ef_clean_mark": true,
+        "ef_mark_method": "dscp",
+        "ef_ref_port": 5203,
+        "jitter_ms": 2.7241306766981688,
+        "loss_pct": 0.0,
+        "ref_tcp_bulk_unmarked_valid": "true",
+        "ref_tcp_bulk_unmarked_validity_reason": "ok",
+        "ref_udp_marked_ef_valid": "true",
+        "ref_udp_marked_ef_validity_reason": "ok",
+        "ref_udp_unmarked_valid": "true",
+        "ref_udp_unmarked_validity_reason": "ok",
+        "run": "run-02",
+        "valid": true,
+        "validity_reason": "ok"
+      },
+      {
+        "artifact": "ref-udp-marked-ef.03.txt",
+        "ef_clean_mark": true,
+        "ef_mark_method": "dscp",
+        "ef_ref_port": 5203,
+        "jitter_ms": 3.3437603943006766,
+        "loss_pct": 0.18955349620893008,
+        "ref_tcp_bulk_unmarked_valid": "true",
+        "ref_tcp_bulk_unmarked_validity_reason": "ok",
+        "ref_udp_marked_ef_valid": "true",
+        "ref_udp_marked_ef_validity_reason": "ok",
+        "ref_udp_unmarked_valid": "true",
+        "ref_udp_unmarked_validity_reason": "ok",
+        "run": "run-03",
+        "valid": true,
+        "validity_reason": "ok"
+      }
+    ],
+    "valid": true,
+    "valid_run_count": 3
+  },
+  "phase": 226,
+  "provenance": {
+    "AB-04": "marked_ef jitter/loss compared against ref_udp_unmarked jitter/loss",
+    "D-07": "RRUL plus unmarked reference flows; marked-EF arm is additive when present",
+    "D-08": "3 runs x 60s mean plus spread",
+    "GATE-01": "matched RRUL plus unmarked reference arms from EF-loaded captures"
+  },
+  "ref_tcp_unmarked": {
+    "retransmits": {
+      "mean": 109.0,
+      "total": 327
+    },
+    "run_count": 3,
+    "runs": [
+      {
+        "artifact": "ref-tcp-bulk-unmarked.01.txt",
+        "retransmits": 111,
+        "run": "run-01",
+        "throughput_mbps": 2.4573530592338186,
+        "valid": true,
+        "validity_reason": "ok"
+      },
+      {
+        "artifact": "ref-tcp-bulk-unmarked.02.txt",
+        "retransmits": 115,
+        "run": "run-02",
+        "throughput_mbps": 2.4961884111081076,
+        "valid": true,
+        "validity_reason": "ok"
+      },
+      {
+        "artifact": "ref-tcp-bulk-unmarked.03.txt",
+        "retransmits": 101,
+        "run": "run-03",
+        "throughput_mbps": 3.218548906922548,
+        "valid": true,
+        "validity_reason": "ok"
+      }
+    ],
+    "throughput_mbps": {
+      "max": 3.218548906922548,
+      "mean": 2.7240301257548247,
+      "min": 2.4573530592338186,
+      "spread": 0.7611958476887293,
+      "stddev": 0.3500368217149998
+    },
+    "valid": true,
+    "valid_run_count": 3
+  },
+  "ref_udp_unmarked": {
+    "jitter_ms": {
+      "max": 3.348154578869207,
+      "mean": 2.66590250438839,
+      "min": 2.08288209659339,
+      "spread": 1.265272482275817,
+      "stddev": 0.5212893031424014
+    },
+    "loss_pct": {
+      "max": 0.33698399326032014,
+      "mean": 0.15445099691098008,
+      "min": 0.04212299915754002,
+      "spread": 0.2948609941027801,
+      "stddev": 0.13021087469103768
+    },
+    "run_count": 3,
+    "runs": [
+      {
+        "artifact": "ref-udp-unmarked.01.txt",
+        "jitter_ms": 2.08288209659339,
+        "loss_pct": 0.33698399326032014,
+        "run": "run-01",
+        "valid": true,
+        "validity_reason": "ok"
+      },
+      {
+        "artifact": "ref-udp-unmarked.02.txt",
+        "jitter_ms": 2.5666708377025733,
+        "loss_pct": 0.08424599831508003,
+        "run": "run-02",
+        "valid": true,
+        "validity_reason": "ok"
+      },
+      {
+        "artifact": "ref-udp-unmarked.03.txt",
+        "jitter_ms": 3.348154578869207,
+        "loss_pct": 0.04212299915754002,
+        "run": "run-03",
+        "valid": true,
+        "validity_reason": "ok"
+      }
+    ],
+    "valid": true,
+    "valid_run_count": 3
+  },
+  "rrul_p99_latency_under_load_ms_mean": 345.14793561629267,
+  "run_count": 3,
+  "schema_version": 1
+}

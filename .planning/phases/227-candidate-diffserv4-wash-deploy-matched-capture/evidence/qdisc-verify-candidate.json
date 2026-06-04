@@ -1,0 +1,8 @@
+{
+  "checked_utc": "2026-06-04T16:31:37Z",
+  "expected_mode": "diffserv4",
+  "match": true,
+  "modem_got": "diffserv4",
+  "router_got": "diffserv4",
+  "ssh_host": "cake-shaper"
+}
