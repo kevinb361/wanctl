@@ -33,7 +33,7 @@ This is pre-registration, not reverse-fitting: Task 1 freezes the decision rule 
 
 ## Constant Fill Provenance
 
-Pending Task 3 fill from `.planning/phases/226-baseline-capture-threshold-lock-snapshot-a/evidence/baseline/baseline-20260604T113435Z/baseline-summary.json` field `tin_queue_delay_spread_ms`.
+- Constant Fill: Task 1 froze the tin-separation rule; Task 3 filled only the noise-band constant from `.planning/phases/226-baseline-capture-threshold-lock-snapshot-a/evidence/baseline/baseline-20260604T113435Z/baseline-summary.json` field `tin_queue_delay_spread_ms`, with path and sha256 provenance recorded in `scripts/phase226-thresholds.json`. Both the rule lock and constant fill are committed before Phase 227, preserving pre-registration and avoiding reverse-fitting.
 
 ## Safety Boundary
 
