@@ -89,23 +89,23 @@ def parse_tc_qdisc(text: str) -> dict[str, TinCounters]:
             continue
         sent_match = SENT_RE.search(line)
         if sent_match:
-            tins[current].setdefault("packets", int(sent_match.group("packets")))
+            tins[current]["packets"] = int(sent_match.group("packets"))
         kv_match = SIMPLE_KV_RE.search(line)
         if kv_match:
             key = kv_match.group("key")
             value = int(kv_match.group("value"))
             if key == "Dropped":
-                tins[current].setdefault("drops", value)
+                tins[current]["drops"] = value
             elif key == "Backlog":
-                tins[current].setdefault("backlog_bytes", value)
+                tins[current]["backlog_bytes"] = value
         delay_match = DELAY_RE.search(line)
         if delay_match:
             label = delay_match.group("label")
             ms = _to_ms(delay_match.group("value"), delay_match.group("unit"))
             if label == "Avge":
-                tins[current].setdefault("avg_delay_ms", ms)
+                tins[current]["avg_delay_ms"] = ms
             elif label == "Peak":
-                tins[current].setdefault("peak_delay_ms", ms)
+                tins[current]["peak_delay_ms"] = ms
     return {name: TinCounters(**values) for name, values in tins.items()}
 
 
