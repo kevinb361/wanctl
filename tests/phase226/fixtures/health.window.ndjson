@@ -1,0 +1,5 @@
+{"sampled_unix": 0, "restart_count": 0, "wans": [{"name": "spectrum", "pressure_state": "GREEN", "upload": {"floor_hit_cycles": 0}}]}
+{"sampled_unix": 1, "restart_count": 0, "wans": [{"name": "spectrum", "pressure_state": "YELLOW", "upload": {"floor_hit_cycles": 0}}]}
+{"sampled_unix": 2, "restart_count": 1, "wans": [{"name": "spectrum", "pressure_state": "SOFT_RED", "upload": {"floor_hit_cycles": 1}}]}
+{"sampled_unix": 3, "restart_count": 1, "wans": [{"name": "spectrum", "pressure_state": "SOFT_RED", "upload": {"floor_hit_cycles": 1}}]}
+{"sampled_unix": 4, "restart_count": 1, "wans": [{"name": "spectrum", "pressure_state": "GREEN", "upload": {"floor_hit_cycles": 0}}]}

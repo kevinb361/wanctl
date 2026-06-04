@@ -1,0 +1,7 @@
+qdisc cake 8001: root refcnt 2 bandwidth 920Mbit besteffort triple-isolate wash no-ack-filter split-gso rtt 100ms raw overhead 18 mpu 64
+                   Tin 0
+  Sent 6000 bytes 650 pkt
+  Dropped 25
+  Backlog 4000 bytes
+  Avge delay 8.0ms
+  Peak delay 12.0ms
