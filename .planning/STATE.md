@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.49
 milestone_name: Spectrum DSCP Tinning Re-evaluation
 status: executing
-stopped_at: Completed 225-01-PLAN.md
-last_updated: "2026-06-04T03:50:57.395Z"
+stopped_at: Completed 225-02-PLAN.md
+last_updated: "2026-06-04T03:59:58.563Z"
 last_activity: 2026-06-04
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-03 after v1.48 milestone close; v1.49
 ## Current Position
 
 Phase: 225 (dscp-survival-trace) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-06-04
 
@@ -93,8 +93,8 @@ Re-acknowledged at v1.48 milestone close 2026-06-03 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-04T03:50:33.185Z
-Stopped at: Completed 225-01-PLAN.md
+Last session: 2026-06-04T03:59:16.156Z
+Stopped at: Completed 225-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -107,6 +107,8 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 
 - [225-01]: Counter absence on bridge `ip dscp set` rules is recorded as `bridge_counter_signal=unknown`, never `negligible`.
 - [225-01]: CRS trust and Ruckus QoS mirroring remain documented assumptions unless backed by concrete read-only artifacts and do not feed DSCP-03.
+- [225-02]: Capture point proof defaults to unknown and only records `pre_wash_ingress` when machine-checkable wash-ordering evidence passes.
+- [225-02]: DL EF probe negative/STRIPPED semantics require source-side DL EF proof; otherwise the DL probe remains degraded/unknown.
 
 ## Decisions (v1.48)
 
@@ -192,3 +194,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 224 P01 | 6 min | 2 tasks | 3 files |
 | Phase 224 P02 | 6 min | 2 tasks | 3 files |
 | Phase 225 P01 | 4min | 2 tasks | 2 files |
+| Phase 225 P02 | 6min | 2 tasks | 2 files |
