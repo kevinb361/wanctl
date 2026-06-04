@@ -121,3 +121,17 @@ def test_simulated_ssh_failure_fails_closed(tmp_path: Path) -> None:
     proof = json.loads(out.read_text(encoding="utf-8"))
     assert proof["router_got"] == "ssh_failed"
     assert proof["modem_got"] == "ssh_failed"
+
+
+def test_unsafe_interface_name_refuses_before_ssh() -> None:
+    result = subprocess.run(
+        [str(SCRIPT), "--expected-mode", "diffserv4", "--router-iface", "spec-router';id", "--simulate-ssh-failed"],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "unsafe interface name" in result.stderr

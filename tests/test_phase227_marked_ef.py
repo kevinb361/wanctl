@@ -118,6 +118,27 @@ def test_marked_ef_refuses_ref_port_collision() -> None:
     assert "must differ from --ref-port" in result.stderr
 
 
+def test_capture_refuses_unsafe_interface_name_before_ssh() -> None:
+    result = subprocess.run(
+        [
+            str(CAPTURE_SCRIPT),
+            "--output-dir",
+            "/tmp/phase227-dry",
+            "--dry-run",
+            "--router-iface",
+            "spec-router';id",
+        ],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "unsafe interface name" in result.stderr
+
+
 def test_matched_reference_invocations_still_target_ref_port() -> None:
     source = CAPTURE_SCRIPT.read_text(encoding="utf-8")
 

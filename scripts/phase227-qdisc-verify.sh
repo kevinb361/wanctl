@@ -42,6 +42,14 @@ require_command() {
     fi
 }
 
+validate_iface() {
+    local iface="$1"
+    if [[ ! "$iface" =~ ^[A-Za-z0-9_.:-]+$ ]]; then
+        echo "ERROR: unsafe interface name: $iface" >&2
+        exit 2
+    fi
+}
+
 remote_qdisc_show() {
     local iface="$1"
     ssh \
@@ -164,6 +172,8 @@ if [[ ! "$EXPECTED_MODE" =~ $ALLOWED_MODE_RE || "$EXPECTED_MODE" == "diffserv3" 
     echo "ERROR: --expected-mode must be diffserv4 or besteffort" >&2
     exit 2
 fi
+validate_iface "$ROUTER_IFACE"
+validate_iface "$MODEM_IFACE"
 
 require_command python3
 require_command ssh
