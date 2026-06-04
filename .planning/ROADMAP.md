@@ -28,6 +28,7 @@
 **Scope:** Two-thread single thesis — (1) read-only DSCP survival trace as a gated precondition, (2) Spectrum-only `diffserv4 wash` A/B with pre-registered accept/rollback gates. SEED-005 (UL tuning), SEED-007 (storage hygiene), and `/gsd-cleanup` orphan sweep are explicitly out of scope. Phase 218 (v1.45 VERIFY watch-list) continues event-gated in parallel and is not a v1.49 driver. RECLAIM-04 carried indefinitely. The `diffserv4 nowash` experiment is out of v1.49 (only a later follow-up if `wash` clearly wins).
 
 **Hard constraints (immutable across this milestone):**
+
 - **ATT byte-identical the entire milestone** — different carrier (DSL, not DOCSIS), different DSCP behavior; the Spectrum finding does not generalize. Spectrum-only A/B.
 - **External network gear (CRS / Ruckus / router) is NOT mutated in-milestone** — the DSCP trace is read-only by operator decision; landing marks correctly via gear config is a separate operator-approved action outside v1.49.
 - **The cake-shaper bridge nftables rules (wanctl-owned deploy) MAY change** — they are in-scope deploy surface, not external gear.
@@ -53,11 +54,13 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
 **Depends on:** Nothing (first v1.49 phase). Re-opens fulfilled seed SEED-001's load-bearing premise; builds on v1.28 Phase 141 bridge DSCP classification and `docs/BRIDGE_QOS.md`.
 **Requirements:** DSCP-01, DSCP-02, DSCP-03, SAFE-13 (cross-phase invariant)
 **Success Criteria** (what must be TRUE):
+
   1. Operator can read a documented trace identifying where DSCP is set / preserved / stripped across CRS trust maps → Ruckus QoS mirroring → cake-shaper bridge → CAKE ingress, captured read-only with zero external network-gear (CRS / Ruckus / router) mutation.
   2. Operator can see the actual DSCP distribution arriving at Spectrum CAKE ingress under representative traffic AND under a deliberately marked (EF) flow, establishing whether marks reach the shaper.
   3. Operator gets a gated DSCP-03 verdict: if marks do NOT survive to CAKE ingress, an early-exit finding ("diffserv4 remains classification theater — v1.44 confirmed") that short-circuits the A/B as unnecessary and lets the milestone close negative; if marks DO survive, an explicit "proceed to A/B" gate that unblocks Phase 226.
   4. No external network gear is mutated and no Spectrum CAKE-mode change is deployed in this phase — trace and capture only.
   5. SAFE-13 verified at phase boundary: zero controller-path source diff vs v1.48 close (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion all byte-identical); ATT config byte-identical.
+
 **Plans:** 5/5 plans complete
 
 #### Phase 226: Baseline Capture + Threshold Lock + Snapshot A
@@ -66,17 +69,30 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
 **Depends on:** Phase 225 (conditional — proceeds only on a "marks survive to CAKE ingress" verdict; a DSCP-03 early-exit short-circuits to milestone close).
 **Requirements:** AB-01, AB-02, GATE-01, SAFE-13 (cross-phase invariant)
 **Success Criteria** (what must be TRUE):
+
   1. Operator captures a Snapshot A rollback anchor (Spectrum config + production CAKE/qdisc state) before any production change, restorable to the exact pre-A/B state (v1.44 / v1.46 Phase 215 precedent).
   2. Operator captures baseline evidence on the current `920/18 besteffort wash`: `tc -s qdisc` on spec-router and spec-modem, per-tin counters/drops/backlog/delay under load, Spectrum health/state, and RRUL/flent latency-under-load.
   3. Operator has pre-registered GATE-01 accept/rollback thresholds locked before any candidate deploy: RRUL p99 latency regression tolerance (per the v1.44 rollback gate, >5%), daemon restart-rate, pressure-state transition-rate, upload stability, and useful non-BestEffort tin separation — recorded in a committed artifact so the verdict cannot be reverse-fitted.
   4. No candidate `diffserv4 wash` is deployed in this phase — baseline + anchor + locked thresholds only; the candidate deploy is reserved for Phase 227.
   5. SAFE-13 verified at phase boundary: zero controller-path source diff vs v1.48 close; ATT config byte-identical.
+
 **Plans:** 4 plans
 
 Plans:
-- [ ] 226-01-PLAN.md — Baseline evidence capture: 3-run flent RRUL + per-tin counters/spread on `920/18 besteffort wash` (AB-02) [Wave 1]
+**Wave 1**
+
 - [ ] 226-02-PLAN.md — Snapshot A rollback anchor: `phase226-snapshot-a.sh` capturing Spectrum CAKE/qdisc + spectrum.yaml + bridge nft (AB-01) [Wave 1]
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 226-01-PLAN.md — Baseline evidence capture: 3-run flent RRUL + per-tin counters/spread on `920/18 besteffort wash` (AB-02) [Wave 1]
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 226-03-PLAN.md — GATE-01 threshold lock: `phase226-thresholds.json` pre-registered accept/rollback gates (GATE-01) [Wave 1]
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 226-04-PLAN.md — Dry-run restore proof (no CAKE-mode change) + SAFE-13 phase-boundary verification (AB-01, SAFE-13) [Wave 2, depends on 226-02]
 
 #### Phase 227: Candidate diffserv4-wash Deploy + Matched Capture
@@ -85,10 +101,12 @@ Plans:
 **Depends on:** Phase 226 (Snapshot A captured, baseline evidence recorded, GATE-01 thresholds locked).
 **Requirements:** AB-03, AB-04, SAFE-13 (cross-phase invariant)
 **Success Criteria** (what must be TRUE):
+
   1. Operator can deploy candidate `diffserv4 wash` on Spectrum only (DL+UL), ATT untouched, and capture the identical evidence set as Phase 226 (`tc -s qdisc` on spec-router/spec-modem, per-tin counters/drops/backlog/delay under load, Spectrum health/state, RRUL/flent latency-under-load) under matched load for direct comparison.
   2. Operator can compare realtime-flow protection between baseline and candidate: marked EF UDP jitter vs unmarked UDP, plus unmarked bulk-TCP throughput and latency distribution (degrades to best-effort capture if the test rig cannot mark cleanly, but the check is not dropped).
   3. The candidate is deployed via config (`configs/spectrum.yaml`) + the existing `allow_wash` gate / tin-agnostic CAKE signal (v1.44 Phase 205) — no controller algorithm change is required to drive `diffserv4 wash`.
   4. SAFE-13 verified at phase boundary: zero controller-path source diff vs v1.48 close; ATT config byte-identical. The cake-shaper bridge nftables rules MAY change; controller path MUST NOT.
+
 **Plans:** TBD
 
 #### Phase 228: Verdict + Evidence-Gated Decision + Closeout
@@ -97,11 +115,13 @@ Plans:
 **Depends on:** Phase 227 (matched baseline-vs-candidate evidence captured).
 **Requirements:** GATE-02, GATE-03, SAFE-13 (cross-phase invariant)
 **Success Criteria** (what must be TRUE):
+
   1. Operator gets a GATE-02 verdict computed against the locked GATE-01 thresholds: accept `diffserv4 wash` (clear latency/jitter or realtime-protection win with no throughput loss, daemon instability, or pressure-state churn) or reject in favor of `besteffort wash`.
   2. Operator gets an explicit, evidence-gated SAFE-13 decision: whether the A/B evidence warrants any controller-path change (e.g. per-tin backlog weighting in `cake_signal.py`). Default and expected outcome is NO lift — zero controller-path diff — and any lift is recorded as a deliberate roadmap decision with evidence rationale, not a pre-committed edit.
   3. If any GATE-01 rollback trigger fires (RRUL p99 regression beyond tolerance, higher restart rate, more pressure-state churn/flapping, upload instability, or no useful non-BestEffort tin separation), Spectrum is rolled back to `besteffort wash` and BOTH production and repo are verified restored to Snapshot A.
   4. The closeout records the verdict in `docs/BRIDGE_QOS.md`, `configs/spectrum.yaml`, and `CHANGELOG.md`, including the negative-result path (keep `besteffort wash`) as a valid close.
   5. SAFE-13 verified at phase boundary AND at v1.49 milestone close: zero controller-path source diff vs v1.48 close unless an explicit evidence-gated lift was recorded in criterion 2; ATT config byte-identical the entire milestone.
+
 **Plans:** TBD
 
 ### Progress
