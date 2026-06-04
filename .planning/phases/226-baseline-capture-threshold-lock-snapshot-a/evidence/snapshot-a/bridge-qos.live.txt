@@ -1,0 +1,53 @@
+table bridge qos {
+	chain spectrum_dl {
+		ip dscp != cs0 accept
+		ct mark 0x00000004 ip dscp set ef accept
+		ct mark 0x00000002 ip dscp set af41 accept
+		ct mark 0x00000001 ip dscp set cs1 accept
+		ct state new udp sport 53 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new tcp sport 53 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp sport 5060 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp sport 16384-32767 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new tcp sport 22 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp sport 123 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp sport 3478-3480 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp sport 51820 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp dport 51820 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp sport 4500 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp sport 500 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp sport 9993 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp dport 9993 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp sport 443 ip dscp set af41 ct mark set 0x00000002 accept
+		ct state new tcp sport 6881-6889 ip dscp set cs1 ct mark set 0x00000001 accept
+		ct state new tcp sport 563 ip dscp set cs1 ct mark set 0x00000001 accept
+		ct state new tcp sport 119 ip dscp set cs1 ct mark set 0x00000001 accept
+		ct bytes > 100000000 ct mark 0x00000000 ip dscp set cs1 ct mark set 0x00000001
+		ct bytes > 10000000 ct mark 0x00000000 ip dscp set af41 ct mark set 0x00000002
+	}
+
+	chain att_dl {
+		ip dscp != cs0 accept
+		ct mark 0x00000004 ip dscp set ef accept
+		ct mark 0x00000002 ip dscp set af41 accept
+		ct mark 0x00000001 ip dscp set cs1 accept
+		ct state new udp sport 53 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new tcp sport 53 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp sport 5060 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp sport 16384-32767 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new tcp sport 22 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp sport 123 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp sport 3478-3480 ip dscp set ef ct mark set 0x00000004 accept
+		ct state new udp sport 443 ip dscp set af41 ct mark set 0x00000002 accept
+		ct state new tcp sport 6881-6889 ip dscp set cs1 ct mark set 0x00000001 accept
+		ct state new tcp sport 563 ip dscp set cs1 ct mark set 0x00000001 accept
+		ct state new tcp sport 119 ip dscp set cs1 ct mark set 0x00000001 accept
+		ct bytes > 100000000 ct mark 0x00000000 ip dscp set cs1 ct mark set 0x00000001
+		ct bytes > 10000000 ct mark 0x00000000 ip dscp set af41 ct mark set 0x00000002
+	}
+
+	chain forward {
+		type filter hook forward priority -10; policy accept;
+		iif "spec-modem" oif "spec-router" jump spectrum_dl
+		iif "att-modem" oif "att-router" jump att_dl
+	}
+}
