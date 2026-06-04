@@ -66,6 +66,7 @@ out_path = Path(sys.argv[2])
 
 controller_targets = [
     "src/wanctl/wan_controller.py",
+    "src/wanctl/wan_controller_state.py",
     "src/wanctl/queue_controller.py",
     "src/wanctl/cake_signal.py",
     "src/wanctl/alert_engine.py",
