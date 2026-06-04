@@ -76,7 +76,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
   4. No candidate `diffserv4 wash` is deployed in this phase — baseline + anchor + locked thresholds only; the candidate deploy is reserved for Phase 227.
   5. SAFE-13 verified at phase boundary: zero controller-path source diff vs v1.48 close; ATT config byte-identical.
 
-**Plans:** 4/4 plans complete
+**Plans:** 5/5 plans complete
 
 Plans:
 **Wave 1**
@@ -94,6 +94,10 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [x] 226-04-PLAN.md — Dry-run restore proof (no CAKE-mode change) + SAFE-13 phase-boundary verification (AB-01, SAFE-13) [Wave 2, depends on 226-02]
+
+**Wave 5** *(gap closure after Phase 226 verification)*
+
+- [x] 226-05-PLAN.md — Baseline parser gap closure: real CAKE per-tin row parsing, regenerated baseline summary, re-provenanced NOISE_BAND_MS, and SAFE-13 re-check (AB-02, GATE-01, SAFE-13) [Wave 1]
 
 #### Phase 227: Candidate diffserv4-wash Deploy + Matched Capture
 
@@ -129,7 +133,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 225. DSCP Survival Trace | 5/5 | Complete    | 2026-06-04 |
-| 226. Baseline Capture + Threshold Lock + Snapshot A | 4/4 | Complete   | 2026-06-04 |
+| 226. Baseline Capture + Threshold Lock + Snapshot A | 5/5 | Complete   | 2026-06-04 |
 | 227. Candidate diffserv4-wash Deploy + Matched Capture | 0/? | Not started | - |
 | 228. Verdict + Evidence-Gated Decision + Closeout | 0/? | Not started | - |
 

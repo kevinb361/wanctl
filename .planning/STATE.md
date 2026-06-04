@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.49
 milestone_name: Spectrum DSCP Tinning Re-evaluation
-status: verifying
-stopped_at: Completed 226-04-PLAN.md
-last_updated: "2026-06-04T11:55:03.473Z"
+status: executing
+stopped_at: Completed 226-05-PLAN.md
+last_updated: "2026-06-04T12:52:34.234Z"
 last_activity: 2026-06-04
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 10
+  completed_plans: 10
   percent: 50
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03 after v1.48 milestone close; v1.49 milestone section current)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 226 — baseline-capture-threshold-lock-snapshot-a
+**Current focus:** Phase 227 — Candidate diffserv4-wash Deploy + Matched Capture
 
 ## Current Position
 
-Phase: 226 (baseline-capture-threshold-lock-snapshot-a) — COMPLETE
-Plan: 4 of 4
-Status: Phase complete — ready for verification
+Phase: 227 (Candidate diffserv4-wash Deploy + Matched Capture) — NOT STARTED
+Plan: TBD
+Status: Phase 226 complete; ready to plan Phase 227
 Last activity: 2026-06-04
 
 ## Deferred Items (carried into next milestone)
@@ -93,8 +93,8 @@ Re-acknowledged at v1.48 milestone close 2026-06-03 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-04T11:54:48.342Z
-Stopped at: Completed 226-04-PLAN.md
+Last session: 2026-06-04T12:52:34.204Z
+Stopped at: Completed 226-05-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -124,6 +124,9 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 - [226-04]: Restore proof remains dry-run-only in Phase 226; mutation-capable restore behavior is deferred to Phase 228.
 - [226-04]: Restore proof claims only config-artifact equality plus command identity, not runtime qdisc restoration or live rollback validity.
 - [226-04]: SAFE-13 boundary was verified after the restore-proof task commit, so evidence reflects the final Phase 226 implementation state.
+- [226-05]: Regenerated only derived baseline artifacts from unchanged retained raw run-NN tc/health/flent/reference artifacts.
+- [226-05]: Re-provenanced NOISE_BAND_MS to the final regenerated baseline-summary.json hash recorded in the evidence manifest.
+- [226-05]: Task 4 used the comprehensive SAFE-13 protected-set script and a committed plan-scope allowlist check because the literal v1.48-wide diff includes prior v1.49 planning/evidence history.
 
 ## Decisions (v1.48)
 
@@ -217,3 +220,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 226 P01 | 19min | 4 tasks | 55 files |
 | Phase 226 P03 | 3min | 3 tasks | 3 files |
 | Phase 226 P04 | 2min | 2 tasks | 4 files |
+| Phase 226 P05 | 6min | 4 tasks | 8 files |
