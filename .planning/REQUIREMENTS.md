@@ -34,7 +34,7 @@ Each requirement maps to exactly one phase. Operator-centric framing — deliver
 
 ### Accept / Rollback Discipline (GATE)
 
-- [ ] **GATE-01**: Accept/rollback thresholds are pre-registered before the candidate deploy: RRUL p99 latency regression tolerance (per the v1.44 rollback gate), daemon restart-rate, pressure-state transition-rate, upload stability, and useful non-BestEffort tin separation.
+- [x] **GATE-01**: Accept/rollback thresholds are pre-registered before the candidate deploy: RRUL p99 latency regression tolerance (per the v1.44 rollback gate), daemon restart-rate, pressure-state transition-rate, upload stability, and useful non-BestEffort tin separation.
 - [ ] **GATE-02**: Operator gets a verdict computed against the pre-registered thresholds — accept `diffserv4 wash` (clear latency/jitter or realtime-protection win with no throughput loss, instability, or pressure-state churn) or reject in favor of `besteffort wash`.
 - [ ] **GATE-03**: If any rollback trigger fires, Spectrum is rolled back to `besteffort wash` and both production and repo are verified restored to Snapshot A; the closeout records the verdict in `docs/BRIDGE_QOS.md`, `configs/spectrum.yaml`, and `CHANGELOG.md`.
 
@@ -84,7 +84,7 @@ Phase ← requirement mapping. 100% coverage: 13/13 v1.49 REQ-IDs mapped, no orp
 | DSCP-03 | Phase 225 | Complete |
 | AB-01 | Phase 226 | Complete |
 | AB-02 | Phase 226 | Complete |
-| GATE-01 | Phase 226 | Pending |
+| GATE-01 | Phase 226 | Complete |
 | AB-03 | Phase 227 | Pending |
 | AB-04 | Phase 227 | Pending |
 | GATE-02 | Phase 228 | Pending |
