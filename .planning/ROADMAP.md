@@ -102,7 +102,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 225. DSCP Survival Trace | 5/5 | Complete   | 2026-06-04 |
+| 225. DSCP Survival Trace | 5/5 | Complete    | 2026-06-04 |
 | 226. Baseline Capture + Threshold Lock + Snapshot A | 0/? | Not started | - |
 | 227. Candidate diffserv4-wash Deploy + Matched Capture | 0/? | Not started | - |
 | 228. Verdict + Evidence-Gated Decision + Closeout | 0/? | Not started | - |
