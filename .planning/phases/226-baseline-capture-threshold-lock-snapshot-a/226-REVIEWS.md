@@ -1,9 +1,9 @@
 ---
 phase: 226
 reviewers: [codex]
-reviewed_at: 2026-06-04T06:00:04Z
-review_cycles: 2
-plans_reviewed: [226-01-PLAN.md, 226-02-PLAN.md, 226-03-PLAN.md, 226-04-PLAN.md]
+reviewed_at: 2026-06-04T12:29:00Z
+review_cycles: 3
+plans_reviewed: [226-01-PLAN.md, 226-02-PLAN.md, 226-03-PLAN.md, 226-04-PLAN.md, 226-05-PLAN.md]
 cycle_1:
   reviewed_at: 2026-06-04T05:43:07Z
   high_raised: 5
@@ -12,6 +12,12 @@ cycle_2:
   revision_commit: 4dec9a9
   high_unresolved: 0
   high_new: 0
+cycle_3:
+  reviewed_at: 2026-06-04T12:29:00Z
+  scope: 226-05-PLAN.md (gap-closure)
+  plan_commit: cc35e96
+  high_raised: 2
+  high_unresolved: 2
 ---
 
 # Cross-AI Plan Review — Phase 226
@@ -21,7 +27,98 @@ Claude CLI was skipped for independence per the review workflow's self-CLI rule.
 
 ---
 
-# Review Cycle 2 (current) — 2026-06-04T06:00:04Z
+# Review Cycle 3 (current) — 2026-06-04T12:29:00Z
+
+**Scope:** ONLY the gap-closure plan `226-05-PLAN.md` (commit `cc35e96`). Plans 226-01..04 are
+already executed and were reviewed in cycles 1–2; they were excluded from this cycle.
+**Mandate:** Adversarially review whether 226-05 actually closes the two FAILED must-haves
+(AB-02 baseline evidence, GATE-01 threshold lock) without breaking SAFE-13. Codex read the broken
+parser, the real retained `tc` evidence, the thresholds JSON, and the verification gaps directly.
+
+## Codex Review (Cycle 3)
+
+**Summary** — The plan targets the right root cause and should make the retained real CAKE evidence
+parse correctly: the real file uses `pk_delay`/`av_delay`/`backlog`/`pkts`/`drops`, and the current
+parser returns zeroes. Actual retained data should produce positive spreads (`spec-router`:
+~0.105 ms, `spec-modem`: ~24.206 ms). SAFE-13 is likely preserved via the existing boundary script.
+As written, though, the plan has two material gaps: it does not refresh `artifact-sha256.txt` after
+regenerating tracked evidence, and its Task 1 inline import verify command is broken in this
+environment.
+
+**Strengths**
+
+- Correct diagnosis: `parse_tc_qdisc()` only matches synthetic labels today, and real retained CAKE
+  rows are ignored.
+- Regex direction is basically sound if implemented as exact, line-anchored lowercase per-tin labels.
+- Uses retained raw evidence only; no live recapture or candidate data, so pre-registration is preserved.
+- `_spread()` reasoning is correct for this retained baseline: it uses the three `during`
+  `avg_delay_ms` values, not before/during deltas.
+- `NOISE_BAND_MS` SHA provenance is not circular: `thresholds.json` hashes `baseline-summary.json`;
+  the summary does not depend on `thresholds.json`.
+
+**Concerns**
+
+- **HIGH:** `artifact-sha256.txt` is omitted from `files_modified` and Task 3. It currently records
+  hashes for `baseline-summary.json` and `BASELINE-SUMMARY.md`. Regenerating either file makes the
+  baseline evidence hash manifest stale, undermining the "retained evidence" provenance story even if
+  `thresholds.json` points at the new summary hash.
+- **HIGH:** Task 1's verify command imports the dataclass module via
+  `importlib.util.module_from_spec()` but does not insert it into `sys.modules`. In this environment
+  it fails before parsing with `AttributeError` from `dataclasses`. The test file does this correctly
+  by assigning `sys.modules["phase226_baseline_summary"] = summary`.
+- **MEDIUM:** Task 1/2 acceptance does not actually prove `backlog` or `pk_delay` parsing. The Task 1
+  verify target, `run-01/tc-qdisc-spec-router.during.txt`, has per-tin `backlog 0b`, so it cannot
+  prove non-zero backlog parsing. The inline regression should assert `backlog_bytes` and
+  `peak_delay_ms`; the retained-evidence test should parse `spec-modem.during` for positive backlog.
+- **MEDIUM:** The plan's `> 0` acceptance for `tin_queue_delay_spread_ms` is valid for this retained
+  evidence, but not a general invariant. A correct parse could legitimately yield `0.0` if all three
+  `av_delay` samples are identical. The plan should either lock expected values for this evidence set
+  or state the policy for valid zero/near-zero spread.
+- **MEDIUM:** SAFE-13 relies on the comprehensive boundary script (good), but the extra `git diff`
+  command is narrower than SAFE-13: it omits `fusion_healer.py`, `src/wanctl/backends/`, and
+  `configs/att.yaml`. The "full change set is limited to…" criterion is stated but not automated.
+- **LOW:** The existing fixture `tc-qdisc.before.txt` mixes real rows and synthetic rows with
+  conflicting packet values. If the executor interprets "real-format branch is authoritative" as
+  "synthetic fallback must not overwrite parsed real fields," existing tests will fail. Clarify
+  precedence or add isolated real-only fixtures.
+- **LOW:** Overwriting a tracked derived evidence artifact is acceptable here, but the plan should
+  explicitly document that only derived summaries were corrected from unchanged raw evidence.
+  Otherwise it looks like retroactive evidence mutation rather than corrected derivation.
+
+**Suggestions**
+
+- Add `artifact-sha256.txt` to `files_modified`; regenerate it after `baseline-summary.json` and
+  `BASELINE-SUMMARY.md`, excluding `artifact-sha256.txt` itself as the capture script does.
+- Add a verify step equivalent to `sha256sum -c artifact-sha256.txt` or a targeted check for the
+  regenerated summary/Markdown hashes.
+- Fix the Task 1 import command by inserting the module into `sys.modules` before `exec_module()`.
+- Add assertions for `backlog_bytes`/`peak_delay_ms` from `run-01/tc-qdisc-spec-modem.during.txt`
+  (non-zero backlog), or equivalent inline real-only data.
+- Add an allowed-list check for the final change set, not just SAFE-13 paths.
+- In `226-05-SUMMARY.md`, record old invalid summary hash `186f4a72...`, new summary hash, and
+  "raw run artifacts unchanged."
+
+**Risk Assessment** — **MEDIUM.** The core parser/threshold fix is straightforward and should close
+AB-02 + GATE-01 for the retained evidence, and SAFE-13 should hold. The stale artifact hash manifest
+and broken verify command are real execution/provenance gaps that should be fixed before running the
+plan.
+
+`UNRESOLVED_HIGH_COUNT: 2`
+
+## Cycle 3 Verdict
+
+- **HIGHs raised (226-05):** 2 — both UNRESOLVED in the current plan text.
+  1. `artifact-sha256.txt` not refreshed after regenerating tracked evidence (provenance staleness).
+  2. Task 1 verify command missing `sys.modules` insertion → fails before parsing (false-fail gate).
+- **MEDIUMs:** 4 (backlog/pk_delay not actually proven; `>0` spread not a general invariant; SAFE-13
+  git-diff narrower than full protected set; change-set allowlist stated but not automated).
+- **LOWs:** 2 (mixed real/synthetic fixture precedence; document derived-only correction).
+- **Recommendation:** fold the 2 HIGHs (and ideally the backlog/pk_delay + SAFE-13-diff MEDIUMs)
+  before executing 226-05, via `/gsd:plan-phase 226 --reviews`.
+
+---
+
+# Review Cycle 2 (history) — 2026-06-04T06:00:04Z
 
 **Trigger:** Plans revised in commit `4dec9a9` to address the 5 HIGH concerns from cycle 1.
 **Mandate:** Verify whether the 5 cycle-1 HIGHs are now resolved AND whether the revision
