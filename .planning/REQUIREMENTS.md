@@ -21,7 +21,7 @@ Each requirement maps to exactly one phase. Operator-centric framing — deliver
 
 ### DSCP Survival Trace (DSCP) — read-only precondition
 
-- [ ] **DSCP-01**: Operator can read a documented trace of where DSCP is set / preserved / stripped across the path CRS trust maps → Ruckus QoS mirroring → cake-shaper bridge → CAKE ingress, captured read-only with no external network-gear mutation.
+- [x] **DSCP-01**: Operator can read a documented trace of where DSCP is set / preserved / stripped across the path CRS trust maps → Ruckus QoS mirroring → cake-shaper bridge → CAKE ingress, captured read-only with no external network-gear mutation.
 - [ ] **DSCP-02**: Operator can see the actual DSCP distribution arriving at Spectrum CAKE ingress under representative traffic and a deliberately marked (EF) flow, establishing whether marks survive to the shaper.
 - [ ] **DSCP-03**: If marks do not survive to CAKE ingress, the operator gets an early-exit verdict ("diffserv4 remains classification theater — v1.44 confirmed") that short-circuits the A/B as unnecessary; if they do survive, the A/B proceeds.
 
@@ -40,7 +40,7 @@ Each requirement maps to exactly one phase. Operator-centric framing — deliver
 
 ### Safety Invariant (SAFE)
 
-- [ ] **SAFE-13**: Controller-path source (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) remains zero-diff vs v1.48 close at every phase boundary through the audit + evidence phases. Any lift is an explicit, evidence-gated roadmap decision. ATT config remains byte-identical the entire milestone.
+- [x] **SAFE-13**: Controller-path source (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) remains zero-diff vs v1.48 close at every phase boundary through the audit + evidence phases. Any lift is an explicit, evidence-gated roadmap decision. ATT config remains byte-identical the entire milestone.
 
 ---
 
@@ -79,7 +79,7 @@ Phase ← requirement mapping. 100% coverage: 13/13 v1.49 REQ-IDs mapped, no orp
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| DSCP-01 | Phase 225 | Pending |
+| DSCP-01 | Phase 225 | Complete |
 | DSCP-02 | Phase 225 | Pending |
 | DSCP-03 | Phase 225 | Pending |
 | AB-01 | Phase 226 | Pending |
@@ -89,4 +89,4 @@ Phase ← requirement mapping. 100% coverage: 13/13 v1.49 REQ-IDs mapped, no orp
 | AB-04 | Phase 227 | Pending |
 | GATE-02 | Phase 228 | Pending |
 | GATE-03 | Phase 228 | Pending |
-| SAFE-13 | Phases 225, 226, 227, 228 (cross-phase) | Pending |
+| SAFE-13 | Phases 225, 226, 227, 228 (cross-phase) | Complete |
