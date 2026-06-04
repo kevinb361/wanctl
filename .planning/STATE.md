@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.49
 milestone_name: Spectrum DSCP Tinning Re-evaluation
 status: executing
-stopped_at: Completed 227-01-PLAN.md
-last_updated: "2026-06-04T14:36:18.083Z"
+stopped_at: Completed 227-02-PLAN.md
+last_updated: "2026-06-04T14:43:56.814Z"
 last_activity: 2026-06-04
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 14
-  completed_plans: 11
+  completed_plans: 12
   percent: 50
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-03 after v1.48 milestone close; v1.49
 ## Current Position
 
 Phase: 227 (candidate-diffserv4-wash-deploy-matched-capture) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-04
 
@@ -93,8 +93,8 @@ Re-acknowledged at v1.48 milestone close 2026-06-03 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-04T14:36:18.054Z
-Stopped at: Completed 227-01-PLAN.md
+Last session: 2026-06-04T14:43:56.783Z
+Stopped at: Completed 227-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -127,6 +127,8 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 - [226-05]: Regenerated only derived baseline artifacts from unchanged retained raw run-NN tc/health/flent/reference artifacts.
 - [226-05]: Re-provenanced NOISE_BAND_MS to the final regenerated baseline-summary.json hash recorded in the evidence manifest.
 - [226-05]: Task 4 used the comprehensive SAFE-13 protected-set script and a committed plan-scope allowlist check because the literal v1.48-wide diff includes prior v1.49 planning/evidence history.
+- [227-02]: Qdisc verification gate exits 0 only when both Spectrum NICs resolve to the requested expected mode; all missing/ambiguous/SSH/wrong-mode states fail closed.
+- [227-02]: Regression tests use local input flags and simulated SSH failure so qdisc parser proof states are tested without live target mutation.
 
 ## Decisions (v1.48)
 
@@ -222,3 +224,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 226 P04 | 2min | 2 tasks | 4 files |
 | Phase 226 P05 | 6min | 4 tasks | 8 files |
 | Phase 227 P01 | 6 min | 3 tasks | 4 files |
+| Phase 227 P02 | 4 min | 2 tasks | 3 files |
