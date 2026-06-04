@@ -1,0 +1,3 @@
+Starting Flent 2.1.1 using Python 3.12.3.
+Starting rrul test. Expected run time: 70 seconds.
+Data file written to .planning/phases/226-baseline-capture-threshold-lock-snapshot-a/evidence/baseline/baseline-20260604T113435Z/run-03/rrul-2026-06-04T063701.058966.flent.gz

@@ -1,0 +1,147 @@
+{
+  "baseline_window": {
+    "floor_hit_cycles": 0,
+    "mean_window_duration_s": 71.71040415763855,
+    "restart_rate": 0.0,
+    "soft_red_dwell_s": 0.0,
+    "transition_rate": 0.16733620675689392,
+    "windows": [
+      {
+        "duration_s": 71.70632839202881,
+        "floor_hit_cycles": 0,
+        "health_up": true,
+        "max_gap_s": 1.2582600116729736,
+        "restart_rate": 0.0,
+        "sample_count": 63,
+        "soft_red_dwell_s": 0.0,
+        "transition_rate": 0.08367462307088347
+      },
+      {
+        "duration_s": 71.70948362350464,
+        "floor_hit_cycles": 0,
+        "health_up": true,
+        "max_gap_s": 1.12087082862854,
+        "restart_rate": 0.0,
+        "sample_count": 66,
+        "soft_red_dwell_s": 0.0,
+        "transition_rate": 0.16734188274180642
+      },
+      {
+        "duration_s": 71.7154004573822,
+        "floor_hit_cycles": 0,
+        "health_up": true,
+        "max_gap_s": 1.139085292816162,
+        "restart_rate": 0.0,
+        "sample_count": 66,
+        "soft_red_dwell_s": 0.0,
+        "transition_rate": 0.2509921144579919
+      }
+    ]
+  },
+  "interfaces": {
+    "spec-modem": {
+      "0": {
+        "mean_backlog_bytes_delta": 0.0,
+        "mean_delay_delta_ms": 0.0,
+        "mean_drops_delta": 0.0,
+        "mean_packets_delta": 0.0,
+        "runs": [
+          {
+            "after_backlog_bytes_delta": 0,
+            "after_drops_delta": 0,
+            "after_minus_before_ge_during": true,
+            "after_packets_delta": 0,
+            "avg_delay_ms": 0.0,
+            "backlog_bytes_delta": 0,
+            "drops_delta": 0,
+            "packets_delta": 0,
+            "peak_delay_ms": 0.0,
+            "tin": "0"
+          },
+          {
+            "after_backlog_bytes_delta": 0,
+            "after_drops_delta": 0,
+            "after_minus_before_ge_during": true,
+            "after_packets_delta": 0,
+            "avg_delay_ms": 0.0,
+            "backlog_bytes_delta": 0,
+            "drops_delta": 0,
+            "packets_delta": 0,
+            "peak_delay_ms": 0.0,
+            "tin": "0"
+          },
+          {
+            "after_backlog_bytes_delta": 0,
+            "after_drops_delta": 0,
+            "after_minus_before_ge_during": true,
+            "after_packets_delta": 0,
+            "avg_delay_ms": 0.0,
+            "backlog_bytes_delta": 0,
+            "drops_delta": 0,
+            "packets_delta": 0,
+            "peak_delay_ms": 0.0,
+            "tin": "0"
+          }
+        ],
+        "stddev_ms": 0.0,
+        "tin_queue_delay_spread_ms": 0.0
+      }
+    },
+    "spec-router": {
+      "0": {
+        "mean_backlog_bytes_delta": 0.0,
+        "mean_delay_delta_ms": 0.0,
+        "mean_drops_delta": 0.0,
+        "mean_packets_delta": 0.0,
+        "runs": [
+          {
+            "after_backlog_bytes_delta": 0,
+            "after_drops_delta": 0,
+            "after_minus_before_ge_during": true,
+            "after_packets_delta": 0,
+            "avg_delay_ms": 0.0,
+            "backlog_bytes_delta": 0,
+            "drops_delta": 0,
+            "packets_delta": 0,
+            "peak_delay_ms": 0.0,
+            "tin": "0"
+          },
+          {
+            "after_backlog_bytes_delta": 0,
+            "after_drops_delta": 0,
+            "after_minus_before_ge_during": true,
+            "after_packets_delta": 0,
+            "avg_delay_ms": 0.0,
+            "backlog_bytes_delta": 0,
+            "drops_delta": 0,
+            "packets_delta": 0,
+            "peak_delay_ms": 0.0,
+            "tin": "0"
+          },
+          {
+            "after_backlog_bytes_delta": 0,
+            "after_drops_delta": 0,
+            "after_minus_before_ge_during": true,
+            "after_packets_delta": 0,
+            "avg_delay_ms": 0.0,
+            "backlog_bytes_delta": 0,
+            "drops_delta": 0,
+            "packets_delta": 0,
+            "peak_delay_ms": 0.0,
+            "tin": "0"
+          }
+        ],
+        "stddev_ms": 0.0,
+        "tin_queue_delay_spread_ms": 0.0
+      }
+    }
+  },
+  "phase": 226,
+  "provenance": {
+    "D-07": "RRUL plus unmarked reference flows",
+    "D-08": "3 runs x 60s mean plus spread"
+  },
+  "rrul_p99_latency_under_load_ms_mean": 323.8322177425411,
+  "run_count": 3,
+  "schema_version": 1
+}
