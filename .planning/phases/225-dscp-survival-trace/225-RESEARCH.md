@@ -17,8 +17,8 @@ SEED-001's load-bearing claim (fulfilled by v1.44, shipped `920 besteffort wash`
 That claim was about **DSCP arriving from the carrier**. The topology has since changed in a way that may invalidate it **at the local pre-CAKE stage**, not at the carrier:
 
 - **`deploy/nftables/bridge-qos.nft`** runs at `hook forward priority -10` on the cake-shaper
-  bridge and *sets* DSCP via `ip dscp set ef|af41|cs1` on download flows (`iif spec-modem
-  oif spec-router`) **before** the CAKE egress qdisc on `spec-router`. So even if the carrier
+  bridge and _sets_ DSCP via `ip dscp set ef|af41|cs1` on download flows (`iif spec-modem
+oif spec-router`) **before** the CAKE egress qdisc on `spec-router`. So even if the carrier
   delivers DSCP 0, the bridge re-marks locally just upstream of CAKE.
 - **CRS hardware QoS trust** and **Ruckus QoS mirroring** may preserve endpoint-set EF marks
   (e.g. VoIP, WireGuard) end-to-end on the LAN, and the bridge's `ip dscp != 0 accept`
@@ -44,13 +44,13 @@ read-only constraint.
 Ordered DL ingress → CAKE enqueue (the direction that matters most; `diffserv4` DL classification
 is the v1.44 theater claim):
 
-| # | Stage | Host / surface | Sets / preserves / strips DSCP? | Read-only observation point |
-|---|-------|----------------|----------------------------------|-----------------------------|
-| 1 | Carrier (Spectrum CMTS / DOCSIS) | upstream, not ours | Strips/zeros (SEED-001 premise) | Inferred — observe DSCP at modem-side ingress |
-| 2 | spec-modem ingress (DL packets arriving from carrier) | cake-shaper `spec-modem` | as-delivered by carrier | `tc filter` byte counters or short `tcpdump` on `spec-modem` ingress |
-| 3 | bridge forward chain `spectrum_dl` (priority -10) | cake-shaper `bridge qos` table | **SETS** DSCP (ef/af41/cs1) + trusts non-zero | `nft list table bridge qos` (rule packet/byte counters), `nft monitor` (read-only) |
-| 4 | CAKE egress qdisc on spec-router (DL) | cake-shaper `spec-router` | classifies into tin by DSCP (in `diffserv4`); `wash` strips DSCP *after* tin selection | `tc filter show dev spec-router` byte counters by DSCP; `tcpdump`/`tc` at enqueue |
-| 5 | spec-router → MikroTik → LAN | downstream | (post-CAKE) | n/a for survival-to-CAKE question |
+| #   | Stage                                                 | Host / surface                 | Sets / preserves / strips DSCP?                                                        | Read-only observation point                                                        |
+| --- | ----------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 1   | Carrier (Spectrum CMTS / DOCSIS)                      | upstream, not ours             | Strips/zeros (SEED-001 premise)                                                        | Inferred — observe DSCP at modem-side ingress                                      |
+| 2   | spec-modem ingress (DL packets arriving from carrier) | cake-shaper `spec-modem`       | as-delivered by carrier                                                                | `tc filter` byte counters or short `tcpdump` on `spec-modem` ingress               |
+| 3   | bridge forward chain `spectrum_dl` (priority -10)     | cake-shaper `bridge qos` table | **SETS** DSCP (ef/af41/cs1) + trusts non-zero                                          | `nft list table bridge qos` (rule packet/byte counters), `nft monitor` (read-only) |
+| 4   | CAKE egress qdisc on spec-router (DL)                 | cake-shaper `spec-router`      | classifies into tin by DSCP (in `diffserv4`); `wash` strips DSCP _after_ tin selection | `tc filter show dev spec-router` byte counters by DSCP; `tcpdump`/`tc` at enqueue  |
+| 5   | spec-router → MikroTik → LAN                          | downstream                     | (post-CAKE)                                                                            | n/a for survival-to-CAKE question                                                  |
 
 UL path (CAKE egress on `spec-modem`): endpoint/router DSCP arrives on `spec-router` ingress →
 bridge forward (no UL classification chain in `bridge-qos.nft`; only DL chains exist) → CAKE on
@@ -60,8 +60,8 @@ does not re-mark UL.
 **Critical nuance — current production mode is `besteffort`, so CAKE has only ONE tin right now.**
 `check_cake.py:check_tin_distribution()` reads per-tin counters, but in `besteffort` mode there is
 nothing to separate. Therefore the survival trace **cannot** rely on production CAKE tin counters
-to answer "do marks survive." It must observe the DSCP field *as it arrives at the CAKE enqueue
-interface* — i.e. the DSCP distribution on `spec-router` (DL) / `spec-modem` (UL) egress
+to answer "do marks survive." It must observe the DSCP field _as it arrives at the CAKE enqueue
+interface_ — i.e. the DSCP distribution on `spec-router` (DL) / `spec-modem` (UL) egress
 **independent of CAKE's tin model**. Two viable read-only techniques:
 
 1. **`tc filter` with `u32`/`flower` match on DSCP, action `pass`, per-DSCP counters** attached
@@ -75,7 +75,7 @@ interface* — i.e. the DSCP distribution on `spec-router` (DL) / `spec-modem` (
 
 The nftables `bridge qos` rule counters are a useful CORROBORATING read-only signal (NOT a gating
 one — see the gating-vs-corroborating taxonomy under ## DSCP-03): if present, each `ip dscp set` rule
-would show how much traffic the bridge is *marking* into ef/af41/cs1. **However, the checked-in rules
+would show how much traffic the bridge is _marking_ into ef/af41/cs1. **However, the checked-in rules
 carry no explicit `counter` statement (verified), so in production these counters are expected to be
 ABSENT.** Counter absence maps to `bridge_counter_signal=unknown` and, because this channel is
 corroborating-only, it NEVER gates the verdict — it neither confirms theater nor forces a negative
@@ -87,7 +87,7 @@ any bridge counter that does happen to be present as supporting context only.
 
 ## DSCP-02: deliberately marked (EF) flow
 
-To establish whether a *known* mark survives end-to-end (not just inferred from rule counters),
+To establish whether a _known_ mark survives end-to-end (not just inferred from rule counters),
 inject a controlled EF-marked flow and observe it at CAKE ingress:
 
 - **Marked flow:** low-rate EF (DSCP 46) UDP from a LAN client toward an external endpoint
@@ -96,7 +96,7 @@ inject a controlled EF-marked flow and observe it at CAKE ingress:
 - **Observation:** `tcpdump -n -v 'ip[1] & 0xfc != 0'` on `spec-router` (DL) / `spec-modem` (UL)
   egress, filtered to the probe 5-tuple, confirming the EF bit is present at the CAKE enqueue
   interface. Degrade-to-best-effort: if the test rig cannot mark cleanly (client TOS stripped by
-  WMM/AP), capture whatever DSCP *does* arrive and note the degradation — the check is not dropped
+  WMM/AP), capture whatever DSCP _does_ arrive and note the degradation — the check is not dropped
   (AB-04 precedent for graceful degradation).
 - **Source-side DL DSCP proof (NEW HIGH — required for any negative DL reading).** A LAN client's
   `--tos 0xb8` marks its OUTBOUND (UL) packets, NOT the RETURN-path DL packets. So a `STRIPPED` reading
@@ -110,8 +110,8 @@ inject a controlled EF-marked flow and observe it at CAKE ingress:
 - This is the deliberately-marked half of Success Criterion 2. The representative-traffic half is
   covered by the bridge rule counters + egress DSCP histogram under organic load.
 
-**Traffic generation caveat:** generating a low-rate probe flow is *not* an external-gear mutation
-and is *not* a production CAKE-mode change — it is benign synthetic traffic, consistent with how
+**Traffic generation caveat:** generating a low-rate probe flow is _not_ an external-gear mutation
+and is _not_ a production CAKE-mode change — it is benign synthetic traffic, consistent with how
 prior phases ran flent/RRUL captures (`phase191-flent-capture.sh`). Keep it low-rate to avoid
 perturbing the production link. The read-only constraint is about **not mutating CRS/Ruckus/router
 config and not changing the Spectrum CAKE mode** — it does not forbid observing traffic or sending
@@ -208,11 +208,11 @@ taken on the **post-wash egress/transmit side** can falsely show EF stripped eve
 reached CAKE intact — a false negative that would wrongly close the milestone.
 
 **Rule:** the EF-survival and organic-DL evidence MUST be captured at the **pre-wash / ingress-to-CAKE
-observation point** (the DSCP byte as it *arrives* at the enqueue interface, BEFORE the CAKE egress
+observation point** (the DSCP byte as it _arrives_ at the enqueue interface, BEFORE the CAKE egress
 qdisc applies wash), NOT on the post-wash transmit side.
 
 **Capture direction is NOT self-evident and MUST be proven, not asserted (resolves cycle-2 HIGH-C).**
-The naive `tcpdump -Q in` recipe is directionally wrong for DL: download packets *egress*
+The naive `tcpdump -Q in` recipe is directionally wrong for DL: download packets _egress_
 `spec-router` toward the LAN, so host-inbound (`-Q in`) on `spec-router` is not the pre-CAKE enqueue
 point. The correct DL pre-wash observation point is where DL packets **arrive at the CAKE-bearing
 interface from the marking stage** — i.e. inbound on the `spec-router` bridge member that faces
@@ -249,9 +249,20 @@ channels be `valid`.
 
 Fire exactly one. Evaluate in order; the first matching branch wins.
 
+A gating channel's `valid` state is INDEPENDENTLY RE-DERIVED by the verdict step from raw evidence,
+not trusted from 225-02's asserted summary flags (cycle-4 resolution): `DL_SOURCE_EF_PROVEN` is
+recomputed from `SRC_PROBE_PKTS_TOTAL` ≥ 100 AND `SRC_EF_PCT` ≥ 90 AND `SRC_ENQUEUE_5TUPLE_MATCH=true`
+AND the presence of `raw/dl-ef-probe-source.pcap`; `WASH_ORDERING_PROVEN` is recomputed from
+`WASH_PROOF_PASS=true` plus its consistent supporting datum (paired set→cleared, or parsed
+`HOOK_PARENT`/`WASH_QDISC_HANDLE` ordering). A channel whose raw evidence is missing, whose
+source↔enqueue 5-tuple linkage is false, or whose predicate fails is forced `unknown`/`degraded`
+regardless of any asserted `true` flag — so a hand-set boolean can never make a channel `valid`.
+
 **MARKS_DO_NOT_SURVIVE** (early-exit → v1.44 confirmed, milestone may close negative) — fires ONLY
-when BOTH required negative signals are `valid`, observed, and above the sample-quality floors
-(this is a logical AND of two valid negatives, matching the original intent of the two bullets):
+when BOTH required negative signals are `valid` (re-derived as above), observed, and above the
+sample-quality floors (this is a logical AND of two valid negatives, matching the original intent of
+the two bullets):
+
 - `organic_dl_histogram` is `valid` AND shows **NEGLIGIBLE** DL marking (< 1.0% packets AND, where
   measurable, < 1.0% bytes — see the byte-fraction rule under "Pre-registered numeric thresholds"),
   **AND**
@@ -270,6 +281,7 @@ when BOTH required negative signals are `valid`, observed, and above the sample-
 → Conclusion: "diffserv4 remains classification theater — v1.44 confirmed." Phases 226–228 do not run.
 
 **MARKS_SURVIVE** (proceed → unblock Phase 226) — fires when DL marking clearly reaches the shaper:
+
 - `organic_dl_histogram` is `valid` AND shows **MEANINGFUL** DL marking (≥ 5.0%), **OR**
 - `dl_ef_probe` is `valid` AND **SURVIVED** (≥ 90% of probe packets carry DSCP 46 at the pre-wash
   enqueue point).
@@ -278,6 +290,7 @@ when BOTH required negative signals are `valid`, observed, and above the sample-
 
 **MARKS_SURVIVE_QUALIFIED** (the catch-all / fail-safe default) — fires in every remaining case,
 including:
+
 - ambiguous-band DL marking (1.0%–5.0%) or `degraded` DL EF probe (10%–90%); OR
 - a GATING DL channel is `invalid` (quiet window below the sample floor) or `unknown` (wash ordering
   unproven / `CAPTURE_POINT=unknown`) so the negative branch could not fire and the positive branch
@@ -317,6 +330,7 @@ human has signed off.
 ### Verdict artifact requirements
 
 The verdict artifact must:
+
 - emit a single machine-readable `VERDICT:` line with exactly one of `MARKS_DO_NOT_SURVIVE` /
   `MARKS_SURVIVE` / `MARKS_SURVIVE_QUALIFIED`;
 - record each of the four channels with its validity state and the concrete value that drove it
@@ -332,6 +346,7 @@ The verdict artifact must:
 ## Read-only constraint — what is and isn't allowed in this phase
 
 **Allowed (read-only / evidence):**
+
 - SSH to `cake-shaper` with `sudo -n` for **reads only**: `nft list table bridge qos`,
   `nft list ruleset`, `tc -s qdisc show dev spec-router|spec-modem`, `tc filter show`,
   `ip -d link show`, bounded `tcpdump` capture (read), `cat` of config/state files.
@@ -341,6 +356,7 @@ The verdict artifact must:
 - Reading wanctl `/health` on `:9101` (bound autorate) — same as phase224 snapshot.
 
 **Forbidden in this phase:**
+
 - Any mutation of CRS / Ruckus / MikroTik router configuration (operator decision; out of milestone).
 - Any change to the Spectrum CAKE mode (`diffserv`/`allow_wash`/ceiling) — no candidate deploy here.
 - Any change to `bridge-qos.nft` or reload of the `bridge qos` table.
@@ -400,16 +416,16 @@ standard. Reference artifact:
 
 ## Reusable assets & conventions (ground the plans in existing patterns)
 
-| Asset | Path | Use |
-|-------|------|-----|
-| Snapshot/evidence conventions | `scripts/phase224-snapshot-a.sh` | SSH host `cake-shaper`, `sudo -n cat`, redacted committable + operator-private `--raw-dir`, MANIFEST.md, sha256, read-only posture, required-artifact assertion loop |
-| Flent/RRUL capture pattern | `scripts/phase191-flent-capture.sh`, `phase213-baseline-capture.sh` | Bounded capture harness, env-driven config, evidence dir layout |
-| Bridge QoS ruleset (the thing being traced) | `deploy/nftables/bridge-qos.nft` | `bridge qos` table, `spectrum_dl` chain, `ip dscp set` rules + counters, trust-and-skip rule |
-| Per-tin CAKE stats reader | `src/wanctl/check_cake.py:check_tin_distribution()`, `_fetch_tin_stats()` | Read `tc -s qdisc` per-tin; useful for Phase 226+ but NOT sufficient for survival (one tin in besteffort) |
-| CAKE interfaces / current mode | `configs/spectrum.yaml:36-45,68,77` | `spec-router` DL egress, `spec-modem` UL egress, host `10.10.110.223`, `diffserv: besteffort`, `allow_wash: true`, 920/18 |
-| DSCP→tin mapping reference | `deploy/nftables/bridge-qos.nft:11-15`, Phase 141 CONTEXT canonical_refs | EF=46/Voice, AF4x/Video, CS1=8/Bulk, CS0=0/BestEffort |
-| SAFE-12 boundary-check precedent | `.planning/milestones/v1.48-phases/224-production-canary-rollback-discipline/224-05-PLAN.md:108`, `224-03-SUMMARY.md:90` | `git diff --name-only <anchor> HEAD -- <controller files>` == empty |
-| BRIDGE_QOS decision doc | `docs/BRIDGE_QOS.md` | `allow_wash` semantics; Spectrum-vs-ATT contrast; the verdict will append to this doc in Phase 228 |
+| Asset                                       | Path                                                                                                                     | Use                                                                                                                                                                  |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Snapshot/evidence conventions               | `scripts/phase224-snapshot-a.sh`                                                                                         | SSH host `cake-shaper`, `sudo -n cat`, redacted committable + operator-private `--raw-dir`, MANIFEST.md, sha256, read-only posture, required-artifact assertion loop |
+| Flent/RRUL capture pattern                  | `scripts/phase191-flent-capture.sh`, `phase213-baseline-capture.sh`                                                      | Bounded capture harness, env-driven config, evidence dir layout                                                                                                      |
+| Bridge QoS ruleset (the thing being traced) | `deploy/nftables/bridge-qos.nft`                                                                                         | `bridge qos` table, `spectrum_dl` chain, `ip dscp set` rules + counters, trust-and-skip rule                                                                         |
+| Per-tin CAKE stats reader                   | `src/wanctl/check_cake.py:check_tin_distribution()`, `_fetch_tin_stats()`                                                | Read `tc -s qdisc` per-tin; useful for Phase 226+ but NOT sufficient for survival (one tin in besteffort)                                                            |
+| CAKE interfaces / current mode              | `configs/spectrum.yaml:36-45,68,77`                                                                                      | `spec-router` DL egress, `spec-modem` UL egress, host `10.10.110.223`, `diffserv: besteffort`, `allow_wash: true`, 920/18                                            |
+| DSCP→tin mapping reference                  | `deploy/nftables/bridge-qos.nft:11-15`, Phase 141 CONTEXT canonical_refs                                                 | EF=46/Voice, AF4x/Video, CS1=8/Bulk, CS0=0/BestEffort                                                                                                                |
+| SAFE-12 boundary-check precedent            | `.planning/milestones/v1.48-phases/224-production-canary-rollback-discipline/224-05-PLAN.md:108`, `224-03-SUMMARY.md:90` | `git diff --name-only <anchor> HEAD -- <controller files>` == empty                                                                                                  |
+| BRIDGE_QOS decision doc                     | `docs/BRIDGE_QOS.md`                                                                                                     | `allow_wash` semantics; Spectrum-vs-ATT contrast; the verdict will append to this doc in Phase 228                                                                   |
 
 **SSH/host facts:** target host `cake-shaper` (= `10.10.110.223`); autorate `/health` on `:9101`;
 DL CAKE egress `spec-router`; UL CAKE egress `spec-modem`; DL bridge classify path
@@ -445,7 +461,7 @@ Three plans, Wave 1 = the two capture scripts (independent, parallelizable), Wav
 ## Open questions for the operator (non-blocking; plans assume safe defaults)
 
 1. **EF probe rig:** is there a LAN client that can mark EF cleanly through the Ruckus AP, or should
-   the probe originate on the cake-shaper itself (DL return vs UL)? *Default:* run the probe from
+   the probe originate on the cake-shaper itself (DL return vs UL)? _Default:_ run the probe from
    cake-shaper (UL clean-mark guaranteed) and attempt a LAN-client DL probe best-effort, degrading
    gracefully if WMM strips the mark.
 2. **tcpdump vs tc-filter for DSCP histogram:** plans default to `tcpdump` (no qdisc mutation). If
