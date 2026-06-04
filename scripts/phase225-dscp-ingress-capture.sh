@@ -405,6 +405,45 @@ if [[ "$PROBE" != "none" && -z "$PROBE_TARGET" ]]; then
     exit 2
 fi
 
+# Injection-safety validation gate (GAP-1 / CR-01).
+# Every operator-supplied value that is interpolated into a remote SSH command
+# string is allowlist/range-validated HERE — before derive_topology_and_proof,
+# run_ssh_capture, or capture_probe_window build any remote command. An unsafe
+# value (e.g. shell metacharacters) is rejected with exit 2 and NO SSH runs.
+# This gate textually precedes the first ssh invocation in the script.
+if [[ -n "$PROBE_TARGET" && ! "$PROBE_TARGET" =~ ^[A-Za-z0-9_.:-]+$ ]]; then
+    echo "ERROR: --probe-target contains unsupported characters (allowed: A-Za-z0-9 . : _ -)" >&2
+    exit 2
+fi
+if [[ "$PROBE" != "none" ]]; then
+    if [[ ! "$PROBE_PORT" =~ ^[0-9]+$ ]] || (( PROBE_PORT < 1 || PROBE_PORT > 65535 )); then
+        echo "ERROR: --probe-port must be an integer from 1 to 65535" >&2
+        exit 2
+    fi
+fi
+# SSH host token is interpolated into the ssh target and remote command context.
+if [[ -z "$SSH_HOST" || ! "$SSH_HOST" =~ ^[A-Za-z0-9_.:@-]+$ ]]; then
+    echo "ERROR: --ssh-host contains unsupported characters (allowed: A-Za-z0-9 . : _ @ -)" >&2
+    exit 2
+fi
+# Numeric values interpolated into remote tcpdump command strings.
+if [[ ! "$DURATION" =~ ^[0-9]+$ ]] || (( DURATION < 1 )); then
+    echo "ERROR: --duration must be a positive integer (seconds)" >&2
+    exit 2
+fi
+if [[ ! "$PACKET_CAP" =~ ^[0-9]+$ ]] || (( PACKET_CAP < 1 )); then
+    echo "ERROR: --packet-cap must be a positive integer" >&2
+    exit 2
+fi
+if [[ ! "$MIN_PACKETS" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: --min-packets must be a non-negative integer" >&2
+    exit 2
+fi
+if [[ ! "$MIN_ACTIVE_SECONDS" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: --min-active-seconds must be a non-negative integer" >&2
+    exit 2
+fi
+
 require_command awk
 require_command date
 require_command grep
