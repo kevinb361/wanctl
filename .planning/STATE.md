@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.49
 milestone_name: Spectrum DSCP Tinning Re-evaluation
-status: verifying
-stopped_at: Completed 225-03-PLAN.md
-last_updated: "2026-06-04T04:08:09.341Z"
-last_activity: 2026-06-04
+status: executing
+stopped_at: Completed 225-04-PLAN.md (gap closure)
+last_updated: "2026-06-04T04:38:29Z"
+last_activity: 2026-06-04 -- Phase 225 gap-closure plan 04 executed (DSCP capture hardening)
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 3
+  completed_phases: 0
+  total_plans: 5
   completed_plans: 3
-  percent: 25
+  percent: 0
 ---
 
 # Session State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-03 after v1.48 milestone close; v1.49
 
 ## Current Position
 
-Phase: 225 (dscp-survival-trace) — VERIFYING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-06-04
+Phase: 225 (dscp-survival-trace) — EXECUTING
+Plan: 1 of 5
+Status: Executing Phase 225
+Last activity: 2026-06-04 -- Phase 225 execution started
 
 ## Deferred Items (carried into next milestone)
 
@@ -58,7 +58,7 @@ Re-acknowledged at v1.48 milestone close 2026-06-03 via `/gsd-complete-milestone
 
 ### v1.47-shipped-clean
 
-- **Status:** Ready to execute
+- **Status:** Executing Phase 225
 - **Operator sign-off:** Kevin — 2026-06-02, via /gsd-complete-milestone → Acknowledge & close path. 18/18 v1.47 requirements satisfied. Zero new v1.47 debt; all 23 open artifacts are pre-existing carry-forward from v1.46 close.
 - **Why this is acceptable:** v1.47 spine (D / A1 / A2) shipped cleanly with SAFE-11 invariant held at every phase boundary. The folded tcp_12down todo is CLOSED with close-with-prejudice rule per CRITERIA-02; no v1.48+ reopen without independent new production evidence.
 
@@ -93,8 +93,8 @@ Re-acknowledged at v1.48 milestone close 2026-06-03 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-04T04:07:51.541Z
-Stopped at: Completed 225-03-PLAN.md
+Last session: 2026-06-04T04:38:29Z
+Stopped at: Completed 225-04-PLAN.md (gap closure — DSCP ingress capture hardening)
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -111,6 +111,9 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 - [225-02]: DL EF probe negative/STRIPPED semantics require source-side DL EF proof; otherwise the DL probe remains degraded/unknown.
 - [225-03]: DSCP-03 verdict is `MARKS_SURVIVE_QUALIFIED` because committed raw evidence does not prove valid DL gating channels; Phase 226 remains blocked by default pending better evidence or an explicit operator override.
 - [225-03]: SAFE-13 boundary proof expands `src/wanctl/backends/` to per-file targets and verifies committed, staged, dirty-tree, and ATT config channels against `v1.48`.
+- [225-04]: Probe/SSH/numeric args are allowlist+range validated before any SSH command is built; an unsafe value exits 2 with no remote invocation (GAP-1/CR-01 closed).
+- [225-04]: Wash-ordering proof booleans (WASH_PROOF_PASS/WASH_ORDERING_PROVEN/CAPTURE_POINT) rest only on a machine-checkable predicate — parse_qdisc_ordering (ingress/clsact hook + CAKE root parsed) or paired_bitflip — not topology prose or qdisc presence; default false/unknown (GAP-2/WR-01 closed).
+- [225-04]: DL source-side EF proof is honest — opt-in real source capture (--dl-source-ssh-host/--dl-source-iface) or explicit SRC_CAPTURE_POINT=unsupported degrade with no empty pcap; raw/dl-ef-probe-source.pcap is a conditional artifact; DL STRIPPED still only when DL_SOURCE_EF_PROVEN=true (GAP-3/WR-02 closed).
 
 ## Decisions (v1.48)
 
@@ -198,3 +201,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 225 P01 | 4min | 2 tasks | 2 files |
 | Phase 225 P02 | 6min | 2 tasks | 2 files |
 | Phase 225 P03 | 5min | 3 tasks | 3 files |
+| Phase 225 P04 | ~9min | 3 tasks | 1 file |
