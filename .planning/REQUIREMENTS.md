@@ -22,7 +22,7 @@ Each requirement maps to exactly one phase. Operator-centric framing — deliver
 ### DSCP Survival Trace (DSCP) — read-only precondition
 
 - [x] **DSCP-01**: Operator can read a documented trace of where DSCP is set / preserved / stripped across the path CRS trust maps → Ruckus QoS mirroring → cake-shaper bridge → CAKE ingress, captured read-only with no external network-gear mutation.
-- [ ] **DSCP-02**: Operator can see the actual DSCP distribution arriving at Spectrum CAKE ingress under representative traffic and a deliberately marked (EF) flow, establishing whether marks survive to the shaper.
+- [x] **DSCP-02**: Operator can see the actual DSCP distribution arriving at Spectrum CAKE ingress under representative traffic and a deliberately marked (EF) flow, establishing whether marks survive to the shaper.
 - [ ] **DSCP-03**: If marks do not survive to CAKE ingress, the operator gets an early-exit verdict ("diffserv4 remains classification theater — v1.44 confirmed") that short-circuits the A/B as unnecessary; if they do survive, the A/B proceeds.
 
 ### Spectrum-Only diffserv4-wash A/B (AB)
@@ -80,7 +80,7 @@ Phase ← requirement mapping. 100% coverage: 13/13 v1.49 REQ-IDs mapped, no orp
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
 | DSCP-01 | Phase 225 | Complete |
-| DSCP-02 | Phase 225 | Pending |
+| DSCP-02 | Phase 225 | Complete |
 | DSCP-03 | Phase 225 | Pending |
 | AB-01 | Phase 226 | Pending |
 | AB-02 | Phase 226 | Pending |
