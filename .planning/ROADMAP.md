@@ -43,7 +43,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
 
 - [x] **Phase 225: DSCP Survival Trace** — Read-only end-to-end trace of where DSCP is set / preserved / stripped (CRS trust maps → Ruckus QoS mirroring → cake-shaper bridge → CAKE ingress), the observed DSCP distribution at Spectrum CAKE ingress under representative + deliberately-marked (EF) traffic, and a gated verdict: marks survive (proceed to A/B) or marks don't (early-exit confirming v1.44). (completed 2026-06-04)
 - [x] **Phase 226: Baseline Capture + Threshold Lock + Snapshot A** — Snapshot A rollback anchor, full baseline evidence on the current `920/18 besteffort wash`, and pre-registered GATE-01 accept/rollback thresholds locked before any candidate deploy. Gated on a "marks survive" verdict from Phase 225. (completed 2026-06-04)
-- [ ] **Phase 227: Candidate diffserv4-wash Deploy + Matched Capture** — Spectrum-only `diffserv4 wash` (DL+UL) deployed under the Snapshot A anchor, with the identical evidence set captured under matched load plus a realtime-flow protection comparison (marked EF UDP vs unmarked UDP vs unmarked bulk TCP).
+- [x] **Phase 227: Candidate diffserv4-wash Deploy + Matched Capture** — Spectrum-only `diffserv4 wash` (DL+UL) deployed under the Snapshot A anchor, with the identical evidence set captured under matched load plus a realtime-flow protection comparison (marked EF UDP vs unmarked UDP vs unmarked bulk TCP). (completed 2026-06-04)
 - [ ] **Phase 228: Verdict + Evidence-Gated Decision + Closeout** — Verdict computed against the locked GATE-01 thresholds; explicit accept/reject decision; the evidence-gated SAFE-13-lift call; rollback to `besteffort wash` with Snapshot A restoration if any trigger fires; closeout recorded in `docs/BRIDGE_QOS.md`, `configs/spectrum.yaml`, and `CHANGELOG.md`.
 
 ### Phase Details
@@ -111,7 +111,7 @@ Plans:
   3. The candidate is deployed via config (`configs/spectrum.yaml`) + the existing `allow_wash` gate / tin-agnostic CAKE signal (v1.44 Phase 205) — no controller algorithm change is required to drive `diffserv4 wash`.
   4. SAFE-13 verified at phase boundary: zero controller-path source diff vs v1.48 close; ATT config byte-identical. The cake-shaper bridge nftables rules MAY change; controller path MUST NOT.
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 **Wave 1** *(parallel — tooling, no production mutation)*
 - [x] 227-01-PLAN.md — Additive `--marked-ef` arm on the 226 capture harness + summary EF fields (AB-04, D-03/D-04/D-05)
@@ -121,7 +121,7 @@ Plans:
 - [x] 227-03-PLAN.md — D-07 capture sequence: besteffort+EF on anchor → flip+verify → candidate+EF → leave live, with the D-09 armed Snapshot-A abort (AB-03, AB-04, D-01/D-02/D-06/D-07/D-08/D-09)
 
 **Wave 3** *(blocked on Wave 2 — phase-boundary close)*
-- [ ] 227-04-PLAN.md — SAFE-13 boundary check (controller zero-diff + ATT byte-identical vs v1.48) + GATE-01 evidence-completeness gate for the 228 verdict (AB-03, SAFE-13)
+- [x] 227-04-PLAN.md — SAFE-13 boundary check (controller zero-diff + ATT byte-identical vs v1.48) + GATE-01 evidence-completeness gate for the 228 verdict (AB-03, SAFE-13)
 
 #### Phase 228: Verdict + Evidence-Gated Decision + Closeout
 
@@ -144,7 +144,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 225. DSCP Survival Trace | 5/5 | Complete    | 2026-06-04 |
 | 226. Baseline Capture + Threshold Lock + Snapshot A | 5/5 | Complete    | 2026-06-04 |
-| 227. Candidate diffserv4-wash Deploy + Matched Capture | 3/4 | In Progress|  |
+| 227. Candidate diffserv4-wash Deploy + Matched Capture | 4/4 | Complete   | 2026-06-04 |
 | 228. Verdict + Evidence-Gated Decision + Closeout | 0/? | Not started | - |
 
 ### Coverage

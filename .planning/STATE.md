@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.49
 milestone_name: Spectrum DSCP Tinning Re-evaluation
 status: executing
-stopped_at: Completed 227-02-PLAN.md
-last_updated: "2026-06-04T14:43:56.814Z"
+stopped_at: Completed 227-04-PLAN.md
+last_updated: "2026-06-04T16:47:49.560Z"
 last_activity: 2026-06-04
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 14
-  completed_plans: 12
-  percent: 50
+  completed_plans: 14
+  percent: 75
 ---
 
 # Session State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03 after v1.48 milestone close; v1.49 milestone section current)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 227 — candidate-diffserv4-wash-deploy-matched-capture
+**Current focus:** Phase 228 — verdict-evidence-gated-decision-closeout
 
 ## Current Position
 
-Phase: 227 (candidate-diffserv4-wash-deploy-matched-capture) — EXECUTING
-Plan: 3 of 4
-Status: Ready to execute
+Phase: 228 (verdict-evidence-gated-decision-closeout) — READY TO PLAN
+Plan: TBD
+Status: Phase 227 complete; ready for Phase 228 verdict planning
 Last activity: 2026-06-04
 
 ## Deferred Items (carried into next milestone)
@@ -93,8 +93,8 @@ Re-acknowledged at v1.48 milestone close 2026-06-03 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-04T14:43:56.783Z
-Stopped at: Completed 227-02-PLAN.md
+Last session: 2026-06-04T16:47:28.151Z
+Stopped at: Completed 227-04-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -129,6 +129,8 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 - [226-05]: Task 4 used the comprehensive SAFE-13 protected-set script and a committed plan-scope allowlist check because the literal v1.48-wide diff includes prior v1.49 planning/evidence history.
 - [227-02]: Qdisc verification gate exits 0 only when both Spectrum NICs resolve to the requested expected mode; all missing/ambiguous/SSH/wrong-mode states fail closed.
 - [227-02]: Regression tests use local input flags and simulated SSH failure so qdisc parser proof states are tested without live target mutation.
+- [227-04]: `wan_controller_state.py` is explicitly listed in the SAFE-13 protected controller targets because `wan_controller.py` imports it and `expand_protected_files()` only auto-expands directory-suffixed targets.
+- [227-04]: Evidence completeness is a Phase 228 readiness gate only: it validates GATE-01 signals, run success, qdisc proofs, stable top-level shape, and BE/non-BE tin computability without computing the accept/reject verdict.
 
 ## Decisions (v1.48)
 
@@ -225,3 +227,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 226 P05 | 6min | 4 tasks | 8 files |
 | Phase 227 P01 | 6 min | 3 tasks | 4 files |
 | Phase 227 P02 | 4 min | 2 tasks | 3 files |
+| Phase 227 P04 | 6 min | 4 tasks | 6 files |
