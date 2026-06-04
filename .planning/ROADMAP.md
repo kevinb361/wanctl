@@ -58,7 +58,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
   3. Operator gets a gated DSCP-03 verdict: if marks do NOT survive to CAKE ingress, an early-exit finding ("diffserv4 remains classification theater — v1.44 confirmed") that short-circuits the A/B as unnecessary and lets the milestone close negative; if marks DO survive, an explicit "proceed to A/B" gate that unblocks Phase 226.
   4. No external network gear is mutated and no Spectrum CAKE-mode change is deployed in this phase — trace and capture only.
   5. SAFE-13 verified at phase boundary: zero controller-path source diff vs v1.48 close (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion all byte-identical); ATT config byte-identical.
-**Plans:** 3/3 plans complete
+**Plans:** 5/5 plans complete
 
 #### Phase 226: Baseline Capture + Threshold Lock + Snapshot A
 
@@ -102,7 +102,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 225. DSCP Survival Trace | 4/4 | Complete (incl. 225-04 gap closure) | 2026-06-04 |
+| 225. DSCP Survival Trace | 5/5 | Complete   | 2026-06-04 |
 | 226. Baseline Capture + Threshold Lock + Snapshot A | 0/? | Not started | - |
 | 227. Candidate diffserv4-wash Deploy + Matched Capture | 0/? | Not started | - |
 | 228. Verdict + Evidence-Gated Decision + Closeout | 0/? | Not started | - |
