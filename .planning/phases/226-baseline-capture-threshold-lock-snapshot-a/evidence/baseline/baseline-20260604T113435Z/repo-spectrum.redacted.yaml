@@ -1,0 +1,270 @@
+# Adaptive CAKE Configuration - Spectrum Cable (VM)
+# Linux CAKE backend for cake-shaper VM (Proxmox)
+# Cloned from spectrum.yaml with transport changed to linux-cake
+# FHS-compliant paths for systemd deployment
+wan_name: "spectrum"
+
+# Health endpoint — bind to Spectrum IP so ATT can use same port on .227
+health_check:
+  host: "10.10.110.223"
+  port: 9101
+
+# Prometheus metrics endpoint for burst-validation telemetry
+metrics:
+  enabled: true
+  host: "10.10.110.223"
+  port: 9100
+
+# RouterOS connection (kept for steering REST access)
+router:
+  transport: "linux-cake-netlink" # Netlink backend — no subprocess fork (p99 16ms→<1ms)
+  host: "10.10.99.1"
+  user: "admin"
+  ssh_key: REDACTED
+  # REST transport settings (used by steering daemon)
+  password: REDACTED
+  port: 443
+  verify_ssl: false
+
+# Queue names in RouterOS (used by steering daemon)
+queues:
+  download: "WAN-Download-Spectrum"
+  upload: "WAN-Upload-Spectrum"
+
+# CAKE qdisc parameters for LinuxCakeBackend
+cake_params:
+  download_interface: "spec-router" # Spectrum router-side NIC (download egress)
+  upload_interface: "spec-modem" # Spectrum modem-side NIC (upload egress)
+  overhead: "docsis" # sweep validated 2026-04-04 (=18 bytes, matches MikroTik)
+  mpu: 64 # sweep validated 2026-04-04 (matches MikroTik)
+  memlimit: "64mb" # Raised from 32mb — DL qdisc was at 86.6% (27.7/32MB)
+  rtt: "100ms" # Conservative DOCSIS interval; 1s was diagnostic only, not an operating tune
+  ack_filter: false # Silicom validation 2026-04-28; preserve no-ack-filter on upload
+  ingress: false # Silicom validation 2026-04-28; ingress on spec-router hurt upload tests
+  diffserv: besteffort # Phase 209 (TOPO-03): DSCP stripped at DOCSIS CMTS; see docs/BRIDGE_QOS.md
+  allow_wash: true # Phase 209 (TOPO-02 gate + D-05): wash bit on; 2026-04-22 flent finding; see docs/BRIDGE_QOS.md
+
+# Continuous monitoring - Expert-tuned for Spectrum Cable
+continuous_monitoring:
+  enabled: true
+  cake_stats_cadence_sec: 1.0 # Provisional Silicom mitigation; retest 0.05s/0.25s/1.0s
+  # Default 0.05 preserves v1.38.0 50ms behavior. Values above 10.0 are capped.
+  # Tune only with flent + /health overlap A/B evidence; see docs/CONFIG_SCHEMA.md.
+
+  # Spectrum plan anchor (bill/plan disclosure checked 2026-05-20):
+  # typical download 1045 Mbps, typical upload 40 Mbps, typical latency 19 ms.
+  # These are plan/source-of-truth capacity hints, not automatic CAKE ceilings;
+  # production ceilings below are latency-first operating points validated by sweeps/soaks.
+
+  # Baseline RTT (seeded from production autotuning 2026-03-25)
+  baseline_rtt_initial: 22 # Close to disclosed 19 ms plan latency; autotuned from 24 (1379 samples, baseline_rtt_min=19.7)
+
+  # Download parameters (Phase 2A: 4-state with SOFT_RED)
+  download:
+    floor_green_mbps: 550 # GREEN: healthy, high floor
+    floor_yellow_mbps: 350 # YELLOW: early warning
+    floor_soft_red_mbps: 275 # SOFT_RED: RTT-only congestion (no steering)
+    floor_red_mbps: 200 # RED: severe congestion
+    ceiling_mbps: 920 # Phase 209 (TOPO-03): topology-correct DOCSIS ceiling; 2026-04-22 flent finding; see docs/BRIDGE_QOS.md
+    step_up_mbps: 10 # p158 re-confirmed 2026-04-09 (linux-cake post-DSCP post-netlink)
+    factor_down: 0.85 # linux-cake validated 2026-04-02 (was 0.90, confirmed in pass)
+    factor_down_yellow: 0.92 # linux-cake confirmed 2026-04-02 (unchanged from REST)
+    green_required: 5 # 2026-04-15: slow DL recovery to reduce post-burst re-acceleration churn on Spectrum
+
+  # Upload parameters (Phase 2A: unchanged, 3-state)
+  upload:
+    floor_mbps: 8 # Keeps upstream from going too conservative
+    ceiling_mbps: 18 # Latency-first gaming-server soak 2026-04-29; stopped-controller sweep had best p95/p99 at 18Mbit
+    step_up_mbps: 5 # Phase 135 validated 2026-04-03 (was 1, +17.6% UL throughput)
+    factor_down: 0.90 # Phase 135 validated 2026-04-03 (was 0.85, gentler decay wins on UL)
+    factor_down_yellow: 1.0 # 200-10 R5: hold during YELLOW; restores QueueController default for Spectrum per 200-09
+    consecutive_yellow_decay_clamp: 40 # 200-10 R3: bound consecutive YELLOW decay cascade at ~2s/40 cycles
+    # Phase 201 (v1.42) DOCSIS-aware UL congestion control mode (per VALN-06).
+    # Plan disclosure checked 2026-05-20: typical upstream is 40 Mbps, so
+    # setpoint 12 is 30% of plan upload, not 60% of provisioned capacity.
+    # Keep 12/18 as latency-first operating points from the 2026-04-29 gaming-server
+    # soak decision until a fresh stopped-controller/controller-native sweep proves better.
+    # Fallback on canary fail: drop to 10 (parameter tune, NOT control-model rejection).
+    docsis_mode: true
+    setpoint_mbps: 12
+    # Headroom probe: integral of max(0, load_rtt - baseline_rtt) over 2s window.
+    # Threshold 30 ms*s = average sample at exactly target_delta over full window.
+    integral_window_seconds: 2.0
+    integral_threshold_ms_s: 30.0
+    # CAKE corroborator (categorical AND-gate with integral). Phase 163 sweep
+    # backlog winner = 5000 bytes; delay-delta low = 5ms (deadband_ms analog).
+    cake_backlog_low_threshold_bytes: 5000
+    cake_delay_delta_low_threshold_us: 5000
+    # Phase 201 gap-closure rev 4 (Codex Option B for HIGH-CODEX-1; rev-4 wording for HIGH-CODEX-2):
+    # Bounded-absolute RED decay. Pre-clamp cycles 1-5: immediate bounded decrease
+    # (step=2% of setpoint = 240k for setpoint=12M). At-clamp cycles 6+: hold at
+    # clamp = setpoint - delta_max where delta_max=10% (clamp=10.8M for setpoint=12M).
+    # Validator (d) ensures clamp > floor (codex MEDIUM-NEW-2): 10.8M > 8M floor.
+    # floor_hit_cycles=0 across the canary 20260504T231334Z 18-cycle RED burst.
+    red_decay_step_pct: 0.02
+    red_decay_delta_max_pct: 0.10
+    # 60 cycles = 3s; cap-and-clamp integral STRICTLY BELOW threshold (codex MEDIUM-CODEX-2).
+    anti_windup_cycles: 60
+    green_required: 3 # linux-cake confirmed 2026-04-02 (unchanged from REST)
+
+  # RTT thresholds (Phase 2A: 4-state for download)
+  thresholds:
+    target_bloat_ms: 15 # 2026-04-15: best RRUL balance found across 12/15/18ms and 13/14/16/17ms sweeps
+    warn_bloat_ms: 75 # p158 A/B validated 2026-04-09 (was 60, confirmed in pass)
+    hard_red_bloat_ms: 100 # p158 re-confirmed 2026-04-09 (linux-cake post-DSCP post-netlink)
+    dwell_cycles: 5 # linux-cake confirmed 2026-04-02 (unchanged from REST)
+    deadband_ms: 3.0 # linux-cake confirmed 2026-04-02 (unchanged from REST)
+    suppression_alert_threshold: 180 # Raised from validated-60 on 2026-04-17: 40 alerts/24h noise, acceptable baseline. Revert to 60 if we lose real-congestion signal.
+    # EWMA time constants (interval-independent, auto-calculated)
+    baseline_time_constant_sec: 50 # Slow EWMA for baseline (50s = stable, ignores transients)
+    load_time_constant_sec: 0.10 # Fast EWMA for load RTT (100ms = Phase 1: faster detection)
+    accel_threshold_ms: 12 # RTT spike threshold for instant RED (12ms - tuned 2026-01-17)
+
+    # Baseline RTT security bounds (optional, defaults shown)
+    # Rejects baseline values outside this range as corrupted/invalid
+    # baseline_rtt_bounds:
+    #   min: 10  # Reject baseline below 10ms (probably LAN, not internet)
+    #   max: 60  # Reject baseline above 60ms (probably corrupted state)
+
+  # Ping configuration (median-of-three for Spectrum's WAN reflector variation)
+  # 4.2.2.2 (Level3) dropped -- 35% ICMP timeout rate at 20Hz from rate limiting
+  # 8.8.8.8 (Google) dropped -- 0% timeout but +13ms RTT skews median vs 1.1.1.1/9.9.9.9
+  # 208.67.222.222 (OpenDNS) -- 0% timeout, ~21ms RTT matches cluster, path diversity
+  ping_hosts: ["1.1.1.1", "9.9.9.9", "208.67.222.222"] # WAN-path reflectors; gateway-only masks congestion
+  use_median_of_three: true # Handle reflector variation
+
+  # Fallback connectivity checks (handle ISP ICMP filtering/rate-limiting)
+  fallback_checks:
+    enabled: true # Enable multi-protocol verification
+    check_gateway: true # Try pinging local gateway first
+    check_tcp: true # Try TCP connections to verify Internet
+    gateway_ip: "10.10.110.1" # Gateway to check (container default gateway)
+    tcp_targets: # TCP endpoints to test (HTTPS)
+      - ["1.1.1.1", 443]
+      - ["208.67.222.222", 443]
+    fallback_mode: "graceful_degradation" # "freeze", "use_last_rtt", or "graceful_degradation"
+    max_fallback_cycles: 3 # Max cycles before giving up (graceful mode only)
+
+# State persistence (FHS compliant)
+state_file: "/var/lib/wanctl/spectrum_state.json"
+
+# Logging (FHS compliant)
+logging:
+  main_log: "/var/log/wanctl/spectrum.log"
+  debug_log: "/var/log/wanctl/spectrum_debug.log"
+
+# Lock file (FHS compliant - runtime directory)
+lock_file: "/run/wanctl/spectrum.lock"
+lock_timeout: 300 # 5 minutes
+
+# Timeouts (operational tuning)
+timeouts:
+  ssh_command: 15 # seconds - RouterOS SSH command timeout
+  ping: 0.5 # seconds - ping -W parameter (reduced from 1s for faster cycles)
+
+# Signal processing (seeded from production autotuning 2026-03-25)
+signal_processing:
+  hampel:
+    window_size: 12 # Autotuned from 7 (median_jitter=2.65ms, confidence 0.915)
+    sigma_threshold: 2.8 # Autotuned from 3.0 (outlier_rate=19.2%, confidence 0.913)
+
+# IRTT UDP RTT measurement (v1.18+)
+irtt:
+  enabled: false # Operational mitigation; IRTT reintroduction needs cadence/duration A/B retest
+  server: "104.200.21.31"
+  port: 2112
+  duration_ms: 1000
+  packet_size: 48
+  cadence_sec: 10
+
+# Reflector quality scoring (v1.19+)
+reflector_quality:
+  min_score: 0.8
+  probe_interval_sec: 30
+  recovery_count: 3
+
+# Dual-signal fusion (v1.19+)
+fusion:
+  enabled: true
+  icmp_weight: 0.7
+
+# Adaptive tuning (v1.20+)
+tuning:
+  enabled: true # Re-enabled after Phase 163 sweep
+  cadence_sec: 3600 # Run tuning analysis every hour
+  lookback_hours: 24 # Analyze last 24h of metrics
+  warmup_hours: 1 # Wait 1h after startup before first run
+  max_step_pct: 10.0 # Max 10% change per tuning cycle
+  exclude_params:
+    - target_bloat_ms # Cable (DOCSIS) jitter needs stable thresholds
+    - warn_bloat_ms # Cable (DOCSIS) jitter needs stable thresholds
+  bounds:
+    target_bloat_ms:
+      min: 5.0 # Tuner pegged at floor; 5ms gives room for tighter thresholds
+      max: 30.0
+    warn_bloat_ms:
+      min: 15.0 # Tuner pegged at floor; 15ms aligns with prime-time median delta
+      max: 80.0
+    hampel_sigma_threshold:
+      min: 1.5
+      max: 5.0
+    hampel_window_size:
+      min: 5
+      max: 15
+    load_time_constant_sec:
+      min: 0.5
+      max: 10.0
+    fusion_icmp_weight:
+      min: 0.5
+      max: 0.95
+    reflector_min_score:
+      min: 0.5
+      max: 0.95
+    baseline_rtt_min:
+      min: 5.0
+      max: 30.0
+      # Autotuned value: 19.7 (p5=21.9ms * 0.9)
+    baseline_rtt_max:
+      min: 25.0
+      max: 100.0
+      # Autotuned value: 27.0 (p95=22.7ms * 1.1 = 25.0, clamped to bounds min)
+
+# Alerting (v1.15+)
+alerting:
+  enabled: true
+  webhook_url: "${DISCORD_WEBHOOK_URL}"
+  rules:
+    congestion_flapping:
+      severity: warning  # Required by alerting validator (autorate_config.py:707-713). Without this key, the entire alerting subsystem is silently disabled at config load. Surfaced 2026-05-03 during Phase 200 deploy work — Spectrum had been running with all alerting disabled since 2026-04-17 cooldown bump.
+      cooldown_sec: 600  # Raised from default on 2026-04-17: 2026-04-16 DOCSIS event produced 16 alerts (8 DL + 8 UL) for one 30-min oscillation. 600s caps firings at ~3 per event while preserving detection.
+
+# CAKE signal processing — baseline measurement (v1.33, Phase 162)
+# Master switch + metrics enabled for 24h idle data collection
+# All detection booleans DISABLED — measuring noise floor, not acting on it
+cake_signal:
+  enabled: true
+  drop_rate:
+    enabled: true # Phase 163: detection enabled for A/B sweep
+    time_constant_sec: 1.0
+    threshold_drops_per_sec: 5.0 # Phase 163 A/B winner (5.0 vs 10.0 vs 20.0, p99 -22%)
+  backlog:
+    enabled: true # Phase 163: detection enabled for A/B sweep
+    threshold_bytes: 5000 # Phase 163 A/B winner (5000 vs 10000 vs 20000, p99 -15%)
+  peak_delay:
+    enabled: false
+  metrics:
+    enabled: true
+  detection:
+    refractory_cycles: 40
+  recovery:
+    probe_multiplier: 1.0 # Phase 163 A/B winner (1.0 vs 1.5 vs 2.0, linear recovery best)
+    probe_ceiling_pct: 0.95 # Phase 163 A/B winner (0.95 vs 0.9 vs 0.85, p99 -5%)
+
+# Per-WAN storage (D-05: eliminates cross-service write contention)
+storage:
+  db_path: "/var/lib/wanctl/metrics-spectrum.db"
+  maintenance_interval_seconds: 900
+  retention:
+    raw_age_seconds: 3600            # 1h raw data; 24h aggregate history retained for tuning
+    aggregate_1m_age_seconds: 86400  # 24h 1-minute aggregates
+    aggregate_5m_age_seconds: 604800 # 7d 5-minute aggregates

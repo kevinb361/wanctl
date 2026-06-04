@@ -106,6 +106,30 @@ assert_nonempty() {
     fi
 }
 
+normalize_flent_artifacts() {
+    local run_dir="$1"
+    local run_num="$2"
+    local expected_gz="$run_dir/flent-rrul.$run_num.flent.gz"
+    python3 - "$run_dir" "$expected_gz" <<'PY'
+import shutil
+import sys
+from pathlib import Path
+
+run_dir = Path(sys.argv[1])
+expected = Path(sys.argv[2])
+if expected.exists() and expected.stat().st_size > 0:
+    raise SystemExit(0)
+candidates = sorted(
+    run_dir.glob("rrul-*.flent.gz"),
+    key=lambda path: path.stat().st_mtime,
+    reverse=True,
+)
+if not candidates:
+    raise SystemExit("no flent rrul data artifact found")
+shutil.copyfile(candidates[0], expected)
+PY
+}
+
 redact_yaml_line_values() {
     python3 - "$1" "$2" <<'PY'
 import re
@@ -202,8 +226,8 @@ if [[ "$DRY_RUN" == "1" ]]; then
     exit 0
 fi
 
-if [[ -d "$OUTPUT_DIR" ]] && [[ -n "$(find "$OUTPUT_DIR" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
-    echo "ERROR: --output-dir exists and is non-empty: $OUTPUT_DIR" >&2
+if [[ -d "$OUTPUT_DIR" ]] && [[ -n "$(find "$OUTPUT_DIR" -mindepth 1 -maxdepth 1 ! -name 'discarded-*' -print -quit)" ]]; then
+    echo "ERROR: --output-dir exists and contains non-discarded entries: $OUTPUT_DIR" >&2
     exit 1
 fi
 
@@ -212,6 +236,15 @@ CAPTURE_DIR="$OUTPUT_DIR/baseline-$CAPTURE_TS"
 mkdir -p "$CAPTURE_DIR"
 CAPTURED_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 BASELINE_LINE="$(extract_baseline_line)"
+DISCARDED_RUNS_JSON="$(python3 - "$OUTPUT_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+print(json.dumps(sorted(path.name for path in root.glob("discarded-*"))))
+PY
+)"
 
 for run in $(seq 1 "$RUNS"); do
     run_id="$(printf 'run-%02d' "$run")"
@@ -222,7 +255,8 @@ for run in $(seq 1 "$RUNS"); do
     remote_read "tc -s qdisc show dev '$MODEM_IFACE'" >"$run_dir/tc-qdisc-${MODEM_IFACE}.before.txt"
     stop_file="$run_dir/.health-stop"
     start_health_poller "$run_dir/health.window.ndjson" "$stop_file"
-    flent -l "$DURATION" -H "$REF_HOST" --local-bind "$LOCAL_BIND" -o "$run_dir/flent-rrul.$(printf '%02d' "$run").flent.gz" -o "$run_dir/flent-rrul.$(printf '%02d' "$run").txt" rrul &
+    run_num="$(printf '%02d' "$run")"
+    flent -l "$DURATION" -H "$REF_HOST" --local-bind "$LOCAL_BIND" -D "$run_dir" -f summary -o "$run_dir/flent-rrul.$run_num.txt" rrul >"$run_dir/flent-rrul.$run_num.console.txt" 2>&1 &
     flent_pid="$!"
     sleep 5
     iperf3 -c "$REF_HOST" -p "$REF_PORT" -u -b "$REF_UDP_RATE" -t "$((DURATION > 5 ? DURATION - 5 : DURATION))" --json >"$run_dir/ref-udp-unmarked.$(printf '%02d' "$run").txt" 2>&1 &
@@ -233,10 +267,12 @@ for run in $(seq 1 "$RUNS"); do
     remote_read "tc -s qdisc show dev '$ROUTER_IFACE'" >"$run_dir/tc-qdisc-${ROUTER_IFACE}.during.txt"
     remote_read "tc -s qdisc show dev '$MODEM_IFACE'" >"$run_dir/tc-qdisc-${MODEM_IFACE}.during.txt"
     wait "$flent_pid"
+    normalize_flent_artifacts "$run_dir" "$run_num"
     wait "$udp_pid" || true
     wait "$tcp_pid" || true
     touch "$stop_file"
     cleanup_poller
+    rm -f "$stop_file"
     curl -fsS --max-time 3 "$HEALTH_URL" >"$run_dir/health.after.json"
     remote_read "tc -s qdisc show dev '$ROUTER_IFACE'" >"$run_dir/tc-qdisc-${ROUTER_IFACE}.after.txt"
     remote_read "tc -s qdisc show dev '$MODEM_IFACE'" >"$run_dir/tc-qdisc-${MODEM_IFACE}.after.txt"
@@ -245,8 +281,8 @@ for run in $(seq 1 "$RUNS"); do
         "$run_dir/health.before.json" "$run_dir/health.after.json" "$run_dir/health.window.ndjson" \
         "$run_dir/tc-qdisc-${ROUTER_IFACE}.before.txt" "$run_dir/tc-qdisc-${ROUTER_IFACE}.during.txt" "$run_dir/tc-qdisc-${ROUTER_IFACE}.after.txt" \
         "$run_dir/tc-qdisc-${MODEM_IFACE}.before.txt" "$run_dir/tc-qdisc-${MODEM_IFACE}.during.txt" "$run_dir/tc-qdisc-${MODEM_IFACE}.after.txt" \
-        "$run_dir/flent-rrul.$(printf '%02d' "$run").flent.gz" "$run_dir/ref-udp-unmarked.$(printf '%02d' "$run").txt" \
-        "$run_dir/ref-tcp-bulk-unmarked.$(printf '%02d' "$run").txt" "$run_dir/ref-dscp-proof.$(printf '%02d' "$run").txt"; do
+        "$run_dir/flent-rrul.$run_num.flent.gz" "$run_dir/flent-rrul.$run_num.txt" "$run_dir/flent-rrul.$run_num.console.txt" "$run_dir/ref-udp-unmarked.$run_num.txt" \
+        "$run_dir/ref-tcp-bulk-unmarked.$run_num.txt" "$run_dir/ref-dscp-proof.$run_num.txt"; do
         assert_nonempty "$file"
     done
 done
@@ -273,6 +309,10 @@ for health in root.glob("run-*/health.window.ndjson"):
 for flent_file in root.glob("run-*/flent-rrul.*.flent.gz"):
     if flent_file.stat().st_size == 0:
         ok = False
+for console in root.glob("run-*/flent-rrul.*.console.txt"):
+    text = console.read_text(encoding="utf-8", errors="replace")
+    if "Program exited non-zero" in text:
+        ok = False
 raise SystemExit(0 if ok else 1)
 PY
 then
@@ -291,9 +331,9 @@ find "$CAPTURE_DIR" -type f ! -name 'artifact-sha256.txt' -print0 \
     printf '## Source Posture\n\nread-only target access; no deploy, restart, mode change, /etc write, nft mutation, or tc mutation. Load generation was client-side RRUL/reference traffic only.\n\n'
     printf '## Baseline State\n\n- %s\n\n' "$BASELINE_LINE"
     printf '## Run Plan\n\n- runs: %s\n- duration_seconds: %s\n- local_bind: %s\n- health_url: %s\n- router_iface: %s\n- modem_iface: %s\n- ref_host: %s\n- ref_port: %s\n- ref_udp_rate: %s\n- window_used: %s\n\n' "$RUNS" "$DURATION" "$LOCAL_BIND" "$HEALTH_URL" "$ROUTER_IFACE" "$MODEM_IFACE" "$REF_HOST" "$REF_PORT" "$REF_UDP_RATE" "$WINDOW_USED"
-    printf '## Validity\n\n- validity: %s\n- retained: %s\n- discarded_runs: []\n- rerun_policy: rerun only on objective invalid-run failure; do not chase smaller spread after a valid retained set.\n\n' "$VALIDITY" "$RETAINED"
+    printf '## Validity\n\n- validity: %s\n- retained: %s\n- discarded_runs: %s\n- rerun_policy: rerun only on objective invalid-run failure; do not chase smaller spread after a valid retained set.\n\n' "$VALIDITY" "$RETAINED" "$DISCARDED_RUNS_JSON"
     printf '## Artifacts\n\n'
-    find "$CAPTURE_DIR" -type f -printf -- '- %P\n' | sort
+    find "$CAPTURE_DIR" -type f -printf '- %P\n' | sort
 } >"$CAPTURE_DIR/MANIFEST.md"
 
 for required in "$CAPTURE_DIR/MANIFEST.md" "$CAPTURE_DIR/baseline-summary.json" "$CAPTURE_DIR/BASELINE-SUMMARY.md" "$CAPTURE_DIR/artifact-sha256.txt"; do
