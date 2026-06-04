@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.49
 milestone_name: Spectrum DSCP Tinning Re-evaluation
 status: executing
-stopped_at: Completed 225-04-PLAN.md (gap closure)
-last_updated: "2026-06-04T04:38:29Z"
-last_activity: 2026-06-04 -- Phase 225 gap-closure plan 04 executed (DSCP capture hardening)
+stopped_at: Completed 225-05-PLAN.md (gap closure — SAFE-13 boundary refresh at final HEAD)
+last_updated: "2026-06-04T04:43:20.936Z"
+last_activity: 2026-06-04 -- Phase 225 gap-closure plan 05 executed (SAFE-13 boundary record stamped at final HEAD 62f74b2)
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 3
-  percent: 0
+  completed_plans: 5
+  percent: 25
 ---
 
 # Session State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-03 after v1.48 milestone close; v1.49
 ## Current Position
 
 Phase: 225 (dscp-survival-trace) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 225
-Last activity: 2026-06-04 -- Phase 225 execution started
+Plan: 5 of 5 (all gap-closure plans complete)
+Status: Phase 225 gap closure complete; awaiting re-verification
+Last activity: 2026-06-04 -- Phase 225 plan 05 executed (GAP-4 closed: SAFE-13 boundary record stamped at final HEAD)
 
 ## Deferred Items (carried into next milestone)
 
@@ -114,6 +114,7 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 - [225-04]: Probe/SSH/numeric args are allowlist+range validated before any SSH command is built; an unsafe value exits 2 with no remote invocation (GAP-1/CR-01 closed).
 - [225-04]: Wash-ordering proof booleans (WASH_PROOF_PASS/WASH_ORDERING_PROVEN/CAPTURE_POINT) rest only on a machine-checkable predicate — parse_qdisc_ordering (ingress/clsact hook + CAKE root parsed) or paired_bitflip — not topology prose or qdisc presence; default false/unknown (GAP-2/WR-01 closed).
 - [225-04]: DL source-side EF proof is honest — opt-in real source capture (--dl-source-ssh-host/--dl-source-iface) or explicit SRC_CAPTURE_POINT=unsupported degrade with no empty pcap; raw/dl-ef-probe-source.pcap is a conditional artifact; DL STRIPPED still only when DL_SOURCE_EF_PROVEN=true (GAP-3/WR-02 closed).
+- [225-05]: SAFE-13 boundary record re-run LAST (after 225-04 commits) so head_commit stamps the true final phase HEAD (62f74b2); committed JSON references the commit immediately prior to its own tracking commit — expected final-boundary parent-reference semantics, not the stale multi-commit lag GAP-4 was about (baa9b4b was 3 commits behind). passed=true with zero controller/ATT diff and all hashes byte-identical vs v1.48 (GAP-4 closed).
 
 ## Decisions (v1.48)
 
@@ -202,3 +203,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 225 P02 | 6min | 2 tasks | 2 files |
 | Phase 225 P03 | 5min | 3 tasks | 3 files |
 | Phase 225 P04 | ~9min | 3 tasks | 1 file |
+| Phase 225 P05 | ~3min | 1 task | 1 file |
