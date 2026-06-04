@@ -73,11 +73,15 @@ interface* — i.e. the DSCP distribution on `spec-router` (DL) / `spec-modem` (
    This is the recommended primary technique. Pair it with the **nftables rule counters** in
    `bridge qos` (stage 3) which are already incrementing in production and are pure reads.
 
-The nftables `bridge qos` rule counters are the single most valuable read-only signal: each
-`ip dscp set` rule has packet/byte counters showing how much traffic the bridge is *marking* into
-ef/af41/cs1 right now. If those counters are near-zero under representative load, the marks aren't
-there to survive regardless of downstream behavior (theater confirmed cheaply). If they're
-substantial, stage 4 observation tells us whether those marks reach CAKE intact.
+The nftables `bridge qos` rule counters are a useful CORROBORATING read-only signal (NOT a gating
+one — see the gating-vs-corroborating taxonomy under ## DSCP-03): if present, each `ip dscp set` rule
+would show how much traffic the bridge is *marking* into ef/af41/cs1. **However, the checked-in rules
+carry no explicit `counter` statement (verified), so in production these counters are expected to be
+ABSENT.** Counter absence maps to `bridge_counter_signal=unknown` and, because this channel is
+corroborating-only, it NEVER gates the verdict — it neither confirms theater nor forces a negative
+close. The AUTHORITATIVE DL marking signal is the pre-wash `organic_dl_histogram` at the enqueue
+interface (stage 4 observation), which is what actually decides whether marks reach CAKE intact. Treat
+any bridge counter that does happen to be present as supporting context only.
 
 ---
 
@@ -94,6 +98,15 @@ inject a controlled EF-marked flow and observe it at CAKE ingress:
   interface. Degrade-to-best-effort: if the test rig cannot mark cleanly (client TOS stripped by
   WMM/AP), capture whatever DSCP *does* arrive and note the degradation — the check is not dropped
   (AB-04 precedent for graceful degradation).
+- **Source-side DL DSCP proof (NEW HIGH — required for any negative DL reading).** A LAN client's
+  `--tos 0xb8` marks its OUTBOUND (UL) packets, NOT the RETURN-path DL packets. So a `STRIPPED` reading
+  on `dl_ef_probe` is only meaningful if the DL return leg was PROVEN to carry DSCP 46 at the source
+  (before the path under test). The probe MUST observe the DL return leg at a source-side point (the
+  same 5-tuple at/near the external/return endpoint, or the first hop where the DL leg is observable as
+  marked) and record `EF_PKTS_AT_SOURCE` + `DL_SOURCE_EF_PROVEN` (true only when `EF_PKTS_AT_SOURCE` ≥
+  100 AND ≥90% of source-side DL probe packets carry DSCP 46). When `DL_SOURCE_EF_PROVEN=false`,
+  `dl_ef_probe` is `unknown`/`degraded`, NEVER `STRIPPED` — a never-EF DL packet cannot be miscounted
+  as a stripped mark and feed the negative-close AND.
 - This is the deliberately-marked half of Success Criterion 2. The representative-traffic half is
   covered by the bridge rule counters + egress DSCP histogram under organic load.
 
@@ -153,6 +166,10 @@ below applies to the two GATING DL channels, not to the corroborating bridge-cou
      verdict purposes (insufficient to prove a load level).
 2. **`dl_ef_probe`** (DL survival, from 225-02). EF (DSCP 46) survival to the **`spec-router` CAKE
    enqueue point** on a DL-direction probe that exercises the CRS/Ruckus/bridge classification path.
+   **Source-side proof required for a negative reading:** a `STRIPPED` (negative) result is admissible
+   ONLY when `DL_SOURCE_EF_PROVEN=true` (the DL return leg carried DSCP 46 at source — see DSCP-02). If
+   `DL_SOURCE_EF_PROVEN=false`, this channel is `unknown`/`degraded`, never `STRIPPED`, so it cannot
+   contribute to the negative-close AND.
 3. **`ul_ef_probe`** (UL survival, from 225-02). EF survival to the **`spec-modem` CAKE enqueue
    point** on a UL probe sourced from cake-shaper. NOTE: a UL probe only proves a local mark reaches
    spec-modem — it does **not** exercise the DL CRS/Ruckus/bridge path the milestone re-evaluates,
@@ -178,7 +195,10 @@ below applies to the two GATING DL channels, not to the corroborating bridge-cou
   `organic_dl_histogram=invalid` (quiet window) and CANNOT drive `MARKS_DO_NOT_SURVIVE`.
 - **EF probe sample gate** — an EF-probe result is only `valid` if the probe emitted and the capture
   recorded **≥ 100 probe-5-tuple packets** at the source side; below that the probe is
-  `unknown`/`degraded`, not a clean negative.
+  `unknown`/`degraded`, not a clean negative. For the DL probe, a negative (`STRIPPED`) reading
+  additionally requires `DL_SOURCE_EF_PROVEN=true` (`EF_PKTS_AT_SOURCE` ≥ 100 AND ≥90% of source-side
+  DL probe packets carry DSCP 46); if source-side DL marking is unproven the DL probe is
+  `unknown`/`degraded`, never `STRIPPED`.
 
 ### Capture-ordering rule (resolves the CAKE-wash false-negative)
 
@@ -201,14 +221,23 @@ interface from the marking stage** — i.e. inbound on the `spec-router` bridge 
 live topology** (`ip -d link show`, bridge member roles, and the `iif spec-modem oif spec-router`
 classification path), not assumed.
 
-**`CAPTURE_POINT` is a PROVEN property, not an operator-asserted flag.** 225-02 MUST run a positive
-proof step that establishes, from live evidence, that the chosen capture interface+direction sits
-(a) downstream of the DSCP-setting stage (the byte is observable as set) and (b) upstream of the CAKE
-egress qdisc that applies wash. The script records `CAPTURE_POINT=pre_wash_ingress|post_wash_egress|unknown`,
-`WASH_ORDERING_PROVEN=true|false`, AND a `capture-point-proof.txt` artifact citing the topology
-evidence (interface name, direction, bridge member role, qdisc location relative to the capture hook)
-that justifies the value. **Default until proven is `CAPTURE_POINT=unknown` / `WASH_ORDERING_PROVEN=false`.**
-`pre_wash_ingress` may be recorded ONLY when the proof artifact substantiates it.
+**`CAPTURE_POINT` is a FALSIFIABLY-PROVEN property, not an operator-asserted flag or topology citation
+(resolves cycle-3 HIGH-C).** 225-02 MUST run a FALSIFIABLE proof step that establishes, from live
+evidence, that the chosen capture interface+direction sits (a) downstream of the DSCP-setting stage
+and (b) upstream of the CAKE egress qdisc that applies wash. The proof must be able to FAIL if the hook
+were actually post-wash. Acceptable falsifiable checks: (i) **paired pre/post-wash observation of the
+same probe 5-tuple** — the candidate pre-wash hook shows the DSCP bit (EF/AF41/CS1) SET while a
+post-wash egress/transmit-side observation of the same 5-tuple shows it CLEARED (because `allow_wash:
+true` strips it after tin selection); the hook is proven upstream of wash. This FAILS (point stays
+`unknown`) if both sides agree, so it is genuinely falsifiable. (ii) An equivalent positive
+demonstration via `tc -d qdisc/filter show` ordering that the capture hook fires before the
+`spec-router` CAKE-egress wash qdisc. **Topology text alone (interface, direction, bridge member role)
+is NOT a proof — it is supporting context only.** The script records
+`CAPTURE_POINT=pre_wash_ingress|post_wash_egress|unknown`, `WASH_ORDERING_PROVEN=true|false`, AND a
+`capture-point-proof.txt` artifact recording the falsifiable check result plus supporting topology
+context. **Default until the falsifiable check passes is `CAPTURE_POINT=unknown` /
+`WASH_ORDERING_PROVEN=false`.** `pre_wash_ingress` may be recorded ONLY when the falsifiable check
+passes.
 
 If capture ordering relative to wash cannot be proven (`WASH_ORDERING_PROVEN=false` or
 `CAPTURE_POINT=unknown`), the affected survival channel is `unknown` — it CANNOT drive
@@ -227,7 +256,9 @@ when BOTH required negative signals are `valid`, observed, and above the sample-
   measurable, < 1.0% bytes — see the byte-fraction rule under "Pre-registered numeric thresholds"),
   **AND**
 - `dl_ef_probe` is `valid` AND **STRIPPED** (< 10% of probe packets carry DSCP 46 at the pre-wash
-  enqueue point).
+  enqueue point) AND `DL_SOURCE_EF_PROVEN=true` (the DL return leg was provably EF at source — a
+  never-EF DL packet can never be counted STRIPPED; if source-side marking is unproven the channel is
+  `unknown`/`degraded`, not a valid negative).
 - This branch is gated EXCLUSIVELY by the two GATING DL channels above (`organic_dl_histogram` and
   `dl_ef_probe`); both MUST be `valid`. The corroborating-only channels do NOT gate it:
   `bridge_counter_signal=unknown` (counters absent — the verified production case) neither blocks nor
@@ -290,8 +321,8 @@ The verdict artifact must:
   `MARKS_SURVIVE` / `MARKS_SURVIVE_QUALIFIED`;
 - record each of the four channels with its validity state and the concrete value that drove it
   (counter deltas or `COUNTERS_AVAILABLE=false`; DL/UL probe survival percentages with packet
-  counts; DL non-BestEffort packet fraction; sample-floor pass/fail; `CAPTURE_POINT` /
-  `WASH_ORDERING_PROVEN`);
+  counts; for the DL probe `EF_PKTS_AT_SOURCE` / `DL_SOURCE_EF_PROVEN`; DL non-BestEffort packet AND
+  byte fractions; sample-floor pass/fail; `CAPTURE_POINT` / `WASH_ORDERING_PROVEN`);
 - name the explicit consequence for Phases 226–228 (do-not-run + negative close, OR unblock 226 with
   the proceed condition);
 - restate that it was computed from this pre-registered logic, not reverse-fitted.
