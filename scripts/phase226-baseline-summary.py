@@ -235,6 +235,120 @@ def _spread(values: list[float]) -> dict[str, float]:
     }
 
 
+def _metric_summary(values: list[float]) -> dict[str, float | None]:
+    if not values:
+        return {"mean": None, "min": None, "max": None, "spread": None, "stddev": None}
+    return {
+        "mean": float(mean(values)),
+        "min": float(min(values)),
+        "max": float(max(values)),
+        "spread": float(max(values) - min(values)),
+        "stddev": float(pstdev(values)) if len(values) > 1 else 0.0,
+    }
+
+
+def _parse_iperf_json(path: Path, kind: str) -> dict[str, Any]:
+    """Parse and validate a single iperf3 JSON artifact."""
+    row: dict[str, Any] = {"artifact": path.name, "valid": False}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    except Exception as exc:
+        row["validity_reason"] = f"unparseable:{exc.__class__.__name__}"
+        return row
+    if not isinstance(data, dict):
+        row["validity_reason"] = "not_object"
+        return row
+    if data.get("error"):
+        row["validity_reason"] = "top_level_error"
+        row["error"] = str(data.get("error"))
+        return row
+    end = data.get("end") if isinstance(data.get("end"), dict) else {}
+    expected = "sum_received" if kind == "tcp" else "sum"
+    summary = end.get(expected)
+    if not isinstance(summary, dict):
+        row["validity_reason"] = f"missing_end_{expected}"
+        return row
+    row["valid"] = True
+    row["validity_reason"] = "ok"
+    if kind == "udp":
+        jitter = summary.get("jitter_ms")
+        if isinstance(jitter, (int, float)) and math.isfinite(float(jitter)):
+            row["jitter_ms"] = float(jitter)
+        lost_percent = summary.get("lost_percent")
+        packets = summary.get("packets")
+        lost_packets = summary.get("lost_packets")
+        if isinstance(lost_percent, (int, float)) and math.isfinite(float(lost_percent)):
+            row["loss_pct"] = float(lost_percent)
+        elif isinstance(packets, (int, float)) and packets and isinstance(lost_packets, (int, float)):
+            row["loss_pct"] = float(lost_packets) / float(packets) * 100.0
+    else:
+        bps = summary.get("bits_per_second")
+        if isinstance(bps, (int, float)) and math.isfinite(float(bps)):
+            row["throughput_mbps"] = float(bps) / 1_000_000.0
+        retransmits = 0
+        saw_retransmits = False
+        streams = end.get("streams")
+        if isinstance(streams, list):
+            for stream in streams:
+                if not isinstance(stream, dict):
+                    continue
+                for side in ("sender", "receiver"):
+                    side_row = stream.get(side)
+                    if isinstance(side_row, dict) and isinstance(side_row.get("retransmits"), (int, float)):
+                        retransmits += int(side_row["retransmits"])
+                        saw_retransmits = True
+        if saw_retransmits:
+            row["retransmits"] = retransmits
+    return row
+
+
+def _parse_marking_record(path: Path) -> dict[str, Any]:
+    record: dict[str, Any] = {}
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip().lower()
+        value = value.strip()
+        if key in {"ef_clean_mark"}:
+            record[key] = value.lower() == "true"
+        elif key in {"ef_ref_port"}:
+            try:
+                record[key] = int(value)
+            except ValueError:
+                record[key] = value
+        else:
+            record[key] = value
+    return record
+
+
+def _summarize_udp_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
+    valid_runs = [row for row in runs if row.get("valid")]
+    return {
+        "valid": bool(valid_runs) and len(valid_runs) == len(runs),
+        "valid_run_count": len(valid_runs),
+        "run_count": len(runs),
+        "jitter_ms": _metric_summary([float(row["jitter_ms"]) for row in valid_runs if "jitter_ms" in row]),
+        "loss_pct": _metric_summary([float(row["loss_pct"]) for row in valid_runs if "loss_pct" in row]),
+        "runs": runs,
+    }
+
+
+def _summarize_tcp_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
+    valid_runs = [row for row in runs if row.get("valid")]
+    summary: dict[str, Any] = {
+        "valid": bool(valid_runs) and len(valid_runs) == len(runs),
+        "valid_run_count": len(valid_runs),
+        "run_count": len(runs),
+        "throughput_mbps": _metric_summary([float(row["throughput_mbps"]) for row in valid_runs if "throughput_mbps" in row]),
+        "runs": runs,
+    }
+    retransmits = [int(row["retransmits"]) for row in valid_runs if "retransmits" in row]
+    if retransmits:
+        summary["retransmits"] = {"total": int(sum(retransmits)), "mean": float(mean(retransmits))}
+    return summary
+
+
 def _flent_p99_ms(path: Path) -> float | None:
     if not path.exists() or path.stat().st_size == 0:
         return None
@@ -259,6 +373,9 @@ def build_summary(capture_dir: Path) -> dict[str, Any]:
     by_iface: dict[str, dict[str, list[dict[str, Any]]]] = {}
     windows: list[dict[str, Any]] = []
     rrul_p99s: list[float] = []
+    ref_udp_runs: list[dict[str, Any]] = []
+    ref_tcp_runs: list[dict[str, Any]] = []
+    marked_ef_runs: list[dict[str, Any]] = []
     for run_dir in runs:
         for iface in ("spec-router", "spec-modem"):
             before = _read_tc(run_dir / f"tc-qdisc-{iface}.before.txt")
@@ -273,6 +390,25 @@ def build_summary(capture_dir: Path) -> dict[str, Any]:
         rrul = _flent_p99_ms(run_dir / f"flent-rrul.{run_dir.name[-2:]}.flent.gz")
         if rrul is not None:
             rrul_p99s.append(rrul)
+        run_num = run_dir.name[-2:]
+        udp_path = run_dir / f"ref-udp-unmarked.{run_num}.txt"
+        if udp_path.exists():
+            row = _parse_iperf_json(udp_path, "udp")
+            row["run"] = run_dir.name
+            ref_udp_runs.append(row)
+        tcp_path = run_dir / f"ref-tcp-bulk-unmarked.{run_num}.txt"
+        if tcp_path.exists():
+            row = _parse_iperf_json(tcp_path, "tcp")
+            row["run"] = run_dir.name
+            ref_tcp_runs.append(row)
+        ef_path = run_dir / f"ref-udp-marked-ef.{run_num}.txt"
+        if ef_path.exists():
+            row = _parse_iperf_json(ef_path, "udp")
+            row["run"] = run_dir.name
+            marking_path = run_dir / f"ref-ef-marking.{run_num}.txt"
+            if marking_path.exists():
+                row.update(_parse_marking_record(marking_path))
+            marked_ef_runs.append(row)
 
     interfaces: dict[str, Any] = {}
     for iface, tins in by_iface.items():
@@ -297,15 +433,36 @@ def build_summary(capture_dir: Path) -> dict[str, Any]:
         "mean_window_duration_s": duration,
         "windows": windows,
     }
-    return {
+    summary: dict[str, Any] = {
         "phase": 226,
         "schema_version": 1,
         "run_count": len(runs),
         "interfaces": interfaces,
         "baseline_window": baseline_window,
         "rrul_p99_latency_under_load_ms_mean": _mean(rrul_p99s),
-        "provenance": {"D-07": "RRUL plus unmarked reference flows", "D-08": "3 runs x 60s mean plus spread"},
+        "provenance": {
+            "D-07": "RRUL plus unmarked reference flows; marked-EF arm is additive when present",
+            "D-08": "3 runs x 60s mean plus spread",
+            "GATE-01": "matched RRUL plus unmarked reference arms from EF-loaded captures",
+            "AB-04": "marked_ef jitter/loss compared against ref_udp_unmarked jitter/loss",
+        },
     }
+    if ref_udp_runs:
+        summary["ref_udp_unmarked"] = _summarize_udp_runs(ref_udp_runs)
+    if ref_tcp_runs:
+        summary["ref_tcp_unmarked"] = _summarize_tcp_runs(ref_tcp_runs)
+    if marked_ef_runs:
+        marked = _summarize_udp_runs(marked_ef_runs)
+        methods = sorted({str(row.get("ef_mark_method")) for row in marked_ef_runs if row.get("ef_mark_method")})
+        clean_values = [bool(row.get("ef_clean_mark")) for row in marked_ef_runs if "ef_clean_mark" in row]
+        ports = sorted({row.get("ef_ref_port") for row in marked_ef_runs if row.get("ef_ref_port") is not None})
+        marked.update({
+            "mark_method": methods[0] if len(methods) == 1 else methods,
+            "clean_mark": all(clean_values) if clean_values else False,
+            "ef_ref_port": ports[0] if len(ports) == 1 else ports,
+        })
+        summary["marked_ef"] = marked
+    return summary
 
 
 def write_markdown(summary: dict[str, Any], path: Path) -> None:
@@ -341,6 +498,38 @@ def write_markdown(summary: dict[str, Any], path: Path) -> None:
         f"- D-01 p99 latency-under-load mean: {summary['rrul_p99_latency_under_load_ms_mean']:.3f} ms",
         "",
     ])
+    if "ref_udp_unmarked" in summary:
+        udp = summary["ref_udp_unmarked"]
+        lines.extend([
+            "## ref_udp_unmarked",
+            "",
+            f"- valid: {udp['valid']}",
+            f"- jitter_ms_mean: {udp['jitter_ms']['mean']}",
+            f"- loss_pct_mean: {udp['loss_pct']['mean']}",
+            "",
+        ])
+    if "ref_tcp_unmarked" in summary:
+        tcp = summary["ref_tcp_unmarked"]
+        lines.extend([
+            "## ref_tcp_unmarked",
+            "",
+            f"- valid: {tcp['valid']}",
+            f"- throughput_mbps_mean: {tcp['throughput_mbps']['mean']}",
+            "",
+        ])
+    if "marked_ef" in summary:
+        ef = summary["marked_ef"]
+        lines.extend([
+            "## marked_ef",
+            "",
+            f"- valid: {ef['valid']}",
+            f"- mark_method: {ef['mark_method']}",
+            f"- clean_mark: {ef['clean_mark']}",
+            f"- ef_ref_port: {ef['ef_ref_port']}",
+            f"- jitter_ms_mean: {ef['jitter_ms']['mean']}",
+            f"- loss_pct_mean: {ef['loss_pct']['mean']}",
+            "",
+        ])
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
