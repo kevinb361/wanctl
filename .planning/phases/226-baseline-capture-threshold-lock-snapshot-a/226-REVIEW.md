@@ -1,100 +1,67 @@
 ---
 phase: 226-baseline-capture-threshold-lock-snapshot-a
-reviewed: 2026-06-04T11:58:42Z
+reviewed: 2026-06-04T12:57:17Z
 depth: standard
-files_reviewed: 6
+files_reviewed: 11
 files_reviewed_list:
+  - .claude/context.md
   - scripts/phase226-baseline-capture.sh
   - scripts/phase226-baseline-summary.py
   - scripts/phase226-restore.sh
   - scripts/phase226-snapshot-a.sh
   - scripts/phase226-thresholds.json
+  - tests/phase226/fixtures/health.window.ndjson
+  - tests/phase226/fixtures/tc-qdisc.after.txt
+  - tests/phase226/fixtures/tc-qdisc.before.txt
+  - tests/phase226/fixtures/tc-qdisc.during.txt
   - tests/phase226/test_tc_qdisc_parser.py
 findings:
   critical: 0
-  warning: 5
+  warning: 6
   info: 0
-  total: 5
+  total: 6
 status: issues_found
 ---
 
 # Phase 226: Code Review Report
 
-**Reviewed:** 2026-06-04T11:58:42Z
+**Reviewed:** 2026-06-04T12:57:17Z
 **Depth:** standard
-**Files Reviewed:** 6
+**Files Reviewed:** 11
 **Status:** issues_found
 
 ## Summary
 
-Reviewed the Phase 226 baseline capture, summary, restore, snapshot, thresholds, and parser tests. The largest production-safety concern is that the summary parser appears to parse the synthetic test counter lines rather than the real CAKE per-tin fields emitted by `tc -s qdisc`, which can silently turn baseline evidence into zero/partial metrics. The shell wrappers are mostly conservative/read-only, but they need tighter input validation around numeric values and remote-command parameters, and evidence redaction should be made explicit for health JSON.
+Reviewed the Phase 226 baseline capture, baseline summary parser, Snapshot A capture, dry-run restore proof, threshold artifact, fixtures, and parser tests. The CAKE parser gap called out in earlier review context appears substantially addressed, but there are still evidence-correctness and safety issues that can misstate baseline/rollback proof quality or weaken the scripts' fail-closed posture.
 
 ## Warnings
 
-### WR-01: CAKE parser misses real `tc -s qdisc` per-tin fields
+### WR-01: DSCP neutrality proof is hardcoded instead of observed
 
-**File:** `scripts/phase226-baseline-summary.py:24-80`
-**Issue:** `parse_tc_qdisc()` only recognizes synthetic-style `Sent ... pkt`, `Dropped`, `Backlog`, `Avge delay`, and `Peak delay` lines after a `Tin` header. Real CAKE output commonly exposes per-tin counters as rows like `pkts`, `drops`, `backlog 1000b`, `av_delay`, and `pk_delay` (the fixture itself includes these at `tests/phase226/fixtures/tc-qdisc.before.txt:14-23`). Those real rows are ignored, so Snapshot A summaries can report zero or stale deltas for packets/drops/backlog/delay.
-**Fix:** Teach the parser the real CAKE row labels and units before relying on the generated baseline. For example:
+**File:** `scripts/phase226-baseline-capture.sh:279`
+**Issue:** The script writes `udp_observed_egress_dscp=0` and `tcp_observed_egress_dscp=0` as proof text without capturing or parsing packets. If the client, network stack, or path marks traffic unexpectedly, the retained evidence will still claim DSCP neutrality. That can invalidate the Phase 226 baseline used for tin-separation gates.
+**Fix:** Capture a read-only observation and derive the proof from it, or explicitly downgrade the artifact name to “not requested by command-line options.” For example, run a bounded `tcpdump`/`tshark` capture on the local test host during the reference flows and fail unless parsed DSCP values are zero.
 
-```python
-ROW_RE = re.compile(r"^\s*(?P<label>pkts|drops|backlog|av_delay|pk_delay)\s+(?P<value>\S+)", re.I)
-BYTE_RE = re.compile(r"^(?P<value>[0-9.]+)(?P<unit>b|kb|mb)?$", re.I)
+### WR-02: Health `floor_hit_cycles` are summed across samples
 
-def _bytes(value: str) -> int:
-    match = BYTE_RE.match(value)
-    if not match:
-        return 0
-    raw = float(match.group("value"))
-    unit = (match.group("unit") or "b").lower()
-    return int(raw * {"b": 1, "kb": 1000, "mb": 1000_000}[unit])
-
-# inside the current-tin block
-row_match = ROW_RE.match(line)
-if row_match:
-    label = row_match.group("label").lower()
-    value = row_match.group("value")
-    if label == "pkts":
-        tins[current]["packets"] = int(value)
-    elif label == "drops":
-        tins[current]["drops"] = int(value)
-    elif label == "backlog":
-        tins[current]["backlog_bytes"] = _bytes(value)
-    elif label == "av_delay":
-        tins[current]["avg_delay_ms"] = _to_ms(*split_delay(value))
-    elif label == "pk_delay":
-        tins[current]["peak_delay_ms"] = _to_ms(*split_delay(value))
-```
-
-### WR-02: Parser test fixtures mask the real-format parser gap
-
-**File:** `tests/phase226/test_tc_qdisc_parser.py:20-31`
-**Issue:** The test asserts against synthetic `Sent`/`Dropped`/`Backlog` lines appended to the fixture rather than asserting that the parser handles the real CAKE rows (`pkts`, `drops`, `backlog`, `av_delay`, `pk_delay`). This gives false confidence and would not catch the zero-metric baseline failure in WR-01.
-**Fix:** Add a test using only real CAKE row labels, with no synthetic helper lines:
+**File:** `scripts/phase226-baseline-summary.py:202-204,291-296`
+**Issue:** `parse_health_window()` adds `floor_hit_cycles` for every health sample. If the health field is a cumulative counter or a current dwell counter, summing each sample overcounts the baseline window and can falsely trip UL-stability comparisons. The fixture currently encodes this summed behavior, so the test will preserve the overcount.
+**Fix:** Treat counter-shaped fields as deltas over the window, or explicitly parse a documented total-delta field when available. Example:
 
 ```python
-def test_tc_qdisc_parser_handles_real_cake_per_tin_rows() -> None:
-    text = """
-                   Tin 0
-  pkts             1000
-  drops              10
-  backlog         1000b
-  av_delay        0.5ms
-  pk_delay        1.0ms
-"""
-    tin = summary.parse_tc_qdisc(text)["0"]
-    assert tin.packets == 1000
-    assert tin.drops == 10
-    assert tin.backlog_bytes == 1000
-    assert tin.avg_delay_ms == 0.5
-    assert tin.peak_delay_ms == 1.0
+floor_values.append(int(upload.get("floor_hit_cycles") or spectrum.get("floor_hit_cycles") or 0))
+
+# after iterating samples
+floor_hits = max(0, max(floor_values, default=0) - min(floor_values, default=0))
 ```
+
+If `/health` exposes both cumulative and instantaneous fields, prefer the cumulative total delta and update the fixture to assert that contract.
 
 ### WR-03: Numeric validation accepts zero despite requiring positive values
 
 **File:** `scripts/phase226-baseline-capture.sh:191-193`
-**Issue:** `--runs`, `--duration`, and `--health-interval` are validated with `^[0-9]+$`, so `0` is accepted even though the error says positive integers. `--runs 0` can create an apparently valid capture with no run evidence, and `--health-interval 0` can make the poller loop as fast as possible during a live capture.
-**Fix:** Check integer values after the regex and reject zero:
+**Issue:** `--runs`, `--duration`, and `--health-interval` are validated with `^[0-9]+$`, so `0` is accepted even though the error says positive integers. `--runs 0` can create a hollow capture, and `--health-interval 0` can make the poller loop as fast as possible during live capture.
+**Fix:** Reject zero after the regex check:
 
 ```bash
 if ! [[ "$RUNS" =~ ^[0-9]+$ && "$DURATION" =~ ^[0-9]+$ && "$HEALTH_INTERVAL" =~ ^[0-9]+$ ]] \
@@ -104,11 +71,11 @@ if ! [[ "$RUNS" =~ ^[0-9]+$ && "$DURATION" =~ ^[0-9]+$ && "$HEALTH_INTERVAL" =~ 
 fi
 ```
 
-### WR-04: User-controlled remote-command parameters are not constrained
+### WR-04: User-controlled SSH/interface parameters are not allowlisted
 
 **File:** `scripts/phase226-baseline-capture.sh:58-61,162-173,253-278`; `scripts/phase226-restore.sh:168,175`; `scripts/phase226-snapshot-a.sh:188-200`
-**Issue:** CLI-controlled values such as `--ssh-host`, `--router-iface`, and `--modem-iface` are interpolated into SSH/remote shell commands. Quoting covers ordinary names, but it does not provide a mutation-boundary guarantee if a value contains shell metacharacters or if an SSH host value is parsed as an option. These scripts are operator tools, but this is still a production network control system and the wrappers should fail closed on unsafe identifiers.
-**Fix:** Add strict allowlists before any SSH call and use fixed command constructors. For example:
+**Issue:** CLI-controlled values such as `--ssh-host`, `--router-iface`, and `--modem-iface` are interpolated into SSH/remote shell commands. Existing quoting handles normal values, but it does not provide a strong mutation-boundary guarantee for unexpected metacharacters or host values beginning with `-`.
+**Fix:** Fail closed with simple allowlists before any SSH call:
 
 ```bash
 validate_safe_name() {
@@ -126,9 +93,9 @@ validate_safe_name "modem iface" "$MODEM_IFACE"
 
 ### WR-05: Health evidence is labeled redacted but written unfiltered
 
-**File:** `scripts/phase226-snapshot-a.sh:212`; `scripts/phase226-baseline-capture.sh:253,276,78-94`
-**Issue:** Snapshot A writes the health payload to `snapshot-a-health.bound.redacted.json`, and baseline capture stores `health.before.json`, `health.after.json`, and `health.window.ndjson`, but the JSON is copied directly from `/health` without recursive redaction. If the health contract grows to include config echoes, tokens, SSH metadata, or private router fields, committable evidence can leak sensitive values while appearing redacted.
-**Fix:** Pipe all health JSON/NDJSON through a recursive key-based redactor before writing committable evidence, or rename only truly unredacted private artifacts. Example redactor logic:
+**File:** `scripts/phase226-snapshot-a.sh:212`; `scripts/phase226-baseline-capture.sh:78-94,253,276`
+**Issue:** Snapshot A writes `/health` to `snapshot-a-health.bound.redacted.json`, and baseline capture commits health before/window/after payloads, but the JSON is copied directly. If the health contract grows to include config echoes, keys, tokens, or private router metadata, committable evidence can leak sensitive values while appearing redacted.
+**Fix:** Pipe health JSON and NDJSON samples through a recursive key-based redactor before writing committed artifacts:
 
 ```python
 SECRET_KEYS = ("password", "token", "secret", "api_key", "apikey", "key")
@@ -144,8 +111,26 @@ def redact(value):
     return value
 ```
 
+### WR-06: Snapshot config equality compares redacted bytes only
+
+**File:** `scripts/phase226-snapshot-a.sh:241-247,285-289`
+**Issue:** `config_equality` is set from SHA-256 values of `deployed-spectrum.redacted.yaml` and `repo-spectrum.redacted.yaml`. Two configs with different secret-bearing values can therefore report `verdict: equal` after both sides are replaced with `REDACTED`. The manifest also presents this as “Deployed Config Equality,” which can mislead rollback/evidence consumers.
+**Fix:** Rename the current verdict to `redacted_config_equality`, and add a separate raw-byte comparison when safe. At minimum, emit both labels clearly:
+
+```bash
+redacted_config_equality="diff"
+if [[ "$deployed_sha" == "$repo_sha" ]]; then
+    redacted_config_equality="equal"
+fi
+raw_repo_sha="$(artifact_sha256 configs/spectrum.yaml)"
+raw_config_equality="diff"
+if [[ "$raw_config_sha" == "$raw_repo_sha" ]]; then
+    raw_config_equality="equal"
+fi
+```
+
 ---
 
-_Reviewed: 2026-06-04T11:58:42Z_
+_Reviewed: 2026-06-04T12:57:17Z_
 _Reviewer: the agent (gsd-code-reviewer)_
 _Depth: standard_
