@@ -28,7 +28,7 @@ Each requirement maps to exactly one phase. Operator-centric framing — deliver
 ### Spectrum-Only diffserv4-wash A/B (AB)
 
 - [x] **AB-01**: Operator captures a Snapshot A rollback anchor (Spectrum config + production CAKE/qdisc state) before any production change (v1.44 / v1.46 Phase 215 precedent).
-- [ ] **AB-02**: Operator captures baseline evidence on the current `920/18 besteffort wash`: `tc -s qdisc` on spec-router and spec-modem, per-tin counters/drops/backlog/delay under load, Spectrum health/state, and RRUL/flent latency-under-load.
+- [x] **AB-02**: Operator captures baseline evidence on the current `920/18 besteffort wash`: `tc -s qdisc` on spec-router and spec-modem, per-tin counters/drops/backlog/delay under load, Spectrum health/state, and RRUL/flent latency-under-load.
 - [ ] **AB-03**: Operator can deploy candidate `diffserv4 wash` (download + upload) on Spectrum only and capture the identical evidence set under matched load for direct comparison.
 - [ ] **AB-04**: Operator can compare realtime-flow protection between baseline and candidate — marked EF UDP jitter vs unmarked UDP, plus unmarked bulk-TCP throughput and latency distribution (degrades to best-effort capture if the test rig cannot mark cleanly, but is not dropped).
 
@@ -83,7 +83,7 @@ Phase ← requirement mapping. 100% coverage: 13/13 v1.49 REQ-IDs mapped, no orp
 | DSCP-02 | Phase 225 | Complete |
 | DSCP-03 | Phase 225 | Complete |
 | AB-01 | Phase 226 | Complete |
-| AB-02 | Phase 226 | Pending |
+| AB-02 | Phase 226 | Complete |
 | GATE-01 | Phase 226 | Pending |
 | AB-03 | Phase 227 | Pending |
 | AB-04 | Phase 227 | Pending |

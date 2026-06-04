@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.49
 milestone_name: Spectrum DSCP Tinning Re-evaluation
 status: executing
-stopped_at: Completed 226-02-PLAN.md
-last_updated: "2026-06-04T11:08:29.138Z"
+stopped_at: Completed 226-01-PLAN.md
+last_updated: "2026-06-04T11:42:17.698Z"
 last_activity: 2026-06-04
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 9
-  completed_plans: 6
+  completed_plans: 7
   percent: 25
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-03 after v1.48 milestone close; v1.49
 ## Current Position
 
 Phase: 226 (baseline-capture-threshold-lock-snapshot-a) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-04
 
@@ -93,8 +93,8 @@ Re-acknowledged at v1.48 milestone close 2026-06-03 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-04T11:08:14.725Z
-Stopped at: Completed 226-02-PLAN.md
+Last session: 2026-06-04T11:41:50.831Z
+Stopped at: Completed 226-01-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -117,6 +117,8 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 - [225-05]: SAFE-13 boundary record re-run LAST (after 225-04 commits) so head_commit stamps the true final phase HEAD (62f74b2); committed JSON references the commit immediately prior to its own tracking commit — expected final-boundary parent-reference semantics, not the stale multi-commit lag GAP-4 was about (baa9b4b was 3 commits behind). passed=true with zero controller/ATT diff and all hashes byte-identical vs v1.48 (GAP-4 closed).
 - [226-02]: Snapshot A raw restore bytes remain operator-private under `/tmp/opencode/wanctl-phase226-snapshot-a-raw-20260604T1115Z` and are not committed.
 - [226-02]: Deployed and repo redacted `spectrum.yaml` SHA-256 values are equal, so Snapshot A `config_equality` verdict is `equal`.
+- [226-01]: Task 4 used the exact operator-approved forced-window reason: `operator approved forced run now at checkpoint`.
+- [226-01]: Retained baseline used `ref_host=vultr-chicago` after objective invalid `dallas` run-sets hit netperf errors/resets; discarded run-set names are recorded in the retained MANIFEST.
 
 ## Decisions (v1.48)
 
@@ -207,3 +209,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 225 P04 | ~9min | 3 tasks | 1 file |
 | Phase 225 P05 | ~3min | 1 task | 1 file |
 | Phase 226 P02 | 5min | 2 tasks | 14 files |
+| Phase 226 P01 | 19min | 4 tasks | 55 files |
