@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.49
 milestone_name: Spectrum DSCP Tinning Re-evaluation
 status: executing
-stopped_at: Completed 224-01-PLAN.md
-last_updated: "2026-06-04T03:42:26.415Z"
-last_activity: 2026-06-04 -- Phase 225 planning complete
+stopped_at: Completed 225-01-PLAN.md
+last_updated: "2026-06-04T03:50:57.395Z"
+last_activity: 2026-06-04
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-03 after v1.48 milestone close; v1.49 milestone section current)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 225 — DSCP Survival Trace (read-only precondition; DSCP-03 early-exit gates the A/B)
+**Current focus:** Phase 225 — dscp-survival-trace
 
 ## Current Position
 
-Phase: Phase 225 — DSCP Survival Trace (not started)
-Plan: —
+Phase: 225 (dscp-survival-trace) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-04 -- Phase 225 planning complete
+Last activity: 2026-06-04
 
 ## Deferred Items (carried into next milestone)
 
@@ -93,8 +93,8 @@ Re-acknowledged at v1.48 milestone close 2026-06-03 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-03T03:11:45.275Z
-Stopped at: Completed 224-01-PLAN.md
+Last session: 2026-06-04T03:50:33.185Z
+Stopped at: Completed 225-01-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -102,6 +102,11 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 ## Operator Next Steps
 
 - Start the next milestone with /gsd-new-milestone
+
+## Decisions (v1.49)
+
+- [225-01]: Counter absence on bridge `ip dscp set` rules is recorded as `bridge_counter_signal=unknown`, never `negligible`.
+- [225-01]: CRS trust and Ruckus QoS mirroring remain documented assumptions unless backed by concrete read-only artifacts and do not feed DSCP-03.
 
 ## Decisions (v1.48)
 
@@ -186,3 +191,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 223 P04 | 13 min | 6 tasks | 13 files |
 | Phase 224 P01 | 6 min | 2 tasks | 3 files |
 | Phase 224 P02 | 6 min | 2 tasks | 3 files |
+| Phase 225 P01 | 4min | 2 tasks | 2 files |
