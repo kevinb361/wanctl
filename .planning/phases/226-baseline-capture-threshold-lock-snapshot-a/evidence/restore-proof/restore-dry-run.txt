@@ -1,0 +1,26 @@
+Phase 226 Snapshot A restore dry-run proof
+Checked UTC: 2026-06-04T11:52:23Z
+
+Scope: config-artifact-equality + command-identity only.
+Not claimed: runtime qdisc restoration, sudo/install permission validity at rollback time, service-reload behavior, or live qdisc reapplication.
+
+Inputs:
+- snapshot: .planning/phases/226-baseline-capture-threshold-lock-snapshot-a/evidence/snapshot-a
+- raw_restore_source: /tmp/opencode/wanctl-phase226-snapshot-a-raw-20260604T1115Z/deployed-spectrum.yaml
+- ssh_host: cake-shaper
+
+SHA256 comparison:
+- raw_source_sha256: 9da3ea8e1d7543d93118004b8002ead56b6cf52cccda61d45ecc211469507dfc
+- repo_spectrum_yaml_sha256: 9da3ea8e1d7543d93118004b8002ead56b6cf52cccda61d45ecc211469507dfc
+- deployed_spectrum_yaml_sha256: 9da3ea8e1d7543d93118004b8002ead56b6cf52cccda61d45ecc211469507dfc
+RESTORE_EQUIVALENCE=equal
+
+Numbered restore plan (proof text only; not executed):
+1. Confirm the Snapshot A manifest and operator-private raw source are present.
+2. Apply-command text for Phase 228 rollback path: ssh cake-shaper sudo -n install -m 0640 -o root -g wanctl /dev/stdin /etc/wanctl/spectrum.yaml < <raw-dir>/deployed-spectrum.yaml
+3. Verify restored bytes during Phase 228 with a read-only remote sha256 comparison.
+
+Manifest command identity:
+- printed_apply_command: ssh cake-shaper sudo -n install -m 0640 -o root -g wanctl /dev/stdin /etc/wanctl/spectrum.yaml < <raw-dir>/deployed-spectrum.yaml
+- manifest_apply_command: ssh cake-shaper sudo -n install -m 0640 -o root -g wanctl /dev/stdin /etc/wanctl/spectrum.yaml < <raw-dir>/deployed-spectrum.yaml
+APPLY_COMMAND_MATCHES_MANIFEST=true

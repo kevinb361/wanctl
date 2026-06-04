@@ -1,0 +1,12 @@
+{
+  "checked_at": "2026-06-04T11:52:23Z",
+  "proof_scope": "config-artifact-equality + command-identity only; no runtime qdisc restoration, sudo/install permission validity, service reload, or live qdisc reapplication claim",
+  "raw_restore_source": "/tmp/opencode/wanctl-phase226-snapshot-a-raw-20260604T1115Z/deployed-spectrum.yaml",
+  "raw_source_sha256": "9da3ea8e1d7543d93118004b8002ead56b6cf52cccda61d45ecc211469507dfc",
+  "repo_spectrum_yaml_sha256": "9da3ea8e1d7543d93118004b8002ead56b6cf52cccda61d45ecc211469507dfc",
+  "deployed_spectrum_yaml_sha256": "9da3ea8e1d7543d93118004b8002ead56b6cf52cccda61d45ecc211469507dfc",
+  "restore_equivalence": "equal",
+  "printed_apply_command": "ssh cake-shaper sudo -n install -m 0640 -o root -g wanctl /dev/stdin /etc/wanctl/spectrum.yaml < <raw-dir>/deployed-spectrum.yaml",
+  "manifest_apply_command": "ssh cake-shaper sudo -n install -m 0640 -o root -g wanctl /dev/stdin /etc/wanctl/spectrum.yaml < <raw-dir>/deployed-spectrum.yaml",
+  "apply_command_matches_manifest": true
+}
