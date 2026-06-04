@@ -144,7 +144,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 225. DSCP Survival Trace | 5/5 | Complete    | 2026-06-04 |
 | 226. Baseline Capture + Threshold Lock + Snapshot A | 5/5 | Complete    | 2026-06-04 |
-| 227. Candidate diffserv4-wash Deploy + Matched Capture | 4/4 | Complete   | 2026-06-04 |
+| 227. Candidate diffserv4-wash Deploy + Matched Capture | 4/4 | Complete    | 2026-06-04 |
 | 228. Verdict + Evidence-Gated Decision + Closeout | 0/? | Not started | - |
 
 ### Coverage
