@@ -122,9 +122,9 @@ def test_matched_reference_invocations_still_target_ref_port() -> None:
     source = CAPTURE_SCRIPT.read_text(encoding="utf-8")
 
     assert 'flent -l "$DURATION" -H "$REF_HOST" --local-bind "$LOCAL_BIND"' in source
-    assert 'iperf3 -c "$REF_HOST" -p "$REF_PORT" -u -b "$REF_UDP_RATE"' in source
-    assert 'iperf3 -c "$REF_HOST" -p "$TCP_REF_PORT" -t "$((DURATION > 5 ? DURATION - 5 : DURATION))" --json' in source
-    assert 'iperf3 -c "$REF_HOST" -p "$EF_REF_PORT" -u -b "$REF_UDP_RATE"' in source
+    assert 'iperf3 -c "$IPERF_REF_HOST" -p "$REF_PORT" -u -b "$REF_UDP_RATE"' in source
+    assert 'iperf3 -c "$IPERF_REF_HOST" -p "$TCP_REF_PORT" -t "$((DURATION > 5 ? DURATION - 5 : DURATION))" --json' in source
+    assert 'iperf3 -c "$IPERF_REF_HOST" -p "$EF_REF_PORT" -u -b "$REF_UDP_RATE"' in source
 
 
 def test_tcp_ref_port_can_be_separated_for_parallel_iperf3_servers() -> None:
@@ -133,6 +133,14 @@ def test_tcp_ref_port_can_be_separated_for_parallel_iperf3_servers() -> None:
     assert "ref=dallas:5201" in output
     assert "tcp_ref=dallas:5202" in output
     assert "ef_ref_port=5203" in output
+
+
+def test_iperf_ref_host_can_differ_from_flent_ref_host() -> None:
+    output = _dry_run("--marked-ef", "--ref-host", "vultr-chicago", "--iperf-ref-host", "dallas")
+
+    assert "flent_ref=vultr-chicago" in output
+    assert "ref=dallas:5201" in output
+    assert "reflector_prerequisite=dallas:5203" in output
 
 
 def test_ef_degrade_to_best_effort_record_path_exists() -> None:

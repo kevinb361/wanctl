@@ -15,6 +15,8 @@ DRY_RUN="0"
 FORCE_WINDOW=""
 TCP_REF_PORT="5202"
 EF_REF_PORT="5203"
+REF_HOST="vultr-chicago"
+IPERF_REF_HOST="dallas"
 
 usage() {
     cat <<'EOF'
@@ -29,6 +31,8 @@ Options:
   --force-window TEXT  Pass operator-approved forced-window reason to capture harness
   --tcp-ref-port PORT  TCP bulk iperf3 reference port passed to capture harness (default: 5202)
   --ef-ref-port PORT   Marked-EF iperf3 reference port passed to capture harness (default: 5203)
+  --ref-host HOST      Flent/netperf reference host passed to capture harness (default: vultr-chicago)
+  --iperf-ref-host HOST iperf3 reference host passed to capture harness (default: dallas)
   --dry-run            Print the ordered plan and commands; mutate nothing and run no load
   --help, -h           Show this help
 
@@ -124,11 +128,11 @@ run_capture() {
     tmp_dir="${EVIDENCE_DIR}/.${label}-capture-tmp-$(date -u +%Y%m%dT%H%M%SZ)"
     mkdir -p "$EVIDENCE_DIR"
     if [[ "$DRY_RUN" == "1" ]]; then
-        echo "DRY_RUN: would run scripts/phase226-baseline-capture.sh --output-dir $tmp_dir --marked-ef --tcp-ref-port $TCP_REF_PORT --ef-ref-port $EF_REF_PORT"
+        echo "DRY_RUN: would run scripts/phase226-baseline-capture.sh --output-dir $tmp_dir --marked-ef --ref-host $REF_HOST --iperf-ref-host $IPERF_REF_HOST --tcp-ref-port $TCP_REF_PORT --ef-ref-port $EF_REF_PORT"
         echo "DRY_RUN: would move generated baseline-<UTC> tree to ${EVIDENCE_DIR}/${label}-<UTC>"
         return 0
     fi
-    local args=(--output-dir "$tmp_dir" --marked-ef --tcp-ref-port "$TCP_REF_PORT" --ef-ref-port "$EF_REF_PORT" --health-url "$HEALTH_URL" --ssh-host "$SSH_HOST")
+    local args=(--output-dir "$tmp_dir" --marked-ef --ref-host "$REF_HOST" --iperf-ref-host "$IPERF_REF_HOST" --tcp-ref-port "$TCP_REF_PORT" --ef-ref-port "$EF_REF_PORT" --health-url "$HEALTH_URL" --ssh-host "$SSH_HOST")
     if [[ -n "$FORCE_WINDOW" ]]; then
         args+=(--force-window "$FORCE_WINDOW")
     fi
@@ -195,6 +199,8 @@ while [[ $# -gt 0 ]]; do
         --force-window) FORCE_WINDOW="${2:-}"; shift 2 ;;
         --tcp-ref-port) TCP_REF_PORT="${2:-}"; shift 2 ;;
         --ef-ref-port) EF_REF_PORT="${2:-}"; shift 2 ;;
+        --ref-host) REF_HOST="${2:-}"; shift 2 ;;
+        --iperf-ref-host) IPERF_REF_HOST="${2:-}"; shift 2 ;;
         --dry-run) DRY_RUN="1"; shift ;;
         --help|-h) usage; exit 0 ;;
         precheck|baseline|flip|verify|candidate|abort|plan) SUBCOMMAND="$1"; shift ;;
