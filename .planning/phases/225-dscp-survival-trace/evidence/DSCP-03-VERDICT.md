@@ -1,8 +1,26 @@
 # DSCP-03 Gated Verdict
 
 VERDICT: MARKS_SURVIVE_QUALIFIED
+RESOLUTION: OPERATOR_OVERRIDE → PROCEED_TO_226 (Kevin Blalock, 2026-06-04)
 
 This verdict was computed from the pre-registered `225-RESEARCH.md` DSCP-03 decision logic, evaluated top-to-bottom, and not reverse-fitted to a desired outcome. The branch logic consumes only re-derived raw-evidence predicates; asserted summary flags are recorded for audit but do not decide the branch.
+
+The computed branch below (`MARKS_SURVIVE_QUALIFIED`) reflects the *empty* committed evidence set at computation time. It was subsequently superseded by a real read-only organic DL capture plus an explicit operator override — see **Operator Override (2026-06-04)** immediately below and the updated **Consequence for Phases 226-228**. The original branch reasoning is retained unaltered as the audit trail.
+
+## Operator Override (2026-06-04)
+
+The original `MARKS_SURVIVE_QUALIFIED` branch fired because the committed evidence set was EMPTY — no DL histogram, EF probe, or capture-point file had been captured yet (the absence the Phase 225 gap-closure work was about). A real read-only organic DL capture was taken afterward.
+
+**New evidence — `evidence/dscp-ingress/organic-20260604T045906Z/`:**
+
+- `organic_dl_histogram` (GATING) is now PRESENT and `WINDOW_VALID_DL=true` — 25,766 IP packets over 90 active seconds, both representative-load floors cleared. `NONBE_PKT_PCT=11.628` (≥ 5.0 positive threshold), `NONBE_BYTE_PCT=2.815`. Marked DSCP is demonstrably present at the `spec-router` DL CAKE interface and NOT washed to zero: EF (DSCP 46) 147 pkts, AF31 (DSCP 26) 1,487 pkts, CS1 (DSCP 8) 1,308 pkts.
+- `CAPTURE_POINT=unknown` / `WASH_ORDERING_PROVEN=false` — STILL unproven. The `qdisc_ordering` predicate fails on this single-root-CAKE topology (DSCP wash is internal to the one `cake … wash` root qdisc; there is no separate ingress/clsact hook qdisc to parse), and the `paired_bitflip` alternative is documented in the proof but not yet wired in the capture script (`pre_wash_dscp`/`post_wash_dscp` are inert locals).
+- `dl_ef_probe` (GATING) was not run in this organic-only capture; it remains `degraded`/unrun.
+- `ul_ef_probe`: UL histogram is 100% best-effort (corroborating-only; expected).
+
+**Decision (operator override — the option-2 path named in the Consequence section):** Kevin elected to PROCEED to Phase 226 on the strength of the organic signal rather than block on a falsifiable capture-point proof the current tooling cannot produce for this topology. Rationale: (a) 11.6% of DL packets at the CAKE interface carry non-best-effort DSCP including EF, over a valid window — marks are clearly reaching the shaper, not being stripped to zero; (b) by Linux qdisc semantics an egress `tcpdump` (AF_PACKET) hook fires before CAKE enqueue, so this observation is pre-wash on standard reasoning even though the script will not auto-certify it.
+
+**Caveat carried into Phase 226:** the capture-point conclusion is by-reasoning, not by-falsifiable-machine-check. The volume/threshold question — is the surviving marked share enough to matter under `diffserv4`? — is explicitly deferred to Phase 226 `GATE-01`, which locks accept/rollback thresholds before any production CAKE-mode change. This override does NOT lift SAFE-13 and does NOT pre-authorize the Phase 227 `diffserv4-wash` deploy; it only unblocks Phase 226 planning/baseline work.
 
 ## Branch Result
 
@@ -69,14 +87,14 @@ The negative branch (`MARKS_DO_NOT_SURVIVE`) did not fire because it requires BO
 
 ## Consequence for Phases 226-228
 
-Phase 226 is **BLOCKED by default**. `MARKS_SURVIVE_QUALIFIED` is a HOLD state, not "marks survive". It neither unblocks Phase 226, which touches production config, nor closes the milestone negative.
+Phase 226 is **UNBLOCKED via the operator override recorded above (2026-06-04)**. The computed branch was `MARKS_SURVIVE_QUALIFIED` (a HOLD state); the operator exercised option 2 below — an explicit proceed-with-caveat override — on the strength of the organic DL evidence, deferring the volume question to Phase 226 `GATE-01`.
 
-REQUIRED operator decision before Phase 226 may proceed:
+The two options the HOLD state offered were:
 
-1. collect better evidence and re-run Phase 225 capture/verdict to reach a clear `MARKS_SURVIVE` or `MARKS_DO_NOT_SURVIVE`; or
-2. record an explicit operator override to proceed-with-caveat, deferring the volume question to Phase 226 `GATE-01`.
+1. collect better evidence and re-run Phase 225 capture/verdict to reach a clear `MARKS_SURVIVE` or `MARKS_DO_NOT_SURVIVE` (a falsifiable capture-point proof would require wiring the `paired_bitflip` method, which the current capture script does not yet implement for this single-root-CAKE topology); or
+2. **[CHOSEN]** record an explicit operator override to proceed-with-caveat, deferring the volume question to Phase 226 `GATE-01`.
 
-The verdict does not take that override automatically.
+This is an explicit human decision, not an automatic branch flip. The override is scoped to unblocking Phase 226 planning/baseline work. It does NOT lift the SAFE-13 controller-path invariant and does NOT pre-authorize the Phase 227 `diffserv4-wash` production deploy; those remain gated on the pre-registered `GATE-01` thresholds and the Phase 228 evidence-gated decision.
 
 ## Read-only Boundary
 
