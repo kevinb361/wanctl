@@ -1,0 +1,34 @@
+{
+  "thresholds_schema_version": 1,
+  "RRUL_P99_REGRESSION_PCT": 5.0,
+  "RESTART_RATE_INCREASE_PCT": 10.0,
+  "TRANSITION_RATE_INCREASE_PCT": 10.0,
+  "UL_STABILITY": {
+    "UL_P99_REGRESSION_PCT": 5.0,
+    "FLOOR_CHURN_NO_INCREASE": true,
+    "BASELINE_COMPARISON_METRICS": [
+      "floor_hit_cycles",
+      "soft_red_dwell"
+    ],
+    "FAIL_IF_ANY_METRIC_INCREASES_VS_BASELINE": true
+  },
+  "TIN_SEPARATION": {
+    "OCCUPANCY_REQUIRED": true,
+    "OCCUPANCY_METRICS": [
+      "non_be_packets",
+      "non_be_sojourn"
+    ],
+    "DELAY_GAP_REQUIRED": true,
+    "DELAY_GAP_METRICS": [
+      "per_tin_queue_delay",
+      "per_tin_backlog"
+    ],
+    "MAGNITUDE_RULE": "non-BE vs BE per-tin delay gap must exceed the Snapshot A baseline 3-run spread",
+    "NOISE_BAND_MS": {
+      "value": null,
+      "source": "phase226 baseline-summary.json tin_queue_delay_spread_ms",
+      "derivation": "max non-BE-vs-BE per-tin delay gap noise band from Snapshot A 3-run spread"
+    }
+  },
+  "_notes": "GATE-01 single source of truth. GATE-01-THRESHOLDS.md is the prose provenance record and must not duplicate numeric literals. Thresholds are pre-registered and locked before any Phase 227 candidate deploy; Task 1 freezes the tin-separation rule and Task 3 fills only the baseline-derived NOISE_BAND_MS constant."
+}
