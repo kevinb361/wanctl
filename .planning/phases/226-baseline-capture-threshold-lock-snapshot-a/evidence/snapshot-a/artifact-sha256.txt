@@ -1,0 +1,11 @@
+97bd6f0d170601f1196cdaa3d36540715a95c9e85d3af44e3a484627e04b4f9f  /home/kevin/projects/wanctl/.planning/phases/226-baseline-capture-threshold-lock-snapshot-a/evidence/snapshot-a/deployed-spectrum.redacted.yaml
+97bd6f0d170601f1196cdaa3d36540715a95c9e85d3af44e3a484627e04b4f9f  /home/kevin/projects/wanctl/.planning/phases/226-baseline-capture-threshold-lock-snapshot-a/evidence/snapshot-a/repo-spectrum.redacted.yaml
+cf858eb534db8ecd5f0473b5482e9b6ebdbbf2a6a38c7fa839c7cb1ca8986e4f  /home/kevin/projects/wanctl/.planning/phases/226-baseline-capture-threshold-lock-snapshot-a/evidence/snapshot-a/tc-qdisc-spec-router.txt
+438a3339aee9007dbb7aaf51a95763f2d7b8a20429f161eec1385b9a426dcd2b  /home/kevin/projects/wanctl/.planning/phases/226-baseline-capture-threshold-lock-snapshot-a/evidence/snapshot-a/tc-qdisc-spec-modem.txt
+e41927a92247676969ddc838c8000e67019141aebdfa0baa46ab0c8a6432422e  /home/kevin/projects/wanctl/.planning/phases/226-baseline-capture-threshold-lock-snapshot-a/evidence/snapshot-a/bridge-qos.live.txt
+4adcd458ce054d16299dec751cf1ba6c6697afb2f1d5e548dc865adcb1ac54b7  /home/kevin/projects/wanctl/.planning/phases/226-baseline-capture-threshold-lock-snapshot-a/evidence/snapshot-a/repo-bridge-qos.nft
+b8e0905abcb21bcacd03278edf3220d9f660a5c37c5472ea5bf6f617274262de  /home/kevin/projects/wanctl/.planning/phases/226-baseline-capture-threshold-lock-snapshot-a/evidence/snapshot-a/pre-deploy-git-ref.txt
+368f4c2e5fa115f9803315d812bab4be7531f8b7ede95e0a7496b139c8971e2c  /home/kevin/projects/wanctl/.planning/phases/226-baseline-capture-threshold-lock-snapshot-a/evidence/snapshot-a/snapshot-a-health.bound.redacted.json
+6df8365456c89c6c24906f4f97806bcdd7b1ca4e638988d2629e61550115339d  /home/kevin/projects/wanctl/.planning/phases/226-baseline-capture-threshold-lock-snapshot-a/evidence/snapshot-a/repo-version.txt
+9da3ea8e1d7543d93118004b8002ead56b6cf52cccda61d45ecc211469507dfc  /tmp/opencode/wanctl-phase226-snapshot-a-raw-20260604T1115Z/deployed-spectrum.yaml
+cecf787ad5b61f588109cd73368acaa2bf0c0622293a4516960d3b6101637245  /tmp/opencode/wanctl-phase226-snapshot-a-raw-20260604T1115Z/deployed-spectrum.source-path.txt

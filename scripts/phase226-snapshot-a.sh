@@ -82,11 +82,7 @@ with open(src) as in_fh, open(dst, "w") as out_fh:
     for line in in_fh:
         match = secret_key.match(line)
         if match:
-            suffix = ""
-            value = match.group(2).rstrip("\n")
-            if " #" in value:
-                suffix = " #" + value.split(" #", 1)[1]
-            out_fh.write(f"{match.group(1)}REDACTED{suffix}\n")
+            out_fh.write(f"{match.group(1)}REDACTED\n")
         else:
             out_fh.write(line)
 PY

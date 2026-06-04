@@ -1,0 +1,138 @@
+#!/usr/sbin/nft -f
+#
+# wanctl Bridge QoS -- nftables DSCP classification for CAKE diffserv4 tins
+#
+# Classifies download packets traversing the Linux bridge into CAKE tins
+# by setting the IP DSCP field before packets reach the CAKE egress qdisc.
+#
+# Deployed to: /etc/wanctl/bridge-qos.nft
+# Loaded by:   wanctl-bridge-qos.sh (via systemd oneshot)
+#
+# CAKE diffserv4 tin mapping:
+#   Voice:       EF (46), CS5 (40), CS6 (48), CS7 (56)
+#   Video:       AF4x (34,36,38), CS4 (32)
+#   Best Effort: CS0 (0), AF1x-AF3x
+#   Bulk:        CS1 (8), LE (1)
+#
+# Bridge NIC topology:
+#   Spectrum download: iif spec-modem (modem) -> oif spec-router (router)
+#   ATT download:      iif att-modem (modem) -> oif att-router (router)
+#
+# Connection marks:
+#   0x00000004 = Voice (EF)
+#   0x00000002 = Video (AF41)
+#   0x00000001 = Bulk  (CS1)
+#   0x00000000 = unclassified (Best Effort, default)
+#
+
+# Idempotent reload: create table if absent, delete to clear stale
+# rules/chains, then recreate with current ruleset
+table bridge qos
+delete table bridge qos
+
+table bridge qos {
+
+    # -----------------------------------------------------------------------
+    # Spectrum download classification (ens16 modem -> ens17 router)
+    # -----------------------------------------------------------------------
+    chain spectrum_dl {
+
+        # --- Trust endpoint-set DSCP (D-06/D-07) ---
+        # Packets with non-zero DSCP (e.g., VoIP phone EF) pass untouched
+        ether type ip ip dscp != 0 accept
+
+        # --- Restore DSCP from connection mark (D-05) ---
+        # Previously classified flows get their DSCP re-applied without
+        # re-running classification rules on every packet
+        ether type ip ct mark 0x00000004 ip dscp set ef accept
+        ether type ip ct mark 0x00000002 ip dscp set af41 accept
+        ether type ip ct mark 0x00000001 ip dscp set cs1 accept
+
+        # --- Voice classification (new connections only, D-02) ---
+        # DNS responses
+        ether type ip ct state new udp sport 53 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new tcp sport 53 ip dscp set ef ct mark set 0x00000004 accept
+        # SIP signaling
+        ether type ip ct state new udp sport 5060 ip dscp set ef ct mark set 0x00000004 accept
+        # RTP media (standard dynamic port range)
+        ether type ip ct state new udp sport 16384-32767 ip dscp set ef ct mark set 0x00000004 accept
+        # Interactive control / tunneling / NAT traversal
+        ether type ip ct state new tcp sport 22 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 123 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 3478-3480 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 51820 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp dport 51820 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 4500 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 500 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 9993 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp dport 9993 ip dscp set ef ct mark set 0x00000004 accept
+
+        # --- Video classification (new connections only) ---
+        # QUIC/HTTPS media and large adaptive streaming flows land in Video first.
+        ether type ip ct state new udp sport 443 ip dscp set af41 ct mark set 0x00000002 accept
+
+        # --- Bulk classification (new connections only, D-03) ---
+        # BitTorrent
+        ether type ip ct state new tcp sport 6881-6889 ip dscp set cs1 ct mark set 0x00000001 accept
+        # Usenet NNTPS
+        ether type ip ct state new tcp sport 563 ip dscp set cs1 ct mark set 0x00000001 accept
+        # NNTP
+        ether type ip ct state new tcp sport 119 ip dscp set cs1 ct mark set 0x00000001 accept
+
+        # --- Large-flow demotion ---
+        # Unclassified flows move to Video after 10MB, then Bulk after 100MB.
+        ether type ip ct bytes > 100000000 ct mark 0 ip dscp set cs1 ct mark set 0x00000001
+        ether type ip ct bytes > 10000000 ct mark 0 ip dscp set af41 ct mark set 0x00000002
+
+        # Unmatched packets fall through with DSCP 0 (Best Effort, D-04)
+    }
+
+    # -----------------------------------------------------------------------
+    # ATT download classification (ens27 modem -> ens28 router)
+    # -----------------------------------------------------------------------
+    chain att_dl {
+
+        # --- Trust endpoint-set DSCP (D-06/D-07) ---
+        ether type ip ip dscp != 0 accept
+
+        # --- Restore DSCP from connection mark (D-05) ---
+        ether type ip ct mark 0x00000004 ip dscp set ef accept
+        ether type ip ct mark 0x00000002 ip dscp set af41 accept
+        ether type ip ct mark 0x00000001 ip dscp set cs1 accept
+
+        # --- Voice classification (new connections only, D-02) ---
+        ether type ip ct state new udp sport 53 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new tcp sport 53 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 5060 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 16384-32767 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new tcp sport 22 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 123 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct state new udp sport 3478-3480 ip dscp set ef ct mark set 0x00000004 accept
+
+        # --- Video classification (new connections only) ---
+        ether type ip ct state new udp sport 443 ip dscp set af41 ct mark set 0x00000002 accept
+
+        # --- Bulk classification (new connections only, D-03) ---
+        ether type ip ct state new tcp sport 6881-6889 ip dscp set cs1 ct mark set 0x00000001 accept
+        ether type ip ct state new tcp sport 563 ip dscp set cs1 ct mark set 0x00000001 accept
+        ether type ip ct state new tcp sport 119 ip dscp set cs1 ct mark set 0x00000001 accept
+
+        # --- Large-flow demotion ---
+        ether type ip ct bytes > 100000000 ct mark 0 ip dscp set cs1 ct mark set 0x00000001
+        ether type ip ct bytes > 10000000 ct mark 0 ip dscp set af41 ct mark set 0x00000002
+    }
+
+    # -----------------------------------------------------------------------
+    # Forward chain -- dispatch to per-WAN classification chains
+    # Priority -10 fires before any default priority 0 chains
+    # -----------------------------------------------------------------------
+    chain forward {
+        type filter hook forward priority -10; policy accept;
+
+        # Spectrum download path
+        iif spec-modem oif spec-router jump spectrum_dl
+
+        # ATT download path
+        iif att-modem oif att-router jump att_dl
+    }
+}
