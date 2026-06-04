@@ -71,7 +71,13 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
   3. Operator has pre-registered GATE-01 accept/rollback thresholds locked before any candidate deploy: RRUL p99 latency regression tolerance (per the v1.44 rollback gate, >5%), daemon restart-rate, pressure-state transition-rate, upload stability, and useful non-BestEffort tin separation — recorded in a committed artifact so the verdict cannot be reverse-fitted.
   4. No candidate `diffserv4 wash` is deployed in this phase — baseline + anchor + locked thresholds only; the candidate deploy is reserved for Phase 227.
   5. SAFE-13 verified at phase boundary: zero controller-path source diff vs v1.48 close; ATT config byte-identical.
-**Plans:** TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 226-01-PLAN.md — Baseline evidence capture: 3-run flent RRUL + per-tin counters/spread on `920/18 besteffort wash` (AB-02) [Wave 1]
+- [ ] 226-02-PLAN.md — Snapshot A rollback anchor: `phase226-snapshot-a.sh` capturing Spectrum CAKE/qdisc + spectrum.yaml + bridge nft (AB-01) [Wave 1]
+- [ ] 226-03-PLAN.md — GATE-01 threshold lock: `phase226-thresholds.json` pre-registered accept/rollback gates (GATE-01) [Wave 1]
+- [ ] 226-04-PLAN.md — Dry-run restore proof (no CAKE-mode change) + SAFE-13 phase-boundary verification (AB-01, SAFE-13) [Wave 2, depends on 226-02]
 
 #### Phase 227: Candidate diffserv4-wash Deploy + Matched Capture
 
