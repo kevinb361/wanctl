@@ -111,11 +111,11 @@ Plans:
   3. The candidate is deployed via config (`configs/spectrum.yaml`) + the existing `allow_wash` gate / tin-agnostic CAKE signal (v1.44 Phase 205) — no controller algorithm change is required to drive `diffserv4 wash`.
   4. SAFE-13 verified at phase boundary: zero controller-path source diff vs v1.48 close; ATT config byte-identical. The cake-shaper bridge nftables rules MAY change; controller path MUST NOT.
 
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 **Wave 1** *(parallel — tooling, no production mutation)*
 - [x] 227-01-PLAN.md — Additive `--marked-ef` arm on the 226 capture harness + summary EF fields (AB-04, D-03/D-04/D-05)
-- [ ] 227-02-PLAN.md — phase227 qdisc-verify gate: assert diffserv4 on both NICs, abort on mismatch (AB-03, D-01)
+- [x] 227-02-PLAN.md — phase227 qdisc-verify gate: assert diffserv4 on both NICs, abort on mismatch (AB-03, D-01)
 
 **Wave 2** *(blocked on Wave 1 — the only production mutation; checkpoint-gated)*
 - [ ] 227-03-PLAN.md — D-07 capture sequence: besteffort+EF on anchor → flip+verify → candidate+EF → leave live, with the D-09 armed Snapshot-A abort (AB-03, AB-04, D-01/D-02/D-06/D-07/D-08/D-09)
@@ -144,7 +144,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 225. DSCP Survival Trace | 5/5 | Complete    | 2026-06-04 |
 | 226. Baseline Capture + Threshold Lock + Snapshot A | 5/5 | Complete    | 2026-06-04 |
-| 227. Candidate diffserv4-wash Deploy + Matched Capture | 1/4 | In Progress|  |
+| 227. Candidate diffserv4-wash Deploy + Matched Capture | 2/4 | In Progress|  |
 | 228. Verdict + Evidence-Gated Decision + Closeout | 0/? | Not started | - |
 
 ### Coverage
