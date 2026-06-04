@@ -92,6 +92,7 @@ def test_marked_ef_dry_run_reports_distinct_default_port() -> None:
     assert "marked_ef enabled" in output
     assert "ef_ref_port=5203" in output
     assert "ref=dallas:5201" in output
+    assert "tcp_ref=dallas:5201" in output
     assert "reflector_prerequisite=dallas:5203" in output
 
 
@@ -122,8 +123,16 @@ def test_matched_reference_invocations_still_target_ref_port() -> None:
 
     assert 'flent -l "$DURATION" -H "$REF_HOST" --local-bind "$LOCAL_BIND"' in source
     assert 'iperf3 -c "$REF_HOST" -p "$REF_PORT" -u -b "$REF_UDP_RATE"' in source
-    assert 'iperf3 -c "$REF_HOST" -p "$REF_PORT" -t "$((DURATION > 5 ? DURATION - 5 : DURATION))" --json' in source
+    assert 'iperf3 -c "$REF_HOST" -p "$TCP_REF_PORT" -t "$((DURATION > 5 ? DURATION - 5 : DURATION))" --json' in source
     assert 'iperf3 -c "$REF_HOST" -p "$EF_REF_PORT" -u -b "$REF_UDP_RATE"' in source
+
+
+def test_tcp_ref_port_can_be_separated_for_parallel_iperf3_servers() -> None:
+    output = _dry_run("--marked-ef", "--tcp-ref-port", "5202", "--ef-ref-port", "5203")
+
+    assert "ref=dallas:5201" in output
+    assert "tcp_ref=dallas:5202" in output
+    assert "ef_ref_port=5203" in output
 
 
 def test_ef_degrade_to_best_effort_record_path_exists() -> None:
