@@ -6,8 +6,8 @@ Provenance: D-07 RRUL + concurrent unmarked UDP/TCP references; D-08 3 runs x 60
 
 | Interface | Tin | Mean packets DELTA | Mean drops DELTA | Mean backlog DELTA bytes | Mean DELTA delay ms | tin_queue_delay_spread_ms | Stddev ms |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| spec-modem | 0 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 |
-| spec-router | 0 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 |
+| spec-modem | 0 | 168844.000 | 21.667 | 30679.333 | 9.085 | 24.206 | 11.190 |
+| spec-router | 0 | 686159.333 | 1.667 | 0.000 | 0.069 | 0.105 | 0.044 |
 
 ## baseline_window
 

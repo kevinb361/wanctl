@@ -41,98 +41,98 @@
   "interfaces": {
     "spec-modem": {
       "0": {
-        "mean_backlog_bytes_delta": 0.0,
-        "mean_delay_delta_ms": 0.0,
-        "mean_drops_delta": 0.0,
-        "mean_packets_delta": 0.0,
+        "mean_backlog_bytes_delta": 30679.333333333332,
+        "mean_delay_delta_ms": 9.084666666666665,
+        "mean_drops_delta": 21.666666666666668,
+        "mean_packets_delta": 168844.0,
         "runs": [
           {
             "after_backlog_bytes_delta": 0,
-            "after_drops_delta": 0,
-            "after_minus_before_ge_during": true,
-            "after_packets_delta": 0,
-            "avg_delay_ms": 0.0,
-            "backlog_bytes_delta": 0,
-            "drops_delta": 0,
-            "packets_delta": 0,
-            "peak_delay_ms": 0.0,
+            "after_drops_delta": 60,
+            "after_minus_before_ge_during": false,
+            "after_packets_delta": 329097,
+            "avg_delay_ms": 0.694,
+            "backlog_bytes_delta": 1844,
+            "drops_delta": 5,
+            "packets_delta": 158551,
+            "peak_delay_ms": 3.78,
             "tin": "0"
           },
           {
             "after_backlog_bytes_delta": 0,
-            "after_drops_delta": 0,
-            "after_minus_before_ge_during": true,
-            "after_packets_delta": 0,
-            "avg_delay_ms": 0.0,
-            "backlog_bytes_delta": 0,
-            "drops_delta": 0,
-            "packets_delta": 0,
-            "peak_delay_ms": 0.0,
+            "after_drops_delta": 46,
+            "after_minus_before_ge_during": false,
+            "after_packets_delta": 361528,
+            "avg_delay_ms": 1.66,
+            "backlog_bytes_delta": 8306,
+            "drops_delta": 16,
+            "packets_delta": 176266,
+            "peak_delay_ms": 5.44,
             "tin": "0"
           },
           {
             "after_backlog_bytes_delta": 0,
-            "after_drops_delta": 0,
-            "after_minus_before_ge_during": true,
-            "after_packets_delta": 0,
-            "avg_delay_ms": 0.0,
-            "backlog_bytes_delta": 0,
-            "drops_delta": 0,
-            "packets_delta": 0,
-            "peak_delay_ms": 0.0,
+            "after_drops_delta": 135,
+            "after_minus_before_ge_during": false,
+            "after_packets_delta": 360671,
+            "avg_delay_ms": 24.9,
+            "backlog_bytes_delta": 81888,
+            "drops_delta": 44,
+            "packets_delta": 171715,
+            "peak_delay_ms": 97.3,
             "tin": "0"
           }
         ],
-        "stddev_ms": 0.0,
-        "tin_queue_delay_spread_ms": 0.0
+        "stddev_ms": 11.190080885419114,
+        "tin_queue_delay_spread_ms": 24.206
       }
     },
     "spec-router": {
       "0": {
         "mean_backlog_bytes_delta": 0.0,
-        "mean_delay_delta_ms": 0.0,
-        "mean_drops_delta": 0.0,
-        "mean_packets_delta": 0.0,
+        "mean_delay_delta_ms": 0.069,
+        "mean_drops_delta": 1.6666666666666667,
+        "mean_packets_delta": 686159.3333333334,
         "runs": [
           {
             "after_backlog_bytes_delta": 0,
             "after_drops_delta": 0,
             "after_minus_before_ge_during": true,
-            "after_packets_delta": 0,
-            "avg_delay_ms": 0.0,
+            "after_packets_delta": 1409929,
+            "avg_delay_ms": 0.054,
             "backlog_bytes_delta": 0,
             "drops_delta": 0,
-            "packets_delta": 0,
-            "peak_delay_ms": 0.0,
+            "packets_delta": 687621,
+            "peak_delay_ms": 0.131,
             "tin": "0"
           },
           {
             "after_backlog_bytes_delta": 0,
             "after_drops_delta": 0,
             "after_minus_before_ge_during": true,
-            "after_packets_delta": 0,
-            "avg_delay_ms": 0.0,
+            "after_packets_delta": 1424804,
+            "avg_delay_ms": 0.129,
             "backlog_bytes_delta": 0,
             "drops_delta": 0,
-            "packets_delta": 0,
-            "peak_delay_ms": 0.0,
+            "packets_delta": 688749,
+            "peak_delay_ms": 0.233,
             "tin": "0"
           },
           {
             "after_backlog_bytes_delta": 0,
-            "after_drops_delta": 0,
+            "after_drops_delta": 5,
             "after_minus_before_ge_during": true,
-            "after_packets_delta": 0,
-            "avg_delay_ms": 0.0,
+            "after_packets_delta": 1443778,
+            "avg_delay_ms": 0.024,
             "backlog_bytes_delta": 0,
-            "drops_delta": 0,
-            "packets_delta": 0,
-            "peak_delay_ms": 0.0,
+            "drops_delta": 5,
+            "packets_delta": 682108,
+            "peak_delay_ms": 0.116,
             "tin": "0"
           }
         ],
-        "stddev_ms": 0.0,
-        "tin_queue_delay_spread_ms": 0.0
+        "stddev_ms": 0.04415880433163923,
+        "tin_queue_delay_spread_ms": 0.10500000000000001
       }
     }
   },
