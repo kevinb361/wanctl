@@ -1,0 +1,35 @@
+qdisc cake 8001: root refcnt 2 bandwidth 920Mbit besteffort triple-isolate wash no-ack-filter split-gso rtt 100ms raw overhead 18 mpu 64
+ Sent 1000000 bytes 1000 pkt (dropped 10, overlimits 0 requeues 0)
+ backlog 1000b 2p requeues 0
+ memory used: 1024b of 64Mb
+ capacity estimate: 920Mbit
+ min/max network layer size:           60 /    1514
+ min/max overhead-adjusted size:       82 /    1536
+ average network hdr offset:           14
+
+                   Tin 0
+  thresh        920Mbit
+  target          5.0ms
+  interval      100.0ms
+  pk_delay        1.0ms
+  av_delay        0.5ms
+  sp_delay        0.1ms
+  backlog         1000b
+  pkts             1000
+  bytes         1000000
+  way_inds            0
+  way_miss            1
+  way_cols            0
+  drops              10
+  marks               0
+  ack_drop            0
+  sp_flows            1
+  bk_flows            0
+  un_flows            0
+  max_len          1514
+  quantum          1514
+  Sent 1000 bytes 100 pkt
+  Dropped 10
+  Backlog 1000 bytes
+  Avge delay 0.5ms
+  Peak delay 1.0ms

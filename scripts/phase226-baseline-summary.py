@@ -22,7 +22,8 @@ from typing import Any
 
 
 TIN_RE = re.compile(r"^\s*Tin\s+(?P<name>\S+)")
-KV_RE = re.compile(r"(?P<key>Sent|Dropped|Backlog)\s+(?P<value>[0-9]+)")
+SENT_RE = re.compile(r"Sent\s+(?P<bytes>[0-9]+)\s+bytes\s+(?P<packets>[0-9]+)\s+pkt")
+SIMPLE_KV_RE = re.compile(r"(?P<key>Dropped|Backlog)\s+(?P<value>[0-9]+)")
 DELAY_RE = re.compile(r"(?P<label>Avge|Peak)\s+delay\s+(?P<value>[0-9.]+)(?P<unit>us|ms|s)")
 
 
@@ -57,13 +58,14 @@ def parse_tc_qdisc(text: str) -> dict[str, TinCounters]:
             continue
         if current is None:
             continue
-        kv_match = KV_RE.search(line)
+        sent_match = SENT_RE.search(line)
+        if sent_match:
+            tins[current]["packets"] = int(sent_match.group("packets"))
+        kv_match = SIMPLE_KV_RE.search(line)
         if kv_match:
             key = kv_match.group("key")
             value = int(kv_match.group("value"))
-            if key == "Sent":
-                tins[current]["packets"] = value
-            elif key == "Dropped":
+            if key == "Dropped":
                 tins[current]["drops"] = value
             elif key == "Backlog":
                 tins[current]["backlog_bytes"] = value
@@ -143,7 +145,9 @@ def parse_health_window(path: Path) -> dict[str, Any]:
     last_restart: float | int | None = None
 
     for sample in samples:
-        restart_value = sample.get("restart_count") or sample.get("daemon_restart_count")
+        restart_value = sample.get("restart_count")
+        if restart_value is None:
+            restart_value = sample.get("daemon_restart_count")
         if restart_value is None:
             restart_value = sample.get("process", {}).get("restart_count") if isinstance(sample.get("process"), dict) else None
         if isinstance(restart_value, (int, float)):
