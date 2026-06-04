@@ -63,6 +63,14 @@ require_command() {
     fi
 }
 
+validate_iface() {
+    local iface="$1"
+    if [[ ! "$iface" =~ ^[A-Za-z0-9_.:-]+$ ]]; then
+        echo "ERROR: unsafe interface name: $iface" >&2
+        exit 2
+    fi
+}
+
 remote_read() {
     local cmd="$1"
     ssh -o BatchMode=yes "$SSH_HOST" "sudo -n $cmd"
@@ -250,6 +258,8 @@ if ! [[ "$RUNS" =~ ^[0-9]+$ && "$DURATION" =~ ^[0-9]+$ && "$HEALTH_INTERVAL" =~ 
     echo "ERROR: --runs, --duration, and --health-interval must be positive integers" >&2
     exit 2
 fi
+validate_iface "$ROUTER_IFACE"
+validate_iface "$MODEM_IFACE"
 if [[ "$MARKED_EF" == "1" && -z "$EF_REF_PORT" ]]; then
     if [[ "$REF_PORT" =~ ^[0-9]+$ ]]; then
         EF_REF_PORT="$((REF_PORT + 2))"
