@@ -40,7 +40,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
 
 **Phase Numbering:** Continues from v1.48 last phase (224). v1.49 starts at Phase 225.
 
-- [ ] **Phase 225: DSCP Survival Trace** — Read-only end-to-end trace of where DSCP is set / preserved / stripped (CRS trust maps → Ruckus QoS mirroring → cake-shaper bridge → CAKE ingress), the observed DSCP distribution at Spectrum CAKE ingress under representative + deliberately-marked (EF) traffic, and a gated verdict: marks survive (proceed to A/B) or marks don't (early-exit confirming v1.44).
+- [x] **Phase 225: DSCP Survival Trace** — Read-only end-to-end trace of where DSCP is set / preserved / stripped (CRS trust maps → Ruckus QoS mirroring → cake-shaper bridge → CAKE ingress), the observed DSCP distribution at Spectrum CAKE ingress under representative + deliberately-marked (EF) traffic, and a gated verdict: marks survive (proceed to A/B) or marks don't (early-exit confirming v1.44). (completed 2026-06-04)
 - [ ] **Phase 226: Baseline Capture + Threshold Lock + Snapshot A** — Snapshot A rollback anchor, full baseline evidence on the current `920/18 besteffort wash`, and pre-registered GATE-01 accept/rollback thresholds locked before any candidate deploy. Gated on a "marks survive" verdict from Phase 225.
 - [ ] **Phase 227: Candidate diffserv4-wash Deploy + Matched Capture** — Spectrum-only `diffserv4 wash` (DL+UL) deployed under the Snapshot A anchor, with the identical evidence set captured under matched load plus a realtime-flow protection comparison (marked EF UDP vs unmarked UDP vs unmarked bulk TCP).
 - [ ] **Phase 228: Verdict + Evidence-Gated Decision + Closeout** — Verdict computed against the locked GATE-01 thresholds; explicit accept/reject decision; the evidence-gated SAFE-13-lift call; rollback to `besteffort wash` with Snapshot A restoration if any trigger fires; closeout recorded in `docs/BRIDGE_QOS.md`, `configs/spectrum.yaml`, and `CHANGELOG.md`.
@@ -58,7 +58,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
   3. Operator gets a gated DSCP-03 verdict: if marks do NOT survive to CAKE ingress, an early-exit finding ("diffserv4 remains classification theater — v1.44 confirmed") that short-circuits the A/B as unnecessary and lets the milestone close negative; if marks DO survive, an explicit "proceed to A/B" gate that unblocks Phase 226.
   4. No external network gear is mutated and no Spectrum CAKE-mode change is deployed in this phase — trace and capture only.
   5. SAFE-13 verified at phase boundary: zero controller-path source diff vs v1.48 close (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion all byte-identical); ATT config byte-identical.
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 #### Phase 226: Baseline Capture + Threshold Lock + Snapshot A
 
@@ -102,7 +102,7 @@ Controller-path source — `wan_controller.py`, `queue_controller.py`, `cake_sig
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 225. DSCP Survival Trace | 2/3 | In Progress|  |
+| 225. DSCP Survival Trace | 3/3 | Complete   | 2026-06-04 |
 | 226. Baseline Capture + Threshold Lock + Snapshot A | 0/? | Not started | - |
 | 227. Candidate diffserv4-wash Deploy + Matched Capture | 0/? | Not started | - |
 | 228. Verdict + Evidence-Gated Decision + Closeout | 0/? | Not started | - |
