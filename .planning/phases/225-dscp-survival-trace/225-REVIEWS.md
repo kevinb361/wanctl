@@ -22,6 +22,13 @@ cycles:
     prior_high_partial: 1      # HIGH-C (capture-point proof not yet falsifiable)
     new_high_raised: 1         # DL EF probe lacks source-side DSCP proof
     high_unresolved: 2
+  - cycle: 4
+    reviewed_at: 2026-06-03T22:20:00Z
+    base_commit: 0b1528c
+    prior_high_resolved: 0     # both cycle-3 HIGHs only PARTIALLY resolved (narrative logic sound, enforcement not auditable)
+    prior_high_partial: 2      # DL EF source-side proof; falsifiable capture-point proof
+    new_high_raised: 2         # DL_SOURCE_EF_PROVEN opaque/circular; WASH_ORDERING_PROVEN tc-alternative under-specified
+    high_unresolved: 2
 ---
 
 # Cross-AI Plan Review — Phase 225 (DSCP Survival Trace)
@@ -451,3 +458,115 @@ Feed back into planning:
 Both remaining HIGHs are evidence-integrity gaps on the two DL gating channels (capture-point proof +
 DL EF source-side proof), not scripting or architecture issues. Resolve both — and the two MEDIUM
 cleanups — before any live capture, since both feed the milestone-closing negative-close AND.
+
+---
+
+# ============================ CYCLE 4 (thrice-revised plans, commit 0b1528c) ============================
+
+**Reviewed:** 2026-06-03T22:20:00Z · **Reviewer:** Codex (single external reviewer) · **Base commit:** 0b1528c
+`docs(225): replan cycle-3 — resolve DL-gating HIGH-1/HIGH-2 + 2 MEDIUMs`
+
+Cycle 4 is the final-override convergence check. The cycle-3 replan claimed to resolve the last 2 HIGHs
+(DL EF source-side proof; falsifiable pre-wash capture point) plus the 2 MEDIUMs (stale RESEARCH:76
+counter prose; SAFE-13 `backends/` per-file expansion). Codex was asked to verify each cycle-3 HIGH as
+FULLY / PARTIALLY / UNRESOLVED and surface any new or remaining HIGHs — with emphasis on residual
+false-negative paths into `MARKS_DO_NOT_SURVIVE` and any way the gating booleans could be trivially or
+circularly satisfied.
+
+## Disposition of the 2 cycle-3 HIGHs + 2 MEDIUMs
+
+| Item | Cycle-3 concern | Cycle-4 disposition | Evidence (reviewer + verified against plan text) |
+|------|-----------------|---------------------|--------------------------------------------------|
+| HIGH-1 | DL EF probe lacks source-side DSCP proof | **PARTIALLY RESOLVED** | Negative branch now requires `DL_SOURCE_EF_PROVEN=true` (225-03:168-169, 179; RESEARCH:170-172, 198-201). But 225-02 acceptance (225-02:177) only requires the two SUMMARY fields `EF_PKTS_AT_SOURCE=` + `DL_SOURCE_EF_PROVEN=true|false` be recorded — NOT the underlying source-side total packets, source EF %, source capture point/proof, or a source-side pcap artifact the 225-03 verdict can independently validate. The verdict consumes the boolean; it does not recompute or reject. |
+| HIGH-2 | Capture-point proof not falsifiable | **PARTIALLY RESOLVED** | The paired pre/post-wash 5-tuple bit-set/bit-cleared check (225-02:91-97; RESEARCH:228-234) IS falsifiable and fail-safe. But the ALTERNATE `tc -d qdisc/filter show` "equivalent positive demonstration" (225-02:98-100; RESEARCH:234) is under-specified — no exact machine-checkable pass/fail predicate — and could collapse back into topology prose. `WASH_ORDERING_PROVEN=true` via that path is not concretely auditable. |
+| MEDIUM | Stale RESEARCH:76 counter prose ("already incrementing in production") | **RESOLVED [VERIFIED]** | RESEARCH:76-83 now reads counters are corroborating-only and "expected to be ABSENT," mapping to `bridge_counter_signal=unknown`, never gating. No "already incrementing" gating language remains. |
+| MEDIUM | SAFE-13 `backends/` per-file hash expansion | **RESOLVED (LOW residual)** | 225-03:89-99 expands `backends/` via `git ls-tree -r --name-only v1.48` UNION `git ls-files` and treats each file as a per-file sha target, fail-closed on present-at-anchor-missing-in-worktree. Verified `backends/` has 6 tracked files. Codex LOW nit: `per_file_sha256_equal` is named like raw SHA256 while the action describes git blob hashes — equality still proves byte identity if implemented consistently. |
+
+Net: **0 of 2 cycle-3 HIGHs FULLY RESOLVED — both PARTIALLY RESOLVED; 2 NEW HIGH raised (same auditability
+theme); both MEDIUMs RESOLVED.** The narrative decision logic is sound and the fail-safe default (unknown →
+QUALIFIED, never negative) is intact. The remaining HIGHs are ENFORCEMENT gaps: the plan trusts gating
+booleans (`DL_SOURCE_EF_PROVEN`, `WASH_ORDERING_PROVEN`) that are not made independently checkable by the
+verdict step, leaving room for a hand-waved artifact to feed the milestone-closing negative-close AND.
+
+## Codex Review (cycle 4)
+
+**Summary.** The cycle-4 text closes the obvious negative-close holes in narrative logic, but two enforcement
+gaps remain. Both are about trusting booleans/artifacts that the plan does not make sufficiently auditable.
+
+**Disposition of the 2 cycle-3 HIGHs.**
+- **HIGH-1: DL EF source-side proof — PARTIALLY RESOLVED.** The negative branch now requires
+  `DL_SOURCE_EF_PROVEN=true`, but the plan only requires `EF_PKTS_AT_SOURCE`/`DL_SOURCE_EF_PROVEN` fields; it
+  does not require source-side total packets, source EF percentage, source capture point/proof, or a
+  source-side pcap artifact that 225-03 can independently validate.
+- **HIGH-2: Falsifiable pre-wash capture point — PARTIALLY RESOLVED.** The paired pre/post bit-set/bit-cleared
+  proof is valid and fail-safe, but the alternate `tc -d qdisc/filter show` "equivalent positive
+  demonstration" is under-specified and could collapse back into topology prose unless exact pass/fail
+  criteria are defined.
+
+**New/Remaining Concerns.**
+- **HIGH — `DL_SOURCE_EF_PROVEN` can still be opaque/circular.** 225-02 says source proof must be before the
+  path under test, but acceptance only checks that `dl-ef-probe-result.txt` records `EF_PKTS_AT_SOURCE=` and
+  `DL_SOURCE_EF_PROVEN=true|false`. 225-03 then consumes that boolean. Require `SOURCE_PKTS_CAPTURED`,
+  `SOURCE_EF_PCT`, `SOURCE_CAPTURE_POINT`, same-5-tuple proof, and source-side artifact/path provenance;
+  verdict should recompute or reject.
+- **HIGH — `WASH_ORDERING_PROVEN=true` can still be satisfied by an undefined "tc ordering" proof.** The
+  paired probe observation is falsifiable; the `tc` alternative is not concretely defined enough to prove
+  tcpdump hook ordering relative to CAKE wash. For any path that can feed `MARKS_DO_NOT_SURVIVE`, require the
+  paired pre/post DSCP bit flip or define exact machine-checkable `tc` predicates.
+- **MEDIUM — DL source-side probe is operationally underspecified.** The script args define `--ssh-host` and
+  `--probe-target`, but no source-side capture host/interface/auth/artifact path. Honest failure degrades to
+  QUALIFIED, but the plan leaves implementation room for hand-waved source proof.
+- **LOW — SAFE-13 looks materially covered.** Committed/staged/dirty checks, untracked detection, ATT config,
+  and per-file expansion for `backends/` are present. Minor nit: `per_file_sha256_equal` is named like raw
+  SHA256 while the action describes git blob hashes; equality still proves byte identity if implemented
+  consistently.
+
+**Risk Assessment.** Overall risk: **HIGH** — the remaining gaps can still let a bad artifact set
+`DL_SOURCE_EF_PROVEN=true` or `WASH_ORDERING_PROVEN=true` without independently checkable proof.
+
+**Verdict:** Not ready to execute with no HIGH remaining. Fix the two proof-audit gaps first.
+
+## Consensus Summary (cycle 4)
+
+Single external reviewer (Codex); claims cross-checked against the plan text and acceptance criteria. The
+findings are grounded: 225-02:177 confirms only the two summary fields are required (no source-side detail or
+artifact), 225-03:168-169/179 confirm the verdict consumes `DL_SOURCE_EF_PROVEN` as a boolean rather than
+recomputing it, and 225-02:98-100 confirms the `tc` capture-point alternative lacks a concrete pass/fail
+predicate. These are real enforcement gaps, not hallucinations.
+
+### Agreed Strengths (carried + new this cycle)
+- Pre-registered, mutually-exclusive, top-to-bottom branch logic; `unknown`/`invalid` gating channel ALWAYS
+  maps to QUALIFIED, never to the negative close (RESEARCH:248-294). Fail-safe direction is correct.
+- Gating-vs-corroborating taxonomy holds (HIGH-A, cycle-2): absent bridge counters (`bridge_counter_signal=
+  unknown`) are the EXPECTED benign case and cannot force or block a branch.
+- QUALIFIED BLOCKS Phase 226 by default (HIGH-B, cycle-2): only `MARKS_SURVIVE` unblocks; override is operator-
+  recorded, never automatic.
+- Full NEGLIGIBLE criterion (packets <1% AND bytes <1%) and representative-load sample floor pre-registered.
+- SAFE-13 boundary check now at full SAFE-12 standard with `backends/` per-file expansion; MEDIUM resolved.
+- The DIRECTION of the two new HIGH fixes is correct (source-side proof + falsifiable capture point); the gap
+  is auditability/enforcement, not logic.
+
+### Agreed Concerns (highest priority — must fix before capture)
+1. **`DL_SOURCE_EF_PROVEN` not independently auditable (HIGH, NEW).** 225-02 must emit
+   `SOURCE_PKTS_CAPTURED`, `SOURCE_EF_PCT`, `SOURCE_CAPTURE_POINT`, same-5-tuple linkage, and a source-side
+   pcap artifact; 225-03 must recompute the boolean from those fields (or reject), not trust it.
+2. **`WASH_ORDERING_PROVEN` `tc`-alternative under-specified (HIGH, NEW/carried from HIGH-2).** For any path
+   that can feed `MARKS_DO_NOT_SURVIVE`, either require the paired pre/post DSCP bit-flip proof, or define
+   exact machine-checkable `tc -d qdisc/filter show` predicates (qdisc handle ordering / hook position) — no
+   topology-prose fallback.
+3. **DL source-side probe operationally underspecified (MEDIUM).** Define the source-side capture
+   host/interface/auth/artifact path so source proof cannot be hand-waved.
+
+### Divergent Views
+None — single reviewer. No internal contradictions in the Codex cycle-4 review.
+
+### Recommended Next Step
+Feed back into planning:
+```
+/gsd:plan-phase 225 --reviews
+```
+Both remaining HIGHs are the same class as cycle 3 (DL-gating evidence integrity) but at a deeper layer: the
+prior cycles fixed the DECISION LOGIC; cycle 4 finds the ENFORCEMENT/AUDITABILITY of the two gating booleans
+is still hand-waveable. Make `DL_SOURCE_EF_PROVEN` and `WASH_ORDERING_PROVEN` recomputable-or-rejected by the
+verdict step (emit the underlying source-side and ordering evidence as artifacts, not just summary booleans)
+before any live capture, since both feed the milestone-closing negative-close AND.
