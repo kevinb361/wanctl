@@ -243,9 +243,11 @@ def test_state_bridge_serves_att_health_endpoint(tmp_path: Path) -> None:
             try:
                 with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=0.2) as resp:
                     payload = json.loads(resp.read().decode())
-                break
+                if payload.get("status") == "healthy":
+                    break
             except OSError:
-                time.sleep(0.05)
+                pass
+            time.sleep(0.05)
         assert payload is not None
         wan = payload["wans"][0]
         assert payload["source"] == "cake-autorate-state-bridge"
