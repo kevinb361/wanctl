@@ -1,116 +1,120 @@
 ---
 phase: 230
+cycle: 2
 reviewers: [codex]
-reviewed_at: 2026-06-09T21:31:15Z
+reviewed_at: 2026-06-09T22:05:00Z
 plans_reviewed: [230-01-PLAN.md, 230-02-PLAN.md]
+replan_commit: 03f6f104
+previous_cycle: 21f597a0 (cycle-1 REVIEWS.md in git history)
 ---
 
-# Cross-AI Plan Review — Phase 230
+# Cross-AI Plan Review — Phase 230 (Convergence Cycle 2)
+
+Plans were replanned at `03f6f104` to address cycle-1 feedback. This cycle audits
+those resolutions and re-reviews the replanned plans. Reviewer: Codex (gpt-5.5,
+xhigh reasoning), run inside the repo with read-only git/file verification.
+
+## Cycle-1 Resolution Tracking
+
+| # | Cycle-1 finding | Severity | Status |
+|---|-----------------|----------|--------|
+| 1 | Plan 02 scope accounting reused SAFE-14 baseline `87980bdf`, which predates Phase 229 scripts/tests changes | HIGH | **RESOLVED** — dual baselines: `SAFE_BASE=87980bdf` (controller zero-diff only) + `PHASE230_START=4ad2986e` (scope accounting). Verified: `git diff --stat 4ad2986e -- scripts/ tests/` empty pre-phase; `87980bdf` diff shows the three Phase 229 files; all commits after `4ad2986e` are `.planning/`-only. |
+| 2 | Criterion-3 representativeness — unit-list contrast alone doesn't surface a "representative ATT-unit error condition" | MEDIUM | **RESOLVED** — Plan 02 Step B2 local fake-ssh representative run: post-fix `errors_1h=3`, pre-fix `errors_1h=0` against the same shim; no production mutation. |
+| 3 | Plan 01 tests were static-substring-only | MEDIUM | **RESOLVED** — `test_soak_monitor_json_aggregate_units_external_mode` runs `bash scripts/soak-monitor.sh --json` under a fake-ssh shim and asserts the real aggregate `units` list. |
+| 4 | Brittle `230-01~1` pseudo-ref | MEDIUM | **RESOLVED** — pinned `git show 4ad2986e:scripts/soak-monitor.sh`; plan explicitly bans plan-ID pseudo-refs. Verified `4ad2986e` is a real commit and `230-01~1` is not a ref. |
+| 5 | Word-splitting `$(external_units_for ...)` into `check_errors` args | MEDIUM | **RESOLVED** — `read -r -a` arrays passed as `"${wan_units[@]}"`, acceptance criteria require zero `SC2046` suppressions. |
+
+**Cycle-1 carryover: 0 HIGH, 0 MEDIUM remaining.**
 
 ## Codex Review
 
-## 230-01 Plan Review
+## Cycle-1 Resolution Audit
 
-**Summary**  
-Strong, well-scoped implementation plan. It targets the actual blind spot in [scripts/soak-monitor.sh](/home/kevin/projects/wanctl/scripts/soak-monitor.sh:327): ATT still falls through to `wanctl@att.service` while Spectrum gets cake-autorate handling. The scope guardrails are good: bash + tests only, no controller path, no ATT health rewrite. Main weakness is test depth: the proposed tests prove literals/helpers exist, but not that `--json` and aggregate output actually use the right units.
+1. **RESOLVED** — Plan 02 now separates `SAFE_BASE=87980bdf` for controller zero-diff from `PHASE230_START=4ad2986e` for scripts/tests scope accounting. Verified: `git diff --stat 4ad2986e -- scripts/ tests/` is currently empty, while `git diff --stat 87980bdf -- scripts/ tests/` includes Phase 229 files.
 
-**Strengths**
-- Correctly identifies all four current hardcoded paths: per-WAN JSON/table and aggregate JSON/table.
-- Keeps native `wanctl@${wan}.service` fallback, which preserves rollback usefulness.
-- Includes the ATT-only silicom watchdog, avoiding false symmetry.
-- Avoids risky production mutation and avoids unnecessary ATT health fallback work.
-- Shellcheck gate is appropriate and cheap.
+2. **RESOLVED** — Criterion 3 now includes a local fake-ssh representative-error run: post-fix `errors_1h=3`, pre-fix `errors_1h=0` against the same simulated ATT-unit journal condition. See 230-02-PLAN.md (Step B2, ~L97).
 
-**Concerns**
-- **MEDIUM:** Static substring tests can pass while aggregate behavior is still wrong. A helper can exist without `--json` emitting the correct unit list.
-- **MEDIUM:** `check_errors "$ssh_target" $(external_units_for "$wan_name")` works for current unit names, but intentionally relies on word splitting and suppressing ShellCheck. Safer to convert helper output into an array and call `check_errors "$ssh_target" "${units[@]}"`.
-- **LOW:** Repeated `is_external_cake_mode` SSH probes add latency in `--watch`. Probably fine for 60s cadence, but avoidable.
-- **LOW:** The predicate treats “cake active + wanctl active” as non-external, so a conflict state would scan native only. Existing Spectrum behavior does this too, but it is weaker observability.
+3. **RESOLVED** — Plan 01 adds a real `--json` fake-ssh behavior test for the aggregate `all-claimed-services` units list, not just static substrings. This directly covers the old aggregate bug where `wanctl@att.service` leaked into external mode. See 230-01-PLAN.md (~L110).
 
-**Suggestions**
-- Add one behavior test with a fake `ssh` in `PATH` that runs `scripts/soak-monitor.sh --json` and asserts the aggregate `units` list contains the three ATT units and excludes `wanctl@att.service` when fake systemctl reports ATT cake active/native inactive.
-- Prefer:
-  ```bash
-  read -r -a units <<< "$(external_units_for "$wan_name")"
-  errors=$(check_errors "$ssh_target" "${units[@]}")
-  ```
-  over command substitution word splitting.
-- Consider a tiny `mode_units_for "$ssh_target" "$wan"` helper so per-WAN and aggregate paths cannot drift.
-- If cheap, treat conflict mode as “scan both cake and wanctl units” or at least document that the native fallback is deliberate.
+4. **RESOLVED** — The brittle pseudo-ref is gone. Plan 02 uses `git show 4ad2986e:scripts/soak-monitor.sh`; verified `4ad2986e:scripts/soak-monitor.sh` exists and `230-01~1` is not a valid ref.
 
-**Risk Assessment**  
-**LOW-MEDIUM.** The implementation surface is small and observability-only, but bash JSON/manual array handling plus weak static tests leave room for a green test suite with broken runtime output.
+5. **RESOLVED** — Plan 01 now specifies `read -r -a` arrays and `"${units[@]}"`/`"${wan_units[@]}"`, with zero `SC2046` suppressions. See 230-01-PLAN.md (~L154).
 
-## 230-02 Plan Review
+## Summary
 
-**Summary**  
-The intent is right: field evidence plus SAFE-14 boundary proof. The read-only discipline is good. However, there are two material problems: the evidence plan may not satisfy the roadmap’s “representative error condition” wording if it only records a unit-list contrast, and the SAFE-14 “only files changed since baseline” check is currently wrong because `87980bdf` predates Phase 229 script/test changes.
+**Plan 01:** Solid implementation plan. It correctly targets the four current hardcoded call sites in `scripts/soak-monitor.sh` (L327+), adds a WAN-parameterized mode predicate, keeps ATT watchdog handling explicit, and adds a useful runtime `--json` regression test. The plan is observability-only and stays away from controller code.
 
-**Strengths**
-- Keeps live validation read-only: no fault injection, no systemd mutation.
-- Separates MON-01 evidence from SAFE-14 proof cleanly.
-- Uses the established protected controller-path set, including `wan_controller_state.py`.
-- Correctly keeps `87980bdf` as a valid controller-path zero-diff baseline.
+**Plan 02:** Solid evidence/boundary plan. The dual-baseline correction is real and verified against git. The local representative-error run is a good resolution to the "representative ATT-unit error" gap without mutating production. SAFE-14 proof shape is conservative and appropriately fail-closed.
 
-**Concerns**
-- **HIGH:** `git diff --stat 87980bdf -- scripts/ tests/` will not show only Phase 230 files. Today it already shows Phase 229 changes: `scripts/deploy.sh`, `scripts/phase229-att-artifact-diff.sh`, and `tests/test_att_cake_autorate_artifacts.py`. Use a separate Phase 230 start ref for in-scope file accounting.
-- **MEDIUM:** `git show 230-01~1:scripts/soak-monitor.sh` is brittle unless `230-01` is guaranteed to be a real git ref. Prefer `git show 87980bdf:scripts/soak-monitor.sh` or pin `PHASE230_START`.
-- **MEDIUM:** Unit-list contrast proves targeting, but not necessarily “surfaces an injected/representative ATT-unit error condition.” If no live ATT errors exist, the criterion needs either an approved wording change or a local/fake-ssh representative run.
-- **LOW:** If `--json` falls back to native because SSH/systemctl mode detection fails, the evidence becomes inconclusive. Record the mode-detection inputs too.
+## Strengths
 
-**Suggestions**
-- Use two baselines:
-  - `SAFE_BASE=87980bdf` for controller-path zero-diff.
-  - `PHASE230_START=<commit before 230-01>` for “only Phase 230 files changed.”
-- Add a read-only mode-status capture:
-  `systemctl is-active cake-autorate-att.service cake-autorate-att-state-bridge.service silicom-bypass-watchdog-cake-autorate-att.service wanctl@att.service`
-- If live journals have no ATT errors, satisfy criterion 3 with a local fake-ssh run that simulates one ATT unit error and proves post-fix soak-monitor reports it while the pre-fix scan path would not.
-- Record Plan 01 verification outputs in the evidence or summary: shellcheck, focused pytest, and full pytest result.
+- Correctly identifies all four affected `soak-monitor.sh` paths: per-WAN JSON, per-WAN table, aggregate JSON, aggregate non-JSON.
+- Runtime behavior test closes the static-substring-only weakness from cycle 1.
+- Aggregate unit list is required to derive from the same helper as per-WAN scans, reducing drift risk.
+- Live evidence remains read-only; simulated error injection is local-only.
+- SAFE-14 proof includes both committed diff and dirty-tree checks.
+- Verified refs and baseline claims match git history.
 
-**Risk Assessment**  
-**MEDIUM.** SAFE-14 itself is low risk, but the current scripts/tests diff check will fail against the chosen baseline, and the evidence strategy may undershoot the roadmap criterion unless tightened.
+## Concerns
+
+- **LOW** — Plan 01's verifier does not mechanically prove the per-WAN `[[ "$wan_name" == "spectrum" ]]` guard is removed. A bad implementation could still contain that guard and satisfy the positive grep for `is_external_cake_mode`. Plan 02's fake-error run would catch it later, but Plan 01 can be tighter.
+
+- **LOW** — The fake `ssh` shim steps should explicitly make the shim executable. The plan implies PATH dispatch, but missing `chmod` would fail the harness rather than the product behavior.
+
+- **LOW** — Plan 02 Step A2 expects `wanctl@att.service` to be inactive, so `systemctl is-active ... wanctl@att.service` may return nonzero. If run in a fail-fast shell, append `|| true` while still recording stdout/statuses.
+
+- **LOW** — Aggregate scan assumes all `TARGETS` share one SSH host. That is true now, but the implementation should either comment that invariant or fail clearly if a future target uses another host.
+
+## Suggestions
+
+- Add a negative grep/pytest assertion for the old per-WAN guard pattern, e.g. no `[[ "$wan_name" == "spectrum" ]] && is_` in the error-scan branches.
+- In the fake-ssh tests, explicitly `chmod 0o755` the shim before prepending its directory to `PATH`.
+- Change the Step A2 evidence command to capture expected nonzero safely, e.g. `ssh ... 'systemctl is-active ...' || true`.
+- Consider reusing the fake-ssh representative-error check in Plan 01 too, asserting the per-WAN `att.errors_1h` path before Plan 02 evidence.
+
+## Risk Assessment
+
+**Overall risk: LOW.** The cycle-1 fixes are real, the plan is scoped to ops/test/evidence, and SAFE-14 protection is explicit. Remaining issues are harness and verification polish, not phase-breaking design problems.
 
 ---
 
 ## Consensus Summary
 
 Single external reviewer this cycle (Codex); consensus reflects that one review plus
-local verification of its load-bearing claims.
+independent local verification of its load-bearing claims (which agreed on every point).
 
 ### Agreed Strengths
 
-- Plan 01 targets the real blind spot: all four Spectrum-hardcoded call sites in
-  `scripts/soak-monitor.sh` (per-WAN JSON/table, aggregate JSON/table), with ATT-only
-  silicom watchdog handling and native `wanctl@${wan}.service` fallback preserved.
-- Scope guardrails are sound: bash + tests only, observability-only surface, no
-  controller-path changes, no production mutation; read-only live evidence in Plan 02.
-- SAFE-14 discipline carried correctly: protected controller-path file set matches
-  the SAFE-07..13 precedent and `87980bdf` is a valid controller-path zero-diff baseline.
+- All five cycle-1 findings (1 HIGH, 4 MEDIUM) are genuinely resolved in the replanned
+  plans — verified independently against both plan text and git history.
+- Dual-baseline SAFE-14 structure is correct: `SAFE_BASE=87980bdf` controller zero-diff
+  holds today; `PHASE230_START=4ad2986e` scope diff is empty pre-phase and every
+  intervening commit is `.planning/`-only, so it will show exactly the Phase 230 surface.
+- Plan 01's interface extraction matches the live script (predicate L275, per-WAN
+  branches L327/L340, aggregate L398-413/L417-431) — the plan edits what actually exists.
+- Behavior test + local representative-error run give runtime-level proof at both the
+  test and evidence layers without any production mutation.
 
 ### Agreed Concerns
 
-- **HIGH (verified locally):** Plan 02's "only Phase 230 files changed since baseline"
-  check using `git diff --stat 87980bdf -- scripts/ tests/` is wrong — that diff already
-  contains Phase 229 changes (`scripts/deploy.sh`, `scripts/phase229-att-artifact-diff.sh`,
-  `tests/test_att_cake_autorate_artifacts.py`). Fix: split baselines — keep
-  `SAFE_BASE=87980bdf` for the controller-path zero-diff proof, add a pinned
-  `PHASE230_START` ref (commit immediately before 230-01 lands) for in-scope file
-  accounting.
-- **MEDIUM:** Criterion 3 wording risk — a unit-list contrast proves targeting, not that
-  a "representative ATT-unit error condition" is surfaced. If live ATT journals are clean,
-  either tighten the criterion wording (operator-approved) or add a local fake-ssh run
-  simulating one ATT unit error that the pre-fix scan would have missed.
-- **MEDIUM:** Plan 01 test depth — static substring/helper-existence tests can pass while
-  `--json`/aggregate output is still wrong. Add at least one behavior test with a fake
-  `ssh` shim asserting the aggregate `units` list includes the three ATT units and
-  excludes `wanctl@att.service` when ATT is in external mode.
-- **MEDIUM:** `git show 230-01~1:...` in Plan 02 is brittle unless `230-01` is a real git
-  ref; prefer the pinned `PHASE230_START` (or `87980bdf:scripts/soak-monitor.sh`).
-- **MEDIUM:** Word-splitting `$(external_units_for "$wan_name")` into `check_errors` args
-  works for current unit names but is fragile; prefer `read -r -a units <<<` and pass
-  `"${units[@]}"`.
+All remaining concerns are LOW (polish, not phase-breaking):
+
+1. **LOW:** Plan 01 lacks a mechanical negative check that the old
+   `[[ "$wan_name" == "spectrum" ]]` guard is gone (positive greps could pass with the
+   guard still present). Cheap fix at execute time: add the suggested negative grep.
+2. **LOW:** Fake-ssh shim must be explicitly `chmod`-ed executable — spell it out in the
+   test to avoid a harness failure masquerading as a product failure.
+3. **LOW:** Plan 02 Step A2 `systemctl is-active ... wanctl@att.service` returns nonzero
+   when (expectedly) inactive — guard with `|| true` in fail-fast shells.
+4. **LOW:** Single-SSH-host assumption in the aggregate scan is true today but should be
+   commented as an invariant.
 
 ### Divergent Views
 
-- None — single reviewer. Local verification confirmed the HIGH finding rather than
-  contradicting it.
+- None — single reviewer; local verification agreed with all resolution verdicts.
+
+### Convergence Verdict
+
+**0 HIGH, 0 MEDIUM remaining.** Cycle-1 HIGH and all four MEDIUMs fully resolved.
+Remaining LOWs are executor-level polish that can be folded in during `/gsd:execute-phase`
+without another replan cycle. Plans are converged.
