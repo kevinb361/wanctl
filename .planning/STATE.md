@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.50
 milestone_name: cake-autorate Migration Hardening
-status: planning
-last_updated: "2026-06-09T18:56:46.162Z"
+status: roadmapped
+last_updated: "2026-06-09T19:30:00.000Z"
 last_activity: 2026-06-09
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-09 after v1.49 close, overtaken-by-ev
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Phase 229 (ATT Deploy Path + Artifact Tests) — not started
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-09 — Milestone v1.50 started
+Status: Roadmapped (3 phases, 229–231; awaiting `/gsd-plan-phase 229`)
+Last activity: 2026-06-09 — v1.50 ROADMAP.md created (Phases 229–231, 10/10 REQs mapped)
 
 ## Deferred Items (carried into next milestone)
 
@@ -83,6 +83,7 @@ Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone
 
 ### Roadmap Evolution
 
+- **2026-06-09 (v1.50 ROADMAP commit):** v1.50 ROADMAP.md created with 3-phase scope (fine granularity, deliberately small), continuing phase numbering from v1.49 last phase (228) → Phase 229. Natural ordering by production risk: Phase 229 (ATT Deploy Path + Artifact Tests — DEPLOY-01/02, TEST-01/02; repo-only, zero production touch, makes repo the drift-proof source of truth for the hand-deployed ATT artifact set) → Phase 230 (soak-monitor ATT Coverage — MON-01/02; closes the error-scan blind spot where soak-monitor watches the DISABLED `wanctl@att.service` instead of live `cake-autorate-att*` units) → Phase 231 (Migration-Held Criteria, Rollback Verification & Doc Sweep — SOAK-01/02, DOCS-04, SAFE-14; touches production evidence, operator-gated for any rollback exercise, with the preflighted-provable alternative for SOAK-02). 10/10 REQs mapped, 0 orphans. SAFE-14 declared as cross-phase controller-path zero-diff invariant verified at every phase boundary (229/230/231) per the SAFE-07..13 precedent; mapped to the closeout phase (231) for traceability. Milestone surface is deploy/test/ops/doc only — no controller threshold/algorithm changes. Out-of-Scope (REQUIREMENTS.md) binding: ROLE-01 native-controller retirement (time/event-gated), TAIL-01 Spectrum tail (different milestone shape), SEED-006/007, `$wan` symmetry refactor, CAKE retuning all excluded.
 - **2026-06-03 (v1.49 ROADMAP commit):** v1.49 ROADMAP.md created with 4-phase scope, continuing phase numbering from v1.48 last phase (224) → Phase 225. Two-thread single thesis: Phase 225 (DSCP Survival Trace — DSCP-01..03, read-only precondition with DSCP-03 early-exit gate) → Phase 226 (Baseline Capture + Threshold Lock + Snapshot A — AB-01, AB-02, GATE-01; GATE-01 thresholds locked BEFORE candidate deploy per v1.44/v1.47 discipline) → Phase 227 (Candidate diffserv4-wash Deploy + Matched Capture — AB-03, AB-04) → Phase 228 (Verdict + Evidence-Gated Decision + Closeout — GATE-02, GATE-03). 13/13 REQs mapped. Conditional gate: DSCP-03 "marks don't survive" early-exit short-circuits Phases 226–228 and closes the milestone negative (v1.44 confirmed). SAFE-13 declared as cross-phase controller-path zero-diff invariant on all four phases — any lift is an explicit evidence-gated decision inside Phase 228 (default expectation: zero controller-path diff; v1.44 Phase 205 already shipped the tin-agnostic CAKE signal + allow_wash gate). ATT byte-identical the entire milestone; external network gear (CRS/Ruckus/router) NOT mutated (read-only trace); cake-shaper bridge nftables rules MAY change. Negative result (keep besteffort wash) is a valid close.
 - **2026-06-02 (v1.48 ROADMAP commit):** v1.48 ROADMAP.md created with 3-phase scope per joint Claude + Codex scope review: Phase 222 (Steering Drift Audit — DRIFT-01..04) → Phase 223 (Staging Proof + Clean-Restart Reproduction — PROOF-01..03, folded `steering-degraded-on-clean-restart` todo) → Phase 224 (Production Canary + Rollback Discipline — CANARY-01..03, v1.46 Phase 215 Snapshot A precedent). SAFE-12 declared as cross-phase controller-path zero-diff invariant on all three phases.
 - **2026-06-02 (v1.47 close):** v1.47 Measurement Evidence Closure shipped. Phases 219/220/221 complete; 18/18 REQs satisfied. Folded tcp_12down todo closed with CRITERIA-02 close-with-prejudice rule per the post-D-10-BGP-overlay verdict `carried_narrower_with_close_with_prejudice_rule`. Phase 218 continues parallel as event-gated v1.45 VERIFY watch-list. Phase directories archived to `.planning/milestones/v1.47-phases/`.
@@ -106,7 +107,7 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Plan the first phase with /gsd-plan-phase 229 (ATT Deploy Path + Artifact Tests — repo-only, zero production risk)
 
 ## Decisions (v1.49)
 

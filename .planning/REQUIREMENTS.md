@@ -68,22 +68,29 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEPLOY-01 | — | Pending |
-| DEPLOY-02 | — | Pending |
-| TEST-01 | — | Pending |
-| TEST-02 | — | Pending |
-| MON-01 | — | Pending |
-| MON-02 | — | Pending |
-| SOAK-01 | — | Pending |
-| SOAK-02 | — | Pending |
-| DOCS-04 | — | Pending |
-| SAFE-14 | — | Pending |
+| DEPLOY-01 | Phase 229 | Pending |
+| DEPLOY-02 | Phase 229 | Pending |
+| TEST-01 | Phase 229 | Pending |
+| TEST-02 | Phase 229 | Pending |
+| MON-01 | Phase 230 | Pending |
+| MON-02 | Phase 230 | Pending |
+| SOAK-01 | Phase 231 | Pending |
+| SOAK-02 | Phase 231 | Pending |
+| DOCS-04 | Phase 231 | Pending |
+| SAFE-14 | Phase 231 | Pending |
 
 **Coverage:**
 - v1.50 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10 ⚠️ (roadmap pending)
+- Mapped to phases: 10
+- Unmapped: 0 ✓
+
+**Phase distribution:**
+- Phase 229 (ATT Deploy Path + Artifact Tests): DEPLOY-01, DEPLOY-02, TEST-01, TEST-02 (4)
+- Phase 230 (soak-monitor ATT Coverage): MON-01, MON-02 (2)
+- Phase 231 (Migration-Held Criteria, Rollback & Doc Sweep): SOAK-01, SOAK-02, DOCS-04, SAFE-14 (4)
+
+**SAFE-14 note:** Cross-phase controller-path zero-diff invariant — verified at every phase boundary (229, 230, 231) per the SAFE-07..13 precedent. Mapped to the final/closeout phase (231) for traceability accounting; the milestone surface is deploy/test/ops/doc only.
 
 ---
 *Requirements defined: 2026-06-09*
-*Last updated: 2026-06-09 after initial definition*
+*Last updated: 2026-06-09 after roadmap creation (10/10 mapped, 0 orphans)*
