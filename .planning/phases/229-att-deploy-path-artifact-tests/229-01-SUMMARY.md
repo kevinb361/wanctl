@@ -59,7 +59,7 @@ Each task was committed atomically:
 1. **Task 1: Add ATT_CAKE_AUTORATE_SYSTEMD array and deploy_att_cake_autorate() sibling function** - `2fb89520` (feat)
 2. **Task 2: Wire the --with-att-cake-autorate flag through all 7 sites** - `68486013` (feat)
 
-**Plan metadata:** pending final docs commit
+**Plan metadata:** recorded in final docs commits beginning `6ac6689c`
 
 ## Files Created/Modified
 
