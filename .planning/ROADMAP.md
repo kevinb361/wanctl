@@ -62,7 +62,10 @@
   2. soak-monitor mode detection has no Spectrum-only hardcoding — ATT external-controller mode (mode detection + bridge-fallback health source) is handled at parity with Spectrum.
   3. A real soak-monitor run surfaces an injected/representative ATT-unit error condition that the pre-fix scan would have missed.
   4. SAFE-14 controller-path zero-diff holds at the phase boundary.
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 230-01-PLAN.md — Generalize soak-monitor mode detection + per-WAN live-unit map; fix all 4 Spectrum-hardcoded call sites for ATT (MON-01/MON-02) + regression test
+- [ ] 230-02-PLAN.md — Criterion-3 read-only ATT live-unit scan evidence + SAFE-14 controller-path zero-diff boundary proof
 
 ### Phase 231: Migration-Held Criteria, Rollback Verification & Doc Sweep
 **Goal**: The 2026-06-08 migration is provably held on both WANs against formal criteria, native-controller rollback is verified (exercised under operator approval or trivially provable via a documented preflighted procedure with evidence), stale native-ownership doc claims are swept, and SAFE-14 is proven at milestone close.
