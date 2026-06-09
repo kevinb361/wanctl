@@ -2,15 +2,21 @@
 
 ## What This Is
 
-wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that continuously monitors network latency and adjusts queue limits in real-time, with optional multi-WAN steering for latency-sensitive traffic.
+wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that continuously monitors network latency and adjusts queue limits in real-time, with optional multi-WAN steering for latency-sensitive traffic. On Linux CAKE shapers it additionally supports an external-controller mode where upstream cake-autorate owns per-WAN rate control and wanctl provides the state bridge, health/metrics contract, steering, deployment, and ops tooling (`.planning/cake-autorate-trials/WANCTL_CAKE_AUTORATE_FUTURE.md`).
 
 ## Core Value
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.49 Spectrum DSCP Tinning Re-evaluation
+## Current Milestone: none (between milestones)
 
-**Goal:** Re-test whether per-tin `diffserv4 wash` CAKE earns its keep on Spectrum now that end-to-end DSCP plumbing exists — confirming or overturning the v1.44 "classification theater" decision with fresh evidence under the current CRS/Ruckus/bridge topology.
+v1.49 closed 2026-06-09 overtaken-by-events. Next-milestone candidate thesis: **cake-autorate migration hardening** — ATT deploy path in `deploy.sh`, soak-monitor ATT trial handling, ATT artifact tests, soak/parity criteria, and the native-controller role decision. Scope source: `.planning/cake-autorate-trials/WANCTL_CAKE_AUTORATE_FUTURE.md`. Start with `/gsd-new-milestone`.
+
+## Recently Closed: v1.49 Spectrum DSCP Tinning Re-evaluation (closed 2026-06-09, overtaken-by-events)
+
+**Outcome:** Phases 225–227 shipped (DSCP trace, Snapshot A anchor, locked GATE-01 thresholds, matched baseline-vs-candidate evidence incl. AB-04 EF arm). Phase 228 verdict/rollback never executed: between 2026-06-05 and 2026-06-08 the operator migrated both WANs from wanctl@ controllers to upstream cake-autorate (`fc47a0c`), moving Spectrum CAKE from bridge-root to member-NIC placement — the topology the verdict gated no longer exists. The Phase 227 evidence direction pointed to REJECT `diffserv4 wash` in the old topology (RRUL p99 +11.5%, EF loss ~44×) but was never formally computed and does not transfer; wash-vs-nowash was independently re-tested under cake-autorate and `wash` won. GATE-02/GATE-03 closed unmet-overtaken. SAFE-13 held through all executed phases. Full record: `milestones/v1.49-ROADMAP.md`, MILESTONES.md.
+
+**Original goal (for the record):** Re-test whether per-tin `diffserv4 wash` CAKE earns its keep on Spectrum now that end-to-end DSCP plumbing exists — confirming or overturning the v1.44 "classification theater" decision with fresh evidence under the current CRS/Ruckus/bridge topology.
 
 **Thesis origin:** Pending todo `2026-06-03-retest-spectrum-diffserv4-wash-after-local-qos-changes` (created 2026-06-03, `area: validation`). Re-opens the decision closed by fulfilled seed SEED-001 — which concluded diffserv4 was theater _because ISPs strip DSCP and the shaper sees unmarked ingress_. The load-bearing premise may no longer hold: CRS switches now apply hardware QoS trust/maps, Ruckus `Tik` QoS mirroring is on, and the cake-shaper bridge can classify download flows into EF/AF41/CS1 _before_ CAKE. v1.49 tests whether marks now survive to CAKE ingress and, if so, whether tinning produces a real latency/jitter win.
 
@@ -137,13 +143,14 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.49 Spectrum DSCP Tinning Re-evaluation active. Phases 225, 226, and 227 are complete: DSCP survival trace returned `MARKS_SURVIVE_QUALIFIED`, Phase 226 established Snapshot A / retained baseline / locked GATE-01 thresholds, and Phase 227 deployed Spectrum `diffserv4 wash` plus committed matched baseline/candidate EF evidence with verification passed 16/16. **Current position:** ready for Phase 228 verdict + evidence-gated decision; Spectrum is intentionally live on `diffserv4`, ATT remains untouched, and controller-path source remains frozen under SAFE-13.
+**Version:** v1.49 closed 2026-06-09 (overtaken-by-events). **Production controller state:** both WANs run upstream cake-autorate with wanctl state bridges (`cake-autorate-{spectrum,att}.service` + `-state-bridge.service`, live since 2026-06-08); `wanctl@{spectrum,att}` disabled as the rollback path; steering consumes bridge-written state; native wanctl remains the MikroTik/RouterOS controller. Spectrum CAKE: member-NIC `diffserv4 wash` 550M base DL autorate / fixed 18M UL. ATT: `diffserv4 nowash` 95M base DL autorate / fixed 19M UL. **Current position:** between milestones; cake-autorate migration hardening is the next-milestone candidate.
 **Tests:** Phase 227 focused suite passed `.venv/bin/pytest tests/test_phase227_marked_ef.py tests/test_phase227_qdisc_verify.py tests/test_phase227_safe13_boundary.py tests/test_phase227_evidence_completeness.py -q` (`25 passed`) plus evidence completeness `verdict-ready` and SAFE-13 boundary checks. Phase 226 Plan 05 gap closure passed `.venv/bin/pytest tests/phase226/ -q` (`7 passed`) plus retained evidence hash/provenance and SAFE-13 checks. Phase 223 full post-merge regression passed `5320 passed, 10 skipped, 2 deselected`; steering replay package passed `19 passed`, and `replay_harness.py --all` emits all seven fixtures including `clean-restart-degraded`. Phase 221 verification + closeout published `carried_narrower_with_close_with_prejudice_rule` (post-D-10 BGP overlay, authoritative); raw aggregator `defect_located` overlaid. Phase 220 verification passed 5/5 after the repaired wet rehearsal harness reproduced the Phase 214 dallas/Spectrum daytime anchor and the hot-path + Phase 220 regression slice passed `726 passed`. Phase 219 verification passed 5/5 after full regression `5238 passed, 14 skipped, 2 deselected` and production D-27 cycle-budget evidence (`avg_ms=2.857`, `p99_ms=6.4`). Phase 217 verification passed 12/12; Phase 216 verification passed 11/11; Phase 215 verification passed 25/25; Phase 214 UAT passed 8/8; Phase 213 verification passed 15/15; Phase 212 verification passed 16/16.
 **LOC:** ~40,915 Python (src/) — v1.47 source-surface delta was +3,361 / -28 across 15 files (additive observability + matrix tooling; zero controller-path mutation).
-**Milestones:** 49 shipped or shipped-with-deferral (v1.0–v1.48).
-**Active milestone:** v1.49 Spectrum DSCP Tinning Re-evaluation — Phase 228 verdict closeout is next. Phase 218 watch continues in parallel.
+**Milestones:** 50 shipped, shipped-with-deferral, or closed (v1.0–v1.49).
+**Active milestone:** none — v1.49 closed overtaken-by-events 2026-06-09. Phase 218 watch is dormant (its instrumentation lives in the native controller, which no longer runs Spectrum/ATT).
 
-**Latest:** v1.49 Phase 227 complete — Spectrum candidate `diffserv4 wash` is live with qdisc proof on `spec-router`/`spec-modem`, matched baseline/candidate evidence captured with marked-EF and unmarked references, SAFE-13 passed with zero controller/ATT diff, and the Snapshot A rollback script is available for Phase 228 if the evidence gate rejects the candidate.
+**Latest:** v1.49 closed overtaken-by-events — both WANs migrated to cake-autorate external-controller mode (`fc47a0c`): repo-owned configs, qdisc-init scripts, parameterized state bridge (cake-autorate log → wanctl state JSON + metrics DB + wanctl-compatible `/health`), systemd units with `Conflicts=wanctl@`, silicom watchdog variant, `deploy.sh --with-spectrum-cake-autorate`, soak-monitor bridge fallback, and artifact tests. Known follow-ups: ATT deploy path, soak-monitor ATT error-scan blind spot, ATT artifact tests.
+**Previous:** v1.49 Phase 227 complete — Spectrum candidate `diffserv4 wash` was live with qdisc proof on `spec-router`/`spec-modem`, matched baseline/candidate evidence captured with marked-EF and unmarked references, SAFE-13 passed with zero controller/ATT diff. The Phase 228 verdict never ran (see Latest).
 **Previous:** v1.49 Phase 226 complete — Snapshot A rollback anchor, retained `920/18 besteffort wash` baseline evidence, GATE-01 threshold lock, dry-run restore proof, and SAFE-13 boundary verification all passed. Plan 05 closed the prior parser/threshold verification gaps by parsing real CAKE per-tin rows and re-provenancing `NOISE_BAND_MS.value=24.206` from regenerated retained evidence.
 **Previous:** v1.48 Phase 224 Production Canary complete — aligned steering daemon deployed to production `cake-shaper` (`1.39 → 1.47`, healthy in 2s), 16-sample observation window closed `kept_aligned`, all three spine invariants proven (incl. operator-authorized router rule-read), SAFE-12 boundary + milestone-close checks passed, rollback armed but not fired. Residual: rollback wall-clock unproven (no staging host; honestly waived).
 **Previous:** v1.48 Phase 222 Steering Drift Audit complete — read-only evidence packet covers DRIFT-01/02/03/04 plus SAFE-12. The audit found one steering-surface commit between runtime `1.39` and source-floor `v1.47`: `84ad6aa`, classified behavior-changing but preserving binary steering, only-new-connection rerouting, and autorate-baseline authority, so the operator disposition is `go`. No runtime/source mutation, production probe, deploy, controller threshold, CAKE, RouterOS, or production service change occurred.
@@ -250,12 +257,14 @@ thresholds or steering behavior.
 - ✓ CANARY-01..03 — production deploy `1.39 → 1.47` under Snapshot A anchor, canary `kept_aligned`, bounded rollback armed.
 - ✓ SAFE-12 — controller-path zero-diff vs v1.47 at every phase boundary AND milestone close.
 
-**v1.49 Spectrum DSCP Tinning Re-evaluation (in progress, Phases 225-226 complete):**
+**v1.49 Spectrum DSCP Tinning Re-evaluation (closed 2026-06-09 overtaken-by-events; 11/13 REQs, GATE-02/03 unmet-overtaken):**
 
 - ✓ DSCP-01..03 — read-only DSCP survival trace completed with `MARKS_SURVIVE_QUALIFIED`; no external gear mutation; Phase 226 unblocked rather than early-exiting negative — Phase 225.
 - ✓ AB-01..02 — Snapshot A rollback anchor captured; retained `920/18 besteffort wash` baseline evidence regenerated from real CAKE per-tin rows with non-zero deltas/spreads — Phase 226.
 - ✓ GATE-01 — accept/rollback thresholds locked before candidate deploy, including `NOISE_BAND_MS.value=24.206` hash-provenanced to regenerated retained baseline evidence — Phase 226.
-- ✓ SAFE-13 (evidence phases) — controller-path zero-diff vs v1.48 and ATT byte-identical held through Phases 225-226; lift remains evidence-gated only inside Phase 228.
+- ✓ AB-03..04 — candidate Spectrum `diffserv4 wash` deployed under Snapshot A, matched qdisc/health/RRUL/realtime-flow evidence captured incl. marked-EF arm — Phase 227.
+- ✗ GATE-02..03 — verdict computation and rollback/closeout unexecuted; overtaken by the cake-autorate migration (`fc47a0c`) which removed the gated topology. Evidence direction (REJECT diffserv4-wash, old topology only) recorded in MILESTONES.md.
+- ✓ SAFE-13 — controller-path zero-diff vs v1.48 and ATT byte-identical held through Phases 225–227; the Phase 228 lift question is moot (native controller no longer live on Spectrum/ATT).
 
 **Core Features:**
 
@@ -593,9 +602,13 @@ thresholds or steering behavior.
 
 ### Active
 
-- ✓ **AB-03 / AB-04 (Phase 227)** — candidate Spectrum `diffserv4 wash` deployed under Snapshot A, ATT untouched, matched qdisc/health/RRUL/realtime-flow evidence captured, verification passed 16/16.
-- [ ] **GATE-02 / GATE-03 (Phase 228)** — compute verdict against locked GATE-01 thresholds, accept or reject candidate, rollback to Snapshot A on trigger, and record closeout.
-- [ ] **SAFE-13 closeout (Phases 227-228)** — keep controller-path source frozen unless Phase 228 records an explicit evidence-gated lift decision; ATT config byte-identical through milestone close.
+(None — between milestones. Next-milestone candidates, from `.planning/cake-autorate-trials/WANCTL_CAKE_AUTORATE_FUTURE.md` + post-migration gap list:)
+
+- [ ] **ATT cake-autorate deploy path** — parameterize `deploy_spectrum_cake_autorate` into a per-WAN deploy function (`--with-att-cake-autorate`); ATT artifacts are currently hand-deployed.
+- [ ] **soak-monitor ATT trial handling** — error scan still watches inactive `wanctl@att.service` (reports 0 forever); needs cake-autorate-att unit scanning + ATT trial detection.
+- [ ] **ATT artifact tests** — mirror `tests/test_spectrum_cake_autorate_artifacts.py` for the ATT config/units/qdisc-init.
+- [ ] **Soak/parity criteria + native-controller role decision** — define what "migration done" means; then decide native Linux-shaper controller fate (rollback path vs retire). MikroTik path stays regardless.
+- [ ] **Upload autorate** (`adjust_ul_shaper_rate=1`) — only after soak parity is proven; currently fixed 18M/19M.
 
 ### Deferred
 
@@ -933,6 +946,9 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | D-10 BGP overlay applied to raw matrix verdict | BGP path drift mid-run contaminates supplemental Vultr cells; raw aggregator `defect_located` on three cells is not a valid defect locator if the network underneath was a moving target | ✓ Authoritative post-overlay verdict published in `221-CLOSEOUT.md`; raw verdict preserved for audit | 2026-06-02 |
 | Close-with-prejudice rule applied to tcp_12down folded todo | Prevents Pitfall 2's degenerate "carried-narrower forever" outcome; carrying a hypothesis without a forcing function is not closure | ✓ CRITERIA-02 attached verbatim to folded todo; no v1.48+ reopen without independent new production evidence (e.g., real production p99 incident captured in DB) | 2026-06-02 |
 | v1.47 read-only milestone — no controller mutation triggered by matrix results | Tuning under unverified evidence re-confounds the very signal the matrix was designed to measure; v1.47 may recommend, never implement | ✓ Encoded as SAFE-11 milestone invariant; zero controller-path source diff across all three phases | 2026-06-02 |
+| cake-autorate replaces native wanctl autorate on Linux CAKE shapers | Spectrum trial showed materially better user-visible tail latency than continued native-controller tuning; upstream cake-autorate is purpose-built for variable-rate links | ✓ Both WANs live 2026-06-08; wanctl@ disabled as rollback; bridge preserves health/state/metrics contract so steering + tooling unchanged | 2026-06-08 |
+| wanctl role split: cake-autorate owns rate control, wanctl owns supervision/observability/steering/MikroTik | Keep the proven contract surfaces (health, metrics, steering, deploy, ops) while delegating the rate algorithm; MikroTik/RouterOS control remains first-class native wanctl | ✓ Recorded in WANCTL_CAKE_AUTORATE_FUTURE.md; native controller NOT deleted until post-soak decision | 2026-06-05 |
+| v1.49 closed overtaken-by-events without Phase 228 verdict | The verdict/rollback gated a bridge-root CAKE topology that no longer exists; computing it post-hoc would be theater. Evidence direction (REJECT diffserv4-wash, old topology) recorded faithfully, marked non-transferable | ✓ GATE-02/03 unmet-overtaken; wash re-validated independently under cake-autorate member-NIC topology | 2026-06-09 |
 
 ## Evolution
 
@@ -955,4 +971,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-04 — v1.49 Phase 227 completed and verification passed 16/16. Spectrum is intentionally live on candidate `diffserv4 wash`; matched baseline/candidate evidence, qdisc proof, EF comparison data, SAFE-13 boundary proof, and rollback tooling are committed. Phase 228 verdict + evidence-gated decision is next. ATT remains untouched; controller-path source remains frozen unless Phase 228 records an explicit evidence-gated SAFE-13 lift. Phase 218 (v1.45 VERIFY watch-list) continues event-gated in parallel._
+_Last updated: 2026-06-09 after v1.49 milestone close (overtaken-by-events). Both WANs run cake-autorate external-controller mode with wanctl state bridges; `wanctl@{spectrum,att}` disabled as rollback; native wanctl remains the MikroTik controller. Next milestone candidate: cake-autorate migration hardening (`.planning/cake-autorate-trials/WANCTL_CAKE_AUTORATE_FUTURE.md`). Phase 218 watch dormant (instrumentation lives in the non-live native controller)._

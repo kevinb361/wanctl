@@ -818,6 +818,46 @@ _A living document updated after each milestone. Lessons feed forward into futur
 - Model mix: Opus 4.8 (main loop) + Sonnet subagents (project-finalizer) — single extended session.
 - Notable: most wall-clock went to read-only soak/observation windows (background, near-zero token cost), not reasoning.
 
+## Milestone: v1.49 — Spectrum DSCP Tinning Re-evaluation
+
+**Closed:** 2026-06-09 (overtaken-by-events; Phase 228 unexecuted)
+**Phases:** 3 of 4 (225–227) | **Plans:** 14
+
+### What Was Built
+
+- Read-only DSCP survival trace with machine-checkable wash-ordering proofs; verdict `MARKS_SURVIVE_QUALIFIED` (operator override unblocked the A/B).
+- Snapshot A rollback anchor with dry-run restore proof and byte-identical config hash verification.
+- Pre-registered GATE-01 threshold JSON (RRUL p99, restart-rate, transition-rate, UL stability, tin separation) locked before candidate deploy.
+- Candidate `diffserv4 wash` deploy + matched baseline/candidate evidence including the AB-04 marked-EF realtime-protection arm and real CAKE per-tin parsing.
+- Fail-closed GATE-01 evidence-completeness checker for the Phase 228 verdict (delivered, never consumed).
+
+### What Worked
+
+- Pre-registration discipline held end-to-end: thresholds were locked before any candidate ran, so even the unconsumed evidence is audit-clean and reverse-fit-proof.
+- SAFE-13 zero-diff boundary proofs at every executed phase made the overtaken close cheap — there was no controller drift to untangle when the milestone was abandoned mid-flight.
+- The matched A/B evidence direction (REJECT diffserv4-wash: RRUL p99 +11.5%, EF loss ~44×) could be recorded faithfully at close because the raw artifacts were committed, not summarized.
+
+### What Was Inefficient
+
+- The verdict phase was fully planned (4 plans, cross-AI review, 2 convergence cycles) for a topology that operator side-testing replaced within five days. Planning depth outran milestone-thesis stability.
+- Side testing (`.planning/cake-autorate-trials/`) ran entirely outside GSD while STATE.md claimed "ready to execute Phase 228" — the planning state and production reality diverged for ~4 days before this close reconciled them.
+
+### Patterns Established
+
+- Overtaken-by-events close: when production topology changes under an evidence milestone, record the evidence *direction* faithfully, mark it non-transferable, close gated REQs as unmet-overtaken (not failed), and skip post-hoc verdict theater.
+- External-controller integration via contract-preserving bridge: cake-autorate owns rates; a parameterized bridge preserves wanctl's state/health/metrics shape so steering and ops tooling never notice the controller swap.
+
+### Key Lessons
+
+1. When user-visible quality is the goal, a working upstream controller (cake-autorate) beat continued native-controller tuning — the trial that mattered took days, not milestones. Evidence milestones should check "is there a cheaper external answer?" before deep A/B instrumentation.
+2. If significant side-testing starts mid-milestone, reconcile GSD state early (pause or re-scope the milestone) instead of letting STATE.md drift from production reality.
+3. An A/B verdict is topology-bound. Spectrum diffserv4-wash REJECTED at bridge-root under wanctl, but WON at member-NIC under cake-autorate — same knob, opposite answer, different placement and controller.
+
+### Cost Observations
+
+- Phases 225–227 executed 2026-06-04 in one day (14 plans); the unexecuted Phase 228 consumed planning + 2 cross-AI review cycles.
+- Migration work itself happened outside GSD (operator side sessions, 2026-06-05 → 2026-06-08), then was committed and reconciled in one session (2026-06-09).
+
 ## Cross-Milestone Trends
 
 ### Process Evolution

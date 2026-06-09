@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.49
 milestone_name: Spectrum DSCP Tinning Re-evaluation
-status: executing
-stopped_at: Completed 227-04-PLAN.md
-last_updated: "2026-06-04T18:09:06.293Z"
-last_activity: 2026-06-04 -- Phase 228 planning complete
+status: completed
+stopped_at: v1.49 closed overtaken-by-events (Phase 228 unexecuted)
+last_updated: "2026-06-09T18:40:06.104Z"
+last_activity: 2026-06-09 — Milestone v1.49 completed and archived
 progress:
   total_phases: 4
   completed_phases: 3
@@ -18,21 +18,21 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-03 after v1.48 milestone close; v1.49 milestone section current)
+See: .planning/PROJECT.md (updated 2026-06-09 after v1.49 close, overtaken-by-events)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 228 — verdict + evidence gated decision + closeout
+**Current focus:** Between milestones. Production runs cake-autorate external-controller mode on both WANs (since 2026-06-08, committed `fc47a0c`); wanctl@ disabled as rollback path; steering fed by state bridges. Next-milestone candidate: cake-autorate migration hardening — scope in `.planning/cake-autorate-trials/WANCTL_CAKE_AUTORATE_FUTURE.md`.
 
 ## Current Position
 
-Phase: 228
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-04 -- Phase 228 planning complete
+Phase: Milestone v1.49 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-09 — Milestone v1.49 completed and archived
 
 ## Deferred Items (carried into next milestone)
 
-Re-acknowledged at v1.48 milestone close 2026-06-03 via `/gsd-complete-milestone` Acknowledge-&-close path. v1.48 shipped 11/11 REQs with zero new debt; all 23 open artifacts remain pre-existing carry-forward (1 debug-session index, 12 orphan quick-task slugs, 5 dormant seeds, 5 event-gated/out-of-scope todos). Carry-forward items below are parallel to any next milestone.
+Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone` Acknowledge-&-close path (operator pre-authorized: "do it" on the overtaken-by-events closure plan). All 23 open artifacts remain the same pre-existing carry-forward set acknowledged at v1.47 and v1.48 closes (1 debug-session index, 12 orphan quick-task slugs, 5 dormant seeds, 5 event-gated/out-of-scope todos). New at this close: GATE-02/GATE-03 closed unmet-overtaken (not deferred — the gated topology no longer exists); Phase 218 watch is now dormant because its instrumentation lives in the native controller, which no longer runs Spectrum/ATT. Carry-forward items below are parallel to any next milestone.
 
 | Category | Item | Status |
 |----------|------|--------|
@@ -56,9 +56,15 @@ Re-acknowledged at v1.48 milestone close 2026-06-03 via `/gsd-complete-milestone
 | seeds | SEED-007-v145-storage-hygiene-fire-on-change | dormant; v1.48 runner-up explicitly OUT of v1.48 (single-thesis) |
 | quick_tasks | 12 orphan slugs from older milestones | metadata noise; OUT of v1.48; candidate for `/gsd-cleanup` retroactive sweep |
 
+### v1.49-closed-overtaken-by-events
+
+- **Status:** v1.49 closed 2026-06-09; Phases 225–227 complete (11/13 REQs); Phase 228 verdict/rollback unexecuted.
+- **Operator sign-off:** Kevin — 2026-06-09, "do it" on the assessed closure plan (commit migration work → close v1.49 overtaken-by-events → new milestone for cake-autorate hardening).
+- **Why this is acceptable:** The Phase 228 verdict gated a wanctl-controlled bridge-root CAKE topology that was replaced wholesale by the cake-autorate member-NIC migration (`fc47a0c`, live 2026-06-08). Computing the verdict post-hoc would be theater; the evidence direction (REJECT diffserv4-wash in the old topology: RRUL p99 +11.5%, EF loss ~44×) is recorded faithfully in MILESTONES.md and marked non-transferable. Wash-vs-nowash was independently re-validated under the new topology and `wash` won.
+
 ### v1.47-shipped-clean
 
-- **Status:** Ready to execute
+- **Status:** v1.47 milestone complete (archived 2026-06-02).
 - **Operator sign-off:** Kevin — 2026-06-02, via /gsd-complete-milestone → Acknowledge & close path. 18/18 v1.47 requirements satisfied. Zero new v1.47 debt; all 23 open artifacts are pre-existing carry-forward from v1.46 close.
 - **Why this is acceptable:** v1.47 spine (D / A1 / A2) shipped cleanly with SAFE-11 invariant held at every phase boundary. The folded tcp_12down todo is CLOSED with close-with-prejudice rule per CRITERIA-02; no v1.48+ reopen without independent new production evidence.
 
