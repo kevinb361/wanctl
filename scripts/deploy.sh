@@ -64,6 +64,12 @@ SPECTRUM_CAKE_AUTORATE_SYSTEMD=(
     "deploy/systemd/cake-autorate-spectrum-state-bridge.service"
 )
 
+ATT_CAKE_AUTORATE_SYSTEMD=(
+    "deploy/systemd/cake-autorate-att.service"
+    "deploy/systemd/cake-autorate-att-state-bridge.service"
+    "deploy/systemd/silicom-bypass-watchdog-cake-autorate-att.service"
+)
+
 # Helper functions
 print_header() {
     echo -e "${BLUE}========================================${NC}"
@@ -442,6 +448,56 @@ deploy_spectrum_cake_autorate() {
     ssh "$TARGET_HOST" "sudo systemctl daemon-reload"
 
     print_success "Spectrum cake-autorate artifacts deployed"
+}
+
+deploy_att_cake_autorate() {
+    print_step "Deploying ATT cake-autorate external-controller artifacts..."
+
+    if [[ "$WAN_NAME" != "att" ]]; then
+        print_error "--with-att-cake-autorate is only valid when wan_name is att"
+        exit 1
+    fi
+
+    if ! ssh "$TARGET_HOST" "test -x /opt/cake-autorate/cake-autorate.sh"; then
+        print_error "cake-autorate is not installed at /opt/cake-autorate/cake-autorate.sh on $TARGET_HOST"
+        print_error "Install cake-autorate first; this deploy path only owns wanctl-side integration artifacts."
+        exit 1
+    fi
+
+    ssh "$TARGET_HOST" "sudo mkdir -p /etc/cake-autorate /var/log/cake-autorate"
+
+    scp "$PROJECT_ROOT/configs/cake-autorate/config.att.sh" "$TARGET_HOST:/tmp/config.att.sh"
+    ssh "$TARGET_HOST" "sudo mv /tmp/config.att.sh /etc/cake-autorate/config.att.sh && sudo chown root:root /etc/cake-autorate/config.att.sh && sudo chmod 644 /etc/cake-autorate/config.att.sh"
+    echo "  -> /etc/cake-autorate/config.att.sh"
+
+    scp "$PROJECT_ROOT/deploy/scripts/cake-autorate-att-qdisc-init" "$TARGET_HOST:/tmp/cake-autorate-att-qdisc-init"
+    ssh "$TARGET_HOST" "sudo mv /tmp/cake-autorate-att-qdisc-init /usr/local/sbin/cake-autorate-att-qdisc-init && sudo chown root:root /usr/local/sbin/cake-autorate-att-qdisc-init && sudo chmod 755 /usr/local/sbin/cake-autorate-att-qdisc-init"
+    echo "  -> /usr/local/sbin/cake-autorate-att-qdisc-init"
+
+    scp "$PROJECT_ROOT/deploy/scripts/cake-autorate-att-state-bridge" "$TARGET_HOST:/tmp/cake-autorate-att-state-bridge"
+    ssh "$TARGET_HOST" "sudo mv /tmp/cake-autorate-att-state-bridge /usr/local/sbin/cake-autorate-att-state-bridge && sudo chown root:root /usr/local/sbin/cake-autorate-att-state-bridge && sudo chmod 755 /usr/local/sbin/cake-autorate-att-state-bridge"
+    echo "  -> /usr/local/sbin/cake-autorate-att-state-bridge"
+
+    for file in "${ATT_CAKE_AUTORATE_SYSTEMD[@]}"; do
+        if [[ -f "$file" ]]; then
+            local basename=$(basename "$file")
+            scp "$file" "$TARGET_HOST:/tmp/$basename"
+            ssh "$TARGET_HOST" "sudo mv /tmp/$basename $TARGET_SYSTEMD_DIR/$basename && sudo chown root:root $TARGET_SYSTEMD_DIR/$basename"
+            echo "  -> $basename"
+        else
+            print_error "Missing ATT cake-autorate systemd unit: $file"
+            exit 1
+        fi
+    done
+
+    # ATT carries ExecStartPre inline in its unit, so no trial drop-in cleanup is needed.
+    if ! ssh "$TARGET_HOST" "test -x /usr/local/sbin/wanctl-bpctl-watchdog-petter && test -x /usr/local/sbin/wanctl-bpctl-watchdog-bypass"; then
+        print_warning "silicom watchdog unit was deployed, but bpctl runtime petter/bypass scripts are absent; it will fail on enable until they are installed"
+    fi
+
+    ssh "$TARGET_HOST" "sudo systemctl daemon-reload"
+
+    print_success "ATT cake-autorate artifacts deployed"
 }
 
 verify_deployment() {
