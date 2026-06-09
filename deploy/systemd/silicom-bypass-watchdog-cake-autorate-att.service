@@ -1,0 +1,20 @@
+[Unit]
+Description=Silicom fail-open bypass watchdog for ATT cake-autorate trial
+Requires=bpctl-silicom.service
+After=bpctl-silicom.service cake-autorate-att.service
+Wants=cake-autorate-att.service
+
+[Service]
+Type=simple
+Environment=BPCTL_UTIL=/opt/bpctl-silicom/bpctl_util
+Environment=TIMEOUT_MS=5000
+Environment=HEARTBEAT_SECONDS=1
+Environment=IFACE=att-modem
+Environment=WANCTL_UNIT=cake-autorate-att.service
+ExecStart=/usr/local/sbin/wanctl-bpctl-watchdog-petter
+ExecStop=/usr/local/sbin/wanctl-bpctl-watchdog-bypass
+TimeoutStopSec=10
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

@@ -49,6 +49,138 @@ if command -v jq &>/dev/null; then
     HAS_JQ=true
 fi
 
+# Fetch Spectrum state from the temporary cake-autorate trial bridge when
+# wanctl@spectrum.service is intentionally inactive and its /health endpoint is
+# unavailable. This keeps soak-monitor useful during cake-autorate A/B trials
+# without pretending the normal wanctl controller is running.
+check_spectrum_cake_autorate_state() {
+    local ssh_target=$1
+
+    ssh -o ConnectTimeout=5 -o BatchMode=yes "$ssh_target" 'sudo -n python3 - <<'"'"'PY'"'"'
+import json
+import subprocess
+import time
+from pathlib import Path
+
+STATE = Path("/var/lib/wanctl/spectrum_state.json")
+MAX_STATE_AGE_SECONDS = 15
+
+def run(*args):
+    try:
+        return subprocess.run(
+            args,
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            timeout=3,
+        ).stdout.strip()
+    except Exception:
+        return ""
+
+def service_active(unit):
+    return run("systemctl", "is-active", unit) == "active"
+
+def link_lower_up(dev):
+    out = run("ip", "-br", "link", "show", "dev", dev)
+    return "LOWER_UP" in out
+
+def qdisc_bandwidth(dev):
+    out = run("tc", "qdisc", "show", "dev", dev)
+    if " qdisc cake " not in f" {out} ":
+        return None
+    parts = out.split()
+    try:
+        i = parts.index("bandwidth")
+        return parts[i + 1]
+    except Exception:
+        return "cake"
+
+now = time.time()
+issues = []
+state = {}
+age = None
+if not STATE.exists():
+    issues.append("missing_state_file")
+else:
+    try:
+        age = now - STATE.stat().st_mtime
+        state = json.loads(STATE.read_text())
+    except Exception as exc:
+        issues.append(f"state_parse_error:{type(exc).__name__}")
+    if age is not None and age > MAX_STATE_AGE_SECONDS:
+        issues.append(f"stale_state:{age:.1f}s")
+
+if not service_active("cake-autorate-spectrum.service"):
+    issues.append("cake_autorate_inactive")
+if service_active("wanctl@spectrum.service"):
+    issues.append("wanctl_spectrum_active_during_cake_trial")
+if not service_active("cake-autorate-spectrum-state-bridge.service"):
+    issues.append("state_bridge_inactive")
+for dev in ("spec-router", "spec-modem"):
+    if not link_lower_up(dev):
+        issues.append(f"{dev}_no_carrier")
+
+dl_qdisc = qdisc_bandwidth("spec-router")
+ul_qdisc = qdisc_bandwidth("spec-modem")
+if dl_qdisc is None:
+    issues.append("spec-router_no_cake")
+if ul_qdisc is None:
+    issues.append("spec-modem_no_cake")
+
+last = state.get("last_applied") or {}
+dl_rate = last.get("dl_rate") or state.get("download", {}).get("current_rate")
+ul_rate = last.get("ul_rate") or state.get("upload", {}).get("current_rate")
+cong = state.get("congestion") or {}
+dl_state = cong.get("dl_state") or state.get("download", {}).get("state") or "?"
+ul_state = cong.get("ul_state") or state.get("upload", {}).get("state") or "?"
+
+status = "healthy" if not issues and dl_state == "GREEN" and ul_state == "GREEN" else "degraded"
+
+def mbps(v):
+    try:
+        return round(float(v) / 1_000_000, 3)
+    except Exception:
+        return None
+
+health = {
+    "status": status,
+    "version": "cake-autorate-trial",
+    "uptime_seconds": None,
+    "consecutive_failures": 0 if status == "healthy" else len(issues),
+    "source": "cake-autorate-state-bridge",
+    "state_age_seconds": None if age is None else round(age, 1),
+    "issues": issues,
+    "wan_count": 1,
+    "wans": [
+        {
+            "name": "spectrum",
+            "download": {
+                "current_rate_mbps": mbps(dl_rate),
+                "state": dl_state,
+                "state_reason": "cake_autorate_state_bridge",
+                "qdisc_bandwidth": dl_qdisc,
+            },
+            "upload": {
+                "current_rate_mbps": mbps(ul_rate),
+                "state": ul_state,
+                "state_reason": "cake_autorate_state_bridge",
+                "qdisc_bandwidth": ul_qdisc,
+            },
+            "cake_autorate": {
+                "service_active": service_active("cake-autorate-spectrum.service"),
+                "state_bridge_active": service_active("cake-autorate-spectrum-state-bridge.service"),
+                "wanctl_service_active": service_active("wanctl@spectrum.service"),
+                "spec_router_lower_up": link_lower_up("spec-router"),
+                "spec_modem_lower_up": link_lower_up("spec-modem"),
+            },
+        }
+    ],
+}
+print(json.dumps(health, separators=(",", ":")))
+PY'
+}
+
 # Check single target health
 check_target() {
     local ssh_target=$1
@@ -56,14 +188,17 @@ check_target() {
     local health_ip=$3
     local health_json
 
-    # Fetch health data
-    if ! health_json=$(ssh -o ConnectTimeout=5 -o BatchMode=yes "$ssh_target" "curl -s http://${health_ip}:${HEALTH_PORT}/health" 2>/dev/null); then
-        echo "UNREACHABLE|?|?|?|?/?|?|?|?"
-        return 1
+    # Fetch health data. During the Spectrum cake-autorate trial the normal
+    # wanctl /health endpoint is intentionally down, so fall back to the bridge
+    # state instead of marking the WAN unreachable.
+    if ! health_json=$(ssh -o ConnectTimeout=5 -o BatchMode=yes "$ssh_target" "curl -fsS --max-time 3 http://${health_ip}:${HEALTH_PORT}/health" 2>/dev/null); then
+        if [[ "$wan_name" == "spectrum" ]]; then
+            health_json=$(check_spectrum_cake_autorate_state "$ssh_target" 2>/dev/null || true)
+        fi
     fi
 
     if [[ -z "$health_json" || "$health_json" == "null" ]]; then
-        echo "NO_RESPONSE|?|?|?|?/?|?|?|?"
+        echo "UNREACHABLE|?|?|?|?/?|-"
         return 1
     fi
 
@@ -85,6 +220,11 @@ check_target() {
         drop_rate=$(echo "$health_json" | jq -r '.wans[0].cake_signal.download.drop_rate // "-"')
         backlog=$(echo "$health_json" | jq -r '.wans[0].cake_signal.download.backlog_bytes // "-"')
         peak_delay=$(echo "$health_json" | jq -r '.wans[0].cake_signal.download.peak_delay_us // "-"')
+        if [[ "$drop_rate" == "-" && "$(echo "$health_json" | jq -r '.source // ""')" == "cake-autorate-state-bridge" ]]; then
+            drop_rate="rates"
+            backlog=$(echo "$health_json" | jq -r '(.wans[0].download.qdisc_bandwidth // "?") + "/" + (.wans[0].upload.qdisc_bandwidth // "?")')
+            peak_delay="0"
+        fi
     else
         # Fallback to python parsing (more reliable than sed for nested JSON)
         eval "$(echo "$health_json" | python3 -c "
@@ -117,7 +257,9 @@ print(f'peak_delay=\"{cs.get(\"peak_delay_us\", \"-\")}\"')
 
     # Format CAKE signal values
     local cake_str="-"
-    if [[ "$drop_rate" != "-" && "$drop_rate" != "null" ]]; then
+    if [[ "$drop_rate" == "rates" ]]; then
+        cake_str="rates ${backlog}"
+    elif [[ "$drop_rate" != "-" && "$drop_rate" != "null" ]]; then
         local dr_fmt bl_fmt pd_fmt
         dr_fmt=$(printf "%.0f" "$drop_rate" 2>/dev/null || echo "$drop_rate")
         bl_fmt=$(echo "$backlog" | awk '{if($1>1048576)printf "%.1fM",$1/1048576; else if($1>1024)printf "%.0fK",$1/1024; else printf "%d",$1}' 2>/dev/null || echo "$backlog")
@@ -126,6 +268,15 @@ print(f'peak_delay=\"{cs.get(\"peak_delay_us\", \"-\")}\"')
     fi
 
     echo "${status:-?}|${version:-?}|${uptime_fmt}|${failures:-0}|${dl_state:-?}/${ul_state:-?}|${cake_str}"
+}
+
+# Check whether Spectrum is currently in the cake-autorate trial mode rather
+# than normal wanctl@spectrum control.
+is_spectrum_cake_trial_active() {
+    local ssh_target=$1
+    ssh -o ConnectTimeout=5 -o BatchMode=yes "$ssh_target" \
+        'test "$(systemctl is-active cake-autorate-spectrum.service 2>/dev/null)" = active && test "$(systemctl is-active wanctl@spectrum.service 2>/dev/null)" != active' \
+        >/dev/null 2>&1
 }
 
 # Check for recent errors in journal
@@ -173,7 +324,11 @@ run_check() {
         health_data=$(check_target "$ssh_target" "$wan_name" "$health_ip")
 
         if $JSON_MODE; then
-            errors=$(check_errors "$ssh_target" "wanctl@${wan_name}.service")
+            if [[ "$wan_name" == "spectrum" ]] && is_spectrum_cake_trial_active "$ssh_target"; then
+                errors=$(check_errors "$ssh_target" "cake-autorate-spectrum.service" "cake-autorate-spectrum-state-bridge.service")
+            else
+                errors=$(check_errors "$ssh_target" "wanctl@${wan_name}.service")
+            fi
             [[ $i -gt 0 ]] && json_output+=","
             json_output+="{\"wan\":\"$wan_name\",\"health\":$health_data,\"errors_1h\":$errors}"
             continue
@@ -182,7 +337,11 @@ run_check() {
         # Parse health data
         IFS='|' read -r status version uptime failures state cake_str <<< "$health_data"
 
-        errors=$(check_errors "$ssh_target" "wanctl@${wan_name}.service")
+        if [[ "$wan_name" == "spectrum" ]] && is_spectrum_cake_trial_active "$ssh_target"; then
+            errors=$(check_errors "$ssh_target" "cake-autorate-spectrum.service" "cake-autorate-spectrum-state-bridge.service")
+        else
+            errors=$(check_errors "$ssh_target" "wanctl@${wan_name}.service")
+        fi
 
         # Colorize values
         local c_status c_fails c_state c_errors c_cake
@@ -237,22 +396,36 @@ run_check() {
     done
 
     if $JSON_MODE; then
-        local service_errors
-        service_errors=$(check_errors "kevin@10.10.110.223" "${SERVICE_UNITS[@]}")
+        local service_errors service_units_json
+        if is_spectrum_cake_trial_active "kevin@10.10.110.223"; then
+            service_errors=$(check_errors "kevin@10.10.110.223" "cake-autorate-spectrum.service" "cake-autorate-spectrum-state-bridge.service" "wanctl@att.service" "steering.service")
+            service_units_json='["cake-autorate-spectrum.service","cake-autorate-spectrum-state-bridge.service","wanctl@att.service","steering.service"]'
+        else
+            service_errors=$(check_errors "kevin@10.10.110.223" "${SERVICE_UNITS[@]}")
+            service_units_json='["wanctl@spectrum.service","wanctl@att.service","steering.service"]'
+        fi
         if [[ "$json_output" != "[" ]]; then
             json_output+=","
         fi
-        json_output+="{\"service_group\":\"all-claimed-services\",\"units\":[\"wanctl@spectrum.service\",\"wanctl@att.service\",\"steering.service\"],\"errors_1h\":$service_errors}"
+        json_output+="{\"service_group\":\"all-claimed-services\",\"units\":${service_units_json},\"errors_1h\":$service_errors}"
         echo "${json_output}]"
         return
     fi
 
     # Summary
     echo ""
-    local service_errors
-    service_errors=$(check_errors "kevin@10.10.110.223" "${SERVICE_UNITS[@]}")
-    echo "Service error scan (1h): wanctl@spectrum.service, wanctl@att.service, steering.service => ${service_errors}"
-    if $all_healthy; then
+    local service_errors service_label
+    if is_spectrum_cake_trial_active "kevin@10.10.110.223"; then
+        service_errors=$(check_errors "kevin@10.10.110.223" "cake-autorate-spectrum.service" "cake-autorate-spectrum-state-bridge.service" "wanctl@att.service" "steering.service")
+        service_label="cake-autorate-spectrum.service, cake-autorate-spectrum-state-bridge.service, wanctl@att.service, steering.service"
+    else
+        service_errors=$(check_errors "kevin@10.10.110.223" "${SERVICE_UNITS[@]}")
+        service_label="wanctl@spectrum.service, wanctl@att.service, steering.service"
+    fi
+    echo "Service error scan (1h): ${service_label} => ${service_errors}"
+    if [[ "$service_errors" =~ ^[0-9]+$ && "$service_errors" -gt 0 ]]; then
+        echo -e "${YELLOW}${BOLD}⚠ WAN state is healthy, but recent service errors exist in the 1h journal window${NC}"
+    elif $all_healthy; then
         echo -e "${GREEN}${BOLD}✓ All WANs healthy${NC}"
     else
         echo -e "${RED}${BOLD}✗ Issues detected - investigate with: ssh kevin@10.10.110.223 'journalctl -u wanctl@spectrum.service -u wanctl@att.service -u steering.service -n 50'${NC}"

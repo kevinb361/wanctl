@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+# ATT VDSL CAKE baseline for cake-autorate external-controller mode.
+# cake-autorate owns download bandwidth changes after startup; upload remains fixed.
+tc qdisc replace dev att-router root cake bandwidth 95000Kbit diffserv4 triple-isolate ingress nonat nowash no-ack-filter split-gso rtt 35ms ptm overhead 22 mpu 64 memlimit 32Mb
+tc qdisc replace dev att-modem root cake bandwidth 19000Kbit diffserv4 triple-isolate egress nonat nowash ack-filter split-gso rtt 35ms ptm overhead 22 mpu 64 memlimit 32Mb

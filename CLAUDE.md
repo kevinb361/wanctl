@@ -124,16 +124,23 @@ Do not recommend threshold or bounds changes casually. First read:
 
 Active deployment is service-based, not timer-based.
 
+**Deployment modes:**
+
+- **wanctl@ mode** (default): Pure wanctl controllers via `wanctl@{wan}.service` template, feeds steering
+- **cake-autorate external mode**: Standalone cake-autorate runs rate shaping; wanctl-side bridge (parameterized Python) polls cake-autorate log, writes state JSON, publishes health endpoint; steering consumes the same state files
+
 Current primary scripts:
 
 - `scripts/install.sh`
 - `scripts/deploy.sh`
 - `scripts/install-systemd.sh`
 
-Current units:
+Current units vary by deployment mode:
 
-- `deploy/systemd/wanctl@.service`
-- `deploy/systemd/steering.service`
+- `deploy/systemd/wanctl@.service` — pure wanctl controller
+- `deploy/systemd/cake-autorate-{spectrum,att}.service` — external cake-autorate (Spectrum/ATT)
+- `deploy/systemd/cake-autorate-{spectrum,att}-state-bridge.service` — state bridge (polls cake-autorate log)
+- `deploy/systemd/steering.service` — latency steering daemon (both modes)
 
 Do not reintroduce timer-era guidance into active docs or scripts.
 

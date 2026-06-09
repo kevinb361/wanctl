@@ -1,0 +1,18 @@
+[Unit]
+Description=cake-autorate ATT VDSL shaper
+Documentation=https://github.com/lynxthecat/cake-autorate
+After=network-online.target wanctl-nic-tuning.service
+Wants=network-online.target wanctl-nic-tuning.service
+Conflicts=wanctl@att.service
+
+[Service]
+Type=simple
+ExecStartPre=/usr/local/sbin/cake-autorate-att-qdisc-init
+ExecStart=/opt/cake-autorate/cake-autorate.sh /etc/cake-autorate/config.att.sh
+Restart=on-failure
+RestartSec=5s
+Environment=CAKE_AUTORATE_SCRIPT_PREFIX=/opt/cake-autorate
+Environment=CAKE_AUTORATE_CONFIG_PREFIX=/etc/cake-autorate
+
+[Install]
+WantedBy=multi-user.target

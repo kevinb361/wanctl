@@ -1,0 +1,22 @@
+[Unit]
+Description=Bridge ATT cake-autorate summary into wanctl state
+After=cake-autorate-att.service
+Wants=cake-autorate-att.service
+
+[Service]
+Type=simple
+Environment=WANCTL_EXTERNAL_WAN_NAME=att
+Environment=WANCTL_EXTERNAL_DL_IF=att-router
+Environment=WANCTL_EXTERNAL_UL_IF=att-modem
+Environment=CAKE_AUTORATE_BRIDGE_LOG=/var/log/cake-autorate/cake-autorate.att.log
+Environment=WANCTL_EXTERNAL_STATE_PATH=/var/lib/wanctl/att_state.json
+Environment=WANCTL_EXTERNAL_METRICS_DB=/var/lib/wanctl/metrics-att.db
+Environment=WANCTL_EXTERNAL_BASELINE_RTT=28.42043789020452
+Environment=CAKE_AUTORATE_BRIDGE_HEALTH_HOST=10.10.110.227
+Environment=CAKE_AUTORATE_BRIDGE_HEALTH_PORT=9101
+ExecStart=/usr/local/sbin/cake-autorate-att-state-bridge
+Restart=on-failure
+RestartSec=2s
+
+[Install]
+WantedBy=multi-user.target
