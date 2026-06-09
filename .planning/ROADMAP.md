@@ -48,7 +48,10 @@
   3. Repo tests cover the ATT artifacts at parity with `test_spectrum_cake_autorate_artifacts.py` (units, `Conflicts=wanctl@att.service`, qdisc-init invariants, bridge env wiring, silicom watchdog variant) and pass.
   4. A test validates the `deploy.sh` ATT file list against the repo artifacts so the two cannot drift silently.
   5. SAFE-14 controller-path zero-diff holds at the phase boundary (verified, not assumed).
-**Plans**: TBD
+**Plans**: 3 plans
+  - [ ] 229-01-PLAN.md — DEPLOY-01: deploy_att_cake_autorate() sibling function + --with-att-cake-autorate flag wiring (silicom watchdog unit + bpctl preflight)
+  - [ ] 229-02-PLAN.md — TEST-01/TEST-02: ATT artifact-contract tests at Spectrum parity + deploy-list bidirectional drift gate
+  - [ ] 229-03-PLAN.md — DEPLOY-02 read-only live-vs-repo sha256 diff + SAFE-14 controller-path zero-diff boundary proof
 
 ### Phase 230: soak-monitor ATT Coverage
 **Goal**: soak-monitor observes the actual live ATT external-controller units instead of the disabled native service, and handles ATT external-controller mode at full Spectrum parity — closing the migration's live observability hole.
@@ -80,7 +83,7 @@
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 229. ATT Deploy Path + Artifact Tests | v1.50 | 0/TBD | Not started | - |
+| 229. ATT Deploy Path + Artifact Tests | v1.50 | 0/3 | Not started | - |
 | 230. soak-monitor ATT Coverage | v1.50 | 0/TBD | Not started | - |
 | 231. Migration-Held Criteria, Rollback & Doc Sweep | v1.50 | 0/TBD | Not started | - |
 
