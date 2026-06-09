@@ -2,7 +2,7 @@
 
 ## Milestones
 
-- ⏸ **Next milestone** — not started (candidate thesis: cake-autorate migration hardening — see `.planning/cake-autorate-trials/WANCTL_CAKE_AUTORATE_FUTURE.md`; start with `/gsd-new-milestone`)
+- 🚧 **v1.50 cake-autorate Migration Hardening** — in progress (Phases 229–231; make the 2026-06-08 cake-autorate migration reproducible, observable, and provably held — close the deploy/test/monitoring gaps left by the hand-rolled ATT path)
 - ✅ **v1.49 Spectrum DSCP Tinning Re-evaluation** — closed 2026-06-09 overtaken-by-events (Phases 225–227 complete; Phase 228 verdict unexecuted — production migrated both WANs to cake-autorate before it ran) — `milestones/v1.49-ROADMAP.md`
 - ✅ **v1.48 Steering Runtime Drift Closure** — shipped 2026-06-03 (Phases 222–224; live steering daemon aligned `1.39 → 1.47` in production, canary kept_aligned, SAFE-12 held) — `milestones/v1.48-ROADMAP.md`
 - ✅ **v1.47 Measurement Evidence Closure** — shipped 2026-06-02 (Phases 219–221; 18/18 REQs satisfied; `tcp_12down` closed-with-prejudice per CRITERIA-02) — `milestones/v1.47-ROADMAP.md`
@@ -18,7 +18,71 @@
 
 > v1.49 full phase detail, success criteria, and REQ coverage archived to `milestones/v1.49-ROADMAP.md`. Closed overtaken-by-events: Phases 225–227 delivered the DSCP trace, Snapshot A anchor, locked GATE-01 thresholds, and matched A/B evidence (direction: REJECT diffserv4-wash in the old wanctl-bridge topology, +11.5% RRUL p99, EF loss ~44×); the Phase 228 verdict/rollback never ran because both WANs migrated to cake-autorate with member-NIC CAKE placement (`fc47a0c`). GATE-02/GATE-03 unmet-overtaken. 14 plans, 11/13 REQs.
 
-> **Production controller state (2026-06-09):** Both WANs run upstream cake-autorate with wanctl state bridges (`cake-autorate-{spectrum,att}.service` + `-state-bridge.service`); `wanctl@{spectrum,att}` disabled as rollback path. Steering consumes bridge state. Native wanctl remains the MikroTik/RouterOS controller. Next-milestone candidate scope: `.planning/cake-autorate-trials/WANCTL_CAKE_AUTORATE_FUTURE.md` (ATT deploy path in deploy.sh, soak-monitor ATT trial handling, ATT artifact tests, soak criteria, native-controller role decision).
+> **Production controller state (2026-06-09):** Both WANs run upstream cake-autorate with wanctl state bridges (`cake-autorate-{spectrum,att}.service` + `-state-bridge.service`, live since 2026-06-08); `wanctl@{spectrum,att}` disabled as the rollback path. Steering consumes bridge-written state. Native wanctl remains the MikroTik/RouterOS controller. The ATT artifact set was hand-deployed during migration — repo has the artifacts but `deploy.sh` only supports `--with-spectrum-cake-autorate`. v1.50 closes that and the related test/monitor/soak gaps.
+
+---
+
+## 🚧 v1.50 cake-autorate Migration Hardening (In Progress)
+
+**Milestone Goal:** Make the 2026-06-08 cake-autorate migration reproducible, observable, and provably held — close the deploy/test/monitoring gaps left by the hand-rolled ATT path. Surface is deploy/test/ops/doc only; controller-path stays zero-diff (SAFE-14, successor to SAFE-07..13).
+
+**Granularity:** fine (3 phases — milestone is deliberately small; Out-of-Scope table in REQUIREMENTS.md is binding, no invented scope)
+
+**Phase Numbering:** continues from v1.49 (last phase 228) → v1.50 starts at **Phase 229**.
+
+### Phases
+
+- [ ] **Phase 229: ATT Deploy Path + Artifact Tests** - Repo becomes the reproducible source of truth for the ATT cake-autorate artifact set (deploy parity + drift-proof tests), zero production touch
+- [ ] **Phase 230: soak-monitor ATT Coverage** - soak-monitor watches the live ATT cake-autorate units and handles external-controller mode at Spectrum parity, closing the error-scan blind spot
+- [ ] **Phase 231: Migration-Held Criteria, Rollback Verification & Doc Sweep** - Formal both-WAN "held" criteria evaluated against live evidence, rollback proven (exercised or preflighted-provable), stale docs swept, SAFE-14 closeout
+
+## Phase Details
+
+### Phase 229: ATT Deploy Path + Artifact Tests
+**Goal**: The repo is the reproducible, drift-proof source of truth for the full ATT cake-autorate artifact set — an operator can deploy ATT with the same rigor as Spectrum, and tests fail if repo artifacts or the deploy list drift from each other.
+**Depends on**: Nothing (first phase; repo-only, zero production risk)
+**Requirements**: DEPLOY-01, DEPLOY-02, TEST-01, TEST-02
+**Success Criteria** (what must be TRUE):
+  1. Operator can run `deploy.sh --with-att-cake-autorate` and it deploys the full ATT artifact set (config, qdisc-init, state bridge, both services, silicom watchdog variant) with the same preflight/validation rigor as `--with-spectrum-cake-autorate`.
+  2. A verified diff confirms the repo's ATT artifact set matches the live hand-deployed state on cake-shaper — repo is source of truth, no drift (DEPLOY-02).
+  3. Repo tests cover the ATT artifacts at parity with `test_spectrum_cake_autorate_artifacts.py` (units, `Conflicts=wanctl@att.service`, qdisc-init invariants, bridge env wiring, silicom watchdog variant) and pass.
+  4. A test validates the `deploy.sh` ATT file list against the repo artifacts so the two cannot drift silently.
+  5. SAFE-14 controller-path zero-diff holds at the phase boundary (verified, not assumed).
+**Plans**: TBD
+
+### Phase 230: soak-monitor ATT Coverage
+**Goal**: soak-monitor observes the actual live ATT external-controller units instead of the disabled native service, and handles ATT external-controller mode at full Spectrum parity — closing the migration's live observability hole.
+**Depends on**: Phase 229
+**Requirements**: MON-01, MON-02
+**Success Criteria** (what must be TRUE):
+  1. soak-monitor error-scan reads the live ATT units (`cake-autorate-att.service`, `cake-autorate-att-state-bridge.service`, silicom watchdog variant) instead of the disabled `wanctl@att.service`, demonstrated against live journals.
+  2. soak-monitor mode detection has no Spectrum-only hardcoding — ATT external-controller mode (mode detection + bridge-fallback health source) is handled at parity with Spectrum.
+  3. A real soak-monitor run surfaces an injected/representative ATT-unit error condition that the pre-fix scan would have missed.
+  4. SAFE-14 controller-path zero-diff holds at the phase boundary.
+**Plans**: TBD
+
+### Phase 231: Migration-Held Criteria, Rollback Verification & Doc Sweep
+**Goal**: The 2026-06-08 migration is provably held on both WANs against formal criteria, native-controller rollback is verified (exercised under operator approval or trivially provable via a documented preflighted procedure with evidence), stale native-ownership doc claims are swept, and SAFE-14 is proven at milestone close.
+**Depends on**: Phase 230
+**Requirements**: SOAK-01, SOAK-02, DOCS-04, SAFE-14
+**Success Criteria** (what must be TRUE):
+  1. Formal "migration held" criteria are defined and evaluated against live evidence for both WANs: bridge health, metrics-DB ingestion, no sustained service errors, qdisc within the configured envelope (SOAK-01).
+  2. Rollback to native `wanctl@{wan}` is verified — exercised on one WAN under operator approval, OR trivially provable via a documented, preflighted procedure with evidence captured (SOAK-02; production rollback exercise requires operator approval).
+  3. Active docs (README, DEPLOYMENT, ARCHITECTURE, CONFIGURATION as applicable) describe both deployment modes correctly and no longer claim native-wanctl ownership of Spectrum/ATT rate control (DOCS-04).
+  4. SAFE-14 controller-path zero-diff (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) is proven at this phase boundary AND at milestone close.
+**Plans**: TBD
+
+> **SAFE-14 note:** SAFE-14 is a cross-phase invariant verified at every phase boundary (229, 230, 231) following the SAFE-07..13 precedent; it is mapped to the final/closeout phase (231) for traceability accounting. The milestone surface is deploy/test/ops/doc only — no controller threshold/algorithm changes.
+
+## Progress
+
+**Execution Order:** Phases execute in numeric order: 229 → 230 → 231
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 229. ATT Deploy Path + Artifact Tests | v1.50 | 0/TBD | Not started | - |
+| 230. soak-monitor ATT Coverage | v1.50 | 0/TBD | Not started | - |
+| 231. Migration-Held Criteria, Rollback & Doc Sweep | v1.50 | 0/TBD | Not started | - |
 
 ---
 
@@ -28,10 +92,12 @@
 
 - **Phase 218 (v1.45 VERIFY watch-list)** — VERIFY-01 / VERIFY-02 still event-gated on natural production DOCSIS flapping event with `details.peak_transition_count > 30`. No synthetic event generation per inherited ROADMAP constraint. **Note (2026-06-09):** the flapping peak-counter instrumentation lives in the native wanctl controller, which no longer runs Spectrum/ATT; this watch item is dormant unless wanctl@ returns to live duty or the check is reimplemented against bridge/cake-autorate telemetry.
 
-### Deferred (post-v1.49 candidates)
+### Deferred (post-v1.50 candidates)
 
+- **ROLE-01 (native-controller retirement decision)** — time/event-gated; needs both-WAN soak time under cake-autorate. `WANCTL_CAKE_AUTORATE_FUTURE.md` "What not to delete yet" governs until then. Explicitly out of v1.50 scope (not buildable work now).
+- **TAIL-01 (Spectrum loaded-latency tail)** — cap sweeps proved it is not a local CAKE knob problem; path/CMTS-shaped evidence milestone, different shape. Out of v1.50 scope.
 - **RECLAIM-04** — Spectrum upload reclaim re-attempt with fundamentally different probe shape. Carried indefinitely after Phase 215 bounded VOID exhaustion. **Note (2026-06-09):** upload autorate is currently disabled under cake-autorate (fixed 18M); any reclaim attempt is now a cake-autorate config question (`adjust_ul_shaper_rate=1`), not a wanctl probe-shape question.
 - **diffserv4 nowash experiment** — superseded: wash-vs-nowash was re-tested under the cake-autorate member-NIC topology (2026-06-05/06 trials) and `wash` won; see `SPECTRUM_CAKE_FINDINGS.md`.
 - **SEED-005** — Conservative UL tuning sweep. Dormant; separate thesis (now a cake-autorate envelope question).
-- **SEED-006** — Silicom bypass tooling + harness. Dormant. Partially overtaken: `silicom-bypass-watchdog-cake-autorate-att.service` shipped in `fc47a0c`.
-- **SEED-007** — Storage hygiene fire-on-change. Dormant; separate thesis.
+- **SEED-006** — Silicom bypass tooling + harness. Dormant. Partially overtaken: `silicom-bypass-watchdog-cake-autorate-att.service` shipped in `fc47a0c`. Excluded at v1.50 scoping 2026-06-09 — ATT watchdog unit coverage rides in Phase 229 artifact tests (TEST-01).
+- **SEED-007** — Storage hygiene fire-on-change. Dormant; separate thesis. No match to v1.50 hardening goals.
