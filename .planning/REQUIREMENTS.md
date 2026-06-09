@@ -10,7 +10,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Deploy Path (DEPLOY)
 
-- [ ] **DEPLOY-01**: Operator can deploy all ATT cake-autorate artifacts (config, qdisc-init, state bridge, both services, silicom watchdog variant) via a `deploy.sh --with-att-cake-autorate` path with the same preflight/validation rigor as the existing `--with-spectrum-cake-autorate` path
+- [x] **DEPLOY-01**: Operator can deploy all ATT cake-autorate artifacts (config, qdisc-init, state bridge, both services, silicom watchdog variant) via a `deploy.sh --with-att-cake-autorate` path with the same preflight/validation rigor as the existing `--with-spectrum-cake-autorate` path
 - [ ] **DEPLOY-02**: Deployed ATT artifact set matches the live hand-deployed state on cake-shaper (verified diff — repo is the source of truth, no drift)
 
 ### Artifact Tests (TEST)
@@ -68,7 +68,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEPLOY-01 | Phase 229 | Pending |
+| DEPLOY-01 | Phase 229 | Complete |
 | DEPLOY-02 | Phase 229 | Pending |
 | TEST-01 | Phase 229 | Pending |
 | TEST-02 | Phase 229 | Pending |
