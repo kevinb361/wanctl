@@ -50,7 +50,7 @@
   5. SAFE-14 controller-path zero-diff holds at the phase boundary (verified, not assumed).
 **Plans**: 3 plans
   - [x] 229-01-PLAN.md — DEPLOY-01: deploy_att_cake_autorate() sibling function + --with-att-cake-autorate flag wiring (silicom watchdog unit + bpctl preflight)
-  - [ ] 229-02-PLAN.md — TEST-01/TEST-02: ATT artifact-contract tests at Spectrum parity + deploy-list bidirectional drift gate
+  - [x] 229-02-PLAN.md — TEST-01/TEST-02: ATT artifact-contract tests at Spectrum parity + deploy-list bidirectional drift gate
   - [ ] 229-03-PLAN.md — DEPLOY-02 read-only live-vs-repo sha256 diff + SAFE-14 controller-path zero-diff boundary proof
 
 ### Phase 230: soak-monitor ATT Coverage
@@ -83,7 +83,7 @@
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 229. ATT Deploy Path + Artifact Tests | v1.50 | 1/3 | In Progress|  |
+| 229. ATT Deploy Path + Artifact Tests | v1.50 | 2/3 | In Progress|  |
 | 230. soak-monitor ATT Coverage | v1.50 | 0/TBD | Not started | - |
 | 231. Migration-Held Criteria, Rollback & Doc Sweep | v1.50 | 0/TBD | Not started | - |
 

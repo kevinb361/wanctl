@@ -15,8 +15,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Artifact Tests (TEST)
 
-- [ ] **TEST-01**: ATT cake-autorate artifacts covered by repo tests at parity with `test_spectrum_cake_autorate_artifacts.py` (units, `Conflicts=wanctl@att.service`, qdisc-init invariants, bridge env wiring, silicom watchdog variant)
-- [ ] **TEST-02**: `deploy.sh` ATT file list validated by test so repo artifacts and the deploy list cannot drift silently
+- [x] **TEST-01**: ATT cake-autorate artifacts covered by repo tests at parity with `test_spectrum_cake_autorate_artifacts.py` (units, `Conflicts=wanctl@att.service`, qdisc-init invariants, bridge env wiring, silicom watchdog variant)
+- [x] **TEST-02**: `deploy.sh` ATT file list validated by test so repo artifacts and the deploy list cannot drift silently
 
 ### Monitoring (MON)
 
@@ -70,8 +70,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | DEPLOY-01 | Phase 229 | Complete |
 | DEPLOY-02 | Phase 229 | Pending |
-| TEST-01 | Phase 229 | Pending |
-| TEST-02 | Phase 229 | Pending |
+| TEST-01 | Phase 229 | Complete |
+| TEST-02 | Phase 229 | Complete |
 | MON-01 | Phase 230 | Pending |
 | MON-02 | Phase 230 | Pending |
 | SOAK-01 | Phase 231 | Pending |
