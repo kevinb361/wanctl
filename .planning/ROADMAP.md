@@ -83,7 +83,7 @@
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 229. ATT Deploy Path + Artifact Tests | v1.50 | 3/3 | Complete   | 2026-06-09 |
+| 229. ATT Deploy Path + Artifact Tests | v1.50 | 3/3 | Complete    | 2026-06-09 |
 | 230. soak-monitor ATT Coverage | v1.50 | 0/TBD | Not started | - |
 | 231. Migration-Held Criteria, Rollback & Doc Sweep | v1.50 | 0/TBD | Not started | - |
 
