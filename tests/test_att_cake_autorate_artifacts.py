@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import socket
 import sqlite3
 import subprocess
@@ -20,6 +21,15 @@ WATCHDOG_SERVICE = (
     REPO_ROOT / "deploy" / "systemd" / "silicom-bypass-watchdog-cake-autorate-att.service"
 )
 CAKE_CONFIG = REPO_ROOT / "configs" / "cake-autorate" / "config.att.sh"
+
+ATT_ARTIFACTS = {
+    "configs/cake-autorate/config.att.sh",
+    "deploy/scripts/cake-autorate-att-qdisc-init",
+    "deploy/scripts/cake-autorate-att-state-bridge",
+    "deploy/systemd/cake-autorate-att.service",
+    "deploy/systemd/cake-autorate-att-state-bridge.service",
+    "deploy/systemd/silicom-bypass-watchdog-cake-autorate-att.service",
+}
 
 def free_tcp_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -257,3 +267,38 @@ def test_state_bridge_serves_att_health_endpoint(tmp_path: Path) -> None:
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.wait(timeout=5)
+
+
+def _att_deploy_function_body(deploy_text: str) -> str:
+    match = re.search(r"^deploy_att_cake_autorate\(\) \{\n(?P<body>.*?)^\}", deploy_text, re.S | re.M)
+    assert match is not None, "deploy_att_cake_autorate() function not found"
+    return match.group("body")
+
+
+def _att_systemd_array_entries(deploy_text: str) -> set[str]:
+    match = re.search(r"^ATT_CAKE_AUTORATE_SYSTEMD=\(\n(?P<body>.*?)^\)", deploy_text, re.S | re.M)
+    assert match is not None, "ATT_CAKE_AUTORATE_SYSTEMD array not found"
+    return set(re.findall(r'"(deploy/systemd/[^"]+)"', match.group("body")))
+
+
+def test_deploy_att_file_list_matches_repo() -> None:
+    deploy_text = DEPLOY.read_text(encoding="utf-8")
+    function_body = _att_deploy_function_body(deploy_text)
+
+    function_paths = set(re.findall(r'\$PROJECT_ROOT/([^"\s]+)', function_body))
+    parsed = function_paths | _att_systemd_array_entries(deploy_text)
+
+    extra = parsed - ATT_ARTIFACTS
+    missing = ATT_ARTIFACTS - parsed
+    nonexistent = {path for path in parsed if not (REPO_ROOT / path).exists()}
+
+    assert not nonexistent, "deploy.sh ATT path references missing repo file(s): " + ", ".join(
+        sorted(nonexistent)
+    )
+    assert not missing, "repo ATT artifact(s) unreferenced by deploy.sh ATT path: " + ", ".join(
+        sorted(missing)
+    )
+    assert not extra, "deploy.sh ATT path references unexpected ATT artifact(s): " + ", ".join(
+        sorted(extra)
+    )
+    assert parsed == ATT_ARTIFACTS
