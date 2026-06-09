@@ -105,6 +105,9 @@ usage() {
     echo "  --with-spectrum-cake-autorate"
     echo "                     Deploy Spectrum external cake-autorate mode artifacts"
     echo "                     (only valid with wan_name=spectrum; conflicts with wanctl@spectrum)"
+    echo "  --with-att-cake-autorate"
+    echo "                     Deploy ATT external cake-autorate mode artifacts"
+    echo "                     (only valid with wan_name=att; conflicts with wanctl@att)"
     echo "  --install-only     Only run install.sh on target (no file deployment)"
     echo "  --dry-run          Show what would be deployed without doing it"
     echo "  --help             Show this help message"
@@ -606,7 +609,11 @@ print_next_steps() {
     echo ""
 
     echo -e "${BLUE}4. Restart the service:${NC}"
-    if [[ "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" ]]; then
+    if [[ "$WITH_ATT_CAKE_AUTORATE" == "true" ]]; then
+        echo "   ssh $TARGET_HOST 'sudo systemctl disable --now wanctl@att.service || true'"
+        echo "   ssh $TARGET_HOST 'sudo systemctl enable --now cake-autorate-att.service cake-autorate-att-state-bridge.service'"
+        echo "   # Rollback: sudo systemctl disable --now cake-autorate-att.service cake-autorate-att-state-bridge.service && sudo systemctl enable --now wanctl@att.service"
+    elif [[ "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" ]]; then
         echo "   ssh $TARGET_HOST 'sudo systemctl disable --now wanctl@${wan_name}.service || true'"
         echo "   ssh $TARGET_HOST 'sudo systemctl enable --now cake-autorate-spectrum.service cake-autorate-spectrum-state-bridge.service'"
         echo "   # Rollback: sudo systemctl disable --now cake-autorate-spectrum.service cake-autorate-spectrum-state-bridge.service && sudo systemctl enable --now wanctl@${wan_name}.service"
@@ -626,7 +633,12 @@ print_next_steps() {
     echo "   For threshold details or escalation steps, see: docs/RUNBOOK.md"
 
     echo -e "${BLUE}6. Monitor:${NC}"
-    if [[ "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" ]]; then
+    if [[ "$WITH_ATT_CAKE_AUTORATE" == "true" ]]; then
+        echo "   ssh $TARGET_HOST 'sudo journalctl -u cake-autorate-att.service -u cake-autorate-att-state-bridge.service -f'"
+        echo "   ssh $TARGET_HOST 'sudo systemctl status cake-autorate-att.service cake-autorate-att-state-bridge.service'"
+        echo "   ssh $TARGET_HOST 'sudo tail -f /var/log/cake-autorate/cake-autorate.att.log'"
+        echo "   ssh $TARGET_HOST 'sudo python3 -m json.tool /var/lib/wanctl/att_state.json'"
+    elif [[ "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" ]]; then
         echo "   ssh $TARGET_HOST 'sudo journalctl -u cake-autorate-spectrum.service -u cake-autorate-spectrum-state-bridge.service -f'"
         echo "   ssh $TARGET_HOST 'sudo systemctl status cake-autorate-spectrum.service cake-autorate-spectrum-state-bridge.service'"
         echo "   ssh $TARGET_HOST 'sudo tail -f /var/log/cake-autorate/cake-autorate.spectrum.log'"
@@ -671,6 +683,7 @@ WAN_NAME=""
 TARGET_HOST=""
 WITH_STEERING=false
 WITH_SPECTRUM_CAKE_AUTORATE=false
+WITH_ATT_CAKE_AUTORATE=false
 INSTALL_ONLY=false
 DRY_RUN=false
 
@@ -682,6 +695,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --with-spectrum-cake-autorate)
             WITH_SPECTRUM_CAKE_AUTORATE=true
+            shift
+            ;;
+        --with-att-cake-autorate)
+            WITH_ATT_CAKE_AUTORATE=true
             shift
             ;;
         --install-only)
@@ -745,10 +762,16 @@ echo "WAN Name:    $WAN_NAME"
 echo "Target:      $TARGET_HOST"
 echo "Steering:    $([[ "$WITH_STEERING" == "true" ]] && echo "Yes" || echo "No")"
 echo "Spectrum cake-autorate: $([[ "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" ]] && echo "Yes" || echo "No")"
+echo "ATT cake-autorate: $([[ "$WITH_ATT_CAKE_AUTORATE" == "true" ]] && echo "Yes" || echo "No")"
 echo ""
 
 if [[ "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" && "$WAN_NAME" != "spectrum" ]]; then
     print_error "--with-spectrum-cake-autorate is only valid with WAN name 'spectrum'"
+    exit 1
+fi
+
+if [[ "$WITH_ATT_CAKE_AUTORATE" == "true" && "$WAN_NAME" != "att" ]]; then
+    print_error "--with-att-cake-autorate is only valid with WAN name 'att'"
     exit 1
 fi
 
@@ -766,6 +789,10 @@ if [[ "$DRY_RUN" == "true" ]]; then
     if [[ "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" ]]; then
         echo "  - deploy Spectrum cake-autorate config, qdisc init, state bridge, and systemd units"
         echo "  - keep wanctl@spectrum.service disabled while cake-autorate owns Spectrum rates"
+    fi
+    if [[ "$WITH_ATT_CAKE_AUTORATE" == "true" ]]; then
+        echo "  - deploy ATT cake-autorate config, qdisc init, state bridge, both cake-autorate units, and silicom watchdog unit"
+        echo "  - keep wanctl@att.service disabled while cake-autorate owns ATT rates"
     fi
     exit 0
 fi
@@ -796,6 +823,10 @@ fi
 
 if [[ "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" ]]; then
     deploy_spectrum_cake_autorate
+fi
+
+if [[ "$WITH_ATT_CAKE_AUTORATE" == "true" ]]; then
+    deploy_att_cake_autorate
 fi
 
 verify_deployment "$WAN_NAME"
