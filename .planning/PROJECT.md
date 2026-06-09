@@ -8,9 +8,26 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: none (between milestones)
+## Current Milestone: v1.50 cake-autorate Migration Hardening
 
-v1.49 closed 2026-06-09 overtaken-by-events. Next-milestone candidate thesis: **cake-autorate migration hardening** — ATT deploy path in `deploy.sh`, soak-monitor ATT trial handling, ATT artifact tests, soak/parity criteria, and the native-controller role decision. Scope source: `.planning/cake-autorate-trials/WANCTL_CAKE_AUTORATE_FUTURE.md`. Start with `/gsd-new-milestone`.
+**Goal:** Make the 2026-06-08 cake-autorate migration reproducible, observable, and provably held — close the deploy/test/monitoring gaps left by the hand-rolled ATT path.
+
+**Target features:**
+
+- ATT deploy path in `deploy.sh` (parity with `--with-spectrum-cake-autorate`)
+- ATT artifact tests (parity with Spectrum's)
+- soak-monitor ATT error-scan coverage
+- Formal parity/soak criteria + rollback verified (exercised or trivially provable)
+- Stale-doc sweep (docs still describing Spectrum/ATT as native-wanctl-owned)
+
+**Key context:**
+
+- Scope source: `.planning/cake-autorate-trials/WANCTL_CAKE_AUTORATE_FUTURE.md` + migration commit `fc47a0c` known follow-ups.
+- Controller-path zero-diff invariant continues (SAFE-14, successor to SAFE-07..13): zero diff across `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion. Surface is deploy/test/ops/doc only.
+- Generic `$wan` parameterization only as far as the ATT deploy path requires — no symmetry refactor.
+- **Explicitly deferred:** native-controller retirement decision (needs both-WAN soak time — event/time-gated, not buildable now); Spectrum loaded-latency tail investigation (path/CMTS-shaped evidence milestone, different shape); SEED-006 Silicom bypass tooling (excluded at scoping 2026-06-09 — ATT watchdog unit coverage rides in ATT artifact tests); SEED-007 storage hygiene (no match).
+- The hardening work is the soak tooling: parity criteria + monitor coverage make the post-migration soak conclusive instead of vibes.
+- Phase numbering continues from v1.49 (last phase 228) → v1.50 starts at **Phase 229**.
 
 ## Recently Closed: v1.49 Spectrum DSCP Tinning Re-evaluation (closed 2026-06-09, overtaken-by-events)
 
@@ -971,4 +988,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-09 after v1.49 milestone close (overtaken-by-events). Both WANs run cake-autorate external-controller mode with wanctl state bridges; `wanctl@{spectrum,att}` disabled as rollback; native wanctl remains the MikroTik controller. Next milestone candidate: cake-autorate migration hardening (`.planning/cake-autorate-trials/WANCTL_CAKE_AUTORATE_FUTURE.md`). Phase 218 watch dormant (instrumentation lives in the non-live native controller)._
+_Last updated: 2026-06-09 at v1.50 milestone open (cake-autorate Migration Hardening). Both WANs run cake-autorate external-controller mode with wanctl state bridges; `wanctl@{spectrum,att}` disabled as rollback; native wanctl remains the MikroTik controller. Phase 218 watch dormant (instrumentation lives in the non-live native controller)._
