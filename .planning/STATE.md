@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.49
-milestone_name: Spectrum DSCP Tinning Re-evaluation
-status: completed
-stopped_at: v1.49 closed overtaken-by-events (Phase 228 unexecuted)
-last_updated: "2026-06-09T18:40:06.104Z"
-last_activity: 2026-06-09 — Milestone v1.49 completed and archived
+milestone: v1.50
+milestone_name: cake-autorate Migration Hardening
+status: planning
+last_updated: "2026-06-09T18:56:46.162Z"
+last_activity: 2026-06-09
 progress:
-  total_phases: 4
-  completed_phases: 3
-  total_plans: 18
-  completed_plans: 14
-  percent: 75
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-09 after v1.49 close, overtaken-by-ev
 
 ## Current Position
 
-Phase: Milestone v1.49 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-09 — Milestone v1.49 completed and archived
+Status: Defining requirements
+Last activity: 2026-06-09 — Milestone v1.50 started
 
 ## Deferred Items (carried into next milestone)
 
