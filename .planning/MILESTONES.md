@@ -1,5 +1,30 @@
 # Project Milestones: wanctl
 
+## v1.49 Spectrum DSCP Tinning Re-evaluation (Closed: 2026-06-09, overtaken-by-events)
+
+**Phases completed:** 3 of 4 (Phases 225–227, 14 plans); Phase 228 (verdict + rollback + closeout) NOT executed
+
+**Delivered:** Read-only DSCP survival trace (QUALIFIED verdict, operator override to proceed), Snapshot A rollback anchor, pre-registered GATE-01 thresholds, baseline `besteffort wash` evidence, and matched candidate `diffserv4 wash` evidence including the AB-04 realtime-protection arm. SAFE-13 controller-path zero-diff held at every executed phase boundary.
+
+**Why closed without Phase 228:** Between 2026-06-05 and 2026-06-08 the operator migrated both WANs (Spectrum + ATT) from wanctl@ controllers to upstream cake-autorate (`fc47a0c`), moving Spectrum CAKE from bridge-root to member-NIC placement. The topology Phase 228's verdict and Snapshot-A rollback gate no longer exists in production. See `.planning/cake-autorate-trials/WANCTL_CAKE_AUTORATE_FUTURE.md` and `SPECTRUM_CAKE_FINDINGS.md`.
+
+**Evidence direction recorded faithfully (verdict never formally computed):** The Phase 227 matched A/B pointed to REJECT `diffserv4 wash` in the old wanctl-bridge topology — D-01 RRUL p99 345.1 → 384.9 ms (+11.5%, past the locked >+5% reject gate) and marked-EF UDP loss 0.15% → 6.84% (~44×). This does NOT transfer to the new member-NIC cake-autorate topology, where wash-vs-nowash was independently re-tested and `diffserv4 wash` won on tail latency.
+
+**Known gaps:** GATE-02 (verdict computation) and GATE-03 (rollback + closeout recording) close unmet-overtaken, not failed. The SAFE-13 lift question is moot — the native controller path is no longer the live Spectrum/ATT rate controller (it remains the rollback path and the MikroTik controller).
+
+**Known deferred items at close:** 23 (pre-existing carry-forward, unchanged since v1.47 close — see STATE.md Deferred Items)
+
+**Key accomplishments:**
+
+- QUALIFIED DSCP survival verdict with read-only end-to-end trace, pre-wash histogram capture, and direction-split EF probe evidence
+- Snapshot A rollback anchor with dry-run restore proof and byte-identical config hash verification
+- Pre-registered GATE-01 threshold JSON (RRUL p99, restart-rate, transition-rate, UL stability, tin separation) locked before candidate deploy
+- Matched baseline-vs-candidate evidence sets including real CAKE per-tin parsing and the AB-04 marked-EF realtime-protection arm
+- SAFE-13 controller-path zero-diff proof at every executed phase boundary; ATT byte-identical through Phases 225–227
+- Fail-closed GATE-01 evidence-completeness checker delivered for the (ultimately unexecuted) Phase 228 verdict
+
+---
+
 ## v1.48 Steering Runtime Drift Closure (Shipped: 2026-06-03)
 
 **Phases completed:** 3 phases, 12 plans, 31 tasks
