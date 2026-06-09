@@ -13,7 +13,7 @@ Current assumptions:
 - State lives in `/var/lib/wanctl`
 - Logs live in `/var/log/wanctl`
 - Runtime files live in `/run/wanctl`
-- Active systemd units are `wanctl@<wan>.service` and optional `steering.service`
+- Active deployment may be native `wanctl@<wan>.service` or external cake-autorate (`cake-autorate-{spectrum,att}.service` plus `cake-autorate-{spectrum,att}-state-bridge.service`) feeding wanctl-compatible state/health.
 
 ## Router Access
 
@@ -42,6 +42,8 @@ Primary scripts:
 
 Primary unit files:
 - `deploy/systemd/wanctl@.service`
+- `deploy/systemd/cake-autorate-{spectrum,att}.service`
+- `deploy/systemd/cake-autorate-{spectrum,att}-state-bridge.service`
 - `deploy/systemd/steering.service`
 
 Legacy timer-era helper scripts in `scripts/` are intentionally stubbed and should not be used as active deployment guidance.
