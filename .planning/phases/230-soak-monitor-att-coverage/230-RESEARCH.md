@@ -291,7 +291,9 @@ Project-internal only — no external ecosystem.
 | A3 | SAFE-14 baseline for this phase = `87980bdf` (or the 230-start commit); planner pins exact ref per SAFE-07..13 precedent | Pitfall 4 / Code Examples | Wrong baseline gives a misleading diff |
 | A4 | `steering.service` runs in both modes and should remain in the aggregate scan | Pattern 3 | If steering is mode-gated differently, the aggregate set needs adjusting (low risk — CLAUDE.md says steering daemon runs in both modes) |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All three questions below were resolved by planning decisions in 230-01/230-02 plan actions: Q1 — no probe caching (not required for correctness); Q2 — native-mode fallback retained (supports Phase 231 rollback verification); Q3 — criterion-3 evidence is the read-only `--json` before/after unit-set contrast (no fault injection).
 
 1. **Should mode detection be probed once per WAN or cached?** The script probes `systemctl is-active` per call site; generalizing may add ssh round-trips. Recommendation: probe once per WAN per run, reuse the result across health + error + summary (minor refactor, fewer ssh calls). Not required for correctness.
 2. **Native-mode fallback retention.** Keep a `wanctl@<wan>.service` scan branch for when a WAN is *not* in external mode (e.g., post-rollback)? Recommendation: yes — keep the `else` branch so soak-monitor still works if a WAN is rolled back to native (supports Phase 231 SOAK-02 rollback verification). Cheap and forward-useful.
