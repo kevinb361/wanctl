@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.50
 milestone_name: cake-autorate Migration Hardening
 status: executing
-stopped_at: Completed 229-01-PLAN.md
-last_updated: "2026-06-09T19:31:34.728Z"
+stopped_at: Completed 229-02-PLAN.md
+last_updated: "2026-06-09T19:43:02.901Z"
 last_activity: 2026-06-09
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 66
 ---
 
 # Session State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-09 after v1.49 close, overtaken-by-ev
 ## Current Position
 
 Phase: 229 (att-deploy-path-artifact-tests) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
-Last activity: 2026-06-09 -- Completed 229-01-PLAN.md
+Last activity: 2026-06-09
 
 ## Deferred Items (carried into next milestone)
 
@@ -58,7 +58,7 @@ Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone
 
 ### v1.49-closed-overtaken-by-events
 
-- **Status:** Phase 229 executing; Plan 229-01 complete, Plan 229-02 ready.
+- **Status:** Ready to execute
 - **Operator sign-off:** Kevin — 2026-06-09, "do it" on the assessed closure plan (commit migration work → close v1.49 overtaken-by-events → new milestone for cake-autorate hardening).
 - **Why this is acceptable:** The Phase 228 verdict gated a wanctl-controlled bridge-root CAKE topology that was replaced wholesale by the cake-autorate member-NIC migration (`fc47a0c`, live 2026-06-08). Computing the verdict post-hoc would be theater; the evidence direction (REJECT diffserv4-wash in the old topology: RRUL p99 +11.5%, EF loss ~44×) is recorded faithfully in MILESTONES.md and marked non-transferable. Wash-vs-nowash was independently re-validated under the new topology and `wash` won.
 
@@ -100,8 +100,8 @@ Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-09T19:31:34.702Z
-Stopped at: Completed 229-01-PLAN.md
+Last session: 2026-06-09T19:43:02.890Z
+Stopped at: Completed 229-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -114,6 +114,8 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 
 - [229-01]: ATT deploy path mirrors Spectrum as a sibling function rather than introducing a generic WAN abstraction.
 - [229-01]: ATT ships the silicom watchdog unit but only warns if bpctl runtime scripts are absent, preserving the deploy boundary.
+- [229-02]: ATT bridge health verification waits for a healthy payload so startup races do not make the parity suite flaky.
+- [229-02]: The deploy-list drift gate parses deploy.sh text directly because no central ATT artifact manifest exists.
 
 ## Decisions (v1.49)
 
@@ -241,3 +243,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 227 P02 | 4 min | 2 tasks | 3 files |
 | Phase 227 P04 | 6 min | 4 tasks | 6 files |
 | Phase 229 P01 | 5min | 2 tasks | 1 file |
+| Phase 229 P02 | 5min | 2 tasks | 1 file |
