@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+# Spectrum DOCSIS CAKE baseline for cake-autorate external-controller mode.
+# cake-autorate owns bandwidth changes after startup.
+tc qdisc replace dev spec-router root cake bandwidth 550000Kbit diffserv4 triple-isolate egress nonat wash no-ack-filter split-gso rtt 25ms noatm overhead 18 mpu 64 memlimit 64Mb
+tc qdisc replace dev spec-modem root cake bandwidth 18000Kbit diffserv4 triple-isolate egress nonat wash ack-filter split-gso rtt 25ms noatm overhead 18 mpu 64 memlimit 64Mb

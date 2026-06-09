@@ -1,0 +1,15 @@
+[Unit]
+Description=Bridge Spectrum cake-autorate summary into wanctl state
+After=cake-autorate-spectrum.service
+Wants=cake-autorate-spectrum.service
+
+[Service]
+Type=simple
+Environment=CAKE_AUTORATE_BRIDGE_HEALTH_HOST=10.10.110.223
+Environment=CAKE_AUTORATE_BRIDGE_HEALTH_PORT=9101
+ExecStart=/usr/local/sbin/cake-autorate-spectrum-state-bridge
+Restart=on-failure
+RestartSec=2s
+
+[Install]
+WantedBy=multi-user.target

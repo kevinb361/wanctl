@@ -1,0 +1,338 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import os
+import re
+import sqlite3
+import subprocess
+import tempfile
+import threading
+import time
+from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+WAN_NAME = os.environ.get("WANCTL_EXTERNAL_WAN_NAME", "spectrum")
+DL_IF = os.environ.get("WANCTL_EXTERNAL_DL_IF", "spec-router")
+UL_IF = os.environ.get("WANCTL_EXTERNAL_UL_IF", "spec-modem")
+LOG = Path(os.environ.get("CAKE_AUTORATE_BRIDGE_LOG", f"/var/log/cake-autorate/cake-autorate.{WAN_NAME}.log"))
+STATE = Path(os.environ.get("WANCTL_EXTERNAL_STATE_PATH", f"/var/lib/wanctl/{WAN_NAME}_state.json"))
+METRICS_DB = Path(os.environ.get("WANCTL_EXTERNAL_METRICS_DB", f"/var/lib/wanctl/metrics-{WAN_NAME}.db"))
+METRICS_ENABLED = os.environ.get("WANCTL_EXTERNAL_METRICS_ENABLED", "1") not in {"0", "false", "False", "no"}
+DEFAULT_BASELINE_RTT = float(os.environ.get("WANCTL_EXTERNAL_BASELINE_RTT", "22.535852814520855"))
+WANCTL_UID = int(os.environ.get("WANCTL_STATE_UID", "988"))
+WANCTL_GID = int(os.environ.get("WANCTL_STATE_GID", "988"))
+CHOWN_STATE = os.environ.get("WANCTL_STATE_CHOWN", "1") not in {"0", "false", "False", "no"}
+ONESHOT = os.environ.get("CAKE_AUTORATE_BRIDGE_ONESHOT", "0") in {"1", "true", "True", "yes"}
+POLL_INTERVAL = float(os.environ.get("CAKE_AUTORATE_BRIDGE_POLL_INTERVAL", "1"))
+HEALTH_HOST = os.environ.get("CAKE_AUTORATE_BRIDGE_HEALTH_HOST", "127.0.0.1")
+HEALTH_PORT = int(os.environ.get("CAKE_AUTORATE_BRIDGE_HEALTH_PORT", "9101"))
+MAX_STATE_AGE_SECONDS = float(os.environ.get("CAKE_AUTORATE_BRIDGE_MAX_STATE_AGE", "15"))
+
+LINE_RE = re.compile(r"^(SUMMARY|LOAD); ")
+BANDWIDTH_RE = re.compile(r"\bbandwidth\s+([0-9.]+)(Kbit|Mbit|Gbit)\b")
+
+
+def bandwidth_to_bps(value: str, unit: str) -> int:
+    scale = {"Kbit": 1_000, "Mbit": 1_000_000, "Gbit": 1_000_000_000}[unit]
+    return int(float(value) * scale)
+
+
+def qdisc_rate_bps(dev: str) -> int | None:
+    try:
+        result = subprocess.run(
+            ["tc", "qdisc", "show", "dev", dev],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    match = BANDWIDTH_RE.search(result.stdout)
+    if not match:
+        return None
+    return bandwidth_to_bps(match.group(1), match.group(2))
+
+
+def actual_qdisc_rates(parsed_dl_bps: int, parsed_ul_bps: int) -> tuple[int, int]:
+    return qdisc_rate_bps(DL_IF) or parsed_dl_bps, qdisc_rate_bps(UL_IF) or parsed_ul_bps
+
+
+def rates_from_row(kind: str, parts: list[str]) -> tuple[int, int, str, str] | None:
+    try:
+        if kind == "SUMMARY" and len(parts) >= 13:
+            return int(float(parts[11]) * 1000), int(float(parts[12]) * 1000), parts[9], parts[10]
+        if kind == "LOAD" and len(parts) >= 8:
+            return int(float(parts[6]) * 1000), int(float(parts[7]) * 1000), "dl_idle", "ul_idle"
+    except (TypeError, ValueError):
+        return None
+    return None
+
+
+def latest_parsed_row() -> tuple[int, int, str, str] | None:
+    try:
+        with LOG.open("rb") as f:
+            f.seek(0, os.SEEK_END)
+            end = f.tell()
+            f.seek(max(0, end - 5_000_000))
+            data = f.read().decode("utf-8", "replace")
+    except FileNotFoundError:
+        return None
+
+    for line in reversed(data.splitlines()):
+        match = LINE_RE.match(line)
+        if not match:
+            continue
+        parsed = rates_from_row(match.group(1), [part.strip() for part in line.split(";")])
+        if parsed:
+            return parsed
+    return None
+
+
+def old_rtt() -> tuple[float, float]:
+    try:
+        old = json.loads(STATE.read_text(encoding="utf-8"))
+        ewma = old.get("ewma") or {}
+        baseline = float(ewma.get("baseline_rtt", DEFAULT_BASELINE_RTT))
+        load = float(ewma.get("load_rtt", baseline))
+        return baseline, load
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return DEFAULT_BASELINE_RTT, DEFAULT_BASELINE_RTT
+
+
+def write_state(state: dict) -> None:
+    STATE.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix="spectrum_state.", suffix=".tmp", dir=str(STATE.parent))
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(state, f, separators=(",", ":"))
+        f.write("\n")
+    if CHOWN_STATE:
+        os.chown(tmp, WANCTL_UID, WANCTL_GID)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, STATE)
+
+
+def ensure_metrics_schema(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp INTEGER NOT NULL,
+            wan_name TEXT NOT NULL,
+            metric_name TEXT NOT NULL,
+            value REAL NOT NULL,
+            labels TEXT,
+            granularity TEXT DEFAULT 'raw'
+        )
+        """
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON metrics(timestamp)")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_metrics_wan_metric_time ON metrics(wan_name, metric_name, timestamp)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_metrics_granularity_time ON metrics(granularity, timestamp)"
+    )
+
+
+def write_metrics(state: dict) -> None:
+    if not METRICS_ENABLED:
+        return
+    timestamp = int(time.time())
+    ewma = state.get("ewma", {}) if isinstance(state.get("ewma"), dict) else {}
+    last_applied = state.get("last_applied", {}) if isinstance(state.get("last_applied"), dict) else {}
+    congestion = state.get("congestion", {}) if isinstance(state.get("congestion"), dict) else {}
+    baseline = float(ewma.get("baseline_rtt", DEFAULT_BASELINE_RTT))
+    load = float(ewma.get("load_rtt", baseline))
+    dl_rate = float(last_applied.get("dl_rate", 0)) / 1_000_000
+    ul_rate = float(last_applied.get("ul_rate", 0)) / 1_000_000
+    state_value = 0.0 if congestion.get("dl_state") == "GREEN" and congestion.get("ul_state") == "GREEN" else 1.0
+    rows = [
+        (timestamp, WAN_NAME, "wanctl_rate_download_mbps", dl_rate, None, "raw"),
+        (timestamp, WAN_NAME, "wanctl_rate_upload_mbps", ul_rate, None, "raw"),
+        (timestamp, WAN_NAME, "wanctl_rtt_ms", load, None, "raw"),
+        (timestamp, WAN_NAME, "wanctl_rtt_baseline_ms", baseline, None, "raw"),
+        (timestamp, WAN_NAME, "wanctl_rtt_delta_ms", max(0.0, load - baseline), None, "raw"),
+        (
+            timestamp,
+            WAN_NAME,
+            "wanctl_state",
+            state_value,
+            json.dumps({"source": "cake-autorate-state-bridge"}, separators=(",", ":")),
+            "raw",
+        ),
+    ]
+    METRICS_DB.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(METRICS_DB, timeout=5) as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
+        ensure_metrics_schema(conn)
+        conn.executemany(
+            """
+            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+
+
+def status_to_state(status: str) -> str:
+    normalized = status.lower()
+    if "idle" in normalized or "low" in normalized:
+        return "GREEN"
+    if "bufferbloat" in normalized or "high" in normalized:
+        return "YELLOW"
+    return "YELLOW"
+
+
+def build_state(parsed: tuple[int, int, str, str], green_streak: int) -> tuple[dict, int]:
+    parsed_dl_rate_bps, parsed_ul_rate_bps, dl_status, ul_status = parsed
+    dl_rate_bps, ul_rate_bps = actual_qdisc_rates(parsed_dl_rate_bps, parsed_ul_rate_bps)
+    baseline, load = old_rtt()
+    dl_state = status_to_state(dl_status)
+    ul_state = status_to_state(ul_status)
+    next_green_streak = green_streak + 1 if dl_state == "GREEN" and ul_state == "GREEN" else 0
+    return (
+        {
+            "download": {
+                "green_streak": next_green_streak,
+                "soft_red_streak": 0,
+                "red_streak": 0,
+                "current_rate": dl_rate_bps,
+            },
+            "upload": {
+                "green_streak": next_green_streak,
+                "soft_red_streak": 0,
+                "red_streak": 0,
+                "current_rate": ul_rate_bps,
+            },
+            "ewma": {"baseline_rtt": baseline, "load_rtt": load},
+            "last_applied": {"dl_rate": dl_rate_bps, "ul_rate": ul_rate_bps},
+            "timestamp": datetime.now().isoformat(),
+            "congestion": {"dl_state": dl_state, "ul_state": ul_state},
+            "source": "cake-autorate-state-bridge",
+        },
+        next_green_streak,
+    )
+
+
+def load_state_with_age() -> tuple[dict | None, float | None]:
+    try:
+        stat = STATE.stat()
+        age = max(0.0, time.time() - stat.st_mtime)
+        state = json.loads(STATE.read_text(encoding="utf-8"))
+        if not isinstance(state, dict):
+            return None, age
+        return state, age
+    except (OSError, json.JSONDecodeError):
+        return None, None
+
+
+def health_payload() -> dict:
+    state, age = load_state_with_age()
+    if state is None or age is None:
+        return {
+            "status": "degraded",
+            "source": "cake-autorate-state-bridge",
+            "wans": [
+                {
+                    "name": WAN_NAME,
+                    "measurement": {"available": False, "raw_rtt_ms": None, "staleness_sec": None},
+                    "irtt": {"available": False},
+                }
+            ],
+        }
+
+    ewma = state.get("ewma") if isinstance(state.get("ewma"), dict) else {}
+    raw_rtt = ewma.get("load_rtt")
+    available = isinstance(raw_rtt, (int, float)) and age <= MAX_STATE_AGE_SECONDS
+    last_applied = state.get("last_applied", {}) if isinstance(state.get("last_applied"), dict) else {}
+    congestion = state.get("congestion", {}) if isinstance(state.get("congestion"), dict) else {}
+    dl_rate = last_applied.get("dl_rate")
+    ul_rate = last_applied.get("ul_rate")
+    dl_state = congestion.get("dl_state", "?")
+    ul_state = congestion.get("ul_state", "?")
+    return {
+        "status": "healthy" if available else "degraded",
+        "version": "cake-autorate-trial",
+        "uptime_seconds": None,
+        "consecutive_failures": 0 if available else 1,
+        "source": "cake-autorate-state-bridge",
+        "wans": [
+            {
+                "name": WAN_NAME,
+                "measurement": {
+                    "available": available,
+                    "raw_rtt_ms": float(raw_rtt) if isinstance(raw_rtt, (int, float)) else None,
+                    "staleness_sec": age,
+                },
+                "irtt": {"available": False},
+                "download": {
+                    "state": dl_state,
+                    "current_rate_mbps": round(dl_rate / 1_000_000, 3)
+                    if isinstance(dl_rate, (int, float))
+                    else None,
+                    "qdisc_bandwidth": f"{round(dl_rate / 1_000_000):g}Mbit"
+                    if isinstance(dl_rate, (int, float))
+                    else "?",
+                },
+                "upload": {
+                    "state": ul_state,
+                    "current_rate_mbps": round(ul_rate / 1_000_000, 3)
+                    if isinstance(ul_rate, (int, float))
+                    else None,
+                    "qdisc_bandwidth": f"{round(ul_rate / 1_000_000):g}Mbit"
+                    if isinstance(ul_rate, (int, float))
+                    else "?",
+                },
+                "congestion": congestion,
+                "last_applied": last_applied,
+            }
+        ],
+    }
+
+
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
+        if self.path != "/health":
+            self.send_error(404)
+            return
+        body = json.dumps(health_payload(), separators=(",", ":")).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format: str, *args: object) -> None:
+        return
+
+
+def start_health_server() -> ThreadingHTTPServer | None:
+    if ONESHOT or HEALTH_PORT <= 0:
+        return None
+    server = ThreadingHTTPServer((HEALTH_HOST, HEALTH_PORT), HealthHandler)
+    thread = threading.Thread(target=server.serve_forever, name="health-server", daemon=True)
+    thread.start()
+    return server
+
+
+def main() -> int:
+    start_health_server()
+    green_streak = 1
+    while True:
+        parsed = latest_parsed_row()
+        if parsed:
+            state, green_streak = build_state(parsed, green_streak)
+            write_state(state)
+            write_metrics(state)
+        if ONESHOT:
+            return 0 if parsed else 1
+        time.sleep(POLL_INTERVAL)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

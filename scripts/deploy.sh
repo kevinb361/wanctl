@@ -59,6 +59,11 @@ STEERING_SYSTEMD=(
     "deploy/systemd/steering.service"
 )
 
+SPECTRUM_CAKE_AUTORATE_SYSTEMD=(
+    "deploy/systemd/cake-autorate-spectrum.service"
+    "deploy/systemd/cake-autorate-spectrum-state-bridge.service"
+)
+
 # Helper functions
 print_header() {
     echo -e "${BLUE}========================================${NC}"
@@ -91,6 +96,9 @@ usage() {
     echo ""
     echo "Options:"
     echo "  --with-steering    Deploy steering daemon (for multi-WAN setups)"
+    echo "  --with-spectrum-cake-autorate"
+    echo "                     Deploy Spectrum external cake-autorate mode artifacts"
+    echo "                     (only valid with wan_name=spectrum; conflicts with wanctl@spectrum)"
     echo "  --install-only     Only run install.sh on target (no file deployment)"
     echo "  --dry-run          Show what would be deployed without doing it"
     echo "  --help             Show this help message"
@@ -386,6 +394,56 @@ deploy_steering_systemd() {
     print_success "Steering systemd units deployed"
 }
 
+deploy_spectrum_cake_autorate() {
+    print_step "Deploying Spectrum cake-autorate external-controller artifacts..."
+
+    if [[ "$WAN_NAME" != "spectrum" ]]; then
+        print_error "--with-spectrum-cake-autorate is only valid when wan_name is spectrum"
+        exit 1
+    fi
+
+    if ! ssh "$TARGET_HOST" "test -x /opt/cake-autorate/cake-autorate.sh"; then
+        print_error "cake-autorate is not installed at /opt/cake-autorate/cake-autorate.sh on $TARGET_HOST"
+        print_error "Install cake-autorate first; this deploy path only owns wanctl-side integration artifacts."
+        exit 1
+    fi
+
+    ssh "$TARGET_HOST" "sudo mkdir -p /etc/cake-autorate /var/log/cake-autorate"
+
+    scp "$PROJECT_ROOT/configs/cake-autorate/config.spectrum.sh" "$TARGET_HOST:/tmp/config.spectrum.sh"
+    ssh "$TARGET_HOST" "sudo mv /tmp/config.spectrum.sh /etc/cake-autorate/config.spectrum.sh && sudo chown root:root /etc/cake-autorate/config.spectrum.sh && sudo chmod 644 /etc/cake-autorate/config.spectrum.sh"
+    echo "  -> /etc/cake-autorate/config.spectrum.sh"
+
+    scp "$PROJECT_ROOT/deploy/scripts/cake-autorate-spectrum-qdisc-init" "$TARGET_HOST:/tmp/cake-autorate-spectrum-qdisc-init"
+    ssh "$TARGET_HOST" "sudo mv /tmp/cake-autorate-spectrum-qdisc-init /usr/local/sbin/cake-autorate-spectrum-qdisc-init && sudo chown root:root /usr/local/sbin/cake-autorate-spectrum-qdisc-init && sudo chmod 755 /usr/local/sbin/cake-autorate-spectrum-qdisc-init"
+    echo "  -> /usr/local/sbin/cake-autorate-spectrum-qdisc-init"
+
+    scp "$PROJECT_ROOT/deploy/scripts/cake-autorate-spectrum-state-bridge" "$TARGET_HOST:/tmp/cake-autorate-spectrum-state-bridge"
+    ssh "$TARGET_HOST" "sudo mv /tmp/cake-autorate-spectrum-state-bridge /usr/local/sbin/cake-autorate-spectrum-state-bridge && sudo chown root:root /usr/local/sbin/cake-autorate-spectrum-state-bridge && sudo chmod 755 /usr/local/sbin/cake-autorate-spectrum-state-bridge"
+    echo "  -> /usr/local/sbin/cake-autorate-spectrum-state-bridge"
+
+    for file in "${SPECTRUM_CAKE_AUTORATE_SYSTEMD[@]}"; do
+        if [[ -f "$file" ]]; then
+            local basename=$(basename "$file")
+            scp "$file" "$TARGET_HOST:/tmp/$basename"
+            ssh "$TARGET_HOST" "sudo mv /tmp/$basename $TARGET_SYSTEMD_DIR/$basename && sudo chown root:root $TARGET_SYSTEMD_DIR/$basename"
+            echo "  -> $basename"
+        else
+            print_error "Missing Spectrum cake-autorate systemd unit: $file"
+            exit 1
+        fi
+    done
+
+    # Earlier live trials used a drop-in for qdisc init. The repo-owned unit now
+    # carries ExecStartPre directly; remove the trial drop-in to avoid duplicate
+    # startup commands after deployment.
+    ssh "$TARGET_HOST" "sudo rm -f $TARGET_SYSTEMD_DIR/cake-autorate-spectrum.service.d/qdisc-init.conf && sudo rmdir $TARGET_SYSTEMD_DIR/cake-autorate-spectrum.service.d 2>/dev/null || true"
+
+    ssh "$TARGET_HOST" "sudo systemctl daemon-reload"
+
+    print_success "Spectrum cake-autorate artifacts deployed"
+}
+
 verify_deployment() {
     local wan_name="$1"
 
@@ -492,7 +550,13 @@ print_next_steps() {
     echo ""
 
     echo -e "${BLUE}4. Restart the service:${NC}"
-    echo "   ssh $TARGET_HOST 'sudo systemctl enable --now wanctl@${wan_name}.service'"
+    if [[ "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" ]]; then
+        echo "   ssh $TARGET_HOST 'sudo systemctl disable --now wanctl@${wan_name}.service || true'"
+        echo "   ssh $TARGET_HOST 'sudo systemctl enable --now cake-autorate-spectrum.service cake-autorate-spectrum-state-bridge.service'"
+        echo "   # Rollback: sudo systemctl disable --now cake-autorate-spectrum.service cake-autorate-spectrum-state-bridge.service && sudo systemctl enable --now wanctl@${wan_name}.service"
+    else
+        echo "   ssh $TARGET_HOST 'sudo systemctl enable --now wanctl@${wan_name}.service'"
+    fi
     if [[ "$WITH_STEERING" == "true" ]]; then
         echo "   ssh $TARGET_HOST 'sudo systemctl restart steering.service'"
     fi
@@ -506,9 +570,16 @@ print_next_steps() {
     echo "   For threshold details or escalation steps, see: docs/RUNBOOK.md"
 
     echo -e "${BLUE}6. Monitor:${NC}"
-    echo "   ssh $TARGET_HOST 'sudo journalctl -u wanctl@${wan_name}.service -f'"
-    echo "   ssh $TARGET_HOST 'sudo tail -f /var/log/wanctl/${wan_name}.log'"
-    echo "   ssh $TARGET_HOST 'sudo systemctl status wanctl@${wan_name}.service'"
+    if [[ "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" ]]; then
+        echo "   ssh $TARGET_HOST 'sudo journalctl -u cake-autorate-spectrum.service -u cake-autorate-spectrum-state-bridge.service -f'"
+        echo "   ssh $TARGET_HOST 'sudo systemctl status cake-autorate-spectrum.service cake-autorate-spectrum-state-bridge.service'"
+        echo "   ssh $TARGET_HOST 'sudo tail -f /var/log/cake-autorate/cake-autorate.spectrum.log'"
+        echo "   ssh $TARGET_HOST 'sudo python3 -m json.tool /var/lib/wanctl/spectrum_state.json'"
+    else
+        echo "   ssh $TARGET_HOST 'sudo journalctl -u wanctl@${wan_name}.service -f'"
+        echo "   ssh $TARGET_HOST 'sudo tail -f /var/log/wanctl/${wan_name}.log'"
+        echo "   ssh $TARGET_HOST 'sudo systemctl status wanctl@${wan_name}.service'"
+    fi
     if [[ "$WITH_STEERING" == "true" ]]; then
         echo "   ssh $TARGET_HOST 'sudo journalctl -u steering.service -f'"
         echo "   ssh $TARGET_HOST 'sudo systemctl status steering.service'"
@@ -543,6 +614,7 @@ print_next_steps() {
 WAN_NAME=""
 TARGET_HOST=""
 WITH_STEERING=false
+WITH_SPECTRUM_CAKE_AUTORATE=false
 INSTALL_ONLY=false
 DRY_RUN=false
 
@@ -550,6 +622,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --with-steering)
             WITH_STEERING=true
+            shift
+            ;;
+        --with-spectrum-cake-autorate)
+            WITH_SPECTRUM_CAKE_AUTORATE=true
             shift
             ;;
         --install-only)
@@ -612,7 +688,13 @@ echo ""
 echo "WAN Name:    $WAN_NAME"
 echo "Target:      $TARGET_HOST"
 echo "Steering:    $([[ "$WITH_STEERING" == "true" ]] && echo "Yes" || echo "No")"
+echo "Spectrum cake-autorate: $([[ "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" ]] && echo "Yes" || echo "No")"
 echo ""
+
+if [[ "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" && "$WAN_NAME" != "spectrum" ]]; then
+    print_error "--with-spectrum-cake-autorate is only valid with WAN name 'spectrum'"
+    exit 1
+fi
 
 if [[ "$DRY_RUN" == "true" ]]; then
     print_warning "DRY RUN - no changes will be made"
@@ -624,6 +706,10 @@ if [[ "$DRY_RUN" == "true" ]]; then
     echo "  - deploy profiling/analysis scripts, docs, QoS assets, and systemd units"
     if [[ "$WITH_STEERING" == "true" ]]; then
         echo "  - deploy steering.service and $TARGET_CONFIG_DIR/steering.yaml"
+    fi
+    if [[ "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" ]]; then
+        echo "  - deploy Spectrum cake-autorate config, qdisc init, state bridge, and systemd units"
+        echo "  - keep wanctl@spectrum.service disabled while cake-autorate owns Spectrum rates"
     fi
     exit 0
 fi
@@ -650,6 +736,10 @@ deploy_systemd
 
 if [[ "$WITH_STEERING" == "true" ]]; then
     deploy_steering_systemd
+fi
+
+if [[ "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" ]]; then
+    deploy_spectrum_cake_autorate
 fi
 
 verify_deployment "$WAN_NAME"
