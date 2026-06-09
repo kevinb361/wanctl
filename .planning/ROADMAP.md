@@ -32,7 +32,7 @@
 
 ### Phases
 
-- [ ] **Phase 229: ATT Deploy Path + Artifact Tests** - Repo becomes the reproducible source of truth for the ATT cake-autorate artifact set (deploy parity + drift-proof tests), zero production touch
+- [x] **Phase 229: ATT Deploy Path + Artifact Tests** - Repo becomes the reproducible source of truth for the ATT cake-autorate artifact set (deploy parity + drift-proof tests), zero production touch (completed 2026-06-09)
 - [ ] **Phase 230: soak-monitor ATT Coverage** - soak-monitor watches the live ATT cake-autorate units and handles external-controller mode at Spectrum parity, closing the error-scan blind spot
 - [ ] **Phase 231: Migration-Held Criteria, Rollback Verification & Doc Sweep** - Formal both-WAN "held" criteria evaluated against live evidence, rollback proven (exercised or preflighted-provable), stale docs swept, SAFE-14 closeout
 
@@ -51,7 +51,7 @@
 **Plans**: 3 plans
   - [x] 229-01-PLAN.md — DEPLOY-01: deploy_att_cake_autorate() sibling function + --with-att-cake-autorate flag wiring (silicom watchdog unit + bpctl preflight)
   - [x] 229-02-PLAN.md — TEST-01/TEST-02: ATT artifact-contract tests at Spectrum parity + deploy-list bidirectional drift gate
-  - [ ] 229-03-PLAN.md — DEPLOY-02 read-only live-vs-repo sha256 diff + SAFE-14 controller-path zero-diff boundary proof
+  - [x] 229-03-PLAN.md — DEPLOY-02 read-only live-vs-repo sha256 diff + SAFE-14 controller-path zero-diff boundary proof
 
 ### Phase 230: soak-monitor ATT Coverage
 **Goal**: soak-monitor observes the actual live ATT external-controller units instead of the disabled native service, and handles ATT external-controller mode at full Spectrum parity — closing the migration's live observability hole.
@@ -83,7 +83,7 @@
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 229. ATT Deploy Path + Artifact Tests | v1.50 | 2/3 | In Progress|  |
+| 229. ATT Deploy Path + Artifact Tests | v1.50 | 3/3 | Complete   | 2026-06-09 |
 | 230. soak-monitor ATT Coverage | v1.50 | 0/TBD | Not started | - |
 | 231. Migration-Held Criteria, Rollback & Doc Sweep | v1.50 | 0/TBD | Not started | - |
 

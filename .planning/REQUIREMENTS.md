@@ -11,7 +11,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 ### Deploy Path (DEPLOY)
 
 - [x] **DEPLOY-01**: Operator can deploy all ATT cake-autorate artifacts (config, qdisc-init, state bridge, both services, silicom watchdog variant) via a `deploy.sh --with-att-cake-autorate` path with the same preflight/validation rigor as the existing `--with-spectrum-cake-autorate` path
-- [ ] **DEPLOY-02**: Deployed ATT artifact set matches the live hand-deployed state on cake-shaper (verified diff — repo is the source of truth, no drift)
+- [x] **DEPLOY-02**: Deployed ATT artifact set matches the live hand-deployed state on cake-shaper (verified diff — repo is the source of truth, no drift)
 
 ### Artifact Tests (TEST)
 
@@ -34,7 +34,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Safety (SAFE)
 
-- [ ] **SAFE-14**: Controller-path zero-diff invariant — zero source diff across `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion at every phase boundary and milestone close
+- [x] **SAFE-14**: Controller-path zero-diff invariant — zero source diff across `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion at every phase boundary and milestone close
 
 ## Future Requirements
 
@@ -69,7 +69,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | DEPLOY-01 | Phase 229 | Complete |
-| DEPLOY-02 | Phase 229 | Pending |
+| DEPLOY-02 | Phase 229 | Complete |
 | TEST-01 | Phase 229 | Complete |
 | TEST-02 | Phase 229 | Complete |
 | MON-01 | Phase 230 | Pending |
@@ -77,7 +77,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SOAK-01 | Phase 231 | Pending |
 | SOAK-02 | Phase 231 | Pending |
 | DOCS-04 | Phase 231 | Pending |
-| SAFE-14 | Phase 231 | Pending |
+| SAFE-14 | Phase 231 | Complete |
 
 **Coverage:**
 - v1.50 requirements: 10 total

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.50
 milestone_name: cake-autorate Migration Hardening
-status: executing
-stopped_at: Completed 229-02-PLAN.md
-last_updated: "2026-06-09T19:43:02.901Z"
+status: verifying
+stopped_at: Completed 229-03-PLAN.md
+last_updated: "2026-06-09T19:56:07.966Z"
 last_activity: 2026-06-09
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 66
+  completed_plans: 3
+  percent: 33
 ---
 
 # Session State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 after v1.49 close, overtaken-by-events)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 229 — att-deploy-path-artifact-tests
+**Current focus:** Phase 230 — soak-monitor ATT Coverage
 
 ## Current Position
 
-Phase: 229 (att-deploy-path-artifact-tests) — EXECUTING
+Phase: 229 (att-deploy-path-artifact-tests) — COMPLETE
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-09
 
 ## Deferred Items (carried into next milestone)
@@ -58,7 +58,7 @@ Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone
 
 ### v1.49-closed-overtaken-by-events
 
-- **Status:** Ready to execute
+- **Status:** Phase complete — ready for verification
 - **Operator sign-off:** Kevin — 2026-06-09, "do it" on the assessed closure plan (commit migration work → close v1.49 overtaken-by-events → new milestone for cake-autorate hardening).
 - **Why this is acceptable:** The Phase 228 verdict gated a wanctl-controlled bridge-root CAKE topology that was replaced wholesale by the cake-autorate member-NIC migration (`fc47a0c`, live 2026-06-08). Computing the verdict post-hoc would be theater; the evidence direction (REJECT diffserv4-wash in the old topology: RRUL p99 +11.5%, EF loss ~44×) is recorded faithfully in MILESTONES.md and marked non-transferable. Wash-vs-nowash was independently re-validated under the new topology and `wash` won.
 
@@ -100,15 +100,15 @@ Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-09T19:43:02.890Z
-Stopped at: Completed 229-02-PLAN.md
+Last session: 2026-06-09T19:56:07.944Z
+Stopped at: Completed 229-03-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 
 ## Operator Next Steps
 
-- Plan the first phase with /gsd-plan-phase 229 (ATT Deploy Path + Artifact Tests — repo-only, zero production risk)
+- Verify Phase 229 or plan Phase 230 (soak-monitor ATT Coverage).
 
 ## Decisions (v1.50)
 
@@ -116,6 +116,8 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 - [229-01]: ATT ships the silicom watchdog unit but only warns if bpctl runtime scripts are absent, preserving the deploy boundary.
 - [229-02]: ATT bridge health verification waits for a healthy payload so startup races do not make the parity suite flaky.
 - [229-02]: The deploy-list drift gate parses deploy.sh text directly because no central ATT artifact manifest exists.
+- [229-03]: Repo-owned ATT artifacts matched live cake-shaper bytes for all six DEPLOY-02 artifacts; no reconciliation was needed.
+- [229-03]: SAFE-14 baseline pinned to 87980bdf as the last docs/planning-only commit before Phase 229 implementation.
 
 ## Decisions (v1.49)
 
@@ -244,3 +246,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 227 P04 | 6 min | 4 tasks | 6 files |
 | Phase 229 P01 | 5min | 2 tasks | 1 file |
 | Phase 229 P02 | 5min | 2 tasks | 1 file |
+| Phase 229 P03 | 10min | 3 tasks | 2 files |
