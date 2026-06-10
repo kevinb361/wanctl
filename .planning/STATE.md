@@ -4,14 +4,14 @@ milestone: v1.50
 milestone_name: cake-autorate Migration Hardening
 status: executing
 stopped_at: Completed 230-02-PLAN.md
-last_updated: "2026-06-10T03:24:58.975Z"
-last_activity: 2026-06-10 -- Phase 231 planning complete
+last_updated: "2026-06-10T13:36:09.188Z"
+last_activity: 2026-06-10
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 8
-  completed_plans: 5
-  percent: 63
+  completed_plans: 6
+  percent: 67
 ---
 
 # Session State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 after v1.49 close, overtaken-by-events)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 231 — migration held criteria, rollback verification & doc sweep
+**Current focus:** Phase 231 — migration-held-criteria-rollback-verification-doc-sweep
 
 ## Current Position
 
-Phase: 231
-Plan: Not started
+Phase: 231 (migration-held-criteria-rollback-verification-doc-sweep) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-10 -- Phase 231 planning complete
+Last activity: 2026-06-10
 
 ## Deferred Items (carried into next milestone)
 
@@ -100,15 +100,15 @@ Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-10T02:38:31.832Z
-Stopped at: Completed 230-02-PLAN.md
+Last session: 2026-06-10T13:33:51.434Z
+Stopped at: Completed 231-01-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 
 ## Operator Next Steps
 
-- Verify Phase 230, then plan Phase 231 (Migration-Held Criteria, Rollback Verification & Doc Sweep).
+- Continue Phase 231 with Plan 02 (rollback verification) after SOAK-01 evidence acceptance.
 
 ## Decisions (v1.50)
 
@@ -122,6 +122,9 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 - [230-01]: Aggregate soak-monitor JSON units, labels, and journal hints are generated from the same live-unit array used for check_errors.
 - [230-02]: Criterion-3 production proof stayed read-only; representative error injection was confined to a local fake-ssh shim.
 - [230-02]: SAFE_BASE=87980bdf is used only for controller-path zero-diff, while PHASE230_START=4ad2986e is used for Phase 230 scripts/tests scope accounting.
+- [231-01]: PHASE231_START candidate pinned to 55c33a7b646abe3af9208bc1fb0db3677dd25810, the parent of the first 231-01 implementation commit.
+- [231-01]: SOAK-01 verdict is machine-derived PASS for both WANs; operator approval confirmed the evidence and criteria after capture.
+- [231-01]: C3 no_sustained_errors remains objective: historical bounded err lines can pass only under encoded constants, not operator judgment.
 
 ## Decisions (v1.49)
 
@@ -253,3 +256,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 229 P03 | 10min | 3 tasks | 2 files |
 | Phase Phase 230 PP01 | 9min | 3 tasks tasks | 4 files files |
 | Phase 230 P02 | 8min | 2 tasks | 3 files |
+| Phase 231 P01 | checkpointed | 2 tasks | 4 files |

@@ -100,6 +100,7 @@ Use these as the primary current docs:
 
 ## Current Validation Note
 
+- v1.50 Phase 231 Plan 01 completed SOAK-01: `scripts/phase231-migration-held.sh` evaluates both WANs read-only for bridge health, metrics DB ingestion, objective sustained-error criteria, and qdisc envelope; `.planning/phases/231-migration-held-criteria-rollback-verification-doc-sweep/231-SOAK01-EVIDENCE.md` records operator-approved `SOAK-01 PASS` live evidence for Spectrum and ATT. Next Phase 231 work is rollback verification (SOAK-02) before the stale-doc sweep and SAFE-14 closeout.
 - v1.50 Phase 230 verification passed 7/7 must-haves after the soak-monitor ATT coverage execution: `230-VERIFICATION.md` confirms MON-01/MON-02, focused soak-monitor regression tests, shellcheck, clean code review, and SAFE-14 controller-path zero-diff. Next v1.50 work is Phase 231 migration-held criteria / rollback verification / doc sweep.
 - `.planning/PROJECT.md` is synced through Phase 230 completion and now routes v1.50 to Phase 231.
 - v1.50 Phase 230 Plan 02 completed the read-only ATT soak-monitor evidence and SAFE-14 boundary proof: `.planning/phases/230-soak-monitor-att-coverage/230-MON01-EVIDENCE.md` records the live ATT external-mode unit-set contrast plus local fake-ssh representative error proof (`post-fix errors_1h=3` vs pre-fix `0`), and `230-SAFE14-BOUNDARY.md` records controller-path zero-diff vs `SAFE_BASE=87980bdf` with Phase 230 script/test scope accounting vs `PHASE230_START=4ad2986e`. No live production mutation or controller-path source change was performed.
