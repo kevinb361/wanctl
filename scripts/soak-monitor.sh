@@ -288,6 +288,60 @@ external_units_for() {
     esac
 }
 
+aggregate_ssh_target() {
+    local ssh_target _wan_name _health_ip
+    IFS='|' read -r ssh_target _wan_name _health_ip <<< "${TARGETS[0]}"
+    echo "$ssh_target"
+}
+
+aggregate_units_for() {
+    local aggregate_ssh=$1
+    local target ssh_target wan_name health_ip
+    local -a wan_units
+
+    for target in "${TARGETS[@]}"; do
+        IFS='|' read -r ssh_target wan_name health_ip <<< "$target"
+        if is_external_cake_mode "$ssh_target" "$wan_name"; then
+            read -r -a wan_units <<< "$(external_units_for "$wan_name")"
+            printf '%s\n' "${wan_units[@]}"
+        else
+            printf 'wanctl@%s.service\n' "$wan_name"
+        fi
+    done
+    printf '%s\n' "steering.service"
+
+    # The aggregate scan is intentionally single-target because current TARGETS
+    # share the cake-shaper ssh host; keep the target derived from TARGETS.
+    : "$aggregate_ssh"
+}
+
+json_array_for_units() {
+    local unit json="[" separator=""
+    for unit in "$@"; do
+        json+="${separator}\"${unit}\""
+        separator=","
+    done
+    json+="]"
+    echo "$json"
+}
+
+join_units_for_label() {
+    local unit label="" separator=""
+    for unit in "$@"; do
+        label+="${separator}${unit}"
+        separator=", "
+    done
+    echo "$label"
+}
+
+journalctl_hint_for_units() {
+    local unit hint="journalctl"
+    for unit in "$@"; do
+        hint+=" -u ${unit}"
+    done
+    echo "$hint -n 50"
+}
+
 # Check whether Spectrum is currently in the cake-autorate trial mode rather
 # than normal wanctl@spectrum control.
 is_spectrum_cake_trial_active() {
@@ -420,14 +474,12 @@ run_check() {
     done
 
     if $JSON_MODE; then
-        local service_errors service_units_json
-        if is_spectrum_cake_trial_active "kevin@10.10.110.223"; then
-            service_errors=$(check_errors "kevin@10.10.110.223" "cake-autorate-spectrum.service" "cake-autorate-spectrum-state-bridge.service" "wanctl@att.service" "steering.service")
-            service_units_json='["cake-autorate-spectrum.service","cake-autorate-spectrum-state-bridge.service","wanctl@att.service","steering.service"]'
-        else
-            service_errors=$(check_errors "kevin@10.10.110.223" "${SERVICE_UNITS[@]}")
-            service_units_json='["wanctl@spectrum.service","wanctl@att.service","steering.service"]'
-        fi
+        local service_errors service_units_json service_ssh_target
+        local -a service_units
+        service_ssh_target=$(aggregate_ssh_target)
+        mapfile -t service_units < <(aggregate_units_for "$service_ssh_target")
+        service_errors=$(check_errors "$service_ssh_target" "${service_units[@]}")
+        service_units_json=$(json_array_for_units "${service_units[@]}")
         if [[ "$json_output" != "[" ]]; then
             json_output+=","
         fi
@@ -438,21 +490,20 @@ run_check() {
 
     # Summary
     echo ""
-    local service_errors service_label
-    if is_spectrum_cake_trial_active "kevin@10.10.110.223"; then
-        service_errors=$(check_errors "kevin@10.10.110.223" "cake-autorate-spectrum.service" "cake-autorate-spectrum-state-bridge.service" "wanctl@att.service" "steering.service")
-        service_label="cake-autorate-spectrum.service, cake-autorate-spectrum-state-bridge.service, wanctl@att.service, steering.service"
-    else
-        service_errors=$(check_errors "kevin@10.10.110.223" "${SERVICE_UNITS[@]}")
-        service_label="wanctl@spectrum.service, wanctl@att.service, steering.service"
-    fi
+    local service_errors service_label service_ssh_target journal_hint
+    local -a service_units
+    service_ssh_target=$(aggregate_ssh_target)
+    mapfile -t service_units < <(aggregate_units_for "$service_ssh_target")
+    service_errors=$(check_errors "$service_ssh_target" "${service_units[@]}")
+    service_label=$(join_units_for_label "${service_units[@]}")
+    journal_hint=$(journalctl_hint_for_units "${service_units[@]}")
     echo "Service error scan (1h): ${service_label} => ${service_errors}"
     if [[ "$service_errors" =~ ^[0-9]+$ && "$service_errors" -gt 0 ]]; then
         echo -e "${YELLOW}${BOLD}⚠ WAN state is healthy, but recent service errors exist in the 1h journal window${NC}"
     elif $all_healthy; then
         echo -e "${GREEN}${BOLD}✓ All WANs healthy${NC}"
     else
-        echo -e "${RED}${BOLD}✗ Issues detected - investigate with: ssh kevin@10.10.110.223 'journalctl -u wanctl@spectrum.service -u wanctl@att.service -u steering.service -n 50'${NC}"
+        echo -e "${RED}${BOLD}✗ Issues detected - investigate with: ssh ${service_ssh_target} '${journal_hint}'${NC}"
     fi
     echo ""
 }
