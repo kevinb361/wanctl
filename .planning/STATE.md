@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.50
 milestone_name: cake-autorate Migration Hardening
 status: executing
-stopped_at: Completed 230-02-PLAN.md
-last_updated: "2026-06-10T13:36:09.188Z"
+stopped_at: Completed 231-02-PLAN.md
+last_updated: "2026-06-10T14:10:54.191Z"
 last_activity: 2026-06-10
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 8
-  completed_plans: 6
-  percent: 67
+  completed_plans: 7
+  percent: 88
 ---
 
 # Session State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-09 after v1.49 close, overtaken-by-ev
 ## Current Position
 
 Phase: 231 (migration-held-criteria-rollback-verification-doc-sweep) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-06-10
 
@@ -100,15 +100,15 @@ Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-10T13:33:51.434Z
-Stopped at: Completed 231-01-PLAN.md
+Last session: 2026-06-10T14:10:15.565Z
+Stopped at: Completed 231-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 
 ## Operator Next Steps
 
-- Continue Phase 231 with Plan 02 (rollback verification) after SOAK-01 evidence acceptance.
+- Continue Phase 231 with Plan 03 (stale-doc sweep and SAFE-14 closeout) after SOAK-02 provable-path acceptance.
 
 ## Decisions (v1.50)
 
@@ -125,6 +125,8 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 - [231-01]: PHASE231_START candidate pinned to 55c33a7b646abe3af9208bc1fb0db3677dd25810, the parent of the first 231-01 implementation commit.
 - [231-01]: SOAK-01 verdict is machine-derived PASS for both WANs; operator approval confirmed the evidence and criteria after capture.
 - [231-01]: C3 no_sustained_errors remains objective: historical bounded err lines can pass only under encoded constants, not operator judgment.
+- [231-02]: Kevin accepted the SOAK-02 provable path on 2026-06-10; no live rollback exercise or production mutation was performed.
+- [231-02]: PHASE231_START candidate remains 55c33a7b646abe3af9208bc1fb0db3677dd25810 for Phase 231 SAFE-14 scope accounting.
 
 ## Decisions (v1.49)
 
@@ -257,3 +259,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase Phase 230 PP01 | 9min | 3 tasks tasks | 4 files files |
 | Phase 230 P02 | 8min | 2 tasks | 3 files |
 | Phase 231 P01 | checkpointed | 2 tasks | 4 files |
+| Phase 231 P02 | checkpointed; continuation 2min | 3 tasks | 8 files |
