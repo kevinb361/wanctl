@@ -270,6 +270,24 @@ print(f'peak_delay=\"{cs.get(\"peak_delay_us\", \"-\")}\"')
     echo "${status:-?}|${version:-?}|${uptime_fmt}|${failures:-0}|${dl_state:-?}/${ul_state:-?}|${cake_str}"
 }
 
+# Check whether a WAN is currently in external cake-autorate mode rather than
+# normal wanctl@ control. WAN names come from the in-repo TARGETS literals.
+is_external_cake_mode() {
+    local ssh_target=$1 wan=$2
+    ssh -o ConnectTimeout=5 -o BatchMode=yes "$ssh_target" \
+        "test \"\$(systemctl is-active cake-autorate-${wan}.service 2>/dev/null)\" = active \
+         && test \"\$(systemctl is-active wanctl@${wan}.service 2>/dev/null)\" != active" \
+        >/dev/null 2>&1
+}
+
+# Units owned by the external cake-autorate controller for a WAN.
+external_units_for() {
+    case "$1" in
+        att) echo "cake-autorate-att.service cake-autorate-att-state-bridge.service silicom-bypass-watchdog-cake-autorate-att.service" ;;
+        *) echo "cake-autorate-$1.service cake-autorate-$1-state-bridge.service" ;;
+    esac
+}
+
 # Check whether Spectrum is currently in the cake-autorate trial mode rather
 # than normal wanctl@spectrum control.
 is_spectrum_cake_trial_active() {
@@ -324,8 +342,11 @@ run_check() {
         health_data=$(check_target "$ssh_target" "$wan_name" "$health_ip")
 
         if $JSON_MODE; then
-            if [[ "$wan_name" == "spectrum" ]] && is_spectrum_cake_trial_active "$ssh_target"; then
-                errors=$(check_errors "$ssh_target" "cake-autorate-spectrum.service" "cake-autorate-spectrum-state-bridge.service")
+            if is_external_cake_mode "$ssh_target" "$wan_name"; then
+                # If both external and native units are active, fall back to native-unit scanning.
+                local -a wan_units
+                read -r -a wan_units <<< "$(external_units_for "$wan_name")"
+                errors=$(check_errors "$ssh_target" "${wan_units[@]}")
             else
                 errors=$(check_errors "$ssh_target" "wanctl@${wan_name}.service")
             fi
@@ -337,8 +358,11 @@ run_check() {
         # Parse health data
         IFS='|' read -r status version uptime failures state cake_str <<< "$health_data"
 
-        if [[ "$wan_name" == "spectrum" ]] && is_spectrum_cake_trial_active "$ssh_target"; then
-            errors=$(check_errors "$ssh_target" "cake-autorate-spectrum.service" "cake-autorate-spectrum-state-bridge.service")
+        if is_external_cake_mode "$ssh_target" "$wan_name"; then
+            # If both external and native units are active, fall back to native-unit scanning.
+            local -a wan_units
+            read -r -a wan_units <<< "$(external_units_for "$wan_name")"
+            errors=$(check_errors "$ssh_target" "${wan_units[@]}")
         else
             errors=$(check_errors "$ssh_target" "wanctl@${wan_name}.service")
         fi
