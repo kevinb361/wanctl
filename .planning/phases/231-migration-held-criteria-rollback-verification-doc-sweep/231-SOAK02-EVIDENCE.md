@@ -138,10 +138,9 @@ That historical exercise is supporting evidence for the provable path; the curre
 
 ## Operator Decision
 
-PENDING CHECKPOINT — Task 3 must record one explicit operator choice:
+Provable path accepted — 2026-06-10, operator: Kevin.
 
-1. **Default/recommended:** Provable path accepted — no production mutation.
-2. **Opt-in only:** Live rollback exercise on one named WAN, only after explicit approval and followed by return-to-cake verification.
+Kevin accepted the default/recommended SOAK-02 closure path: the documented, live-preflighted, double-gated rollback procedure is sufficient proof, and no production rollback exercise was authorized or performed.
 
 The SOAK-01 ordering gate is satisfied before this checkpoint: `.planning/phases/231-migration-held-criteria-rollback-verification-doc-sweep/231-SOAK01-EVIDENCE.md` exists and contains `SOAK-01 PASS` with operator-approved evidence.
 
