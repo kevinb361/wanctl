@@ -1,0 +1,129 @@
+{
+  "captured_utc": "2026-06-10T13:44:25Z",
+  "checks": [
+    {
+      "command": "systemctl cat wanctl@.service",
+      "exit_code": 0,
+      "expected": "wanctl template exists",
+      "name": "native_unit_template",
+      "pass": true,
+      "raw_stderr": "",
+      "raw_stdout": "# /etc/systemd/system/wanctl@.service\n[Unit]\nDescription=wanctl Adaptive CAKE Autorate Daemon - %i\nDocumentation=https://github.com/kevinb361/wanctl\nAfter=network-online.target systemd-networkd-wait-online.service wanctl-nic-tuning.service\nWants=network-online.target wanctl-nic-tuning.service\nStartLimitBurst=5\nStartLimitIntervalSec=300\n\n[Service]\nType=simple\nUser=wanctl\nGroup=wanctl\nWorkingDirectory=/opt/wanctl\nExecStart=/usr/bin/python3 /opt/wanctl/autorate_continuous.py --config /etc/wanctl/%i.yaml\nRestart=on-failure\nRestartSec=5s\nWatchdogSec=30s\nEnvironment=PYTHONPATH=/opt\nEnvironment=WANCTL_STATE_DIR=/var/lib/wanctl\nEnvironment=WANCTL_LOG_DIR=/var/log/wanctl\nEnvironment=WANCTL_RUN_DIR=/run/wanctl\nEnvironmentFile=-/etc/wanctl/secrets\nStandardOutput=journal\nStandardError=journal\nSyslogIdentifier=wanctl-%i\nAmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN\nNoNewPrivileges=yes\n\n# Filesystem protection\nProtectSystem=strict\nProtectHome=yes\nPrivateTmp=yes\nPrivateDevices=yes\nReadWritePaths=/var/lib/wanctl /var/log/wanctl /run/wanctl\n\n# Kernel protection\nProtectKernelTunables=yes\nProtectKernelModules=yes\nProtectKernelLogs=yes\nProtectControlGroups=yes\nProtectClock=yes\nLockPersonality=yes\n\n# Capability bounding -- only keep what wanctl needs\nCapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN\n\n# Namespace and address family restrictions\nRestrictNamespaces=yes\nRestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK\nRestrictSUIDSGID=yes\nRestrictRealtime=yes\n\n# System call filtering -- block dangerous syscall classes\n# Keep @privileged (cap_net_raw), @raw-io (ICMP sockets), @resources (process mgmt)\nSystemCallArchitectures=native\nSystemCallFilter=~@clock @cpu-emulation @debug @module @mount @obsolete @reboot @swap\n\n# Memory and process\nMemoryDenyWriteExecute=yes\nUMask=0027\n\n# Process visibility\nProtectProc=invisible\n# Keep /proc/net visible: tc reads /proc/net/psched for HTB timing/burst accounting.\n\n# Device ACL -- empty (no device access needed)\nDeviceAllow=\n\n# CPU affinity \u2014 keep wanctl off CPU 0 (IRQ/system) to reduce scheduling jitter\nCPUAffinity=1-2\n\n# Resource limits (updated 2026-04-07: ATT peak=384.7MB hitting old MemoryHigh=384M)\nMemoryMax=640M\nMemoryHigh=512M\nTasksMax=64\nLimitNOFILE=1024\n\n[Install]\nWantedBy=multi-user.target\n"
+    },
+    {
+      "command": "systemctl is-enabled wanctl@att.service",
+      "exit_code": 1,
+      "expected": "stdout exactly disabled",
+      "name": "native_instance_disabled",
+      "pass": true,
+      "raw_stderr": "",
+      "raw_stdout": "disabled\n"
+    },
+    {
+      "command": "systemctl is-active wanctl@att.service",
+      "exit_code": 3,
+      "expected": "stdout exactly inactive",
+      "name": "native_instance_inactive",
+      "pass": true,
+      "raw_stderr": "",
+      "raw_stdout": "inactive\n"
+    },
+    {
+      "command": "sudo -n test -f /etc/wanctl/att.yaml",
+      "exit_code": 0,
+      "expected": "native config present",
+      "name": "native_config_present",
+      "pass": true,
+      "raw_stderr": "",
+      "raw_stdout": ""
+    },
+    {
+      "command": "test -f /opt/wanctl/autorate_continuous.py",
+      "exit_code": 0,
+      "expected": "native controller code present",
+      "name": "native_code_present",
+      "pass": true,
+      "raw_stderr": "",
+      "raw_stdout": ""
+    },
+    {
+      "command": "systemctl cat cake-autorate-att.service",
+      "exit_code": 0,
+      "expected": "contains Conflicts=wanctl@att.service",
+      "name": "cake_conflicts_guard",
+      "pass": true,
+      "raw_stderr": "",
+      "raw_stdout": "# /etc/systemd/system/cake-autorate-att.service\n[Unit]\nDescription=cake-autorate ATT VDSL shaper\nDocumentation=https://github.com/lynxthecat/cake-autorate\nAfter=network-online.target wanctl-nic-tuning.service\nWants=network-online.target wanctl-nic-tuning.service\nConflicts=wanctl@att.service\n\n[Service]\nType=simple\nExecStartPre=/usr/local/sbin/cake-autorate-att-qdisc-init\nExecStart=/opt/cake-autorate/cake-autorate.sh /etc/cake-autorate/config.att.sh\nRestart=on-failure\nRestartSec=5s\nEnvironment=CAKE_AUTORATE_SCRIPT_PREFIX=/opt/cake-autorate\nEnvironment=CAKE_AUTORATE_CONFIG_PREFIX=/etc/cake-autorate\n\n[Install]\nWantedBy=multi-user.target\n"
+    },
+    {
+      "command": "systemctl is-active cake-autorate-att.service",
+      "exit_code": 0,
+      "expected": "stdout exactly active",
+      "name": "external_cake_active",
+      "pass": true,
+      "raw_stderr": "",
+      "raw_stdout": "active\n"
+    },
+    {
+      "command": "systemctl is-active cake-autorate-att-state-bridge.service",
+      "exit_code": 0,
+      "expected": "stdout exactly active",
+      "name": "external_bridge_active",
+      "pass": true,
+      "raw_stderr": "",
+      "raw_stdout": "active\n"
+    },
+    {
+      "command": "systemctl is-active silicom-bypass-watchdog-cake-autorate-att.service",
+      "exit_code": 0,
+      "expected": "stdout exactly active",
+      "name": "att_cake_watchdog_active",
+      "pass": true,
+      "raw_stderr": "",
+      "raw_stdout": "active\n"
+    },
+    {
+      "command": "systemctl is-active silicom-bypass-watchdog@att.service",
+      "exit_code": 3,
+      "expected": "stdout exactly inactive",
+      "name": "att_native_watchdog_inactive",
+      "pass": true,
+      "raw_stderr": "",
+      "raw_stdout": "inactive\n"
+    },
+    {
+      "command": "test -x /opt/bpctl-silicom/bpctl_util",
+      "exit_code": 0,
+      "expected": "bpctl_util is executable",
+      "name": "att_bpctl_executable",
+      "pass": true,
+      "raw_stderr": "",
+      "raw_stdout": ""
+    },
+    {
+      "command": "systemctl cat silicom-bypass-watchdog@.service",
+      "exit_code": 0,
+      "expected": "native watchdog template exists",
+      "name": "att_watchdog_template",
+      "pass": true,
+      "raw_stderr": "",
+      "raw_stdout": "# /etc/systemd/system/silicom-bypass-watchdog@.service\n[Unit]\nDescription=Silicom fail-open bypass watchdog for %i\nRequires=bpctl-silicom.service\nAfter=bpctl-silicom.service wanctl@%i.service\nWants=wanctl@%i.service\n\n[Service]\nType=simple\nEnvironment=BPCTL_UTIL=/opt/bpctl-silicom/bpctl_util\nEnvironment=TIMEOUT_MS=5000\nEnvironment=HEARTBEAT_SECONDS=1\nEnvironmentFile=/etc/wanctl/bpctl-watchdog/%i.env\nExecStart=/usr/local/sbin/wanctl-bpctl-watchdog-petter\nExecStop=/usr/local/sbin/wanctl-bpctl-watchdog-bypass\nTimeoutStopSec=10\nRestart=no\n\n[Install]\nWantedBy=multi-user.target\n"
+    },
+    {
+      "command": "sudo -n test -f /etc/wanctl/bpctl-watchdog/att.env",
+      "exit_code": 0,
+      "expected": "native watchdog EnvironmentFile present",
+      "name": "att_watchdog_env_present",
+      "pass": true,
+      "raw_stderr": "",
+      "raw_stdout": ""
+    }
+  ],
+  "overall_pass": true,
+  "proof_type": "phase231-rollback-preflight",
+  "read_only": true,
+  "return_to_cake_sequence": "sudo systemctl disable --now wanctl@att.service silicom-bypass-watchdog@att.service\nsudo systemctl enable --now cake-autorate-att.service cake-autorate-att-state-bridge.service silicom-bypass-watchdog-cake-autorate-att.service\n# qdisc re-init is handled by /usr/local/sbin/cake-autorate-att-qdisc-init via ExecStartPre\n",
+  "rollback_sequence": "sudo systemctl disable --now cake-autorate-att.service cake-autorate-att-state-bridge.service silicom-bypass-watchdog-cake-autorate-att.service\nsudo systemctl enable --now wanctl@att.service silicom-bypass-watchdog@att.service\nsleep 8\ncd /opt/bpctl-silicom\nsudo ./bpctl_util att-modem set_disc off\nsudo ./bpctl_util att-modem set_bypass off\nsudo ./bpctl_util att-modem reset_bypass_wd >/dev/null || true\nsudo tc qdisc replace dev att-router root cake bandwidth 95Mbit diffserv4 triple-isolate ingress nonat nowash no-ack-filter split-gso rtt 35ms ptm overhead 22 mpu 64 memlimit 32Mb\nsudo tc qdisc replace dev att-modem root cake bandwidth 18Mbit diffserv4 triple-isolate egress nonat nowash ack-filter split-gso rtt 35ms ptm overhead 22 mpu 64 memlimit 32Mb\n",
+  "ssh_host": "kevin@10.10.110.223",
+  "wan": "att"
+}

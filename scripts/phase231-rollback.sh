@@ -163,15 +163,15 @@ run_check() {
     local stdout_file stderr_file rc pass="false" raw_stdout
     stdout_file="${tmpdir}/${name//[^A-Za-z0-9_.-]/_}.stdout"
     stderr_file="${tmpdir}/${name//[^A-Za-z0-9_.-]/_}.stderr"
-    rc=0
-    if ! remote_capture "$command_text" "$stdout_file" "$stderr_file"; then
-        rc="$?"
-    fi
+    set +e
+    remote_capture "$command_text" "$stdout_file" "$stderr_file"
+    rc="$?"
+    set -e
     raw_stdout="$(<"$stdout_file")"
     case "$predicate" in
         rc0) [[ "$rc" -eq 0 ]] && pass="true" ;;
-        stdout-disabled) [[ "$rc" -eq 0 && "$raw_stdout" == "disabled" ]] && pass="true" ;;
-        stdout-inactive) [[ "$rc" -eq 0 && "$raw_stdout" == "inactive" ]] && pass="true" ;;
+        stdout-disabled) [[ "$raw_stdout" == "disabled" ]] && pass="true" ;;
+        stdout-inactive) [[ "$raw_stdout" == "inactive" ]] && pass="true" ;;
         stdout-active) [[ "$rc" -eq 0 && "$raw_stdout" == "active" ]] && pass="true" ;;
         contains-conflicts) [[ "$rc" -eq 0 && "$raw_stdout" == *"Conflicts=wanctl@${WAN}.service"* ]] && pass="true" ;;
         *) echo "ERROR: unknown predicate: $predicate" >&2; exit 2 ;;
@@ -221,7 +221,7 @@ run_preflight() {
     run_check "$checks_file" "native_unit_template" "systemctl cat wanctl@.service" "wanctl template exists" rc0 "$tmpdir"
     run_check "$checks_file" "native_instance_disabled" "systemctl is-enabled wanctl@${WAN}.service" "stdout exactly disabled" stdout-disabled "$tmpdir"
     run_check "$checks_file" "native_instance_inactive" "systemctl is-active wanctl@${WAN}.service" "stdout exactly inactive" stdout-inactive "$tmpdir"
-    run_check "$checks_file" "native_config_present" "test -f /etc/wanctl/${WAN}.yaml" "native config present" rc0 "$tmpdir"
+    run_check "$checks_file" "native_config_present" "sudo -n test -f /etc/wanctl/${WAN}.yaml" "native config present" rc0 "$tmpdir"
     run_check "$checks_file" "native_code_present" "test -f /opt/wanctl/autorate_continuous.py" "native controller code present" rc0 "$tmpdir"
     run_check "$checks_file" "cake_conflicts_guard" "systemctl cat cake-autorate-${WAN}.service" "contains Conflicts=wanctl@${WAN}.service" contains-conflicts "$tmpdir"
     run_check "$checks_file" "external_cake_active" "systemctl is-active cake-autorate-${WAN}.service" "stdout exactly active" stdout-active "$tmpdir"
@@ -234,7 +234,7 @@ run_preflight() {
         run_check "$checks_file" "att_native_watchdog_inactive" "systemctl is-active silicom-bypass-watchdog@att.service" "stdout exactly inactive" stdout-inactive "$tmpdir"
         run_check "$checks_file" "att_bpctl_executable" "test -x /opt/bpctl-silicom/bpctl_util" "bpctl_util is executable" rc0 "$tmpdir"
         run_check "$checks_file" "att_watchdog_template" "systemctl cat silicom-bypass-watchdog@.service" "native watchdog template exists" rc0 "$tmpdir"
-        run_check "$checks_file" "att_watchdog_env_present" "test -f /etc/wanctl/bpctl-watchdog/att.env" "native watchdog EnvironmentFile present" rc0 "$tmpdir"
+        run_check "$checks_file" "att_watchdog_env_present" "sudo -n test -f /etc/wanctl/bpctl-watchdog/att.env" "native watchdog EnvironmentFile present" rc0 "$tmpdir"
     fi
 
     write_preflight_json "$checks_file" "$captured" "$rollback_file" "$return_file"
