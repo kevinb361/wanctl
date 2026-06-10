@@ -46,6 +46,8 @@ Primary unit files:
 - `deploy/systemd/cake-autorate-{spectrum,att}-state-bridge.service`
 - `deploy/systemd/steering.service`
 
+Phase 231 SOAK-02 rollback verification uses `scripts/phase231-rollback.sh`: default `--dry-run` renders per-WAN rollback and return-to-cake sequences without SSH, `--preflight` performs read-only live precondition proof into JSON, and real mutation requires both `--confirm` and `--i-have-operator-approval` after the operator checkpoint.
+
 Legacy timer-era helper scripts in `scripts/` are intentionally stubbed and should not be used as active deployment guidance.
 
 ## Development Commands
