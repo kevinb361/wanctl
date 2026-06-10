@@ -1,13 +1,134 @@
 ---
 phase: 231
 reviewers: [codex]
-reviewed_at: 2026-06-10T03:13:10Z
+reviewed_at: 2026-06-10T03:33:50Z
 plans_reviewed: [231-01-PLAN.md, 231-02-PLAN.md, 231-03-PLAN.md]
+convergence_cycle: 2
+plans_revision: 36c76305
 ---
 
 # Cross-AI Plan Review — Phase 231
 
-## Codex Review
+# Cycle 2 (current) — review of revised plans (commit 36c76305)
+
+## Codex Review — Cycle 2
+
+### Cycle-1 HIGH Resolution
+
+| Concern | Verdict | Evidence |
+|---|---:|---|
+| HIGH-1 C3 underspecified | RESOLVED | 231-01 defines `C3_MAX_TOTAL=5`, `C3_MAX_DISTINCT_HOURS=2`, `C3_CLEAN_TRAILING_HOURS=6` and states the verdict "never depends on post-hoc operator judgment." The pass rule is predeclared and script-encoded. |
+| HIGH-2 rollback before SOAK-01 | RESOLVED | 231-01 requires SOAK-01 live capture before any 231-02 exercise. 231-02 Task 3 hard-gates live exercise on existing, operator-accepted `231-SOAK01-EVIDENCE.md` and says never offer it early. |
+| HIGH-3 watchdog/unit inventory ambiguity | RESOLVED | 231-01 now lists seven active / three inactive expected units including `steering.service`, `silicom-bypass-watchdog@spectrum.service`, and inactive `silicom-bypass-watchdog@att.service`. 231-02 explicitly defines external/native rollback watchdog states per WAN. |
+| HIGH-4 SAFE "last task" invalidation | RESOLVED | 231-03 adds final ordering, parent-reference semantics, post-boundary `.planning/**` allowlist, and a later audit command using `git log --name-only <tracking-commit>..HEAD`. |
+
+### 231-01 Summary
+
+Strong plan. The SOAK-01 criteria are now concrete, read-only, and evidence-oriented. The C3 fix is real, not cosmetic. The evaluator has good fail-closed behavior, unit inventory awareness, timeout requirements, and raw evidence capture.
+
+Strengths:
+- Objective sustained-error rule with fixed constants.
+- Explicit read-only boundary: curl, ssh, journalctl, sqlite SELECT, `tc qdisc show`.
+- Captures both formal criteria and live outputs with UTC timestamps.
+- Adds the Spectrum watchdog and `steering.service` gap from cycle 1.
+- Uses repo config as qdisc envelope source instead of hardcoded rates.
+
+Concerns:
+- MEDIUM: Step A pipes `script --json | python3 -m json.tool`; without `set -o pipefail`, a FAIL exit from the evaluator can be masked by successful JSON formatting.
+- MEDIUM: Tests lean heavily on source-text assertions. For evidence-critical parsing, fake-output tests should exercise C3 journal parsing, qdisc unit conversion, metrics SQL construction, and fail-closed paths.
+- LOW: C3 says "distinct UTC hours," but `journalctl -o short-iso` does not by itself force UTC output. Use `TZ=UTC` remotely or parse `-o json` timestamps.
+- LOW: C1 only checks HTTP 200 + `status: healthy`; if GREEN/GREEN is intended as part of "bridge health," make that explicit or record state as corroborating evidence.
+
+Suggestions:
+- Run live command as `set -o pipefail; bash ... --json | python3 -m json.tool`, and record the evaluator exit code.
+- Add fake command fixtures for qdisc, sqlite, journal, and curl cases.
+- Prefer `journalctl -o json` for C3 timestamp logic.
+
+Risk: LOW-MEDIUM. Evidence validity is good; main risk is implementation/test brittleness.
+
+### 231-02 Summary
+
+The SOAK-02 plan is materially better. It defaults to the provable path, isolates production mutation behind two gates, and documents watchdog state transitions clearly. The optional live exercise is now correctly ordered after SOAK-01.
+
+Strengths:
+- Provable path can complete with no mutation.
+- `--confirm` plus `--i-have-operator-approval` is the right shape.
+- Per-WAN watchdog expectations are explicit and match the known ATT cake-specific watchdog issue.
+- Dry-run includes rollback and return-to-cake sequences.
+- Preflight captures raw outputs and exact `is-enabled == disabled` state.
+
+Concerns:
+- MEDIUM: Confirm mode should run a fresh preflight immediately before mutation. Task 2 preflight could be stale by the time Task 3 runs.
+- MEDIUM: Return-to-cake verification after an exercised ATT rollback should include explicit bpctl/non-bypass/WDT state, not only health + soak-monitor. Prior ATT failure mode can look superficially healthy while bypassing Linux qdiscs.
+- MEDIUM: If Spectrum is chosen for live exercise, the plan should explicitly pause/resume the Spectrum hourly validation cron or prove it cannot interfere.
+- LOW: The gate permits live exercise after accepted `SOAK-01 FAIL`. That no longer invalidates captured evidence, but it should require an explicit remediation decision, not normal phase progression.
+- LOW: "external trio" wording is slightly confusing for Spectrum, where the cake services are two plus the existing Spectrum watchdog.
+
+Suggestions:
+- Make `--confirm` internally call the same preflight and refuse mutation unless it passes at that moment.
+- Add post-return checks: cake units active, native units inactive, watchdog state correct, bpctl non-bypass/WDT enabled for ATT, qdisc counters or cake log load plausibility.
+- Add a Spectrum-cron handling step for any Spectrum exercise.
+
+Risk: MEDIUM if live exercise is used; LOW if the provable path is accepted.
+
+### 231-03 Summary
+
+The doc sweep and SAFE closeout plan is solid and correctly depends on 231-01/231-02. The SAFE-14 ordering fix is adequate and audit-friendly. The doc work is scoped to the right files and preserves native mode instead of deleting it.
+
+Strengths:
+- Correctly frames native `wanctl@` as portable mode, external cake-autorate as deployed mode.
+- Avoids timer-era resurrection and private IP leakage.
+- Uses two-baseline SAFE model: `SAFE_BASE` for protected controller diff, `PHASE231_START` for scope accounting.
+- Adds post-boundary `.planning/**` allowlist to handle summaries/metadata.
+
+Concerns:
+- MEDIUM: Automated private-IP verification shown in `<verify>` only checks `10.10.110.*`, while acceptance claims all RFC1918 ranges and private hostnames.
+- LOW: Boundary wording says the "note's tracking commit is the LAST commit that touches anything outside `.planning/**`," but the boundary note itself is `.planning/**`; rephrase to avoid ambiguity.
+- LOW: If the boundary note wants to include its own tracking commit hash, that cannot be known before the commit. Parent-reference semantics are fine, but the note should say that explicitly.
+
+Suggestions:
+- Strengthen doc leakage grep to cover `10.*`, `192.168.*`, `172.16-31.*`, and known private hostnames.
+- In SAFE note, record `boundary_parent=<sha>` and audit `git log --name-only ${boundary_parent}..HEAD`, requiring all paths to be `.planning/**`.
+
+Risk: LOW.
+
+### Overall Verdict — Cycle 2
+
+Ready to execute with minor amendments. The four cycle-1 HIGH concerns are resolved. I do not see a new HIGH issue. The main remaining risks are operational hygiene around the optional live rollback exercise and test depth for the new scripts. Defaulting SOAK-02 to the provable path keeps production risk acceptably low.
+
+---
+
+## Consensus Summary — Cycle 2
+
+Single external reviewer this cycle (Codex). Convergence achieved: all 4 cycle-1 HIGH concerns judged RESOLVED, no new HIGH concerns raised. Remaining items are MEDIUM/LOW execution-hygiene amendments, suitable to fold in during execution rather than another replan cycle.
+
+### Cycle-1 HIGH disposition
+
+- HIGH-1 (231-01, C3 objectivity): RESOLVED — fixed constants `C3_MAX_TOTAL=5` / `C3_MAX_DISTINCT_HOURS=2` / `C3_CLEAN_TRAILING_HOURS=6`, script-encoded, no post-hoc judgment.
+- HIGH-2 (231-02, ordering vs SOAK-01): RESOLVED — hard gate on operator-accepted `231-SOAK01-EVIDENCE.md` before any live exercise.
+- HIGH-3 (watchdog/unit inventory): RESOLVED — seven-active/three-inactive inventory incl. `steering.service` and per-WAN silicom watchdog states for both modes.
+- HIGH-4 (231-03, SAFE-14 ordering): RESOLVED — final-commit ordering, parent-reference semantics, post-boundary `.planning/**` allowlist with audit command.
+
+### Remaining concerns (MEDIUM, fold into execution)
+
+1. 231-01: `set -o pipefail` when piping evaluator `--json` output through `json.tool`; record evaluator exit code.
+2. 231-01: add fake-output fixture tests for C3 journal parsing, qdisc unit conversion, metrics SQL, fail-closed paths (not just source-text assertions).
+3. 231-02: `--confirm` must rerun preflight immediately before mutation (Task 2 preflight can go stale).
+4. 231-02: post-return-to-cake verification on ATT must include bpctl non-bypass/WDT state, not just health + soak-monitor.
+5. 231-02: pause/resume (or prove non-interference of) the Spectrum hourly validation cron if Spectrum is chosen for live exercise.
+6. 231-03: broaden private-IP leakage grep from `10.10.110.*` to all RFC1918 ranges + known private hostnames.
+
+### Verdict
+
+Phase 231 plans are ready to execute. No further replan cycle required.
+
+---
+
+# Cycle 1 (historical) — review of original plans (commit eae957a9)
+
+All 4 HIGH concerns below were addressed by the replan at commit 36c76305 and verified RESOLVED in cycle 2.
+
+## Codex Review — Cycle 1
 
 ## 231-01 Plan Review
 
@@ -102,7 +223,7 @@ The plans are generally strong and aligned with the phase goals. The main fixes 
 
 ---
 
-## Consensus Summary
+## Consensus Summary — Cycle 1
 
 Single external reviewer this cycle (Codex, gpt-5.5); consensus reflects one independent perspective.
 
