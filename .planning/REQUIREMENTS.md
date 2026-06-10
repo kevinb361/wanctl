@@ -25,7 +25,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Migration-Held Criteria (SOAK)
 
-- [ ] **SOAK-01**: Formal "migration held" criteria defined and evaluated against live evidence for both WANs (bridge health, metrics DB ingestion, no sustained service errors, qdisc within configured envelope)
+- [x] **SOAK-01**: Formal "migration held" criteria defined and evaluated against live evidence for both WANs (bridge health, metrics DB ingestion, no sustained service errors, qdisc within configured envelope)
 - [ ] **SOAK-02**: Rollback to native `wanctl@{wan}` verified — exercised on one WAN (operator-approved) or trivially provable via documented, preflighted procedure with evidence captured
 
 ### Documentation (DOCS)
@@ -74,7 +74,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEST-02 | Phase 229 | Complete |
 | MON-01 | Phase 230 | Complete |
 | MON-02 | Phase 230 | Complete |
-| SOAK-01 | Phase 231 | Pending |
+| SOAK-01 | Phase 231 | Complete |
 | SOAK-02 | Phase 231 | Pending |
 | DOCS-04 | Phase 231 | Pending |
 | SAFE-14 | Phase 231 | Complete |
