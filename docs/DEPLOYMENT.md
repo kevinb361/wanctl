@@ -3,6 +3,27 @@
 This guide covers the current `wanctl` deployment flow built around the service units in
 [`deploy/systemd/`](../deploy/systemd/).
 
+## Deployment Modes
+
+wanctl has two active service-based deployment modes:
+
+- **Native `wanctl@` mode** — the portable default. The
+  [`wanctl@.service`](../deploy/systemd/wanctl@.service) template runs the pure
+  wanctl controller for each WAN, owns rate-control decisions, writes
+  `/var/lib/wanctl/<wan>_state.json`, and feeds optional steering.
+- **External cake-autorate mode** — used when upstream cake-autorate owns Linux
+  CAKE reflector measurement and rate decisions. The service pair
+  `cake-autorate-<wan>.service` plus
+  `cake-autorate-<wan>-state-bridge.service` keeps the wanctl-compatible state
+  JSON, metrics DB, and `/health` payload available for steering and soak tools.
+  External units declare `Conflicts=wanctl@<wan>.service` so rate control has no
+  dual writer. Deployments with Silicom bypass hardware may also run a watchdog
+  variant for that external mode.
+
+Use native mode for generic RouterOS/wanctl deployments. Use external mode only
+when the target WAN is intentionally delegated to cake-autorate while preserving
+the wanctl state/health/steering contract.
+
 ## Automated Remote Deployment
 
 From your workstation:
@@ -11,6 +32,8 @@ From your workstation:
 cd /path/to/wanctl
 ./scripts/deploy.sh <wan_name> <target_host>
 ./scripts/deploy.sh <wan_name> <target_host> --with-steering
+./scripts/deploy.sh spectrum <target_host> --with-spectrum-cake-autorate
+./scripts/deploy.sh att <target_host> --with-att-cake-autorate
 ```
 
 The deploy script:
@@ -19,6 +42,8 @@ The deploy script:
 - installs the WAN config into `/etc/wanctl/<wan_name>.yaml` when found
 - deploys helper scripts, docs, QoS assets, and systemd units
 - optionally deploys `steering.service` and `/etc/wanctl/steering.yaml`
+- optionally deploys Spectrum/ATT external cake-autorate artifacts when
+  `--with-spectrum-cake-autorate` or `--with-att-cake-autorate` is supplied
 - runs a pre-startup validation step on the target host
 - deploys operator helpers such as `wanctl-operator-summary` when present
 
@@ -29,7 +54,8 @@ The deploy script:
 
 ## Post-Deploy Operator Flow
 
-After `./scripts/deploy.sh <wan_name> <target_host>` finishes:
+After `./scripts/deploy.sh <wan_name> <target_host>` finishes for native
+`wanctl@` mode:
 
 1. Confirm config and secrets on the target host.
 2. Check whether the storage migration archive exists:
@@ -44,11 +70,24 @@ ssh <target_host> 'sudo test -f /var/lib/wanctl/metrics.db.pre-v135-archive && e
 ./scripts/migrate-storage.sh --ssh <target_host>
 ```
 
-4. Restart the WAN service:
+4. Enable or restart the native WAN service:
 
 ```bash
 ssh <target_host> 'sudo systemctl enable --now wanctl@<wan_name>.service'
 ```
+
+For external cake-autorate mode, deploy with the appropriate explicit flag and
+restart the external unit pair instead of `wanctl@<wan_name>.service`:
+
+```bash
+./scripts/deploy.sh spectrum <target_host> --with-spectrum-cake-autorate
+./scripts/deploy.sh att <target_host> --with-att-cake-autorate
+ssh <target_host> 'sudo systemctl restart cake-autorate-<wan>.service cake-autorate-<wan>-state-bridge.service'
+```
+
+The state bridge publishes the same `/health` payload and state JSON used by the
+native controller path, so `steering.service`, `scripts/soak-monitor.sh`, and
+operator summaries continue to read wanctl-compatible artifacts.
 
 5. If steering is enabled, restart or inspect `steering.service`:
 
@@ -142,14 +181,14 @@ service user, directories, and base systemd integration.
 
 ## Manual Deployment
 
-If you are not using `deploy.sh`, copy these current assets to the target host:
+If you are not using `deploy.sh`, copy these native-mode assets to the target host:
 
 - `/opt/wanctl/` from `src/wanctl/`
 - `/etc/wanctl/<wan_name>.yaml`
 - [`deploy/systemd/wanctl@.service`](../deploy/systemd/wanctl@.service)
 - optionally [`deploy/systemd/steering.service`](../deploy/systemd/steering.service)
 
-Then on the target host:
+Then on the target host for native `wanctl@` mode:
 
 ```bash
 sudo install -d /opt/wanctl /etc/wanctl /var/lib/wanctl /var/log/wanctl /run/wanctl
@@ -169,7 +208,15 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now steering.service
 ```
 
+For external cake-autorate mode, also install the repo-owned cake-autorate config,
+qdisc-init script, `cake-autorate-<wan>.service`, and
+`cake-autorate-<wan>-state-bridge.service` for that WAN. Keep the native
+`wanctl@<wan>.service` disabled while the external rate controller is active; the
+unit conflict prevents simultaneous writers.
+
 ## Monitoring
+
+Native `wanctl@` mode:
 
 ```bash
 systemctl status wanctl@wan1.service
@@ -179,29 +226,38 @@ scripts/soak-monitor.sh
 wanctl-operator-summary http://<health-ip-1>:9101/health http://<health-ip-2>:9101/health
 ```
 
+External cake-autorate mode:
+
+```bash
+systemctl status cake-autorate-<wan>.service cake-autorate-<wan>-state-bridge.service
+journalctl -u cake-autorate-<wan>.service -u cake-autorate-<wan>-state-bridge.service -f
+scripts/soak-monitor.sh
+wanctl-operator-summary http://<health-ip-1>:9101/health http://<health-ip-2>:9101/health
+```
+
 If steering is enabled:
 
 ```bash
 systemctl status steering.service
 journalctl -u steering.service -f
-journalctl -u wanctl@spectrum.service -u wanctl@att.service -u steering.service -n 100 --no-pager
+journalctl -u cake-autorate-<wan>.service -u cake-autorate-<wan>-state-bridge.service -u steering.service -n 100 --no-pager
 ```
 
 ## Troubleshooting
 
-Check recent controller logs:
+Check recent native-controller logs:
 
 ```bash
 journalctl -u wanctl@wan1.service -n 100 --no-pager
 ```
 
-For the all-services soak evidence path:
+For the all-services soak evidence path in external cake-autorate mode:
 
 ```bash
-journalctl -u wanctl@spectrum.service -u wanctl@att.service -u steering.service --since '24 hours ago' -p err --no-pager
+journalctl -u cake-autorate-<wan>.service -u cake-autorate-<wan>-state-bridge.service -u steering.service --since '24 hours ago' -p err --no-pager
 ```
 
-Run the controller manually on the target host:
+Run the native controller manually on the target host:
 
 ```bash
 cd /opt/wanctl
