@@ -66,7 +66,7 @@ Each task was committed atomically:
 1. **Task 1: Criterion-3 read-only live evidence — ATT live-unit scan contrast** - `84353784` (docs)
 2. **Task 2: SAFE-14 controller-path zero-diff boundary proof** - `eea2ab1d` (docs)
 
-**Plan metadata:** pending final metadata commit.
+**Plan metadata:** `6ed08663` (docs)
 
 ## Files Created/Modified
 
