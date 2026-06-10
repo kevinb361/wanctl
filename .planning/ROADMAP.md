@@ -40,38 +40,58 @@
 ## Phase Details
 
 ### Phase 232: Cleanup Boundary Guard + Tooling Fixes
+
 **Goal**: A machine-checkable guard encoding the `WANCTL_CAKE_AUTORATE_FUTURE.md` no-delete list exists and gates all subsequent sweep work; the `phase231-rollback.sh` confirm-path risk is fixed without exercising any live rollback; and the 2026-04-17 operator-summary digest permission todo is closed by validating actual behavior against the v1.44 Phase 208 T12/TOOL-03 tolerance.
 **Depends on**: Nothing (first phase; the boundary must exist before any sweep)
 **Requirements**: BOUND-01, FIX-01, FIX-02, SAFE-15 (cross-phase invariant; see note)
 **Success Criteria** (what must be TRUE):
+
   1. A guard (script/test) encodes the future-doc denylist — `src/wanctl/autorate_continuous.py`, the native `wanctl@$wan.service` deploy path, native controller tests, native config validation, rollback commands/docs — and fails closed (non-zero) if any denylisted surface is touched/removed; operator can run it on demand and it is wired so sweep work cannot proceed past a denylist violation (BOUND-01).
   2. `phase231-rollback.sh` no longer carries the confirm-path risk flagged in the v1.50 Phase 231 code review, remains double-gated and dry-run by default, and a test/inspection demonstrates the fix without performing any live rollback or production mutation (FIX-01).
   3. The `2026-04-17-operator-summary-digest-permission-handling` todo is closed by validating live behavior against the v1.44 Phase 208 T12/TOOL-03 unreadable-DB open tolerance — closed with tests or recorded evidence, and reimplemented only if validation shows the acceptance criterion unmet (FIX-02).
   4. SAFE-15 controller-path zero-diff holds at the phase boundary (verified, not assumed).
-**Plans**: TBD
+
+**Plans**: 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 232-01-PLAN.md — BOUND-01 cleanup boundary guard (`scripts/check-cleanup-boundary.sh`) + default-suite sweep-gate test (Wave 1)
+- [ ] 232-02-PLAN.md — FIX-01 `phase231-rollback.sh` confirm-path hardening (CR-01) + WR-01/WR-02 same-review cleanups, proven via SSH shim only (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 232-03-PLAN.md — FIX-02 digest-tolerance validation + todo closure, then SAFE-15 boundary proof vs v1.50 (Wave 2 *(blocked on Wave 1 completion)*)
+
 **UI hint**: no
 
 ### Phase 233: Gated Repo Hygiene Sweep
+
 **Goal**: The repo is consolidated to the two-mode reality — superseded one-off trial scripts are removed or archived per the future-doc "safe to remove soon" policy, no active doc still describes Spectrum/ATT as native-wanctl-owned rate control without noting current external mode, and Spectrum-only hardcoding remnants are stripped where a generic `$wan` pattern already exists — with every change validated against the Phase 232 boundary guard so no denylisted surface is touched.
 **Depends on**: Phase 232 (boundary guard must exist and gate this work)
 **Requirements**: SWEEP-01, SWEEP-02, SWEEP-03, SAFE-15 (cross-phase invariant; see note)
 **Success Criteria** (what must be TRUE):
+
   1. Superseded one-off trial scripts in the "safe to remove soon" category (per the future-doc cleanup policy) are removed or archived, and the Phase 232 boundary guard passes — confirming no denylisted/"not safe to remove yet" surface was touched (SWEEP-01).
   2. No remaining active doc describes Spectrum or ATT as native-wanctl-owned rate control without noting the current external cake-autorate mode (residual verification beyond v1.50 Phase 231 DOCS-04); a grep/inspection sweep demonstrates the residual is clear (SWEEP-02).
   3. Spectrum-only hardcoding remnants are removed only where a generic `$wan` bridge/service pattern already exists — no new abstraction is introduced to enable removal; the boundary guard confirms the native path is untouched (SWEEP-03).
   4. SAFE-15 controller-path zero-diff holds at the phase boundary.
+
 **Plans**: TBD
 **UI hint**: no
 
 ### Phase 234: Planning Metadata Reconciliation + Closeout
+
 **Goal**: The planning artifacts are reconciled to a consistent state — the 12 orphan quick-task slugs are resolved via a `/gsd-cleanup`-style sweep (archived or closed with pointer, not silently deleted), the silicom pending todos and SEED-006 are reconciled to a single consistent canonical state without false-closing operationally real bypass work, and the v1.50 Phase 230 Nyquist PARTIAL is resolved (retroactive validate-phase OR explicit recorded waiver) — and SAFE-15 is proven at milestone close.
 **Depends on**: Phase 233
 **Requirements**: META-01, META-02, META-03, SAFE-15 (mapped here for traceability; see note)
 **Success Criteria** (what must be TRUE):
+
   1. The 12 orphan quick-task slugs from older milestones are resolved via a `/gsd-cleanup`-style sweep — each archived or closed with a pointer, none silently deleted; the deferred-items ledger reflects the resolved state (META-01).
   2. The 2026-04-28 silicom pending todos (×2) and SEED-006 are reconciled to a single consistent state — SEED-006 canonical dormant carrier OR the todos canonical, but not both claiming different states — with no false-closing of the operationally real bypass-watchdog work (the ATT migration hit a live bypass failure mode) (META-02).
   3. The v1.50 Phase 230 Nyquist PARTIAL is resolved — a retroactive `/gsd-validate-phase 230` is executed, OR an explicit waiver is recorded in planning state with rationale (META-03).
   4. SAFE-15 controller-path zero-diff (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) is proven at this phase boundary AND at milestone close — 9th consecutive milestone holding the SAFE-07..14 discipline (SAFE-15).
+
 **Plans**: TBD
 **UI hint**: no
 
