@@ -69,11 +69,19 @@ sudo ./scripts/install.sh --reconfigure
 sudo ./scripts/install.sh --uninstall
 ```
 
-After wizard completion, enable the service:
+After wizard completion, enable the native `wanctl@` service:
 
 ```bash
 sudo systemctl enable --now wanctl@wan1.service
 ```
+
+This quickstart describes the portable native mode: `wanctl@<wan>.service`
+owns rate control directly and publishes the state consumed by steering. wanctl
+also supports an external cake-autorate deployment mode where
+`cake-autorate-<wan>.service` owns the Linux CAKE rate decisions and a
+wanctl-side `cake-autorate-<wan>-state-bridge.service` publishes the same state,
+health, and metrics contract. See [Deployment](docs/DEPLOYMENT.md) for choosing
+between the two service models.
 
 ### Transport Setup
 
@@ -253,6 +261,11 @@ sudo systemctl enable --now steering.service
 Steering uses multi-signal detection (RTT + CAKE drops + queue depth) with hysteresis to prevent flapping.
 
 ## Monitoring
+
+The examples below are for native `wanctl@` mode. In external cake-autorate mode,
+monitor `cake-autorate-<wan>.service`,
+`cake-autorate-<wan>-state-bridge.service`, and `steering.service`; the state JSON
+and health endpoint contract remain wanctl-compatible.
 
 ```bash
 # Service status

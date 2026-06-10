@@ -20,9 +20,35 @@ This system runs **identical code** on:
 
 All variability is expressed exclusively through **configuration parameters**.
 
+wanctl also has an external rate-controller deployment mode for Linux CAKE
+installations where upstream cake-autorate owns reflector measurement and shaping
+rate changes. That mode preserves the same portability principle: wanctl does not
+add per-link behavior branches; deployment-specific choices live in service units
+and configuration files.
+
 ---
 
 ## Architectural Guarantees
+
+### Deployment Modes
+
+The architecture supports two service models:
+
+- **Native controller mode (`wanctl@<wan>.service`)** — wanctl runs the control
+  loop, measures RTT/queue signals, applies shaping rates through its configured
+  backend, writes `/var/lib/wanctl/<wan>_state.json`, and publishes the health
+  payload used by operators and steering.
+- **External rate-controller mode (`cake-autorate`)** — upstream cake-autorate
+  owns reflector measurement and CAKE bandwidth decisions. The wanctl-side state
+  bridge parses the cake-autorate log, writes
+  `/var/lib/wanctl/<wan>_state.json`, updates the per-WAN metrics DB, and serves a
+  wanctl-compatible health endpoint. `steering.service` consumes the same state
+  files in both modes.
+
+External mode changes ownership of rate decisions, not the public state/health
+contract. The native controller sections below describe `wanctl@` mode; external
+mode keeps those contracts through the bridge while avoiding a second rate-control
+writer.
 
 ### 1. Single Codebase
 

@@ -229,7 +229,7 @@ scope is the hot-reload chain (`_reload_all_hot_reloadable_config_sections`) and
 `_reload_hysteresis_config` reloads only dwell/deadband-style hysteresis fields;
 the v1.41 upload-threshold keys are initialized once at startup.
 
-To change UL thresholds in production:
+To change UL thresholds in production for native `wanctl@` mode:
 
 1. Edit `/etc/wanctl/<wan>.yaml`
 2. Run `sudo systemctl restart wanctl@<wan>.service`
@@ -238,6 +238,12 @@ To change UL thresholds in production:
    flags gate writes when the keys are explicitly set in YAML)
 
 Sending SIGUSR1 alone will NOT apply changes to these keys.
+
+In external cake-autorate mode, cake-autorate owns rate-control decisions and the
+active shaping config lives in `/etc/cake-autorate/config.<wan>.sh` (repo source:
+`configs/cake-autorate/`). Apply those external-mode changes by restarting
+`cake-autorate-<wan>.service`; the wanctl state bridge continues to publish the
+health/state contract consumed by steering and monitoring.
 
 ### DOCSIS-Aware UL Control Mode (v1.42+)
 
@@ -285,9 +291,15 @@ When `docsis_mode: false` or absent, behavior is byte-identical to v1.41.
 
 `anti_windup_cycles` defaults to `60` cycles (3 seconds at the production 50ms loop).
 
-**Service restart required.** SIGUSR1 does NOT reload these keys. Apply changes with:
+**Service restart required.** SIGUSR1 does NOT reload these keys. In native
+`wanctl@` mode, apply changes with:
 
     sudo systemctl restart wanctl@<wan>.service
+
+In external cake-autorate mode, apply rate-envelope changes in
+`/etc/cake-autorate/config.<wan>.sh` and restart:
+
+    sudo systemctl restart cake-autorate-<wan>.service
 
 The predeploy gate (`scripts/phase201-predeploy-gate.sh`) inspects `/etc/wanctl/spectrum.yaml` on the deploy target and aborts the deploy with operator-actionable instructions if v1.41-only rejected-hypothesis keys (`target_bloat_ms`, `warn_bloat_ms` under `continuous_monitoring.upload`) are present.
 
