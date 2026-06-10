@@ -2,7 +2,7 @@
 created: 2026-04-18T02:11:13.000Z
 title: operator-summary --digest should handle PermissionError gracefully
 area: tooling
-resolves_phase: 208
+resolves_phase: 232
 files:
   - src/wanctl/operator_summary.py
 ---
