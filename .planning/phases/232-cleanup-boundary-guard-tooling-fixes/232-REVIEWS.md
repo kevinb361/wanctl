@@ -96,3 +96,34 @@ Single reviewer this cycle (Codex) — consensus is the Codex verdict itself.
 
 ### Divergent Views
 None — single reviewer.
+
+---
+
+# Cycle 2 Re-Review (post-revision, commit 5dabadc8)
+
+## Codex Review (Cycle 2)
+
+**Summary**
+
+The revisions address the cycle-1 concerns. Plan 02 now explicitly fixes the `ssh -n ... bash -s` payload bug, pins it with argv-level tests, treats `activating` as a dual-writer failure, and broadens read-only assertions. Plan 01 now has explicit per-row guard policy plus loud planning-less checkout handling. Plan 03 now matches actual `operator_summary.py` behavior and adds the missing full SAFE-15 diff list plus the `configs/att.yaml` caveat. I found no new blocking issues.
+
+**Prior Concern Resolution**
+
+- **HIGH, Plan 02:** RESOLVED. The revised plan drops `-n` only for the `bash -s` payload execution, keeps `-n` on probes, adds an argv test excluding `-n`, fails on `active` and `activating`, and uses broader mutation regexes. This directly targets the current defect at scripts/phase231-rollback.sh:279.
+- **MEDIUM, Plan 01:** RESOLVED. The guard now distinguishes `must-match-anchor` vs `must-exist`, keeps deletion forbidden for all rows, makes planning-less checkout skips opt-in via `WANCTL_BOUND01_ALLOW_NO_PLANNING=1`, and adds an anchor-absent/untracked future-doc test.
+- **MEDIUM, Plan 03:** RESOLVED. The digest wording now says query-time DB errors are caught per DB with `hard-red query failed`, not bubbled; this matches operator_summary.py:241. SAFE-15 now includes `wan_controller_state.py` and records that the reused checker also checks `configs/att.yaml` via phase225-safe13-boundary-check.sh:67.
+
+**New Concerns**
+
+- **LOW:** Plan 01's scratch-repo fixture description says the helper commits the full manifest tree, while the anchor-absent test needs the future doc ignored before commit. Make that fixture parameterized or use a separate fixture for the untracked-row case so the test is not accidentally impossible.
+- **LOW:** Plan 01 still has some broad prose like "fails closed on touch/removal of any denylisted surface," while `must-exist` rows intentionally allow content drift. The policy table is clear, but tighten summary wording to avoid audit confusion.
+
+**Risk Assessment**
+
+Overall risk: **LOW**. The revised plans are conservative, test-heavy, and keep controller-path changes out of scope. Reviewer verified the digest slice locally (`9 passed`), confirmed the ShellCheck `SC2318` target exists in phase231-migration-held.sh:136, and confirmed the current SAFE diff vs `v1.50` is clean across the full controller target list.
+
+## Convergence Verdict (Cycle 2)
+
+- HIGH concerns remaining: **0** — converged.
+- Cycle-1 HIGH (Plan 02 ssh -n) FULLY RESOLVED with reviewer sign-off above.
+- Two LOW notes (Plan 01 fixture parameterization, summary prose tightening) are executor-discretion polish, not blockers.
