@@ -84,7 +84,7 @@ config_value() {
 
 ssh_readonly() {
     local ssh_target="$1" remote_cmd="$2"
-    ssh "${SSH_OPTS[@]}" "$ssh_target" "$remote_cmd"
+    ssh -n "${SSH_OPTS[@]}" "$ssh_target" "$remote_cmd"
 }
 
 json_string() {
@@ -195,6 +195,7 @@ journal_check() {
     c3_units_for_wan "$wan" >"$units_file"
     while IFS= read -r unit; do
         unit_file="${tmpdir}/${wan}-${unit//[^A-Za-z0-9_.-]/_}.log"
+        : >"$unit_file"
         if output="$(ssh_readonly "$ssh_target" "sudo -n journalctl -u '${unit}' --since '${MIGRATION_SINCE_UTC}' -p err --no-pager -o short-iso" 2>&1)"; then
             printf '%s\n' "$output" | grep -v '^-- No entries --$' | sed '/^[[:space:]]*$/d' >"$unit_file" || true
         else
