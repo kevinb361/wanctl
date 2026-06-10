@@ -30,7 +30,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Documentation (DOCS)
 
-- [ ] **DOCS-04**: Active docs (README, DEPLOYMENT, ARCHITECTURE, CONFIGURATION as applicable) describe both deployment modes correctly; stale claims of native-wanctl ownership of Spectrum/ATT swept
+- [x] **DOCS-04**: Active docs (README, DEPLOYMENT, ARCHITECTURE, CONFIGURATION as applicable) describe both deployment modes correctly; stale claims of native-wanctl ownership of Spectrum/ATT swept
 
 ### Safety (SAFE)
 
@@ -76,7 +76,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MON-02 | Phase 230 | Complete |
 | SOAK-01 | Phase 231 | Complete |
 | SOAK-02 | Phase 231 | Complete |
-| DOCS-04 | Phase 231 | Pending |
+| DOCS-04 | Phase 231 | Complete |
 | SAFE-14 | Phase 231 | Complete |
 
 **Coverage:**

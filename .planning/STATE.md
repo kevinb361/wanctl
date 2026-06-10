@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.50
 milestone_name: cake-autorate Migration Hardening
-status: executing
-stopped_at: Completed 231-02-PLAN.md
-last_updated: "2026-06-10T14:10:54.191Z"
+status: verifying
+stopped_at: Completed 231-03-PLAN.md
+last_updated: "2026-06-10T14:31:45.705Z"
 last_activity: 2026-06-10
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 8
-  completed_plans: 7
-  percent: 88
+  completed_plans: 8
+  percent: 100
 ---
 
 # Session State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-09 after v1.49 close, overtaken-by-ev
 
 Phase: 231 (migration-held-criteria-rollback-verification-doc-sweep) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-10
 
 ## Deferred Items (carried into next milestone)
@@ -58,7 +58,7 @@ Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone
 
 ### v1.49-closed-overtaken-by-events
 
-- **Status:** Ready to execute
+- **Status:** Phase complete — ready for verification
 - **Operator sign-off:** Kevin — 2026-06-09, "do it" on the assessed closure plan (commit migration work → close v1.49 overtaken-by-events → new milestone for cake-autorate hardening).
 - **Why this is acceptable:** The Phase 228 verdict gated a wanctl-controlled bridge-root CAKE topology that was replaced wholesale by the cake-autorate member-NIC migration (`fc47a0c`, live 2026-06-08). Computing the verdict post-hoc would be theater; the evidence direction (REJECT diffserv4-wash in the old topology: RRUL p99 +11.5%, EF loss ~44×) is recorded faithfully in MILESTONES.md and marked non-transferable. Wash-vs-nowash was independently re-validated under the new topology and `wash` won.
 
@@ -100,15 +100,15 @@ Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-10T14:10:15.565Z
-Stopped at: Completed 231-02-PLAN.md
+Last session: 2026-06-10T14:31:38.475Z
+Stopped at: Completed 231-03-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 
 ## Operator Next Steps
 
-- Continue Phase 231 with Plan 03 (stale-doc sweep and SAFE-14 closeout) after SOAK-02 provable-path acceptance.
+- Phase 231 is complete; run verification/milestone closeout for v1.50. SAFE-14 boundary tracking commit is `2a2a1022`; subsequent closeout commits are `.planning/**` only.
 
 ## Decisions (v1.50)
 
@@ -127,6 +127,9 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 - [231-01]: C3 no_sustained_errors remains objective: historical bounded err lines can pass only under encoded constants, not operator judgment.
 - [231-02]: Kevin accepted the SOAK-02 provable path on 2026-06-10; no live rollback exercise or production mutation was performed.
 - [231-02]: PHASE231_START candidate remains 55c33a7b646abe3af9208bc1fb0db3677dd25810 for Phase 231 SAFE-14 scope accounting.
+- [231-03]: Active docs now present native wanctl@ mode as the portable default and external cake-autorate mode as a sibling deployment model, not as a replacement for generic wanctl@ usage.
+- [231-03]: SAFE-14 milestone-close proof uses SAFE_BASE=87980bdf8ea52e5537110cd9bbc7a368f523d2e2 for controller-path zero-diff and PHASE231_START=55c33a7b646abe3af9208bc1fb0db3677dd25810 for Phase 231 scope accounting.
+- [231-03]: Every commit after boundary tracking commit 2a2a1022 is restricted to .planning/** so the boundary proof remains valid through SUMMARY/STATE/ROADMAP metadata closeout.
 
 ## Decisions (v1.49)
 
@@ -260,3 +263,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 230 P02 | 8min | 2 tasks | 3 files |
 | Phase 231 P01 | checkpointed | 2 tasks | 4 files |
 | Phase 231 P02 | checkpointed; continuation 2min | 3 tasks | 8 files |
+| Phase 231 P03 | 17 min | 2 tasks | 7 files |
