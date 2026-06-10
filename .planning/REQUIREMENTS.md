@@ -20,8 +20,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Monitoring (MON)
 
-- [ ] **MON-01**: soak-monitor error-scan covers the live ATT units (`cake-autorate-att.service`, `cake-autorate-att-state-bridge.service`, silicom watchdog variant) instead of the disabled `wanctl@att.service`
-- [ ] **MON-02**: soak-monitor handles ATT external-controller mode at parity with Spectrum (mode detection, bridge-fallback health source) — no Spectrum-only hardcoding in mode detection
+- [x] **MON-01**: soak-monitor error-scan covers the live ATT units (`cake-autorate-att.service`, `cake-autorate-att-state-bridge.service`, silicom watchdog variant) instead of the disabled `wanctl@att.service`
+- [x] **MON-02**: soak-monitor handles ATT external-controller mode at parity with Spectrum (mode detection, bridge-fallback health source) — no Spectrum-only hardcoding in mode detection
 
 ### Migration-Held Criteria (SOAK)
 
@@ -72,8 +72,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPLOY-02 | Phase 229 | Complete |
 | TEST-01 | Phase 229 | Complete |
 | TEST-02 | Phase 229 | Complete |
-| MON-01 | Phase 230 | Pending |
-| MON-02 | Phase 230 | Pending |
+| MON-01 | Phase 230 | Complete |
+| MON-02 | Phase 230 | Complete |
 | SOAK-01 | Phase 231 | Pending |
 | SOAK-02 | Phase 231 | Pending |
 | DOCS-04 | Phase 231 | Pending |

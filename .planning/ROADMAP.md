@@ -73,7 +73,7 @@
 Plans:
 **Wave 1**
 
-- [ ] 230-01-PLAN.md — Generalize soak-monitor mode detection + per-WAN live-unit map; fix all 4 Spectrum-hardcoded call sites for ATT (MON-01/MON-02) + regression test
+- [x] 230-01-PLAN.md — Generalize soak-monitor mode detection + per-WAN live-unit map; fix all 4 Spectrum-hardcoded call sites for ATT (MON-01/MON-02) + regression test
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -102,7 +102,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 229. ATT Deploy Path + Artifact Tests | v1.50 | 3/3 | Complete    | 2026-06-09 |
-| 230. soak-monitor ATT Coverage | v1.50 | 0/TBD | Not started | - |
+| 230. soak-monitor ATT Coverage | v1.50 | 1/2 | In Progress|  |
 | 231. Migration-Held Criteria, Rollback & Doc Sweep | v1.50 | 0/TBD | Not started | - |
 
 ---
