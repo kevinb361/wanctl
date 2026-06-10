@@ -65,21 +65,29 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BOUND-01 | — | Pending |
-| FIX-01 | — | Pending |
-| FIX-02 | — | Pending |
-| SWEEP-01 | — | Pending |
-| SWEEP-02 | — | Pending |
-| SWEEP-03 | — | Pending |
-| META-01 | — | Pending |
-| META-02 | — | Pending |
-| META-03 | — | Pending |
-| SAFE-15 | — | Pending |
+| BOUND-01 | Phase 232 | Pending |
+| FIX-01 | Phase 232 | Pending |
+| FIX-02 | Phase 232 | Pending |
+| SWEEP-01 | Phase 233 | Pending |
+| SWEEP-02 | Phase 233 | Pending |
+| SWEEP-03 | Phase 233 | Pending |
+| META-01 | Phase 234 | Pending |
+| META-02 | Phase 234 | Pending |
+| META-03 | Phase 234 | Pending |
+| SAFE-15 | Phase 234 (cross-phase: verified at 232/233/234 boundaries) | Pending |
 
 **Coverage:**
 - v1.51 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10 (roadmap pending)
+- Mapped to phases: 10
+- Unmapped: 0
+
+**Phase mapping:**
+- Phase 232 (Cleanup Boundary Guard + Tooling Fixes): BOUND-01, FIX-01, FIX-02
+- Phase 233 (Gated Repo Hygiene Sweep): SWEEP-01, SWEEP-02, SWEEP-03
+- Phase 234 (Planning Metadata Reconciliation + Closeout): META-01, META-02, META-03, SAFE-15
+
+> SAFE-15 is a cross-phase controller-path zero-diff invariant verified at every phase boundary (232, 233, 234); mapped to closeout Phase 234 for traceability accounting per the v1.50 SAFE-14 precedent.
 
 ---
 *Requirements defined: 2026-06-10 (joint Claude + Codex scope decision)*
+*Roadmap mapped: 2026-06-10 — 10/10 REQs to Phases 232–234, 0 orphans*
