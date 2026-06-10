@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.50
 milestone_name: cake-autorate Migration Hardening
-status: executing
-stopped_at: Completed 230-01-PLAN.md
-last_updated: "2026-06-10T02:22:45.819Z"
+status: verifying
+stopped_at: Completed 230-02-PLAN.md
+last_updated: "2026-06-10T02:38:48.921Z"
 last_activity: 2026-06-10
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 4
-  percent: 33
+  completed_plans: 5
+  percent: 67
 ---
 
 # Session State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 after v1.49 close, overtaken-by-events)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 230 — soak-monitor-att-coverage
+**Current focus:** Phase 231 — migration-held criteria, rollback verification, and doc sweep
 
 ## Current Position
 
-Phase: 230 (soak-monitor-att-coverage) — EXECUTING
+Phase: 230 (soak-monitor-att-coverage) — COMPLETE
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-10
 
 ## Deferred Items (carried into next milestone)
@@ -58,7 +58,7 @@ Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone
 
 ### v1.49-closed-overtaken-by-events
 
-- **Status:** Ready to execute
+- **Status:** Phase complete — ready for verification
 - **Operator sign-off:** Kevin — 2026-06-09, "do it" on the assessed closure plan (commit migration work → close v1.49 overtaken-by-events → new milestone for cake-autorate hardening).
 - **Why this is acceptable:** The Phase 228 verdict gated a wanctl-controlled bridge-root CAKE topology that was replaced wholesale by the cake-autorate member-NIC migration (`fc47a0c`, live 2026-06-08). Computing the verdict post-hoc would be theater; the evidence direction (REJECT diffserv4-wash in the old topology: RRUL p99 +11.5%, EF loss ~44×) is recorded faithfully in MILESTONES.md and marked non-transferable. Wash-vs-nowash was independently re-validated under the new topology and `wash` won.
 
@@ -100,15 +100,15 @@ Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-10T02:22:26.582Z
-Stopped at: Completed 230-01-PLAN.md
+Last session: 2026-06-10T02:38:31.832Z
+Stopped at: Completed 230-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 
 ## Operator Next Steps
 
-- Verify Phase 229 or plan Phase 230 (soak-monitor ATT Coverage).
+- Verify Phase 230, then plan Phase 231 (Migration-Held Criteria, Rollback Verification & Doc Sweep).
 
 ## Decisions (v1.50)
 
@@ -120,6 +120,8 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 - [229-03]: SAFE-14 baseline pinned to 87980bdf as the last docs/planning-only commit before Phase 229 implementation.
 - [230-01]: Kept native wanctl@<wan>.service as fallback scanning path when external cake-autorate mode is not detected.
 - [230-01]: Aggregate soak-monitor JSON units, labels, and journal hints are generated from the same live-unit array used for check_errors.
+- [230-02]: Criterion-3 production proof stayed read-only; representative error injection was confined to a local fake-ssh shim.
+- [230-02]: SAFE_BASE=87980bdf is used only for controller-path zero-diff, while PHASE230_START=4ad2986e is used for Phase 230 scripts/tests scope accounting.
 
 ## Decisions (v1.49)
 
@@ -250,3 +252,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 229 P02 | 5min | 2 tasks | 1 file |
 | Phase 229 P03 | 10min | 3 tasks | 2 files |
 | Phase Phase 230 PP01 | 9min | 3 tasks tasks | 4 files files |
+| Phase 230 P02 | 8min | 2 tasks | 3 files |
