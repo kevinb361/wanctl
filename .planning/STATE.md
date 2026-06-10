@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.50
 milestone_name: cake-autorate Migration Hardening
 status: executing
-stopped_at: Completed 229-03-PLAN.md
-last_updated: "2026-06-09T21:48:43.174Z"
-last_activity: 2026-06-09 -- Phase 230 planning complete
+stopped_at: Completed 230-01-PLAN.md
+last_updated: "2026-06-10T02:22:45.819Z"
+last_activity: 2026-06-10
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 5
-  completed_plans: 3
+  completed_plans: 4
   percent: 33
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 after v1.49 close, overtaken-by-events)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 230 — soak monitor att coverage
+**Current focus:** Phase 230 — soak-monitor-att-coverage
 
 ## Current Position
 
-Phase: 230
-Plan: Not started
+Phase: 230 (soak-monitor-att-coverage) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-06-09 -- Phase 230 planning complete
+Last activity: 2026-06-10
 
 ## Deferred Items (carried into next milestone)
 
@@ -100,8 +100,8 @@ Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-09T19:56:07.944Z
-Stopped at: Completed 229-03-PLAN.md
+Last session: 2026-06-10T02:22:26.582Z
+Stopped at: Completed 230-01-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -118,6 +118,8 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 - [229-02]: The deploy-list drift gate parses deploy.sh text directly because no central ATT artifact manifest exists.
 - [229-03]: Repo-owned ATT artifacts matched live cake-shaper bytes for all six DEPLOY-02 artifacts; no reconciliation was needed.
 - [229-03]: SAFE-14 baseline pinned to 87980bdf as the last docs/planning-only commit before Phase 229 implementation.
+- [230-01]: Kept native wanctl@<wan>.service as fallback scanning path when external cake-autorate mode is not detected.
+- [230-01]: Aggregate soak-monitor JSON units, labels, and journal hints are generated from the same live-unit array used for check_errors.
 
 ## Decisions (v1.49)
 
@@ -247,3 +249,4 @@ Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 | Phase 229 P01 | 5min | 2 tasks | 1 file |
 | Phase 229 P02 | 5min | 2 tasks | 1 file |
 | Phase 229 P03 | 10min | 3 tasks | 2 files |
+| Phase Phase 230 PP01 | 9min | 3 tasks tasks | 4 files files |
