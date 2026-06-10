@@ -292,14 +292,10 @@ When `docsis_mode: false` or absent, behavior is byte-identical to v1.41.
 `anti_windup_cycles` defaults to `60` cycles (3 seconds at the production 50ms loop).
 
 **Service restart required.** SIGUSR1 does NOT reload these keys. In native
-`wanctl@` mode, apply changes with:
-
-    sudo systemctl restart wanctl@<wan>.service
-
-In external cake-autorate mode, apply rate-envelope changes in
-`/etc/cake-autorate/config.<wan>.sh` and restart:
-
-    sudo systemctl restart cake-autorate-<wan>.service
+`wanctl@` mode, restart the `wanctl@<wan>.service` unit. In external
+cake-autorate mode, apply rate-envelope changes in
+`/etc/cake-autorate/config.<wan>.sh` and restart the
+`cake-autorate-<wan>.service` unit.
 
 The predeploy gate (`scripts/phase201-predeploy-gate.sh`) inspects `/etc/wanctl/spectrum.yaml` on the deploy target and aborts the deploy with operator-actionable instructions if v1.41-only rejected-hypothesis keys (`target_bloat_ms`, `warn_bloat_ms` under `continuous_monitoring.upload`) are present.
 
