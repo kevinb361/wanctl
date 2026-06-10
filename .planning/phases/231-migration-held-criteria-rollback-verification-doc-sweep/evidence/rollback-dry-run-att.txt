@@ -1,0 +1,21 @@
+Phase 231 SOAK-02 rollback plan for att (mutation only with --confirm --i-have-operator-approval)
+
+Expected watchdog states:
+  - spectrum: silicom-bypass-watchdog@spectrum.service active in external mode and native rollback mode; rollback leaves it untouched.
+  - att: silicom-bypass-watchdog-cake-autorate-att.service active in external mode; silicom-bypass-watchdog@att.service inactive until native rollback.
+
+Rollback sequence:
+  sudo systemctl disable --now cake-autorate-att.service cake-autorate-att-state-bridge.service silicom-bypass-watchdog-cake-autorate-att.service
+  sudo systemctl enable --now wanctl@att.service silicom-bypass-watchdog@att.service
+  sleep 8
+  cd /opt/bpctl-silicom
+  sudo ./bpctl_util att-modem set_disc off
+  sudo ./bpctl_util att-modem set_bypass off
+  sudo ./bpctl_util att-modem reset_bypass_wd >/dev/null || true
+  sudo tc qdisc replace dev att-router root cake bandwidth 95Mbit diffserv4 triple-isolate ingress nonat nowash no-ack-filter split-gso rtt 35ms ptm overhead 22 mpu 64 memlimit 32Mb
+  sudo tc qdisc replace dev att-modem root cake bandwidth 18Mbit diffserv4 triple-isolate egress nonat nowash ack-filter split-gso rtt 35ms ptm overhead 22 mpu 64 memlimit 32Mb
+
+Return-to-cake sequence (production steady state after any live exercise):
+  sudo systemctl disable --now wanctl@att.service silicom-bypass-watchdog@att.service
+  sudo systemctl enable --now cake-autorate-att.service cake-autorate-att-state-bridge.service silicom-bypass-watchdog-cake-autorate-att.service
+  # qdisc re-init is handled by /usr/local/sbin/cake-autorate-att-qdisc-init via ExecStartPre
