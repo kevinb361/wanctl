@@ -227,4 +227,8 @@ if violations:
     raise SystemExit(1)
 PY
 
+if [[ "$PRINT_MANIFEST" -eq 1 ]]; then
+    exit 0
+fi
+
 echo "cleanup boundary check passed: $OUT"
