@@ -858,6 +858,49 @@ _A living document updated after each milestone. Lessons feed forward into futur
 - Phases 225–227 executed 2026-06-04 in one day (14 plans); the unexecuted Phase 228 consumed planning + 2 cross-AI review cycles.
 - Migration work itself happened outside GSD (operator side sessions, 2026-06-05 → 2026-06-08), then was committed and reconciled in one session (2026-06-09).
 
+## Milestone: v1.50 — cake-autorate Migration Hardening
+
+**Shipped:** 2026-06-10
+**Phases:** 3 (229–231) | **Plans:** 8
+
+### What Was Built
+
+- `deploy.sh --with-att-cake-autorate` sibling path at Spectrum parity — repo is now the drift-proof source of truth for all six ATT artifacts (live cake-shaper bytes proven equal via read-only sha256 audit).
+- ATT artifact-contract tests + bidirectional deploy-list drift gate (repo artifacts and deploy list cannot diverge silently).
+- soak-monitor WAN-parameterized external-mode detection; ATT error scans route through the live `cake-autorate-att*` units instead of the disabled `wanctl@att.service` (representative-error proof: post-fix catches what pre-fix missed).
+- Formal migration-held criteria (C1–C4, machine-checkable C3) evaluated read-only: both WANs `SOAK-01 PASS`.
+- Double-gated rollback script (`--confirm` + `--i-have-operator-approval`) with both-WAN read-only preflight `overall_pass: true`; SOAK-02 closed via operator-accepted no-mutation provable path.
+- Two-mode doc sweep: native `wanctl@` presented as portable default, external cake-autorate as sibling deployment model; zero stale native-ownership claims.
+
+### What Worked
+
+- Risk-ordered phase sequence (repo-only → monitoring → production evidence) meant the first two phases carried zero production risk while still closing most REQs.
+- The provable-path alternative for SOAK-02, declared at roadmap time, avoided a production-flapping rollback exercise without weakening the requirement — preflight JSON proves every precondition the live exercise would have.
+- SAFE-14 as a cross-phase invariant (eighth consecutive SAFE-NN milestone) stayed cheap: one pinned base SHA (`87980bdf`), re-proven at each boundary, re-verified independently by the milestone audit.
+- Audit-first close: the integration checker independently re-ran the SAFE-14 proof and unit-name consistency checks across all four script surfaces rather than trusting phase evidence.
+
+### What Was Inefficient
+
+- Phase 230's VALIDATION.md was left `nyquist_compliant: false` (draft) despite the phase shipping five regression tests — bookkeeping lag, not coverage lag.
+- Pre-existing Phase 220/221 boundary-test noise (21–23 historical failures pinned to an old base SHA) keeps showing up in full-suite runs and has to be re-classified every milestone; worth a one-time retirement decision.
+
+### Patterns Established
+
+- Sibling function over generic abstraction for two-instance parity (ATT mirrors Spectrum in `deploy.sh`; parameterize only where the second instance forces it).
+- Provable-path closure for production-mutating requirements: documented + preflighted + double-gated script + operator acceptance ≥ live exercise when the exercise's only payoff is procedural confidence.
+- Machine-derived soak verdicts: encode pass/fail constants in the evaluator script so historical log noise can't pass on operator judgment.
+
+### Key Lessons
+
+1. Hand-deployed migration debt is cheapest to retire immediately after the migration, while the live state is still byte-comparable to intent — the DEPLOY-02 ALL-EQUAL proof would degrade with every future hand-edit.
+2. Monitoring must migrate with the workload: soak-monitor watched a disabled unit for two days post-migration; the error-scan blind spot was invisible because "no errors" looks identical to "not looking".
+3. A small, deliberately-scoped milestone (10 REQs, binding Out-of-Scope table) closed in 2 days with zero new debt — fine granularity plus single-thesis discipline keeps closes clean.
+
+### Cost Observations
+
+- 59 commits over 2 days; 8 plans averaged ~8 min each (two checkpointed for operator evidence gates).
+- Code surface: 14 files (+1,874/−38), all scripts/tests/docs — zero `src/wanctl/` mutation.
+
 ## Cross-Milestone Trends
 
 ### Process Evolution

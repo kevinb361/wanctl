@@ -1,5 +1,28 @@
 # Project Milestones: wanctl
 
+## v1.50 cake-autorate Migration Hardening (Shipped: 2026-06-10)
+
+**Phases completed:** 3 phases, 8 plans, 19 tasks
+
+**Key accomplishments:**
+
+- ATT cake-autorate deploy path with full artifact list, silicom watchdog unit handling, and WAN-gated dry-run/dispatch support.
+- ATT cake-autorate artifact-contract tests plus a deploy.sh drift gate covering all six repo-owned ATT artifacts.
+- Read-only ATT artifact sha256 audit proving live cake-shaper bytes match repo plus SAFE-14 controller-path zero-diff at phase boundary.
+- soak-monitor now routes ATT external-controller error scans through the live cake-autorate ATT units, with fake-ssh regression coverage for aggregate JSON output.
+- Read-only ATT live-unit evidence plus local representative-error proof show soak-monitor now sees ATT external-mode failures, while SAFE-14 controller-path zero-diff remains clean.
+- Read-only both-WAN migration-held evaluator with operator-approved SOAK-01 PASS evidence for the 2026-06-08 cake-autorate migration.
+- Native `wanctl@{wan}` rollback is proven by a double-gated script, live read-only both-WAN preflight evidence, documented rollback/return-to-cake renders, and Kevin's no-mutation acceptance.
+- Two-mode deployment docs now distinguish native `wanctl@` control from external cake-autorate control, and SAFE-14 is proven for both the Phase 231 boundary and v1.50 milestone close.
+
+**Stats:** 59 commits over 2 days (2026-06-09 → 2026-06-10); 62 files changed (+8,956/−69) total; code surface 14 files (+1,874/−38) — `scripts/deploy.sh`, `scripts/soak-monitor.sh`, `scripts/phase231-*.sh`, tests, docs. Zero controller-path mutation (SAFE-14, base `87980bdf`).
+
+**Audit:** `passed` — 10/10 REQs satisfied, 10/10 integration seams wired, 3/3 E2E flows complete (`milestones/v1.50-MILESTONE-AUDIT.md`).
+
+**Known deferred items at close:** 23 (see STATE.md Deferred Items) — all pre-existing carry-forward from v1.47/v1.48/v1.49 closes; zero new v1.50 debt. Residuals noted: Phase 230 Nyquist PARTIAL (optional `/gsd:validate-phase 230`), `phase231-rollback.sh` confirm-path fix before any future live rollback exercise.
+
+---
+
 ## v1.49 Spectrum DSCP Tinning Re-evaluation (Closed: 2026-06-09, overtaken-by-events)
 
 **Phases completed:** 3 of 4 (Phases 225–227, 14 plans); Phase 228 (verdict + rollback + closeout) NOT executed
