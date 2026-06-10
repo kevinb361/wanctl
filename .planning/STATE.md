@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.50
 milestone_name: cake-autorate Migration Hardening
-status: ready_to_plan
-stopped_at: Phase 230 complete (2/2) — ready to discuss Phase 231
-last_updated: 2026-06-10T02:46:22.918Z
-last_activity: 2026-06-10
+status: executing
+stopped_at: Completed 230-02-PLAN.md
+last_updated: "2026-06-10T03:07:04.353Z"
+last_activity: 2026-06-10 -- Phase 231 planning complete
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 5
+  total_plans: 8
   completed_plans: 5
-  percent: 67
+  percent: 63
 ---
 
 # Session State
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-09 after v1.49 close, overtaken-by-ev
 
 Phase: 231
 Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-06-10
+Status: Ready to execute
+Last activity: 2026-06-10 -- Phase 231 planning complete
 
 ## Deferred Items (carried into next milestone)
 
@@ -58,7 +58,7 @@ Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone
 
 ### v1.49-closed-overtaken-by-events
 
-- **Status:** Ready to plan
+- **Status:** Ready to execute
 - **Operator sign-off:** Kevin — 2026-06-09, "do it" on the assessed closure plan (commit migration work → close v1.49 overtaken-by-events → new milestone for cake-autorate hardening).
 - **Why this is acceptable:** The Phase 228 verdict gated a wanctl-controlled bridge-root CAKE topology that was replaced wholesale by the cake-autorate member-NIC migration (`fc47a0c`, live 2026-06-08). Computing the verdict post-hoc would be theater; the evidence direction (REJECT diffserv4-wash in the old topology: RRUL p99 +11.5%, EF loss ~44×) is recorded faithfully in MILESTONES.md and marked non-transferable. Wash-vs-nowash was independently re-validated under the new topology and `wash` won.
 
