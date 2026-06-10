@@ -56,7 +56,7 @@
 Plans:
 **Wave 1**
 
-- [ ] 232-01-PLAN.md — BOUND-01 cleanup boundary guard (`scripts/check-cleanup-boundary.sh`) + default-suite sweep-gate test (Wave 1)
+- [x] 232-01-PLAN.md — BOUND-01 cleanup boundary guard (`scripts/check-cleanup-boundary.sh`) + default-suite sweep-gate test (Wave 1)
 - [ ] 232-02-PLAN.md — FIX-01 `phase231-rollback.sh` confirm-path hardening (CR-01) + WR-01/WR-02 same-review cleanups, proven via SSH shim only (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -103,7 +103,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 232. Cleanup Boundary Guard + Tooling Fixes | v1.51 | 0/TBD | Not started | - |
+| 232. Cleanup Boundary Guard + Tooling Fixes | v1.51 | 1/3 | In Progress|  |
 | 233. Gated Repo Hygiene Sweep | v1.51 | 0/TBD | Not started | - |
 | 234. Planning Metadata Reconciliation + Closeout | v1.51 | 0/TBD | Not started | - |
 
