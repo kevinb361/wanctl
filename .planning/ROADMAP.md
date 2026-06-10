@@ -34,7 +34,7 @@
 
 - [x] **Phase 229: ATT Deploy Path + Artifact Tests** - Repo becomes the reproducible source of truth for the ATT cake-autorate artifact set (deploy parity + drift-proof tests), zero production touch (completed 2026-06-09)
 - [x] **Phase 230: soak-monitor ATT Coverage** - soak-monitor watches the live ATT cake-autorate units and handles external-controller mode at Spectrum parity, closing the error-scan blind spot (completed 2026-06-10)
-- [ ] **Phase 231: Migration-Held Criteria, Rollback Verification & Doc Sweep** - Formal both-WAN "held" criteria evaluated against live evidence, rollback proven (exercised or preflighted-provable), stale docs swept, SAFE-14 closeout
+- [x] **Phase 231: Migration-Held Criteria, Rollback Verification & Doc Sweep** - Formal both-WAN "held" criteria evaluated against live evidence, rollback proven (exercised or preflighted-provable), stale docs swept, SAFE-14 closeout (completed 2026-06-10)
 
 ## Phase Details
 
@@ -103,7 +103,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 229. ATT Deploy Path + Artifact Tests | v1.50 | 3/3 | Complete    | 2026-06-09 |
 | 230. soak-monitor ATT Coverage | v1.50 | 2/2 | Complete    | 2026-06-10 |
-| 231. Migration-Held Criteria, Rollback & Doc Sweep | v1.50 | 2/3 | In Progress | - |
+| 231. Migration-Held Criteria, Rollback & Doc Sweep | v1.50 | 3/3 | Complete   | 2026-06-10 |
 
 ---
 
