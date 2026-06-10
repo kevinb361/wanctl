@@ -10,7 +10,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Cleanup Boundary (BOUND)
 
-- [ ] **BOUND-01**: Operator can rely on a machine-checkable guard encoding the `WANCTL_CAKE_AUTORATE_FUTURE.md` no-delete list (`src/wanctl/autorate_continuous.py`, native `wanctl@$wan.service` deploy path, native controller tests, native config validation, rollback commands/docs); sweep work fails closed if any denylisted surface is touched
+- [x] **BOUND-01**: Operator can rely on a machine-checkable guard encoding the `WANCTL_CAKE_AUTORATE_FUTURE.md` no-delete list (`src/wanctl/autorate_continuous.py`, native `wanctl@$wan.service` deploy path, native controller tests, native config validation, rollback commands/docs); sweep work fails closed if any denylisted surface is touched
 
 ### Rollback & Operator Tooling Fixes (FIX)
 
@@ -65,7 +65,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BOUND-01 | Phase 232 | Pending |
+| BOUND-01 | Phase 232 | Complete |
 | FIX-01 | Phase 232 | Pending |
 | FIX-02 | Phase 232 | Pending |
 | SWEEP-01 | Phase 233 | Pending |
