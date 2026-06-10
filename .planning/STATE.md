@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.50
 milestone_name: cake-autorate Migration Hardening
-status: milestone_complete
-stopped_at: Milestone complete (Phase 231 was final phase)
-last_updated: 2026-06-10T14:42:16.421Z
-last_activity: 2026-06-10
+status: completed
+stopped_at: Completed 231-03-PLAN.md
+last_updated: "2026-06-10T19:40:50.981Z"
+last_activity: 2026-06-10 — Milestone v1.50 completed and archived
 progress:
   total_phases: 3
   completed_phases: 3
@@ -18,21 +18,21 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-09 after v1.49 close, overtaken-by-events)
+See: .planning/PROJECT.md (updated 2026-06-10 after v1.50 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Milestone complete
+**Current focus:** Planning next milestone (`/gsd:new-milestone`)
 
 ## Current Position
 
-Phase: 231
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-06-10
+Phase: Milestone v1.50 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-10 — Milestone v1.50 completed and archived
 
 ## Deferred Items (carried into next milestone)
 
-Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone` Acknowledge-&-close path (operator pre-authorized: "do it" on the overtaken-by-events closure plan). All 23 open artifacts remain the same pre-existing carry-forward set acknowledged at v1.47 and v1.48 closes (1 debug-session index, 12 orphan quick-task slugs, 5 dormant seeds, 5 event-gated/out-of-scope todos). New at this close: GATE-02/GATE-03 closed unmet-overtaken (not deferred — the gated topology no longer exists); Phase 218 watch is now dormant because its instrumentation lives in the native controller, which no longer runs Spectrum/ATT. Carry-forward items below are parallel to any next milestone.
+Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone` Acknowledge-all path. All 23 open artifacts remain the same pre-existing carry-forward set acknowledged at v1.47, v1.48, and v1.49 closes (1 debug-session index, 12 orphan quick-task slugs, 5 dormant seeds, 5 event-gated/out-of-scope todos). **Zero new v1.50 debt.** New context at this close: v1.50 audit recorded Phase 230 Nyquist PARTIAL (`nyquist_compliant: false`, optional retroactive `/gsd:validate-phase 230`), pre-existing Phase 220/221 boundary-test noise (classified in archived `milestones/v1.50-phases/230-*/deferred-items.md`), and a residual confirm-path fix in `phase231-rollback.sh` to land before any future live rollback exercise. Phase 218 watch remains dormant (instrumentation lives in the non-live native controller). Carry-forward items below are parallel to any next milestone.
 
 | Category | Item | Status |
 |----------|------|--------|
@@ -56,9 +56,15 @@ Re-acknowledged at v1.49 milestone close 2026-06-09 via `/gsd-complete-milestone
 | seeds | SEED-007-v145-storage-hygiene-fire-on-change | dormant; v1.48 runner-up explicitly OUT of v1.48 (single-thesis) |
 | quick_tasks | 12 orphan slugs from older milestones | metadata noise; OUT of v1.48; candidate for `/gsd-cleanup` retroactive sweep |
 
+### v1.50-shipped-clean
+
+- **Status:** v1.50 milestone complete (archived 2026-06-10, tagged v1.50).
+- **Operator sign-off:** Kevin — 2026-06-10, via /gsd-complete-milestone → audit-first → Acknowledge-all → ship path. 10/10 v1.50 requirements satisfied; milestone audit `passed` (10/10 integration seams, 3/3 E2E flows). Zero new v1.50 debt; all 23 open artifacts are pre-existing carry-forward from v1.47/v1.48/v1.49 closes.
+- **Why this is acceptable:** v1.50 spine (DEPLOY/TEST/MON/SOAK/DOCS) shipped cleanly with SAFE-14 held at every phase boundary and milestone close. SOAK-02 closed via operator-accepted no-mutation provable path (both-WAN preflight `overall_pass: true`); the live rollback exercise remains explicitly opt-in with the residual confirm-path fix noted before any future exercise.
+
 ### v1.49-closed-overtaken-by-events
 
-- **Status:** Milestone complete
+- **Status:** v1.49 milestone complete (archived 2026-06-09)
 - **Operator sign-off:** Kevin — 2026-06-09, "do it" on the assessed closure plan (commit migration work → close v1.49 overtaken-by-events → new milestone for cake-autorate hardening).
 - **Why this is acceptable:** The Phase 228 verdict gated a wanctl-controlled bridge-root CAKE topology that was replaced wholesale by the cake-autorate member-NIC migration (`fc47a0c`, live 2026-06-08). Computing the verdict post-hoc would be theater; the evidence direction (REJECT diffserv4-wash in the old topology: RRUL p99 +11.5%, EF loss ~44×) is recorded faithfully in MILESTONES.md and marked non-transferable. Wash-vs-nowash was independently re-validated under the new topology and `wash` won.
 
@@ -105,10 +111,11 @@ Stopped at: Completed 231-03-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
+Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
 
 ## Operator Next Steps
 
-- Phase 231 is complete; run verification/milestone closeout for v1.50. SAFE-14 boundary tracking commit is `2a2a1022`; subsequent closeout commits are `.planning/**` only.
+- Start the next milestone with /gsd-new-milestone
 
 ## Decisions (v1.50)
 
