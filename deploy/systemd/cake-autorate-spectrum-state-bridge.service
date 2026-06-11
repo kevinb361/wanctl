@@ -5,6 +5,13 @@ Wants=cake-autorate-spectrum.service
 
 [Service]
 Type=simple
+Environment=WANCTL_EXTERNAL_WAN_NAME=spectrum
+Environment=WANCTL_EXTERNAL_DL_IF=spec-router
+Environment=WANCTL_EXTERNAL_UL_IF=spec-modem
+Environment=CAKE_AUTORATE_BRIDGE_LOG=/var/log/cake-autorate/cake-autorate.spectrum.log
+Environment=WANCTL_EXTERNAL_STATE_PATH=/var/lib/wanctl/spectrum_state.json
+Environment=WANCTL_EXTERNAL_METRICS_DB=/var/lib/wanctl/metrics-spectrum.db
+Environment=WANCTL_EXTERNAL_BASELINE_RTT=22.535852814520855
 Environment=CAKE_AUTORATE_BRIDGE_HEALTH_HOST=10.10.110.223
 Environment=CAKE_AUTORATE_BRIDGE_HEALTH_PORT=9101
 ExecStart=/usr/local/sbin/cake-autorate-spectrum-state-bridge
