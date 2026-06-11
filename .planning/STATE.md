@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.51
 milestone_name: Post-Migration Consolidation
-status: verifying
-stopped_at: Completed 232-03-PLAN.md
-last_updated: "2026-06-11T11:49:45.434Z"
+status: executing
+stopped_at: Completed 232-04-PLAN.md
+last_updated: "2026-06-11T12:30:57.452Z"
 last_activity: 2026-06-11
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 4
+  completed_plans: 4
   percent: 33
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10 after v1.50 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 232 — cleanup-boundary-guard-tooling-fixes
+**Current focus:** Phase 233 — gated-repo-hygiene-sweep
 
 ## Current Position
 
-Phase: 232 (cleanup-boundary-guard-tooling-fixes) — VERIFYING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
+Phase: 233 (gated-repo-hygiene-sweep) — READY TO PLAN
+Plan: TBD
+Status: Phase 232 complete; ready for Phase 233 planning
 Last activity: 2026-06-11
 
 ## Deferred Items (carried into next milestone)
@@ -62,7 +62,7 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ### v1.50-shipped-clean
 
-- **Status:** Phase complete — ready for verification
+- **Status:** Phase 232 complete; ready for Phase 233 planning
 - **Operator sign-off:** Kevin — 2026-06-10, via /gsd-complete-milestone → audit-first → Acknowledge-all → ship path. 10/10 v1.50 requirements satisfied; milestone audit `passed` (10/10 integration seams, 3/3 E2E flows). Zero new v1.50 debt; all 23 open artifacts are pre-existing carry-forward from v1.47/v1.48/v1.49 closes.
 - **Why this is acceptable:** v1.50 spine (DEPLOY/TEST/MON/SOAK/DOCS) shipped cleanly with SAFE-14 held at every phase boundary and milestone close. SOAK-02 closed via operator-accepted no-mutation provable path (both-WAN preflight `overall_pass: true`); the live rollback exercise remains explicitly opt-in with the residual confirm-path fix noted before any future exercise.
 
@@ -102,8 +102,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-11T11:49:36.435Z
-Stopped at: Completed 232-03-PLAN.md
+Last session: 2026-06-11T12:30:36.159Z
+Stopped at: Completed 232-04-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -111,8 +111,7 @@ Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
 
 ## Operator Next Steps
 
-- Review the v1.51 roadmap draft (3 phases, 232–234)
-- Approve or revise, then `/gsd:plan-phase 232`
+- Plan Phase 233 gated repo hygiene sweep under the hardened BOUND-01 guard
 
 ## Decisions (v1.51)
 
@@ -128,6 +127,7 @@ Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
 - [232-02]: External cake-autorate writer verification treats both `active` and `activating` as fail-closed dual-writer hazards after native rollback.
 - [232-03]: FIX-02 closes by validation against v1.44 Phase 208 T12/TOOL-03; current tests already prove the digest permission tolerance, so no source reimplementation was needed.
 - [232-03]: SAFE-15 phase-boundary evidence reuses the phase225 checker; its `configs/att.yaml` assertion is broader than the controller-path invariant and should be read as a config-drift guard, not part of SAFE-15 itself.
+- [232-04]: BOUND-01 guard status classification treats regular-file presence as mandatory before hash comparison and requires tracked status for anchor-present protected rows; anchor-absent future-doc rows may be untracked only while still regular files.
 
 ## Decisions (v1.50)
 
@@ -165,3 +165,4 @@ Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
 | Phase 232 P01 | 4 min | 2 tasks | 2 files |
 | Phase 232 P02 | 3 min | 3 tasks | 4 files |
 | Phase 232 P03 | 6 min | 2 tasks | 3 files |
+| Phase 232 P04 | 1 min | 3 tasks | 2 files |
