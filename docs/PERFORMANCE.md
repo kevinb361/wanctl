@@ -4,6 +4,11 @@ This document is the current reference for wanctl runtime timing, cycle-budget
 expectations, and profiling. Historical interval experiments and one-off analysis
 reports are archived under [`docs/archive/`](archive/).
 
+The examples below are for native `wanctl@` mode. In external cake-autorate mode,
+monitor `cake-autorate-<wan>.service`,
+`cake-autorate-<wan>-state-bridge.service`, and `steering.service`; the state JSON
+and health endpoint contract remain wanctl-compatible.
+
 ## Production Standard
 
 - Autorate control interval: `50ms` (`20Hz`).
