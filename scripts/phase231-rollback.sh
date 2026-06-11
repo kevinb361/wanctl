@@ -267,7 +267,7 @@ PY
 }
 
 run_confirm() {
-    local tmpdir remote_script active health_url proof_time
+    local tmpdir remote_script active external_active health_url proof_time
     if [[ "$OPERATOR_APPROVAL" != "1" ]]; then
         echo "REFUSED: --confirm requires --i-have-operator-approval before any remote call." >&2
         exit 2
@@ -275,8 +275,16 @@ run_confirm() {
     tmpdir="$(mktemp -d)"
     trap 'rm -rf "$tmpdir"' RETURN
     remote_script="${tmpdir}/rollback-remote.sh"
-    rollback_commands_for_wan "$WAN" >"$remote_script"
-    ssh -n "${SSH_OPTS[@]}" "$SSH_HOST" "bash -s" <"$remote_script"
+    {
+        printf '%s\n' 'set -euo pipefail'
+        rollback_commands_for_wan "$WAN"
+    } >"$remote_script"
+    ssh "${SSH_OPTS[@]}" "$SSH_HOST" "bash -s" <"$remote_script"
+    external_active="$(ssh -n "${SSH_OPTS[@]}" "$SSH_HOST" "systemctl is-active cake-autorate-${WAN}.service || true")"
+    if [[ "$external_active" == "active" || "$external_active" == "activating" ]]; then
+        echo "ROLLBACK VERIFY FAILED: cake-autorate-${WAN}.service is still ${external_active}" >&2
+        exit 1
+    fi
     active="$(ssh -n "${SSH_OPTS[@]}" "$SSH_HOST" "systemctl is-active wanctl@${WAN}.service")"
     if [[ "$active" != "active" ]]; then
         echo "ROLLBACK VERIFY FAILED: wanctl@${WAN}.service is-active=${active}" >&2
