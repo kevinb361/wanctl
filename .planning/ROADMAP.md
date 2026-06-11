@@ -61,7 +61,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 232-03-PLAN.md — FIX-02 digest-tolerance validation + todo closure, then SAFE-15 boundary proof vs v1.50 (Wave 2 *(blocked on Wave 1 completion)*)
+- [x] 232-03-PLAN.md — FIX-02 digest-tolerance validation + todo closure, then SAFE-15 boundary proof vs v1.50 (Wave 2 *(blocked on Wave 1 completion)*)
 
 **UI hint**: no
 
@@ -103,7 +103,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 232. Cleanup Boundary Guard + Tooling Fixes | v1.51 | 2/3 | In Progress|  |
+| 232. Cleanup Boundary Guard + Tooling Fixes | v1.51 | 3/3 | Complete   | 2026-06-11 |
 | 233. Gated Repo Hygiene Sweep | v1.51 | 0/TBD | Not started | - |
 | 234. Planning Metadata Reconciliation + Closeout | v1.51 | 0/TBD | Not started | - |
 

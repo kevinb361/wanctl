@@ -15,7 +15,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 ### Rollback & Operator Tooling Fixes (FIX)
 
 - [x] **FIX-01**: Operator can run `phase231-rollback.sh` without the confirm-path risk flagged in v1.50 Phase 231 code review; the script remains double-gated and dry-run by default; NO live rollback is exercised this milestone
-- [ ] **FIX-02**: The 2026-04-17 operator-summary digest permission-handling todo is closed by validating actual behavior against v1.44 Phase 208 T12/TOOL-03 (unreadable-DB open tolerance) — closed with tests or recorded evidence; reimplemented only if validation shows the todo's acceptance criterion unmet
+- [x] **FIX-02**: The 2026-04-17 operator-summary digest permission-handling todo is closed by validating actual behavior against v1.44 Phase 208 T12/TOOL-03 (unreadable-DB open tolerance) — closed with tests or recorded evidence; reimplemented only if validation shows the todo's acceptance criterion unmet
 
 ### Repo Hygiene Sweep (SWEEP)
 
@@ -31,7 +31,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Safety (SAFE)
 
-- [ ] **SAFE-15**: Zero controller-path source diff (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) at every phase boundary AND milestone close — 9th consecutive milestone holding the SAFE-07..14 discipline
+- [x] **SAFE-15**: Zero controller-path source diff (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) at every phase boundary AND milestone close — 9th consecutive milestone holding the SAFE-07..14 discipline
 
 ## Future Requirements
 
@@ -67,14 +67,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | BOUND-01 | Phase 232 | Complete |
 | FIX-01 | Phase 232 | Complete |
-| FIX-02 | Phase 232 | Pending |
+| FIX-02 | Phase 232 | Complete |
 | SWEEP-01 | Phase 233 | Pending |
 | SWEEP-02 | Phase 233 | Pending |
 | SWEEP-03 | Phase 233 | Pending |
 | META-01 | Phase 234 | Pending |
 | META-02 | Phase 234 | Pending |
 | META-03 | Phase 234 | Pending |
-| SAFE-15 | Phase 234 (cross-phase: verified at 232/233/234 boundaries) | Pending |
+| SAFE-15 | Phase 234 (cross-phase: verified at 232/233/234 boundaries) | Complete |
 
 **Coverage:**
 - v1.51 requirements: 10 total
