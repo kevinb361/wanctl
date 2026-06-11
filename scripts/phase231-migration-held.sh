@@ -133,7 +133,8 @@ PY
 }
 
 metrics_check() {
-    local ssh_target="$1" wan="$2" db="/var/lib/wanctl/metrics-${wan}.db" rows pass="false" query remote_cmd
+    local ssh_target="$1" wan="$2"
+    local db="/var/lib/wanctl/metrics-${wan}.db" rows pass="false" query remote_cmd
     query="SELECT COUNT(*) FROM metrics WHERE timestamp >= strftime('%s','now','-${WINDOW_HOURS} hours')"
     remote_cmd="sudo -n sqlite3 -readonly '${db}' \"${query}\""
     if rows="$(ssh_readonly "$ssh_target" "$remote_cmd" 2>&1)" && [[ "$rows" =~ ^[0-9]+$ ]]; then
