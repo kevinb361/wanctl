@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.51
 milestone_name: Post-Migration Consolidation
-status: executing
-stopped_at: Completed 232-02-PLAN.md
-last_updated: "2026-06-11T11:40:42.751Z"
+status: verifying
+stopped_at: Completed 232-03-PLAN.md
+last_updated: "2026-06-11T11:49:45.434Z"
 last_activity: 2026-06-11
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 0
+  completed_plans: 3
+  percent: 33
 ---
 
 # Session State
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-06-10 after v1.50 milestone close)
 
 ## Current Position
 
-Phase: 232 (cleanup-boundary-guard-tooling-fixes) — EXECUTING
+Phase: 232 (cleanup-boundary-guard-tooling-fixes) — VERIFYING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-11
 
 ## Deferred Items (carried into next milestone)
@@ -47,7 +47,7 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 | todos | 2026-04-17-ingestion-rate-tool | **CLOSED 2026-05-30 by v1.47 Phase 219** |
 | todos | 2026-04-17-investigate-steering-degraded-on-clean-restart | **FOLDED into v1.48 Phase 223** |
 | todos | 2026-04-17-monitor-flapping-peak-count-on-next-docsis-event | pending — Phase 218 trigger; dormant |
-| todos | 2026-04-17-operator-summary-digest-permission-handling | **v1.51 FIX-02 → Phase 232** (validate-then-close against v1.44 Phase 208 T12/TOOL-03) |
+| todos | 2026-04-17-operator-summary-digest-permission-handling | **CLOSED 2026-06-11 by Phase 232 Plan 03** — validated already implemented by v1.44 Phase 208 T12/TOOL-03; no reimplementation needed |
 | todos | 2026-04-24-resolve-att-cake-primary-canary-after-phase-196 | pending (ATT canary already deployed in v1.45) |
 | todos | 2026-04-28 silicom todos (×2) | **v1.51 META-02 → Phase 234** (reconcile with SEED-006 to a single canonical state) |
 | todos | 2026-04-15-profile-post-hotpath-baseline-on-production-wan | **CLOSED 2026-05-30 by Phase 217** |
@@ -62,7 +62,7 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ### v1.50-shipped-clean
 
-- **Status:** Ready to execute
+- **Status:** Phase complete — ready for verification
 - **Operator sign-off:** Kevin — 2026-06-10, via /gsd-complete-milestone → audit-first → Acknowledge-all → ship path. 10/10 v1.50 requirements satisfied; milestone audit `passed` (10/10 integration seams, 3/3 E2E flows). Zero new v1.50 debt; all 23 open artifacts are pre-existing carry-forward from v1.47/v1.48/v1.49 closes.
 - **Why this is acceptable:** v1.50 spine (DEPLOY/TEST/MON/SOAK/DOCS) shipped cleanly with SAFE-14 held at every phase boundary and milestone close. SOAK-02 closed via operator-accepted no-mutation provable path (both-WAN preflight `overall_pass: true`); the live rollback exercise remains explicitly opt-in with the residual confirm-path fix noted before any future exercise.
 
@@ -102,8 +102,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-11T11:40:28.223Z
-Stopped at: Completed 232-02-PLAN.md
+Last session: 2026-06-11T11:49:36.435Z
+Stopped at: Completed 232-03-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -126,6 +126,8 @@ Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
 - [232-01]: The future planning doc remains existence-protected even when absent from the anchor tree; it is the canonical denylist source and must fail closed on deletion.
 - [232-02]: Confirm `bash -s` omits `-n` so real OpenSSH delivers the stdin rollback payload; read-only probe calls retain `-n`.
 - [232-02]: External cake-autorate writer verification treats both `active` and `activating` as fail-closed dual-writer hazards after native rollback.
+- [232-03]: FIX-02 closes by validation against v1.44 Phase 208 T12/TOOL-03; current tests already prove the digest permission tolerance, so no source reimplementation was needed.
+- [232-03]: SAFE-15 phase-boundary evidence reuses the phase225 checker; its `configs/att.yaml` assertion is broader than the controller-path invariant and should be read as a config-drift guard, not part of SAFE-15 itself.
 
 ## Decisions (v1.50)
 
@@ -162,3 +164,4 @@ Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
 | Phase 231 P03 | 17 min | 2 tasks | 7 files |
 | Phase 232 P01 | 4 min | 2 tasks | 2 files |
 | Phase 232 P02 | 3 min | 3 tasks | 4 files |
+| Phase 232 P03 | 6 min | 2 tasks | 3 files |
