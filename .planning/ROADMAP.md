@@ -93,7 +93,9 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1; boundary closeout)*
 
-- [ ] 233-04-PLAN.md — SAFE-15: full suite + BOUND-01 guard + controller-path zero-diff proof vs v1.50, evidence committed
+- [x] 233-04-PLAN.md — SAFE-15: full suite + BOUND-01 guard + controller-path zero-diff proof vs v1.50, evidence committed
+
+  - Note: full-suite green acceptance was operator-waived for known Phase 220/221 historical boundary-test failures; SAFE-15 and BOUND-01 evidence passed and was committed in `233-04-SUMMARY.md`.
 
 **UI hint**: no
 
@@ -121,7 +123,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 232. Cleanup Boundary Guard + Tooling Fixes | v1.51 | 4/4 | Complete    | 2026-06-11 |
-| 233. Gated Repo Hygiene Sweep | v1.51 | 3/4 | In progress | - |
+| 233. Gated Repo Hygiene Sweep | v1.51 | 4/4 | Complete   | 2026-06-11 |
 | 234. Planning Metadata Reconciliation + Closeout | v1.51 | 0/TBD | Not started | - |
 
 ---

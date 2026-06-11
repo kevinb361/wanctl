@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.51
 milestone_name: Post-Migration Consolidation
-status: executing
-stopped_at: Completed 233-03-PLAN.md
-last_updated: "2026-06-11T19:31:29Z"
-last_activity: 2026-06-11 -- Phase 233 Plan 03 complete
+status: verifying
+stopped_at: Completed 233-04-PLAN.md
+last_updated: "2026-06-11T19:50:55.078Z"
+last_activity: 2026-06-11
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 8
-  completed_plans: 7
-  percent: 58
+  completed_plans: 8
+  percent: 67
 ---
 
 # Session State
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-10 after v1.50 milestone close)
 
 Phase: 233 (gated-repo-hygiene-sweep) — EXECUTING
 Plan: 4 of 4
-Status: Phase 233 Plan 03 complete; ready for Plan 04
-Last activity: 2026-06-11 -- Phase 233 Plan 03 complete
+Status: Phase complete — ready for verification; Plan 04 full-suite green acceptance explicitly waived for known Phase 220/221 historical boundary-test noise while SAFE-15 and BOUND-01 gates passed
+Last activity: 2026-06-11
 
 ## Deferred Items (carried into next milestone)
 
@@ -62,7 +62,7 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ### v1.50-shipped-clean
 
-- **Status:** Phase 233 Plan 03 complete; ready for Plan 04
+- **Status:** Phase complete — ready for verification; Plan 04 full-suite green acceptance explicitly waived for known Phase 220/221 historical boundary-test noise while SAFE-15 and BOUND-01 gates passed
 - **Operator sign-off:** Kevin — 2026-06-10, via /gsd-complete-milestone → audit-first → Acknowledge-all → ship path. 10/10 v1.50 requirements satisfied; milestone audit `passed` (10/10 integration seams, 3/3 E2E flows). Zero new v1.50 debt; all 23 open artifacts are pre-existing carry-forward from v1.47/v1.48/v1.49 closes.
 - **Why this is acceptable:** v1.50 spine (DEPLOY/TEST/MON/SOAK/DOCS) shipped cleanly with SAFE-14 held at every phase boundary and milestone close. SOAK-02 closed via operator-accepted no-mutation provable path (both-WAN preflight `overall_pass: true`); the live rollback exercise remains explicitly opt-in with the residual confirm-path fix noted before any future exercise.
 
@@ -102,8 +102,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-11T12:30:36.159Z
-Stopped at: Completed 233-03-PLAN.md
+Last session: 2026-06-11T19:50:55.047Z
+Stopped at: Completed 233-04-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -131,6 +131,7 @@ Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
 - [233-01]: Operator-approved destructive removal followed the explicit manifest exactly: 80 REMOVE entries under the ignored `.planning/cake-autorate-trials/` subtree were deleted, while the FUTURE denylist source and curated findings/review docs remained present; deletion is intentionally invisible to git except for committed evidence.
 - [233-02]: Operator selected `annotate-steering-only` for SWEEP-02: annotate `docs/STEERING.md`, leave `docs/CABLE_TUNING.md` historical references and `docs/SILICOM-BYPASS.md` by-design bypass references as-is, and close residual native-mode doc claims via per-hit disposition evidence.
 - [233-03]: Spectrum bridge unit now mirrors ATT's explicit env pattern for identity, interfaces, log/state/metrics paths, and baseline RTT; Kevin approved pinning the script-default `WANCTL_EXTERNAL_BASELINE_RTT=22.535852814520855`, so the repo edit is behavior-preserving and live apply remains an operator-gated redeploy/daemon-reload.
+- [233-04]: Kevin approved waiving the full-suite-green acceptance criterion for known Phase 220/221 historical boundary-test failures (`23 failed, 5385 passed, 11 skipped, 2 deselected`); Plan 04 does not claim full-suite green, while SAFE-15 passed with `controller_path_diff_count=0`, independent controller-path diff passed, and BOUND-01 phase-final evidence passed with `overall_pass=true`.
 
 ## Decisions (v1.50)
 
@@ -172,3 +173,4 @@ Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
 | Phase 233 P01 | checkpointed; continuation 8 min | 3 tasks | 3 files |
 | Phase 233 P02 | checkpointed; continuation 10 min | 3 tasks | 8 files |
 | Phase 233 P03 | checkpointed; continuation 5 min | 2 tasks | 4 files |
+| Phase 233 P04 | checkpointed; continuation 5 min | 1 tasks | 3 files |
