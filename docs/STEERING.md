@@ -2,6 +2,11 @@
 
 This document describes the optional WAN steering feature for multi-WAN setups.
 
+The examples below are for native `wanctl@` mode. In external cake-autorate mode,
+monitor `cake-autorate-<wan>.service`,
+`cake-autorate-<wan>-state-bridge.service`, and `steering.service`; the state JSON
+and health endpoint contract remain wanctl-compatible.
+
 ## Overview
 
 The steering daemon monitors your primary WAN for congestion and automatically routes latency-sensitive traffic to an alternate WAN when needed.
