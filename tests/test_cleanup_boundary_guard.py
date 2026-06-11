@@ -156,6 +156,28 @@ def test_guard_fails_closed_on_removed_file(tmp_path: Path) -> None:
     assert row_for(payload, "src/wanctl/autorate_continuous.py")["status"] == "MISSING"
 
 
+def test_guard_fails_closed_on_untracked_anchor_present_file(tmp_path: Path) -> None:
+    repo = _make_scratch_repo(tmp_path)
+    subprocess.run(
+        ["git", "rm", "--cached", "src/wanctl/autorate_continuous.py"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    out = tmp_path / "untracked-anchor-present.json"
+
+    result = run_guard(repo, out=out)
+
+    assert result.returncode == 1
+    assert "BOUND-01 VIOLATION" in result.stderr
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    protected_row = row_for(payload, "src/wanctl/autorate_continuous.py")
+    assert protected_row["anchor_present"] is True
+    assert protected_row["tracked"] is False
+    assert protected_row["status"] == "UNTRACKED"
+
+
 def test_guard_fails_closed_on_modified_immutable_file(tmp_path: Path) -> None:
     repo = _make_scratch_repo(tmp_path)
     immutable = repo / "deploy/systemd/wanctl@.service"
@@ -188,6 +210,24 @@ def test_guard_allows_modification_of_must_exist_file(tmp_path: Path) -> None:
     assert removed.returncode == 1
     removed_payload = json.loads(removed_out.read_text(encoding="utf-8"))
     assert row_for(removed_payload, "scripts/phase231-rollback.sh")["status"] == "MISSING"
+
+
+def test_guard_fails_closed_on_must_exist_directory_replacement(tmp_path: Path) -> None:
+    repo = _make_scratch_repo(tmp_path)
+    protected = repo / "scripts/phase231-rollback.sh"
+    protected.unlink()
+    protected.mkdir()
+    out = tmp_path / "must-exist-directory.json"
+
+    result = run_guard(repo, out=out)
+
+    assert result.returncode == 1
+    assert "BOUND-01 VIOLATION" in result.stderr
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    protected_row = row_for(payload, "scripts/phase231-rollback.sh")
+    assert protected_row["status"] == "NON_FILE"
+    assert protected_row["exists"] is True
+    assert protected_row["is_file"] is False
 
 
 def test_guard_handles_anchor_absent_untracked_row(tmp_path: Path) -> None:
