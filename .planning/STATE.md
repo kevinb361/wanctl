@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-10 after v1.50 milestone close)
 
 Phase: 234
 Plan: Not started
-Status: Phase complete — ready for verification; Plan 04 full-suite green acceptance explicitly waived for known Phase 220/221 historical boundary-test noise while SAFE-15 and BOUND-01 gates passed
+Status: Ready to plan
 Last activity: 2026-06-11
 
 ## Deferred Items (carried into next milestone)
