@@ -122,7 +122,7 @@ Expected:
 - `systemctl cat wanctl@spectrum` shows no override block / `override.conf`.
 - The process command contains neither `--profile` nor `--debug` nor
   `WANCTL_LOG_FORMAT=json`.
-- Service is active and `/health.version == 1.45.0`.
+- Service is active and `/health.version` matches the deployed wanctl version.
 
 ## Retrieve (DEBUG sink + journald)
 

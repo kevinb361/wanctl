@@ -322,8 +322,11 @@ When autorate stops writing state, the WAN zone becomes stale and its confidence
 # 1. Note current state
 ssh cake-spectrum 'curl -s http://127.0.0.1:9102/health | python3 -m json.tool | grep -A10 wan_awareness'
 
-# 2. Stop autorate (creates stale zone condition)
+# 2. Stop the active autorate state writer (creates stale zone condition)
+# Native wanctl@ mode:
 ssh cake-spectrum 'sudo systemctl stop wanctl@spectrum'
+# External cake-autorate mode:
+ssh cake-spectrum 'sudo systemctl stop cake-autorate-spectrum-state-bridge.service'
 
 # 3. Wait for staleness threshold (default 5 seconds)
 sleep 10
@@ -332,8 +335,11 @@ sleep 10
 ssh cake-spectrum 'curl -s http://127.0.0.1:9102/health | python3 -m json.tool | grep -A10 wan_awareness'
 # Expected: "stale": true, "confidence_contribution": 0
 
-# 5. Restart autorate
+# 5. Restart the stopped writer
+# Native wanctl@ mode:
 ssh cake-spectrum 'sudo systemctl start wanctl@spectrum'
+# External cake-autorate mode:
+ssh cake-spectrum 'sudo systemctl start cake-autorate-spectrum-state-bridge.service'
 ```
 
 #### Autorate Unavailable (No State File)
@@ -342,7 +348,10 @@ When the autorate state file is missing, the WAN zone reads as null and contribu
 
 ```bash
 # 1. Rename state file
+# Native wanctl@ mode:
 ssh cake-spectrum 'sudo mv /run/wanctl/spectrum_state.json /run/wanctl/spectrum_state.json.bak'
+# External cake-autorate mode:
+ssh cake-spectrum 'sudo mv /var/lib/wanctl/spectrum_state.json /var/lib/wanctl/spectrum_state.json.bak'
 
 # 2. Wait a few cycles
 sleep 3
@@ -352,7 +361,10 @@ ssh cake-spectrum 'curl -s http://127.0.0.1:9102/health | python3 -m json.tool |
 # Expected: "zone": null, "confidence_contribution": 0
 
 # 4. Restore state file
+# Native wanctl@ mode:
 ssh cake-spectrum 'sudo mv /run/wanctl/spectrum_state.json.bak /run/wanctl/spectrum_state.json'
+# External cake-autorate mode:
+ssh cake-spectrum 'sudo mv /var/lib/wanctl/spectrum_state.json.bak /var/lib/wanctl/spectrum_state.json'
 ```
 
 ### Configuration Parameters
