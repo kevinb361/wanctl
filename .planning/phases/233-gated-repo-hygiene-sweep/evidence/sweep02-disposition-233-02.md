@@ -44,7 +44,7 @@ grep -c 'wanctl@' docs/PROFILING.md docs/PERFORMANCE.md docs/RUNBOOK.md docs/CAB
 | `docs/PERFORMANCE.md` | 5 | 6 | PASS — note added; native examples retained |
 | `docs/RUNBOOK.md` | 3 | 4 | PASS — note added; native examples retained |
 | `docs/CABLE_TUNING.md` | 7 | 7 | PASS — left as-is per decision; no examples deleted |
-| `docs/STEERING.md` | 2 | 3 | PASS — note added; native examples retained |
+| `docs/STEERING.md` | 2 | 7 | PASS — note added; native/external validation examples retained |
 | `docs/SILICOM-BYPASS.md` | 18 | 18 | PASS — left as-is per decision; no examples deleted |
 
 ## Per-hit disposition table
@@ -84,9 +84,13 @@ grep -n 'wanctl@' docs/PROFILING.md docs/PERFORMANCE.md docs/RUNBOOK.md docs/CAB
 | `docs/CABLE_TUNING.md` | 191 | `managed \`wanctl@spectrum\` with one WAN reflector...` | historical note | Historical next-test matrix; not current operational guidance. |
 | `docs/CABLE_TUNING.md` | 192 | `managed \`wanctl@spectrum\` with IRTT reintroduced...` | historical note | Historical next-test matrix; not current operational guidance. |
 | `docs/CABLE_TUNING.md` | 666 | `sudo systemctl restart wanctl@spectrum` | native-mode example | Native restart example in a cable tuning doc; left as-is per operator decision and not an external-mode ownership claim. |
-| `docs/STEERING.md` | 5 | `The examples below are for native \`wanctl@\` mode...` | covered by nearby external-mode note | The note added by the selected disposition disambiguates the operational examples below. |
-| `docs/STEERING.md` | 326 | `sudo systemctl stop wanctl@spectrum` | native-mode example | Operational stale-zone validation command now covered by the top external-mode note. |
-| `docs/STEERING.md` | 336 | `sudo systemctl start wanctl@spectrum` | native-mode example | Operational stale-zone validation command now covered by the top external-mode note. |
+| `docs/STEERING.md` | 5 | `The examples below are for native \`wanctl@\` mode...` | covered by nearby external-mode note | The note added by the selected disposition disambiguates native vs external cake-autorate mode. |
+| `docs/STEERING.md` | 330 | `# Native wanctl@ mode:` | native-mode label | Label explicitly scopes the following stale-zone validation command to native mode. |
+| `docs/STEERING.md` | 331 | `sudo systemctl stop wanctl@spectrum` | native-mode example | Native stale-zone validation command paired with the external state-bridge command. |
+| `docs/STEERING.md` | 343 | `# Native wanctl@ mode:` | native-mode label | Label explicitly scopes the following restart command to native mode. |
+| `docs/STEERING.md` | 344 | `sudo systemctl start wanctl@spectrum` | native-mode example | Native stale-zone validation command paired with the external state-bridge command. |
+| `docs/STEERING.md` | 355 | `# Native wanctl@ mode:` | native-mode label | Label explicitly scopes the `/run/wanctl` state-file move to native mode. |
+| `docs/STEERING.md` | 368 | `# Native wanctl@ mode:` | native-mode label | Label explicitly scopes the `/run/wanctl` state-file restore to native mode. |
 | `docs/SILICOM-BYPASS.md` | 35 | `Before=wanctl@att.service wanctl@spectrum.service` | by-design bypass reference | Unit ordering intentionally targets native controller services in this runbook. |
 | `docs/SILICOM-BYPASS.md` | 149 | `WANCTL_UNIT=wanctl@att.service` | by-design bypass reference | Watchdog env intentionally names the native unit to monitor/pet bypass state. |
 | `docs/SILICOM-BYPASS.md` | 150 | `WANCTL_UNIT=wanctl@spectrum.service` | by-design bypass reference | Watchdog env intentionally names the native unit to monitor/pet bypass state. |
