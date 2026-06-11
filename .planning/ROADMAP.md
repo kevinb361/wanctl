@@ -51,7 +51,7 @@
   3. The `2026-04-17-operator-summary-digest-permission-handling` todo is closed by validating live behavior against the v1.44 Phase 208 T12/TOOL-03 unreadable-DB open tolerance — closed with tests or recorded evidence, and reimplemented only if validation shows the acceptance criterion unmet (FIX-02).
   4. SAFE-15 controller-path zero-diff holds at the phase boundary (verified, not assumed).
 
-**Plans**: 3 plans
+**Plans**: 4 plans
 
 Plans:
 **Wave 1**
@@ -62,6 +62,10 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 232-03-PLAN.md — FIX-02 digest-tolerance validation + todo closure, then SAFE-15 boundary proof vs v1.50 (Wave 2 *(blocked on Wave 1 completion)*)
+
+**Wave 3** *(gap closure; blocked on verification finding)*
+
+- [ ] 232-04-PLAN.md — BOUND-01 guard fail-closed hardening for untracked protected files and protected directory replacements (Wave 3)
 
 **UI hint**: no
 
@@ -103,7 +107,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 232. Cleanup Boundary Guard + Tooling Fixes | v1.51 | 3/3 | Complete   | 2026-06-11 |
+| 232. Cleanup Boundary Guard + Tooling Fixes | v1.51 | 3/4 | Gaps found | - |
 | 233. Gated Repo Hygiene Sweep | v1.51 | 0/TBD | Not started | - |
 | 234. Planning Metadata Reconciliation + Closeout | v1.51 | 0/TBD | Not started | - |
 
