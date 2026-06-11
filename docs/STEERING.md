@@ -15,7 +15,11 @@ The steering daemon monitors your primary WAN for congestion and automatically r
 
 ## How It Works
 
-The steering daemon runs continuously with a 50ms cycle (configurable):
+The steering daemon runs continuously at the configured
+`measurement.interval_seconds` cadence. For sample-count hysteresis,
+wall-clock duration is `samples_required * measurement.interval_seconds`, so
+change the interval and sample counts together when tuning activation or
+recovery timing.
 
 1. **Collect signals** from primary WAN:
    - RTT delta from autorate baseline state
@@ -29,8 +33,8 @@ The steering daemon runs continuously with a 50ms cycle (configurable):
    - RED: Confirmed congestion (2+ signals elevated, or drops > 0)
 
 3. **Apply hysteresis:**
-   - RED requires 2 consecutive samples (4 seconds) to enable steering
-   - GREEN requires 15 consecutive samples (30 seconds) to disable
+   - RED requires consecutive degraded samples before enabling steering
+   - GREEN requires consecutive healthy samples before disabling steering
 
 4. **Control mangle rule** via REST API (or SSH):
    - RED: Enable steering rule
