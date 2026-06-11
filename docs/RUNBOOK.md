@@ -2,6 +2,11 @@
 
 Use this runbook after deploys and during incident response. For YAML tuning details, see [CONFIGURATION.md](CONFIGURATION.md). For deploy flow, service units, and remote rollout steps, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
+The examples below are for native `wanctl@` mode. In external cake-autorate mode,
+monitor `cake-autorate-<wan>.service`,
+`cake-autorate-<wan>-state-bridge.service`, and `steering.service`; the state JSON
+and health endpoint contract remain wanctl-compatible.
+
 ## Quick Reference
 
 | Signal                | Warn / watch                                                                                          | Critical / act now                                      | Operator action                                                                   |

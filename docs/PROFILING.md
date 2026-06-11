@@ -5,6 +5,11 @@ This is the active profiling runbook for wanctl v1.45+. It supersedes
 collector at a data path that no longer yields `autorate_cycle_total`. For timing
 background and operational guardrails, see [`docs/PERFORMANCE.md`](PERFORMANCE.md).
 
+The examples below are for native `wanctl@` mode. In external cake-autorate mode,
+monitor `cake-autorate-<wan>.service`,
+`cake-autorate-<wan>-state-bridge.service`, and `steering.service`; the state JSON
+and health endpoint contract remain wanctl-compatible.
+
 ## Critical: capture format is JSON, not text
 
 `autorate_cycle_total` is not emitted as a parseable text DEBUG line. The total is
