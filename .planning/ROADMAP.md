@@ -123,7 +123,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 232. Cleanup Boundary Guard + Tooling Fixes | v1.51 | 4/4 | Complete    | 2026-06-11 |
-| 233. Gated Repo Hygiene Sweep | v1.51 | 4/4 | Complete   | 2026-06-11 |
+| 233. Gated Repo Hygiene Sweep | v1.51 | 4/4 | Complete    | 2026-06-11 |
 | 234. Planning Metadata Reconciliation + Closeout | v1.51 | 0/TBD | Not started | - |
 
 ---
