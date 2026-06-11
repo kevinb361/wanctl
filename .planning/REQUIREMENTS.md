@@ -20,7 +20,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 ### Repo Hygiene Sweep (SWEEP)
 
 - [x] **SWEEP-01**: Superseded one-off trial scripts are removed or archived per the future-doc cleanup policy ("safe to remove soon" category only)
-- [ ] **SWEEP-02**: No remaining active doc describes Spectrum/ATT as native-wanctl-owned without noting the current external mode (residual verification beyond v1.50 Phase 231 DOCS-04)
+- [x] **SWEEP-02**: No remaining active doc describes Spectrum/ATT as native-wanctl-owned without noting the current external mode (residual verification beyond v1.50 Phase 231 DOCS-04)
 - [ ] **SWEEP-03**: Spectrum-only hardcoding remnants are removed where a generic `$wan` bridge/service pattern already exists (no new abstraction introduced to enable removal)
 
 ### Planning Metadata Reconciliation (META)
@@ -69,7 +69,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FIX-01 | Phase 232 | Complete |
 | FIX-02 | Phase 232 | Complete |
 | SWEEP-01 | Phase 233 | Complete |
-| SWEEP-02 | Phase 233 | Pending |
+| SWEEP-02 | Phase 233 | Complete |
 | SWEEP-03 | Phase 233 | Pending |
 | META-01 | Phase 234 | Pending |
 | META-02 | Phase 234 | Pending |
