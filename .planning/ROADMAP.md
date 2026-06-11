@@ -65,7 +65,7 @@ Plans:
 
 **Wave 3** *(gap closure; blocked on verification finding)*
 
-- [ ] 232-04-PLAN.md — BOUND-01 guard fail-closed hardening for untracked protected files and protected directory replacements (Wave 3)
+- [x] 232-04-PLAN.md — BOUND-01 guard fail-closed hardening for untracked protected files and protected directory replacements (Wave 3)
 
 **UI hint**: no
 
@@ -107,7 +107,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 232. Cleanup Boundary Guard + Tooling Fixes | v1.51 | 3/4 | Gaps found | - |
+| 232. Cleanup Boundary Guard + Tooling Fixes | v1.51 | 4/4 | Complete   | 2026-06-11 |
 | 233. Gated Repo Hygiene Sweep | v1.51 | 0/TBD | Not started | - |
 | 234. Planning Metadata Reconciliation + Closeout | v1.51 | 0/TBD | Not started | - |
 
