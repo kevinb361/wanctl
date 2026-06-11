@@ -14,7 +14,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Rollback & Operator Tooling Fixes (FIX)
 
-- [ ] **FIX-01**: Operator can run `phase231-rollback.sh` without the confirm-path risk flagged in v1.50 Phase 231 code review; the script remains double-gated and dry-run by default; NO live rollback is exercised this milestone
+- [x] **FIX-01**: Operator can run `phase231-rollback.sh` without the confirm-path risk flagged in v1.50 Phase 231 code review; the script remains double-gated and dry-run by default; NO live rollback is exercised this milestone
 - [ ] **FIX-02**: The 2026-04-17 operator-summary digest permission-handling todo is closed by validating actual behavior against v1.44 Phase 208 T12/TOOL-03 (unreadable-DB open tolerance) — closed with tests or recorded evidence; reimplemented only if validation shows the todo's acceptance criterion unmet
 
 ### Repo Hygiene Sweep (SWEEP)
@@ -66,7 +66,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | BOUND-01 | Phase 232 | Complete |
-| FIX-01 | Phase 232 | Pending |
+| FIX-01 | Phase 232 | Complete |
 | FIX-02 | Phase 232 | Pending |
 | SWEEP-01 | Phase 233 | Pending |
 | SWEEP-02 | Phase 233 | Pending |
