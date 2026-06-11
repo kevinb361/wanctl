@@ -87,7 +87,7 @@ Plans:
 
 **Wave 1** *(parallel; disjoint file surfaces, each operator-gated)*
 
-- [ ] 233-01-PLAN.md — SWEEP-01: remove superseded `run_*` trial scripts (untracked) with `git grep` deletion-safety proof + operator confirm; BOUND-01 guard evidence
+- [x] 233-01-PLAN.md — SWEEP-01: remove superseded `run_*` trial scripts (untracked) with `git grep` deletion-safety proof + operator confirm; BOUND-01 guard evidence
 - [ ] 233-02-PLAN.md — SWEEP-02: native/external mode-disambiguation notes for PROFILING/PERFORMANCE/RUNBOOK; operator decision on CABLE_TUNING/STEERING/SILICOM-BYPASS
 - [ ] 233-03-PLAN.md — SWEEP-03: make Spectrum bridge unit explicit (mirror ATT env), no new abstraction; operator confirms BASELINE_RTT
 
@@ -121,7 +121,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 232. Cleanup Boundary Guard + Tooling Fixes | v1.51 | 4/4 | Complete    | 2026-06-11 |
-| 233. Gated Repo Hygiene Sweep | v1.51 | 0/4 | Not started | - |
+| 233. Gated Repo Hygiene Sweep | v1.51 | 1/4 | In progress | - |
 | 234. Planning Metadata Reconciliation + Closeout | v1.51 | 0/TBD | Not started | - |
 
 ---
