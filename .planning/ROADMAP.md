@@ -81,7 +81,20 @@ Plans:
   3. Spectrum-only hardcoding remnants are removed only where a generic `$wan` bridge/service pattern already exists — no new abstraction is introduced to enable removal; the boundary guard confirms the native path is untouched (SWEEP-03).
   4. SAFE-15 controller-path zero-diff holds at the phase boundary.
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+
+**Wave 1** *(parallel; disjoint file surfaces, each operator-gated)*
+
+- [ ] 233-01-PLAN.md — SWEEP-01: remove superseded `run_*` trial scripts (untracked) with `git grep` deletion-safety proof + operator confirm; BOUND-01 guard evidence
+- [ ] 233-02-PLAN.md — SWEEP-02: native/external mode-disambiguation notes for PROFILING/PERFORMANCE/RUNBOOK; operator decision on CABLE_TUNING/STEERING/SILICOM-BYPASS
+- [ ] 233-03-PLAN.md — SWEEP-03: make Spectrum bridge unit explicit (mirror ATT env), no new abstraction; operator confirms BASELINE_RTT
+
+**Wave 2** *(blocked on Wave 1; boundary closeout)*
+
+- [ ] 233-04-PLAN.md — SAFE-15: full suite + BOUND-01 guard + controller-path zero-diff proof vs v1.50, evidence committed
+
 **UI hint**: no
 
 ### Phase 234: Planning Metadata Reconciliation + Closeout
@@ -108,7 +121,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 232. Cleanup Boundary Guard + Tooling Fixes | v1.51 | 4/4 | Complete    | 2026-06-11 |
-| 233. Gated Repo Hygiene Sweep | v1.51 | 0/TBD | Not started | - |
+| 233. Gated Repo Hygiene Sweep | v1.51 | 0/4 | Not started | - |
 | 234. Planning Metadata Reconciliation + Closeout | v1.51 | 0/TBD | Not started | - |
 
 ---
