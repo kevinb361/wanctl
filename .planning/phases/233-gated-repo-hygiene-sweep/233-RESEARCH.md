@@ -274,7 +274,7 @@ bash scripts/phase225-safe13-boundary-check.sh --anchor v1.50 \
 | A3 | SWEEP-01 = delete (not archive), since the trials subtree is git-ignored and "archiving" within it is a no-op | SWEEP-01 inventory | If operator wants the trial scripts preserved in a tracked archive, that's a different (additive) task; LOW risk — surface in discuss/plan |
 | A4 | The findings `.md` files in the trials dir (`SPECTRUM_CAKE_FINDINGS.md`, `*-review-*.md`) are knowledge to keep, not one-off scripts to remove | SWEEP-01 inventory | If treated as removable, knowledge loss — recommend keep/operator-confirm |
 
-## Open Questions
+## Open Questions (RESOLVED — gated to operator checkpoints in Plans 01-03)
 
 1. **Delete vs archive for SWEEP-01 trial scripts.**
    - What we know: subtree is git-ignored, untracked, zero tracked references, ~68M, 22 `run_*` one-offs + result dirs.
