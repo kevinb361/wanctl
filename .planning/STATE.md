@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.51
 milestone_name: Post-Migration Consolidation
 status: executing
-stopped_at: Completed 233-02-PLAN.md
-last_updated: "2026-06-11T19:22:24Z"
-last_activity: 2026-06-11 -- Phase 233 Plan 02 complete
+stopped_at: Completed 233-03-PLAN.md
+last_updated: "2026-06-11T19:31:29Z"
+last_activity: 2026-06-11 -- Phase 233 Plan 03 complete
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 8
-  completed_plans: 6
-  percent: 50
+  completed_plans: 7
+  percent: 58
 ---
 
 # Session State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-10 after v1.50 milestone close)
 ## Current Position
 
 Phase: 233 (gated-repo-hygiene-sweep) — EXECUTING
-Plan: 3 of 4
-Status: Phase 233 Plan 02 complete; ready for Plan 03
-Last activity: 2026-06-11 -- Phase 233 Plan 02 complete
+Plan: 4 of 4
+Status: Phase 233 Plan 03 complete; ready for Plan 04
+Last activity: 2026-06-11 -- Phase 233 Plan 03 complete
 
 ## Deferred Items (carried into next milestone)
 
@@ -62,7 +62,7 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ### v1.50-shipped-clean
 
-- **Status:** Phase 233 Plan 02 complete; ready for Plan 03
+- **Status:** Phase 233 Plan 03 complete; ready for Plan 04
 - **Operator sign-off:** Kevin — 2026-06-10, via /gsd-complete-milestone → audit-first → Acknowledge-all → ship path. 10/10 v1.50 requirements satisfied; milestone audit `passed` (10/10 integration seams, 3/3 E2E flows). Zero new v1.50 debt; all 23 open artifacts are pre-existing carry-forward from v1.47/v1.48/v1.49 closes.
 - **Why this is acceptable:** v1.50 spine (DEPLOY/TEST/MON/SOAK/DOCS) shipped cleanly with SAFE-14 held at every phase boundary and milestone close. SOAK-02 closed via operator-accepted no-mutation provable path (both-WAN preflight `overall_pass: true`); the live rollback exercise remains explicitly opt-in with the residual confirm-path fix noted before any future exercise.
 
@@ -103,7 +103,7 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 ## Session Continuity
 
 Last session: 2026-06-11T12:30:36.159Z
-Stopped at: Completed 232-04-PLAN.md
+Stopped at: Completed 233-03-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -130,6 +130,7 @@ Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
 - [232-04]: BOUND-01 guard status classification treats regular-file presence as mandatory before hash comparison and requires tracked status for anchor-present protected rows; anchor-absent future-doc rows may be untracked only while still regular files.
 - [233-01]: Operator-approved destructive removal followed the explicit manifest exactly: 80 REMOVE entries under the ignored `.planning/cake-autorate-trials/` subtree were deleted, while the FUTURE denylist source and curated findings/review docs remained present; deletion is intentionally invisible to git except for committed evidence.
 - [233-02]: Operator selected `annotate-steering-only` for SWEEP-02: annotate `docs/STEERING.md`, leave `docs/CABLE_TUNING.md` historical references and `docs/SILICOM-BYPASS.md` by-design bypass references as-is, and close residual native-mode doc claims via per-hit disposition evidence.
+- [233-03]: Spectrum bridge unit now mirrors ATT's explicit env pattern for identity, interfaces, log/state/metrics paths, and baseline RTT; Kevin approved pinning the script-default `WANCTL_EXTERNAL_BASELINE_RTT=22.535852814520855`, so the repo edit is behavior-preserving and live apply remains an operator-gated redeploy/daemon-reload.
 
 ## Decisions (v1.50)
 
@@ -170,3 +171,4 @@ Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
 | Phase 232 P04 | 1 min | 3 tasks | 2 files |
 | Phase 233 P01 | checkpointed; continuation 8 min | 3 tasks | 3 files |
 | Phase 233 P02 | checkpointed; continuation 10 min | 3 tasks | 8 files |
+| Phase 233 P03 | checkpointed; continuation 5 min | 2 tasks | 4 files |
