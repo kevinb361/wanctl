@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.51
 milestone_name: Post-Migration Consolidation
 status: executing
-stopped_at: Completed 232-01-PLAN.md
-last_updated: "2026-06-10T22:10:22.031Z"
-last_activity: 2026-06-10
+stopped_at: Completed 232-02-PLAN.md
+last_updated: "2026-06-11T11:40:42.751Z"
+last_activity: 2026-06-11
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-10 after v1.50 milestone close)
 ## Current Position
 
 Phase: 232 (cleanup-boundary-guard-tooling-fixes) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
-Last activity: 2026-06-10
+Last activity: 2026-06-11
 
 ## Deferred Items (carried into next milestone)
 
@@ -102,8 +102,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-10T22:10:22.004Z
-Stopped at: Completed 232-01-PLAN.md
+Last session: 2026-06-11T11:40:28.223Z
+Stopped at: Completed 232-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -124,6 +124,8 @@ Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
 - [v1.51 Roadmap]: SAFE-15 declared as cross-phase controller-path zero-diff invariant — listed on every phase's requirements line and mapped to closeout Phase 234 for traceability accounting. Same handling as SAFE-14 in v1.50; 9th consecutive milestone holding the SAFE-07..14 discipline. Surface is scripts/docs/planning/tests only.
 - [232-01]: BOUND-01 manifest rows carry explicit `must-match-anchor` or `must-exist` policy semantics so Phase 233 sweep/audit tooling can distinguish immutable surfaces from authorized living-doc/tooling drift.
 - [232-01]: The future planning doc remains existence-protected even when absent from the anchor tree; it is the canonical denylist source and must fail closed on deletion.
+- [232-02]: Confirm `bash -s` omits `-n` so real OpenSSH delivers the stdin rollback payload; read-only probe calls retain `-n`.
+- [232-02]: External cake-autorate writer verification treats both `active` and `activating` as fail-closed dual-writer hazards after native rollback.
 
 ## Decisions (v1.50)
 
@@ -159,3 +161,4 @@ Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
 | Phase 231 P02 | checkpointed; continuation 2min | 3 tasks | 8 files |
 | Phase 231 P03 | 17 min | 2 tasks | 7 files |
 | Phase 232 P01 | 4 min | 2 tasks | 2 files |
+| Phase 232 P02 | 3 min | 3 tasks | 4 files |
