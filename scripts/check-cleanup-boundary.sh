@@ -182,6 +182,7 @@ violations = []
 for item_class, path, policy in manifest:
     path_obj = Path(path)
     exists = path_obj.exists()
+    is_file = path_obj.is_file()
     anchor_oid = anchor_blob(path)
     worktree_oid = worktree_blob(path)
     anchor_present = anchor_oid is not None
@@ -189,6 +190,10 @@ for item_class, path, policy in manifest:
 
     if not exists:
         status = "MISSING"
+    elif not is_file:
+        status = "NON_FILE"
+    elif anchor_present and not tracked:
+        status = "UNTRACKED"
     elif policy == "must-match-anchor" and anchor_present and worktree_oid != anchor_oid:
         status = "MODIFIED"
     elif policy == "must-exist" and anchor_present and worktree_oid != anchor_oid:
@@ -202,12 +207,13 @@ for item_class, path, policy in manifest:
         "policy": policy,
         "anchor_present": anchor_present,
         "exists": exists,
+        "is_file": is_file,
         "tracked": tracked,
         "status": status,
     }
     checks.append(row)
 
-    if status in {"MISSING", "MODIFIED"}:
+    if status in {"MISSING", "NON_FILE", "UNTRACKED", "MODIFIED"}:
         violations.append(row)
 
 record = {
