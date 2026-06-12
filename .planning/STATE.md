@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.52
 milestone_name: Silicom Bypass Operationalization
 status: executing
-stopped_at: Completed 235-03-PLAN.md
-last_updated: "2026-06-12T16:49:20.664Z"
-last_activity: 2026-06-12 -- Phase 235 planning complete
+stopped_at: Completed 235-04-PLAN.md
+last_updated: "2026-06-12T16:59:14.841Z"
+last_activity: 2026-06-12 -- Phase 235 Plan 04 gap closure complete
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 3
-  percent: 0
+  completed_plans: 4
+  percent: 33
 ---
 
 # Session State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-12 after v1.51 milestone close)
 
 ## Current Position
 
-Phase: 235 (bypass-operator-cli-boot-baseline) — EXECUTING
-Plan: 3 of 3
-Status: Ready to execute
-Last activity: 2026-06-12 -- Phase 235 planning complete
+Phase: 235 (bypass-operator-cli-boot-baseline) — COMPLETE
+Plan: 4 of 4
+Status: Phase 235 complete; ready for verification/next phase transition
+Last activity: 2026-06-12 -- Phase 235 Plan 04 gap closure complete
 
 ## Deferred Items (carried into next milestone)
 
@@ -115,8 +115,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-12T16:13:38.022Z
-Stopped at: Completed 235-03-PLAN.md
+Last session: 2026-06-12T16:59:14.818Z
+Stopped at: Completed 235-04-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -138,6 +138,8 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 - [235-03]: Used a TRUE standalone `--silicom-bypass-only <host>` deploy mode that exits before the wanctl release/restart path while installing the init unit's `bpctl-silicom.service` + `wanctl-bpctl-init` dependency chain.
 - [235-03]: Accepted observed live bpctl read-back wording variants in the centralized matcher/tests rather than changing baseline order, timings, interfaces, or safety policy.
 - [235-03]: Live baseline is verified on `cake-shaper`: `silicom-bypass-init.service` exited `0/SUCCESS` and both pairs remained non-bypass/non-disconnect before and after the run.
+- [235-04]: Kept RemainAfterExit=yes on `silicom-bypass-init.service` and fixed the manual reapply runbook to use `systemctl restart`, preserving boot-ordering anchor semantics.
+- [235-04]: Hardened only deploy/docs/tests surfaces; `src/wanctl` remained untouched to preserve SAFE-16.
 
 ## Decisions (v1.51)
 
@@ -209,3 +211,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 235 P01 | 4 min | 2 tasks | 3 files |
 | Phase 235 P02 | 4 min | 2 tasks | 4 files |
 | Phase 235 P03 | 10 min | 3 tasks | 6 files |
+| Phase 235 P04 | 4 min | 2 tasks | 4 files |

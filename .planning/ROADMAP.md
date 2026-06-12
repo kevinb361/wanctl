@@ -71,7 +71,7 @@ Plans:
 
 **Wave 4** *(gap closure — verification found gaps_found 2026-06-12)*
 
-- [ ] 235-04-PLAN.md — deploy-surface hardening: per-deploy mktemp -d + atomic install (CR-01), --silicom-bypass-only fail-closed arg validation (WR-02), manual oneshot runbook restart coherence (WR-01) — offline-verifiable, no src/wanctl diff (BOOT-01 runbook + deploy safety)
+- [x] 235-04-PLAN.md — deploy-surface hardening: per-deploy mktemp -d + atomic install (CR-01), --silicom-bypass-only fail-closed arg validation (WR-02), manual oneshot runbook restart coherence (WR-01) — offline-verifiable, no src/wanctl diff (BOOT-01 runbook + deploy safety)
 
 **UI hint**: no
 
@@ -119,7 +119,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 235. Bypass Operator CLI + Boot Baseline | v1.52 | 3/4 | Gap closure | - |
+| 235. Bypass Operator CLI + Boot Baseline | v1.52 | 4/4 | Complete   | 2026-06-12 |
 | 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 0/? | Not started | - |
 | 237. HIL Failure-Injection Harness + Closeout | v1.52 | 0/? | Not started | - |
 
