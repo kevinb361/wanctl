@@ -1,121 +1,208 @@
 ---
 phase: 236
 reviewers: [codex]
-reviewed_at: 2026-06-12T18:38:29Z
+reviewed_at: 2026-06-12T19:03:17Z
 plans_reviewed: [236-01-PLAN.md, 236-02-PLAN.md]
-review_cycle: 2
-prior_cycle_high_count: 5
-current_cycle_high_count: 3
+review_cycle: 3
+prior_cycle_high_count: 3
+current_cycle_high_count: 4
 ---
 
-# Cross-AI Plan Review — Phase 236 (Cycle 2)
+# Cross-AI Plan Review — Phase 236 (Cycle 3)
 
-Second review cycle after a replan that addressed the five HIGH concerns from
-cycle 1 (`docs(236): cross-AI review — 5 HIGH concerns`, commit e0031b09).
-Codex re-reviewed both plans adversarially: does each prior HIGH fix hold, and
-did the replan introduce new HIGHs? The orchestrator independently verified the
-two most serious new claims against the live plan text (see Reviewer-Verified
-Findings) — both confirmed.
+Third review cycle after a replan that targeted the three cycle-2 HIGH concerns:
+HIGH-A (re-arm `restart` fires fail-open), HIGH-B (template-wide `Conflicts=`
+cross-WAN bypass), and HIGH-3/HIGH-C (Spectrum native-rollback watching a dead
+unit). Codex re-reviewed both plans adversarially against the LIVE file state
+(not just plan text), asking specifically whether each fix is mechanically sound
+and whether the replan introduced new HIGHs. The orchestrator independently
+re-verified all three NEW HIGH claims against the actual plan text and the live
+units — all three CONFIRMED (see Reviewer-Verified Findings).
 
 ## Codex Review
 
-**Summary**  
-The replan fixes several root causes on paper, but I would not clear it as fully safe. HIGH-2 is genuinely resolved. HIGH-5 is mostly resolved but has a dangerous `Conflicts=` design flaw. HIGH-1 and HIGH-4 are only partially resolved. HIGH-3 still has an ambiguity that can preserve the exact rollback-to-dead-unit bypass hazard, especially on Spectrum. The replan also introduces new HIGH concerns around `systemctl restart` on an already-running watchdog and template-wide `Conflicts=` stopping the old ATT watchdog from unrelated instances.
+**Disposition of the three cycle-2 HIGHs**
 
-**Prior HIGH Disposition**
+| Cycle-2 HIGH | Cycle-3 disposition | Mechanism / remaining gap |
+|---|---|---|
+| HIGH-A — re-arm `restart` fires fail-open | **FULLY RESOLVED** (for the original `restart` hazard) | Plan 01 requires inactive arm = `enable`+`start`, active re-arm = sentinel-before-`stop` → verify inactive → `start`, with explicit "never restart" assertions (236-01-PLAN.md:281, tests at :298). The self-inflicted fail-open from raw `systemctl restart` is closed. (NOTE: a NEW sentinel-leak gap in the SAME re-arm path is raised below — the original `restart` bug is closed; a different lifecycle bug is introduced.) |
+| HIGH-B — template-wide `Conflicts=` cross-WAN bypass | **FULLY RESOLVED** | Generic template required to contain NO `Conflicts=` (236-01-PLAN.md:227); conflict moved to the `@att`-scoped drop-in (236-01-PLAN.md:228). `enable` alone does not stop the retired ATT unit, and `cmd_arm @att` checks the retired variant before start (236-01-PLAN.md:277). Arming `@spectrum` no longer mechanically stops ATT. Static tests assert template-has-no-`Conflicts=` AND drop-in-carries-it. |
+| HIGH-3 / HIGH-C — Spectrum rollback watches dead unit | **PARTIALLY RESOLVED** | The plan now rejects "leave Spectrum untouched" and requires a per-WAN line-order proof (236-02-PLAN.md:211); Spectrum default = clean-disarm-before-cake-stop (236-02-PLAN.md:214), the right direction. Remaining gap: the plan still allows raw `disable --now` to count as a "clean disarm" (236-02-PLAN.md:213). Raw `systemctl disable --now silicom-bypass-watchdog@spectrum` is NOT clean unless a sentinel is written first — its ExecStop fires `set_bypass on`. The `-k rollback_order` test must require `silicom-bypass disarm spec-modem` (or explicit sentinel-before-stop), not just *any* disable line before cake-stop, or the gate passes on an unsafe sequence. |
 
-| Prior HIGH | Disposition | Concrete mechanism / remaining gap |
-|---|---:|---|
-| HIGH-1 disarm actuates bypass | PARTIALLY RESOLVED | Plan 01 Task 2 makes `wanctl-bpctl-watchdog-bypass` sentinel-aware: sentinel present -> `set_disc off`, `set_bypass off`, `set_bypass_wd 0`, exit without `set_bypass on`. Plan 01 Task 3 writes sentinel before `systemctl disable --now` and then does direct `set_bypass off` / `set_bypass_wd 0`. That fixes the normal path. Gap: under `set -e`, if `systemctl disable --now` fails before stop completion, the script can exit before cleanup/direct restore, leaving a stale sentinel that suppresses a future real fail-open ExecStop. Also the belt-and-suspenders path omits `set_disc off`. |
-| HIGH-2 arm timeout cosmetic / accepts 0 | RESOLVED | Plan 01 Task 3 writes `TIMEOUT_MS=<value>` to `/etc/wanctl/bpctl-watchdog/<instance>.env` before unit restart, and the unit keeps `EnvironmentFile=` after `Environment=TIMEOUT_MS=5000`, so the env wins. Regex `^[1-9][0-9]*$` rejects `0`, `00`, and non-integers. This holds, subject to atomic-env-write hardening below. |
-| HIGH-3 native rollback re-bypass | PARTIALLY RESOLVED | Plan 02 Task 3 says native rollback must rewrite `%i.env` to `WANCTL_UNIT=wanctl@<wan>.service` before arming, or leave watchdog disarmed. That resolves ATT if implemented as stated because ATT rollback currently enables `silicom-bypass-watchdog@att`. Gap: Spectrum text is contradictory: it says “leave-disarmed-by-default” while also referencing the existing “stays untouched” posture. “Untouched” means an already-active `@spectrum` can remain active while cake is disabled and `spectrum.env` still names `cake-autorate-spectrum.service`, recreating the bypass. Acceptance is too weak because a narrative can pass without a command-order proof. |
-| HIGH-4 stale live env survives deploy | PARTIALLY RESOLVED | Plan 02 Task 4 adds a blocking operator gate: grep live `/etc/wanctl/bpctl-watchdog/*.env`, migrate stale `WANCTL_UNIT=wanctl@...`, or record “must remain disarmed.” That handles this phase if the checkpoint is truly enforced. Gap: deploy remains install-if-absent, and `cmd_arm` does not validate `WANCTL_UNIT` before starting the unit. A future or out-of-sequence arm can still arm against stale live env. |
-| HIGH-5 ATT variant double-petter | PARTIALLY RESOLVED | Plan 01 Task 2 removes the ATT variant from deploy and adds `Conflicts=...`; Plan 01 Task 3 refuses `arm @att` when the old variant is active; Plan 02 Task 4 live-checks not-both-active. Gap: putting ATT-specific `Conflicts=` in the generic `@.service` applies to `@spectrum` too. Starting/restarting `silicom-bypass-watchdog@spectrum` can stop the old ATT variant, whose ExecStop can run fail-open on `att-modem`. That is a new cross-WAN hazard. |
+**New HIGH Concerns**
 
-**New Concerns**
+- **HIGH (NEW) — active re-arm can leak a stale disarm sentinel.** `cmd_arm` writes the
+  sentinel before `stop` (236-01-PLAN.md:283) but, unlike `cmd_disarm` (which installs a
+  `trap '...' EXIT` at 236-01-PLAN.md:290), the active re-arm path has NO EXIT trap — it
+  relies on a plain end-of-function `rm -f` "if ExecStop did not fire." If the process is
+  interrupted (signal) or `stop` fails under `set -e` after sentinel creation but before the
+  `rm -f`, the sentinel leaks. A leaked `.disarm` sentinel then converts a LATER REAL petter
+  crash/stop into the clean inline-restore path (clears `set_bypass_wd 0`) instead of
+  fail-open — silently disabling fail-open protection on that pair. This is the symmetric
+  weakness HIGH-1's trap was added to fix, but only `cmd_disarm` got the trap. Fix: give the
+  active re-arm sequence the same trap discipline (sentinel cleanup on stop-failure /
+  interruption).
 
-- HIGH: `cmd_arm` uses `systemctl restart` to re-read env. If the watchdog is already running, restart stops it first. With no operator-disarm sentinel, `ExecStop` takes the fail-open path and runs `set_bypass on`. Re-arming with a new timeout can briefly or persistently send the WAN raw ISP until the new petter restores inline. This is the biggest new plan bug.
+- **HIGH (NEW) — env-rewrite-before-arm does not reconfigure an ALREADY-RUNNING watchdog.**
+  Rewriting `/etc/wanctl/bpctl-watchdog/<wan>.env` + `daemon-reload` does NOT change the
+  environment of an already-running petter (the petter reads `WANCTL_UNIT` once at start;
+  `daemon-reload` re-reads unit files, not a live process's loaded env). The HIGH-C line-order
+  invariant (236-02-PLAN.md:212) is only safe if the watchdog is INACTIVE before arm. For an
+  active `@<wan>`, `enable` (which the att native rollback emits) is not `start`/`restart`, so
+  the running petter keeps watching the OLD (now-dead cake) unit name — the exact HIGH-3
+  bypass — while the line-order proof PASSES. Fix: for any active watchdog, rollback must
+  either clean-disarm-before-cake-stop, OR clean-rearm/restart AFTER the env rewrite and
+  BEFORE the cake-stop; the test must assert the running watchdog is actually re-pointed, not
+  just that the env file line precedes the arm line.
 
-- HIGH: Template-wide `Conflicts=silicom-bypass-watchdog-cake-autorate-att.service` is not scoped to `@att`. Any instance of the template, including `@spectrum`, conflicts with the old ATT variant. If the old ATT variant is active, arming Spectrum can stop ATT’s old watchdog and trigger its fail-open ExecStop.
+- **HIGH (NEW) — retired ATT variant retirement is itself an unsentineled fail-open.** The
+  retired unit `silicom-bypass-watchdog-cake-autorate-att.service` has
+  `ExecStop=/usr/local/sbin/wanctl-bpctl-watchdog-bypass` (line 15) on `IFACE=att-modem`, and
+  that ExecStop ends in `set_bypass on` when no sentinel is present
+  (wanctl-bpctl-watchdog-bypass:9). Plan 02 Task 4 (236-02-PLAN.md:264) tells the operator to
+  `sudo systemctl disable --now silicom-bypass-watchdog-cake-autorate-att.service` with NO
+  sentinel — so disabling the retired variant fires its own fail-open `set_bypass on` on a
+  live healthy att-modem. The remediation step reintroduces exactly the self-inflicted bypass
+  the phase exists to eliminate. Fix: write `/run/wanctl/bpctl-watchdog/att-modem.disarm`
+  before stopping the retired variant, or provide a dedicated clean-retire CLI verb/procedure
+  (and the same applies if the `@att` drop-in `Conflicts=` ever stops the retired variant —
+  that stop is also unsentineled).
 
-- HIGH: Stale disarm sentinel handling is not fail-safe. The plan needs explicit non-`set -e` handling around `systemctl disable --now`, guaranteed cleanup, direct restore on all failure paths, and a postcondition that the unit is inactive. Otherwise a failed disarm can leave a stale sentinel that converts a later real stop into clean inline instead of fail-open.
+**Other Concerns**
 
-- MEDIUM: Env write is underspecified. “sed-in-place or append” is not good enough for a root-owned control env. A partial/corrupt env followed by restart can fail unit start after the old unit’s ExecStop already fired. Use atomic temp file + `install -m 0644`/rename, preserve ownership, validate required keys before restart.
+- **MEDIUM — the fake systemctl does not mechanically execute ExecStop, so "no `set_bypass on`
+  from the re-arm stop" can pass VACUOUSLY.** The fake (236-01-PLAN.md:184) only logs argv; it
+  does not run the unit's ExecStop on `stop`/`disable`. So a test asserting "the re-arm stop
+  produced no `set_bypass on`" proves nothing, because the fake never runs the bypass script at
+  all. The HIGH-A/HIGH-1 behavior proofs are weaker than they read. Also: `FAKE_SYSTEMCTL_RC`
+  is specified for `is-active --quiet` (236-01-PLAN.md:196) but later reused to simulate
+  `disable --now` failure (236-01-PLAN.md:306) — one rc knob cannot do both. The fake needs
+  explicit stop/disable hooks that invoke the ExecStop script (so absence of `set_bypass on` is
+  meaningful), per-unit active-state mutation on start/stop, and a SEPARATE disable-failure rc.
 
-- MEDIUM: `cmd_arm` should validate the env’s `IFACE` and `WANCTL_UNIT` before start. At minimum, pair must match `IFACE`, `WANCTL_UNIT` must be non-empty, and ideally `systemctl is-active --quiet "$WANCTL_UNIT"` should pass unless explicitly arming for a known-down fail-open test.
+- **LOW — Plan 02 verify `grep -c` trap.** `grep -c 'silicom-bypass-watchdog-cake-autorate-att'
+  scripts/soak-monitor.sh` (236-02-PLAN.md:220) returns exit 1 on zero matches, which breaks the
+  `&&` chain even though zero matches is the SUCCESS condition. Use `! grep -q ...` (the same
+  trap flagged in prior wanctl phases).
 
-- MEDIUM: The tests for disarm final state should assert `set_disc off` as well as `set_bypass off` / `set_bypass_wd 0`.
+**Overall Risk**
 
-- LOW: The fake systemctl env naming scheme needs care. Unit names contain `-`, `@`, and `.`, which are awkward for shell variable lookup. Sanitize keys or use a state file.
-
-**Suggestions**
-
-1. Replace raw `restart` in `cmd_arm` with:
-   - if inactive: `systemctl enable`, then `systemctl start`;
-   - if active: create a clean-restart sentinel, stop the unit, verify inactive, clear sentinel/direct inline restore, then start;
-   - or require explicit `disarm` before changing timeout.
-
-2. Do not put ATT-specific `Conflicts=` in the generic template. Use an `@att`-only systemd drop-in, or rely on CLI/live migration to disable the retired variant before enabling folded `@att`.
-
-3. Harden `cmd_disarm` with `set +e` around systemctl, cleanup trap, direct `set_disc off`, `set_bypass off`, `set_bypass_wd 0` on all exits, and verify `systemctl is-active` is not active afterward.
-
-4. Make HIGH-3 acceptance command-order based: for each WAN rollback, prove either env rewrite happens before cake stop/watchdog arm, or the watchdog is clean-disarmed before cake stop. No narrative-only pass.
-
-5. Add `cmd_arm` preflight: refuse if env contains `WANCTL_UNIT=wanctl@...` while current mode is cake, or if watched unit is inactive, unless a separate explicit failure-test flag exists.
-
-**Risk Assessment**  
-Overall risk: HIGH until the restart and template-wide `Conflicts=` issues are fixed. The replan is much better than cycle 1, but it still contains ways for an ordinary operator arm/re-arm or cross-WAN arm to trigger fail-open behavior. After scoping `Conflicts=`, making arm restarts clean, and making rollback/env gates executable rather than narrative, this drops to MEDIUM.
+**HIGH until replan changes.** The two most dangerous cycle-2 bugs (raw `restart`,
+template-wide `Conflicts=`) are genuinely closed. But the replan's sentinel lifecycle and the
+rollback/retired-variant STOP paths still have three mechanically-real ways to either suppress
+fail-open when it should fire (leaked re-arm sentinel) or trigger fail-open when it should not
+(unsentineled retired-variant disable; running-petter still watching the dead unit after an
+env-only rewrite). Make every "clean stop" mechanically mean "sentinel-before-stop + trap
+cleanup, raw `disable --now` not accepted as clean," require the rollback gate to re-point or
+clean-disarm a RUNNING watchdog (not just rewrite the env file), and make the fake actually run
+ExecStop so the no-bypass assertions are non-vacuous. After those, this drops to MEDIUM.
 
 ---
 
 ## Reviewer-Verified Findings (orchestrator cross-check)
 
-The two highest-impact NEW HIGH claims were re-checked against the actual plan text (not just Codex's summary). Both CONFIRMED:
+All three NEW HIGH claims were re-checked against the actual plan text AND the live unit files
+(not just Codex's summary). All three CONFIRMED:
 
-- **NEW HIGH — re-arm `restart` fires fail-open bypass (CONFIRMED).** Plan 01 Task 3 line 250 ends `cmd_arm` with `"$SYSTEMCTL" enable "$instance_unit"` followed by `"$SYSTEMCTL" restart "$instance_unit"` ("restart, not just `enable --now`, so a re-arm with a new timeout actually re-reads the env file even if the unit was already running"). The operator-disarm sentinel is written ONLY in `cmd_disarm` (Task 3 line 255), never in `cmd_arm`. So if the watchdog is already active and the operator re-arms (e.g. to change the timeout), `restart` stops the unit first → ExecStop runs with NO sentinel present → the fail-open branch executes `set_bypass on` on a live, healthy pair. The HIGH-1 fix protects `disarm` but leaves the symmetric `re-arm` path exposed. This is a self-inflicted bypass on an ordinary operator action.
+- **NEW HIGH — re-arm sentinel leak (CONFIRMED).** `grep -n 'trap' 236-01-PLAN.md` shows the
+  `trap '...' EXIT` appears ONLY in the `cmd_disarm` block (line 290) and in its done/threat
+  prose (lines 332, 418). The `cmd_arm` active re-arm path (line 283) has no trap — only a
+  conditional end-of-function `rm -f`. An interrupt or a `set -e` abort after sentinel-write
+  leaks the sentinel, which then suppresses a later REAL fail-open. The cleanup discipline that
+  closes HIGH-1 for disarm was NOT applied to the symmetric re-arm path.
 
-- **NEW HIGH — template-wide `Conflicts=` is a cross-WAN bypass trigger (CONFIRMED).** Plan 01 Task 2 line 201 adds `Conflicts=silicom-bypass-watchdog-cake-autorate-att.service` to the GENERIC `silicom-bypass-watchdog@.service` template. systemd applies `[Unit]` directives to every instance, so `@spectrum` inherits the same `Conflicts=`. If the retired ATT variant is still active (exactly the HIGH-5 / HIGH-4 live state this phase exists to clean up), starting or restarting `@spectrum` will stop the ATT variant → the ATT variant's own fail-open ExecStop fires `set_bypass on` on `att-modem`. Arming/re-arming Spectrum can knock ATT into bypass. The guard intended to fix HIGH-5 introduces a new cross-WAN DoS until it is scoped to `@att` only (drop-in, not template-wide).
+- **NEW HIGH — env rewrite does not reconfigure a running petter (CONFIRMED).** Plan 02 lines
+  212–213 base the att invariant on "`WANCTL_UNIT=wanctl@att` (or daemon-reload) line index
+  strictly LESS than the `silicom-bypass-watchdog@att` enable/start/restart line index"
+  (236-02-PLAN.md:215). For att the rollback "already enables" `@att` — but `enable` does not
+  re-exec a running petter, and `daemon-reload` does not change a live process's loaded
+  environment. If `@att` is already active, the line-order test passes while the running petter
+  keeps watching the dead `cake-autorate-att.service`. The executable gate does not detect this.
 
-- **CONFIRMED — HIGH-3 Spectrum path remains ambiguous.** Plan 02 Task 3 line 209 instructs "leave-disarmed-by-default option for spectrum to match the existing 'stays untouched' posture." "Untouched" can mean an already-active `@spectrum` keeps running while cake is disabled and `spectrum.env` still names `cake-autorate-spectrum.service` — recreating the exact rollback-to-dead-unit bypass HIGH-3 was raised to close. Acceptance (line 218) accepts a "leave-disarmed narrative," so a narrative-only edit can pass without a command-order proof that the watchdog is disarmed (or env rewritten) BEFORE cake is stopped.
+- **NEW HIGH — retired ATT variant disable fires unsentineled bypass (CONFIRMED).** Live file
+  `deploy/systemd/silicom-bypass-watchdog-cake-autorate-att.service:15` =
+  `ExecStop=/usr/local/sbin/wanctl-bpctl-watchdog-bypass`; live
+  `scripts/wanctl-bpctl-watchdog-bypass:9` = `set_bypass on` (no sentinel branch in the current
+  file — the sentinel-aware branch is what Plan 01 Task 2 ADDS). Plan 02 Task 4 line 264
+  instructs `sudo systemctl disable --now silicom-bypass-watchdog-cake-autorate-att.service`
+  with no preceding sentinel write → its ExecStop drives `set_bypass on` on live att-modem. The
+  operator remediation reintroduces the fail-open the phase is meant to remove.
+
+- **CONFIRMED — HIGH-C Spectrum residual.** Plan 02 line 213 lists raw `disable --now` as an
+  acceptable "clean disarm" alongside the genuinely-clean `silicom-bypass disarm <pair>`. Since
+  raw `disable --now` is itself unsentineled (same root as the NEW retired-variant HIGH), the
+  `-k rollback_order` gate can pass on an UNSAFE Spectrum sequence. HIGH-C is improved
+  (narrative-only is gone, "leave untouched" fails) but not fully closed until the gate requires
+  the sentinel-clean disarm specifically.
 
 ## Consensus Summary
 
-Single external reviewer (Codex), orchestrator-verified against the live plan text. Cycle 2 of 2.
+Single external reviewer (Codex), orchestrator-verified against the live plans AND the live
+unit files. Cycle 3 of 3.
 
-### What the replan got right (prior HIGH progress)
+### What the replan got right (cycle-2 HIGH progress)
 
-- **HIGH-2 (cosmetic timeout) — FULLY RESOLVED.** Plan 01 Task 3 writes `TIMEOUT_MS=<value>` to the per-pair env BEFORE unit (re)start; `EnvironmentFile=` is ordered after `Environment=TIMEOUT_MS=5000` so the env wins; `^[1-9][0-9]*$` rejects `0`/`00`/non-integers. The armed timer now uses the operator value. (Subject to the MEDIUM atomic-env-write hardening, which does not reopen the HIGH.)
-- HIGH-1, HIGH-3, HIGH-4, HIGH-5 each have a real, correct mechanism in the replan — but each retains a gap (below) that keeps it short of fully closed.
+- **HIGH-A (re-arm `restart`) — FULLY RESOLVED.** No raw `restart`; inactive = enable+start,
+  active = sentinel-before-stop → start. The original self-inflicted-bypass-on-re-arm is closed.
+- **HIGH-B (template-wide `Conflicts=`) — FULLY RESOLVED.** `Conflicts=` removed from the
+  generic template and scoped to an `@att`-only drop-in; `@spectrum` no longer inherits it;
+  static tests assert both sides. Cross-WAN arm-stops-ATT is closed.
+- **HIGH-2 (cosmetic timeout) — remains FULLY RESOLVED** from cycle 2 (atomic env write, reject
+  0, key validation before start) — no regression.
 
 ### Cycle-over-cycle HIGH disposition
 
-| Prior HIGH | Cycle 1 | Cycle 2 disposition | Why |
+| HIGH | Cycle 2 | Cycle 3 | Why |
 |---|---|---|---|
-| HIGH-1 disarm fires bypass | HIGH | **PARTIALLY RESOLVED** | Sentinel-aware ExecStop fixes `disarm`, but `set -e` + a failing `systemctl disable --now` can exit before cleanup, leaking a stale sentinel that suppresses a later REAL fail-open; belt-and-suspenders omits `set_disc off`. |
-| HIGH-2 cosmetic timeout | HIGH | **FULLY RESOLVED** | Real per-pair `TIMEOUT_MS` write before restart; `0`/non-int rejected. |
-| HIGH-3 native-rollback re-bypass | HIGH | **PARTIALLY RESOLVED** | ATT path fixed; Spectrum "leave untouched" wording can keep `@spectrum` watching a dead cake unit; acceptance allows narrative-only pass. |
-| HIGH-4 stale live env survives | HIGH | **PARTIALLY RESOLVED** | Operator gate detects/migrates stale env this phase, but deploy stays install-if-absent and `cmd_arm` does not preflight `WANCTL_UNIT`, so a future/out-of-sequence arm can still arm against stale env. |
-| HIGH-5 ATT double-petter | HIGH | **PARTIALLY RESOLVED** | `Conflicts=` + CLI precondition + live check stop the double-petter, but template-wide `Conflicts=` introduces the new cross-WAN bypass (see New HIGHs). |
+| HIGH-A re-arm restart | NEW HIGH | **FULLY RESOLVED** | raw restart removed; sentinel-before-stop |
+| HIGH-B template Conflicts | NEW HIGH | **FULLY RESOLVED** | scoped to @att drop-in; @spectrum no longer inherits |
+| HIGH-3/HIGH-C Spectrum rollback | HIGH | **PARTIALLY RESOLVED** | narrative-only gone, but raw `disable --now` still counts as "clean" + running-petter gap |
+| (new) re-arm sentinel leak | — | **NEW HIGH** | no EXIT trap on cmd_arm re-arm path |
+| (new) env-rewrite vs running petter | — | **NEW HIGH** | daemon-reload doesn't re-point a live petter |
+| (new) retired-variant disable bypass | — | **NEW HIGH** | `disable --now` of retired ATT unit fires its own ExecStop bypass |
 
-### Current unresolved HIGH concerns (count = 3)
+### Current unresolved HIGH concerns (count = 4)
 
-1. **NEW HIGH — re-arm `restart` fires fail-open bypass.** `cmd_arm` does `restart` with no sentinel; re-arming an active pair drops it to bypass. Fix: enable+start when inactive; for an active unit, write the clean-restart sentinel (or require explicit `disarm` first) before stop, verify inactive, restore inline, then start.
-2. **NEW HIGH — template-wide `Conflicts=` cross-WAN bypass.** `Conflicts=` on the generic template makes arming `@spectrum` stop the active ATT variant → ATT fail-open. Fix: `@att`-only drop-in (or rely on the CLI/live-migration to disable the retired variant before enabling folded `@att`), not a template-wide directive.
-3. **HIGH (carried/ambiguous) — HIGH-3 Spectrum rollback can still watch a dead unit.** "Leave untouched" + narrative-only acceptance can preserve the rollback bypass on Spectrum. Fix: make acceptance command-order based — prove env rewrite (or clean-disarm) happens BEFORE cake stop for EACH wan, no narrative-only pass.
-
-(HIGH-1's stale-sentinel fail-safe gap and HIGH-4's missing `cmd_arm` env preflight are PARTIALLY RESOLVED prior HIGHs whose residual risk is real but mitigated this phase by the operator checkpoint; the three above are the ones blocking a clean clear. Codex also raised them as remediation items — see Suggestions 3 and 5.)
+1. **NEW HIGH — active re-arm sentinel leak.** Give `cmd_arm`'s active re-arm path the same
+   `trap '...' EXIT` cleanup discipline as `cmd_disarm`, so an interrupted/failed re-arm cannot
+   leak a `.disarm` sentinel that later suppresses a real fail-open.
+2. **NEW HIGH — env-rewrite does not reconfigure a running watchdog.** The HIGH-C rollback gate
+   must re-point or clean-disarm a RUNNING `@<wan>` (clean-rearm after env rewrite, or
+   clean-disarm before cake-stop), not merely place the env-file rewrite line before the arm
+   line; assert the live watched-unit changed, not just file order.
+3. **NEW HIGH — retired ATT variant retirement fires unsentineled bypass.** Task 4's
+   `disable --now silicom-bypass-watchdog-cake-autorate-att.service` must write the
+   `att-modem.disarm` sentinel first (or use a dedicated clean-retire procedure), or it drops
+   live att-modem to raw ISP.
+4. **HIGH (carried/partial) — HIGH-C Spectrum residual.** The `-k rollback_order` gate must
+   require the sentinel-clean disarm (`silicom-bypass disarm <pair>` / explicit
+   sentinel-before-stop) and reject raw `disable --now` as "clean," for the test to actually
+   prove safety.
 
 ### Lower-severity items worth folding into the next replan
 
-- MEDIUM: env write must be atomic (temp file + `install`/rename, preserve ownership, validate required keys) — a partial/corrupt env after the old unit's ExecStop already fired can wedge the restart.
-- MEDIUM: `cmd_arm` should preflight `IFACE` matches the pair and `WANCTL_UNIT` is non-empty/active (closes HIGH-4's residual).
-- MEDIUM: disarm final-state tests should also assert `set_disc off`, not just `set_bypass off`/`set_bypass_wd 0`.
-- LOW: fake-systemctl env-var key naming with `-`/`@`/`.` is shell-awkward; sanitize keys or use a state file.
+- MEDIUM: make the fake systemctl invoke the unit's ExecStop on stop/disable (so "no
+  `set_bypass on`" assertions are non-vacuous), add per-unit active-state mutation, and a
+  SEPARATE disable-failure rc distinct from the `is-active` rc.
+- LOW: replace `grep -c ... && ...` with `! grep -q ...` in the Plan 02 soak-monitor verify
+  (zero-match exit-1 breaks the `&&` chain on the success case).
 
 ### Divergent Views
 
-None (single reviewer). Orchestrator concurs with all three NEW/carried HIGHs after direct plan-text verification; no reviewer claim was downgraded.
+None (single reviewer). Orchestrator concurs with all three NEW HIGHs and the HIGH-C residual
+after direct plan-text AND live-file verification; no reviewer claim was downgraded. Note the
+common root: three of the four HIGHs are the SAME class — an unsentineled or
+non-trap-protected `stop`/`disable` of a unit whose ExecStop fail-opens. A single hardening
+("no watchdog unit is ever stopped/disabled without a sentinel written first, under a trap")
+plus a running-petter re-point in rollback would close re-arm-leak, retired-variant-disable,
+and HIGH-C together.
 
 ### Risk Assessment
 
-**HIGH as written.** The replan is materially better than cycle 1 (HIGH-2 fully closed; the other four have correct mechanisms), but two NEW operator-triggerable fail-open paths (re-arm `restart`, template-wide `Conflicts=`) plus the ambiguous Spectrum rollback mean an ordinary `arm`/re-arm or a Spectrum arm can still drop a live WAN to raw ISP. After scoping `Conflicts=` to `@att`, making `cmd_arm` re-arm clean (sentinel/disarm-first), and making the HIGH-3 rollback gate executable rather than narrative, this drops to MEDIUM (residual operational sequencing around systemd + live opt-in).
+**HIGH as written.** Cycle 3 closed the two worst cycle-2 bugs but introduced three new
+fail-open paths of the same family (unsentineled/untrapped stop of a fail-open unit) plus left
+the HIGH-C gate able to pass an unsafe Spectrum sequence. An ordinary operator re-arm
+(interrupted), a native rollback against an active watchdog, or the prescribed retired-variant
+cleanup can each still drop a live WAN to raw ISP or silently disable fail-open. After applying
+the single "sentinel+trap before any fail-open-unit stop" rule, re-pointing the running
+watchdog in rollback, and tightening the gate + fake, this drops to MEDIUM.
