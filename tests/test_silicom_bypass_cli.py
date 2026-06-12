@@ -13,13 +13,24 @@ DEPLOY = REPO_ROOT / "scripts" / "deploy.sh"
 INIT_SERVICE = REPO_ROOT / "deploy" / "systemd" / "silicom-bypass-init.service"
 BPCTL_SERVICE = REPO_ROOT / "deploy" / "systemd" / "bpctl-silicom.service"
 SILICOM_BYPASS_DOC = REPO_ROOT / "docs" / "SILICOM-BYPASS.md"
+WATCHDOG_UNIT = REPO_ROOT / "deploy" / "systemd" / "silicom-bypass-watchdog@.service"
+WATCHDOG_ATT_ENV = REPO_ROOT / "deploy" / "scripts" / "bpctl-watchdog-att.env.example"
+WATCHDOG_SPECTRUM_ENV = REPO_ROOT / "deploy" / "scripts" / "bpctl-watchdog-spectrum.env.example"
+WATCHDOG_ATT_CONFLICTS_DROPIN = (
+    REPO_ROOT / "deploy" / "systemd" / "silicom-bypass-watchdog@att.service.d" / "conflicts.conf"
+)
 
 SILICOM_BYPASS_ARTIFACTS = {
     "scripts/silicom-bypass",
     "scripts/wanctl-bpctl-init",
+    "scripts/wanctl-bpctl-watchdog-petter",
+    "scripts/wanctl-bpctl-watchdog-bypass",
     "deploy/scripts/silicom-bypass.conf.example",
+    "deploy/scripts/bpctl-watchdog-att.env.example",
+    "deploy/scripts/bpctl-watchdog-spectrum.env.example",
     "deploy/systemd/silicom-bypass-init.service",
     "deploy/systemd/bpctl-silicom.service",
+    "deploy/systemd/silicom-bypass-watchdog@.service",
 }
 
 BASELINE_MISMATCHED = {
@@ -166,6 +177,22 @@ def _fake_bpctl(
                   *) printf '%s\n' 'non-Disconnect at power up' ;;
                 esac
                 ;;
+              set_wd_exp_mode) write_state wd_exp_mode "$value" ;;
+              set_wd_autoreset) write_state wd_autoreset "$value" ;;
+              set_bypass_wd)
+                write_state wd_armed_ms "$value"
+                if [[ "$value" == "0" ]]; then
+                  write_state wd_armed off
+                else
+                  write_state wd_armed on
+                fi
+                ;;
+              reset_bypass_wd)
+                current="$(read_state wd_last_pet 0)"
+                write_state wd_last_pet "$((current + 1))"
+                ;;
+              get_bypass_wd) printf '%s\n' "$(read_state wd_armed_ms 0)" ;;
+              get_wd_exp_mode) printf '%s\n' "$(read_state wd_exp_mode unknown)" ;;
               *)
                 printf 'unknown fake bpctl verb: %s\n' "$verb" >&2
                 exit 64
@@ -177,6 +204,130 @@ def _fake_bpctl(
     )
     fake.chmod(0o755)
     return fake, calls_log
+
+
+def _fake_systemctl(tmp_path: Path, fake_bpctl: Path) -> Path:
+    systemctl = tmp_path / "systemctl"
+    systemctl_log = tmp_path / "systemctl.log"
+    unit_state_dir = tmp_path / "systemctl-state"
+    unit_state_dir.mkdir(exist_ok=True)
+    bypass_script = REPO_ROOT / "scripts" / "wanctl-bpctl-watchdog-bypass"
+    systemctl.write_text(
+        textwrap.dedent(
+            f"""\
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            systemctl_log={systemctl_log}
+            unit_state_dir={unit_state_dir}
+            bypass_script={bypass_script}
+            fake_bpctl={fake_bpctl}
+
+            printf '%s\n' "$*" >> "$systemctl_log"
+
+            sanitize_unit() {{
+              printf '%s' "$1" | sed 's/[^A-Za-z0-9]/_/g'
+            }}
+
+            state_for() {{
+              local unit="$1" key env_name path
+              key="$(sanitize_unit "$unit")"
+              env_name="FAKE_SYSTEMCTL_${{key}}_STATE"
+              path="$unit_state_dir/$key.state"
+              if [[ -n "${{!env_name:-}}" ]]; then
+                printf '%s\n' "${{!env_name}}"
+              elif [[ -f "$path" ]]; then
+                cat "$path"
+              else
+                printf '%s\n' inactive
+              fi
+            }}
+
+            write_state() {{
+              local unit="$1" state="$2" key
+              key="$(sanitize_unit "$unit")"
+              printf '%s\n' "$state" > "$unit_state_dir/$key.state"
+            }}
+
+            iface_for_unit() {{
+              local unit="$1"
+              case "$unit" in
+                *silicom-bypass-watchdog@att.service|*silicom-bypass-watchdog@att) printf '%s\n' att-modem ;;
+                *silicom-bypass-watchdog-cake-autorate-att.service) printf '%s\n' att-modem ;;
+                *silicom-bypass-watchdog@spectrum.service|*silicom-bypass-watchdog@spectrum) printf '%s\n' spec-modem ;;
+                *) printf '%s\n' '' ;;
+              esac
+            }}
+
+            run_exec_stop() {{
+              local unit="$1" iface
+              iface="$(iface_for_unit "$unit")"
+              [[ -n "$iface" ]] || return 0
+              IFACE="$iface" BPCTL_UTIL="$fake_bpctl" "$bypass_script"
+            }}
+
+            if [[ "${{1:-}}" == is-active && "${{2:-}}" == --quiet ]]; then
+              exit "${{FAKE_SYSTEMCTL_RC:-0}}"
+            fi
+
+            if [[ "${{1:-}}" == is-active ]]; then
+              state="$(state_for "${{2:-}}")"
+              printf '%s\n' "$state"
+              [[ "$state" == active || "$state" == activating ]]
+              exit $?
+            fi
+
+            verb="${{1:-}}"
+            unit="${{@: -1}}"
+            rc=0
+            case "$verb" in
+              stop)
+                run_exec_stop "$unit"
+                rc="${{FAKE_SYSTEMCTL_DISABLE_RC:-0}}"
+                [[ "$rc" == 0 ]] && write_state "$unit" inactive
+                exit "$rc"
+                ;;
+              disable)
+                if [[ "${{2:-}}" == --now ]]; then
+                  run_exec_stop "$unit"
+                  rc="${{FAKE_SYSTEMCTL_DISABLE_RC:-0}}"
+                  [[ "$rc" == 0 ]] && write_state "$unit" inactive
+                  exit "$rc"
+                fi
+                exit "${{FAKE_SYSTEMCTL_DISABLE_RC:-0}}"
+                ;;
+              mask)
+                if [[ "${{2:-}}" == --now ]]; then
+                  run_exec_stop "$unit"
+                  rc="${{FAKE_SYSTEMCTL_DISABLE_RC:-0}}"
+                  [[ "$rc" == 0 ]] && write_state "$unit" inactive
+                  exit "$rc"
+                fi
+                exit 0
+                ;;
+              start)
+                write_state "$unit" active
+                exit 0
+                ;;
+              enable)
+                if [[ "${{2:-}}" == --now ]]; then
+                  write_state "$unit" active
+                fi
+                exit 0
+                ;;
+              restart)
+                run_exec_stop "$unit"
+                write_state "$unit" active
+                exit 0
+                ;;
+              *) exit 0 ;;
+            esac
+            """
+        ),
+        encoding="utf-8",
+    )
+    systemctl.chmod(0o755)
+    return systemctl
 
 
 def _prime(tmp_path: Path, iface: str, key: str, value: str) -> None:
@@ -202,6 +353,7 @@ def _run(
     extra_env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     logger = _fake_logger(tmp_path)
+    systemctl = _fake_systemctl(tmp_path, fake)
     env = {
         **os.environ,
         "BPCTL_UTIL": str(fake),
@@ -209,6 +361,7 @@ def _run(
         "SILICOM_BYPASS_CONF": "/dev/null",
         "SILICOM_MARKS_LOG": str(tmp_path / "marks.log"),
         "LOGGER": str(logger),
+        "SYSTEMCTL": str(systemctl),
         "PATH": f"{tmp_path}:{os.environ.get('PATH', '')}",
         **(extra_env or {}),
     }
@@ -514,6 +667,122 @@ def _silicom_systemd_array_entries(deploy_text: str) -> set[str]:
     match = re.search(r"^SILICOM_BYPASS_SYSTEMD=\(\n(?P<body>.*?)^\)", deploy_text, re.S | re.M)
     assert match is not None, "SILICOM_BYPASS_SYSTEMD array not found"
     return set(re.findall(r'"(deploy/systemd/[^"]+)"', match.group("body")))
+
+
+def _array_entries(deploy_text: str, name: str) -> set[str]:
+    match = re.search(rf"^{name}=\(\n(?P<body>.*?)^\)", deploy_text, re.S | re.M)
+    assert match is not None, f"{name} array not found"
+    return set(re.findall(r'"([^"]+)"', match.group("body")))
+
+
+def _function_body(text: str, name: str) -> str:
+    match = re.search(rf"^{name}\(\) \{{\n(?P<body>.*?)^\}}", text, re.S | re.M)
+    assert match is not None, f"{name}() function not found"
+    return match.group("body")
+
+
+def test_watchdog_unit_decoupled() -> None:
+    assert WATCHDOG_UNIT.exists()
+    text = WATCHDOG_UNIT.read_text(encoding="utf-8")
+
+    assert "wanctl@%i" not in text
+    assert "Wants=wanctl@" not in text
+    assert "EnvironmentFile=/etc/wanctl/bpctl-watchdog/%i.env" in text
+    assert text.index("Environment=TIMEOUT_MS=") < text.index("EnvironmentFile=")
+
+
+def test_watchdog_no_conflicts() -> None:
+    text = WATCHDOG_UNIT.read_text(encoding="utf-8")
+
+    assert "Conflicts=" not in text
+    assert not WATCHDOG_ATT_CONFLICTS_DROPIN.exists()
+
+
+def test_watchdog_env_names_live_controller() -> None:
+    att = WATCHDOG_ATT_ENV.read_text(encoding="utf-8")
+    spectrum = WATCHDOG_SPECTRUM_ENV.read_text(encoding="utf-8")
+
+    assert "IFACE=att-modem" in att
+    assert "WANCTL_UNIT=cake-autorate-att.service" in att
+    assert "IFACE=spec-modem" in spectrum
+    assert "WANCTL_UNIT=cake-autorate-spectrum.service" in spectrum
+    assert "wanctl@" not in att
+    assert "wanctl@" not in spectrum
+
+
+def test_deploy_watchdog_off_by_default() -> None:
+    deploy_text = DEPLOY.read_text(encoding="utf-8")
+    silicom_body = _silicom_deploy_function_body(deploy_text)
+    att_body = _function_body(deploy_text, "deploy_att_cake_autorate")
+    systemd_entries = _silicom_systemd_array_entries(deploy_text)
+    att_entries = _array_entries(deploy_text, "ATT_CAKE_AUTORATE_SYSTEMD")
+
+    assert "deploy/systemd/silicom-bypass-watchdog@.service" in systemd_entries
+    assert "deploy_watchdog_artifacts" in deploy_text
+    assert "deploy_watchdog_artifacts" in silicom_body
+    assert "deploy_watchdog_artifacts" in att_body
+    assert "scripts/wanctl-bpctl-watchdog-petter" in deploy_text
+    assert "scripts/wanctl-bpctl-watchdog-bypass" in deploy_text
+    assert "deploy/scripts/bpctl-watchdog-att.env.example" in deploy_text
+    assert "deploy/scripts/bpctl-watchdog-spectrum.env.example" in deploy_text
+    assert "silicom-bypass-watchdog-cake-autorate-att.service" not in att_entries
+    assert "silicom-bypass-watchdog@att.service.d" not in deploy_text
+    assert "conflicts.conf" not in deploy_text
+    assert not re.search(r"systemctl\s+enable(?:\s+--now)?\s+[^\n]*silicom-bypass-watchdog", deploy_text)
+
+
+def test_w_inv_no_raw_watchdog_stop() -> None:
+    script = CLI.read_text(encoding="utf-8")
+
+    assert "sentineled_stop()" in script or "function sentineled_stop" in script
+    helper_match = re.search(r"^sentineled_stop\(\) \{(?P<body>.*?)^\}", script, re.S | re.M)
+    assert helper_match is not None, "sentineled_stop() function not found"
+    helper_body = helper_match.group("body")
+    assert "trap" in helper_body and "EXIT" in helper_body
+    assert ".disarm" in helper_body
+
+    surfaces = [
+        CLI,
+        DEPLOY,
+        REPO_ROOT / "scripts" / "phase231-rollback.sh",
+        REPO_ROOT / "scripts" / "soak-monitor.sh",
+        Path(__file__),
+    ]
+    raw_pattern = re.compile(
+        r"\bsystemctl\b.*\b(stop|disable|restart|mask)\b.*silicom-bypass-watchdog"
+    )
+    violations: list[str] = []
+    for surface in surfaces:
+        lines = surface.read_text(encoding="utf-8").splitlines()
+        in_helper = False
+        brace_depth = 0
+        for lineno, line in enumerate(lines, start=1):
+            stripped = line.lstrip()
+            if stripped.startswith("#"):
+                continue
+            if surface == CLI and re.match(r"sentineled_stop\(\) \{", line):
+                in_helper = True
+                brace_depth = line.count("{") - line.count("}")
+                continue
+            if in_helper:
+                brace_depth += line.count("{") - line.count("}")
+                if brace_depth <= 0:
+                    in_helper = False
+                continue
+            if not raw_pattern.search(line):
+                continue
+            prior = lines[lineno - 2] if lineno >= 2 else ""
+            if "sentineled_stop" in line:
+                continue
+            if "W-INV-SANCTIONED-RETIRE-MASK" in line or "W-INV-SANCTIONED-RETIRE-MASK" in prior:
+                continue
+            # Plan 02 owns rollback/soak reconciliation; this Plan 01 gate still
+            # hard-fails the CLI/deploy/test surfaces and is re-run globally there.
+            if surface.name in {"phase231-rollback.sh", "soak-monitor.sh"}:
+                continue
+            violations.append(f"{surface.relative_to(REPO_ROOT)}:{lineno}: {line.strip()}")
+
+    assert not violations, "raw watchdog systemctl stop/disable/restart/mask:\n" + "\n".join(violations)
 
 
 def test_artifacts_repo_owned() -> None:
