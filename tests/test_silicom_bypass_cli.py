@@ -10,6 +10,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CLI = REPO_ROOT / "scripts" / "silicom-bypass"
 DEPLOY = REPO_ROOT / "scripts" / "deploy.sh"
+PETTER = REPO_ROOT / "scripts" / "wanctl-bpctl-watchdog-petter"
 INIT_SERVICE = REPO_ROOT / "deploy" / "systemd" / "silicom-bypass-init.service"
 BPCTL_SERVICE = REPO_ROOT / "deploy" / "systemd" / "bpctl-silicom.service"
 SILICOM_BYPASS_DOC = REPO_ROOT / "docs" / "SILICOM-BYPASS.md"
@@ -323,7 +324,7 @@ def _fake_systemctl(tmp_path: Path, fake_bpctl: Path) -> Path:
               *) exit 0 ;;
             esac
             """
-        ),
+        ).lstrip(),
         encoding="utf-8",
     )
     systemctl.chmod(0o755)
@@ -399,6 +400,36 @@ def _watchdog_extra_env(env_dir: Path, run_dir: Path, **extra: str) -> dict[str,
 def _systemctl_calls(tmp_path: Path) -> str:
     path = tmp_path / "systemctl.log"
     return path.read_text(encoding="utf-8") if path.exists() else ""
+
+
+def _run_petter_once(
+    tmp_path: Path,
+    fake: Path,
+    *,
+    iface: str,
+    watched_unit: str,
+    systemctl_rc: str,
+) -> subprocess.CompletedProcess[str]:
+    systemctl = _fake_systemctl(tmp_path, fake)
+    env = {
+        **os.environ,
+        "BPCTL_UTIL": str(fake),
+        "IFACE": iface,
+        "WANCTL_UNIT": watched_unit,
+        "SYSTEMCTL": str(systemctl),
+        "TIMEOUT_MS": "5000",
+        "HEARTBEAT_SECONDS": "0.05",
+        "FAKE_SYSTEMCTL_RC": systemctl_rc,
+        "PATH": f"{tmp_path}:{os.environ.get('PATH', '')}",
+    }
+    return subprocess.run(
+        ["timeout", "0.25", "sh", str(PETTER)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
 
 
 def test_status_reads_live(tmp_path: Path) -> None:
@@ -899,6 +930,50 @@ def test_disarm_disable_failure_still_restores_inline(tmp_path: Path) -> None:
     assert "set_bypass off" in iface_calls
     assert "set_bypass_wd 0" in iface_calls
     assert not (run_dir / "spec-modem.disarm").exists()
+
+
+def test_petter_expiry_inactive_sets_bypass_and_withholds_pet(tmp_path: Path) -> None:
+    """Proves software behavior only: set_bypass on + withheld reset, not hardware relay expiry."""
+    fake, calls_log = _fake_bpctl(tmp_path)
+
+    result = _run_petter_once(
+        tmp_path,
+        fake,
+        iface="att-modem",
+        watched_unit="cake-autorate-att.service",
+        systemctl_rc="1",
+    )
+
+    assert result.returncode == 124, (result.stdout, result.stderr)
+    iface_calls = _calls_for(_calls(calls_log), "att-modem")
+    assert "set_wd_exp_mode bypass" in iface_calls
+    assert "set_wd_autoreset 0" in iface_calls
+    assert "set_bypass_wd 5000" in iface_calls
+    assert "set_bypass on" in iface_calls
+    assert "reset_bypass_wd" not in iface_calls
+
+
+def test_petter_expiry_active_pets_and_restores_inline(tmp_path: Path) -> None:
+    """Proves software behavior only: active watched unit pets and restores inline."""
+    fake, calls_log = _fake_bpctl(tmp_path)
+
+    result = _run_petter_once(
+        tmp_path,
+        fake,
+        iface="spec-modem",
+        watched_unit="cake-autorate-spectrum.service",
+        systemctl_rc="0",
+    )
+
+    assert result.returncode == 124, (result.stdout, result.stderr)
+    iface_calls = _calls_for(_calls(calls_log), "spec-modem")
+    assert "set_wd_exp_mode bypass" in iface_calls
+    assert "set_wd_autoreset 0" in iface_calls
+    assert "set_bypass_wd 5000" in iface_calls
+    assert "set_disc off" in iface_calls
+    assert "set_bypass off" in iface_calls
+    assert "reset_bypass_wd" in iface_calls
+    assert "set_bypass on" not in iface_calls
 
 
 def test_init_service_artifact() -> None:

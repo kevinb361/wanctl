@@ -48,6 +48,8 @@ Primary unit files:
 
 Phase 231 SOAK-02 rollback verification uses `scripts/phase231-rollback.sh`: default `--dry-run` renders per-WAN rollback and return-to-cake sequences without SSH, `--preflight` performs read-only live precondition proof into JSON, and real mutation requires both `--confirm` and `--i-have-operator-approval` after the operator checkpoint. The preflight uses `sudo -n test -f` only for root-owned read checks and treats `systemctl` `disabled`/`inactive` stdout as expected even when systemd exits non-zero for those states. Kevin accepted the SOAK-02 provable path on 2026-06-10, so no live rollback exercise or production mutation was performed.
 
+Phase 236 watchdog fail-open proof tests run only against fake `bpctl_util` and fake `systemctl` seams; they verify petter software behavior (`set_bypass on` with pet withheld vs active-unit pet/inline restore) without arming a live Silicom relay or waiting for hardware expiry.
+
 Phase 231 DOCS-04 stale-doc sweep updates active public docs to describe two service modes: portable native `wanctl@<wan>.service` mode and external `cake-autorate-<wan>.service` plus `cake-autorate-<wan>-state-bridge.service` mode. Native restart guidance is mode-labeled, while external mode points to `/etc/cake-autorate/config.<wan>.sh` and the cake-autorate unit; docs avoid presenting Spectrum/ATT as live native-wanctl-owned rate control.
 
 Legacy timer-era helper scripts in `scripts/` are intentionally stubbed and should not be used as active deployment guidance.
