@@ -17,6 +17,10 @@
 - Quick-archive slugs indexed in place and stale silicom pending todos closed with SEED-006 pointers, with hash proof that canonical dormant records stayed unchanged.
 - Operator-approved Phase 230 Nyquist waiver plus SAFE-15 boundary/close zero-diff evidence using existing read-only proof scripts.
 
+**Stats:** 73 commits over 3 days (2026-06-10 → 06-12); 74 files (+9,216/−283), scripts/tests/docs/planning only — zero `src/wanctl/` mutation (SAFE-15, 9th consecutive). UAT 5/5 passed; 234-VERIFICATION re-verified 11/11 at close (SAFE-15 close evidence regenerated at HEAD `aa200dd3`).
+
+**Known deferred items at close:** 12 (see STATE.md Deferred Items) — 1 debug-index false positive, 6 event-gated/operational todos, 5 dormant seeds. Zero new v1.51 debt; open set shrank from 23 to 12 (META-01/02/03 + FIX-01/02 retired 11 items).
+
 ---
 
 ## v1.50 cake-autorate Migration Hardening (Shipped: 2026-06-10)
