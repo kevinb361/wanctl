@@ -1,0 +1,59 @@
+## live baseline success 20260612T161052Z
+
+# deploy standalone
+[0;34m========================================[0m
+[0;34mSilicom bypass standalone deploy[0m
+[0;34m========================================[0m
+
+Target:      cake-shaper
+
+[0;32m[*][0m Checking prerequisites...
+[0;32m[+][0m Prerequisites OK
+[0;32m[*][0m Deploying Silicom bypass standalone artifacts...
+  -> /usr/local/sbin/silicom-bypass
+  -> /usr/local/sbin/wanctl-bpctl-init
+  -> /etc/silicom-bypass.conf (install-if-absent)
+  -> silicom-bypass-init.service
+  -> bpctl-silicom.service
+[0;32m[+][0m Silicom bypass artifacts deployed (units not enabled or started)
+
+# pre status all
+att-modem: bypass=The interface is in the non-Bypass mode. disc=The interface is in the non-Disconnect mode. std_nic=The interface is not in Standard NIC mode.
+spec-modem: bypass=The interface is in the non-Bypass mode. disc=The interface is in the non-Disconnect mode. std_nic=The interface is not in Standard NIC mode.
+
+# restart silicom-bypass-init
+
+# service status
+● silicom-bypass-init.service - Silicom bypass known-good boot baseline
+     Loaded: loaded (/etc/systemd/system/silicom-bypass-init.service; enabled; preset: enabled)
+     Active: active (exited) since Fri 2026-06-12 11:10:46 CDT; 29ms ago
+ Invocation: a532a132f1964b3db40b0ed5e1dc186a
+    Process: 3990897 ExecStart=/usr/local/sbin/silicom-bypass baseline (code=exited, status=0/SUCCESS)
+   Main PID: 3990897 (code=exited, status=0/SUCCESS)
+   Mem peak: 2.1M
+        CPU: 111ms
+
+Jun 12 11:10:46 cake-shaper systemd[1]: Starting silicom-bypass-init.service - Silicom bypass known-good boot baseline...
+Jun 12 11:10:46 cake-shaper silicom-bypass[3990907]: baseline att-modem get_bypass_pwup already matches 'non-Bypass at power up'; skip set_bypass_pwup off
+Jun 12 11:10:46 cake-shaper silicom-bypass[3990925]: baseline spec-modem get_std_nic already matches 'not in Standard NIC mode'; skip set_std_nic off
+Jun 12 11:10:46 cake-shaper systemd[1]: Finished silicom-bypass-init.service - Silicom bypass known-good boot baseline.
+
+# post status all
+att-modem: bypass=The interface is in the non-Bypass mode. disc=The interface is in the non-Disconnect mode. std_nic=The interface is not in Standard NIC mode.
+spec-modem: bypass=The interface is in the non-Bypass mode. disc=The interface is in the non-Disconnect mode. std_nic=The interface is not in Standard NIC mode.
+
+# recent journal
+Jun 12 11:07:41 cake-shaper systemd[1]: Starting silicom-bypass-init.service - Silicom bypass known-good boot baseline...
+Jun 12 11:07:42 cake-shaper silicom-bypass[3988569]: set_bypass_pwoff completed successfully.
+Jun 12 11:07:42 cake-shaper silicom-bypass[3988561]: silicom-bypass: att-modem get_bypass_pwoff read-back FAILED (want 'Bypass at power off', got 'The interface is in the Bypass mode at power off state.')
+Jun 12 11:07:42 cake-shaper systemd[1]: silicom-bypass-init.service: Main process exited, code=exited, status=1/FAILURE
+Jun 12 11:07:42 cake-shaper systemd[1]: silicom-bypass-init.service: Failed with result 'exit-code'.
+Jun 12 11:07:42 cake-shaper systemd[1]: Failed to start silicom-bypass-init.service - Silicom bypass known-good boot baseline.
+Jun 12 11:10:46 cake-shaper systemd[1]: Starting silicom-bypass-init.service - Silicom bypass known-good boot baseline...
+Jun 12 11:10:46 cake-shaper silicom-bypass[3990907]: baseline att-modem get_bypass_pwup already matches 'non-Bypass at power up'; skip set_bypass_pwup off
+Jun 12 11:10:46 cake-shaper silicom-bypass[3990925]: baseline spec-modem get_std_nic already matches 'not in Standard NIC mode'; skip set_std_nic off
+Jun 12 11:10:46 cake-shaper systemd[1]: Finished silicom-bypass-init.service - Silicom bypass known-good boot baseline.
+
+## verdict
+
+PASS: standalone deploy completed, silicom-bypass-init.service restarted successfully with status=0/SUCCESS, and both live pairs remained non-bypass and non-disconnect before and after the run.
