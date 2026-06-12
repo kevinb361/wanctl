@@ -54,7 +54,12 @@
   5. After a boot (or a manual run of the oneshot), the `silicom-bypass-init` service has applied the known-good baseline to both pairs (`set_dis_bypass off`, `set_bypass_pwoff on`, `set_bypass_pwup off`, `set_disc_pwup off`, `set_std_nic off`) and asserted each setting via read-back, failing loudly if any setting did not take (BOOT-01).
   6. SAFE-16 controller-path zero-diff holds at the phase boundary (verified, not assumed).
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 235-01-PLAN.md — silicom-bypass CLI (status/on/off/disc/conn/mark) + config example + offline fake-bpctl pytest (TOOL-01..04)
+- [ ] 235-02-PLAN.md — baseline subcommand + silicom-bypass-init.service oneshot + reconcile bpctl-silicom.service (BOOT-01)
+- [ ] 235-03-PLAN.md — operator-gated deploy seam + docs/runbook + SAFE-16 boundary proof + operator live-verify checkpoint (SAFE-16)
 
 **UI hint**: no
 
