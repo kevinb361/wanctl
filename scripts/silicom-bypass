@@ -1,0 +1,250 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONF="${SILICOM_BYPASS_CONF:-/etc/silicom-bypass.conf}"
+: "${BPCTL_UTIL:=/opt/bpctl-silicom/bpctl_util}"
+: "${LOGGER:=logger}"
+MARKS_LOG="${SILICOM_MARKS_LOG:-/var/log/silicom-bypass-marks.log}"
+
+# shellcheck source=/dev/null
+[ -r "$CONF" ] && . "$CONF"
+: "${PAIRS:=att-modem spec-modem}"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  silicom-bypass status [pair|all]
+  silicom-bypass on <pair> --yes [--both-wan-confirm]
+  silicom-bypass off <pair>
+  silicom-bypass disc <pair> --yes [--both-wan-confirm]
+  silicom-bypass conn <pair>
+  silicom-bypass mark <label>
+
+Exit codes: 0 ok/no-op, 1 runtime/read-back refusal, 2 usage.
+EOF
+}
+
+die() {
+    local message="$1" code="${2:-1}"
+    printf 'silicom-bypass: %s\n' "$message" >&2
+    exit "$code"
+}
+
+journal() {
+    "$LOGGER" -t silicom-bypass -- "$*"
+}
+
+util() {
+    local pair="$1"
+    shift
+    "$BPCTL_UTIL" "$pair" "$@"
+}
+
+pair_allowed() {
+    local want="$1" pair
+    for pair in $PAIRS; do
+        [[ "$pair" == "$want" ]] && return 0
+    done
+    return 1
+}
+
+resolve_pair() {
+    local pair="$1" slave
+    pair_allowed "$pair" || die "unknown bypass pair '$pair' (configured PAIRS: $PAIRS)"
+    if ! slave="$(util "$pair" get_bypass_slave 2>/dev/null)"; then
+        die "$pair is not bypass-capable (get_bypass_slave failed)"
+    fi
+    [[ -n "$slave" ]] || die "$pair is not bypass-capable (empty get_bypass_slave)"
+    printf '%s\n' "$pair"
+}
+
+other_pairs() {
+    local current="$1" pair
+    for pair in $PAIRS; do
+        [[ "$pair" != "$current" ]] && printf '%s\n' "$pair"
+    done
+}
+
+is_bypass_on_text() {
+    local text="$1"
+    case "$text" in
+        *non-Bypass*) return 1 ;;
+        *Bypass*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+is_disc_on_text() {
+    local text="$1"
+    case "$text" in
+        *non-Disconnect*) return 1 ;;
+        *Disconnect*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+assert_contains() {
+    local got="$1" want="$2" context="$3"
+    case "$got" in
+        *"$want"*) return 0 ;;
+        *) die "$context read-back failed: wanted '$want', got '$got'" ;;
+    esac
+}
+
+assert_positive_bypass() {
+    local got="$1" context="$2"
+    is_bypass_on_text "$got" || die "$context read-back failed: wanted Bypass, got '$got'"
+}
+
+assert_positive_disc() {
+    local got="$1" context="$2"
+    is_disc_on_text "$got" || die "$context read-back failed: wanted Disconnect, got '$got'"
+}
+
+is_non_nic() {
+    local pair bypass disc
+    pair="$(resolve_pair "$1")"
+    bypass="$(util "$pair" get_bypass)"
+    disc="$(util "$pair" get_disc)"
+    is_bypass_on_text "$bypass" || is_disc_on_text "$disc"
+}
+
+require_yes() {
+    local yes="$1" verb="$2"
+    [[ "$yes" == true ]] || die "$verb requires --yes"
+}
+
+check_both_wan_gate() {
+    local pair="$1" confirmed="$2" other
+    [[ "$confirmed" == true ]] && return 0
+    while IFS= read -r other; do
+        [[ -z "$other" ]] && continue
+        if is_non_nic "$other"; then
+            die "refusing: $pair and $other would both be non-NIC; pass --both-wan-confirm to proceed"
+        fi
+    done < <(other_pairs "$pair")
+}
+
+parse_flags() {
+    YES=false
+    BOTH_WAN_CONFIRM=false
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --yes) YES=true; shift ;;
+            --both-wan-confirm) BOTH_WAN_CONFIRM=true; shift ;;
+            --help|-h) usage; exit 0 ;;
+            *) die "unknown argument: $1" 2 ;;
+        esac
+    done
+}
+
+cmd_status() {
+    local target="${1:-all}" pair bypass disc std_nic
+    [[ $# -le 1 ]] || die "status accepts at most one pair or all" 2
+    if [[ "$target" == all ]]; then
+        for pair in $PAIRS; do
+            cmd_status "$pair"
+        done
+        return 0
+    fi
+    pair="$(resolve_pair "$target")"
+    bypass="$(util "$pair" get_bypass)"
+    disc="$(util "$pair" get_disc)"
+    std_nic="$(util "$pair" get_std_nic)"
+    printf '%s: bypass=%s disc=%s std_nic=%s\n' "$pair" "$bypass" "$disc" "$std_nic"
+}
+
+cmd_off() {
+    [[ $# -eq 1 ]] || die "off requires exactly one pair" 2
+    local pair cur got
+    pair="$(resolve_pair "$1")"
+    cur="$(util "$pair" get_bypass)"
+    if ! is_bypass_on_text "$cur"; then
+        printf '%s already non-bypass (NIC); no-op\n' "$pair"
+        return 0
+    fi
+    util "$pair" set_bypass off
+    got="$(util "$pair" get_bypass)"
+    assert_contains "$got" "non-Bypass" "$pair set_bypass off"
+    journal "off $pair: set_bypass off OK"
+}
+
+cmd_conn() {
+    [[ $# -eq 1 ]] || die "conn requires exactly one pair" 2
+    local pair cur got
+    pair="$(resolve_pair "$1")"
+    cur="$(util "$pair" get_disc)"
+    if ! is_disc_on_text "$cur"; then
+        printf '%s already non-disconnect (connected); no-op\n' "$pair"
+        return 0
+    fi
+    util "$pair" set_disc off
+    got="$(util "$pair" get_disc)"
+    assert_contains "$got" "non-Disconnect" "$pair set_disc off"
+    journal "conn $pair: set_disc off OK"
+}
+
+cmd_on() {
+    [[ $# -ge 1 ]] || die "on requires a pair" 2
+    local requested="$1" pair cur got
+    shift
+    parse_flags "$@"
+    require_yes "$YES" "on"
+    pair="$(resolve_pair "$requested")"
+    cur="$(util "$pair" get_bypass)"
+    if is_bypass_on_text "$cur"; then
+        printf '%s already bypass; no-op\n' "$pair"
+        return 0
+    fi
+    check_both_wan_gate "$pair" "$BOTH_WAN_CONFIRM"
+    util "$pair" set_bypass on
+    got="$(util "$pair" get_bypass)"
+    assert_positive_bypass "$got" "$pair set_bypass on"
+    journal "on $pair: set_bypass on OK"
+}
+
+cmd_disc() {
+    [[ $# -ge 1 ]] || die "disc requires a pair" 2
+    local requested="$1" pair cur got
+    shift
+    parse_flags "$@"
+    require_yes "$YES" "disc"
+    pair="$(resolve_pair "$requested")"
+    cur="$(util "$pair" get_disc)"
+    if is_disc_on_text "$cur"; then
+        printf '%s already disconnect; no-op\n' "$pair"
+        return 0
+    fi
+    check_both_wan_gate "$pair" "$BOTH_WAN_CONFIRM"
+    util "$pair" set_disc on
+    got="$(util "$pair" get_disc)"
+    assert_positive_disc "$got" "$pair set_disc on"
+    journal "disc $pair: set_disc on OK"
+}
+
+cmd_mark() {
+    [[ $# -eq 1 ]] || die "mark requires exactly one label" 2
+    local label="$1"
+    journal "$label"
+    mkdir -p "$(dirname "$MARKS_LOG")"
+    printf '%s\n' "$label" >> "$MARKS_LOG"
+    printf 'marked: %s\n' "$label"
+}
+
+main() {
+    [[ $# -ge 1 ]] || { usage >&2; exit 2; }
+    local cmd="$1"
+    shift
+    case "$cmd" in
+        status) cmd_status "$@" ;;
+        off) cmd_off "$@" ;;
+        conn) cmd_conn "$@" ;;
+        on) cmd_on "$@" ;;
+        disc) cmd_disc "$@" ;;
+        mark) cmd_mark "$@" ;;
+        --help|-h) usage ;;
+        *) die "unknown subcommand: $cmd" 2 ;;
+    esac
+}
+
+main "$@"

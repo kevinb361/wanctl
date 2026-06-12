@@ -1,0 +1,8 @@
+# Silicom bypass operator CLI config.
+# Sourced by scripts/silicom-bypass; keep shell KEY=value syntax.
+
+PAIRS="att-modem spec-modem"
+
+# Reserved for Phase 236 watchdog reconciliation.
+WD_TIMEOUT_MS=10000
+HEARTBEAT_MS=3000

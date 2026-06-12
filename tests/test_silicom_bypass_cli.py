@@ -53,7 +53,8 @@ def _fake_bpctl(
             printf '%s\n' "$*" >> "$calls_log"
 
             read_state() {{
-              local key="$1" default="$2" path="$state_dir/$iface.$key"
+              local key="$1" default="$2" path
+              path="$state_dir/$iface.$key"
               if [[ -f "$path" ]]; then
                 cat "$path"
               else
