@@ -377,28 +377,33 @@ journalctl --since "$RUN_START" \
 
 **Recommendation: REUSE the `deploy.sh --silicom-bypass-only` standalone path.** Extend `deploy_silicom_bypass()` to also stage+install `scripts/silicom-test` and `scripts/silicom-test-scenarios/*` (and add them to the artifact arrays + the `test_artifacts_repo_owned` / `SILICOM_BYPASS_ARTIFACTS` set). Rationale: the standalone mode already provides the exact decoupling the SEED-006 concern wanted, *without* duplicating the mktemp/atomic-install/daemon-reload/fail-closed logic a separate installer would re-implement. A separate installer would be net-new untested surface for zero benefit. This is a recommended default, not a locked decision — flag for operator confirmation at discuss/plan time.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`tests/silicom/` git tracking + retention policy**
    - What we know: no `.gitignore` entry today; SEED-006 raised a 30-day rolling window idea and a "fill disk" concern; CLAUDE.md forbids committing IPs/hostnames.
    - What's unclear: commit redacted results as evidence, or `.gitignore` the whole tree and treat as ephemeral local artifacts?
    - Recommendation: `.gitignore tests/silicom/` by default (ephemeral HIL artifacts), allow opt-in committing of *redacted* result.json summaries under the phase evidence dir if a run is operator-significant. Decide at plan time.
+   - **RESOLVED:** `.gitignore tests/silicom/` — result artifacts are ephemeral HIL output, not committed (Plan 04 Task 1). Redaction still mandatory on capture; opt-in committing of a redacted result.json summary under the phase evidence dir is allowed for an operator-significant run, but is not the default.
 
 2. **Scenario file format: bash vs YAML**
    - What we know: SEED-006 open question; every existing bypass artifact is bash.
    - Recommendation: bash scenario files for v1.52 (low ceremony, no new parser). Revisit only if a uniform output schema is later required.
+   - **RESOLVED:** bash scenario files (`scripts/silicom-test-scenarios/*.sh`, sourced into the orchestrator trap scope) — Plan 02 Task 2. No YAML parser in v1.52; revisit only if a uniform output schema is later required.
 
 3. **Pcap capture default**
    - What we know: SEED-006 flags full pcaps as useful-but-expensive.
    - Recommendation: off by default, explicit `--pcap` opt-in. Decide at plan time.
+   - **RESOLVED:** pcap is omitted in v1.52 — the "off by default" recommendation is realized as not-implemented (no capture code ships). A `--pcap` opt-in is deferred to a future milestone; there is no half-built/disabled pcap path to maintain.
 
 4. **Refuse-to-run-if-degraded vs allow-compounding-chaos**
    - What we know: SEED-006 asks whether the harness should refuse if `cake-autorate-<wan>` / steering is already failed.
    - Recommendation: capture current health into `result.json` and warn loudly; do NOT hard-refuse (chaos may want to compound), but require the live gate. Decide at plan time.
+   - **RESOLVED:** warn-loud, do NOT hard-refuse (compound chaos is allowed) — Plan 02 Task 1. Pre-state health is captured via `capture_state pre`; the harness then inspects the pre-state health JSON and emits a loud degraded-state journal warning (via the existing `journal`/`die` helper convention) when `status` != `healthy`. It proceeds anyway; the live gate (`SILICOM_TEST_LIVE_CONFIRM`) still applies. This is a warning, not a new gate.
 
 5. **A/B probe tool selection**
    - What we know: project memory notes Spectrum hourly uses Dallas Linode netperf (104.x); "don't swap default netperf to iperf without approval."
    - Recommendation: use the operator's existing netperf path for `ab-cake`; confirm exact probe command at plan time (A2).
+   - **RESOLVED:** netperf via an overridable `SILICOM_TEST_PROBE` seam (default a documented netperf placeholder) — Plan 02 Task 1. No iperf swap without operator approval (MEMORY).
 
 ## Environment Availability
 
