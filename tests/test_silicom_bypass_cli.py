@@ -12,6 +12,7 @@ CLI = REPO_ROOT / "scripts" / "silicom-bypass"
 DEPLOY = REPO_ROOT / "scripts" / "deploy.sh"
 INIT_SERVICE = REPO_ROOT / "deploy" / "systemd" / "silicom-bypass-init.service"
 BPCTL_SERVICE = REPO_ROOT / "deploy" / "systemd" / "bpctl-silicom.service"
+SILICOM_BYPASS_DOC = REPO_ROOT / "docs" / "SILICOM-BYPASS.md"
 
 SILICOM_BYPASS_ARTIFACTS = {
     "scripts/silicom-bypass",
@@ -548,6 +549,18 @@ def test_deploy_installs_init_unit_dependencies() -> None:
     assert "/usr/local/sbin/wanctl-bpctl-init" in function_body
 
 
+def test_silicom_deploy_uses_private_atomic_staging() -> None:
+    text = DEPLOY.read_text(encoding="utf-8")
+    function_body = _silicom_deploy_function_body(text)
+
+    assert "mktemp -d" in function_body
+    assert "chmod 700" in function_body
+    assert "install -o root -g root" in function_body
+    assert "rm -rf" in function_body
+    assert '"$TARGET_HOST:/tmp/silicom-bypass"' not in function_body
+    assert '"$TARGET_HOST:/tmp/wanctl-bpctl-init"' not in function_body
+
+
 def test_silicom_standalone_short_circuits() -> None:
     text = DEPLOY.read_text(encoding="utf-8")
     handler_match = re.search(
@@ -584,3 +597,32 @@ def test_silicom_standalone_dry_run_is_non_mutating() -> None:
     assert "bpctl-silicom.service" in result.stdout
     assert "skip deploy_code" in result.stdout
     assert "Checking prerequisites" not in result.stdout
+
+
+def test_silicom_standalone_rejects_extra_positional() -> None:
+    result = subprocess.run(
+        ["bash", str(DEPLOY), "--silicom-bypass-only", "cake-shaper", "extra-host"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    combined = result.stdout + result.stderr
+
+    assert result.returncode != 0
+    assert "--silicom-bypass-only" in combined
+    assert "Silicom bypass artifacts deployed" not in combined
+
+
+def test_silicom_standalone_rejects_wan_deploy_flags() -> None:
+    result = subprocess.run(
+        ["bash", str(DEPLOY), "--silicom-bypass-only", "cake-shaper", "--with-steering"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    combined = result.stdout + result.stderr
+
+    assert result.returncode != 0
+    assert "cannot be combined" in combined
