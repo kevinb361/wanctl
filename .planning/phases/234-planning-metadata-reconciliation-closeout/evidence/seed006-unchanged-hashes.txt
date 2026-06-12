@@ -1,0 +1,7 @@
+# seed006-unchanged-hashes
+# Generated for Phase 234 Plan 01 Task 2 before moving stale pending silicom todos.
+# Each data line is: <git-hash-object-sha> <path>
+# These files are intentionally left byte-unchanged; post-edit verification re-runs git hash-object and compares to these recorded before-hashes.
+95f8ed3c86687ca03412b4ddec59aa487309c46a .planning/seeds/SEED-006-v145-silicom-bypass-tooling-and-harness.md
+f1e32db4a77665a83480f8fb4c4e0ed362d75190 .planning/todos/completed/2026-04-28-add-silicom-bypass-nic-operational-tooling.md
+613f585f420b78070c2d5af501058b54a5e55a97 .planning/todos/completed/2026-04-28-add-silicom-bypass-test-harness.md
