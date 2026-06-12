@@ -5,7 +5,7 @@ status: passed
 score: 15/15 must-haves verified
 overrides_applied: 0
 re_verification:
-  previous_status: gaps_found
+  previous_status: resolved_by_plan_235_04
   previous_score: 13/15
   gaps_closed:
     - "The new 235 artifacts and init-unit dependencies are safely installable via a standalone deploy mode"
@@ -113,7 +113,7 @@ No additional Phase 235 requirement IDs were found in `.planning/REQUIREMENTS.md
 
 None. The live-only boot-baseline behavior has recorded operator-approved evidence in `evidence/live-baseline-success-20260612T161052Z.log`, and automated re-verification found no unresolved human-only checks.
 
-### Gaps Summary
+### Closure Summary
 
 All previous gaps are closed. The CLI, boot baseline service, standalone deploy seam, runbook, requirements coverage, focused regression tests, live baseline evidence, and SAFE-16 boundary proof all support the phase goal. No blocking gaps remain.
 
