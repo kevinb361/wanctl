@@ -140,7 +140,7 @@ def _fake_bpctl(
               set_dis_bypass) write_state dis_bypass "$value" ;;
               get_dis_bypass)
                 case "$(read_state dis_bypass on)" in
-                  off) printf '%s\n' 'Bypass mode enabled' ;;
+                  off) printf '%s\n' "${{DIS_BYPASS_ENABLED_TEXT:-Bypass mode enabled}}" ;;
                   *) printf '%s\n' 'Bypass mode disabled' ;;
                 esac
                 ;;
@@ -391,6 +391,26 @@ def test_baseline_read_before_set_skips_writes(tmp_path: Path) -> None:
     assert not any(call.startswith("set_") for call in att_calls)
     for write in BASELINE_WRITES:
         assert write in spec_calls
+
+
+def test_baseline_accepts_live_dis_bypass_wording(tmp_path: Path) -> None:
+    fake, calls_log = _fake_bpctl(tmp_path)
+    _prime_baseline(tmp_path, "att-modem", BASELINE_COMPLIANT)
+    _prime_baseline(tmp_path, "spec-modem", BASELINE_COMPLIANT)
+
+    result = _run(
+        tmp_path,
+        fake,
+        "baseline",
+        extra_env={"DIS_BYPASS_ENABLED_TEXT": "Bypass mode is enabled."},
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    calls = _calls(calls_log)
+
+    for iface in ("att-modem", "spec-modem"):
+        iface_calls = _calls_for(calls, iface)
+        assert "get_dis_bypass" in iface_calls
+        assert "set_dis_bypass off" not in iface_calls
 
 
 def test_baseline_fails_on_mismatch(tmp_path: Path) -> None:

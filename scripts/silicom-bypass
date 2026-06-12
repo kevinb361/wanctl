@@ -98,6 +98,12 @@ assert_contains() {
 
 matches_want() {
     local got="$1" want="$2"
+    if [[ "$want" == "Bypass mode enabled" ]]; then
+        case "$got" in
+            *"Bypass mode enabled"*|*"Bypass mode is enabled"*) return 0 ;;
+            *) return 1 ;;
+        esac
+    fi
     if [[ "$want" == "Bypass at power off" && "$got" == *"non-Bypass at power off"* ]]; then
         return 1
     fi
