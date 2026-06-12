@@ -75,7 +75,7 @@ Each task was committed atomically:
 - `.planning/decisions/phase-230-nyquist-waiver.md` - Recorded waiver now signed `Accepted: YES` after operator approval, with required recorded-by footnote.
 - `.planning/milestones/v1.50-phases/230-soak-monitor-att-coverage/230-VALIDATION.md` - Append-only pointer note added in Task 1; frontmatter remains `nyquist_compliant: false`.
 - `.planning/STATE.md` - META-01, META-02, and META-03 ledger rows resolved; Phase 234 decisions recorded.
-- `.planning/phases/234-planning-metadata-reconciliation-closeout/evidence/safe15-boundary-234.json` - SAFE-15 phase-boundary proof, `head_commit=d38e3790`, `controller_path_diff_count=0`.
+- `.planning/phases/234-planning-metadata-reconciliation-closeout/evidence/safe15-boundary-234.json` - SAFE-15 phase-boundary proof refreshed during final verification, `head_commit=5637bd3f`, `controller_path_diff_count=0`.
 - `.planning/phases/234-planning-metadata-reconciliation-closeout/evidence/cleanup-boundary-234-final.json` - BOUND-01 cleanup-boundary proof, `overall_pass=true`.
 - `.planning/phases/234-planning-metadata-reconciliation-closeout/evidence/safe15-milestone-close-234.json` - Fresh SAFE-15 closeout proof refreshed after the Task 3 evidence commit, `head_commit=5637bd3f`, `controller_path_diff_count=0`.
 
