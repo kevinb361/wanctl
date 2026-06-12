@@ -1,5 +1,24 @@
 # Project Milestones: wanctl
 
+## v1.51 Post-Migration Consolidation (Shipped: 2026-06-12)
+
+**Phases completed:** 3 phases, 10 plans, 24 tasks
+
+**Key accomplishments:**
+
+- Git-anchored cleanup denylist guard with per-file policy semantics and default-suite fail-closed pytest coverage.
+- Fail-fast rollback confirm script with external-writer fail-closed verification, proven entirely through a PATH-injected SSH shim.
+- Digest permission tolerance closed by Phase 208 evidence validation, plus committed SAFE-15 JSON proving phase-232 controller-path zero-diff versus v1.50.
+- Cleanup boundary guard now fails closed on git-index removal and protected directory replacement bypasses.
+- Manifest-approved removal of superseded ignored cake-autorate trial scripts and outputs with protected FUTURE/findings docs preserved.
+- Native `wanctl@` operational examples now carry external cake-autorate mode context where current procedures needed it, with every remaining native-unit hit classified as covered, native-mode, historical, or by-design.
+- Spectrum cake-autorate state bridge now pins its identity, interface, path, metrics, and approved baseline RTT env explicitly while preserving current script-default behavior.
+- Phase 233 closed its controller-path and cleanup-boundary gates with committed JSON evidence; full-suite green was explicitly operator-waived for known historical Phase 220/221 boundary-test noise.
+- Quick-archive slugs indexed in place and stale silicom pending todos closed with SEED-006 pointers, with hash proof that canonical dormant records stayed unchanged.
+- Operator-approved Phase 230 Nyquist waiver plus SAFE-15 boundary/close zero-diff evidence using existing read-only proof scripts.
+
+---
+
 ## v1.50 cake-autorate Migration Hardening (Shipped: 2026-06-10)
 
 **Phases completed:** 3 phases, 8 plans, 19 tasks

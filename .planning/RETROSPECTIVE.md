@@ -901,6 +901,51 @@ _A living document updated after each milestone. Lessons feed forward into futur
 - 59 commits over 2 days; 8 plans averaged ~8 min each (two checkpointed for operator evidence gates).
 - Code surface: 14 files (+1,874/−38), all scripts/tests/docs — zero `src/wanctl/` mutation.
 
+## Milestone: v1.51 — Post-Migration Consolidation
+
+**Shipped:** 2026-06-12
+**Phases:** 3 (232–234) | **Plans:** 10
+
+### What Was Built
+
+- BOUND-01 cleanup boundary guard (`scripts/check-cleanup-boundary.sh`): git-anchored denylist of the future-doc no-delete list with per-file `must-match-anchor`/`must-exist` policy semantics; fails closed on protected-file removal, git-index removal, immutable drift, and protected-directory replacement; default-suite pytest coverage.
+- `phase231-rollback.sh` confirm-path hardening (CR-01) proven entirely through a PATH-injected SSH shim — no live rollback; external-writer verification fails closed on `active` AND `activating` dual-writer hazards.
+- Digest-permission todo closed by validation against v1.44 Phase 208 T12/TOOL-03 — no reimplementation needed.
+- Gated repo hygiene sweep: 80 superseded trial artifacts removed under explicit operator-approved manifest (FUTURE denylist + findings docs preserved); native-vs-external mode annotations in active docs; Spectrum bridge unit env pinned explicit mirroring ATT.
+- Planning metadata reconciliation: 12 orphan quick-archive slugs indexed archived-in-place (none deleted, hash-proofed); silicom todos closed-with-pointer to canonical SEED-006; Phase 230 Nyquist PARTIAL resolved via operator-approved recorded waiver.
+- SAFE-15 zero-diff proven at all three phase boundaries and regenerated fresh at close HEAD.
+
+### What Worked
+
+- Boundary-guard-before-sweep ordering: the guard existed and was hardened (including a verifier-found bypass class) before any destructive sweep ran — the sweep was structurally unable to touch protected surfaces.
+- Operator gates at every destructive or judgment point (manifest approval, annotation scope choice, baseline RTT pin, full-suite waiver, Nyquist waiver) kept a planning-heavy milestone honest without slowing it down — 3 days total.
+- Close-with-pointer + hash-proof pattern for untracked planning artifacts: where git status is blind, exact filesystem set checks and `git hash-object` records made deletion-invisibility a non-issue.
+- Verification caught real staleness: the gsd-verifier flagged the SAFE-15 milestone-close evidence as bound to an old HEAD; regenerating at close time (during /gsd-complete-milestone) closed it cleanly.
+
+### What Was Inefficient
+
+- The SAFE-15 close evidence freshness is inherently self-referential (committing the evidence advances HEAD); each milestone re-litigates this. A documented convention — evidence binds to the last pre-metadata commit — would end the churn.
+- Phase 220/221 historical boundary-test noise required another operator waiver (third milestone in a row); the one-time retirement decision flagged in the v1.50 retro is still pending.
+- The doc hook misclassifies planning-metadata commits as security-related, forcing SKIP_DOC_CHECK on planning-only commits repeatedly.
+
+### Patterns Established
+
+- Machine-checkable denylist guard gating destructive sweeps (fail-closed, git-anchored, policy-per-row).
+- Risk-acceptance waivers require checkpoint approval before `Accepted: YES`, with a recorded-by footnote (no agent self-signing).
+- Archive immutability with append-only addenda: archived VALIDATION frontmatter never rewritten; resolution lives in decisions/ + STATE ledger + append-only pointer.
+- Archived-in-place with pointer index (not deletion) for untracked planning history.
+
+### Key Lessons
+
+1. Encode the no-delete list as executable policy before any cleanup milestone — the guard's verifier-driven hardening (git-index removal, dir replacement) proved the first version of a guard is never bypass-complete.
+2. Planning-metadata debt compounds quietly: 12 orphan slugs and a stale todo/seed inconsistency survived ~10 milestones because nothing forced reconciliation; a dedicated closeout phase was cheap (2 plans, ~6 min execution) once scoped.
+3. Evidence freshness is part of the proof contract: `passed: true` with a stale `head_commit` is not a milestone-close proof. Re-check freshness at close time, not just at generation time.
+
+### Cost Observations
+
+- 73 commits over 3 days; 10 plans, ~24 tasks; several plans checkpointed for operator gates.
+- Surface: 74 files (+9,216/−283) — scripts/tests/docs/planning only; zero `src/wanctl/` mutation (SAFE-15, 9th consecutive).
+
 ## Cross-Milestone Trends
 
 ### Process Evolution

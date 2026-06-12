@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.51
 milestone_name: Post-Migration Consolidation
-status: verifying
-stopped_at: Completed 234-01-PLAN.md
-last_updated: "2026-06-12T02:54:08.049Z"
-last_activity: 2026-06-12
+status: completed
+stopped_at: v1.51 milestone closed and archived
+last_updated: "2026-06-12T13:07:09.585Z"
+last_activity: 2026-06-12 — Milestone v1.51 completed and archived
 progress:
   total_phases: 3
   completed_phases: 3
@@ -18,23 +18,30 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-10 after v1.50 milestone close)
+See: .planning/PROJECT.md (updated 2026-06-12 after v1.51 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 234 — planning-metadata-reconciliation-closeout
+**Current focus:** Planning next milestone (v1.52 scoping; SEED-006 silicom harness is the standing runner-up)
 
 ## Current Position
 
-Phase: 234 (planning-metadata-reconciliation-closeout) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-06-12
+Phase: Milestone v1.51 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-12 — Milestone v1.51 completed and archived
 
 ## Deferred Items (carried into next milestone)
+
+Re-acknowledged at v1.51 milestone close 2026-06-12 via `/gsd-complete-milestone` Acknowledge-all path. Open set shrank from 23 to 12 artifacts: v1.51 resolved the 12 orphan quick-task slugs (META-01), both stale silicom pending todos (META-02), the Phase 230 Nyquist PARTIAL (META-03), the `phase231-rollback.sh` confirm-path risk (FIX-01), and the digest-permission todo (FIX-02). Remaining open: 1 debug-session index file (false positive), 6 pending todos (event-gated/operational, incl. 2026-06-04 fping eval and 2026-06-03 diffserv4 retest), 5 dormant seeds. **Zero new v1.51 debt.** The 234-VERIFICATION SAFE-15 freshness gap found at close was fixed during close (evidence regenerated at HEAD `aa200dd3`, re-verified 11/11) — not deferred.
+
+<details>
+<summary>Prior acknowledgment (v1.50 close, 2026-06-10)</summary>
 
 Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone` Acknowledge-all path. All 23 open artifacts remain the same pre-existing carry-forward set acknowledged at v1.47, v1.48, and v1.49 closes (1 debug-session index, 12 orphan quick-task slugs, 5 dormant seeds, 5 event-gated/out-of-scope todos). **Zero new v1.50 debt.** New context at this close: v1.50 audit recorded Phase 230 Nyquist PARTIAL (`nyquist_compliant: false`, optional retroactive `/gsd:validate-phase 230`), pre-existing Phase 220/221 boundary-test noise (classified in archived `milestones/v1.50-phases/230-*/deferred-items.md`), and a residual confirm-path fix in `phase231-rollback.sh` to land before any future live rollback exercise. Phase 218 watch remains dormant (instrumentation lives in the non-live native controller).
 
 **v1.51 directly addresses several carry-forward items:** the 12 orphan quick-task slugs (META-01 → Phase 234), the silicom todos/SEED-006 reconciliation (META-02 → Phase 234), the Phase 230 Nyquist PARTIAL (META-03 → Phase 234), the `phase231-rollback.sh` confirm-path fix (FIX-01 → Phase 232), and the operator-summary digest permission todo (FIX-02 → Phase 232).
+
+</details>
 
 | Category | Item | Status |
 |----------|------|--------|
@@ -60,9 +67,15 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 | residual | `phase231-rollback.sh` confirm-path fix | **v1.51 FIX-01 → Phase 232** (no live rollback exercise) |
 | residual | Phase 230 Nyquist PARTIAL | **RESOLVED 2026-06-12 by Phase 234 Plan 02 (META-03)** — operator-approved recorded waiver decisions/phase-230-nyquist-waiver.md; tests green 5/5; archive frontmatter immutable |
 
+### v1.51-shipped-clean
+
+- **Status:** v1.51 milestone complete (closed 2026-06-12)
+- **Operator sign-off:** Kevin — 2026-06-12, via /gsd-verify-work 234 (operator-delegated checks, 5/5 pass) → /gsd-complete-milestone → Acknowledge-all path. 10/10 v1.51 requirements satisfied.
+- **Why this is acceptable:** Milestone surface was scripts/docs/planning/tests only; SAFE-15 controller-path zero-diff held at every phase boundary and was re-proven fresh at close HEAD `aa200dd3` after the verifier flagged stale evidence. No milestone audit was run (planning/docs-only milestone; operator chose acknowledge+close). `/gsd-secure-phase 234` not run — zero code surface, no threat flags declared.
+
 ### v1.50-shipped-clean
 
-- **Status:** Phase complete — ready for verification
+- **Status:** v1.51 milestone complete
 - **Operator sign-off:** Kevin — 2026-06-10, via /gsd-complete-milestone → audit-first → Acknowledge-all → ship path. 10/10 v1.50 requirements satisfied; milestone audit `passed` (10/10 integration seams, 3/3 E2E flows). Zero new v1.50 debt; all 23 open artifacts are pre-existing carry-forward from v1.47/v1.48/v1.49 closes.
 - **Why this is acceptable:** v1.50 spine (DEPLOY/TEST/MON/SOAK/DOCS) shipped cleanly with SAFE-14 held at every phase boundary and milestone close. SOAK-02 closed via operator-accepted no-mutation provable path (both-WAN preflight `overall_pass: true`); the live rollback exercise remains explicitly opt-in with the residual confirm-path fix noted before any future exercise.
 
@@ -102,16 +115,17 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-12T02:54:00.416Z
-Stopped at: Completed 234-01-PLAN.md
+Last session: 2026-06-12 (milestone close)
+Stopped at: v1.51 closed, archived, and tagged
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
+Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Operator Next Steps
 
-- Execute Phase 234 Plan 02 (META-03 waiver/validation path + SAFE-15 closeout proof)
+- Start the next milestone with /gsd-new-milestone
 
 ## Decisions (v1.51)
 
@@ -179,4 +193,4 @@ Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
 | Phase 233 P03 | checkpointed; continuation 5 min | 2 tasks | 4 files |
 | Phase 233 P04 | checkpointed; continuation 5 min | 1 tasks | 3 files |
 | Phase 234 P01 | 4 min | 2 tasks | 7 files |
-| Phase Phase 234 PP02 | checkpointed; continuation 2 min | 3 tasks tasks | 6 files files |
+| Phase 234 P02 | checkpointed; continuation 2 min | 3 tasks | 6 files |
