@@ -63,7 +63,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 235-02-PLAN.md — baseline subcommand + silicom-bypass-init.service oneshot + reconcile bpctl-silicom.service (BOOT-01)
+- [x] 235-02-PLAN.md — baseline subcommand + silicom-bypass-init.service oneshot + reconcile bpctl-silicom.service (BOOT-01)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -115,7 +115,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 235. Bypass Operator CLI + Boot Baseline | v1.52 | 1/3 | In Progress|  |
+| 235. Bypass Operator CLI + Boot Baseline | v1.52 | 2/3 | In Progress|  |
 | 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 0/? | Not started | - |
 | 237. HIL Failure-Injection Harness + Closeout | v1.52 | 0/? | Not started | - |
 

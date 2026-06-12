@@ -23,7 +23,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Boot Baseline (BOOT)
 
-- [ ] **BOOT-01**: A oneshot boot service applies the known-good bpctl baseline to both pairs (`set_dis_bypass off`, `set_bypass_pwoff on`, `set_bypass_pwup off`, `set_disc_pwup off`, `set_std_nic off`) and asserts each setting via read-back
+- [x] **BOOT-01**: A oneshot boot service applies the known-good bpctl baseline to both pairs (`set_dis_bypass off`, `set_bypass_pwoff on`, `set_bypass_pwup off`, `set_disc_pwup off`, `set_std_nic off`) and asserts each setting via read-back
 
 ### HIL Harness (HARN)
 
