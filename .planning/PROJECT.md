@@ -8,6 +8,25 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
+## Current Milestone: v1.52 Silicom Bypass Operationalization
+
+**Goal:** Turn the validated-but-unused Silicom bypass card into an operated capability — safe operator verbs, watchdog-driven fail-open, and a hardware-in-the-loop failure harness — without touching the controller path.
+
+**Target features:**
+
+- **`silicom-bypass` operator CLI** — `status/on/off/disc/conn/arm/disarm/mark` verbs; idempotent; refuses non-bypass-capable interfaces; `--yes` required on destructive ops; `--both-wan-confirm` guard against typo-induced dual-WAN loss
+- **Watchdog fail-open reconciled to two-mode reality** — the generic `silicom-bypass-watchdog@.service` template is still wanctl@-coupled (stale in external cake-autorate mode); cake-autorate-mode watchdog coverage for both pairs, operator opt-in per pair, addressing the live bypass-watchdog failure mode hit during the ATT migration
+- **`silicom-bypass-init` boot baseline** — known-good bpctl settings (`set_dis_bypass off`, `set_bypass_pwoff on`, `set_bypass_pwup off`, `set_disc_pwup off`, `set_std_nic off`) applied at boot and read-back-asserted
+- **HIL test harness (`silicom-test`)** — `ab-cake`, `failover`, `chaos` scenario orchestration composing the CLI verbs; always-on exit trap restoring NIC mode; structured per-run result capture (`tests/silicom/<timestamp>-<scenario>/`)
+
+**Key context:**
+
+- Joint Claude + Codex scope decision 2026-06-12: SEED-006 ranked #1 (operationally real failure mode, zero controller-path risk, harness pays forward). Codex: ROLE-01 premature at ~4 days soak — needs ≥14 stable days PLUS one exercised rollback drill; the SEED-006 harness enables exactly that drill.
+- Partial Phase A surface already exists in repo (bpctl init/dkms/petter/bypass scripts, env examples both WANs, ATT cake-autorate watchdog unit from v1.50) — milestone completes and reconciles, does not rebuild.
+- Settled constraint: NO unpowered fail-open re-litigation (monostable relays, `AuxCurrent=0mA`; UPS coverage compensates — RCA in `docs/SILICOM-BYPASS.md`).
+- SAFE-16 controller-path zero-diff expected, with one explicitly-scoped exception: cake-shaper bypass failure behavior in the watchdog phase.
+- Out of scope: ROLE-01, TAIL-01, SEED-005/007, fping eval, steering changes, scheduled/continuous chaos runs, pytest-harness unification, wanctl Python control-loop integration (bypass path skips Linux entirely).
+
 ## Recently Shipped: v1.51 Post-Migration Consolidation (shipped 2026-06-12)
 
 **Delivered:** Consolidated the two-mode (native + cake-autorate) reality and closed the pre-existing carry-forward stack with zero controller-path mutation. 3 phases (232–234), 10 plans, 24 tasks, 10/10 REQs satisfied, UAT 5/5 passed, 234-VERIFICATION re-verified 11/11 at close. Full record: `milestones/v1.51-ROADMAP.md`, phase evidence in `milestones/v1.51-phases/`.
@@ -1036,4 +1055,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-12 after v1.51 milestone. Both WANs run cake-autorate external-controller mode with wanctl state bridges; `wanctl@{spectrum,att}` disabled as the verified rollback path; native wanctl remains the MikroTik controller and portable default. Phase 218 watch dormant (instrumentation lives in the non-live native controller). Next: v1.52 scoping._
+_Last updated: 2026-06-12 at v1.52 milestone open (Silicom Bypass Operationalization). Both WANs run cake-autorate external-controller mode with wanctl state bridges; `wanctl@{spectrum,att}` disabled as the verified rollback path; native wanctl remains the MikroTik controller and portable default. Phase 218 watch dormant (instrumentation lives in the non-live native controller)._
