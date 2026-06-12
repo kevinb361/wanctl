@@ -10,6 +10,7 @@
 #   ./deploy.sh wan1 target-host --with-steering  # Include steering daemon
 #   ./deploy.sh wan1 192.168.1.100            # Deploy to IP address
 #   ./deploy.sh --install-only target-host    # Only run install.sh on target
+#   ./deploy.sh --silicom-bypass-only target-host  # Only install Silicom bypass artifacts
 #
 set -e
 
@@ -70,6 +71,11 @@ ATT_CAKE_AUTORATE_SYSTEMD=(
     "deploy/systemd/silicom-bypass-watchdog-cake-autorate-att.service"
 )
 
+SILICOM_BYPASS_SYSTEMD=(
+    "deploy/systemd/silicom-bypass-init.service"
+    "deploy/systemd/bpctl-silicom.service"
+)
+
 # Helper functions
 print_header() {
     echo -e "${BLUE}========================================${NC}"
@@ -109,6 +115,9 @@ usage() {
     echo "                     Deploy ATT external cake-autorate mode artifacts"
     echo "                     (only valid with wan_name=att; conflicts with wanctl@att)"
     echo "  --install-only     Only run install.sh on target (no file deployment)"
+    echo "  --silicom-bypass-only <target_host>"
+    echo "                     Only install Silicom bypass CLI/config/systemd artifacts"
+    echo "                     (daemon-reload only; no unit enable/start; no wanctl deploy)"
     echo "  --dry-run          Show what would be deployed without doing it"
     echo "  --help             Show this help message"
     echo ""
@@ -116,6 +125,7 @@ usage() {
     echo "  $0 wan1 cake-wan1                  # Deploy wan1 to host cake-wan1"
     echo "  $0 wan2 192.168.1.100 --with-steering  # Deploy with steering"
     echo "  $0 --install-only cake-wan1       # Just run installation on target"
+    echo "  $0 --silicom-bypass-only cake-shaper  # Install Silicom bypass artifacts only"
 }
 
 check_prerequisites() {
@@ -503,6 +513,51 @@ deploy_att_cake_autorate() {
     print_success "ATT cake-autorate artifacts deployed"
 }
 
+print_silicom_bypass_plan() {
+    echo "  - install scripts/silicom-bypass to /usr/local/sbin/silicom-bypass (0755)"
+    echo "  - install scripts/wanctl-bpctl-init to /usr/local/sbin/wanctl-bpctl-init (0755)"
+    echo "  - install deploy/scripts/silicom-bypass.conf.example to /etc/silicom-bypass.conf only if absent (0644)"
+    echo "  - install silicom-bypass-init.service and bpctl-silicom.service to $TARGET_SYSTEMD_DIR"
+    echo "  - run systemctl daemon-reload only; do not enable or start any unit"
+    echo "  - skip deploy_code, deploy_config, verify_deployment, validation, and next-steps"
+}
+
+deploy_silicom_bypass() {
+    print_step "Deploying Silicom bypass standalone artifacts..."
+
+    scp "$PROJECT_ROOT/scripts/silicom-bypass" "$TARGET_HOST:/tmp/silicom-bypass"
+    ssh "$TARGET_HOST" "sudo mv /tmp/silicom-bypass /usr/local/sbin/silicom-bypass && sudo chown root:root /usr/local/sbin/silicom-bypass && sudo chmod 755 /usr/local/sbin/silicom-bypass"
+    echo "  -> /usr/local/sbin/silicom-bypass"
+
+    scp "$PROJECT_ROOT/scripts/wanctl-bpctl-init" "$TARGET_HOST:/tmp/wanctl-bpctl-init"
+    ssh "$TARGET_HOST" "sudo mv /tmp/wanctl-bpctl-init /usr/local/sbin/wanctl-bpctl-init && sudo chown root:root /usr/local/sbin/wanctl-bpctl-init && sudo chmod 755 /usr/local/sbin/wanctl-bpctl-init"
+    echo "  -> /usr/local/sbin/wanctl-bpctl-init"
+
+    scp "$PROJECT_ROOT/deploy/scripts/silicom-bypass.conf.example" "$TARGET_HOST:/tmp/silicom-bypass.conf.example"
+    ssh "$TARGET_HOST" "if sudo test -e /etc/silicom-bypass.conf; then sudo rm -f /tmp/silicom-bypass.conf.example; else sudo mv /tmp/silicom-bypass.conf.example /etc/silicom-bypass.conf && sudo chown root:root /etc/silicom-bypass.conf && sudo chmod 644 /etc/silicom-bypass.conf; fi"
+    echo "  -> /etc/silicom-bypass.conf (install-if-absent)"
+
+    for file in "${SILICOM_BYPASS_SYSTEMD[@]}"; do
+        if [[ -f "$file" ]]; then
+            local basename=$(basename "$file")
+            scp "$PROJECT_ROOT/$file" "$TARGET_HOST:/tmp/$basename"
+            ssh "$TARGET_HOST" "sudo mv /tmp/$basename $TARGET_SYSTEMD_DIR/$basename && sudo chown root:root $TARGET_SYSTEMD_DIR/$basename"
+            echo "  -> $basename"
+        else
+            print_error "Missing Silicom bypass systemd unit: $file"
+            exit 1
+        fi
+    done
+
+    if ! ssh "$TARGET_HOST" "test -e /dev/bpctl0 || ls /dev/bpctl* >/dev/null 2>&1"; then
+        print_warning "bpctl device/module path not currently present on $TARGET_HOST; installed units/scripts, but live use requires bpctl hardware readiness"
+    fi
+
+    ssh "$TARGET_HOST" "sudo systemctl daemon-reload"
+
+    print_success "Silicom bypass artifacts deployed (units not enabled or started)"
+}
+
 verify_deployment() {
     local wan_name="$1"
 
@@ -685,6 +740,7 @@ WITH_STEERING=false
 WITH_SPECTRUM_CAKE_AUTORATE=false
 WITH_ATT_CAKE_AUTORATE=false
 INSTALL_ONLY=false
+SILICOM_BYPASS_ONLY=false
 DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
@@ -703,6 +759,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --install-only)
             INSTALL_ONLY=true
+            shift
+            ;;
+        --silicom-bypass-only)
+            SILICOM_BYPASS_ONLY=true
             shift
             ;;
         --dry-run)
@@ -745,6 +805,33 @@ if [[ "$INSTALL_ONLY" == "true" ]]; then
     print_header "wanctl Remote Installation"
     check_prerequisites
     run_remote_install
+    exit 0
+fi
+
+# Handle --silicom-bypass-only mode
+if [[ "$SILICOM_BYPASS_ONLY" == "true" ]]; then
+    TARGET_HOST="$WAN_NAME"  # First arg is actually the host
+    if [[ -z "$TARGET_HOST" ]]; then
+        print_error "Target host required for --silicom-bypass-only"
+        usage
+        exit 1
+    fi
+
+    print_header "Silicom bypass standalone deploy"
+    echo ""
+    echo "Target:      $TARGET_HOST"
+    echo ""
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        print_warning "DRY RUN - no changes will be made"
+        echo ""
+        print_step "Planned Silicom bypass actions:"
+        print_silicom_bypass_plan
+        exit 0
+    fi
+
+    check_prerequisites
+    deploy_silicom_bypass
     exit 0
 fi
 

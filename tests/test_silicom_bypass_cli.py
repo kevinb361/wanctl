@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import textwrap
 from pathlib import Path
@@ -8,8 +9,17 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CLI = REPO_ROOT / "scripts" / "silicom-bypass"
+DEPLOY = REPO_ROOT / "scripts" / "deploy.sh"
 INIT_SERVICE = REPO_ROOT / "deploy" / "systemd" / "silicom-bypass-init.service"
 BPCTL_SERVICE = REPO_ROOT / "deploy" / "systemd" / "bpctl-silicom.service"
+
+SILICOM_BYPASS_ARTIFACTS = {
+    "scripts/silicom-bypass",
+    "scripts/wanctl-bpctl-init",
+    "deploy/scripts/silicom-bypass.conf.example",
+    "deploy/systemd/silicom-bypass-init.service",
+    "deploy/systemd/bpctl-silicom.service",
+}
 
 BASELINE_MISMATCHED = {
     "dis_bypass": "on",
@@ -431,3 +441,104 @@ def test_init_service_artifact() -> None:
     bpctl = BPCTL_SERVICE.read_text(encoding="utf-8")
     assert "ExecStart=/usr/local/sbin/wanctl-bpctl-init" in bpctl
     assert any("Before=" in line and "cake-autorate" in line for line in bpctl.splitlines())
+
+
+def _silicom_deploy_function_body(deploy_text: str) -> str:
+    match = re.search(r"^deploy_silicom_bypass\(\) \{\n(?P<body>.*?)^\}", deploy_text, re.S | re.M)
+    assert match is not None, "deploy_silicom_bypass() function not found"
+    return match.group("body")
+
+
+def _silicom_systemd_array_entries(deploy_text: str) -> set[str]:
+    match = re.search(r"^SILICOM_BYPASS_SYSTEMD=\(\n(?P<body>.*?)^\)", deploy_text, re.S | re.M)
+    assert match is not None, "SILICOM_BYPASS_SYSTEMD array not found"
+    return set(re.findall(r'"(deploy/systemd/[^"]+)"', match.group("body")))
+
+
+def test_artifacts_repo_owned() -> None:
+    deploy_text = DEPLOY.read_text(encoding="utf-8")
+    function_body = _silicom_deploy_function_body(deploy_text)
+
+    parsed = {
+        path
+        for path in re.findall(r'\$PROJECT_ROOT/([^"\s]+)', function_body)
+        if not path.startswith("$")
+    }
+    parsed |= _silicom_systemd_array_entries(deploy_text)
+
+    assert INIT_SERVICE.exists()
+    assert BPCTL_SERVICE.exists()
+    for artifact in SILICOM_BYPASS_ARTIFACTS:
+        assert (REPO_ROOT / artifact).exists(), artifact
+
+    assert "scripts/silicom-bypass" in parsed
+    assert "scripts/wanctl-bpctl-init" in parsed
+    assert "deploy/scripts/silicom-bypass.conf.example" in parsed
+    assert "deploy/systemd/silicom-bypass-init.service" in parsed
+    assert "deploy/systemd/bpctl-silicom.service" in parsed
+    assert "silicom-bypass-init.service" in deploy_text
+    assert "bpctl-silicom.service" in deploy_text
+    assert "wanctl-bpctl-init" in deploy_text
+
+    nonexistent = {path for path in parsed if not (REPO_ROOT / path).exists()}
+    assert not nonexistent, "deploy.sh Silicom path references missing repo file(s): " + ", ".join(
+        sorted(nonexistent)
+    )
+
+
+def test_deploy_has_silicom_standalone_mode() -> None:
+    text = DEPLOY.read_text(encoding="utf-8")
+
+    assert "--silicom-bypass-only" in text
+    assert "SILICOM_BYPASS_ONLY" in text
+    assert "deploy_silicom_bypass" in text
+    assert "Silicom bypass standalone deploy" in text
+
+
+def test_deploy_installs_init_unit_dependencies() -> None:
+    text = DEPLOY.read_text(encoding="utf-8")
+    function_body = _silicom_deploy_function_body(text)
+    systemd_entries = _silicom_systemd_array_entries(text)
+
+    assert "deploy/systemd/silicom-bypass-init.service" in systemd_entries
+    assert "deploy/systemd/bpctl-silicom.service" in systemd_entries
+    assert "scripts/wanctl-bpctl-init" in function_body
+    assert "/usr/local/sbin/wanctl-bpctl-init" in function_body
+
+
+def test_silicom_standalone_short_circuits() -> None:
+    text = DEPLOY.read_text(encoding="utf-8")
+    handler_match = re.search(
+        r'if \[\[ "\$SILICOM_BYPASS_ONLY" == "true" \]\]; then(?P<body>.*?)^fi',
+        text,
+        re.S | re.M,
+    )
+    assert handler_match is not None, "SILICOM_BYPASS_ONLY handler not found"
+    handler_body = handler_match.group("body")
+
+    handler_start = handler_match.start()
+    handler_exit = handler_start + handler_body.rfind("exit 0")
+    deploy_code_call = text.index("\ndeploy_code\n")
+
+    assert "TARGET_HOST=\"$WAN_NAME\"" in handler_body
+    assert "Target host required for --silicom-bypass-only" in handler_body
+    assert "deploy_silicom_bypass" in handler_body
+    assert handler_exit < deploy_code_call
+
+
+def test_silicom_standalone_dry_run_is_non_mutating() -> None:
+    result = subprocess.run(
+        ["bash", str(DEPLOY), "--silicom-bypass-only", "cake-shaper", "--dry-run"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert "DRY RUN" in result.stdout
+    assert "/usr/local/sbin/silicom-bypass" in result.stdout
+    assert "/usr/local/sbin/wanctl-bpctl-init" in result.stdout
+    assert "bpctl-silicom.service" in result.stdout
+    assert "skip deploy_code" in result.stdout
+    assert "Checking prerequisites" not in result.stdout
