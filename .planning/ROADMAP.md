@@ -54,7 +54,7 @@
   5. After a boot (or a manual run of the oneshot), the `silicom-bypass-init` service has applied the known-good baseline to both pairs (`set_dis_bypass off`, `set_bypass_pwoff on`, `set_bypass_pwup off`, `set_disc_pwup off`, `set_std_nic off`) and asserted each setting via read-back, failing loudly if any setting did not take (BOOT-01).
   6. SAFE-16 controller-path zero-diff holds at the phase boundary (verified, not assumed).
 
-**Plans**: 3 plans
+**Plans**: 4 plans (01–03 executed; 04 closes verification gaps CR-01/WR-01/WR-02)
 
 Plans:
 **Wave 1**
@@ -68,6 +68,10 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [x] 235-03-PLAN.md — operator-gated deploy seam + docs/runbook + SAFE-16 boundary proof + operator live-verify checkpoint (SAFE-16)
+
+**Wave 4** *(gap closure — verification found gaps_found 2026-06-12)*
+
+- [ ] 235-04-PLAN.md — deploy-surface hardening: per-deploy mktemp -d + atomic install (CR-01), --silicom-bypass-only fail-closed arg validation (WR-02), manual oneshot runbook restart coherence (WR-01) — offline-verifiable, no src/wanctl diff (BOOT-01 runbook + deploy safety)
 
 **UI hint**: no
 
@@ -115,7 +119,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 235. Bypass Operator CLI + Boot Baseline | v1.52 | 3/3 | Complete   | 2026-06-12 |
+| 235. Bypass Operator CLI + Boot Baseline | v1.52 | 3/4 | Gap closure | - |
 | 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 0/? | Not started | - |
 | 237. HIL Failure-Injection Harness + Closeout | v1.52 | 0/? | Not started | - |
 
