@@ -7,6 +7,8 @@ files:
   - scripts/silicom-bypass (planned)
   - deploy/systemd/silicom-bypass-watchdog@.service (planned)
   - deploy/systemd/silicom-bypass-init.service (planned)
+closed_by_phase: 234
+verdict: consolidated_into_SEED-006_canonical_dormant_carrier
 ---
 
 ## Problem
@@ -117,3 +119,9 @@ Recommended defaults (carry into plan phase unless changed):
 - Logging: journal only for state changes; `mark` may also write to flat log
 
 Source: SILICOM-BYPASS.md RCA session 2026-04-28.
+
+## Resolution
+
+**Closed by Phase 234 Plan 01 (META-02).** This pending todo is a stale duplicate of `.planning/todos/completed/2026-04-28-add-silicom-bypass-nic-operational-tooling.md`, which was already consolidated into `.planning/seeds/SEED-006-v145-silicom-bypass-tooling-and-harness.md` (Phase A) on 2026-05-26. SEED-006 is the single canonical dormant carrier.
+
+The underlying bypass-watchdog work is operationally real: the ATT migration hit a live bypass-watchdog failure mode, so this is explicitly **NOT false-closed**. The operational tooling remains deferred to v1.52 scoping under SEED-006. This closed entry only removes the duplicate pending claim for META-02 in Phase 234 Plan 01.
