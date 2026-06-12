@@ -525,27 +525,32 @@ print_silicom_bypass_plan() {
 deploy_silicom_bypass() {
     print_step "Deploying Silicom bypass standalone artifacts..."
 
-    scp "$PROJECT_ROOT/scripts/silicom-bypass" "$TARGET_HOST:/tmp/silicom-bypass"
-    ssh "$TARGET_HOST" "sudo mv /tmp/silicom-bypass /usr/local/sbin/silicom-bypass && sudo chown root:root /usr/local/sbin/silicom-bypass && sudo chmod 755 /usr/local/sbin/silicom-bypass"
+    local remote_tmp
+    remote_tmp=$(ssh "$TARGET_HOST" "mktemp -d /tmp/wanctl-silicom.XXXXXX")
+    ssh "$TARGET_HOST" "chmod 700 '$remote_tmp'"
+
+    scp "$PROJECT_ROOT/scripts/silicom-bypass" "$TARGET_HOST:$remote_tmp/silicom-bypass"
+    ssh "$TARGET_HOST" "sudo install -o root -g root -m 0755 '$remote_tmp/silicom-bypass' /usr/local/sbin/silicom-bypass"
     echo "  -> /usr/local/sbin/silicom-bypass"
 
-    scp "$PROJECT_ROOT/scripts/wanctl-bpctl-init" "$TARGET_HOST:/tmp/wanctl-bpctl-init"
-    ssh "$TARGET_HOST" "sudo mv /tmp/wanctl-bpctl-init /usr/local/sbin/wanctl-bpctl-init && sudo chown root:root /usr/local/sbin/wanctl-bpctl-init && sudo chmod 755 /usr/local/sbin/wanctl-bpctl-init"
+    scp "$PROJECT_ROOT/scripts/wanctl-bpctl-init" "$TARGET_HOST:$remote_tmp/wanctl-bpctl-init"
+    ssh "$TARGET_HOST" "sudo install -o root -g root -m 0755 '$remote_tmp/wanctl-bpctl-init' /usr/local/sbin/wanctl-bpctl-init"
     echo "  -> /usr/local/sbin/wanctl-bpctl-init"
 
-    scp "$PROJECT_ROOT/deploy/scripts/silicom-bypass.conf.example" "$TARGET_HOST:/tmp/silicom-bypass.conf.example"
-    ssh "$TARGET_HOST" "if sudo test -e /etc/silicom-bypass.conf; then sudo rm -f /tmp/silicom-bypass.conf.example; else sudo mv /tmp/silicom-bypass.conf.example /etc/silicom-bypass.conf && sudo chown root:root /etc/silicom-bypass.conf && sudo chmod 644 /etc/silicom-bypass.conf; fi"
+    scp "$PROJECT_ROOT/deploy/scripts/silicom-bypass.conf.example" "$TARGET_HOST:$remote_tmp/silicom-bypass.conf.example"
+    ssh "$TARGET_HOST" "if sudo test -e /etc/silicom-bypass.conf; then :; else sudo install -o root -g root -m 0644 '$remote_tmp/silicom-bypass.conf.example' /etc/silicom-bypass.conf; fi"
     echo "  -> /etc/silicom-bypass.conf (install-if-absent)"
 
     for file in "${SILICOM_BYPASS_SYSTEMD[@]}"; do
         if [[ -f "$file" ]]; then
             local basename=$(basename "$file")
-            scp "$PROJECT_ROOT/$file" "$TARGET_HOST:/tmp/$basename"
-            ssh "$TARGET_HOST" "sudo mv /tmp/$basename $TARGET_SYSTEMD_DIR/$basename && sudo chown root:root $TARGET_SYSTEMD_DIR/$basename"
+            scp "$PROJECT_ROOT/$file" "$TARGET_HOST:$remote_tmp/$basename"
+            ssh "$TARGET_HOST" "sudo install -o root -g root -m 0644 '$remote_tmp/$basename' $TARGET_SYSTEMD_DIR/$basename"
             echo "  -> $basename"
         else
             print_error "Missing Silicom bypass systemd unit: $file"
-            exit 1
+            ssh "$TARGET_HOST" "rm -rf '$remote_tmp'"
+            return 1
         fi
     done
 
@@ -554,6 +559,8 @@ deploy_silicom_bypass() {
     fi
 
     ssh "$TARGET_HOST" "sudo systemctl daemon-reload"
+
+    ssh "$TARGET_HOST" "rm -rf '$remote_tmp'"
 
     print_success "Silicom bypass artifacts deployed (units not enabled or started)"
 }
@@ -810,12 +817,16 @@ fi
 
 # Handle --silicom-bypass-only mode
 if [[ "$SILICOM_BYPASS_ONLY" == "true" ]]; then
-    TARGET_HOST="$WAN_NAME"  # First arg is actually the host
-    if [[ -z "$TARGET_HOST" ]]; then
-        print_error "Target host required for --silicom-bypass-only"
+    if [[ -z "$WAN_NAME" || -n "$TARGET_HOST" ]]; then
+        print_error "Usage: $0 --silicom-bypass-only <target_host> [--dry-run]"
         usage
         exit 1
     fi
+    if [[ "$WITH_STEERING" == "true" || "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" || "$WITH_ATT_CAKE_AUTORATE" == "true" ]]; then
+        print_error "--silicom-bypass-only cannot be combined with WAN deployment options"
+        exit 1
+    fi
+    TARGET_HOST="$WAN_NAME"  # First arg is actually the host
 
     print_header "Silicom bypass standalone deploy"
     echo ""

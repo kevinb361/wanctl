@@ -576,7 +576,7 @@ def test_silicom_standalone_short_circuits() -> None:
     deploy_code_call = text.index("\ndeploy_code\n")
 
     assert "TARGET_HOST=\"$WAN_NAME\"" in handler_body
-    assert "Target host required for --silicom-bypass-only" in handler_body
+    assert "Usage: $0 --silicom-bypass-only <target_host> [--dry-run]" in handler_body
     assert "deploy_silicom_bypass" in handler_body
     assert handler_exit < deploy_code_call
 
