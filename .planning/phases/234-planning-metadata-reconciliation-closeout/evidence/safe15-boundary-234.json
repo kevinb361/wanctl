@@ -20,7 +20,7 @@
   "att_config_diff_count": 0,
   "att_config_path": "configs/att.yaml",
   "baseline_commit": "00924077cd86d6971087b0f2076ab227f5bf941c",
-  "checked_at": "2026-06-12T02:52:20Z",
+  "checked_at": "2026-06-12T02:54:38Z",
   "committed_clean": true,
   "controller_path_diff_count": 0,
   "dirty_tree": {
@@ -44,7 +44,7 @@
     "src/wanctl/wan_controller.py",
     "src/wanctl/wan_controller_state.py"
   ],
-  "head_commit": "d38e3790b86fda2dfef4d410cc453a6cae771c0b",
+  "head_commit": "5637bd3f493560fd4aaf6ab01d803ea08ab13730",
   "notes": "SAFE-13 read-only boundary check; src/wanctl/backends/ expanded to per-file hash targets from anchor/worktree tracked-file union.",
   "passed": true,
   "per_file_object_ids": {
