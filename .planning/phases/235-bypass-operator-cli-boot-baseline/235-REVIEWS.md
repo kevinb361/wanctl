@@ -2,12 +2,14 @@
 phase: 235
 reviewers: [codex]
 reviewed_at: 2026-06-12T14:51:07Z
+cycle_2_reviewed_at: 2026-06-12T17:55:00Z
+cycles: 2
 plans_reviewed: [235-01-PLAN.md, 235-02-PLAN.md, 235-03-PLAN.md]
 ---
 
 # Cross-AI Plan Review — Phase 235
 
-## Codex Review
+## Codex Review — Cycle 1 (pre-revision; addressed by commit 79e45753)
 
 **Summary**
 
@@ -90,21 +92,77 @@ The plans are directionally strong: tight scope, offline-first testing, explicit
 
 ---
 
+## Codex Review — Cycle 2 (convergence; reviews plans as revised by commit 79e45753)
+
+**Summary**
+
+The cycle-2 revisions resolve the four prior HIGH concerns in substance. The plans now require a stateful fake, non-empty `get_bypass_slave` defaults, mandatory boot readiness polling, and a real `--silicom-bypass-only` short-circuit modeled on the existing `--install-only` path. I verified the described `scripts/deploy.sh` structure locally: current `--with-*` flags do fall through into the full deploy pipeline, so the standalone-mode correction is the right shape. Remaining risk is mostly test-contract precision, especially Plan 02's baseline fake/read-before-set expectations.
+
+**Prior HIGH Resolution Table**
+
+| Prior HIGH | Verdict | Current Plan Evidence |
+|---|---:|---|
+| 235-01 fake `bpctl_util` was not stateful | FULLY RESOLVED | Plan 01 now says: "`STATEFUL FAKE bpctl_util contract... The fake MUST model card state transitions`" and "`set_* verbs WRITE the new state... get_* verbs READ current state`". It also tests read-back: "`status att-modem` and assert the stateful fake now reports `Bypass`". |
+| 235-01 tests omitted `get_bypass_slave` responses | FULLY RESOLVED | Plan 01 now requires: "`get_bypass_slave MUST default to a NON-EMPTY paired iface for EVERY configured pair`" and adds the negative override: "`slave_overrides={"spec-modem": ""}`". |
+| 235-02 interface readiness polling was optional | FULLY RESOLVED | Plan 02 makes it explicit: "`MANDATORY per-pair readiness poll`", "`the poll is NON-OPTIONAL`", and acceptance requires it "`dies non-zero if a pair never becomes capable`". |
+| 235-03 deploy seam was not truly decoupled | FULLY RESOLVED | Plan 03 now says additive flags are wrong because they "`still run deploy_code, deploy_config, verify_deployment...`" and requires a `SILICOM_BYPASS_ONLY` block that `exit 0`s "`BEFORE any WAN validation or deploy_* calls`". This matches the real deploy.sh structure. |
+
+**Strengths**
+
+- The fake `bpctl_util` contract is much better for TOOL verbs: state is persisted per interface, read-back assertions see writes, and `get_bypass_slave` now defaults to capable.
+- `disc` / `conn` coverage is now explicit, including idempotency.
+- TOOL-03 now correctly treats `Disconnect` as non-NIC, not just `Bypass`.
+- The boot plan now has the right shape: CLI-owned `baseline`, mandatory bounded readiness poll, read-before-set, read-back assertion, and loud failure on mismatch.
+- The deploy seam is now conceptually correct: a standalone flag, early short-circuit, install-if-absent config, no unit enable/start.
+- Live-host work is properly gated and distinguishes "live verified" from "live waived".
+
+**Concerns**
+
+- **HIGH (NEW, 235-02):** Plan 02 has a baseline fake/test contradiction that can make a correct read-before-set implementation fail. Plan 01 defines default fake state as "`non-Bypass, non-Disconnect, not-std-NIC`". Plan 02 requires `set_std_nic off -> get_std_nic expect "not in Standard NIC mode"` and also says read-before-set must "`SKIP the set_*`" when already matching. But `test_baseline_applies_and_asserts` says with "`default fake (capable pairs, NIC posture)`" it should see "`all five set_* verbs... set_std_nic off`". A correct implementation would skip `set_std_nic off` under that default.
+- **MEDIUM (235-02):** Plan 02 says to reuse the Plan-01 fake, but Plan 01 only explicitly models `bypass | disc | std_nic`. Baseline needs additional policy keys: `dis_bypass`, `bypass_pwoff`, `bypass_pwup`, and `disc_pwup`. The tests imply this extension, but the fake contract should state it directly.
+- **MEDIUM (235-03):** The standalone deploy mode installs `silicom-bypass`, `/etc/silicom-bypass.conf`, and `silicom-bypass-init.service`, but Plan 02 also modifies `deploy/systemd/bpctl-silicom.service`, and the init unit `Requires=bpctl-silicom.service`. Current `scripts/deploy.sh` does not install `bpctl-silicom.service` or `wanctl-bpctl-init`. If the live host lacks or has stale versions, the manual oneshot can fail despite the standalone deploy succeeding.
+- **MEDIUM (235-03):** The deploy-seam tests are mostly static. `test_silicom_standalone_short_circuits` is useful, but it will not catch shell syntax breakage or a malformed dry-run path.
+- **LOW (235-01):** `status all` and no-argument `status` behavior are not directly tested, even though the operator-facing contract says `status [pair|all]`.
+
+**Suggestions**
+
+- In Plan 02, extend the fake contract explicitly for all baseline policy keys and define defaults separately from TOOL "NIC posture".
+- Change `test_baseline_applies_and_asserts` to prime both pairs into a known mismatched baseline-policy state before running `baseline`, then expect all five `set_*` verbs.
+- Keep `test_baseline_read_before_set_skips_writes`, but prime one pair fully correct and the other explicitly mismatched.
+- Add `bpctl-silicom.service` and probably `scripts/wanctl-bpctl-init` to the standalone deploy path, or add a hard preflight that proves they already exist before installing/enabling `silicom-bypass-init.service`.
+- Add automated deploy checks: `bash -n scripts/deploy.sh` and `./scripts/deploy.sh --silicom-bypass-only cake-shaper --dry-run` with assertions on output.
+- Add a small `status all` test and a usage/unknown-subcommand test.
+
+**Risk Assessment**
+
+**MEDIUM as written.** The four original HIGHs are resolved, but Plan 02's baseline fake/default/read-before-set mismatch is a real test-contract problem: it could make correct code fail or push the executor into ad hoc fixture changes. Fix that and clarify the deploy dependency on `bpctl-silicom.service`; after that I'd call Phase 235 LOW-MEDIUM.
+
+---
+
 ## Consensus Summary
 
-Single external reviewer (Codex) for this cycle — consensus is the Codex verdict itself.
+Single external reviewer (Codex) across both cycles — consensus is the Codex verdict itself.
+
+### Cycle Convergence Status
+
+| Cycle-1 HIGH | Cycle-2 Verdict |
+|---|---|
+| 235-01: fake `bpctl_util` not stateful | FULLY RESOLVED |
+| 235-01: `get_bypass_slave` fixtures missing | FULLY RESOLVED |
+| 235-02: readiness polling optional | FULLY RESOLVED |
+| 235-03: deploy seam not truly decoupled | FULLY RESOLVED |
+
+**Outstanding HIGHs after cycle 2: 1 (new)**
 
 ### Agreed Strengths
 - Tight phase scope: tooling/boot-guards only, no controller-path mutation; SAFE-16 discipline carried through all three plans.
-- Offline-first testing via the `BPCTL_UTIL` seam; live-host actions kept behind explicit operator gates (`--yes`, `--both-wan-confirm`, deploy checkpoint).
-- Correct service split (`bpctl-silicom.service` owns module/device; `silicom-bypass-init.service` owns policy baseline) with `silicom-bypass baseline` as single source of truth.
+- Offline-first testing via the stateful `BPCTL_UTIL` fake seam; live-host actions kept behind explicit operator gates (`--yes`, `--both-wan-confirm`, deploy checkpoint distinguishing live-verified from live-waived).
+- Correct service split (`bpctl-silicom.service` owns module/device; `silicom-bypass-init.service` owns policy baseline) with `silicom-bypass baseline` as single source of truth, mandatory readiness poll, and read-before-set.
+- TRUE standalone `--silicom-bypass-only` deploy mode modeled on the `--install-only` short-circuit, verified against the real deploy.sh structure.
 
-### Agreed Concerns
-- **HIGH (235-01):** Fake `bpctl_util` is not stateful — canned `get_bypass` responses would fail a correct read-back-asserting CLI (e.g. `on att-modem --yes` after `set_bypass on`).
-- **HIGH (235-01):** Test fixtures omit `get_bypass_slave` responses; capability probing would fail most happy-path tests unless the fake returns a non-empty slave.
-- **HIGH (235-02):** Interface readiness polling is optional in Task 1 but must be mandatory for a boot oneshot — `After=bpctl-silicom.service` proves module/device readiness, not per-iface bpctl readiness.
-- **HIGH (235-03):** "Decoupled from the wanctl release/restart path" conflicts with current `scripts/deploy.sh` structure unless a true standalone mode is added.
-- **MEDIUM:** TOOL-02 under-tested (`disc`/`conn` coverage); TOOL-03 must treat Disconnect as non-NIC; repeated boot-time policy writes may hit card EEPROM/NVRAM (prefer read-before-set); ordering-only (no `Wants=`) unit relationship should be explicit; runbook `deploy.sh --with-silicom-bypass` example invalid for current parser; skipped live verification should be recorded as an operator waiver, not as verified.
+### Agreed Concerns (current)
+- **HIGH (NEW, 235-02):** `test_baseline_applies_and_asserts` expects all five `set_*` verbs under the default fake NIC posture, but the default already matches the `set_std_nic off` want string ("not in Standard NIC mode") — a correct read-before-set implementation would skip that write and fail the test. Fix: prime pairs into a mismatched baseline-policy state before expecting all five writes.
+- **MEDIUM:** Plan-01 fake contract only names `bypass|disc|std_nic` keys — baseline needs `dis_bypass`, `bypass_pwoff`, `bypass_pwup`, `disc_pwup` modeled explicitly; standalone deploy does not install `bpctl-silicom.service`/`wanctl-bpctl-init` that the init unit `Requires=` (needs preflight or inclusion); deploy-seam tests are static-only (add `bash -n` + dry-run assertion); `status all` untested (LOW).
 
 ### Divergent Views
-None — single reviewer this cycle.
+None — single reviewer.
