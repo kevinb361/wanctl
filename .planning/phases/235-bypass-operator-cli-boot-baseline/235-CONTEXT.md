@@ -34,7 +34,7 @@ Production is a live dual-WAN host — any plan step that touches the live host 
 - All state changes log to journal.
 
 ### Boot baseline (BOOT-01)
-- `silicom-bypass-init.service` (oneshot) applies to BOTH pairs, after `bpctl_mod` loads and after the `att-modem` / `att-router` / `sil-spare1` / `sil-spare2` interfaces exist:
+- `silicom-bypass-init.service` (oneshot) applies to BOTH pairs, after `bpctl_mod` loads and after the `att-modem` / `att-router` / `spec-modem` / `spec-router` interfaces exist (live names; seed's `sil-spare*` are stale):
   - `set_dis_bypass off`
   - `set_bypass_pwoff on`
   - `set_bypass_pwup off`
@@ -48,8 +48,9 @@ Production is a live dual-WAN host — any plan step that touches the live host 
 - Watchdog petter/bypass scripts and watchdog units (`silicom-bypass-watchdog@.service`, `silicom-bypass-watchdog-cake-autorate-att.service`) are out of scope here beyond not breaking them — their reconciliation is Phase 236.
 
 ### Config
-- `/etc/silicom-bypass.conf` with `PAIRS="att-modem sil-spare1"` (master interface per pair), plus `WD_TIMEOUT_MS=10000`, `HEARTBEAT_MS=3000` reserved for Phase 236 consumption.
+- `/etc/silicom-bypass.conf` with `PAIRS="att-modem spec-modem"` (master/control interface per pair), plus `WD_TIMEOUT_MS=10000`, `HEARTBEAT_MS=3000` reserved for Phase 236 consumption.
 - Pair-to-interface mapping lives in config, not hardcoded in the CLI.
+- NOTE: the seed says `PAIRS="att-modem sil-spare1"`, but `sil-spare1`/`sil-spare2` were renamed to `spec-modem`/`spec-router` on 2026-04-28 (verified against docs/SILICOM-BYPASS.md MAC-pinned .link files and deploy/scripts/cake-autorate-spectrum-qdisc-init). Live names win.
 
 ### Safety / SAFE-16
 - Zero controller-path source diff at the phase boundary, verified (e.g. `git diff` over the protected file list), not assumed.
@@ -74,7 +75,8 @@ Resolved conservatively per seed "Recommended Defaults" because discuss-phase wa
 2. **Expose bypass state via wanctl health endpoint:** NO for this phase. Observability coupling is deferred; keeping it out preserves the "tooling only, zero controller-path diff" boundary (SAFE-16).
 3. **Installer:** Do NOT couple bypass tooling installation to the wanctl release/restart path. Extend the existing deploy file-list mechanism (deploy.sh already carries silicom watchdog units and checks for `/usr/local/sbin/wanctl-bpctl-*`) or provide a small dedicated install step — but deployment to the live host remains an operator-gated action, not an automatic effect of this phase.
 4. **`mark` destination:** journal + flat log append (seed default explicitly permits the flat log).
-5. **`arm`/`disarm` subcommands:** listed in the seed's Phase A CLI sketch but deferred to Phase 236 — the roadmap maps watchdog scope (WDOG-01..03) to Phase 236 and Phase 235 requirements are TOOL-01..04 + BOOT-01 only. The CLI should not block Phase 236 from adding them (subcommand dispatch must be extensible).
+5. **Spectrum pair interface names:** seed's `sil-spare1`/`sil-spare2` are stale — live host uses `spec-modem`/`spec-router` (renamed 2026-04-28; verified in docs/SILICOM-BYPASS.md and deploy qdisc-init script). All Phase 235 artifacts use the live names.
+6. **`arm`/`disarm` subcommands:** listed in the seed's Phase A CLI sketch but deferred to Phase 236 — the roadmap maps watchdog scope (WDOG-01..03) to Phase 236 and Phase 235 requirements are TOOL-01..04 + BOOT-01 only. The CLI should not block Phase 236 from adding them (subcommand dispatch must be extensible).
 
 </assumptions>
 
@@ -106,7 +108,7 @@ Resolved conservatively per seed "Recommended Defaults" because discuss-phase wa
 ## Specific Ideas
 
 - Baseline semantics (from seed): bypass relay engages on power loss (`set_bypass_pwoff on`) but boots into NIC mode (`set_bypass_pwup off`) with link connected (`set_disc_pwup off`); bypass-on-disconnect disabled; std-NIC mode disabled.
-- Both WANs (ATT and Spectrum) run through the Silicom card since 2026-04-28; pairs are `att-modem`/`att-router` and `sil-spare1`/`sil-spare2`.
+- Both WANs (ATT and Spectrum) run through the Silicom card since 2026-04-28; pairs are `att-modem`/`att-router` and `spec-modem`/`spec-router` (control interfaces: `att-modem`, `spec-modem`).
 - bpctl operations are addressed via the master interface of each pair.
 - Card state is scriptable in milliseconds from a single SSH session — the CLI is the only sanctioned mutation path going forward; raw `bpctl_util` hand-typing is what this phase retires.
 
