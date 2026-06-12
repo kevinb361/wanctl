@@ -111,7 +111,18 @@ Plans:
   3. The v1.50 Phase 230 Nyquist PARTIAL is resolved — a retroactive `/gsd-validate-phase 230` is executed, OR an explicit waiver is recorded in planning state with rationale (META-03).
   4. SAFE-15 controller-path zero-diff (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) is proven at this phase boundary AND at milestone close — 9th consecutive milestone holding the SAFE-07..14 discipline (SAFE-15).
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+
+**Wave 1** *(parallel; disjoint metadata surfaces)*
+
+- [ ] 234-01-PLAN.md — META-01 quick-archive 12-slug index (archived-in-place, none deleted) + META-02 silicom pending-dupe close-with-pointer to SEED-006 (Wave 1)
+
+**Wave 2** *(blocked on Wave 1; closeout)*
+
+- [ ] 234-02-PLAN.md — META-03 Phase 230 Nyquist recorded waiver + STATE ledger flips + SAFE-15 controller-path zero-diff boundary/milestone-close proof (Wave 2)
+
 **UI hint**: no
 
 > **SAFE-15 note:** SAFE-15 is a cross-phase invariant verified at every phase boundary (232, 233, 234) following the SAFE-07..14 precedent; it is listed on every phase's requirements line and mapped to the final/closeout phase (234) for traceability accounting (same handling as SAFE-14 in v1.50). The milestone surface is scripts/docs/planning/tests only — no controller threshold/algorithm changes.
@@ -124,7 +135,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 232. Cleanup Boundary Guard + Tooling Fixes | v1.51 | 4/4 | Complete    | 2026-06-11 |
 | 233. Gated Repo Hygiene Sweep | v1.51 | 4/4 | Complete    | 2026-06-11 |
-| 234. Planning Metadata Reconciliation + Closeout | v1.51 | 0/TBD | Not started | - |
+| 234. Planning Metadata Reconciliation + Closeout | v1.51 | 0/2 | Planned | - |
 
 ---
 
