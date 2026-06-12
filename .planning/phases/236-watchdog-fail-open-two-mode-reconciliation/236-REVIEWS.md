@@ -1,229 +1,181 @@
 ---
 phase: 236
 reviewers: [codex]
-reviewed_at: 2026-06-12T19:42:00Z
+reviewed_at: 2026-06-12T20:30:00Z
 plans_reviewed: [236-01-PLAN.md, 236-02-PLAN.md]
-review_cycle: 4
+review_cycle: 5
 prior_cycle_high_count: 4
-current_cycle_high_count: 4
+current_cycle_high_count: 1
 ---
 
-# Cross-AI Plan Review — Phase 236 (Cycle 4)
+# Cross-AI Plan Review — Phase 236 (Cycle 5, CONFIRMING)
 
-Fourth review cycle. Cycles 1-3 fixed individual footguns; the SAME failure CLASS kept
-resurfacing — an unsentineled or non-trap-protected `systemctl stop|disable|restart` of a
-watchdog unit whose ExecStop fires `set_bypass on` (drops a live WAN to raw ISP). Cycle 3
-ended with 4 unresolved HIGHs, all of that class, and its Divergent-Views note prescribed
-"a single sentinel+trap-before-any-fail-open-unit-stop rule."
+Fifth review cycle, CONFIRMING the cycle-5 replan (commit d9a2fa6e) that resolved the four
+cycle-4 HIGHs (N1-N4) with operator-decided resolutions. Codex re-reviewed both plans
+adversarially against the plan text AND the live unit/script files; the orchestrator
+independently re-verified every load-bearing claim against the live files
+(`silicom-bypass-watchdog@.service`, `silicom-bypass-watchdog-cake-autorate-att.service`,
+`scripts/wanctl-bpctl-watchdog-bypass`, `scripts/phase231-rollback.sh`,
+`deploy/scripts/bpctl-watchdog-att.env.example`) and the plan text. The plans are NOT yet
+executed (no SUMMARY files; `sentineled_stop`, the `disarm` verb, the `-k invariant` test, and
+the docs N4 anchor do not yet exist) — this is a pre-execution PLAN confirmation.
 
-Cycle 4 adopts exactly that as ONE GLOBAL INVARIANT (W-INV): no fail-open watchdog unit is
-ever stopped/disabled/restarted anywhere without first writing the operator-disarm sentinel,
-under a shell EXIT trap that normalizes the sentinel on success AND failure AND interrupt.
-Enforced via (1) a single sanctioned `sentineled_stop <iface> <verb...>` helper in
-`scripts/silicom-bypass`, and (2) a static `-k invariant` compliance gate
-(`test_w_inv_no_raw_watchdog_stop`) that comment-strips and greps silicom-bypass, deploy.sh,
-phase231-rollback.sh, soak-monitor.sh, and the test helpers for raw watchdog stops.
-
-Codex re-reviewed both plans adversarially against the plan text AND the live unit/script
-files, asking specifically whether W-INV is SOUND and COMPLETE, whether the 4 prior HIGHs
-actually close, and whether the invariant introduced new HIGHs. The orchestrator independently
-re-verified every claim against the live files (`silicom-bypass-watchdog-cake-autorate-att.service`,
-`wanctl-bpctl-watchdog-bypass`, `phase231-rollback.sh`, `silicom-bypass-watchdog@.service`) and
-the plan text. All confirmations below are cross-checked, not relayed.
+Operator decisions respected, NOT re-raised: N4 shutdown/boot fail-open is DECIDED-INTENDED
+(host down → raw ISP passthrough is desired). Evaluated only for whether it is documented as
+intended in BOTH docs/SILICOM-BYPASS.md and the threat register.
 
 ## Codex Review
 
-**Summary.** W-INV is a good LOCAL discipline for the new CLI paths and genuinely closes the
-literal `cmd_arm`/`cmd_disarm` footguns, but the claimed GLOBAL enforcement is overstated. The
-static grep gate is incomplete, and the retired ATT variant remains the biggest unresolved
-HIGH. Core problem: `silicom-bypass disarm att-modem` maps to `silicom-bypass-watchdog@att`,
-NOT to `silicom-bypass-watchdog-cake-autorate-att.service` — the plan repeatedly treats the
-sanctioned verb as if it can retire the old unit. It cannot.
+**Summary.** N4 is resolved as directed (documented-as-intended, PASS). N1/N2/N3 are materially
+improved over cycle 4 but the plan text still leaves soundness holes. The plan blocks the obvious
+raw `disable --now` fail-open path, but it does not yet soundly close the fail-open CLASS because
+(a) the N1 retirement sentinel lifecycle is not guaranteed, (b) N2's guarantee is
+point-in-time/CLI-only, and (c) N3's marker carve-out weakens the static gate.
 
-**Per-Prior-HIGH Disposition**
+**Per-N Disposition**
 
-| Cycle-3 HIGH | Cycle-4 disposition | Mechanism / remaining gap |
+| Item | Status | Mechanism / Gap |
 |---|---|---|
-| HIGH-1-NEW — re-arm stale `.disarm` sentinel leak | **FULLY RESOLVED** (for the `cmd_arm` path) | Active re-arm routes through `sentineled_stop "$iface" stop "$instance_unit"`, never raw restart (236-01-PLAN.md:316-319); failure/no-leak proof with `FAKE_SYSTEMCTL_DISABLE_RC=1` asserting no leaked sentinel (236-01-PLAN.md:333-334). The EXIT trap normalizes the sentinel on success/failure/interrupt. |
-| HIGH-2-NEW — env-rewrite+daemon-reload doesn't re-point a RUNNING petter | **FULLY RESOLVED** (if implemented exactly) | Plan 02 states the petter reads `WANCTL_UNIT` once at start (236-02-PLAN.md:106-107) and the `-k rollback_order` gate requires env-rewrite-before-sentinel-clean-RESTART or disarm-before-cake-stop, FAILING env-rewrite+daemon-reload alone (236-02-PLAN.md:240-248). Gate must inspect rendered command order, not dead text. |
-| HIGH-3-NEW — retiring the ATT variant via raw `disable --now` fires its own unsentineled ExecStop bypass | **UNRESOLVED** | See HIGH-N1 below. The sanctioned `disarm att-modem` verb disables `@att`, not the retired variant; the documented fallback (236-02-PLAN.md:299) writes a sentinel manually then runs RAW `systemctl disable --now silicom-bypass-watchdog-cake-autorate-att.service` — outside the W-INV trap — and the manual sentinel write `sudo : > /run/.../att-modem.disarm` is mechanically broken (redirection runs as the non-root caller, not under sudo). |
-| HIGH-C — rollback gate accepts raw `disable --now` as "clean disarm" | **FULLY RESOLVED** (for literal raw commands) | Plan 02 explicitly rejects raw watchdog disable as clean (236-02-PLAN.md:24, :243, :259). Caveat: the grep still misses variable-built raw commands. |
+| N1 | PARTIAL | Root-correct sentinel write specified (`sudo sh -c ': > ...'`, explicitly NOT `sudo : > ...`), 236-02-PLAN.md:309,327,349. Verified-present-before-stop is real (`sudo test -f` before any stop), :309,:327,:349. ExecStop-mask precedes `disable --now`, :310-311. Offline proof non-vacuous with a no-sentinel counter-case, :267,:279. Rollback/soak raw paths planned out, :257,:268,:280-282. **GAP (NEW HIGH):** the operator retirement procedure is NOT under an EXIT trap and has NO post-disable sentinel cleanup (:307-313,:349). Because ExecStop is MASKED, the sentinel is never consumed by the ExecStop script → `/run/wanctl/bpctl-watchdog/att-modem.disarm` is left STALE and can suppress a future REAL `@att` fail-open. |
+| N2 | PARTIAL | `Conflicts=` removal explicit and tested (236-01-PLAN.md:246,259-260,496). CLI arm guard refuses `@att` while the retired variant is active (:305, test :331). Operator not-both-active check (236-02-PLAN.md:341,353). GAP: the CLI guard only covers `cmd_arm` — it does NOT cover boot-time auto-start of both units, nor a manual `systemctl start` of both. Boot is safe only IF Task 4 retirement actually disables the variant; manual direct systemctl stays outside enforcement. (Orchestrator: MEDIUM — see below.) |
+| N3 | PARTIAL | `mask`/`mask --now` added to W-INV + the invariant gate (236-01-PLAN.md:443-448,464-466; 236-02-PLAN.md:109-111). GAP: the pinned-marker carve-out is too broad — a `mask` line with `# W-INV-SANCTIONED-RETIRE-MASK` on the same/previous line is accepted (236-01-PLAN.md:448,466) without requiring exact file/unit/call-site or adjacent sentinel-first ordering. Since the actual retirement uses an `ExecStop=` blank reset (NOT `systemctl mask`), the `systemctl mask` carve-out should be removed or pinned much tighter. (Orchestrator: MEDIUM — see below.) |
+| N4 | PASS | Greppable "Shutdown / boot fail-open is intended" required in docs/SILICOM-BYPASS.md (236-02-PLAN.md:22,221,233). Threat register marks T-236-19 `accept (intended)` in BOTH plan threat models (236-01-PLAN.md:499; 236-02-PLAN.md:446). Per operator decision: resolved-by-documentation, NOT a HIGH. |
 
-**New HIGH Concerns**
+**New HIGH Concern (Codex):** N1 introduces/retains a stale-sentinel hazard. The retirement
+writes `att-modem.disarm`, masks ExecStop, then stops — but never runs under a trap and never
+removes the sentinel afterward. That violates the stated W-INV known-sentinel-state requirement
+and can suppress later intended fail-open behavior.
 
-- **HIGH-N1 — retired variant is not addressable by the sanctioned disarm verb.** `cmd_disarm
-  att-modem` resolves `att-modem -> att` (pair_to_wd_instance, 236-01-PLAN.md:296) and targets
-  `silicom-bypass-watchdog@att`; it does NOT stop the retired
-  `silicom-bypass-watchdog-cake-autorate-att.service` (a different unit name). Replacing
-  rollback line 73's raw disable with `silicom-bypass disarm att-modem` (236-02-PLAN.md:239)
-  either leaves the retired petter running or forces the unsafe raw command later. The
-  documented retirement fallback (236-02-PLAN.md:299) is exactly the unsentineled+untrapped
-  raw `disable --now` the phase exists to eliminate — and `sudo : > /run/...` does not even
-  create the sentinel as root. Fix: add a sanctioned trap-protected exact-unit retire verb,
-  e.g. `silicom-bypass retire-watchdog att-modem <unit>` that writes the sentinel under the
-  same EXIT trap and stops that exact unit. (This is the structural cause of HIGH-3-NEW staying
-  open.)
-
-- **HIGH-N2 — `Conflicts=` creates an indirect unsentineled stop path.** Plan 01 adds
-  `Conflicts=silicom-bypass-watchdog-cake-autorate-att.service` to the `@att` drop-in
-  (236-01-PLAN.md:253). `Conflicts=` is symmetric: starting the retired variant stops `@att`
-  (and vice versa) via systemd, firing the loser's ExecStop with NO sentinel. The CLI
-  double-petter guard (236-01-PLAN.md:312) only protects `cmd_arm` — it does not protect a
-  manual `systemctl start`, boot ordering, or any other systemd activation. Fix: retire the old
-  unit sentinel-clean BEFORE shipping/enabling the conflict, or don't declare `Conflicts=`
-  until the retired unit is gone.
-
-- **HIGH-N3 — `systemctl mask --now` is outside W-INV.** The invariant and the gate name only
-  `stop|disable|restart` (236-01-PLAN.md:450-453). `mask --now` stops an active unit and fires
-  its ExecStop, but the static gate will not flag it — and Plan 02 Task 4 itself suggests
-  masking the retired unit's ExecStop as a fallback (236-02-PLAN.md:285). Fix: include `mask`
-  (especially `mask --now`) in the W-INV verb set and the static test.
-
-- **HIGH-N4 — lifecycle (reboot/shutdown) stops are unhandled.** Shutdown/reboot stops every
-  armed watchdog and runs its ExecStop with NO `/run` sentinel (the sentinel lives in
-  `/run/wanctl/bpctl-watchdog/` — tmpfs, wiped on boot). Plan 01 only DOCUMENTS the boot race
-  as acceptable (236-01-PLAN.md:389-390); that is documentation, not enforcement, and it does
-  not address the shutdown-time ExecStop firing `set_bypass on` on every armed pair. Fix:
-  explicitly define shutdown/reboot as intended fail-open with operator awareness, OR require a
-  pre-reboot `disarm`, OR add a startup grace/wait before bypassing on controller-inactive.
-
-**W-INV Soundness / Completeness — sound for the planned literal CLI paths, INCOMPLETE as a
-global invariant.**
-
-| Edge | Covered by W-INV gate? |
-|---|---|
-| Literal raw `systemctl stop\|disable\|restart ... silicom-bypass-watchdog` (incl. multi-unit lines, `--now disable` verb-order) | YES — orchestrator confirmed the regex matches multi-unit line 73/101 and `--now`-first variants |
-| Unit name in a shell VARIABLE (`unit=...; systemctl stop "$unit"`) | NO — evades the literal-string line regex |
-| Verb in a variable (`verb=disable; systemctl "$verb" ...watchdog`) | NO — evades |
-| `systemctl mask --now` (stops unit, fires ExecStop) | NO — verb not in gate set (HIGH-N3) |
-| Indirect stop via symmetric `Conflicts=` | PARTIAL — template-wide leak blocked, but the new `@att` conflict is itself an indirect unsentineled stop path (HIGH-N2) |
-| Reboot/shutdown ExecStop with tmpfs sentinel wiped | NO (HIGH-N4) |
-| Retired ATT variant ExecStop | PARTIAL — shared ExecStop becomes sentinel-aware (236-01-PLAN.md:254), but no sanctioned trap-protected exact-unit retirement exists (HIGH-N1) |
-| Boot/restart ordering race | Documented only, not mitigated |
-
-**Overall Risk: HIGH** until the retired-variant retirement is redesigned (sanctioned
-trap-protected exact-unit retire path; fix the broken `sudo : >` sentinel write) and W-INV is
-expanded beyond the literal `stop|disable|restart` grep (add `mask`, address the `Conflicts=`
-indirect path, define lifecycle fail-open). The plan is close for the new `arm`/`disarm` CLI
-path, but it still has a production-grade hole around the old ATT unit and systemd
-indirect/lifecycle stops.
-
----
+**Overall Risk (Codex):** Not ready to mark cycle 5 confirmed.
 
 ## Reviewer-Verified Findings (orchestrator cross-check)
 
-Every claim re-checked against the LIVE files and the plan text. Confirmations:
+Every load-bearing claim re-checked against the LIVE files and the plan text:
 
-- **HIGH-N1 / HIGH-3-NEW retired-variant retirement — CONFIRMED UNRESOLVED.** Live
-  `deploy/systemd/silicom-bypass-watchdog-cake-autorate-att.service` has
-  `ExecStop=/usr/local/sbin/wanctl-bpctl-watchdog-bypass` on `IFACE=att-modem`; live
-  `scripts/wanctl-bpctl-watchdog-bypass` ends in `set_bypass on` with no sentinel branch (Plan
-  01 Task 2 adds it). Plan 01 `cmd_disarm`/`pair_to_wd_instance` map `att-modem -> @att`
-  (236-01-PLAN.md:296, :311, :325) — the sanctioned verb provably cannot target the retired
-  unit name. Plan 02 line 299's "retire the RETIRED VARIANT specifically" path uses a manual
-  `sudo : > /run/wanctl/bpctl-watchdog/att-modem.disarm` (redirection executes as the non-root
-  caller against a root-owned dir → EACCES; the correct form is `sudo sh -c ': > …'` or `sudo
-  tee`) FOLLOWED BY a RAW, untrapped `systemctl disable --now
-  silicom-bypass-watchdog-cake-autorate-att.service`. That raw disable is outside
-  `sentineled_stop`, has no EXIT trap, and an interrupt/failure leaves a stale `att-modem.disarm`
-  that later suppresses a REAL `@att` fail-open. The cycle-3 HIGH only APPEARS closed.
+- **N5 (NEW HIGH) — stale retirement sentinel suppresses future real `@att` fail-open — CONFIRMED.**
+  Live `silicom-bypass-watchdog-cake-autorate-att.service` has `IFACE=att-modem`; live
+  `deploy/scripts/bpctl-watchdog-att.env.example` has `IFACE=att-modem`; the generic `@att`
+  instance sources IFACE from that env. So BOTH the retired variant AND the live `@att` watchdog
+  resolve to the SAME sentinel path `/run/wanctl/bpctl-watchdog/att-modem.disarm`. The
+  sentinel-aware bypass script (Plan 01 Task 2b, 236-01-PLAN.md:247) only `rm -f`s the sentinel
+  on the CLEAN branch — i.e. only when ExecStop actually RUNS with the sentinel present. The N1
+  retirement (Plan 02 Task 4, :307-313/:327-330) deliberately MASKS the ExecStop (blank-reset
+  drop-in) BEFORE the `disable --now`, so ExecStop does NOT run → the sentinel is NEVER consumed.
+  The operator procedure has NO EXIT trap and NO final `rm -f att-modem.disarm` step. A grep of
+  all of 236-02-PLAN.md finds no cleanup of `att-modem.disarm` after the stop. Result: a stale
+  `att-modem.disarm` survives in `/run` (tmpfs) until the next reboot; until then, the next time
+  `@att`'s ExecStop fires on a REAL controller death it sees the sentinel and takes the clean
+  inline-restore branch instead of `set_bypass on` — suppressing an intended real fail-open on a
+  live WAN. This directly contradicts the plan's own W-INV truth (236-02-PLAN.md:18): "the
+  sentinel write + the stop/disable/mask must be under a shell EXIT trap that guarantees a known
+  sentinel state (sentinel normalized/removed) on both success AND failure." The N1 operator path
+  is the ONE watchdog-stop path NOT routed through `sentineled_stop`'s EXIT trap, and it leaks the
+  exact sentinel class W-INV exists to prevent. The retirement is sentinel-FIRST but not
+  sentinel-CLEANED.
+  **Fix (small, no architecture change):** add a final step to the Task 4 procedure — after the
+  `disable --now`, `sudo rm -f /run/wanctl/bpctl-watchdog/att-modem.disarm` and verify absent;
+  and extend `-k retire_nobypass` to assert the sentinel is gone post-retirement (and that a
+  leaked sentinel would suppress a subsequent `@att` fail-open — the non-vacuity counter-case for
+  the cleanup). Optionally wrap the operator sequence in a documented trap-equivalent ("on any
+  abort, remove the sentinel").
 
-- **HIGH-N2 `Conflicts=` indirect stop — CONFIRMED.** systemd `Conflicts=` is symmetric;
-  live `cake-autorate-{att,spectrum}.service` already use it against `wanctl@`. The new `@att`
-  drop-in `Conflicts=silicom-bypass-watchdog-cake-autorate-att.service` means starting the
-  retired variant stops `@att` (and vice versa) → unsentineled ExecStop. The CLI guard at
-  236-01-PLAN.md:312 is `cmd_arm`-only; manual/boot activation is unprotected.
+- **N1 forward path otherwise sound — CONFIRMED.** Root-correct `sudo sh -c ': > ...'` (vs the
+  broken `sudo : > ...` that redirects as the non-root caller → EACCES) is specified at every
+  call site (:309,:327,:349); `sudo test -f` verified-present-before-stop is real; the
+  ExecStop-mask drop-in precedes the disable; rollback line 73/101 and soak-monitor are converted
+  off raw disable (Task 3a, :257,:268-269); the `-k retire_nobypass` proof is non-vacuous
+  (counter-case at :267,:279). The ONLY residual is the stale-sentinel cleanup (N5 above).
 
-- **HIGH-N3 `mask --now` gap — CONFIRMED.** Gate verb set is `stop|disable|restart`
-  (236-01-PLAN.md:450-453, Task 6 action). `mask --now` stops an active unit and fires its
-  ExecStop but is not matched. Orchestrator simulated the regex: `mask --now` does not match.
+- **N2 `Conflicts=` removal — CONFIRMED RESOLVED of the regression; residual MEDIUM, not HIGH.**
+  Live generic template has NO `Conflicts=`; `@att.service.d/conflicts.conf` is absent on disk
+  (the symmetric indirect-stop path is gone). The double-petter guarantee moved to the CLI
+  arm-time guard + operator not-both-active check; the original HIGH-5 is NOT regressed. The
+  boot-time / manual-`systemctl start` double-petter hole Codex notes is real but low-likelihood
+  and operator-driven: watchdog units ship off-by-default (deploy never enables them — Plan 01
+  Task 5, `deploy_watchdog` test asserts no `systemctl enable`), and the retired variant is
+  DISABLED by the N1 retirement, so a boot double-petter requires an operator to have manually
+  enabled BOTH units (one of which is being retired this phase). Manual simultaneous `systemctl
+  start` is an explicit out-of-band operator override. Rated MEDIUM (gate-hardening / docs note),
+  NOT a residual HIGH. Recommend a one-line docs note that direct `systemctl start`/`enable` of a
+  watchdog unit bypasses the arm-time double-petter guard.
 
-- **HIGH-N4 lifecycle ExecStop — CONFIRMED.** Sentinel dir is `/run/wanctl/bpctl-watchdog/`
-  (tmpfs). On reboot the sentinel is wiped and every armed watchdog's shutdown ExecStop fires
-  `set_bypass on`. Plan 01 only adds a comment (236-01-PLAN.md:389-390); no enforcement.
+- **N3 `mask` verb addition — CONFIRMED RESOLVED of the verb gap; residual MEDIUM, not HIGH.**
+  `mask`/`mask --now` are in the W-INV verb set and the `-k invariant` gate. The marker carve-out
+  breadth Codex flags is a gate-strength MEDIUM: the sanctioned retirement uses an `ExecStop=`
+  drop-in, NOT `systemctl mask`, so the `systemctl mask` carve-out whitelists a path that isn't
+  even used. Tightening it (pin to exact file + unit + require an adjacent sentinel-first line, or
+  drop the `systemctl mask` carve-out entirely since the retirement doesn't use mask) hardens the
+  static gate but does not open a live fail-open by itself (someone must deliberately add the
+  marker comment next to an unsafe mask). Rated MEDIUM.
 
-- **Prior HIGH-1-NEW and HIGH-2-NEW and HIGH-C — CONFIRMED RESOLVED** as in the table; the
-  `sentineled_stop` trap discipline and the rollback_order/invariant gates are mechanically
-  sound for the literal CLI and rollback-text paths.
+- **N4 — CONFIRMED PASS (resolved-by-documentation per operator decision).** Greppable
+  "fail-open is intended" subsection required in docs/SILICOM-BYPASS.md (Plan 02 Task 2, :221,:233)
+  AND T-236-19 marked `accept (intended)` in both threat registers (236-01-PLAN.md:499;
+  236-02-PLAN.md:446). NOT a residual HIGH.
 
 ## Consensus Summary
 
-Single external reviewer (Codex), orchestrator-verified against the live plans AND the live
-unit/script files. Cycle 4 of 4.
+Single external reviewer (Codex), orchestrator-verified against the live files AND plan text.
+Cycle 5 of 5.
 
-### What the W-INV replan got right
+### What the cycle-5 replan got right
 
-- **Single-helper discipline closes the re-arm sentinel leak (HIGH-1-NEW) — FULLY RESOLVED.**
-  `sentineled_stop` with `trap 'rm -f $sentinel' EXIT` is the one sanctioned watchdog-stop
-  path; cmd_disarm and the cmd_arm active re-arm both route through it; the failed-stop no-leak
-  test is non-vacuous (fake systemctl runs ExecStop).
-- **Running-petter re-point (HIGH-2-NEW) — FULLY RESOLVED in plan text.** The rollback_order
-  gate asserts the running petter is actually re-pointed, not just the env file rewritten.
-- **Raw-disable-as-clean (HIGH-C) — FULLY RESOLVED for literal commands.** The gate rejects raw
-  `disable --now` as a clean disarm.
-- **Template-wide `Conflicts=` (HIGH-B, cycle 2) — stays RESOLVED.** Scoped to the `@att`
-  drop-in; @spectrum no longer inherits it.
-- **The static `-k invariant` gate genuinely matches the literal raw multi-unit lines** in
-  phase231-rollback.sh (orchestrator-simulated), making the literal class a real gate.
+- **N2 — Conflicts= removed entirely**; the symmetric indirect unsentineled stop path is gone;
+  double-petter guarantee moved to the CLI guard + operator check with no HIGH-5 regression.
+- **N3 — mask/mask --now in the W-INV verb set and the `-k invariant` gate**; the literal
+  raw-mask stop class is now gated.
+- **N4 — documented-as-intended in BOTH docs and the threat model** per the operator decision;
+  correctly removed from the residual-HIGH set.
+- **N1 forward path** — root-correct sentinel write, verified-present-before-stop, ExecStop-mask
+  before disable, raw-disable converted in rollback/soak, non-vacuous offline proof. The one-way
+  retirement no longer fires `set_bypass on` at retire time.
 
 ### Cycle-over-cycle HIGH disposition
 
-| HIGH | Cycle 3 | Cycle 4 | Why |
+| HIGH | Cycle 4 | Cycle 5 | Why |
 |---|---|---|---|
-| HIGH-1-NEW re-arm sentinel leak | NEW HIGH | **FULLY RESOLVED** | sentineled_stop + EXIT trap on both arm and disarm |
-| HIGH-2-NEW running-petter re-point | NEW HIGH | **FULLY RESOLVED** | rollback_order gate asserts live re-point |
-| HIGH-3-NEW retired-variant unsentineled retire | NEW HIGH | **UNRESOLVED** (→ HIGH-N1) | sanctioned verb can't address the retired unit name; fallback is raw+untrapped + broken sudo redirect |
-| HIGH-C raw disable accepted as clean | HIGH (partial) | **FULLY RESOLVED** | gate rejects raw disable (literal) |
-| (new) retired variant not verb-addressable | — | **NEW HIGH (N1)** | `disarm att-modem` -> `@att`, not the cake-autorate-att unit |
-| (new) `Conflicts=` indirect unsentineled stop | — | **NEW HIGH (N2)** | symmetric Conflicts stops watchdog outside the trap |
-| (new) `mask --now` evades the gate | — | **NEW HIGH (N3)** | gate verb set omits mask |
-| (new) reboot/shutdown ExecStop, tmpfs sentinel wiped | — | **NEW HIGH (N4)** | lifecycle stop fires fail-open, documented not enforced |
+| N1 retired-variant unsentineled retire | NEW HIGH | **MOSTLY RESOLVED → 1 residual (N5)** | sentinel-first + ExecStop-masked + root-correct write closes the retire-time bypass; the stale-sentinel-after-retire cleanup is the remaining hole |
+| N2 Conflicts= indirect stop | NEW HIGH | **RESOLVED (residual MEDIUM)** | Conflicts= removed; CLI guard + operator check; boot/manual-start residual is MEDIUM |
+| N3 mask evades gate | NEW HIGH | **RESOLVED (residual MEDIUM)** | mask in verb set + gate; marker carve-out breadth is MEDIUM |
+| N4 reboot/shutdown fail-open | NEW HIGH | **RESOLVED-BY-DOCUMENTATION** | operator-decided intended; documented in docs + threat model |
+| N5 stale retirement sentinel | — | **NEW HIGH** | masked ExecStop never consumes the sentinel; no trap, no post-disable cleanup; shared att-modem sentinel suppresses a future real @att fail-open |
 
-### Current unresolved HIGH concerns (count = 4)
+### Current unresolved HIGH concerns (count = 1)
 
-1. **HIGH-N1 (subsumes HIGH-3-NEW) — retired ATT variant retirement is not sanctioned/trapped.**
-   The `silicom-bypass disarm att-modem` verb targets `@att`, not
-   `silicom-bypass-watchdog-cake-autorate-att.service`; the documented fallback runs a raw,
-   untrapped `systemctl disable --now` of the retired unit and uses a mechanically-broken
-   `sudo : > /run/.../att-modem.disarm` sentinel write (redirect runs as non-root). Add a
-   sanctioned trap-protected exact-unit retire verb and fix the sentinel-write form.
-2. **HIGH-N2 — `Conflicts=` is an indirect unsentineled stop path.** Retire the old unit
-   sentinel-clean BEFORE shipping/enabling the `@att` conflict, or defer `Conflicts=` until the
-   retired unit is gone; the cmd_arm-only guard does not cover manual/boot activation.
-3. **HIGH-N3 — `mask --now` evades W-INV.** Add `mask`/`mask --now` to the invariant verb set
-   and the `-k invariant` static gate (it stops a unit and fires ExecStop).
-4. **HIGH-N4 — reboot/shutdown fail-open is unenforced.** Define lifecycle stops as intended
-   fail-open with operator awareness, require a pre-reboot disarm, or add a startup grace
-   before bypassing on controller-inactive — the `/run` (tmpfs) sentinel is wiped on boot.
+1. **N5 — stale retirement sentinel suppresses a future real `@att` fail-open.** The N1 operator
+   retirement writes `/run/wanctl/bpctl-watchdog/att-modem.disarm`, MASKS the ExecStop (so it
+   never runs to consume the sentinel), then disables — with no EXIT trap and no post-disable
+   `rm -f`. Because the retired variant and the live `@att` watchdog share `IFACE=att-modem` (same
+   sentinel path), the leaked sentinel makes `@att`'s next REAL ExecStop take the clean-restore
+   branch instead of `set_bypass on`, suppressing intended fail-open until the next reboot wipes
+   tmpfs. Violates the plan's own W-INV known-sentinel-state truth. Fix: append a sentinel-cleanup
+   step (`sudo rm -f .../att-modem.disarm` + verify absent) to the Task 4 procedure and assert it
+   in `-k retire_nobypass`.
 
 ### Lower-severity items worth folding into the next replan
 
-- MEDIUM: the `-k invariant` grep is a literal-string scan — variable-built unit/verb names
-  (`unit=...; systemctl stop "$unit"`) evade it. Consider scanning for any `systemctl` call near
-  a watchdog token, or a lint that forbids bare `systemctl` of watchdog units in the sanctioned
-  surfaces by structure, not literal.
-- The orchestrator confirmed the gate DOES catch multi-unit and `--now`-first literal lines, so
-  the literal-class gate is real; the residual is the variable/indirect/lifecycle classes above.
+- **MEDIUM (N2 residual):** the CLI arm-time double-petter guard does not cover boot-time
+  auto-start or manual `systemctl start` of both `@att` and the retired variant. Add a docs note
+  that direct `systemctl`/manual enable bypasses the guard; rely on off-by-default + retirement.
+- **MEDIUM (N3 residual):** the `# W-INV-SANCTIONED-RETIRE-MASK` carve-out is too broad and is for
+  a `systemctl mask` path the sanctioned retirement does not even use (it uses an `ExecStop=`
+  drop-in). Pin the carve-out to exact file+unit+adjacent-sentinel ordering, or drop it.
 
 ### Divergent Views
 
-None (single reviewer). Orchestrator concurs with all four NEW HIGHs after direct plan-text AND
-live-file verification; no claim downgraded. Common thread: W-INV correctly closes the LITERAL
-CLI/rollback stop class, but three of the four open HIGHs are the SAME meta-gap — a stop path
-that the literal grep + the single pair->@instance verb cannot reach (the differently-named
-retired unit, the systemd-driven `Conflicts=` stop, the `mask`/lifecycle stop). Closing them
-needs (a) a sanctioned exact-unit retire verb under the same trap, (b) sequencing the retirement
-before the conflict, and (c) widening the invariant verb set + a structural (not literal) gate.
+None (single reviewer). Orchestrator concurs with Codex's N1 stale-sentinel finding (elevated to
+the tracked NEW HIGH N5 after live-file confirmation that `@att` and the retired variant share the
+`att-modem` sentinel path), and DOWNGRADES Codex's N2 and N3 PARTIALs to MEDIUM residuals: both
+are real but are gate-hardening / low-likelihood-operator-override items, not live fail-open HIGHs,
+and neither regresses a previously-closed HIGH. N4 is PASS by operator decision.
 
 ### Risk Assessment
 
-**HIGH as written.** Cycle 4's W-INV is the right architecture and closes two of the four
-cycle-3 HIGHs cleanly (re-arm leak, running-petter re-point) plus HIGH-C. But the retired-variant
-retirement — the single most dangerous live operation in the phase, run on a healthy att-modem —
-still resolves to a raw untrapped disable via a broken sentinel write, and the invariant misses
-`mask`, the symmetric `Conflicts=` stop, and reboot/shutdown ExecStop. An operator following the
-documented retirement, a manual/boot start of the conflicting unit, a `mask --now`, or a reboot
-can each still drop att-modem (or any armed pair) to raw ISP. After (1) a sanctioned
-trap-protected exact-unit retire verb with a correct `sudo sh -c ': > …'` sentinel write,
-(2) sequencing retirement before the `Conflicts=`, (3) adding `mask` to the gate, and (4) a
-lifecycle fail-open policy, this drops to MEDIUM.
+**HIGH as written — but only ONE residual HIGH, and it is a small, localized fix.** Cycle 5
+correctly closes N2, N3, and N4 (N4 by operator-decided documentation) and closes the retire-TIME
+bypass of N1. The single remaining HIGH (N5) is the mirror image of the cycle-4 sentinel-leak
+class the phase exists to kill: the masked-ExecStop retirement writes a sentinel that nothing ever
+removes, so the shared `att-modem` sentinel can suppress a future real `@att` fail-open. Adding a
+post-disable `sudo rm -f` of the sentinel (and asserting absence in `-k retire_nobypass`) drops
+this to resolved and the phase to MEDIUM. The two MEDIUM residuals (boot/manual-start double-petter,
+marker carve-out breadth) are worth folding in but are not blockers.
