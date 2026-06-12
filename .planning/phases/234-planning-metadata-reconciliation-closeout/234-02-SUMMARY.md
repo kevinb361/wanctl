@@ -68,7 +68,7 @@ Each task was committed atomically:
 2. **Task 2: Operator approval of the Phase 230 Nyquist waiver, then flip META-03 to RESOLVED** - `d38e3790` (docs)
 3. **Task 3: Prove SAFE-15 controller-path zero-diff at the phase boundary, emit BOUND-01 companion, then re-prove fresh at milestone close** - `5637bd3f` (docs)
 
-**Plan metadata:** pending final metadata commit
+**Plan metadata:** committed after summary creation in final docs metadata commits.
 
 ## Files Created/Modified
 
