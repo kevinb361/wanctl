@@ -1,0 +1,2738 @@
+{
+  "fixture": "clean-restart-degraded",
+  "harness_mode": "hysteresis-only",
+  "cycle_interval_sec": 0.05,
+  "cycle_budget_derivation": {
+    "mode": "hysteresis-only",
+    "confidence_disabled": true,
+    "rationale": "cycles chosen against simple degraded-to-good recovery hysteresis with SteeringConfig.use_confidence_scoring=False; 35 cycles exceed the observed 15-cycle recovery window used by the existing recovery fixture."
+  },
+  "cycles_run": 35,
+  "pre_state": {
+    "steering_pre_state": {
+      "current_state": "SPECTRUM_DEGRADED",
+      "good_count": 0,
+      "baseline_rtt": 25.0,
+      "history_rtt": [
+        25,
+        25,
+        25,
+        25,
+        25
+      ],
+      "history_delta": [
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "transitions": [],
+      "last_transition_time": null,
+      "rtt_delta_ewma": 0.5,
+      "queue_ewma": 0.0,
+      "cake_drops_history": [],
+      "queue_depth_history": [],
+      "cake_state_history": [],
+      "red_count": 0,
+      "congestion_state": "GREEN",
+      "cake_read_failures": 0
+    },
+    "autorate_state_by_cycle": {
+      "default": {
+        "ewma": {
+          "baseline_rtt": 25.0
+        },
+        "congestion": {
+          "dl_state": "GREEN",
+          "ul_state": "GREEN"
+        }
+      }
+    }
+  },
+  "pre_steering_rule_state": true,
+  "cycle_1_observed_state": "SPECTRUM_DEGRADED",
+  "cycle_1_effective_steering_state": true,
+  "effective_steering_state_per_cycle": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+  ],
+  "enable_steering_call_log": [],
+  "disable_steering_call_log": [
+    {
+      "cycle": 14,
+      "method": "disable_steering",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:14Z"
+    }
+  ],
+  "interactions_log": [
+    {
+      "cycle": -1,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:00Z"
+    },
+    {
+      "cycle": 0,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:00Z"
+    },
+    {
+      "cycle": 1,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:01Z"
+    },
+    {
+      "cycle": 2,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:02Z"
+    },
+    {
+      "cycle": 3,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:03Z"
+    },
+    {
+      "cycle": 4,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:04Z"
+    },
+    {
+      "cycle": 5,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:05Z"
+    },
+    {
+      "cycle": 6,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:06Z"
+    },
+    {
+      "cycle": 7,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:07Z"
+    },
+    {
+      "cycle": 8,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:08Z"
+    },
+    {
+      "cycle": 9,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:09Z"
+    },
+    {
+      "cycle": 10,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:10Z"
+    },
+    {
+      "cycle": 11,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:11Z"
+    },
+    {
+      "cycle": 12,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:12Z"
+    },
+    {
+      "cycle": 13,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:13Z"
+    },
+    {
+      "cycle": 14,
+      "method": "disable_steering",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:14Z"
+    },
+    {
+      "cycle": 14,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:14Z"
+    },
+    {
+      "cycle": 15,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:15Z"
+    },
+    {
+      "cycle": 16,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:16Z"
+    },
+    {
+      "cycle": 17,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:17Z"
+    },
+    {
+      "cycle": 18,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:18Z"
+    },
+    {
+      "cycle": 19,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:19Z"
+    },
+    {
+      "cycle": 20,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:20Z"
+    },
+    {
+      "cycle": 21,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:21Z"
+    },
+    {
+      "cycle": 22,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:22Z"
+    },
+    {
+      "cycle": 23,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:23Z"
+    },
+    {
+      "cycle": 24,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:24Z"
+    },
+    {
+      "cycle": 25,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:25Z"
+    },
+    {
+      "cycle": 26,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:26Z"
+    },
+    {
+      "cycle": 27,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:27Z"
+    },
+    {
+      "cycle": 28,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:28Z"
+    },
+    {
+      "cycle": 29,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:29Z"
+    },
+    {
+      "cycle": 30,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:30Z"
+    },
+    {
+      "cycle": 31,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:31Z"
+    },
+    {
+      "cycle": 32,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:32Z"
+    },
+    {
+      "cycle": 33,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:33Z"
+    },
+    {
+      "cycle": 34,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:34Z"
+    }
+  ],
+  "steering_interactions": [
+    {
+      "cycle": -1,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:00Z"
+    },
+    {
+      "cycle": 0,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:00Z"
+    },
+    {
+      "cycle": 1,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:01Z"
+    },
+    {
+      "cycle": 2,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:02Z"
+    },
+    {
+      "cycle": 3,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:03Z"
+    },
+    {
+      "cycle": 4,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:04Z"
+    },
+    {
+      "cycle": 5,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:05Z"
+    },
+    {
+      "cycle": 6,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:06Z"
+    },
+    {
+      "cycle": 7,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:07Z"
+    },
+    {
+      "cycle": 8,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:08Z"
+    },
+    {
+      "cycle": 9,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:09Z"
+    },
+    {
+      "cycle": 10,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:10Z"
+    },
+    {
+      "cycle": 11,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:11Z"
+    },
+    {
+      "cycle": 12,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:12Z"
+    },
+    {
+      "cycle": 13,
+      "method": "get_rule_status",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:13Z"
+    },
+    {
+      "cycle": 14,
+      "method": "disable_steering",
+      "result": true,
+      "timestamp_iso": "2026-06-02T00:00:14Z"
+    },
+    {
+      "cycle": 14,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:14Z"
+    },
+    {
+      "cycle": 15,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:15Z"
+    },
+    {
+      "cycle": 16,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:16Z"
+    },
+    {
+      "cycle": 17,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:17Z"
+    },
+    {
+      "cycle": 18,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:18Z"
+    },
+    {
+      "cycle": 19,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:19Z"
+    },
+    {
+      "cycle": 20,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:20Z"
+    },
+    {
+      "cycle": 21,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:21Z"
+    },
+    {
+      "cycle": 22,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:22Z"
+    },
+    {
+      "cycle": 23,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:23Z"
+    },
+    {
+      "cycle": 24,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:24Z"
+    },
+    {
+      "cycle": 25,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:25Z"
+    },
+    {
+      "cycle": 26,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:26Z"
+    },
+    {
+      "cycle": 27,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:27Z"
+    },
+    {
+      "cycle": 28,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:28Z"
+    },
+    {
+      "cycle": 29,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:29Z"
+    },
+    {
+      "cycle": 30,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:30Z"
+    },
+    {
+      "cycle": 31,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:31Z"
+    },
+    {
+      "cycle": 32,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:32Z"
+    },
+    {
+      "cycle": 33,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:33Z"
+    },
+    {
+      "cycle": 34,
+      "method": "get_rule_status",
+      "result": false,
+      "timestamp_iso": "2026-06-02T00:00:34Z"
+    }
+  ],
+  "baseline_rtt_per_cycle": [
+    {
+      "cycle": 0,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 1,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 2,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 3,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 4,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 5,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 6,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 7,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 8,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 9,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 10,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 11,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 12,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 13,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 14,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 15,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 16,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 17,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 18,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 19,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 20,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 21,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 22,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 23,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 24,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 25,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 26,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 27,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 28,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 29,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 30,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 31,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 32,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 33,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    },
+    {
+      "cycle": 34,
+      "baseline_read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+      "baseline_read_value": 25.0,
+      "baseline_loader_called": true,
+      "spectrum_state_write_attempted": false
+    }
+  ],
+  "recovery_cycle_to_GOOD": 14,
+  "effective_steering_during_recovery_window": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "final_state": "SPECTRUM_GOOD",
+  "transitions": [
+    {
+      "timestamp": "2026-06-02T00:10:00Z",
+      "from": "SPECTRUM_DEGRADED",
+      "to": "SPECTRUM_GOOD",
+      "bad_count": 0,
+      "good_count": 14
+    }
+  ],
+  "daemon_io_paths_exercised": [
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ],
+    [
+      "baseline_rtt",
+      "cake_stats",
+      "live_rtt",
+      "state_save"
+    ]
+  ],
+  "outcome": "reproduced-bug",
+  "outcome_rationale": "effective_steering remained true during recovery-window cycles [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] from pre-enabled boot rule; this violates the binary-on/off + autorate-baseline-authoritative spine contract because persisted DEGRADED kept traffic effectively steered before fresh GOOD-consistent measurements recovered the daemon at cycle 14.",
+  "evidence_links": {
+    "cycle_1_row": {
+      "cycle": 0,
+      "current_state": "SPECTRUM_DEGRADED",
+      "effective_mangle_state": true,
+      "cake_read_failures": 0,
+      "steering_interactions": [
+        {
+          "cycle": 0,
+          "method": "get_rule_status",
+          "result": true,
+          "timestamp_iso": "2026-06-02T00:00:00Z"
+        }
+      ],
+      "cake_reads": [
+        {
+          "cycle": 0,
+          "queue_name": "WAN-Download-Spectrum",
+          "result_type": "stats",
+          "timestamp_iso": "2026-06-02T00:00:00Z"
+        }
+      ],
+      "baseline_reads": [
+        {
+          "cycle": 0,
+          "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+          "returned_value": 25.0,
+          "timestamp_iso": "2026-06-02T00:00:00Z"
+        }
+      ],
+      "live_rtt_reads": [
+        {
+          "cycle": 0,
+          "read_path": "fixture-script:cycle=0",
+          "returned_value": 25.5,
+          "timestamp_iso": "2026-06-02T00:00:00Z"
+        }
+      ],
+      "live_irtt_reads": [],
+      "spectrum_state_write_attempted": false,
+      "daemon_io_paths_exercised": [
+        "baseline_rtt",
+        "cake_stats",
+        "live_rtt",
+        "state_save"
+      ]
+    },
+    "recovery_window_cycles": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13
+    ],
+    "effective_steering_true_cycles": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13
+    ],
+    "per_cycle_rows": [
+      {
+        "cycle": 0,
+        "current_state": "SPECTRUM_DEGRADED",
+        "effective_mangle_state": true,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 0,
+            "method": "get_rule_status",
+            "result": true,
+            "timestamp_iso": "2026-06-02T00:00:00Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 0,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:00Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 0,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:00Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 0,
+            "read_path": "fixture-script:cycle=0",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:00Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 1,
+        "current_state": "SPECTRUM_DEGRADED",
+        "effective_mangle_state": true,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 1,
+            "method": "get_rule_status",
+            "result": true,
+            "timestamp_iso": "2026-06-02T00:00:01Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 1,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:01Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 1,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:01Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 1,
+            "read_path": "fixture-script:cycle=1",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:01Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 2,
+        "current_state": "SPECTRUM_DEGRADED",
+        "effective_mangle_state": true,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 2,
+            "method": "get_rule_status",
+            "result": true,
+            "timestamp_iso": "2026-06-02T00:00:02Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 2,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:02Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 2,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:02Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 2,
+            "read_path": "fixture-script:cycle=2",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:02Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 3,
+        "current_state": "SPECTRUM_DEGRADED",
+        "effective_mangle_state": true,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 3,
+            "method": "get_rule_status",
+            "result": true,
+            "timestamp_iso": "2026-06-02T00:00:03Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 3,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:03Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 3,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:03Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 3,
+            "read_path": "fixture-script:cycle=3",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:03Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 4,
+        "current_state": "SPECTRUM_DEGRADED",
+        "effective_mangle_state": true,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 4,
+            "method": "get_rule_status",
+            "result": true,
+            "timestamp_iso": "2026-06-02T00:00:04Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 4,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:04Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 4,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:04Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 4,
+            "read_path": "fixture-script:cycle=4",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:04Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 5,
+        "current_state": "SPECTRUM_DEGRADED",
+        "effective_mangle_state": true,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 5,
+            "method": "get_rule_status",
+            "result": true,
+            "timestamp_iso": "2026-06-02T00:00:05Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 5,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:05Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 5,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:05Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 5,
+            "read_path": "fixture-script:cycle=5",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:05Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 6,
+        "current_state": "SPECTRUM_DEGRADED",
+        "effective_mangle_state": true,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 6,
+            "method": "get_rule_status",
+            "result": true,
+            "timestamp_iso": "2026-06-02T00:00:06Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 6,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:06Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 6,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:06Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 6,
+            "read_path": "fixture-script:cycle=6",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:06Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 7,
+        "current_state": "SPECTRUM_DEGRADED",
+        "effective_mangle_state": true,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 7,
+            "method": "get_rule_status",
+            "result": true,
+            "timestamp_iso": "2026-06-02T00:00:07Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 7,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:07Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 7,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:07Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 7,
+            "read_path": "fixture-script:cycle=7",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:07Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 8,
+        "current_state": "SPECTRUM_DEGRADED",
+        "effective_mangle_state": true,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 8,
+            "method": "get_rule_status",
+            "result": true,
+            "timestamp_iso": "2026-06-02T00:00:08Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 8,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:08Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 8,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:08Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 8,
+            "read_path": "fixture-script:cycle=8",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:08Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 9,
+        "current_state": "SPECTRUM_DEGRADED",
+        "effective_mangle_state": true,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 9,
+            "method": "get_rule_status",
+            "result": true,
+            "timestamp_iso": "2026-06-02T00:00:09Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 9,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:09Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 9,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:09Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 9,
+            "read_path": "fixture-script:cycle=9",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:09Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 10,
+        "current_state": "SPECTRUM_DEGRADED",
+        "effective_mangle_state": true,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 10,
+            "method": "get_rule_status",
+            "result": true,
+            "timestamp_iso": "2026-06-02T00:00:10Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 10,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:10Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 10,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:10Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 10,
+            "read_path": "fixture-script:cycle=10",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:10Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 11,
+        "current_state": "SPECTRUM_DEGRADED",
+        "effective_mangle_state": true,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 11,
+            "method": "get_rule_status",
+            "result": true,
+            "timestamp_iso": "2026-06-02T00:00:11Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 11,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:11Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 11,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:11Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 11,
+            "read_path": "fixture-script:cycle=11",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:11Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 12,
+        "current_state": "SPECTRUM_DEGRADED",
+        "effective_mangle_state": true,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 12,
+            "method": "get_rule_status",
+            "result": true,
+            "timestamp_iso": "2026-06-02T00:00:12Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 12,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:12Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 12,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:12Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 12,
+            "read_path": "fixture-script:cycle=12",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:12Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 13,
+        "current_state": "SPECTRUM_DEGRADED",
+        "effective_mangle_state": true,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 13,
+            "method": "get_rule_status",
+            "result": true,
+            "timestamp_iso": "2026-06-02T00:00:13Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 13,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:13Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 13,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:13Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 13,
+            "read_path": "fixture-script:cycle=13",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:13Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 14,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 14,
+            "method": "disable_steering",
+            "result": true,
+            "timestamp_iso": "2026-06-02T00:00:14Z"
+          },
+          {
+            "cycle": 14,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:14Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 14,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:14Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 14,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:14Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 14,
+            "read_path": "fixture-script:cycle=14",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:14Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 15,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 15,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:15Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 15,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:15Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 15,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:15Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 15,
+            "read_path": "fixture-script:cycle=15",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:15Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 16,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 16,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:16Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 16,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:16Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 16,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:16Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 16,
+            "read_path": "fixture-script:cycle=16",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:16Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 17,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 17,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:17Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 17,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:17Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 17,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:17Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 17,
+            "read_path": "fixture-script:cycle=17",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:17Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 18,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 18,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:18Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 18,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:18Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 18,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:18Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 18,
+            "read_path": "fixture-script:cycle=18",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:18Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 19,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 19,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:19Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 19,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:19Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 19,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:19Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 19,
+            "read_path": "fixture-script:cycle=19",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:19Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 20,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 20,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:20Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 20,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:20Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 20,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:20Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 20,
+            "read_path": "fixture-script:cycle=20",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:20Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 21,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 21,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:21Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 21,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:21Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 21,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:21Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 21,
+            "read_path": "fixture-script:cycle=21",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:21Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 22,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 22,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:22Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 22,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:22Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 22,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:22Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 22,
+            "read_path": "fixture-script:cycle=22",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:22Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 23,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 23,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:23Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 23,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:23Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 23,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:23Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 23,
+            "read_path": "fixture-script:cycle=23",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:23Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 24,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 24,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:24Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 24,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:24Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 24,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:24Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 24,
+            "read_path": "fixture-script:cycle=24",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:24Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 25,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 25,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:25Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 25,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:25Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 25,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:25Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 25,
+            "read_path": "fixture-script:cycle=25",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:25Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 26,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 26,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:26Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 26,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:26Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 26,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:26Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 26,
+            "read_path": "fixture-script:cycle=26",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:26Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 27,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 27,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:27Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 27,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:27Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 27,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:27Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 27,
+            "read_path": "fixture-script:cycle=27",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:27Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 28,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 28,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:28Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 28,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:28Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 28,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:28Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 28,
+            "read_path": "fixture-script:cycle=28",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:28Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 29,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 29,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:29Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 29,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:29Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 29,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:29Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 29,
+            "read_path": "fixture-script:cycle=29",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:29Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 30,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 30,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:30Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 30,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:30Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 30,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:30Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 30,
+            "read_path": "fixture-script:cycle=30",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:30Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 31,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 31,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:31Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 31,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:31Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 31,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:31Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 31,
+            "read_path": "fixture-script:cycle=31",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:31Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 32,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 32,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:32Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 32,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:32Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 32,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:32Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 32,
+            "read_path": "fixture-script:cycle=32",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:32Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 33,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 33,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:33Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 33,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:33Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 33,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:33Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 33,
+            "read_path": "fixture-script:cycle=33",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:33Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      },
+      {
+        "cycle": 34,
+        "current_state": "SPECTRUM_GOOD",
+        "effective_mangle_state": false,
+        "cake_read_failures": 0,
+        "steering_interactions": [
+          {
+            "cycle": 34,
+            "method": "get_rule_status",
+            "result": false,
+            "timestamp_iso": "2026-06-02T00:00:34Z"
+          }
+        ],
+        "cake_reads": [
+          {
+            "cycle": 34,
+            "queue_name": "WAN-Download-Spectrum",
+            "result_type": "stats",
+            "timestamp_iso": "2026-06-02T00:00:34Z"
+          }
+        ],
+        "baseline_reads": [
+          {
+            "cycle": 34,
+            "read_path": "staging-workspace/clean-restart-degraded/spectrum_state.json",
+            "returned_value": 25.0,
+            "timestamp_iso": "2026-06-02T00:00:34Z"
+          }
+        ],
+        "live_rtt_reads": [
+          {
+            "cycle": 34,
+            "read_path": "fixture-script:cycle=34",
+            "returned_value": 25.5,
+            "timestamp_iso": "2026-06-02T00:00:34Z"
+          }
+        ],
+        "live_irtt_reads": [],
+        "spectrum_state_write_attempted": false,
+        "daemon_io_paths_exercised": [
+          "baseline_rtt",
+          "cake_stats",
+          "live_rtt",
+          "state_save"
+        ]
+      }
+    ]
+  },
+  "verdict": "observe",
+  "verdict_rationale": "reproduced-bug: effective_steering remained true during recovery-window cycles [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] from pre-enabled boot rule; this violates the binary-on/off + autorate-baseline-authoritative spine contract because persisted DEGRADED kept traffic effectively steered before fresh GOOD-consistent measurements recovered the daemon at cycle 14."
+}

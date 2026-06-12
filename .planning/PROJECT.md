@@ -8,24 +8,21 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.51 Post-Migration Consolidation
+## Recently Shipped: v1.51 Post-Migration Consolidation (shipped 2026-06-12)
 
-**Goal:** Consolidate the two-mode (native + cake-autorate) reality and close the pre-existing carry-forward stack — repo hygiene, rollback-tooling fixes, and planning-artifact reconciliation, with zero controller-path mutation.
+**Delivered:** Consolidated the two-mode (native + cake-autorate) reality and closed the pre-existing carry-forward stack with zero controller-path mutation. 3 phases (232–234), 10 plans, 24 tasks, 10/10 REQs satisfied, UAT 5/5 passed, 234-VERIFICATION re-verified 11/11 at close. Full record: `milestones/v1.51-ROADMAP.md`, phase evidence in `milestones/v1.51-phases/`.
 
-**Target features:**
+**What shipped:**
 
-- **Cleanup boundary encoded first** — binding no-delete list (native controller `autorate_continuous.py`, `wanctl@` deploy path, native tests/config validation, rollback commands/docs) guards the entire sweep; sourced from `WANCTL_CAKE_AUTORATE_FUTURE.md` "Not safe to remove until after ATT migration soak"
-- **`phase231-rollback.sh` confirm-path fix** — residual from v1.50 Phase 231 code review; pre-live-rollback hygiene only, NO rollback exercise this milestone
-- **Operator-summary digest permission todo closure** — validate live behavior first (v1.44 Phase 208 T12/TOOL-03 may already satisfy it), close with tests or evidence
-- **"Safe to remove soon" sweep** — superseded one-off trial scripts, stale Spectrum-native-ownership docs, Spectrum-only hardcoding remnants (per the future-doc cleanup policy)
-- **Planning metadata reconciliation** — 12 orphan quick-task slugs (`/gsd-cleanup` sweep), silicom todo/SEED-006 inconsistency (both 2026-04-28 todos still in pending/), Phase 230 retroactive Nyquist validation decision
-- **SAFE-15** — controller-path zero-diff at every phase boundary and milestone close (9th consecutive milestone)
+- Phase 232 — BOUND-01 cleanup boundary guard (`scripts/check-cleanup-boundary.sh`) encoding the future-doc no-delete list, fail-closed including git-index removal and protected-directory replacement bypasses; FIX-01 `phase231-rollback.sh` confirm-path hardening proven via PATH-injected SSH shim (no live rollback); FIX-02 digest-permission todo closed by Phase 208 T12/TOOL-03 evidence validation.
+- Phase 233 — manifest-approved removal of superseded cake-autorate trial scripts (FUTURE/findings docs preserved); native `wanctl@` operational examples annotated with external-mode context; Spectrum state bridge env pinned explicit (mirroring ATT pattern, no new abstraction). Full-suite green operator-waived for known Phase 220/221 historical boundary-test noise.
+- Phase 234 — 12 orphan quick-archive slugs indexed archived-in-place (none deleted); stale silicom pending todos closed-with-pointer to SEED-006 (canonical dormant carrier, build deferred to v1.52, NOT false-closed); Phase 230 Nyquist PARTIAL resolved via operator-approved recorded waiver; SAFE-15 zero-diff proven at every boundary and fresh at milestone close.
 
 **Key context:**
 
-- Joint Claude + Codex scope decision 2026-06-10: consolidation top pick; SEED-006 silicom harness runner-up, explicitly out.
-- Out of scope: SEED-007 (deferred — bridge-writer storage-hygiene audit is its own thesis and the biggest scope-explosion risk), ROLE-01 native retirement (time-gated; ~2 days soak is not "observed"), TAIL-01 Spectrum tail (valid future milestone — Codex: managed-inline qdisc path + Dallas repeat branch unexplored, NOT exhausted), SEED-005 (deferred not dead — native wanctl first-class on RouterOS), any live rollback exercise, anything on the future-doc denylist.
-- Codex landmine watch: sweep must not touch denylist surfaces; rollback confirm fix ≠ permission to exercise rollback; silicom todo reconciliation must not false-close operationally real bypass work.
+- SAFE-15 held — 9th consecutive milestone with zero controller-path diff (SAFE-07..15 discipline unbroken since v1.43).
+- Milestone surface was scripts/docs/planning/tests only; the binding Out-of-Scope table was honored (no live rollback, no denylist touch, no SEED-006/007 build, no controller changes).
+- Still deferred to v1.52+ scoping: ROLE-01 native retirement (soak-gated), TAIL-01 Spectrum tail, SEED-005/006/007, fping RTT backend eval, RECLAIM-04.
 
 ## Recently Shipped: v1.50 cake-autorate Migration Hardening (shipped 2026-06-10)
 
@@ -175,13 +172,14 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Version:** v1.50 shipped 2026-06-10 (audit passed, tagged). **Production controller state:** both WANs run upstream cake-autorate with wanctl state bridges (`cake-autorate-{spectrum,att}.service` + `-state-bridge.service`, live since 2026-06-08); `wanctl@{spectrum,att}` disabled as the **verified** rollback path (SOAK-02 provable-path, preflight `overall_pass: true` both WANs); steering consumes bridge-written state; native wanctl remains the MikroTik/RouterOS controller and portable default. Spectrum CAKE: member-NIC `diffserv4 wash` 550M base DL autorate / fixed 18M UL. ATT: `diffserv4 nowash` 95M base DL autorate / fixed 19M UL. **Current position:** v1.51 Post-Migration Consolidation — Phases 232 and 233 complete; Phase 234 planning metadata reconciliation + closeout is next.
+**Version:** v1.51 shipped 2026-06-12 (UAT 5/5, verification 11/11, tagged). **Production controller state:** both WANs run upstream cake-autorate with wanctl state bridges (`cake-autorate-{spectrum,att}.service` + `-state-bridge.service`, live since 2026-06-08); `wanctl@{spectrum,att}` disabled as the **verified** rollback path (SOAK-02 provable-path, preflight `overall_pass: true` both WANs); steering consumes bridge-written state; native wanctl remains the MikroTik/RouterOS controller and portable default. Spectrum CAKE: member-NIC `diffserv4 wash` 550M base DL autorate / fixed 18M UL. ATT: `diffserv4 nowash` 95M base DL autorate / fixed 19M UL. **Current position:** between milestones — v1.52 scoping next (SEED-006 silicom harness is the standing runner-up).
 **Tests:** Phase 231 verification passed 16/16; SOAK-01 evidence recorded both-WAN `SOAK-01 PASS`, SOAK-02 closed by Kevin accepting the no-mutation provable path, Phase 231 focused tests passed `16 passed`, hot-path slice passed `673 passed`, and SAFE-14 milestone-close controller-path zero-diff passed. Phase 230 verification passed 7/7; soak-monitor ATT coverage tests passed `.venv/bin/pytest tests/test_soak_monitor_att_coverage.py -q` (`5 passed`), `shellcheck -S error scripts/soak-monitor.sh` passed, code review was clean, and SAFE-14 controller-path zero-diff passed. Phase 229 verification passed 14/14; ATT artifact tests passed `.venv/bin/pytest tests/test_att_cake_autorate_artifacts.py -q` (`6 passed`) and ATT + Spectrum parity tests passed (`11 passed`). Phase 227 focused suite passed `.venv/bin/pytest tests/test_phase227_marked_ef.py tests/test_phase227_qdisc_verify.py tests/test_phase227_safe13_boundary.py tests/test_phase227_evidence_completeness.py -q` (`25 passed`) plus evidence completeness `verdict-ready` and SAFE-13 boundary checks. Phase 226 Plan 05 gap closure passed `.venv/bin/pytest tests/phase226/ -q` (`7 passed`) plus retained evidence hash/provenance and SAFE-13 checks. Phase 223 full post-merge regression passed `5320 passed, 10 skipped, 2 deselected`; steering replay package passed `19 passed`, and `replay_harness.py --all` emits all seven fixtures including `clean-restart-degraded`. Phase 221 verification + closeout published `carried_narrower_with_close_with_prejudice_rule` (post-D-10 BGP overlay, authoritative); raw aggregator `defect_located` overlaid. Phase 220 verification passed 5/5 after the repaired wet rehearsal harness reproduced the Phase 214 dallas/Spectrum daytime anchor and the hot-path + Phase 220 regression slice passed `726 passed`. Phase 219 verification passed 5/5 after full regression `5238 passed, 14 skipped, 2 deselected` and production D-27 cycle-budget evidence (`avg_ms=2.857`, `p99_ms=6.4`). Phase 217 verification passed 12/12; Phase 216 verification passed 11/11; Phase 215 verification passed 25/25; Phase 214 UAT passed 8/8; Phase 213 verification passed 15/15; Phase 212 verification passed 16/16.
 **LOC:** ~40,915 Python (src/) — v1.47 source-surface delta was +3,361 / -28 across 15 files (additive observability + matrix tooling; zero controller-path mutation).
-**Milestones:** 51 shipped, shipped-with-deferral, or closed (v1.0–v1.50).
-**Active milestone:** v1.51 Post-Migration Consolidation (opened 2026-06-10; joint Claude + Codex scope decision). Phase 218 watch is dormant (its instrumentation lives in the native controller, which no longer runs Spectrum/ATT).
+**Milestones:** 52 shipped, shipped-with-deferral, or closed (v1.0–v1.51).
+**Active milestone:** none — v1.51 closed 2026-06-12; v1.52 scoping pending. Phase 218 watch is dormant (its instrumentation lives in the native controller, which no longer runs Spectrum/ATT).
 
-**Latest:** v1.51 Phase 233 complete — gated repo hygiene sweep removed approved superseded cake-autorate trial artifacts while preserving KEEP docs, annotated active docs for native vs external cake-autorate mode, pinned explicit Spectrum state-bridge identity env, fixed code-review doc warnings, and verified SAFE-15 controller-path zero-diff. Full-suite green was explicitly waived for known historical Phase 220/221 boundary-test noise; Phase 233 dedicated checks and verifier passed 18/18.
+**Latest:** v1.51 shipped 2026-06-12 — BOUND-01 cleanup boundary guard live and fail-closed, rollback/digest tooling fixes landed, gated repo hygiene sweep done, planning metadata reconciled (12 orphan slugs indexed, silicom/SEED-006 single-canonical, Phase 230 Nyquist waiver operator-approved), SAFE-15 zero-diff proven at every boundary and fresh at close. UAT 5/5; 234-VERIFICATION re-verified 11/11.
+**Previous:** v1.51 Phase 233 complete — gated repo hygiene sweep removed approved superseded cake-autorate trial artifacts while preserving KEEP docs, annotated active docs for native vs external cake-autorate mode, pinned explicit Spectrum state-bridge identity env, fixed code-review doc warnings, and verified SAFE-15 controller-path zero-diff. Full-suite green was explicitly waived for known historical Phase 220/221 boundary-test noise; Phase 233 dedicated checks and verifier passed 18/18.
 **Previous:** v1.51 Phase 232 complete — BOUND-01 cleanup boundary guard now fails closed for protected-file removal, git-index removal, immutable drift, and directory replacement; `phase231-rollback.sh` confirm-path CR-01 is fixed without live rollback; operator-summary digest permission todo closed by v1.44 T12/TOOL-03 validation evidence; SAFE-15 controller-path zero-diff verified at the phase boundary. Advisory follow-ups remain for broader rollback external-unit post-check coverage and CLI missing-value polish.
 **Previous:** v1.50 cake-autorate Migration Hardening shipped clean 2026-06-10 — 10/10 REQs, audit passed (10/10 integration seams), git tag v1.50. ATT deploy/test/monitor parity, both-WAN `SOAK-01 PASS`, rollback provable-path accepted, two-mode docs, SAFE-14 held at every boundary and close. Phase evidence archived to `milestones/v1.50-phases/`.
 **Previous:** v1.50 Phase 231 complete — formal migration-held criteria evaluated both WANs as `SOAK-01 PASS`, rollback verification closed by Kevin accepting the no-mutation provable path (`SOAK-02 PROVABLE-PATH PASS`), active docs now describe native and external cake-autorate modes, and SAFE-14 milestone-close zero-diff passed. Code review recorded a residual confirm-path risk to fix before any future live rollback exercise.
@@ -287,6 +285,14 @@ thresholds or steering behavior.
 ## Requirements
 
 ### Validated
+
+**v1.51 Post-Migration Consolidation (shipped 2026-06-12):**
+
+- ✓ BOUND-01 — machine-checkable cleanup boundary guard encoding the future-doc no-delete list; fails closed on protected-file removal, git-index removal, immutable drift, and directory replacement — v1.51 Phase 232.
+- ✓ FIX-01..02 — `phase231-rollback.sh` confirm-path hardening (SSH-shim proven, no live rollback); digest-permission todo closed by Phase 208 T12/TOOL-03 evidence validation — v1.51 Phase 232.
+- ✓ SWEEP-01..03 — superseded trial scripts removed under manifest approval; native-ownership doc residual cleared; Spectrum bridge env pinned explicit with no new abstraction — v1.51 Phase 233.
+- ✓ META-01..03 — 12 orphan quick-archive slugs indexed archived-in-place; silicom todos/SEED-006 reconciled single-canonical without false-closing; Phase 230 Nyquist PARTIAL resolved by operator-approved recorded waiver — v1.51 Phase 234.
+- ✓ SAFE-15 — controller-path zero-diff vs v1.50 at every phase boundary AND milestone close (9th consecutive SAFE milestone) — v1.51 cross-phase.
 
 **v1.50 cake-autorate Migration Hardening (shipped 2026-06-10):**
 
@@ -1004,6 +1010,10 @@ wanctl is a production dual-WAN controller deployed in a home network environmen
 | SOAK-02 closed via no-mutation provable path, not live rollback exercise | Live rollback flaps production WANs for a procedural proof; double-gated script + both-WAN read-only preflight (`overall_pass: true`) proves the path without the risk | ✓ Good — operator-accepted 2026-06-10; residual confirm-path fix noted before any future live exercise | 2026-06-10 |
 | Native `wanctl@<wan>` kept as soak-monitor fallback scanning path | External cake-autorate mode is detected per WAN; portable deployments still run native mode, so the fallback preserves link-agnostic behavior | ✓ Good — `is_external_cake_mode` + `external_units_for` generalize without Spectrum-only hardcoding | 2026-06-09 |
 | SOAK-01 C3 criterion encoded as objective constants, not operator judgment | "No sustained errors" must be machine-derivable or the migration-held verdict is vibes; historical bounded err lines pass only under encoded thresholds | ✓ Good — both-WAN PASS machine-derived, operator confirmed after capture | 2026-06-10 |
+| Cleanup boundary guard lands BEFORE any sweep work | The machine-checkable denylist lets the repo sweep fail closed on a protected-surface touch; ordering is the safety mechanism | ✓ Good — Phase 232 guard gated Phase 233 sweep; hardened against git-index removal and dir-replacement bypasses after verifier gap | 2026-06-11 |
+| META-01 quick-archive slugs archived in place, not deleted | 11/12 slug dirs are git-untracked; deletion would be invisible to git status, so exact filesystem set checks + pointer index preserve auditability | ✓ Good — 12/12 indexed, none deleted, hash-proof on canonical files | 2026-06-12 |
+| META-03 resolved via operator-approved recorded waiver, not retroactive validation | Archived Phase 230 frontmatter is immutable by archive policy; a checkpoint-approved waiver with recorded-by footnote is the honest resolution; retroactive validate-phase would rewrite history | ✓ Good — Kevin approved at checkpoint; ledger flipped, archive untouched | 2026-06-12 |
+| Risk-acceptance waivers require checkpoint approval before `Accepted: YES` | Agent self-signed waivers would hollow out the operator-gate model; the recorded-by footnote makes authorship auditable | ✓ Good — pattern established in phase-230-nyquist-waiver.md | 2026-06-12 |
 
 ## Evolution
 
@@ -1026,4 +1036,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-11 after v1.51 Phase 233 completion. Both WANs run cake-autorate external-controller mode with wanctl state bridges; `wanctl@{spectrum,att}` disabled as the verified rollback path; native wanctl remains the MikroTik controller and portable default. Phase 218 watch dormant (instrumentation lives in the non-live native controller)._
+_Last updated: 2026-06-12 after v1.51 milestone. Both WANs run cake-autorate external-controller mode with wanctl state bridges; `wanctl@{spectrum,att}` disabled as the verified rollback path; native wanctl remains the MikroTik controller and portable default. Phase 218 watch dormant (instrumentation lives in the non-live native controller). Next: v1.52 scoping._
