@@ -114,7 +114,13 @@ Plans:
   5. All bypass tooling artifacts (CLI, watchdog units, boot service, harness, scenarios) are repo-owned and deployable via a single documented install/deploy path decided at plan time (DEPLOY-03).
   6. SAFE-16 controller-path zero-diff (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) is proven at this phase boundary AND at milestone close — 10th consecutive milestone holding the SAFE-07..15 discipline (SAFE-16).
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 237-01-PLAN.md — Wave-0 scaffolds: RED HARN-01..05 pytest + SAFE-16 boundary tool (anchor v1.51)
+- [ ] 237-02-PLAN.md — silicom-test orchestrator (failover/ab-cake/chaos) + always-on restore trap + seed scenarios
+- [ ] 237-03-PLAN.md — DEPLOY-03: extend deploy.sh standalone path + artifact-ownership tests + docs
+- [ ] 237-04-PLAN.md — SAFE-16 phase-boundary proof + gitignore HIL artifacts + milestone-close operator gate
 
 **UI hint**: no
 
@@ -130,7 +136,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 235. Bypass Operator CLI + Boot Baseline | v1.52 | 4/4 | Complete    | 2026-06-12 |
 | 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 2/2 | Complete    | 2026-06-12 |
-| 237. HIL Failure-Injection Harness + Closeout | v1.52 | 0/? | Not started | - |
+| 237. HIL Failure-Injection Harness + Closeout | v1.52 | 0/4 | Planned     | - |
 
 ---
 
