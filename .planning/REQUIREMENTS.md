@@ -71,26 +71,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TOOL-01 | TBD | Pending |
-| TOOL-02 | TBD | Pending |
-| TOOL-03 | TBD | Pending |
-| TOOL-04 | TBD | Pending |
-| WDOG-01 | TBD | Pending |
-| WDOG-02 | TBD | Pending |
-| WDOG-03 | TBD | Pending |
-| BOOT-01 | TBD | Pending |
-| HARN-01 | TBD | Pending |
-| HARN-02 | TBD | Pending |
-| HARN-03 | TBD | Pending |
-| HARN-04 | TBD | Pending |
-| HARN-05 | TBD | Pending |
-| DEPLOY-03 | TBD | Pending |
-| SAFE-16 | TBD | Pending |
+| TOOL-01 | Phase 235 | Mapped |
+| TOOL-02 | Phase 235 | Mapped |
+| TOOL-03 | Phase 235 | Mapped |
+| TOOL-04 | Phase 235 | Mapped |
+| BOOT-01 | Phase 235 | Mapped |
+| WDOG-01 | Phase 236 | Mapped |
+| WDOG-02 | Phase 236 | Mapped |
+| WDOG-03 | Phase 236 | Mapped |
+| HARN-01 | Phase 237 | Mapped |
+| HARN-02 | Phase 237 | Mapped |
+| HARN-03 | Phase 237 | Mapped |
+| HARN-04 | Phase 237 | Mapped |
+| HARN-05 | Phase 237 | Mapped |
+| DEPLOY-03 | Phase 237 | Mapped (deploy path finalized in 237; artifacts span 235–237) |
+| SAFE-16 | Phase 237 | Mapped (cross-phase invariant verified at 235/236/237 boundaries; mapped to closeout for traceability) |
 
 **Coverage:**
 - v1.52 requirements: 15 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 15
+- Mapped to phases: 15 (Phase 235: 5 · Phase 236: 3 · Phase 237: 7)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-12 (joint Claude + Codex scope decision; SEED-006 selected, Codex ranked #1)*
+*Traceability mapped: 2026-06-12 (roadmap creation; 15/15 mapped, 0 orphans)*
