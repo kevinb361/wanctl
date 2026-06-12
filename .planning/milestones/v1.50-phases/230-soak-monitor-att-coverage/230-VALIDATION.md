@@ -74,3 +74,5 @@ Additional lint gate: `shellcheck -S error scripts/soak-monitor.sh` (currently e
 - [ ] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending
+
+> Phase 230 Nyquist PARTIAL resolution PENDING operator approval 2026-06-11 — recorded waiver `.planning/decisions/phase-230-nyquist-waiver.md` (META-03). Archived frontmatter left as-is per archive append-only-addendum policy.

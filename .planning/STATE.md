@@ -49,16 +49,16 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 | todos | 2026-04-17-monitor-flapping-peak-count-on-next-docsis-event | pending — Phase 218 trigger; dormant |
 | todos | 2026-04-17-operator-summary-digest-permission-handling | **CLOSED 2026-06-11 by Phase 232 Plan 03** — validated already implemented by v1.44 Phase 208 T12/TOOL-03; no reimplementation needed |
 | todos | 2026-04-24-resolve-att-cake-primary-canary-after-phase-196 | pending (ATT canary already deployed in v1.45) |
-| todos | 2026-04-28 silicom todos (×2) | **v1.51 META-02 → Phase 234** (reconcile with SEED-006 to a single canonical state) |
+| todos | 2026-04-28 silicom todos (×2) | **RESOLVED 2026-06-11 by Phase 234 Plan 01 (META-02)** — pending dupes closed-with-pointer to SEED-006 (canonical dormant carrier, v1.52); work NOT false-closed |
 | todos | 2026-04-15-profile-post-hotpath-baseline-on-production-wan | **CLOSED 2026-05-30 by Phase 217** |
 | seeds | SEED-003-v143-d14-watchdog-recalibration | dormant |
 | seeds | SEED-004-v143-target-edge-churn-instrumentation | dormant |
 | seeds | SEED-005-v143-conservative-ul-tuning-sweep | dormant; OUT of v1.51 |
 | seeds | SEED-006-v145-silicom-bypass-tooling-and-harness | dormant; **v1.51 META-02 reconciles its planning state only** (build deferred to v1.52) |
 | seeds | SEED-007-v145-storage-hygiene-fire-on-change | dormant; OUT of v1.51 (biggest scope-explosion risk) |
-| quick_tasks | 12 orphan slugs from older milestones | **v1.51 META-01 → Phase 234** (`/gsd-cleanup`-style sweep) |
+| quick_tasks | 12 orphan slugs from older milestones | **RESOLVED 2026-06-11 by Phase 234 Plan 01 (META-01)** — 12 slugs indexed archived-in-place (11 shipped, 1 PLAN-only `005`), none deleted; index in evidence/quick-archive-index.{md,json} |
 | residual | `phase231-rollback.sh` confirm-path fix | **v1.51 FIX-01 → Phase 232** (no live rollback exercise) |
-| residual | Phase 230 Nyquist PARTIAL | **v1.51 META-03 → Phase 234** (retroactive validate OR recorded waiver) |
+| residual | Phase 230 Nyquist PARTIAL | **PENDING operator approval 2026-06-11 — Phase 234 Plan 02 (META-03)** — recorded waiver decisions/phase-230-nyquist-waiver.md awaiting sign-off; tests green 5/5 |
 
 ### v1.50-shipped-clean
 
