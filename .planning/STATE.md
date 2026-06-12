@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.52
 milestone_name: Silicom Bypass Operationalization
-status: ready_to_plan
-stopped_at: Phase 235 complete (4/4) — ready to discuss Phase 236
-last_updated: 2026-06-12T17:20:30.953Z
-last_activity: 2026-06-12 -- Phase 235 Plan 04 gap closure complete
+status: executing
+stopped_at: Completed 235-04-PLAN.md
+last_updated: "2026-06-12T18:29:54.278Z"
+last_activity: 2026-06-12 -- Phase 236 planning complete
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 4
+  total_plans: 6
   completed_plans: 4
   percent: 33
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-12 after v1.51 milestone close)
 
 Phase: 236
 Plan: Not started
-Status: Phase 235 complete; ready for verification/next phase transition
-Last activity: 2026-06-12
+Status: Ready to execute
+Last activity: 2026-06-12 -- Phase 236 planning complete
 
 ## Deferred Items (carried into next milestone)
 
@@ -69,7 +69,7 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ### v1.51-shipped-clean
 
-- **Status:** Ready to plan
+- **Status:** Ready to execute
 - **Operator sign-off:** Kevin — 2026-06-12, via /gsd-verify-work 234 (operator-delegated checks, 5/5 pass) → /gsd-complete-milestone → Acknowledge-all path. 10/10 v1.51 requirements satisfied.
 - **Why this is acceptable:** Milestone surface was scripts/docs/planning/tests only; SAFE-15 controller-path zero-diff held at every phase boundary and was re-proven fresh at close HEAD `aa200dd3` after the verifier flagged stale evidence. No milestone audit was run (planning/docs-only milestone; operator chose acknowledge+close). `/gsd-secure-phase 234` not run — zero code surface, no threat flags declared.
 
