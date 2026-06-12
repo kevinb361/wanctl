@@ -70,8 +70,13 @@ rollback_commands_for_wan() {
     case "$1" in
         att)
             cat <<'EOF'
-sudo systemctl disable --now cake-autorate-att.service cake-autorate-att-state-bridge.service silicom-bypass-watchdog-cake-autorate-att.service
-sudo systemctl enable --now wanctl@att.service silicom-bypass-watchdog@att.service
+sudo install -d -m0755 /etc/wanctl/bpctl-watchdog
+sudo sh -c 'printf "%s\n" "IFACE=att-modem" "WANCTL_UNIT=wanctl@att.service" > /etc/wanctl/bpctl-watchdog/att.env'
+sudo systemctl daemon-reload
+sudo silicom-bypass disarm att-modem
+sudo systemctl start silicom-bypass-watchdog@att.service
+sudo systemctl disable --now cake-autorate-att.service cake-autorate-att-state-bridge.service
+sudo systemctl enable --now wanctl@att.service
 sleep 8
 cd /opt/bpctl-silicom
 sudo ./bpctl_util att-modem set_disc off
@@ -83,6 +88,7 @@ EOF
             ;;
         spectrum)
             cat <<'EOF'
+sudo silicom-bypass disarm spec-modem
 sudo systemctl disable --now cake-autorate-spectrum.service cake-autorate-spectrum-state-bridge.service
 sudo systemctl enable --now wanctl@spectrum.service
 sleep 8
@@ -97,16 +103,24 @@ return_commands_for_wan() {
     case "$1" in
         att)
             cat <<'EOF'
-sudo systemctl disable --now wanctl@att.service silicom-bypass-watchdog@att.service
-sudo systemctl enable --now cake-autorate-att.service cake-autorate-att-state-bridge.service silicom-bypass-watchdog-cake-autorate-att.service
+sudo silicom-bypass disarm att-modem
+sudo systemctl disable --now wanctl@att.service
+sudo install -d -m0755 /etc/wanctl/bpctl-watchdog
+sudo sh -c 'printf "%s\n" "IFACE=att-modem" "WANCTL_UNIT=cake-autorate-att.service" > /etc/wanctl/bpctl-watchdog/att.env'
+sudo systemctl daemon-reload
+sudo systemctl enable --now cake-autorate-att.service cake-autorate-att-state-bridge.service
+sudo silicom-bypass arm att-modem --yes
 # qdisc re-init is handled by /usr/local/sbin/cake-autorate-att-qdisc-init via ExecStartPre
 EOF
             ;;
         spectrum)
             cat <<'EOF'
 sudo systemctl disable --now wanctl@spectrum.service
+sudo install -d -m0755 /etc/wanctl/bpctl-watchdog
+sudo sh -c 'printf "%s\n" "IFACE=spec-modem" "WANCTL_UNIT=cake-autorate-spectrum.service" > /etc/wanctl/bpctl-watchdog/spectrum.env'
+sudo systemctl daemon-reload
 sudo systemctl enable --now cake-autorate-spectrum.service cake-autorate-spectrum-state-bridge.service
-# silicom-bypass-watchdog@spectrum.service stays active in both modes; do not stop/disable it here.
+sudo silicom-bypass arm spec-modem --yes
 # qdisc re-init is handled by /usr/local/sbin/cake-autorate-spectrum-qdisc-init via ExecStartPre
 EOF
             ;;
@@ -118,8 +132,8 @@ print_plan() {
 Phase 231 SOAK-02 rollback plan for ${WAN} (mutation only with --confirm --i-have-operator-approval)
 
 Expected watchdog states:
-  - spectrum: silicom-bypass-watchdog@spectrum.service active in external mode and native rollback mode; rollback leaves it untouched.
-  - att: silicom-bypass-watchdog-cake-autorate-att.service active in external mode; silicom-bypass-watchdog@att.service inactive until native rollback.
+  - spectrum: external mode uses silicom-bypass-watchdog@spectrum.service with WANCTL_UNIT=cake-autorate-spectrum.service; native rollback cleanly disarms before stopping cake-autorate.
+  - att: external mode uses folded silicom-bypass-watchdog@att.service with WANCTL_UNIT=cake-autorate-att.service; native rollback rewrites the env to wanctl@att.service before a sentinel-clean restart.
 
 Rollback sequence:
 EOF
@@ -229,9 +243,11 @@ run_preflight() {
 
     if [[ "$WAN" == "spectrum" ]]; then
         run_check "$checks_file" "spectrum_watchdog_active" "systemctl is-active silicom-bypass-watchdog@spectrum.service" "stdout exactly active" stdout-active "$tmpdir"
+        run_check "$checks_file" "spectrum_watchdog_env_cake" "sudo -n grep -qx WANCTL_UNIT=cake-autorate-spectrum.service /etc/wanctl/bpctl-watchdog/spectrum.env" "spectrum watchdog env watches cake-autorate" rc0 "$tmpdir"
     else
-        run_check "$checks_file" "att_cake_watchdog_active" "systemctl is-active silicom-bypass-watchdog-cake-autorate-att.service" "stdout exactly active" stdout-active "$tmpdir"
-        run_check "$checks_file" "att_native_watchdog_inactive" "systemctl is-active silicom-bypass-watchdog@att.service" "stdout exactly inactive" stdout-inactive "$tmpdir"
+        run_check "$checks_file" "att_watchdog_active" "systemctl is-active silicom-bypass-watchdog@att.service" "stdout exactly active" stdout-active "$tmpdir"
+        run_check "$checks_file" "att_retired_watchdog_inactive" "systemctl is-active silicom-bypass-watchdog-cake-autorate-att.service" "stdout exactly inactive" stdout-inactive "$tmpdir"
+        run_check "$checks_file" "att_watchdog_env_cake" "sudo -n grep -qx WANCTL_UNIT=cake-autorate-att.service /etc/wanctl/bpctl-watchdog/att.env" "att watchdog env watches cake-autorate" rc0 "$tmpdir"
         run_check "$checks_file" "att_bpctl_executable" "test -x /opt/bpctl-silicom/bpctl_util" "bpctl_util is executable" rc0 "$tmpdir"
         run_check "$checks_file" "att_watchdog_template" "systemctl cat silicom-bypass-watchdog@.service" "native watchdog template exists" rc0 "$tmpdir"
         run_check "$checks_file" "att_watchdog_env_present" "sudo -n test -f /etc/wanctl/bpctl-watchdog/att.env" "native watchdog EnvironmentFile present" rc0 "$tmpdir"

@@ -283,7 +283,7 @@ is_external_cake_mode() {
 # Units owned by the external cake-autorate controller for a WAN.
 external_units_for() {
     case "$1" in
-        att) echo "cake-autorate-att.service cake-autorate-att-state-bridge.service silicom-bypass-watchdog-cake-autorate-att.service" ;;
+        att) echo "cake-autorate-att.service cake-autorate-att-state-bridge.service silicom-bypass-watchdog@att.service" ;;
         *) echo "cake-autorate-$1.service cake-autorate-$1-state-bridge.service" ;;
     esac
 }
