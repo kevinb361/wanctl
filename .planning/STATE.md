@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.52
 milestone_name: Silicom Bypass Operationalization
-status: executing
-stopped_at: Completed 235-02-PLAN.md
-last_updated: "2026-06-12T15:51:33.301Z"
+status: verifying
+stopped_at: Completed 235-03-PLAN.md
+last_updated: "2026-06-12T16:13:51.457Z"
 last_activity: 2026-06-12
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 0
+  completed_plans: 3
+  percent: 33
 ---
 
 # Session State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-12 after v1.51 milestone close)
 
 Phase: 235 (bypass-operator-cli-boot-baseline) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-12
 
 ## Deferred Items (carried into next milestone)
@@ -69,7 +69,7 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ### v1.51-shipped-clean
 
-- **Status:** Ready to execute
+- **Status:** Phase complete — ready for verification
 - **Operator sign-off:** Kevin — 2026-06-12, via /gsd-verify-work 234 (operator-delegated checks, 5/5 pass) → /gsd-complete-milestone → Acknowledge-all path. 10/10 v1.51 requirements satisfied.
 - **Why this is acceptable:** Milestone surface was scripts/docs/planning/tests only; SAFE-15 controller-path zero-diff held at every phase boundary and was re-proven fresh at close HEAD `aa200dd3` after the verifier flagged stale evidence. No milestone audit was run (planning/docs-only milestone; operator chose acknowledge+close). `/gsd-secure-phase 234` not run — zero code surface, no threat flags declared.
 
@@ -115,8 +115,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-12T15:50:42.844Z
-Stopped at: Completed 235-02-PLAN.md
+Last session: 2026-06-12T16:13:38.022Z
+Stopped at: Completed 235-03-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -135,6 +135,9 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 - [235-02]: Kept boot policy in `silicom-bypass baseline` so the systemd oneshot and operator CLI share one bpctl invocation path.
 - [235-02]: Used read-before-set for all five baseline verbs to avoid redundant card writes while still asserting every read-back string.
 - [235-02]: Kept `bpctl-silicom.service` responsible only for module/device setup and moved policy ownership to `silicom-bypass-init.service`.
+- [235-03]: Used a TRUE standalone `--silicom-bypass-only <host>` deploy mode that exits before the wanctl release/restart path while installing the init unit's `bpctl-silicom.service` + `wanctl-bpctl-init` dependency chain.
+- [235-03]: Accepted observed live bpctl read-back wording variants in the centralized matcher/tests rather than changing baseline order, timings, interfaces, or safety policy.
+- [235-03]: Live baseline is verified on `cake-shaper`: `silicom-bypass-init.service` exited `0/SUCCESS` and both pairs remained non-bypass/non-disconnect before and after the run.
 
 ## Decisions (v1.51)
 
@@ -205,3 +208,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 234 P02 | checkpointed; continuation 2 min | 3 tasks | 6 files |
 | Phase 235 P01 | 4 min | 2 tasks | 3 files |
 | Phase 235 P02 | 4 min | 2 tasks | 4 files |
+| Phase 235 P03 | 10 min | 3 tasks | 6 files |

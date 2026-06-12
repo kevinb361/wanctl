@@ -36,7 +36,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 ### Deployment & Safety (DEPLOY/SAFE)
 
 - [ ] **DEPLOY-03**: All bypass tooling artifacts are repo-owned and deployable via a documented path (install/deploy flow decided at plan time)
-- [ ] **SAFE-16**: Zero controller-path source diff (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) at every phase boundary AND milestone close — 10th consecutive milestone holding the SAFE-07..15 discipline
+- [x] **SAFE-16**: Zero controller-path source diff (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) at every phase boundary AND milestone close — 10th consecutive milestone holding the SAFE-07..15 discipline
 
 ## Future Requirements
 

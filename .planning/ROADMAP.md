@@ -67,7 +67,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 235-03-PLAN.md — operator-gated deploy seam + docs/runbook + SAFE-16 boundary proof + operator live-verify checkpoint (SAFE-16)
+- [x] 235-03-PLAN.md — operator-gated deploy seam + docs/runbook + SAFE-16 boundary proof + operator live-verify checkpoint (SAFE-16)
 
 **UI hint**: no
 
@@ -115,7 +115,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 235. Bypass Operator CLI + Boot Baseline | v1.52 | 2/3 | In Progress|  |
+| 235. Bypass Operator CLI + Boot Baseline | v1.52 | 3/3 | Complete   | 2026-06-12 |
 | 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 0/? | Not started | - |
 | 237. HIL Failure-Injection Harness + Closeout | v1.52 | 0/? | Not started | - |
 
