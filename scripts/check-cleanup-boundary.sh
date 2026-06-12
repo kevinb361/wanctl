@@ -110,7 +110,8 @@ manifest = [
     ("native-deploy-path", "deploy/systemd/wanctl@.service", "must-match-anchor"),
     ("native-deploy-path", "scripts/install.sh", "must-match-anchor"),
     ("native-deploy-path", "scripts/install-systemd.sh", "must-match-anchor"),
-    ("native-deploy-path", "scripts/deploy.sh", "must-match-anchor"),
+    # Phase 235 authorizes Silicom-only deploy surface drift; removal remains forbidden.
+    ("native-deploy-path", "scripts/deploy.sh", "must-exist"),
     ("native-tests", "tests/test_autorate_continuous.py", "must-match-anchor"),
     ("native-tests", "tests/test_autorate_config.py", "must-match-anchor"),
     ("native-tests", "tests/test_autorate_baseline_bounds.py", "must-match-anchor"),
