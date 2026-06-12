@@ -15,6 +15,8 @@ INIT_SERVICE = REPO_ROOT / "deploy" / "systemd" / "silicom-bypass-init.service"
 BPCTL_SERVICE = REPO_ROOT / "deploy" / "systemd" / "bpctl-silicom.service"
 SILICOM_BYPASS_DOC = REPO_ROOT / "docs" / "SILICOM-BYPASS.md"
 WATCHDOG_UNIT = REPO_ROOT / "deploy" / "systemd" / "silicom-bypass-watchdog@.service"
+PHASE231_ROLLBACK = REPO_ROOT / "scripts" / "phase231-rollback.sh"
+SOAK_MONITOR = REPO_ROOT / "scripts" / "soak-monitor.sh"
 WATCHDOG_ATT_ENV = REPO_ROOT / "deploy" / "scripts" / "bpctl-watchdog-att.env.example"
 WATCHDOG_SPECTRUM_ENV = REPO_ROOT / "deploy" / "scripts" / "bpctl-watchdog-spectrum.env.example"
 WATCHDOG_ATT_CONFLICTS_DROPIN = (
@@ -1129,13 +1131,126 @@ def test_invariant_w_inv_no_raw_watchdog_stop() -> None:
                 continue
             if "W-INV-SANCTIONED-RETIRE-MASK" in line or "W-INV-SANCTIONED-RETIRE-MASK" in prior:
                 continue
-            # Plan 02 owns rollback/soak reconciliation; this Plan 01 gate still
-            # hard-fails the CLI/deploy/test surfaces and is re-run globally there.
-            if surface.name in {"phase231-rollback.sh", "soak-monitor.sh"}:
-                continue
             violations.append(f"{surface.relative_to(REPO_ROOT)}:{lineno}: {line.strip()}")
 
     assert not violations, "raw watchdog systemctl stop/disable/restart/mask:\n" + "\n".join(violations)
+
+
+def _dry_run_plan(wan: str) -> list[str]:
+    result = subprocess.run(
+        ["bash", str(PHASE231_ROLLBACK), "--wan", wan, "--dry-run"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def _first_index(lines: list[str], needle: str) -> int:
+    for index, line in enumerate(lines):
+        if needle in line:
+            return index
+    raise AssertionError(f"{needle!r} not found in rendered rollback plan:\n" + "\n".join(lines))
+
+
+def _watchdog_raw_stop_lines(lines: list[str]) -> list[str]:
+    raw = re.compile(r"\bsystemctl\b.*\b(stop|disable|restart|mask)\b.*silicom-bypass-watchdog")
+    return [line for line in lines if raw.search(line)]
+
+
+def test_rollback_order_repoints_running_petter_per_wan() -> None:
+    att_lines = _dry_run_plan("att")
+    spectrum_lines = _dry_run_plan("spectrum")
+
+    assert not _watchdog_raw_stop_lines(att_lines)
+    assert not _watchdog_raw_stop_lines(spectrum_lines)
+
+    att_env = _first_index(att_lines, "WANCTL_UNIT=wanctl@att.service")
+    att_disarm = _first_index(att_lines, "silicom-bypass disarm att-modem")
+    att_start = _first_index(att_lines, "systemctl start silicom-bypass-watchdog@att.service")
+    att_cake_stop = _first_index(att_lines, "disable --now cake-autorate-att.service")
+    assert att_env < att_disarm < att_start < att_cake_stop
+
+    spectrum_disarm = _first_index(spectrum_lines, "silicom-bypass disarm spec-modem")
+    spectrum_cake_stop = _first_index(
+        spectrum_lines, "disable --now cake-autorate-spectrum.service"
+    )
+    assert spectrum_disarm < spectrum_cake_stop
+
+
+def test_retire_nobypass_sentinel_first_cleanup_is_load_bearing(tmp_path: Path) -> None:
+    fake, calls_log = _fake_bpctl(tmp_path)
+    ctl = _fake_systemctl(tmp_path, fake)
+    run_dir = tmp_path / "wd-run"
+    run_dir.mkdir()
+    sentinel = run_dir / "att-modem.disarm"
+    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ.get('PATH', '')}", "WD_RUN_DIR": str(run_dir)}
+
+    # N1/N5 happy path: sentinel exists during retired-unit stop, the stop does
+    # not emit set_bypass on, cleanup happens after the stop, and a later real
+    # @att ExecStop still fail-opens because the shared sentinel is absent.
+    sentinel.touch()
+    assert sentinel.exists()
+    retired = subprocess.run(
+        [str(ctl), "disable", "--now", "silicom-bypass-watchdog-cake-autorate-att.service"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert retired.returncode == 0, (retired.stdout, retired.stderr)
+    retire_calls = _calls_for(_calls(calls_log), "att-modem")
+    assert "set_bypass on" not in retire_calls
+    assert not sentinel.exists()
+    sentinel.unlink(missing_ok=True)
+    assert not sentinel.exists()
+
+    calls_log.unlink()
+    subsequent_real_stop = subprocess.run(
+        [str(ctl), "disable", "--now", "silicom-bypass-watchdog@att.service"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert subsequent_real_stop.returncode == 0, (
+        subsequent_real_stop.stdout,
+        subsequent_real_stop.stderr,
+    )
+    assert "set_bypass on" in _calls_for(_calls(calls_log), "att-modem")
+
+    # Non-vacuity: without the retire-time sentinel, the retired variant would
+    # emit fail-open; with a leaked shared sentinel, a later real @att stop is
+    # wrongly suppressed.
+    calls_log.unlink()
+    sentinel.unlink(missing_ok=True)
+    bare = subprocess.run(
+        [str(ctl), "disable", "--now", "silicom-bypass-watchdog-cake-autorate-att.service"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert bare.returncode == 0, (bare.stdout, bare.stderr)
+    assert "set_bypass on" in _calls_for(_calls(calls_log), "att-modem")
+
+    calls_log.unlink()
+    sentinel.touch()
+    leaked = subprocess.run(
+        [str(ctl), "disable", "--now", "silicom-bypass-watchdog@att.service"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert leaked.returncode == 0, (leaked.stdout, leaked.stderr)
+    assert "set_bypass on" not in _calls_for(_calls(calls_log), "att-modem")
 
 
 def test_artifacts_repo_owned() -> None:
