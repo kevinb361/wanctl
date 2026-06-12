@@ -117,9 +117,20 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 237-01-PLAN.md — Wave-0 scaffolds: RED HARN-01..05 pytest + SAFE-16 boundary tool (anchor v1.51)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 237-02-PLAN.md — silicom-test orchestrator (failover/ab-cake/chaos) + always-on restore trap + seed scenarios
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 237-03-PLAN.md — DEPLOY-03: extend deploy.sh standalone path + artifact-ownership tests + docs
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 237-04-PLAN.md — SAFE-16 phase-boundary proof + gitignore HIL artifacts + milestone-close operator gate
 
 **UI hint**: no
