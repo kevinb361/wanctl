@@ -15,7 +15,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 **Target features:**
 
 - **`silicom-bypass` operator CLI** — `status/on/off/disc/conn/arm/disarm/mark` verbs; idempotent; refuses non-bypass-capable interfaces; `--yes` required on destructive ops; `--both-wan-confirm` guard against typo-induced dual-WAN loss
-- **Watchdog fail-open reconciled to two-mode reality** — the generic `silicom-bypass-watchdog@.service` template is still wanctl@-coupled (stale in external cake-autorate mode); cake-autorate-mode watchdog coverage for both pairs, operator opt-in per pair, addressing the live bypass-watchdog failure mode hit during the ATT migration
+- **Watchdog fail-open reconciled to two-mode reality** — Phase 236 folded both pairs onto the generic `silicom-bypass-watchdog@.service` template with per-WAN env files naming the live controller, added safe `arm`/`disarm`, retired the old ATT cake-autorate variant, and recorded live `cake-shaper` evidence with ATT/Spectrum watchdogs active against `cake-autorate-*` units
 - **`silicom-bypass-init` boot baseline** — known-good bpctl settings (`set_dis_bypass off`, `set_bypass_pwoff on`, `set_bypass_pwup off`, `set_disc_pwup off`, `set_std_nic off`) applied at boot and read-back-asserted
 - **HIL test harness (`silicom-test`)** — `ab-cake`, `failover`, `chaos` scenario orchestration composing the CLI verbs; always-on exit trap restoring NIC mode; structured per-run result capture (`tests/silicom/<timestamp>-<scenario>/`)
 
@@ -24,6 +24,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - Joint Claude + Codex scope decision 2026-06-12: SEED-006 ranked #1 (operationally real failure mode, zero controller-path risk, harness pays forward). Codex: ROLE-01 premature at ~4 days soak — needs ≥14 stable days PLUS one exercised rollback drill; the SEED-006 harness enables exactly that drill.
 - Partial Phase A surface already exists in repo (bpctl init/dkms/petter/bypass scripts, env examples both WANs, ATT cake-autorate watchdog unit from v1.50) — milestone completes and reconciles, does not rebuild.
 - Settled constraint: NO unpowered fail-open re-litigation (monostable relays, `AuxCurrent=0mA`; UPS coverage compensates — RCA in `docs/SILICOM-BYPASS.md`).
+- Phase 236 shipped 2026-06-12: watchdog two-mode reconciliation verified 14/14, SAFE-16 controller-path zero-diff held, and code review left three warning-level follow-ups for Phase 237/backlog triage (legacy raw-watchdog docs, partial-env arm failure path, ExecStop-mask simulation coverage).
 - SAFE-16 controller-path zero-diff expected, with one explicitly-scoped exception: cake-shaper bypass failure behavior in the watchdog phase.
 - Out of scope: ROLE-01, TAIL-01, SEED-005/007, fping eval, steering changes, scheduled/continuous chaos runs, pytest-harness unification, wanctl Python control-loop integration (bypass path skips Linux entirely).
 
