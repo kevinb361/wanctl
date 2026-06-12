@@ -264,6 +264,9 @@ def _fake_systemctl(tmp_path: Path, fake_bpctl: Path) -> Path:
 
             run_exec_stop() {{
               local unit="$1" iface
+              case " ${{FAKE_SYSTEMCTL_MASKED_EXECSTOP_UNITS:-}} " in
+                *" $unit "*) return 0 ;;
+              esac
               iface="$(iface_for_unit "$unit")"
               [[ -n "$iface" ]] || return 0
               IFACE="$iface" BPCTL_UTIL="$fake_bpctl" WD_RUN_DIR="${{WD_RUN_DIR:-/run/wanctl/bpctl-watchdog}}" "$bypass_script"
@@ -1231,27 +1234,31 @@ def test_retire_nobypass_sentinel_first_cleanup_is_load_bearing(tmp_path: Path) 
     sentinel = run_dir / "att-modem.disarm"
     env = {**os.environ, "PATH": f"{tmp_path}:{os.environ.get('PATH', '')}", "WD_RUN_DIR": str(run_dir)}
 
-    # N1/N5 happy path: sentinel exists during retired-unit stop, the stop does
-    # not emit set_bypass on, cleanup happens after the stop, and a later real
-    # @att ExecStop still fail-opens because the shared sentinel is absent.
+    # N1/N5 live retirement path: the retired unit's ExecStop is masked before
+    # disable --now, so the bypass script is not run, the shared sentinel stays
+    # present through the stop, cleanup happens only after the stop, and a later
+    # real @att ExecStop still fail-opens because cleanup removed the sentinel.
     sentinel.touch()
     assert sentinel.exists()
-    retired = subprocess.run(
+    masked_env = {
+        **env,
+        "FAKE_SYSTEMCTL_MASKED_EXECSTOP_UNITS": "silicom-bypass-watchdog-cake-autorate-att.service",
+    }
+    masked_retired = subprocess.run(
         [str(ctl), "disable", "--now", "silicom-bypass-watchdog-cake-autorate-att.service"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
-        env=env,
+        env=masked_env,
         check=False,
     )
-    assert retired.returncode == 0, (retired.stdout, retired.stderr)
-    retire_calls = _calls_for(_calls(calls_log), "att-modem")
-    assert "set_bypass on" not in retire_calls
-    assert not sentinel.exists()
+    assert masked_retired.returncode == 0, (masked_retired.stdout, masked_retired.stderr)
+    assert _calls_for(_calls(calls_log), "att-modem") == []
+    assert sentinel.exists()
     sentinel.unlink(missing_ok=True)
     assert not sentinel.exists()
 
-    calls_log.unlink()
+    calls_log.unlink(missing_ok=True)
     subsequent_real_stop = subprocess.run(
         [str(ctl), "disable", "--now", "silicom-bypass-watchdog@att.service"],
         cwd=REPO_ROOT,
@@ -1266,10 +1273,27 @@ def test_retire_nobypass_sentinel_first_cleanup_is_load_bearing(tmp_path: Path) 
     )
     assert "set_bypass on" in _calls_for(_calls(calls_log), "att-modem")
 
-    # Non-vacuity: without the retire-time sentinel, the retired variant would
-    # emit fail-open; with a leaked shared sentinel, a later real @att stop is
-    # wrongly suppressed.
-    calls_log.unlink()
+    # Unmasked sentinel coverage: if the retired unit's ExecStop is not masked
+    # but the sentinel is present, the shared bypass script takes its clean
+    # branch, consumes the sentinel, and still does not emit set_bypass on.
+    calls_log.unlink(missing_ok=True)
+    sentinel.touch()
+    unmasked_retired = subprocess.run(
+        [str(ctl), "disable", "--now", "silicom-bypass-watchdog-cake-autorate-att.service"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    assert unmasked_retired.returncode == 0, (unmasked_retired.stdout, unmasked_retired.stderr)
+    assert "set_bypass on" not in _calls_for(_calls(calls_log), "att-modem")
+    assert not sentinel.exists()
+
+    # Non-vacuity: without the retire-time sentinel and without the ExecStop
+    # mask, the retired variant would emit fail-open; with a leaked shared
+    # sentinel, a later real @att stop is wrongly suppressed.
+    calls_log.unlink(missing_ok=True)
     sentinel.unlink(missing_ok=True)
     bare = subprocess.run(
         [str(ctl), "disable", "--now", "silicom-bypass-watchdog-cake-autorate-att.service"],
@@ -1282,7 +1306,7 @@ def test_retire_nobypass_sentinel_first_cleanup_is_load_bearing(tmp_path: Path) 
     assert bare.returncode == 0, (bare.stdout, bare.stderr)
     assert "set_bypass on" in _calls_for(_calls(calls_log), "att-modem")
 
-    calls_log.unlink()
+    calls_log.unlink(missing_ok=True)
     sentinel.touch()
     leaked = subprocess.run(
         [str(ctl), "disable", "--now", "silicom-bypass-watchdog@att.service"],
