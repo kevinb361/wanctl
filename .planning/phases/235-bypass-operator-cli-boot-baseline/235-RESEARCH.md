@@ -417,21 +417,24 @@ Substring-match guidance: test the `non-` form first (`*non-Bypass*`), because `
 | A3 | `silicom-bypass-init.service` should `Before=` the cake-autorate units (att/spectrum), since wanctl@ is disabled. | Pattern 3 / Runtime State | LOW — wrong ordering only affects boot races, not correctness; the baseline is idempotent. Confirm at plan time against current live unit set. |
 | A4 | New 235 artifacts can be made installable via a small extension to the existing deploy seam without finalizing the full DEPLOY-03 path (formally Phase 237). | Open Questions Q2 | LOW — the planner can scope a minimal install step; DEPLOY-03 finalization stays in 237. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Spectrum pair interface name — `spec-modem` vs `sil-spare1`.**
    - What we know: Live env file + `docs/SILICOM-BYPASS.md` say `spec-modem`/`spec-router` (renamed 2026-04-28). CONTEXT/seed say `sil-spare1`.
    - What's unclear: Whether the operator wants the config keyed on the live name now.
    - Recommendation: Ship `PAIRS="att-modem spec-modem"`. Treat the seed value as stale. Surface this in discuss/plan for a 1-line operator confirm. (Assumption A1.)
+   - **RESOLVED:** Ship the live name `spec-modem` (`PAIRS="att-modem spec-modem"`); the stale `sil-spare1`/`sil-spare2` names are forbidden in config. Implemented in Plan 01 config (`silicom-bypass.conf.example`) and corroborated by the live env file; the CLI's `get_bypass_slave` capability probe refuses any unknown/renamed iface loudly. (A1 confirmed.)
 
 2. **Deploy seam for the new 235 artifacts.**
    - What we know: `bpctl-silicom.service` + `wanctl-bpctl-*` are NOT deployed by repo automation today (deploy.sh only checks presence at line 497; install.sh has no bpctl handling). DEPLOY-03 (single documented path) is formally Phase 237.
    - What's unclear: Whether 235 adds a minimal install step now or relies on manual host placement until 237.
    - Recommendation: Add a small, explicitly operator-gated install step (scp → `/usr/local/sbin/silicom-bypass` + unit → `$TARGET_SYSTEMD_DIR`), mirroring the cake-autorate state-bridge deploy stanza (deploy.sh lines 480-501). Keep DEPLOY-03 *finalization* in 237. (Assumption A4.)
+   - **RESOLVED:** Add only the minimal, operator-gated deploy seam in Plan 03 (artifacts made installable, gated by an explicit operator checkpoint); full DEPLOY-03 path finalization remains Phase 237. The 235 slice keeps artifacts repo-owned and installable without rebuilding the deploy pipeline. (A4 confirmed.)
 
 3. **`silicom-bypass-init.service` ordering target set.**
    - What we know: Old `bpctl-silicom.service` orders `Before=wanctl@att/spectrum` (now disabled). Live mode is cake-autorate.
    - Recommendation: `Before=` both wanctl@ and cake-autorate units (harmless if a unit is absent/disabled); `Requires=`/`After=bpctl-silicom.service`. Confirm live unit names at plan time. (Assumption A3.)
+   - **RESOLVED:** The init unit orders `Requires=`/`After=bpctl-silicom.service` and `Before=cake-autorate-att.service cake-autorate-spectrum.service wanctl@att.service wanctl@spectrum.service` (wanctl@ harmless while disabled); `bpctl-silicom.service`'s own `Before=` is reconciled for cake-autorate coherence. Implemented in Plan 02 Task 2, with a test asserting the init-unit ordering. (A3 confirmed.)
 
 ## Environment Availability
 
