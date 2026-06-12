@@ -54,6 +54,8 @@ Phase 236 active docs define watchdog lifecycle safety: use `silicom-bypass arm 
 
 Phase 236 rollback safety gates in `tests/test_silicom_bypass_cli.py` render `scripts/phase231-rollback.sh --dry-run` and assert per-WAN command ordering: running petters are re-pointed by env-rewrite-before-sentinel-clean restart or disarmed before cake-stop, and raw watchdog `systemctl` stops are rejected by the W-INV invariant scan.
 
+Phase 236 Plan 02 operator evidence is recorded in `.planning/phases/236-watchdog-fail-open-two-mode-reconciliation/evidence/task4-operator-evidence.md`: the retired ATT variant is inactive/disabled, folded `silicom-bypass-watchdog@att.service` is active/enabled, active ATT/Spectrum watchdog envs point at cake-autorate units, and the shared `att-modem.disarm` sentinel was removed/verified absent after retirement. SAFE-16 evidence for Phase 236 is in `evidence/safe16-boundary-236.json` plus `evidence/src-wanctl-tree-236.json` with `src_wanctl_changed_count=0`.
+
 Phase 231 DOCS-04 stale-doc sweep updates active public docs to describe two service modes: portable native `wanctl@<wan>.service` mode and external `cake-autorate-<wan>.service` plus `cake-autorate-<wan>-state-bridge.service` mode. Native restart guidance is mode-labeled, while external mode points to `/etc/cake-autorate/config.<wan>.sh` and the cake-autorate unit; docs avoid presenting Spectrum/ATT as live native-wanctl-owned rate control.
 
 Legacy timer-era helper scripts in `scripts/` are intentionally stubbed and should not be used as active deployment guidance.

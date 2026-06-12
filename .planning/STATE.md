@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.52
 milestone_name: Silicom Bypass Operationalization
-status: executing
-stopped_at: Completed 236-01-PLAN.md
-last_updated: "2026-06-12T21:14:59.901Z"
+status: verifying
+stopped_at: Completed 236-02-PLAN.md
+last_updated: "2026-06-12T21:44:05.213Z"
 last_activity: 2026-06-12
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
-  percent: 33
+  completed_plans: 6
+  percent: 67
 ---
 
 # Session State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-12 after v1.51 milestone close)
 
 Phase: 236 (watchdog-fail-open-two-mode-reconciliation) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-12
 
 ## Deferred Items (carried into next milestone)
@@ -69,7 +69,7 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ### v1.51-shipped-clean
 
-- **Status:** Ready to execute
+- **Status:** Phase complete — ready for verification
 - **Operator sign-off:** Kevin — 2026-06-12, via /gsd-verify-work 234 (operator-delegated checks, 5/5 pass) → /gsd-complete-milestone → Acknowledge-all path. 10/10 v1.51 requirements satisfied.
 - **Why this is acceptable:** Milestone surface was scripts/docs/planning/tests only; SAFE-15 controller-path zero-diff held at every phase boundary and was re-proven fresh at close HEAD `aa200dd3` after the verifier flagged stale evidence. No milestone audit was run (planning/docs-only milestone; operator chose acknowledge+close). `/gsd-secure-phase 234` not run — zero code surface, no threat flags declared.
 
@@ -115,8 +115,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-12T21:14:59.885Z
-Stopped at: Completed 236-01-PLAN.md
+Last session: 2026-06-12T21:44:05.189Z
+Stopped at: Completed 236-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -143,6 +143,9 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 - [236-01]: Enforced W-INV through a single `sentineled_stop` helper and a static `-k invariant` gate.
 - [236-01]: Removed the unit `Conflicts` mechanism entirely; double-petter protection lives in the CLI arm-time guard.
 - [236-01]: Kept watchdog deployment install-only/off-by-default; no watchdog unit is enabled by `deploy.sh`.
+- [236-02]: Treat the petter proof as software behavior only: `set_bypass on` plus withheld `reset_bypass_wd`, not measured hardware relay expiry.
+- [236-02]: Rollback/native transitions must re-point a running petter by env-rewrite-before-sentinel-clean-restart or sentinel-clean-disarm-before-cake-stop; env rewrite plus daemon-reload alone is not accepted.
+- [236-02]: Retiring the old ATT variant requires sentinel-first, ExecStop blank-reset masking, post-disable sentinel cleanup, and active-env migration before arming folded `@att`.
 
 ## Decisions (v1.51)
 
@@ -216,3 +219,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 235 P03 | 10 min | 3 tasks | 6 files |
 | Phase 235 P04 | 4 min | 2 tasks | 4 files |
 | Phase 236 P01 | 18 min | 6 tasks | 9 files |
+| Phase 236 P02 | checkpointed; continuation 3 min | 5 tasks | 7 files |

@@ -96,7 +96,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 236-02-PLAN.md — non-destructive petter-body heartbeat-death→bypass proof; 2026-06-08 RCA + arm/disarm + running-petter-repoint + sentinel-clean-retirement notes in docs/SILICOM-BYPASS.md; W-INV-compliant phase231-rollback.sh (all watchdog stops via the sentinel-clean `silicom-bypass disarm` verb; per-wan running-petter-REPOINT command-order gate that rejects env-rewrite-only and raw disable --now — HIGH-2-NEW/HIGH-3/HIGH-C/HIGH-4); re-runs the `-k invariant` gate over rollback/soak; operator-gated SENTINEL-CLEAN ATT-variant retirement (HIGH-3-NEW) + live-env migration gate; [BLOCKING] SAFE-16 + MED-5 companion gate (WDOG-02, SAFE-16)
+- [x] 236-02-PLAN.md — non-destructive petter-body heartbeat-death→bypass proof; 2026-06-08 RCA + arm/disarm + running-petter-repoint + sentinel-clean-retirement notes in docs/SILICOM-BYPASS.md; W-INV-compliant phase231-rollback.sh (all watchdog stops via the sentinel-clean `silicom-bypass disarm` verb; per-wan running-petter-REPOINT command-order gate that rejects env-rewrite-only and raw disable --now — HIGH-2-NEW/HIGH-3/HIGH-C/HIGH-4); re-runs the `-k invariant` gate over rollback/soak; operator-gated SENTINEL-CLEAN ATT-variant retirement (HIGH-3-NEW) + live-env migration gate; [BLOCKING] SAFE-16 + MED-5 companion gate (WDOG-02, SAFE-16)
 
 **UI hint**: no
 
@@ -129,7 +129,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 235. Bypass Operator CLI + Boot Baseline | v1.52 | 4/4 | Complete    | 2026-06-12 |
-| 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 1/2 | In Progress|  |
+| 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 2/2 | Complete   | 2026-06-12 |
 | 237. HIL Failure-Injection Harness + Closeout | v1.52 | 0/? | Not started | - |
 
 ---
