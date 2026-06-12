@@ -147,7 +147,7 @@ def _fake_bpctl(
               set_bypass_pwoff) write_state bypass_pwoff "$value" ;;
               get_bypass_pwoff)
                 case "$(read_state bypass_pwoff off)" in
-                  on) printf '%s\n' 'Bypass at power off' ;;
+                  on) printf '%s\n' "${{BYPASS_PWOFF_ON_TEXT:-Bypass at power off}}" ;;
                   *) printf '%s\n' 'non-Bypass at power off' ;;
                 esac
                 ;;
@@ -411,6 +411,28 @@ def test_baseline_accepts_live_dis_bypass_wording(tmp_path: Path) -> None:
         iface_calls = _calls_for(calls, iface)
         assert "get_dis_bypass" in iface_calls
         assert "set_dis_bypass off" not in iface_calls
+
+
+def test_baseline_accepts_live_bypass_pwoff_wording(tmp_path: Path) -> None:
+    fake, calls_log = _fake_bpctl(tmp_path)
+    _prime_baseline(tmp_path, "att-modem", BASELINE_COMPLIANT)
+    _prime_baseline(tmp_path, "spec-modem", BASELINE_COMPLIANT)
+
+    result = _run(
+        tmp_path,
+        fake,
+        "baseline",
+        extra_env={
+            "BYPASS_PWOFF_ON_TEXT": "The interface is in the Bypass mode at power off state."
+        },
+    )
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    calls = _calls(calls_log)
+
+    for iface in ("att-modem", "spec-modem"):
+        iface_calls = _calls_for(calls, iface)
+        assert "get_bypass_pwoff" in iface_calls
+        assert "set_bypass_pwoff on" not in iface_calls
 
 
 def test_baseline_fails_on_mismatch(tmp_path: Path) -> None:

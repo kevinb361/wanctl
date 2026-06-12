@@ -107,6 +107,24 @@ matches_want() {
     if [[ "$want" == "Bypass at power off" && "$got" == *"non-Bypass at power off"* ]]; then
         return 1
     fi
+    if [[ "$want" == "Bypass at power off" ]]; then
+        case "$got" in
+            *"Bypass at power off"*|*"Bypass mode at power off state"*) return 0 ;;
+            *) return 1 ;;
+        esac
+    fi
+    if [[ "$want" == "non-Bypass at power up" ]]; then
+        case "$got" in
+            *"non-Bypass at power up"*|*"non-Bypass mode at power up state"*) return 0 ;;
+            *) return 1 ;;
+        esac
+    fi
+    if [[ "$want" == "non-Disconnect at power up" ]]; then
+        case "$got" in
+            *"non-Disconnect at power up"*|*"non-Disconnect mode at power up state"*) return 0 ;;
+            *) return 1 ;;
+        esac
+    fi
     case "$got" in
         *"$want"*) return 0 ;;
         *) return 1 ;;
