@@ -28,7 +28,6 @@ ATT_ARTIFACTS = {
     "deploy/scripts/cake-autorate-att-state-bridge",
     "deploy/systemd/cake-autorate-att.service",
     "deploy/systemd/cake-autorate-att-state-bridge.service",
-    "deploy/systemd/silicom-bypass-watchdog-cake-autorate-att.service",
 }
 
 def free_tcp_port() -> int:
