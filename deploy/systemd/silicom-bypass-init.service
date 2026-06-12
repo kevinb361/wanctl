@@ -1,0 +1,15 @@
+[Unit]
+Description=Silicom bypass known-good boot baseline
+Requires=bpctl-silicom.service
+After=bpctl-silicom.service
+Before=cake-autorate-att.service cake-autorate-spectrum.service wanctl@att.service wanctl@spectrum.service
+# Before=/After= express ordering only and only matter when units share a boot transaction.
+# This unit is pulled in by its own WantedBy=multi-user.target and must be enabled on the host; WAN units intentionally do not Wants= it.
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/silicom-bypass baseline
+
+[Install]
+WantedBy=multi-user.target
