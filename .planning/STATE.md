@@ -58,7 +58,7 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 | seeds | SEED-007-v145-storage-hygiene-fire-on-change | dormant; OUT of v1.51 (biggest scope-explosion risk) |
 | quick_tasks | 12 orphan slugs from older milestones | **RESOLVED 2026-06-11 by Phase 234 Plan 01 (META-01)** — 12 slugs indexed archived-in-place (11 shipped, 1 PLAN-only `005`), none deleted; index in evidence/quick-archive-index.{md,json} |
 | residual | `phase231-rollback.sh` confirm-path fix | **v1.51 FIX-01 → Phase 232** (no live rollback exercise) |
-| residual | Phase 230 Nyquist PARTIAL | **PENDING operator approval 2026-06-11 — Phase 234 Plan 02 (META-03)** — recorded waiver decisions/phase-230-nyquist-waiver.md awaiting sign-off; tests green 5/5 |
+| residual | Phase 230 Nyquist PARTIAL | **RESOLVED 2026-06-12 by Phase 234 Plan 02 (META-03)** — operator-approved recorded waiver decisions/phase-230-nyquist-waiver.md; tests green 5/5; archive frontmatter immutable |
 
 ### v1.50-shipped-clean
 
@@ -134,6 +134,8 @@ Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
 - [233-04]: Kevin approved waiving the full-suite-green acceptance criterion for known Phase 220/221 historical boundary-test failures (`23 failed, 5385 passed, 11 skipped, 2 deselected`); Plan 04 does not claim full-suite green, while SAFE-15 passed with `controller_path_diff_count=0`, independent controller-path diff passed, and BOUND-01 phase-final evidence passed with `overall_pass=true`.
 - [234-01]: META-01 quick-archive slugs are archived in place with a pointer index; none deleted, exact slug-set proof used because 11/12 are untracked.
 - [234-01]: META-02 keeps SEED-006 as canonical dormant carrier; stale pending silicom duplicates moved to closed/ with v1.52 pointer and unchanged-hash proof.
+- [234-02]: Kevin approved the recorded Phase 230 Nyquist waiver at the checkpoint; META-03 is resolved via signed waiver rather than retroactive validation, while archived `230-VALIDATION.md` frontmatter remains immutable and the append-only pointer records the closeout.
+- [234-02]: All three Phase 234 META rows are reconciled: META-01 indexed quick-archive slugs, META-02 closed stale silicom pending duplicates with SEED-006 pointer, and META-03 accepted the evidence-backed waiver for the Phase 230 Nyquist PARTIAL.
 
 ## Decisions (v1.50)
 

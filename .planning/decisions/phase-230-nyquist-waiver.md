@@ -31,4 +31,6 @@ If the operator instead prefers retroactive `/gsd-validate-phase 230`, that path
 
 ## Sign-Off
 
-Accepted: pending — awaiting operator approval at Phase 234 Plan 02 checkpoint.   Date: 2026-06-11   Operator: Kevin Blalock (pending)
+Accepted: YES — recorded Phase 230 Nyquist waiver accepted as the META-03 resolution path after checkpoint review.   Date: 2026-06-12   Operator: Kevin Blalock
+
+> Authorized via Phase 234 Plan 02 continuation checkpoint response `approved` on 2026-06-12. Default Disposition accepted; Override Path NOT invoked. Recorded by Claude Code on operator instruction.
