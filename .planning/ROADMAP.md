@@ -57,8 +57,16 @@
 **Plans**: 3 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 235-01-PLAN.md — silicom-bypass CLI (status/on/off/disc/conn/mark) + config example + offline fake-bpctl pytest (TOOL-01..04)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 235-02-PLAN.md — baseline subcommand + silicom-bypass-init.service oneshot + reconcile bpctl-silicom.service (BOOT-01)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 235-03-PLAN.md — operator-gated deploy seam + docs/runbook + SAFE-16 boundary proof + operator live-verify checkpoint (SAFE-16)
 
 **UI hint**: no
