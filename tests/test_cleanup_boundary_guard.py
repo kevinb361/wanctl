@@ -262,6 +262,21 @@ def test_guard_exits_2_on_unknown_anchor(tmp_path: Path) -> None:
     assert result.returncode == 2
 
 
+@pytest.mark.parametrize("flag", ["--anchor", "--out"])
+def test_guard_exits_2_on_missing_option_value(flag: str) -> None:
+    result = subprocess.run(
+        ["bash", str(SCRIPT), flag],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+    assert result.returncode == 2
+    assert "requires a value" in result.stderr
+
+
 def test_scratch_repo_fixture_does_not_copy_guard(tmp_path: Path) -> None:
     repo = _make_scratch_repo(tmp_path)
 

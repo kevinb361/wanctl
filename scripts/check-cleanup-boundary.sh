@@ -47,10 +47,20 @@ require_command() {
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --anchor)
+            if [[ $# -lt 2 || "${2:-}" == --* ]]; then
+                echo "ERROR: --anchor requires a value" >&2
+                usage >&2
+                exit 2
+            fi
             ANCHOR="${2:-}"
             shift 2
             ;;
         --out)
+            if [[ $# -lt 2 || "${2:-}" == --* ]]; then
+                echo "ERROR: --out requires a value" >&2
+                usage >&2
+                exit 2
+            fi
             OUT="${2:-}"
             shift 2
             ;;
