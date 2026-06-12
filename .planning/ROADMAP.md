@@ -92,7 +92,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 236-01-PLAN.md — enforce ONE global invariant (W-INV: no fail-open watchdog stopped/disabled without a sentinel written first under an EXIT trap) via a single sanctioned `sentineled_stop` helper + a static `-k invariant` global-compliance gate; reconcile watchdog template (drop wanctl@%i, NO template-wide Conflicts; @att-scoped drop-in) + env examples (cake-autorate-<wan>); sentinel-aware ExecStop; SYSTEMCTL-seam petter; arm/disarm verbs routing every stop through the trapped helper (closes HIGH-1-NEW re-arm leak), atomic timeout, double-petter guard; fake systemctl runs ExecStop (non-vacuous); ship artifacts off-by-default (WDOG-01, WDOG-03, SAFE-16)
+- [ ] 236-01-PLAN.md — enforce ONE global invariant (W-INV: no fail-open watchdog stopped/disabled without a sentinel written first under an EXIT trap) via a single sanctioned `sentineled_stop` helper + a static `-k invariant` global-compliance gate; reconcile watchdog template (drop wanctl@%i, NO Conflicts= anywhere — N2 removes the @att drop-in entirely; the symmetric Conflicts= is itself an indirect unsentineled stop path) + env examples (cake-autorate-<wan>); sentinel-aware ExecStop; SYSTEMCTL-seam petter; arm/disarm verbs routing every stop through the trapped helper (closes HIGH-1-NEW re-arm leak), atomic timeout, CLI arm-time double-petter guard as the SOLE mechanism; W-INV gate verb set includes mask/mask --now (N3); fake systemctl runs ExecStop (non-vacuous); ship artifacts off-by-default (WDOG-01, WDOG-03, SAFE-16)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
