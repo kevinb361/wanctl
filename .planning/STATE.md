@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.52
 milestone_name: Silicom Bypass Operationalization
 status: executing
-stopped_at: v1.51 closed, archived, and tagged
-last_updated: "2026-06-12T15:26:28.226Z"
-last_activity: 2026-06-12 -- Phase 235 planning complete
+stopped_at: Completed 235-01-PLAN.md
+last_updated: "2026-06-12T15:43:56.781Z"
+last_activity: 2026-06-12
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-12 after v1.51 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Planning next milestone (v1.52 scoping; SEED-006 silicom harness is the standing runner-up)
+**Current focus:** Phase 235 — bypass-operator-cli-boot-baseline
 
 ## Current Position
 
-Phase: Not started
-Plan: —
+Phase: 235 (bypass-operator-cli-boot-baseline) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-12 -- Phase 235 planning complete
+Last activity: 2026-06-12
 
 ## Deferred Items (carried into next milestone)
 
@@ -115,8 +115,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-12 (milestone close)
-Stopped at: v1.51 closed, archived, and tagged
+Last session: 2026-06-12T15:43:12.169Z
+Stopped at: Completed 235-01-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -126,6 +126,12 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 ## Operator Next Steps
 
 - Start the next milestone with /gsd-new-milestone
+
+## Decisions (v1.52)
+
+- [235-01]: Implemented Plan 01 as a bash-only operator tool with `BPCTL_UTIL`, `LOGGER`, `SILICOM_BYPASS_CONF`, and `SILICOM_MARKS_LOG` seams so automated tests never touch the live card.
+- [235-01]: Used `att-modem spec-modem` as the shipped config pair list; stale `sil-spare*` names remain excluded from non-comment artifact content.
+- [235-01]: Baseline, systemd unit, and deploy work stay in later plans; Plan 01 only ships TOOL-01..04 CLI behavior and the reusable stateful fake.
 
 ## Decisions (v1.51)
 
@@ -194,3 +200,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 233 P04 | checkpointed; continuation 5 min | 1 tasks | 3 files |
 | Phase 234 P01 | 4 min | 2 tasks | 7 files |
 | Phase 234 P02 | checkpointed; continuation 2 min | 3 tasks | 6 files |
+| Phase 235 P01 | 4 min | 2 tasks | 3 files |

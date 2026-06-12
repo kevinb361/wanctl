@@ -10,10 +10,10 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Operator CLI (TOOL)
 
-- [ ] **TOOL-01**: Operator can query live bypass card state per pair (`silicom-bypass status [pair|all]`) with values read back from bpctl, not cached
-- [ ] **TOOL-02**: Operator can change pair state via idempotent guarded verbs (`on/off/disc/conn`); destructive ops (`on`/`disc`) require `--yes`; non-bypass-capable interfaces are refused
-- [ ] **TOOL-03**: A destructive op that would put BOTH pairs simultaneously into non-NIC state requires an additional `--both-wan-confirm` gate
-- [ ] **TOOL-04**: Operator can anchor the journal narrative with `silicom-bypass mark <label>` at test/transition boundaries
+- [x] **TOOL-01**: Operator can query live bypass card state per pair (`silicom-bypass status [pair|all]`) with values read back from bpctl, not cached
+- [x] **TOOL-02**: Operator can change pair state via idempotent guarded verbs (`on/off/disc/conn`); destructive ops (`on`/`disc`) require `--yes`; non-bypass-capable interfaces are refused
+- [x] **TOOL-03**: A destructive op that would put BOTH pairs simultaneously into non-NIC state requires an additional `--both-wan-confirm` gate
+- [x] **TOOL-04**: Operator can anchor the journal narrative with `silicom-bypass mark <label>` at test/transition boundaries
 
 ### Watchdog Fail-Open (WDOG)
 
