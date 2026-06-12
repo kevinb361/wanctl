@@ -128,14 +128,25 @@ usage() {
     echo "  $0 --silicom-bypass-only cake-shaper  # Install Silicom bypass artifacts only"
 }
 
-check_prerequisites() {
-    print_step "Checking prerequisites..."
-
-    # Check we're in the right directory
+check_project_directory() {
     if [[ ! -f "$PROJECT_ROOT/src/wanctl/autorate_continuous.py" ]]; then
         print_error "Must be run from wanctl project directory"
         exit 1
     fi
+}
+
+check_ssh_connectivity() {
+    if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "$TARGET_HOST" 'echo ok' &>/dev/null; then
+        print_error "Cannot connect to $TARGET_HOST via SSH"
+        print_warning "Ensure SSH key authentication is configured"
+        exit 1
+    fi
+}
+
+check_prerequisites() {
+    print_step "Checking prerequisites..."
+
+    check_project_directory
 
     # Check rsync is available locally
     if ! command -v rsync &>/dev/null; then
@@ -143,12 +154,7 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Check SSH connectivity
-    if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "$TARGET_HOST" 'echo ok' &>/dev/null; then
-        print_error "Cannot connect to $TARGET_HOST via SSH"
-        print_warning "Ensure SSH key authentication is configured"
-        exit 1
-    fi
+    check_ssh_connectivity
 
     # Check rsync is available on target
     if ! ssh "$TARGET_HOST" 'command -v rsync' &>/dev/null; then
@@ -157,6 +163,15 @@ check_prerequisites() {
     fi
 
     print_success "Prerequisites OK"
+}
+
+check_silicom_bypass_prerequisites() {
+    print_step "Checking Silicom bypass deploy prerequisites..."
+
+    check_project_directory
+    check_ssh_connectivity
+
+    print_success "Silicom bypass deploy prerequisites OK"
 }
 
 run_remote_install() {
@@ -841,7 +856,7 @@ if [[ "$SILICOM_BYPASS_ONLY" == "true" ]]; then
         exit 0
     fi
 
-    check_prerequisites
+    check_silicom_bypass_prerequisites
     deploy_silicom_bypass
     exit 0
 fi

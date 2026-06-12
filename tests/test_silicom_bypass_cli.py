@@ -596,6 +596,8 @@ def test_silicom_standalone_short_circuits() -> None:
     assert "TARGET_HOST=\"$WAN_NAME\"" in handler_body
     assert "Usage: $0 --silicom-bypass-only <target_host> [--dry-run]" in handler_body
     assert "deploy_silicom_bypass" in handler_body
+    assert "check_silicom_bypass_prerequisites" in handler_body
+    assert "check_prerequisites" not in handler_body
     assert handler_exit < deploy_code_call
 
 
