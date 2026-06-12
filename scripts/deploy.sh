@@ -73,6 +73,7 @@ ATT_CAKE_AUTORATE_SYSTEMD=(
 SILICOM_BYPASS_SYSTEMD=(
     "deploy/systemd/silicom-bypass-init.service"
     "deploy/systemd/bpctl-silicom.service"
+    "deploy/systemd/silicom-bypass-watchdog@.service"
 )
 
 # Helper functions
@@ -472,6 +473,8 @@ deploy_spectrum_cake_autorate() {
     # startup commands after deployment.
     ssh "$TARGET_HOST" "sudo rm -f $TARGET_SYSTEMD_DIR/cake-autorate-spectrum.service.d/qdisc-init.conf && sudo rmdir $TARGET_SYSTEMD_DIR/cake-autorate-spectrum.service.d 2>/dev/null || true"
 
+    deploy_watchdog_artifacts
+
     ssh "$TARGET_HOST" "sudo systemctl daemon-reload"
 
     print_success "Spectrum cake-autorate artifacts deployed"
@@ -518,9 +521,7 @@ deploy_att_cake_autorate() {
     done
 
     # ATT carries ExecStartPre inline in its unit, so no trial drop-in cleanup is needed.
-    if ! ssh "$TARGET_HOST" "test -x /usr/local/sbin/wanctl-bpctl-watchdog-petter && test -x /usr/local/sbin/wanctl-bpctl-watchdog-bypass"; then
-        print_warning "silicom watchdog unit was deployed, but bpctl runtime petter/bypass scripts are absent; it will fail on enable until they are installed"
-    fi
+    deploy_watchdog_artifacts
 
     ssh "$TARGET_HOST" "sudo systemctl daemon-reload"
 
@@ -531,9 +532,43 @@ print_silicom_bypass_plan() {
     echo "  - install scripts/silicom-bypass to /usr/local/sbin/silicom-bypass (0755)"
     echo "  - install scripts/wanctl-bpctl-init to /usr/local/sbin/wanctl-bpctl-init (0755)"
     echo "  - install deploy/scripts/silicom-bypass.conf.example to /etc/silicom-bypass.conf only if absent (0644)"
-    echo "  - install silicom-bypass-init.service and bpctl-silicom.service to $TARGET_SYSTEMD_DIR"
+    echo "  - install watchdog petter/bypass scripts and bpctl-watchdog att/spectrum envs only if absent"
+    echo "  - install silicom-bypass-init.service, bpctl-silicom.service, and silicom-bypass-watchdog@.service to $TARGET_SYSTEMD_DIR"
     echo "  - run systemctl daemon-reload only; do not enable or start any unit"
     echo "  - skip deploy_code, deploy_config, verify_deployment, validation, and next-steps"
+}
+
+deploy_watchdog_artifacts() {
+    print_step "Deploying Silicom watchdog artifacts..."
+
+    local remote_tmp
+    remote_tmp=$(ssh "$TARGET_HOST" "mktemp -d /tmp/wanctl-watchdog.XXXXXX")
+    ssh "$TARGET_HOST" "chmod 700 '$remote_tmp'"
+
+    scp "$PROJECT_ROOT/scripts/wanctl-bpctl-watchdog-petter" "$TARGET_HOST:$remote_tmp/wanctl-bpctl-watchdog-petter"
+    ssh "$TARGET_HOST" "sudo install -o root -g root -m 0755 '$remote_tmp/wanctl-bpctl-watchdog-petter' /usr/local/sbin/wanctl-bpctl-watchdog-petter"
+    echo "  -> /usr/local/sbin/wanctl-bpctl-watchdog-petter"
+
+    scp "$PROJECT_ROOT/scripts/wanctl-bpctl-watchdog-bypass" "$TARGET_HOST:$remote_tmp/wanctl-bpctl-watchdog-bypass"
+    ssh "$TARGET_HOST" "sudo install -o root -g root -m 0755 '$remote_tmp/wanctl-bpctl-watchdog-bypass' /usr/local/sbin/wanctl-bpctl-watchdog-bypass"
+    echo "  -> /usr/local/sbin/wanctl-bpctl-watchdog-bypass"
+
+    ssh "$TARGET_HOST" "sudo mkdir -p /etc/wanctl/bpctl-watchdog"
+
+    scp "$PROJECT_ROOT/deploy/scripts/bpctl-watchdog-att.env.example" "$TARGET_HOST:$remote_tmp/bpctl-watchdog-att.env.example"
+    ssh "$TARGET_HOST" "if sudo test -e /etc/wanctl/bpctl-watchdog/att.env; then :; else sudo install -o root -g root -m 0644 '$remote_tmp/bpctl-watchdog-att.env.example' /etc/wanctl/bpctl-watchdog/att.env; fi"
+    echo "  -> /etc/wanctl/bpctl-watchdog/att.env (install-if-absent)"
+
+    scp "$PROJECT_ROOT/deploy/scripts/bpctl-watchdog-spectrum.env.example" "$TARGET_HOST:$remote_tmp/bpctl-watchdog-spectrum.env.example"
+    ssh "$TARGET_HOST" "if sudo test -e /etc/wanctl/bpctl-watchdog/spectrum.env; then :; else sudo install -o root -g root -m 0644 '$remote_tmp/bpctl-watchdog-spectrum.env.example' /etc/wanctl/bpctl-watchdog/spectrum.env; fi"
+    echo "  -> /etc/wanctl/bpctl-watchdog/spectrum.env (install-if-absent)"
+
+    scp "$PROJECT_ROOT/deploy/systemd/silicom-bypass-watchdog@.service" "$TARGET_HOST:$remote_tmp/silicom-bypass-watchdog@.service"
+    ssh "$TARGET_HOST" "sudo install -o root -g root -m 0644 '$remote_tmp/silicom-bypass-watchdog@.service' $TARGET_SYSTEMD_DIR/silicom-bypass-watchdog@.service"
+    echo "  -> silicom-bypass-watchdog@.service"
+
+    ssh "$TARGET_HOST" "sudo systemctl daemon-reload"
+    ssh "$TARGET_HOST" "rm -rf '$remote_tmp'"
 }
 
 deploy_silicom_bypass() {
@@ -554,6 +589,8 @@ deploy_silicom_bypass() {
     scp "$PROJECT_ROOT/deploy/scripts/silicom-bypass.conf.example" "$TARGET_HOST:$remote_tmp/silicom-bypass.conf.example"
     ssh "$TARGET_HOST" "if sudo test -e /etc/silicom-bypass.conf; then :; else sudo install -o root -g root -m 0644 '$remote_tmp/silicom-bypass.conf.example' /etc/silicom-bypass.conf; fi"
     echo "  -> /etc/silicom-bypass.conf (install-if-absent)"
+
+    deploy_watchdog_artifacts
 
     for file in "${SILICOM_BYPASS_SYSTEMD[@]}"; do
         if [[ -f "$file" ]]; then
