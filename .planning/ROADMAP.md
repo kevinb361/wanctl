@@ -87,7 +87,16 @@ Plans:
   3. Operator arms and disarms the watchdog per pair through the CLI (`silicom-bypass arm <pair> [timeout]` / `disarm <pair>`); arming a live pair requires the explicit operator gate defined in the plan and is never implicit (WDOG-03).
   4. SAFE-16 controller-path zero-diff holds at the phase boundary; the single scoped exception (cake-shaper bypass failure behavior) touches failure/units only, not `src/wanctl` controller logic (SAFE-16).
 
-**Plans**: TBD
+**Plans**: 2 plans (serial — Plan 02 proves what Plan 01 builds)
+
+Plans:
+**Wave 1**
+
+- [ ] 236-01-PLAN.md — reconcile watchdog template (drop wanctl@%i) + env examples (name cake-autorate-<wan>) + retire ATT variant from deploy array; SYSTEMCTL-seam petter; arm/disarm CLI verbs with live --yes gate + integer timeout + att-modem/spec-modem→att/spectrum mapping; ship watchdog artifacts off-by-default; offline fake-bpctl/fake-systemctl tests (WDOG-01, WDOG-03)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 236-02-PLAN.md — non-destructive petter-body heartbeat-death→bypass proof; 2026-06-08 ATT migration RCA + arm/disarm usage in docs/SILICOM-BYPASS.md; operator-gated conservative phase231-rollback.sh reconciliation + A1 live-state re-verification; [BLOCKING] SAFE-16 boundary gate (WDOG-02, SAFE-16)
 
 **UI hint**: no
 
@@ -120,7 +129,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 235. Bypass Operator CLI + Boot Baseline | v1.52 | 4/4 | Complete    | 2026-06-12 |
-| 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 0/? | Not started | - |
+| 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 0/2 | Planned | - |
 | 237. HIL Failure-Injection Harness + Closeout | v1.52 | 0/? | Not started | - |
 
 ---
