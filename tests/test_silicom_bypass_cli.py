@@ -8,6 +8,32 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CLI = REPO_ROOT / "scripts" / "silicom-bypass"
+INIT_SERVICE = REPO_ROOT / "deploy" / "systemd" / "silicom-bypass-init.service"
+BPCTL_SERVICE = REPO_ROOT / "deploy" / "systemd" / "bpctl-silicom.service"
+
+BASELINE_MISMATCHED = {
+    "dis_bypass": "on",
+    "bypass_pwoff": "off",
+    "bypass_pwup": "on",
+    "disc_pwup": "on",
+    "std_nic": "on",
+}
+
+BASELINE_COMPLIANT = {
+    "dis_bypass": "off",
+    "bypass_pwoff": "on",
+    "bypass_pwup": "off",
+    "disc_pwup": "off",
+    "std_nic": "off",
+}
+
+BASELINE_WRITES = [
+    "set_dis_bypass off",
+    "set_bypass_pwoff on",
+    "set_bypass_pwup off",
+    "set_disc_pwup off",
+    "set_std_nic off",
+]
 
 
 def _fake_logger(tmp_path: Path) -> Path:
@@ -90,7 +116,11 @@ def _fake_bpctl(
                   *) printf '%s\n' 'non-Disconnect' ;;
                 esac
                 ;;
-              set_std_nic) write_state std_nic "$value" ;;
+              set_std_nic)
+                if [[ "${{STUCK_SET_STD_NIC_IFACE:-}}" != "$iface" ]]; then
+                  write_state std_nic "$value"
+                fi
+                ;;
               get_std_nic)
                 case "$(read_state std_nic off)" in
                   on) printf '%s\n' 'Standard NIC' ;;
@@ -142,6 +172,16 @@ def _prime(tmp_path: Path, iface: str, key: str, value: str) -> None:
     state_dir = tmp_path / "state"
     state_dir.mkdir(exist_ok=True)
     (state_dir / f"{iface}.{key}").write_text(f"{value}\n", encoding="utf-8")
+
+
+def _prime_baseline(tmp_path: Path, iface: str, state: dict[str, str]) -> None:
+    for key, value in state.items():
+        _prime(tmp_path, iface, key, value)
+
+
+def _calls_for(calls: str, iface: str) -> list[str]:
+    prefix = f"{iface} "
+    return [line[len(prefix) :] for line in calls.splitlines() if line.startswith(prefix)]
 
 
 def _run(
@@ -304,3 +344,90 @@ def test_mark_appends_log_and_journals(tmp_path: Path) -> None:
     assert result.returncode == 0, (result.stdout, result.stderr)
     assert "soak-start-1" in (tmp_path / "marks.log").read_text(encoding="utf-8")
     assert "soak-start-1" in (tmp_path / "logger.log").read_text(encoding="utf-8")
+
+
+def test_baseline_applies_and_asserts(tmp_path: Path) -> None:
+    fake, calls_log = _fake_bpctl(tmp_path)
+    for iface in ("att-modem", "spec-modem"):
+        _prime_baseline(tmp_path, iface, BASELINE_MISMATCHED)
+
+    result = _run(tmp_path, fake, "baseline")
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    calls = _calls(calls_log)
+
+    for iface in ("att-modem", "spec-modem"):
+        iface_calls = _calls_for(calls, iface)
+        assert iface_calls[0] == "get_bypass_slave"
+        for write in BASELINE_WRITES:
+            assert write in iface_calls
+        assert "get_dis_bypass" in iface_calls
+        assert "get_bypass_pwoff" in iface_calls
+        assert "get_bypass_pwup" in iface_calls
+        assert "get_disc_pwup" in iface_calls
+        assert "get_std_nic" in iface_calls
+
+
+def test_baseline_read_before_set_skips_writes(tmp_path: Path) -> None:
+    fake, calls_log = _fake_bpctl(tmp_path)
+    _prime_baseline(tmp_path, "att-modem", BASELINE_COMPLIANT)
+    _prime_baseline(tmp_path, "spec-modem", BASELINE_MISMATCHED)
+
+    result = _run(tmp_path, fake, "baseline")
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    calls = _calls(calls_log)
+
+    att_calls = _calls_for(calls, "att-modem")
+    spec_calls = _calls_for(calls, "spec-modem")
+    assert not any(call.startswith("set_") for call in att_calls)
+    for write in BASELINE_WRITES:
+        assert write in spec_calls
+
+
+def test_baseline_fails_on_mismatch(tmp_path: Path) -> None:
+    fake, calls_log = _fake_bpctl(tmp_path)
+    _prime_baseline(tmp_path, "att-modem", BASELINE_MISMATCHED)
+
+    result = _run(
+        tmp_path,
+        fake,
+        "baseline",
+        extra_env={"STUCK_SET_STD_NIC_IFACE": "att-modem"},
+    )
+    assert result.returncode != 0
+    assert "att-modem" in result.stderr
+    assert "get_std_nic" in result.stderr
+    assert "read-back FAILED" in result.stderr
+    assert "att-modem set_std_nic off" in _calls(calls_log)
+
+
+def test_baseline_refuses_pair_never_capable(tmp_path: Path) -> None:
+    fake, calls_log = _fake_bpctl(tmp_path, slave_overrides={"spec-modem": ""})
+    _prime_baseline(tmp_path, "att-modem", BASELINE_COMPLIANT)
+    _prime_baseline(tmp_path, "spec-modem", BASELINE_MISMATCHED)
+
+    result = _run(
+        tmp_path,
+        fake,
+        "baseline",
+        extra_env={"SILICOM_READY_TIMEOUT_MS": "1"},
+    )
+    assert result.returncode != 0
+    assert "spec-modem" in result.stderr
+    assert "never became bpctl-capable" in result.stderr
+    assert "spec-modem set_" not in _calls(calls_log)
+
+
+def test_init_service_artifact() -> None:
+    assert INIT_SERVICE.exists()
+    text = INIT_SERVICE.read_text(encoding="utf-8")
+    assert "Type=oneshot" in text
+    assert "ExecStart=/usr/local/sbin/silicom-bypass baseline" in text
+    assert "Requires=bpctl-silicom.service" in text
+    assert "After=bpctl-silicom.service" in text
+    assert "systemd-udev-settle" not in text
+    assert "ordering only" in text.lower()
+    assert "must be enabled" in text.lower()
+
+    bpctl = BPCTL_SERVICE.read_text(encoding="utf-8")
+    assert "ExecStart=/usr/local/sbin/wanctl-bpctl-init" in bpctl
+    assert any("Before=" in line and "cake-autorate" in line for line in bpctl.splitlines())
