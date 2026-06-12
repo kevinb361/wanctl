@@ -279,21 +279,135 @@ scripts/wanctl-bpctl-watchdog-petter
 scripts/wanctl-bpctl-watchdog-bypass
 ```
 
-Current mapping:
+Current external-mode mapping after the Phase 236 reconciliation:
 
 ```text
-att.env: IFACE=att-modem, WANCTL_UNIT=wanctl@att.service
-spectrum.env: IFACE=spec-modem, WANCTL_UNIT=wanctl@spectrum.service
+att.env: IFACE=att-modem, WANCTL_UNIT=cake-autorate-att.service
+spectrum.env: IFACE=spec-modem, WANCTL_UNIT=cake-autorate-spectrum.service
 ```
 
 The petter arms the hardware watchdog for bypass expiry, disables watchdog
-autoreset, and resets the watchdog every second only while the paired
-`wanctl@...` service is active. The requested timeout is 5000ms; the card rounds
-this to a 6400ms hardware timeout because its watchdog uses fixed timer steps.
+autoreset, and resets the watchdog every second only while the configured
+`WANCTL_UNIT` is active. The default requested timeout is 5000ms; the card rounds
+this to a 6400ms hardware timeout because its watchdog uses fixed timer steps, so
+operator docs should not promise exact millisecond expiry.
 
-If a paired `wanctl@...` service stops, only that WAN pair is put into powered
-bypass. When the `wanctl@...` service comes back, the petter restores that pair
-to non-bypass inline mode and resumes watchdog resets.
+If the configured `WANCTL_UNIT` stops, only that WAN pair is put into powered
+bypass. When that watched unit comes back, the petter restores that pair to
+non-bypass inline mode and resumes watchdog resets.
+
+The non-destructive automated proof for this path demonstrates software behavior
+only: watched-unit inactive makes the petter emit `set_bypass on` and withhold
+`reset_bypass_wd`; watched-unit active makes the petter reset the watchdog and
+restore inline. It is not a measured hardware relay-expiry test.
+
+### 2026-06-08 ATT Migration Watchdog Failure Mode (RCA)
+
+On 2026-06-08 both WANs moved from native `wanctl@<wan>.service` control to the
+external cake-autorate services, leaving `wanctl@att.service` and
+`wanctl@spectrum.service` disabled as rollback targets. A watchdog still reading
+`WANCTL_UNIT=wanctl@<wan>.service` would see a healthy external controller as
+dead, emit `set_bypass on`, and withhold `reset_bypass_wd`; the relay would then
+fall through to raw ISP bypass within the card's rounded hardware timeout.
+
+The emergency ATT-side mitigation added a one-off
+`silicom-bypass-watchdog-cake-autorate-att.service` that watched
+`cake-autorate-att.service`, but Spectrum remained on the stale generic template
+with `WANCTL_UNIT=wanctl@spectrum.service`. That asymmetric two-unit reality is
+now covered by the reconciled template: both pairs use
+`silicom-bypass-watchdog@<wan>.service`, and the per-instance `%i.env` file names
+the live controller (`cake-autorate-<wan>.service` in external mode, or
+`wanctl@<wan>.service` only during native rollback). Double-petter protection
+against the retired ATT variant is the CLI arm-time guard plus the operator
+not-both-active check; there is no systemd `Conflicts=` directive for this.
+
+### Arm / disarm usage and W-INV
+
+Use the operator CLI rather than raw `systemctl` for fail-open watchdog lifecycle
+changes:
+
+```bash
+silicom-bypass arm <pair> [timeout_ms] --yes
+silicom-bypass disarm <pair>
+```
+
+Pair tokens are `att-modem` and `spec-modem`; they map to watchdog instances
+`@att` and `@spectrum`. `arm` requires `--yes` because it intentionally arms a
+live fail-open path: if the configured controller dies, the pair will bypass.
+The optional timeout must be a positive integer in milliseconds and is written
+atomically to the per-pair `%i.env` as `TIMEOUT_MS`; hardware timer granularity
+may round the requested value. Re-arming an already-active watchdog is clean: the
+CLI routes the stop through the sentineled discipline before starting it again,
+so re-arm does not drop the pair to bypass and does not leak a disarm sentinel.
+
+`disarm` performs a clean inline restore through the operator-disarm sentinel and
+an EXIT-trap cleanup: it disables the watchdog, sets disconnect off, sets bypass
+off, and clears `set_bypass_wd 0`. It is fail-safe even if `systemctl disable`
+fails: the cleanup still restores inline and removes the sentinel.
+
+W-INV: any script that stops, disables, restarts, or masks a fail-open watchdog
+must use the sentinel-clean `silicom-bypass disarm <pair>` verb. Do not use raw
+`systemctl disable --now silicom-bypass-watchdog...`, raw `systemctl restart
+silicom-bypass-watchdog...`, or raw `systemctl mask --now
+silicom-bypass-watchdog...`; those paths can run the unit's fail-open ExecStop
+without the operator-disarm sentinel.
+
+### Native rollback and running-petter re-pointing
+
+The petter reads `WANCTL_UNIT` once at process start. Rewriting
+`/etc/wanctl/bpctl-watchdog/<wan>.env` and running `systemctl daemon-reload` does
+not re-point an already-running petter. During a rollback from external
+cake-autorate mode to native `wanctl@<wan>.service`, `phase231-rollback.sh`
+therefore enforces one of these per-WAN orderings:
+
+1. rewrite `%i.env` to `WANCTL_UNIT=wanctl@<wan>.service` before a
+   sentinel-clean watchdog restart (`silicom-bypass disarm <pair>` followed by a
+   fresh start/arm), so the petter re-reads the native unit; or
+2. cleanly disarm the watchdog (`silicom-bypass disarm <pair>`) before stopping
+   `cake-autorate-<wan>.service`.
+
+Leaving an active watchdog untouched, or rewriting the env file only, is not safe
+for an active `@spectrum`: the running petter would keep watching the now-dead
+cake unit and would fire bypass.
+
+### Retiring the old ATT cake-autorate watchdog variant
+
+The retired `silicom-bypass-watchdog-cake-autorate-att.service` has the same
+shared bypass ExecStop script and uses `IFACE=att-modem`. Retire it only after
+the Plan 01 sentinel-aware bypass script and `silicom-bypass disarm` verb are
+installed on the host. The retirement is sentinel-first and ExecStop-masked:
+
+1. write the ATT operator-disarm sentinel root-correctly and verify it exists:
+   `sudo sh -c ': > /run/wanctl/bpctl-watchdog/att-modem.disarm'` or
+   `sudo tee /run/wanctl/bpctl-watchdog/att-modem.disarm </dev/null`; never use
+   `sudo : > ...`, because the redirection runs as the non-root caller;
+2. install a systemd drop-in for
+   `silicom-bypass-watchdog-cake-autorate-att.service` with a blank `ExecStop=`
+   reset and run `systemctl daemon-reload`, so the retired unit cannot run
+   `set_bypass on` even if the sentinel were missed;
+3. then run `systemctl disable --now
+   silicom-bypass-watchdog-cake-autorate-att.service`;
+4. confirm `att-modem` is inline; and
+5. only after the retired unit is down, remove
+   `/run/wanctl/bpctl-watchdog/att-modem.disarm` and verify it is absent.
+
+A bare unsentineled and unmasked `disable --now` of the retired unit is
+forbidden. Leaving the shared `att-modem.disarm` sentinel behind is also
+forbidden, because it would make a later real `silicom-bypass-watchdog@att`
+ExecStop take the clean inline branch instead of the intended fail-open branch.
+
+### Shutdown / boot fail-open is intended
+
+The `/run/wanctl/bpctl-watchdog/` operator-disarm sentinel directory is tmpfs and
+is wiped on boot. A normal host shutdown or reboot stops every armed watchdog;
+without a disarm sentinel, each watchdog's ExecStop drives `set_bypass on`. This
+fail-open is intended: when the host is down, raw ISP passthrough keeps the link
+available instead of depending on CAKE through a stopped bridge host.
+
+Operators who want CAKE-shaped behavior preserved across a planned reboot may
+pre-disarm the pair with `silicom-bypass disarm <pair>` first. The default
+lifecycle behavior is accepted and correct; there is no persistent-sentinel,
+startup-grace, lifecycle-ordering, or pre-reboot-disarm enforcement mechanism.
 
 Verify watchdog state:
 
