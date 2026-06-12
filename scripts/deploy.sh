@@ -68,7 +68,6 @@ SPECTRUM_CAKE_AUTORATE_SYSTEMD=(
 ATT_CAKE_AUTORATE_SYSTEMD=(
     "deploy/systemd/cake-autorate-att.service"
     "deploy/systemd/cake-autorate-att-state-bridge.service"
-    "deploy/systemd/silicom-bypass-watchdog-cake-autorate-att.service"
 )
 
 SILICOM_BYPASS_SYSTEMD=(
