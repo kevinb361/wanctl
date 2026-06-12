@@ -1009,7 +1009,7 @@ def test_deploy_watchdog_off_by_default() -> None:
     assert not re.search(r"systemctl\s+enable(?:\s+--now)?\s+[^\n]*silicom-bypass-watchdog", deploy_text)
 
 
-def test_w_inv_no_raw_watchdog_stop() -> None:
+def test_invariant_w_inv_no_raw_watchdog_stop() -> None:
     script = CLI.read_text(encoding="utf-8")
 
     assert "sentineled_stop()" in script or "function sentineled_stop" in script

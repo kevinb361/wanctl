@@ -303,6 +303,7 @@ sentineled_stop() {
         shift
         [[ $# -ge 2 ]] || die "sentineled_stop requires a systemctl verb and unit" 2
         unit="${*: -1}"
+        # wd_sentinel_path returns the fail-open operator sentinel: <iface>.disarm
         sentinel="$(wd_sentinel_path "$iface")"
         mkdir -p "$WD_RUN_DIR"
         trap 'rm -f "$sentinel"' EXIT
