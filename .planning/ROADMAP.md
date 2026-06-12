@@ -92,11 +92,11 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 236-01-PLAN.md — reconcile watchdog template (drop wanctl@%i) + env examples (name cake-autorate-<wan>) + retire ATT variant from deploy array; SYSTEMCTL-seam petter; arm/disarm CLI verbs with live --yes gate + integer timeout + att-modem/spec-modem→att/spectrum mapping; ship watchdog artifacts off-by-default; offline fake-bpctl/fake-systemctl tests (WDOG-01, WDOG-03)
+- [ ] 236-01-PLAN.md — enforce ONE global invariant (W-INV: no fail-open watchdog stopped/disabled without a sentinel written first under an EXIT trap) via a single sanctioned `sentineled_stop` helper + a static `-k invariant` global-compliance gate; reconcile watchdog template (drop wanctl@%i, NO template-wide Conflicts; @att-scoped drop-in) + env examples (cake-autorate-<wan>); sentinel-aware ExecStop; SYSTEMCTL-seam petter; arm/disarm verbs routing every stop through the trapped helper (closes HIGH-1-NEW re-arm leak), atomic timeout, double-petter guard; fake systemctl runs ExecStop (non-vacuous); ship artifacts off-by-default (WDOG-01, WDOG-03, SAFE-16)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 236-02-PLAN.md — non-destructive petter-body heartbeat-death→bypass proof; 2026-06-08 ATT migration RCA + arm/disarm usage in docs/SILICOM-BYPASS.md; operator-gated conservative phase231-rollback.sh reconciliation + A1 live-state re-verification; [BLOCKING] SAFE-16 boundary gate (WDOG-02, SAFE-16)
+- [ ] 236-02-PLAN.md — non-destructive petter-body heartbeat-death→bypass proof; 2026-06-08 RCA + arm/disarm + running-petter-repoint + sentinel-clean-retirement notes in docs/SILICOM-BYPASS.md; W-INV-compliant phase231-rollback.sh (all watchdog stops via the sentinel-clean `silicom-bypass disarm` verb; per-wan running-petter-REPOINT command-order gate that rejects env-rewrite-only and raw disable --now — HIGH-2-NEW/HIGH-3/HIGH-C/HIGH-4); re-runs the `-k invariant` gate over rollback/soak; operator-gated SENTINEL-CLEAN ATT-variant retirement (HIGH-3-NEW) + live-env migration gate; [BLOCKING] SAFE-16 + MED-5 companion gate (WDOG-02, SAFE-16)
 
 **UI hint**: no
 
