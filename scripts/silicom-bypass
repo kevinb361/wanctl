@@ -19,6 +19,7 @@ Usage:
   silicom-bypass disc <pair> --yes [--both-wan-confirm]
   silicom-bypass conn <pair>
   silicom-bypass mark <label>
+  silicom-bypass baseline
 
 Exit codes: 0 ok/no-op, 1 runtime/read-back refusal, 2 usage.
 EOF
@@ -32,6 +33,10 @@ die() {
 
 journal() {
     "$LOGGER" -t silicom-bypass -- "$*"
+}
+
+journal_best_effort() {
+    journal "$*" || true
 }
 
 util() {
@@ -89,6 +94,75 @@ assert_contains() {
         *"$want"*) return 0 ;;
         *) die "$context read-back failed: wanted '$want', got '$got'" ;;
     esac
+}
+
+matches_want() {
+    local got="$1" want="$2"
+    if [[ "$want" == "Bypass at power off" && "$got" == *"non-Bypass at power off"* ]]; then
+        return 1
+    fi
+    case "$got" in
+        *"$want"*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+readiness_timeout_ms() {
+    printf '%s\n' "${SILICOM_READY_TIMEOUT_MS:-5000}"
+}
+
+now_ms() {
+    date +%s%3N
+}
+
+wait_bpctl_capable() {
+    local pair="$1" timeout_ms deadline slave
+    timeout_ms="$(readiness_timeout_ms)"
+    deadline=$(( $(now_ms) + timeout_ms ))
+
+    while :; do
+        if slave="$(util "$pair" get_bypass_slave 2>/dev/null)" && [[ -n "$slave" ]]; then
+            return 0
+        fi
+        if [[ "$(now_ms)" -ge "$deadline" ]]; then
+            journal_best_effort "baseline $pair: never became bpctl-capable"
+            die "$pair never became bpctl-capable before baseline"
+        fi
+        sleep 0.1
+    done
+}
+
+read_back_failed() {
+    local pair="$1" getverb="$2" want="$3" got="$4"
+    journal_best_effort "baseline $pair $getverb: read-back FAILED (want '$want', got '$got')"
+    die "$pair $getverb read-back FAILED (want '$want', got '$got')"
+}
+
+apply_assert() {
+    local pair="$1" setverb="$2" setarg="$3" getverb="$4" want="$5" current got
+    current="$(util "$pair" "$getverb")"
+    if matches_want "$current" "$want"; then
+        journal_best_effort "baseline $pair $getverb already matches '$want'; skip $setverb $setarg"
+        return 0
+    fi
+
+    util "$pair" "$setverb" "$setarg"
+    got="$(util "$pair" "$getverb")"
+    if matches_want "$got" "$want"; then
+            journal_best_effort "baseline $pair $setverb $setarg OK"
+    else
+        read_back_failed "$pair" "$getverb" "$want" "$got"
+    fi
+}
+
+baseline_pair() {
+    local pair="$1"
+    wait_bpctl_capable "$pair"
+    apply_assert "$pair" set_dis_bypass off get_dis_bypass "Bypass mode enabled"
+    apply_assert "$pair" set_bypass_pwoff on get_bypass_pwoff "Bypass at power off"
+    apply_assert "$pair" set_bypass_pwup off get_bypass_pwup "non-Bypass at power up"
+    apply_assert "$pair" set_disc_pwup off get_disc_pwup "non-Disconnect at power up"
+    apply_assert "$pair" set_std_nic off get_std_nic "not in Standard NIC mode"
 }
 
 assert_positive_bypass() {
@@ -231,6 +305,14 @@ cmd_mark() {
     printf 'marked: %s\n' "$label"
 }
 
+cmd_baseline() {
+    [[ $# -eq 0 ]] || die "baseline accepts no arguments" 2
+    local pair
+    for pair in $PAIRS; do
+        baseline_pair "$pair"
+    done
+}
+
 main() {
     [[ $# -ge 1 ]] || { usage >&2; exit 2; }
     local cmd="$1"
@@ -242,6 +324,7 @@ main() {
         on) cmd_on "$@" ;;
         disc) cmd_disc "$@" ;;
         mark) cmd_mark "$@" ;;
+        baseline) cmd_baseline "$@" ;;
         --help|-h) usage ;;
         *) die "unknown subcommand: $cmd" 2 ;;
     esac
