@@ -1,0 +1,268 @@
+{
+  "anchor": "v1.50",
+  "captured_utc": "2026-06-12T02:52:20Z",
+  "checks": [
+    {
+      "anchor_present": true,
+      "class": "native-controller",
+      "exists": true,
+      "is_file": true,
+      "path": "src/wanctl/autorate_continuous.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-deploy-path",
+      "exists": true,
+      "is_file": true,
+      "path": "deploy/systemd/wanctl@.service",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-deploy-path",
+      "exists": true,
+      "is_file": true,
+      "path": "scripts/install.sh",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-deploy-path",
+      "exists": true,
+      "is_file": true,
+      "path": "scripts/install-systemd.sh",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-deploy-path",
+      "exists": true,
+      "is_file": true,
+      "path": "scripts/deploy.sh",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-tests",
+      "exists": true,
+      "is_file": true,
+      "path": "tests/test_autorate_continuous.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-tests",
+      "exists": true,
+      "is_file": true,
+      "path": "tests/test_autorate_config.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-tests",
+      "exists": true,
+      "is_file": true,
+      "path": "tests/test_autorate_baseline_bounds.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-tests",
+      "exists": true,
+      "is_file": true,
+      "path": "tests/test_autorate_entry_points.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-tests",
+      "exists": true,
+      "is_file": true,
+      "path": "tests/test_autorate_error_recovery.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-tests",
+      "exists": true,
+      "is_file": true,
+      "path": "tests/test_autorate_metrics_recording.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-tests",
+      "exists": true,
+      "is_file": true,
+      "path": "tests/test_autorate_telemetry.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-config-validation",
+      "exists": true,
+      "is_file": true,
+      "path": "src/wanctl/autorate_config.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-config-validation",
+      "exists": true,
+      "is_file": true,
+      "path": "src/wanctl/config_base.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-config-validation",
+      "exists": true,
+      "is_file": true,
+      "path": "src/wanctl/config_validation_utils.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-config-validation",
+      "exists": true,
+      "is_file": true,
+      "path": "src/wanctl/check_config.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-config-validation",
+      "exists": true,
+      "is_file": true,
+      "path": "src/wanctl/check_config_validators.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-config-validation",
+      "exists": true,
+      "is_file": true,
+      "path": "tests/test_check_config.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-config-validation",
+      "exists": true,
+      "is_file": true,
+      "path": "tests/test_config_base.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "native-config-validation",
+      "exists": true,
+      "is_file": true,
+      "path": "tests/test_config_validation_utils.py",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "rollback-commands-docs",
+      "exists": true,
+      "is_file": true,
+      "path": "scripts/phase231-rollback.sh",
+      "policy": "must-exist",
+      "status": "allowlisted-modified",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "rollback-commands-docs",
+      "exists": true,
+      "is_file": true,
+      "path": "scripts/phase227-rollback.sh",
+      "policy": "must-match-anchor",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "rollback-commands-docs",
+      "exists": true,
+      "is_file": true,
+      "path": "tests/test_phase231_rollback.py",
+      "policy": "must-exist",
+      "status": "allowlisted-modified",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "rollback-commands-docs",
+      "exists": true,
+      "is_file": true,
+      "path": "docs/UPGRADING.md",
+      "policy": "must-exist",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": true,
+      "class": "rollback-commands-docs",
+      "exists": true,
+      "is_file": true,
+      "path": "docs/DEPLOYMENT.md",
+      "policy": "must-exist",
+      "status": "ok",
+      "tracked": true
+    },
+    {
+      "anchor_present": false,
+      "class": "rollback-commands-docs",
+      "exists": true,
+      "is_file": true,
+      "path": ".planning/cake-autorate-trials/WANCTL_CAKE_AUTORATE_FUTURE.md",
+      "policy": "must-exist",
+      "status": "ok",
+      "tracked": false
+    }
+  ],
+  "overall_pass": true,
+  "proof_type": "bound01-cleanup-boundary-check"
+}
