@@ -588,10 +588,13 @@ Stopping `wanctl@spectrum.service` while `silicom-bypass-watchdog@spectrum` is
 active intentionally lets the hardware watchdog expire into powered bypass. That
 invalidates CAKE/raw bridge tests because traffic may skip the VM qdiscs.
 
-For a valid raw bridge isolation test:
+For a valid raw bridge isolation test, disarm through the sanctioned watchdog
+CLI first. Do not stop or restart `silicom-bypass-watchdog@spectrum.service`
+directly; raw watchdog lifecycle operations can run fail-open `ExecStop`
+without the operator-disarm sentinel.
 
 ```bash
-sudo systemctl stop silicom-bypass-watchdog@spectrum.service
+sudo silicom-bypass disarm spec-modem
 cd /opt/bpctl-silicom
 sudo ./bpctl_util spec-modem set_bypass_wd 0
 sudo ./bpctl_util spec-modem set_bypass off
@@ -629,7 +632,7 @@ cd /opt/bpctl-silicom
 sudo ./bpctl_util spec-modem set_bypass off
 sudo systemctl restart wanctl@spectrum.service
 sleep 3
-sudo systemctl restart silicom-bypass-watchdog@spectrum.service
+sudo silicom-bypass arm spec-modem --yes
 sudo ./bpctl_util spec-modem get_bypass_wd
 ```
 
