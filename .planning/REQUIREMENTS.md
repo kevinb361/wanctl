@@ -17,9 +17,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Watchdog Fail-Open (WDOG)
 
-- [ ] **WDOG-01**: Watchdog fail-open units cover both pairs under the current external cake-autorate mode — the stale wanctl@-coupled generic `silicom-bypass-watchdog@.service` template is reconciled; off by default, operator opt-in per pair
+- [x] **WDOG-01**: Watchdog fail-open units cover both pairs under the current external cake-autorate mode — the stale wanctl@-coupled generic `silicom-bypass-watchdog@.service` template is reconciled; off by default, operator opt-in per pair
 - [ ] **WDOG-02**: Heartbeat-death → relay-bypass behavior is proven non-destructively (shim/test), and the live bypass-watchdog failure mode hit during the ATT migration is understood and covered
-- [ ] **WDOG-03**: Operator can arm/disarm the watchdog per pair via the CLI (`arm <pair> [timeout]` / `disarm <pair>`)
+- [x] **WDOG-03**: Operator can arm/disarm the watchdog per pair via the CLI (`arm <pair> [timeout]` / `disarm <pair>`)
 
 ### Boot Baseline (BOOT)
 
