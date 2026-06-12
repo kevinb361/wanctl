@@ -3,8 +3,9 @@ set -eu
 
 : "${IFACE:?missing IFACE}"
 : "${BPCTL_UTIL:=/opt/bpctl-silicom/bpctl_util}"
+: "${WD_RUN_DIR:=/run/wanctl/bpctl-watchdog}"
 
-SENTINEL="/run/wanctl/bpctl-watchdog/${IFACE}.disarm"
+SENTINEL="${WD_RUN_DIR}/${IFACE}.disarm"
 
 if [ -f "$SENTINEL" ]; then
   "$BPCTL_UTIL" "$IFACE" set_disc off

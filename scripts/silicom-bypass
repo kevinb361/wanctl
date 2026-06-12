@@ -5,6 +5,9 @@ CONF="${SILICOM_BYPASS_CONF:-/etc/silicom-bypass.conf}"
 : "${BPCTL_UTIL:=/opt/bpctl-silicom/bpctl_util}"
 : "${LOGGER:=logger}"
 MARKS_LOG="${SILICOM_MARKS_LOG:-/var/log/silicom-bypass-marks.log}"
+: "${SYSTEMCTL:=systemctl}"
+: "${WD_ENV_DIR:=/etc/wanctl/bpctl-watchdog}"
+: "${WD_RUN_DIR:=/run/wanctl/bpctl-watchdog}"
 
 # shellcheck source=/dev/null
 [ -r "$CONF" ] && . "$CONF"
@@ -20,6 +23,8 @@ Usage:
   silicom-bypass conn <pair>
   silicom-bypass mark <label>
   silicom-bypass baseline
+  silicom-bypass arm <pair> [timeout_ms] --yes
+  silicom-bypass disarm <pair>
 
 Exit codes: 0 ok/no-op, 1 runtime/read-back refusal, 2 usage.
 EOF
@@ -55,7 +60,7 @@ pair_allowed() {
 
 resolve_pair() {
     local pair="$1" slave
-    pair_allowed "$pair" || die "unknown bypass pair '$pair' (configured PAIRS: $PAIRS)"
+    pair_allowed "$pair" || die "unknown bypass pair '$pair' (configured PAIRS: $PAIRS)" 2
     if ! slave="$(util "$pair" get_bypass_slave 2>/dev/null)"; then
         die "$pair is not bypass-capable (get_bypass_slave failed)"
     fi
@@ -236,6 +241,147 @@ parse_flags() {
     done
 }
 
+pair_to_wd_instance() {
+    case "$1" in
+        att-modem) printf '%s\n' att ;;
+        spec-modem) printf '%s\n' spectrum ;;
+        *) die "no watchdog instance mapping for '$1'" 2 ;;
+    esac
+}
+
+wd_env_path() {
+    printf '%s/%s.env\n' "$WD_ENV_DIR" "$1"
+}
+
+wd_sentinel_path() {
+    printf '%s/%s.disarm\n' "$WD_RUN_DIR" "$1"
+}
+
+validate_timeout_ms() {
+    local value="$1"
+    [[ "$value" =~ ^[1-9][0-9]*$ ]] || die "timeout must be > 0" 2
+}
+
+read_env_key() {
+    local path="$1" key="$2"
+    awk -F= -v key="$key" '$1 == key { value=$0; sub(/^[^=]*=/, "", value); print value; found=1 } END { if (!found) exit 1 }' "$path"
+}
+
+write_timeout_atomic() {
+    local path="$1" timeout_ms="$2" tmp
+    mkdir -p "$(dirname "$path")"
+    tmp="$(mktemp "$(dirname "$path")/.${path##*/}.XXXXXX")"
+    if [[ -f "$path" ]]; then
+        awk -v timeout="$timeout_ms" '
+          BEGIN { wrote=0 }
+          /^TIMEOUT_MS=/ { print "TIMEOUT_MS=" timeout; wrote=1; next }
+          { print }
+          END { if (!wrote) print "TIMEOUT_MS=" timeout }
+        ' "$path" > "$tmp"
+    else
+        printf 'TIMEOUT_MS=%s\n' "$timeout_ms" > "$tmp"
+    fi
+    chmod 0644 "$tmp"
+    mv -f "$tmp" "$path"
+}
+
+validate_watchdog_env() {
+    local path="$1" pair="$2" iface watched
+    [[ -f "$path" ]] || die "env $path missing/invalid required keys (IFACE/WANCTL_UNIT)"
+    iface="$(read_env_key "$path" IFACE || true)"
+    watched="$(read_env_key "$path" WANCTL_UNIT || true)"
+    [[ -n "$iface" && "$iface" == "$pair" && -n "$watched" ]] || \
+        die "env $path missing/invalid required keys (IFACE/WANCTL_UNIT)"
+    if [[ "$watched" == wanctl@* && "${WD_ALLOW_NATIVE_UNIT:-0}" != 1 ]]; then
+        die "refusing to arm $pair: env WANCTL_UNIT names a native wanctl@ unit in cake mode (stale env); migrate the env first"
+    fi
+}
+
+sentineled_stop() {
+    (
+        local iface="$1" unit sentinel rc active_rc
+        shift
+        [[ $# -ge 2 ]] || die "sentineled_stop requires a systemctl verb and unit" 2
+        unit="${*: -1}"
+        sentinel="$(wd_sentinel_path "$iface")"
+        mkdir -p "$WD_RUN_DIR"
+        trap 'rm -f "$sentinel"' EXIT
+        : > "$sentinel"
+        set +e
+        "$SYSTEMCTL" "$@"
+        rc=$?
+        "$SYSTEMCTL" is-active --quiet "$unit"
+        active_rc=$?
+        set -e
+        if [[ "$active_rc" -eq 0 ]]; then
+            journal_best_effort "sentineled_stop $unit: unit still active after stop verb"
+        else
+            journal_best_effort "sentineled_stop $unit: unit inactive after stop verb"
+        fi
+        return "$rc"
+    )
+}
+
+cmd_arm() {
+    [[ $# -ge 1 ]] || die "arm requires a pair" 2
+    local requested="$1" timeout_ms pair instance unit env_path active_rc state
+    shift
+    timeout_ms="${WD_TIMEOUT_MS:-10000}"
+    if [[ $# -gt 0 && "$1" != --* ]]; then
+        timeout_ms="$1"
+        shift
+    fi
+    validate_timeout_ms "$timeout_ms"
+    parse_flags "$@"
+    require_yes "$YES" "arm"
+    pair="$(resolve_pair "$requested")"
+    instance="$(pair_to_wd_instance "$pair")"
+    unit="silicom-bypass-watchdog@${instance}.service"
+    env_path="$(wd_env_path "$instance")"
+
+    if [[ "$instance" == att ]]; then
+        state="$($SYSTEMCTL is-active silicom-bypass-watchdog-cake-autorate-att.service 2>/dev/null || true)"
+        if [[ "$state" == active || "$state" == activating ]]; then
+            die "refusing to arm @att while silicom-bypass-watchdog-cake-autorate-att.service is active (double-petter on att-modem); disable the retired variant first"
+        fi
+    fi
+
+    write_timeout_atomic "$env_path" "$timeout_ms"
+    validate_watchdog_env "$env_path" "$pair"
+
+    set +e
+    "$SYSTEMCTL" is-active --quiet "$unit"
+    active_rc=$?
+    set -e
+    if [[ "$active_rc" -eq 0 ]]; then
+        sentineled_stop "$pair" stop "$unit"
+        "$SYSTEMCTL" enable "$unit"
+        "$SYSTEMCTL" start "$unit"
+        journal "arm $pair: wrote TIMEOUT_MS=$timeout_ms to $env_path (atomic); clean re-arm via sentineled_stop+start $unit"
+    else
+        "$SYSTEMCTL" enable "$unit"
+        "$SYSTEMCTL" start "$unit"
+        journal "arm $pair: wrote TIMEOUT_MS=$timeout_ms to $env_path (atomic); enabled+started $unit"
+    fi
+}
+
+cmd_disarm() {
+    [[ $# -eq 1 ]] || die "disarm requires exactly one pair" 2
+    local pair instance unit cleanup_rc=0
+    pair="$(resolve_pair "$1")"
+    instance="$(pair_to_wd_instance "$pair")"
+    unit="silicom-bypass-watchdog@${instance}.service"
+    sentineled_stop "$pair" disable --now "$unit" || cleanup_rc=$?
+    util "$pair" set_disc off || cleanup_rc=$?
+    util "$pair" set_bypass off || cleanup_rc=$?
+    util "$pair" set_bypass_wd 0 || cleanup_rc=$?
+    if "$SYSTEMCTL" is-active --quiet "$unit"; then
+        die "$unit still active after disarm"
+    fi
+    journal "disarm $pair: clean disarm via sentineled_stop — disabled $unit, restored inline (set_disc off/set_bypass off), cleared bypass_wd"
+    return "$cleanup_rc"
+}
+
 cmd_status() {
     local target="${1:-all}" pair bypass disc std_nic
     [[ $# -le 1 ]] || die "status accepts at most one pair or all" 2
@@ -349,6 +495,8 @@ main() {
         disc) cmd_disc "$@" ;;
         mark) cmd_mark "$@" ;;
         baseline) cmd_baseline "$@" ;;
+        arm) cmd_arm "$@" ;;
+        disarm) cmd_disarm "$@" ;;
         --help|-h) usage ;;
         *) die "unknown subcommand: $cmd" 2 ;;
     esac

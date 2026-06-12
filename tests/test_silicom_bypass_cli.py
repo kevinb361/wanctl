@@ -68,7 +68,7 @@ def _fake_logger(tmp_path: Path) -> Path:
             printf '%s\n' "$*" >> {logger_log}
             exit 0
             """
-        ),
+        ).lstrip(),
         encoding="utf-8",
     )
     logger.chmod(0o755)
@@ -199,7 +199,7 @@ def _fake_bpctl(
                 ;;
             esac
             """
-        ),
+        ).lstrip(),
         encoding="utf-8",
     )
     fake.chmod(0o755)
@@ -263,7 +263,7 @@ def _fake_systemctl(tmp_path: Path, fake_bpctl: Path) -> Path:
               local unit="$1" iface
               iface="$(iface_for_unit "$unit")"
               [[ -n "$iface" ]] || return 0
-              IFACE="$iface" BPCTL_UTIL="$fake_bpctl" "$bypass_script"
+              IFACE="$iface" BPCTL_UTIL="$fake_bpctl" WD_RUN_DIR="${{WD_RUN_DIR:-/run/wanctl/bpctl-watchdog}}" "$bypass_script"
             }}
 
             if [[ "${{1:-}}" == is-active && "${{2:-}}" == --quiet ]]; then
@@ -376,6 +376,29 @@ def _run(
 
 def _calls(calls_log: Path) -> str:
     return calls_log.read_text(encoding="utf-8") if calls_log.exists() else ""
+
+
+def _watchdog_env_dirs(tmp_path: Path) -> tuple[Path, Path]:
+    env_dir = tmp_path / "wd-env"
+    run_dir = tmp_path / "wd-run"
+    env_dir.mkdir(exist_ok=True)
+    run_dir.mkdir(exist_ok=True)
+    return env_dir, run_dir
+
+
+def _seed_watchdog_env(env_dir: Path, instance: str, iface: str, unit: str) -> Path:
+    path = env_dir / f"{instance}.env"
+    path.write_text(f"IFACE={iface}\nWANCTL_UNIT={unit}\n", encoding="utf-8")
+    return path
+
+
+def _watchdog_extra_env(env_dir: Path, run_dir: Path, **extra: str) -> dict[str, str]:
+    return {"WD_ENV_DIR": str(env_dir), "WD_RUN_DIR": str(run_dir), **extra}
+
+
+def _systemctl_calls(tmp_path: Path) -> str:
+    path = tmp_path / "systemctl.log"
+    return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
 def test_status_reads_live(tmp_path: Path) -> None:
@@ -621,6 +644,261 @@ def test_baseline_refuses_pair_never_capable(tmp_path: Path) -> None:
     assert "spec-modem" in result.stderr
     assert "never became bpctl-capable" in result.stderr
     assert "spec-modem set_" not in _calls(calls_log)
+
+
+def test_arm_requires_yes(tmp_path: Path) -> None:
+    fake, _calls_log = _fake_bpctl(tmp_path)
+    env_dir, run_dir = _watchdog_env_dirs(tmp_path)
+    _seed_watchdog_env(env_dir, "att", "att-modem", "cake-autorate-att.service")
+
+    result = _run(tmp_path, fake, "arm", "att-modem", extra_env=_watchdog_extra_env(env_dir, run_dir))
+
+    assert result.returncode != 0
+    assert "arm requires --yes" in result.stderr
+    assert "enable" not in _systemctl_calls(tmp_path)
+    assert "start" not in _systemctl_calls(tmp_path)
+
+
+def test_arm_inactive_writes_timeout_before_start(tmp_path: Path) -> None:
+    fake, _calls_log = _fake_bpctl(tmp_path)
+    env_dir, run_dir = _watchdog_env_dirs(tmp_path)
+    env_path = _seed_watchdog_env(env_dir, "att", "att-modem", "cake-autorate-att.service")
+
+    result = _run(
+        tmp_path,
+        fake,
+        "arm",
+        "att-modem",
+        "5000",
+        "--yes",
+        extra_env=_watchdog_extra_env(env_dir, run_dir, FAKE_SYSTEMCTL_RC="3"),
+    )
+
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert "TIMEOUT_MS=5000" in env_path.read_text(encoding="utf-8")
+    calls = _systemctl_calls(tmp_path).splitlines()
+    assert "enable silicom-bypass-watchdog@att.service" in calls
+    assert "start silicom-bypass-watchdog@att.service" in calls
+    assert not any(call.startswith("restart ") for call in calls)
+    assert not any(call.startswith("stop ") for call in calls)
+
+
+def test_arm_active_rearm_is_sentineled_clean_stop(tmp_path: Path) -> None:
+    fake, calls_log = _fake_bpctl(tmp_path)
+    env_dir, run_dir = _watchdog_env_dirs(tmp_path)
+    env_path = _seed_watchdog_env(env_dir, "att", "att-modem", "cake-autorate-att.service")
+
+    result = _run(
+        tmp_path,
+        fake,
+        "arm",
+        "att-modem",
+        "6000",
+        "--yes",
+        extra_env=_watchdog_extra_env(env_dir, run_dir, FAKE_SYSTEMCTL_RC="0"),
+    )
+
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert "TIMEOUT_MS=6000" in env_path.read_text(encoding="utf-8")
+    calls = _systemctl_calls(tmp_path).splitlines()
+    assert "stop silicom-bypass-watchdog@att.service" in calls
+    assert "start silicom-bypass-watchdog@att.service" in calls
+    assert not any(call.startswith("restart ") for call in calls)
+    iface_calls = _calls_for(_calls(calls_log), "att-modem")
+    assert "set_bypass on" not in iface_calls
+    assert "set_bypass off" in iface_calls
+    assert not (run_dir / "att-modem.disarm").exists()
+
+
+def test_arm_active_rearm_failed_stop_leaves_no_sentinel(tmp_path: Path) -> None:
+    fake, _calls_log = _fake_bpctl(tmp_path)
+    env_dir, run_dir = _watchdog_env_dirs(tmp_path)
+    _seed_watchdog_env(env_dir, "att", "att-modem", "cake-autorate-att.service")
+
+    result = _run(
+        tmp_path,
+        fake,
+        "arm",
+        "att-modem",
+        "6000",
+        "--yes",
+        extra_env=_watchdog_extra_env(
+            env_dir, run_dir, FAKE_SYSTEMCTL_RC="0", FAKE_SYSTEMCTL_DISABLE_RC="1"
+        ),
+    )
+
+    assert result.returncode != 0
+    assert "stop silicom-bypass-watchdog@att.service" in _systemctl_calls(tmp_path)
+    assert not (run_dir / "att-modem.disarm").exists()
+
+
+def test_arm_rejects_bad_timeout(tmp_path: Path) -> None:
+    fake, _calls_log = _fake_bpctl(tmp_path)
+    env_dir, run_dir = _watchdog_env_dirs(tmp_path)
+    _seed_watchdog_env(env_dir, "att", "att-modem", "cake-autorate-att.service")
+
+    zero = _run(
+        tmp_path,
+        fake,
+        "arm",
+        "att-modem",
+        "0",
+        "--yes",
+        extra_env=_watchdog_extra_env(env_dir, run_dir),
+    )
+    bad = _run(
+        tmp_path,
+        fake,
+        "arm",
+        "att-modem",
+        "notanint",
+        "--yes",
+        extra_env=_watchdog_extra_env(env_dir, run_dir),
+    )
+
+    assert zero.returncode == 2
+    assert bad.returncode == 2
+    assert "timeout must be > 0" in zero.stderr
+    assert "timeout must be > 0" in bad.stderr
+
+
+def test_arm_refuses_stale_native_unit_unless_allowed(tmp_path: Path) -> None:
+    fake, _calls_log = _fake_bpctl(tmp_path)
+    env_dir, run_dir = _watchdog_env_dirs(tmp_path)
+    _seed_watchdog_env(env_dir, "att", "att-modem", "wanctl@att.service")
+
+    result = _run(
+        tmp_path,
+        fake,
+        "arm",
+        "att-modem",
+        "5000",
+        "--yes",
+        extra_env=_watchdog_extra_env(env_dir, run_dir, FAKE_SYSTEMCTL_RC="3"),
+    )
+    allowed = _run(
+        tmp_path,
+        fake,
+        "arm",
+        "att-modem",
+        "5000",
+        "--yes",
+        extra_env=_watchdog_extra_env(
+            env_dir, run_dir, FAKE_SYSTEMCTL_RC="3", WD_ALLOW_NATIVE_UNIT="1"
+        ),
+    )
+
+    assert result.returncode != 0
+    assert "native wanctl@ unit in cake mode" in result.stderr
+    assert allowed.returncode == 0, (allowed.stdout, allowed.stderr)
+
+
+def test_arm_atomic_timeout_preserves_env_keys(tmp_path: Path) -> None:
+    fake, _calls_log = _fake_bpctl(tmp_path)
+    env_dir, run_dir = _watchdog_env_dirs(tmp_path)
+    env_path = _seed_watchdog_env(env_dir, "att", "att-modem", "cake-autorate-att.service")
+
+    result = _run(
+        tmp_path,
+        fake,
+        "arm",
+        "att-modem",
+        "7000",
+        "--yes",
+        extra_env=_watchdog_extra_env(env_dir, run_dir, FAKE_SYSTEMCTL_RC="3"),
+    )
+
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    text = env_path.read_text(encoding="utf-8")
+    assert "IFACE=att-modem" in text
+    assert "WANCTL_UNIT=cake-autorate-att.service" in text
+    assert "TIMEOUT_MS=7000" in text
+
+
+def test_arm_refuses_double_petter_att_variant(tmp_path: Path) -> None:
+    fake, _calls_log = _fake_bpctl(tmp_path)
+    env_dir, run_dir = _watchdog_env_dirs(tmp_path)
+    env_path = _seed_watchdog_env(env_dir, "att", "att-modem", "cake-autorate-att.service")
+
+    result = _run(
+        tmp_path,
+        fake,
+        "arm",
+        "att-modem",
+        "5000",
+        "--yes",
+        extra_env=_watchdog_extra_env(
+            env_dir,
+            run_dir,
+            FAKE_SYSTEMCTL_RC="3",
+            FAKE_SYSTEMCTL_silicom_bypass_watchdog_cake_autorate_att_service_STATE="active",
+        ),
+    )
+
+    assert result.returncode != 0
+    assert "double-petter" in result.stderr
+    assert "TIMEOUT_MS=5000" not in env_path.read_text(encoding="utf-8")
+    assert "enable silicom-bypass-watchdog@att.service" not in _systemctl_calls(tmp_path)
+
+
+def test_arm_refuses_bogus_iface(tmp_path: Path) -> None:
+    fake, _calls_log = _fake_bpctl(tmp_path)
+    env_dir, run_dir = _watchdog_env_dirs(tmp_path)
+
+    result = _run(
+        tmp_path,
+        fake,
+        "arm",
+        "bogus-iface",
+        "--yes",
+        extra_env=_watchdog_extra_env(env_dir, run_dir),
+    )
+
+    assert result.returncode == 2
+    assert "unknown bypass pair" in result.stderr
+
+
+def test_disarm_clean_inline_restore(tmp_path: Path) -> None:
+    fake, calls_log = _fake_bpctl(tmp_path)
+    env_dir, run_dir = _watchdog_env_dirs(tmp_path)
+
+    result = _run(
+        tmp_path,
+        fake,
+        "disarm",
+        "spec-modem",
+        extra_env=_watchdog_extra_env(env_dir, run_dir, FAKE_SYSTEMCTL_RC="3"),
+    )
+
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert "disable --now silicom-bypass-watchdog@spectrum.service" in _systemctl_calls(tmp_path)
+    iface_calls = _calls_for(_calls(calls_log), "spec-modem")
+    assert "set_bypass on" not in iface_calls
+    assert iface_calls[-2:] == ["set_bypass off", "set_bypass_wd 0"]
+    assert not (run_dir / "spec-modem.disarm").exists()
+
+
+def test_disarm_disable_failure_still_restores_inline(tmp_path: Path) -> None:
+    fake, calls_log = _fake_bpctl(tmp_path)
+    env_dir, run_dir = _watchdog_env_dirs(tmp_path)
+
+    result = _run(
+        tmp_path,
+        fake,
+        "disarm",
+        "spec-modem",
+        extra_env=_watchdog_extra_env(
+            env_dir, run_dir, FAKE_SYSTEMCTL_RC="3", FAKE_SYSTEMCTL_DISABLE_RC="1"
+        ),
+    )
+
+    assert result.returncode != 0
+    iface_calls = _calls_for(_calls(calls_log), "spec-modem")
+    assert "set_bypass on" not in iface_calls
+    assert "set_disc off" in iface_calls
+    assert "set_bypass off" in iface_calls
+    assert "set_bypass_wd 0" in iface_calls
+    assert not (run_dir / "spec-modem.disarm").exists()
 
 
 def test_init_service_artifact() -> None:
