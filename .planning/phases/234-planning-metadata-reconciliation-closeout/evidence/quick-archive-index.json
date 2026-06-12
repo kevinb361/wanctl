@@ -1,0 +1,73 @@
+{
+  "requirement": "META-01",
+  "total": 12,
+  "disposition": "archived-in-place",
+  "none_deleted": true,
+  "verification": {
+    "classification_method": "SUMMARY presence checked per slug directory at execution time",
+    "tracked_status_method": "git ls-files .planning/milestones/quick-archive/<slug>/",
+    "no_deletion_method": "exact on-disk slug-set equality; git status is insufficient because 11/12 slug dirs are untracked"
+  },
+  "slugs": [
+    {
+      "slug": "001-rename-phase2b-to-confidence-based-steer",
+      "classification": "shipped",
+      "git_tracked": false
+    },
+    {
+      "slug": "002-fix-health-version",
+      "classification": "shipped",
+      "git_tracked": false
+    },
+    {
+      "slug": "003-remove-deprecated-sample-params",
+      "classification": "shipped",
+      "git_tracked": false
+    },
+    {
+      "slug": "004-fix-socket-warnings",
+      "classification": "shipped",
+      "git_tracked": false
+    },
+    {
+      "slug": "005-fix-watchdog-safe-startup-maintenance",
+      "classification": "PLAN-only",
+      "git_tracked": false
+    },
+    {
+      "slug": "6-lan-accessible-health-endpoints-and-dual",
+      "classification": "shipped",
+      "git_tracked": false
+    },
+    {
+      "slug": "7-fix-flapping-alert-bugs-rule-name-mismat",
+      "classification": "shipped",
+      "git_tracked": false
+    },
+    {
+      "slug": "8-fix-flapping-alert-detection-cooldown-ke",
+      "classification": "shipped",
+      "git_tracked": false
+    },
+    {
+      "slug": "260319-lk3-fix-state-file-persistence-and-tuning-pa",
+      "classification": "shipped",
+      "git_tracked": false
+    },
+    {
+      "slug": "260320-9wi-update-readme-and-config-schema-docs-for",
+      "classification": "shipped",
+      "git_tracked": false
+    },
+    {
+      "slug": "260327-uy3-add-spike-detector-confirmation-counter-",
+      "classification": "shipped",
+      "git_tracked": false
+    },
+    {
+      "slug": "260503-cfs-fix-spectrum-alerting-severity",
+      "classification": "shipped",
+      "git_tracked": true
+    }
+  ]
+}
