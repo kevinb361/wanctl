@@ -121,7 +121,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1; closeout)*
 
-- [ ] 234-02-PLAN.md — META-03 Phase 230 Nyquist recorded waiver + STATE ledger flips + SAFE-15 controller-path zero-diff boundary/milestone-close proof (Wave 2)
+- [x] 234-02-PLAN.md — META-03 Phase 230 Nyquist recorded waiver + STATE ledger flips + SAFE-15 controller-path zero-diff boundary/milestone-close proof (Wave 2)
 
 **UI hint**: no
 
@@ -135,7 +135,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 232. Cleanup Boundary Guard + Tooling Fixes | v1.51 | 4/4 | Complete    | 2026-06-11 |
 | 233. Gated Repo Hygiene Sweep | v1.51 | 4/4 | Complete    | 2026-06-11 |
-| 234. Planning Metadata Reconciliation + Closeout | v1.51 | 1/2 | In Progress|  |
+| 234. Planning Metadata Reconciliation + Closeout | v1.51 | 2/2 | Complete   | 2026-06-12 |
 
 ---
 
