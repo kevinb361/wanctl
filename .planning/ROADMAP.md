@@ -129,7 +129,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 235. Bypass Operator CLI + Boot Baseline | v1.52 | 4/4 | Complete    | 2026-06-12 |
-| 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 2/2 | Complete   | 2026-06-12 |
+| 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 2/2 | Complete    | 2026-06-12 |
 | 237. HIL Failure-Injection Harness + Closeout | v1.52 | 0/? | Not started | - |
 
 ---
