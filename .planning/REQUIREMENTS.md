@@ -25,8 +25,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Planning Metadata Reconciliation (META)
 
-- [ ] **META-01**: The 12 orphan quick-task slugs from older milestones are resolved via a `/gsd-cleanup`-style sweep (archived or closed with pointer, not silently deleted)
-- [ ] **META-02**: Silicom pending todos (2026-04-28 ×2) and SEED-006 are reconciled to a consistent state — SEED-006 remains the canonical dormant carrier OR todos remain canonical, but not both claiming different states; no false-closing of operationally real bypass work
+- [x] **META-01**: The 12 orphan quick-task slugs from older milestones are resolved via a `/gsd-cleanup`-style sweep (archived or closed with pointer, not silently deleted)
+- [x] **META-02**: Silicom pending todos (2026-04-28 ×2) and SEED-006 are reconciled to a consistent state — SEED-006 remains the canonical dormant carrier OR todos remain canonical, but not both claiming different states; no false-closing of operationally real bypass work
 - [ ] **META-03**: v1.50 Phase 230 Nyquist PARTIAL is resolved — retroactive `/gsd-validate-phase 230` executed, or an explicit waiver recorded in planning state
 
 ### Safety (SAFE)
@@ -71,8 +71,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SWEEP-01 | Phase 233 | Complete |
 | SWEEP-02 | Phase 233 | Complete |
 | SWEEP-03 | Phase 233 | Complete |
-| META-01 | Phase 234 | Pending |
-| META-02 | Phase 234 | Pending |
+| META-01 | Phase 234 | Complete |
+| META-02 | Phase 234 | Complete |
 | META-03 | Phase 234 | Pending |
 | SAFE-15 | Phase 234 (cross-phase: verified at 232/233/234 boundaries) | Complete |
 
