@@ -3,7 +3,9 @@ phase: 235
 reviewers: [codex]
 reviewed_at: 2026-06-12T14:51:07Z
 cycle_2_reviewed_at: 2026-06-12T17:55:00Z
-cycles: 2
+cycle_3_reviewed_at: 2026-06-12T15:31:17Z
+cycles: 3
+converged: true
 plans_reviewed: [235-01-PLAN.md, 235-02-PLAN.md, 235-03-PLAN.md]
 ---
 
@@ -139,9 +141,52 @@ The cycle-2 revisions resolve the four prior HIGH concerns in substance. The pla
 
 ---
 
+## Codex Review — Cycle 3 (final convergence; reviews plans as revised by commit 684de57b; model gpt-5.5)
+
+**Summary**
+
+The current plans materially address the cycle-2 issues. The revised text now makes the fake `bpctl_util` stateful across all baseline keys, fixes the all-five-baseline-write contradiction by priming `std_nic` mismatched before asserting the write, preserves a skip-write path, and makes the standalone deploy mode install the init unit's hard dependencies. I found no unresolved HIGHs. Remaining concerns are test-enforcement gaps, not plan-shape blockers.
+
+**Cycle-2 Resolution Table**
+
+| Cycle-2 Finding | Severity | Verdict | Current Plan Evidence |
+|---|---:|---|---|
+| 235-02 baseline test expected all five writes even though default fake already matched `set_std_nic off` | HIGH | FULLY RESOLVED | Plan 02 explicitly says the all-five test "MUST first prime each pair's `std_nic` to `on`" and `test_baseline_applies_and_asserts` primes both pairs to mismatched `std_nic="on"`. It also adds `test_baseline_read_before_set_skips_writes` for the compliant skip path. |
+| Plan-01 fake only modeled `bypass\|disc\|std_nic`, missing baseline policy keys | MEDIUM | FULLY RESOLVED | Plan 01 now requires the fake to model `dis_bypass`, `bypass_pwoff`, `bypass_pwup`, and `disc_pwup`, with explicit set/get mappings and default states. |
+| Standalone deploy mode omitted `bpctl-silicom.service` / `wanctl-bpctl-init`, despite init unit `Requires=` | MEDIUM | FULLY RESOLVED | Plan 03 now requires `SILICOM_BYPASS_SYSTEMD` to include both `silicom-bypass-init.service` and `bpctl-silicom.service`, and `deploy_silicom_bypass()` must install `scripts/wanctl-bpctl-init` to `/usr/local/sbin/wanctl-bpctl-init`. It also adds `test_deploy_installs_init_unit_dependencies`. |
+
+**Strengths**
+
+- The stateful fake contract is now detailed enough to catch read-before-set and read-after-write mistakes.
+- The baseline tests cover both required branches: apply-all-five when mismatched and skip-all-writes when compliant.
+- The mandatory per-pair readiness poll closes the boot-race gap between module readiness and interface readiness.
+- The deploy mode is correctly modeled as a short-circuit like `--install-only`, not an additive `--with-*` flag.
+- Live-host actions are explicitly operator-gated and distinguish "live verified" from "live waived."
+- SAFE-16 is verified with the existing boundary checker rather than asserted by convention.
+
+**New Concerns**
+
+- **MEDIUM** The standalone dry-run behavior is required but not clearly covered by an automated test. Plan 03 says `--silicom-bypass-only --dry-run` must print planned actions and skip `scp`/`ssh`, but the listed deploy tests only check artifact ownership, mode presence, dependency install references, and short-circuit ordering. A missed dry-run branch could turn a dry-run into a real deploy.
+- **LOW** State-change journaling is required by the phase context, but Plan 01 only tests logger invocation for `mark`. The CLI action text says `on/off/disc/conn` journal too, but a broken implementation could omit state-change journal calls and still satisfy the named tests.
+- **LOW** The standalone path calls `check_prerequisites`, which currently checks for local `rsync` even though the silicom-only deploy path does not use rsync. That is not a safety issue, but it can create unnecessary friction or false failure for a decoupled deploy mode.
+
+**Suggestions**
+
+- Add `test_silicom_standalone_dry_run_is_non_mutating`, either static or shell-based with fake `scp`/`ssh`, proving dry-run does not execute deploy commands.
+- Add one logger assertion for a real state-changing verb, for example `on att-modem --yes`, to preserve the audit trail contract.
+- Consider splitting `check_prerequisites` or adding a lighter `check_ssh_prerequisites` for standalone silicom deploys.
+
+**Risk Assessment**
+
+Overall risk: LOW-MEDIUM. The cycle-2 correctness issues are resolved, and the remaining gaps are narrow enforcement gaps around deploy dry-run behavior and audit logging. The phase goal is achievable as written if the executor follows the current plan text.
+
+`OUTSTANDING HIGHS: 0`
+
+---
+
 ## Consensus Summary
 
-Single external reviewer (Codex) across both cycles — consensus is the Codex verdict itself.
+Single external reviewer (Codex) across all three cycles — consensus is the Codex verdict itself.
 
 ### Cycle Convergence Status
 
@@ -152,7 +197,13 @@ Single external reviewer (Codex) across both cycles — consensus is the Codex v
 | 235-02: readiness polling optional | FULLY RESOLVED |
 | 235-03: deploy seam not truly decoupled | FULLY RESOLVED |
 
-**Outstanding HIGHs after cycle 2: 1 (new)**
+| Cycle-2 Finding | Cycle-3 Verdict |
+|---|---|
+| 235-02 (HIGH): baseline all-five-writes test contradicted read-before-set under default fake | FULLY RESOLVED |
+| 235-02 (MEDIUM): fake contract missing 4 baseline policy keys | FULLY RESOLVED |
+| 235-03 (MEDIUM): standalone deploy omitted bpctl-silicom.service / wanctl-bpctl-init | FULLY RESOLVED |
+
+**Outstanding HIGHs after cycle 3: 0 — CONVERGED.** Remaining open items are 1 MEDIUM (dry-run non-mutation untested) + 2 LOW (state-change journaling assertion, rsync prereq friction) — executor-discretion improvements, not plan blockers.
 
 ### Agreed Strengths
 - Tight phase scope: tooling/boot-guards only, no controller-path mutation; SAFE-16 discipline carried through all three plans.
@@ -160,9 +211,10 @@ Single external reviewer (Codex) across both cycles — consensus is the Codex v
 - Correct service split (`bpctl-silicom.service` owns module/device; `silicom-bypass-init.service` owns policy baseline) with `silicom-bypass baseline` as single source of truth, mandatory readiness poll, and read-before-set.
 - TRUE standalone `--silicom-bypass-only` deploy mode modeled on the `--install-only` short-circuit, verified against the real deploy.sh structure.
 
-### Agreed Concerns (current)
-- **HIGH (NEW, 235-02):** `test_baseline_applies_and_asserts` expects all five `set_*` verbs under the default fake NIC posture, but the default already matches the `set_std_nic off` want string ("not in Standard NIC mode") — a correct read-before-set implementation would skip that write and fail the test. Fix: prime pairs into a mismatched baseline-policy state before expecting all five writes.
-- **MEDIUM:** Plan-01 fake contract only names `bypass|disc|std_nic` keys — baseline needs `dis_bypass`, `bypass_pwoff`, `bypass_pwup`, `disc_pwup` modeled explicitly; standalone deploy does not install `bpctl-silicom.service`/`wanctl-bpctl-init` that the init unit `Requires=` (needs preflight or inclusion); deploy-seam tests are static-only (add `bash -n` + dry-run assertion); `status all` untested (LOW).
+### Agreed Concerns (current, post-cycle-3)
+- **No outstanding HIGHs.** All cycle-1 and cycle-2 HIGHs verified FULLY RESOLVED against the current plan text (commit 684de57b).
+- **MEDIUM (235-03):** `--silicom-bypass-only --dry-run` non-mutation is required by the plan but not enforced by a named automated test — a missed dry-run branch could turn a dry-run into a real deploy. Suggested: `test_silicom_standalone_dry_run_is_non_mutating`.
+- **LOW (235-01):** state-change journaling for `on/off/disc/conn` is required but only `mark` has a logger assertion; rsync check in `check_prerequisites` is unnecessary friction for the standalone silicom path.
 
 ### Divergent Views
 None — single reviewer.
