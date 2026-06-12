@@ -6,6 +6,7 @@ set -eu
 : "${BPCTL_UTIL:=/opt/bpctl-silicom/bpctl_util}"
 : "${TIMEOUT_MS:=5000}"
 : "${HEARTBEAT_SECONDS:=1}"
+: "${SYSTEMCTL:=/bin/systemctl}"
 
 util() {
   "$BPCTL_UTIL" "$IFACE" "$@"
@@ -25,7 +26,7 @@ last_state=unknown
 log "armed bpctl watchdog for $IFACE: timeout=${TIMEOUT_MS}ms heartbeat=${HEARTBEAT_SECONDS}s watched_unit=$WANCTL_UNIT"
 
 while :; do
-  if /bin/systemctl is-active --quiet "$WANCTL_UNIT"; then
+  if "$SYSTEMCTL" is-active --quiet "$WANCTL_UNIT"; then
     if [ "$last_state" != active ]; then
       util set_disc off
       util set_bypass off
@@ -35,6 +36,7 @@ while :; do
     last_state=active
   else
     if [ "$last_state" != inactive ]; then
+      # Boot/restart and shutdown lifecycle fail-open is intended; see docs/SILICOM-BYPASS.md.
       log "$WANCTL_UNIT is not active; putting $IFACE into bypass and withholding watchdog reset"
       util set_bypass on
     fi
