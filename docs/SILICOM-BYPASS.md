@@ -50,6 +50,139 @@ This was validated on 2026-04-28 by forcing both ATT and Spectrum into powered
 bypass, rebooting the `cake-shaper` VM, confirming `bpctl-silicom.service`
 recreated `/dev/bpctl0`, then restoring both pairs to non-bypass inline mode.
 
+## `silicom-bypass` CLI
+
+Phase 235 promotes the repo-owned `scripts/silicom-bypass` wrapper as the
+operator-facing control surface. The installed path is:
+
+```text
+/usr/local/sbin/silicom-bypass
+```
+
+The CLI reads `/etc/silicom-bypass.conf` by default. The shipped example uses
+the live control interfaces for both WAN pairs:
+
+```sh
+PAIRS="att-modem spec-modem"
+```
+
+The config also reserves `WD_TIMEOUT_MS=10000` and `HEARTBEAT_MS=3000` for the
+later watchdog reconciliation phase. State-change marks append to
+`/var/log/silicom-bypass-marks.log` and are also sent to the journal via the
+`silicom-bypass` tag.
+
+Supported verbs:
+
+| Verb | Purpose | Safety behavior |
+|------|---------|-----------------|
+| `status [pair|all]` | Read live `get_bypass`, `get_disc`, and `get_std_nic` state for one pair or all configured pairs. | Read-only; never cached. |
+| `on <pair> --yes [--both-wan-confirm]` | Put a pair into powered bypass. | Destructive; requires `--yes`. If the other pair is already non-NIC via Bypass or Disconnect, also requires `--both-wan-confirm`. |
+| `off <pair>` | Restore a pair to non-bypass NIC path. | Safe direction; idempotent no-op if already non-bypass. |
+| `disc <pair> --yes [--both-wan-confirm]` | Put a pair into Disconnect mode. | Destructive; requires `--yes`. If the other pair is already non-NIC via Bypass or Disconnect, also requires `--both-wan-confirm`. |
+| `conn <pair>` | Restore a pair from Disconnect mode. | Safe direction; idempotent no-op if already connected. |
+| `mark <label>` | Add an operator narrative marker to journal and `/var/log/silicom-bypass-marks.log`. | No card mutation. |
+| `baseline` | Apply/read-back-assert the known-good boot policy on all configured pairs. | Waits for each pair to be bpctl-capable; skips writes already at baseline. |
+
+Exit-code grammar:
+
+- `0`: success or idempotent no-op.
+- `1`: runtime refusal or read-back failure.
+- `2`: usage error or unknown argument.
+
+`on` and `disc` can drop a WAN. Do not run them on a live pair unless that is the
+intended operation. The dual-WAN guard is deliberately stricter than bypass-only:
+the extra `--both-wan-confirm` gate triggers when the other configured pair is
+already non-NIC through either Bypass or Disconnect.
+
+## Operator-gated live procedures
+
+The following procedures touch the live dual-WAN `cake-shaper` host. They are
+operator actions, not autonomous executor steps.
+
+### Standalone install
+
+Install only the Silicom bypass artifacts with the dedicated standalone mode:
+
+```bash
+./scripts/deploy.sh --silicom-bypass-only cake-shaper
+```
+
+The first positional argument is the SSH target host. This mode short-circuits
+before the normal wanctl release path: it does not run code rsync,
+configuration deployment, verification, validation, service restart guidance, or
+the next-steps banner. It only installs:
+
+- `/usr/local/sbin/silicom-bypass`
+- `/usr/local/sbin/wanctl-bpctl-init`
+- `/etc/silicom-bypass.conf` if absent (operator edits are not clobbered)
+- `silicom-bypass-init.service`
+- `bpctl-silicom.service`
+
+It runs `systemctl daemon-reload` only. It does **not** enable or start any unit.
+The init unit has `Requires=bpctl-silicom.service`, so the standalone path also
+installs `bpctl-silicom.service` and `/usr/local/sbin/wanctl-bpctl-init`; the
+boot dependency chain is self-consistent after a standalone-only deploy.
+
+### Read-only live smoke
+
+After installation, the read-only smoke test is:
+
+```bash
+silicom-bypass status all
+```
+
+Expected output covers both `att-modem` and `spec-modem` with their current
+NIC/bypass/disconnect state. This command should not mutate card state.
+
+### Boot baseline oneshot
+
+`silicom-bypass-init.service` is ordering-only relative to the WAN services. It
+must be enabled on the host to participate in boot:
+
+```bash
+systemctl enable silicom-bypass-init.service
+```
+
+Installation alone is not enough. The unit requires `bpctl-silicom.service` and
+then runs:
+
+```text
+ExecStart=/usr/local/sbin/silicom-bypass baseline
+```
+
+To manually exercise the oneshot during an approved maintenance window:
+
+```bash
+systemctl start silicom-bypass-init.service
+journalctl -u silicom-bypass-init.service --no-pager -l
+```
+
+Expected behavior: each configured pair first waits until `get_bypass_slave`
+proves bpctl capability, then all five baseline settings are read-back-asserted
+on `att-modem` and `spec-modem`. Writes are skipped where the card already reads
+at the desired baseline. Any mismatch or never-ready pair fails loudly.
+
+Equivalent direct CLI exercise:
+
+```bash
+silicom-bypass baseline
+```
+
+### Rollback to normal NIC mode
+
+If any live test leaves a pair in an unexpected state, restore NIC mode on both
+pairs:
+
+```bash
+silicom-bypass off att-modem
+silicom-bypass conn att-modem
+silicom-bypass off spec-modem
+silicom-bypass conn spec-modem
+```
+
+Do not run `on` or `disc` on both WANs unless you intentionally want both WAN
+pairs out of NIC mode and pass the explicit `--both-wan-confirm` guard.
+
 ## Kernel Upgrades And DKMS
 
 `bpctl_mod` is an out-of-tree kernel module. It is registered with DKMS on
