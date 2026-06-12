@@ -117,7 +117,7 @@ Plans:
 
 **Wave 1** *(parallel; disjoint metadata surfaces)*
 
-- [ ] 234-01-PLAN.md — META-01 quick-archive 12-slug index (archived-in-place, none deleted) + META-02 silicom pending-dupe close-with-pointer to SEED-006 (Wave 1)
+- [x] 234-01-PLAN.md — META-01 quick-archive 12-slug index (archived-in-place, none deleted) + META-02 silicom pending-dupe close-with-pointer to SEED-006 (Wave 1)
 
 **Wave 2** *(blocked on Wave 1; closeout)*
 
@@ -135,7 +135,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 232. Cleanup Boundary Guard + Tooling Fixes | v1.51 | 4/4 | Complete    | 2026-06-11 |
 | 233. Gated Repo Hygiene Sweep | v1.51 | 4/4 | Complete    | 2026-06-11 |
-| 234. Planning Metadata Reconciliation + Closeout | v1.51 | 0/2 | Planned | - |
+| 234. Planning Metadata Reconciliation + Closeout | v1.51 | 1/2 | In Progress|  |
 
 ---
 
