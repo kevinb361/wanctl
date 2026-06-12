@@ -347,6 +347,7 @@ cmd_arm() {
         fi
     fi
 
+    validate_watchdog_env "$env_path" "$pair"
     write_timeout_atomic "$env_path" "$timeout_ms"
     validate_watchdog_env "$env_path" "$pair"
 

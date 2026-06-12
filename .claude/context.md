@@ -50,7 +50,7 @@ Phase 231 SOAK-02 rollback verification uses `scripts/phase231-rollback.sh`: def
 
 Phase 236 watchdog fail-open proof tests run only against fake `bpctl_util` and fake `systemctl` seams; they verify petter software behavior (`set_bypass on` with pet withheld vs active-unit pet/inline restore) without arming a live Silicom relay or waiting for hardware expiry.
 
-Phase 236 active docs define watchdog lifecycle safety: use `silicom-bypass arm <pair> --yes` / `silicom-bypass disarm <pair>` instead of raw watchdog `systemctl` stops, re-point running petters during native rollback, retire the old ATT cake-autorate variant sentinel-first plus ExecStop-masked, and treat shutdown/boot fail-open as intended host-down passthrough.
+Phase 236 active docs define watchdog lifecycle safety: use `silicom-bypass arm <pair> --yes` / `silicom-bypass disarm <pair>` instead of raw watchdog `systemctl` stops, re-point running petters during native rollback, retire the old ATT cake-autorate variant sentinel-first plus ExecStop-masked, and treat shutdown/boot fail-open as intended host-down passthrough. `silicom-bypass arm` preflights the watchdog env before writing `TIMEOUT_MS`, so missing/invalid env files fail closed without creating partial timeout-only files.
 
 Phase 236 rollback safety gates in `tests/test_silicom_bypass_cli.py` render `scripts/phase231-rollback.sh --dry-run` and assert per-WAN command ordering: running petters are re-pointed by env-rewrite-before-sentinel-clean restart or disarmed before cake-stop, and raw watchdog `systemctl` stops are rejected by the W-INV invariant scan.
 

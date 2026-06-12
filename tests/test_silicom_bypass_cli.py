@@ -795,6 +795,49 @@ def test_arm_rejects_bad_timeout(tmp_path: Path) -> None:
     assert "timeout must be > 0" in bad.stderr
 
 
+def test_arm_missing_env_does_not_create_partial_timeout_file(tmp_path: Path) -> None:
+    fake, _calls_log = _fake_bpctl(tmp_path)
+    env_dir, run_dir = _watchdog_env_dirs(tmp_path)
+    env_path = env_dir / "att.env"
+
+    result = _run(
+        tmp_path,
+        fake,
+        "arm",
+        "att-modem",
+        "5000",
+        "--yes",
+        extra_env=_watchdog_extra_env(env_dir, run_dir, FAKE_SYSTEMCTL_RC="3"),
+    )
+
+    assert result.returncode != 0
+    assert "missing/invalid required keys" in result.stderr
+    assert not env_path.exists()
+    assert "enable silicom-bypass-watchdog@att.service" not in _systemctl_calls(tmp_path)
+
+
+def test_arm_invalid_env_does_not_mutate_timeout(tmp_path: Path) -> None:
+    fake, _calls_log = _fake_bpctl(tmp_path)
+    env_dir, run_dir = _watchdog_env_dirs(tmp_path)
+    env_path = env_dir / "att.env"
+    env_path.write_text("IFACE=att-modem\n", encoding="utf-8")
+
+    result = _run(
+        tmp_path,
+        fake,
+        "arm",
+        "att-modem",
+        "5000",
+        "--yes",
+        extra_env=_watchdog_extra_env(env_dir, run_dir, FAKE_SYSTEMCTL_RC="3"),
+    )
+
+    assert result.returncode != 0
+    assert "missing/invalid required keys" in result.stderr
+    assert "TIMEOUT_MS=5000" not in env_path.read_text(encoding="utf-8")
+    assert "enable silicom-bypass-watchdog@att.service" not in _systemctl_calls(tmp_path)
+
+
 def test_arm_refuses_stale_native_unit_unless_allowed(tmp_path: Path) -> None:
     fake, _calls_log = _fake_bpctl(tmp_path)
     env_dir, run_dir = _watchdog_env_dirs(tmp_path)
