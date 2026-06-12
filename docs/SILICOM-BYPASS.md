@@ -150,10 +150,13 @@ then runs:
 ExecStart=/usr/local/sbin/silicom-bypass baseline
 ```
 
-To manually exercise the oneshot during an approved maintenance window:
+To manually exercise the oneshot during an approved maintenance window, use
+`restart`: the unit is a `oneshot` with `RemainAfterExit=yes`, so `systemctl
+start` can be a no-op once the unit is already active after boot and will not
+re-run the baseline `ExecStart`.
 
 ```bash
-systemctl start silicom-bypass-init.service
+systemctl restart silicom-bypass-init.service
 journalctl -u silicom-bypass-init.service --no-pager -l
 ```
 

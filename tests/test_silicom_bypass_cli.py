@@ -486,6 +486,24 @@ def test_init_service_artifact() -> None:
     assert any("Before=" in line and "cake-autorate" in line for line in bpctl.splitlines())
 
 
+def test_init_service_manual_reapply_docs_match_remain_after_exit() -> None:
+    unit_text = INIT_SERVICE.read_text(encoding="utf-8")
+    docs_text = SILICOM_BYPASS_DOC.read_text(encoding="utf-8")
+    manual_match = re.search(
+        r"To manually exercise the oneshot.*?```bash\n(?P<commands>.*?)```",
+        docs_text,
+        re.S,
+    )
+    assert manual_match is not None, "manual oneshot exercise block not found"
+    manual_block = manual_match.group("commands")
+
+    if "RemainAfterExit=yes" in unit_text:
+        assert "systemctl restart silicom-bypass-init.service" in manual_block
+        assert "systemctl start silicom-bypass-init.service" not in manual_block
+        rationale = docs_text[manual_match.start() : manual_match.end()]
+        assert "RemainAfterExit" in rationale or "no-op" in rationale
+
+
 def _silicom_deploy_function_body(deploy_text: str) -> str:
     match = re.search(r"^deploy_silicom_bypass\(\) \{\n(?P<body>.*?)^\}", deploy_text, re.S | re.M)
     assert match is not None, "deploy_silicom_bypass() function not found"
