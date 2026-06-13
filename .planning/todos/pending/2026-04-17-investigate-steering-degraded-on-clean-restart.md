@@ -39,3 +39,7 @@ Keeping as low-pri observation work. Closes either when (a) we happen to catch a
 - **Corpus row:** `.planning/phases/223-staging-proof-clean-restart-reproduction/evidence/replay-results.md`
 - **Closure status:** Resolved by Phase 223 PROOF-02 annotation; todo remains in `pending/` for operator-controlled archival.
 - **Fix held against Phase 224 pre-canary gate or follow-up phase — NOT landing in v1.48 Phase 223.**
+
+## Scope Note — 2026-06-12
+
+Phase 223 is **v1.48-era (pre-224)**, not part of the active **v1.52 Silicom Bypass** milestone. Its `evidence/` dir (`clean-restart-reproduction.{md,json}`) is therefore invisible to `roadmap.analyze` (which only parses the current milestone) and can read as an "orphan" dir on a progress scan — it is not. It is the PROOF-02 reproduced-bug anchor for this todo and the rationale for the Phase 224 block. **Do not delete** (`.planning/` is gitignored — unrecoverable). Leave in place until the steering-restart fix lands or Phase 224 is formally retired.

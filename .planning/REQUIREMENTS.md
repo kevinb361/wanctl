@@ -27,11 +27,11 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### HIL Harness (HARN)
 
-- [ ] **HARN-01**: Operator can run a `failover <pair>` scenario (simulated cable pull via `set_disc`) capturing steering/health/bridge state through failure and recovery
-- [ ] **HARN-02**: Operator can run an `ab-cake <pair>` scenario (CAKE-shaped vs raw-ISP bypass, same hardware/minute/client)
-- [ ] **HARN-03**: Named scenario files run via `silicom-test chaos <name>`; operator-invoked only, no scheduling
-- [ ] **HARN-04**: Every harness command registers an always-on exit trap restoring all touched pairs to NIC mode regardless of success/failure
-- [ ] **HARN-05**: Each run captures structured results (`tests/silicom/<timestamp>-<scenario>/`: pre/post state, snapshots, tool output, journal extracts)
+- [x] **HARN-01**: Operator can run a `failover <pair>` scenario (simulated cable pull via `set_disc`) capturing steering/health/bridge state through failure and recovery
+- [x] **HARN-02**: Operator can run an `ab-cake <pair>` scenario (CAKE-shaped vs raw-ISP bypass, same hardware/minute/client)
+- [x] **HARN-03**: Named scenario files run via `silicom-test chaos <name>`; operator-invoked only, no scheduling
+- [x] **HARN-04**: Every harness command registers an always-on exit trap restoring all touched pairs to NIC mode regardless of success/failure
+- [x] **HARN-05**: Each run captures structured results (`tests/silicom/<timestamp>-<scenario>/`: pre/post state, snapshots, tool output, journal extracts)
 
 ### Deployment & Safety (DEPLOY/SAFE)
 

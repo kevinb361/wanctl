@@ -119,7 +119,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 237-01-PLAN.md — Wave-0 scaffolds: RED HARN-01..05 pytest + SAFE-16 boundary tool (anchor v1.51)
+- [x] 237-01-PLAN.md — Wave-0 scaffolds: RED HARN-01..05 pytest + SAFE-16 boundary tool (anchor v1.51)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -147,7 +147,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 235. Bypass Operator CLI + Boot Baseline | v1.52 | 4/4 | Complete    | 2026-06-12 |
 | 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 2/2 | Complete    | 2026-06-12 |
-| 237. HIL Failure-Injection Harness + Closeout | v1.52 | 0/4 | Planned     | - |
+| 237. HIL Failure-Injection Harness + Closeout | v1.52 | 1/4 | In Progress|  |
 
 ---
 
