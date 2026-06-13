@@ -349,6 +349,7 @@ cmd_ab_cake() {
 cmd_chaos() {
     [[ $# -eq 1 ]] || die "chaos requires exactly one scenario name" 2
     local name="$1" file
+    [[ "$name" != *"/"* && "$name" != *".."* && "$name" != -* ]] || die "invalid scenario name '$name'" 2
     [[ "$name" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] || die "invalid scenario name '$name'" 2
     file="$SILICOM_TEST_SCENARIO_DIR/$name.sh"
     [[ -f "$file" ]] || die "no scenario '$name' under $SILICOM_TEST_SCENARIO_DIR" 2
