@@ -25,6 +25,11 @@ WATCHDOG_ATT_CONFLICTS_DROPIN = (
 
 SILICOM_BYPASS_ARTIFACTS = {
     "scripts/silicom-bypass",
+    "scripts/silicom-test",
+    "scripts/silicom-test-scenarios/cake-ab-spectrum.sh",
+    "scripts/silicom-test-scenarios/failover-spectrum.sh",
+    "scripts/phase213-steering-snapshot.sh",
+    "scripts/phase213-health-poller.sh",
     "scripts/wanctl-bpctl-init",
     "scripts/wanctl-bpctl-watchdog-petter",
     "scripts/wanctl-bpctl-watchdog-bypass",
@@ -1337,6 +1342,11 @@ def test_artifacts_repo_owned() -> None:
         assert (REPO_ROOT / artifact).exists(), artifact
 
     assert "scripts/silicom-bypass" in parsed
+    assert "scripts/silicom-test" in parsed
+    assert "scripts/silicom-test-scenarios/cake-ab-spectrum.sh" in parsed
+    assert "scripts/silicom-test-scenarios/failover-spectrum.sh" in parsed
+    assert "scripts/phase213-steering-snapshot.sh" in parsed
+    assert "scripts/phase213-health-poller.sh" in parsed
     assert "scripts/wanctl-bpctl-init" in parsed
     assert "deploy/scripts/silicom-bypass.conf.example" in parsed
     assert "deploy/systemd/silicom-bypass-init.service" in parsed
@@ -1344,11 +1354,27 @@ def test_artifacts_repo_owned() -> None:
     assert "silicom-bypass-init.service" in deploy_text
     assert "bpctl-silicom.service" in deploy_text
     assert "wanctl-bpctl-init" in deploy_text
+    assert "scripts/silicom-test-scenarios" in function_body
+    assert "/usr/local/share/silicom-test-scenarios" in function_body
 
     nonexistent = {path for path in parsed if not (REPO_ROOT / path).exists()}
     assert not nonexistent, "deploy.sh Silicom path references missing repo file(s): " + ", ".join(
         sorted(nonexistent)
     )
+
+
+def test_silicom_bypass_docs_cover_harness_deploy_and_live_gates() -> None:
+    text = SILICOM_BYPASS_DOC.read_text(encoding="utf-8")
+
+    assert "/usr/local/sbin/silicom-test" in text
+    assert "/usr/local/share/silicom-test-scenarios/" in text
+    assert "/usr/local/libexec/wanctl/phase213-steering-snapshot.sh" in text
+    assert "/usr/local/libexec/wanctl/phase213-health-poller.sh" in text
+    assert "Failure-injection harness" in text
+    assert "SILICOM_TEST_LIVE_CONFIRM" in text
+    assert "SILICOM_TEST_ATT_CONFIRM" in text
+    assert "spec-modem" in text
+    assert "tests/silicom/<timestamp>-<scenario>" in text
 
 
 def test_deploy_has_silicom_standalone_mode() -> None:
