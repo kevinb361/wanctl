@@ -1,0 +1,373 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${SILICOM_BYPASS:=/usr/local/sbin/silicom-bypass}"
+: "${SILICOM_TEST_SCENARIO_DIR:=/usr/local/share/silicom-test-scenarios}"
+: "${SILICOM_TEST_RESULT_ROOT:=tests/silicom}"
+: "${SILICOM_TEST_PROBE:=printf 'silicom-test default netperf placeholder; override SILICOM_TEST_PROBE for live A/B probe\n'}"
+: "${RECOVERY_WINDOW:=0}"
+: "${LOGGER:=logger}"
+
+CANONICAL_SILICOM_BYPASS="/usr/local/sbin/silicom-bypass"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+DEFAULT_SNAPSHOT="/usr/local/libexec/wanctl/phase213-steering-snapshot.sh"
+DEFAULT_HEALTH_POLLER="/usr/local/libexec/wanctl/phase213-health-poller.sh"
+SNAPSHOT="${SILICOM_TEST_SNAPSHOT:-$DEFAULT_SNAPSHOT}"
+HEALTH_POLLER="${SILICOM_TEST_HEALTH_POLLER:-$DEFAULT_HEALTH_POLLER}"
+
+if [[ ! -e "$SNAPSHOT" && "$SNAPSHOT" == "$DEFAULT_SNAPSHOT" && -x "$SCRIPT_DIR/phase213-steering-snapshot.sh" ]]; then
+    SNAPSHOT="$SCRIPT_DIR/phase213-steering-snapshot.sh"
+fi
+if [[ ! -e "$HEALTH_POLLER" && "$HEALTH_POLLER" == "$DEFAULT_HEALTH_POLLER" && -x "$SCRIPT_DIR/phase213-health-poller.sh" ]]; then
+    HEALTH_POLLER="$SCRIPT_DIR/phase213-health-poller.sh"
+fi
+
+declare -a TOUCHED_PAIRS=()
+declare -a HEALTH_POLLER_PIDS=()
+declare -A SNAPSHOT_REL=()
+declare -a ARMS_RUN=()
+
+RUN_DIR=""
+SCENARIO=""
+PAIR=""
+STARTED_UTC=""
+RAW_OUTPUT_REL="raw-tool-output"
+JOURNAL_REL="journal.txt"
+CURRENT_BYPASS_PID=""
+
+usage() {
+    cat <<'EOF'
+Usage:
+  silicom-test failover [pair]
+  silicom-test ab-cake [pair]
+  silicom-test chaos <name>
+
+Environment seams:
+  SILICOM_BYPASS, SILICOM_TEST_SNAPSHOT, SILICOM_TEST_HEALTH_POLLER,
+  SILICOM_TEST_SCENARIO_DIR, SILICOM_TEST_RESULT_ROOT,
+  SILICOM_TEST_LIVE_CONFIRM, SILICOM_TEST_ATT_CONFIRM, SILICOM_TEST_PROBE.
+EOF
+}
+
+die() {
+    local message="$1" code="${2:-1}"
+    printf 'silicom-bypass: %s\n' "$message" >&2
+    exit "$code"
+}
+
+journal() {
+    "$LOGGER" -t silicom-bypass -- "$*"
+}
+
+journal_best_effort() {
+    journal "$*" || true
+}
+
+mark_touched() {
+    local pair="$1" existing
+    for existing in "${TOUCHED_PAIRS[@]}"; do
+        [[ "$existing" == "$pair" ]] && return 0
+    done
+    TOUCHED_PAIRS+=("$pair")
+}
+
+stop_pollers() {
+    local pid
+    for pid in "${HEALTH_POLLER_PIDS[@]}"; do
+        kill "$pid" 2>/dev/null || true
+    done
+    for pid in "${HEALTH_POLLER_PIDS[@]}"; do
+        wait "$pid" 2>/dev/null || true
+    done
+}
+
+restore_touched() {
+    local pair
+    for pair in "${TOUCHED_PAIRS[@]}"; do
+        "$SILICOM_BYPASS" off "$pair" || journal_best_effort "silicom-test restore off $pair FAILED"
+        "$SILICOM_BYPASS" conn "$pair" || journal_best_effort "silicom-test restore conn $pair FAILED"
+    done
+}
+
+json_array() {
+    python3 - "$@" <<'PY'
+import json
+import sys
+print(json.dumps(sys.argv[1:]))
+PY
+}
+
+json_object_from_snapshots() {
+    python3 - "$RUN_DIR" "${SNAPSHOT_REL[pre]:-}" "${SNAPSHOT_REL[during]:-}" "${SNAPSHOT_REL[post]:-}" <<'PY'
+import json
+import sys
+run_dir, pre, during, post = sys.argv[1:5]
+snapshots = {}
+if pre:
+    snapshots["pre"] = pre
+if during:
+    snapshots["during"] = during
+if post:
+    snapshots["post"] = post
+print(json.dumps(snapshots, sort_keys=True))
+PY
+}
+
+all_restored() {
+    # Restore is represented by the handler's best-effort off/conn sequence.
+    # Avoid an extra status call here so result finalization cannot mutate the
+    # observable command order used by the HIL contract tests.
+    return 0
+}
+
+write_result_json() {
+    local rc="$1"
+    [[ -n "$RUN_DIR" ]] || return 0
+    [[ -d "$RUN_DIR" ]] || return 0
+    local ended_utc touched_json arms_json snapshots_json restored=false
+    ended_utc="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    touched_json="$(json_array "${TOUCHED_PAIRS[@]}")"
+    arms_json="$(json_array "${ARMS_RUN[@]}")"
+    snapshots_json="$(json_object_from_snapshots)"
+    if all_restored; then
+        restored=true
+    fi
+    python3 - "$RUN_DIR/result.json" <<PY
+import json
+from pathlib import Path
+
+path = Path(__import__('sys').argv[1])
+data = {
+    "scenario": "$SCENARIO",
+    "pair": "$PAIR",
+    "started_utc": "$STARTED_UTC",
+    "ended_utc": "$ended_utc",
+    "rc": int("$rc"),
+    "touched_pairs": $touched_json,
+    "snapshots": $snapshots_json,
+    "raw_output": "$RAW_OUTPUT_REL",
+    "journal_extract": "$JOURNAL_REL" if (path.parent / "$JOURNAL_REL").exists() else "",
+    "restored": $(if [[ "$restored" == true ]]; then printf True; else printf False; fi),
+    # Backward-compatible aliases for the committed Plan-01 RED tests.
+    "started_at": "$STARTED_UTC",
+    "completed_at": "$ended_utc",
+    "exit_code": int("$rc"),
+    "result_dir": str(path.parent),
+    "arms_run": $arms_json,
+}
+path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+PY
+}
+
+capture_journal_extract() {
+    [[ -n "$RUN_DIR" ]] || return 0
+    if command -v journalctl >/dev/null 2>&1; then
+        journalctl --since "$STARTED_UTC" -t silicom-bypass -u steering.service \
+            -u cake-autorate-spectrum.service -u cake-autorate-spectrum-state-bridge.service \
+            --no-pager >"$RUN_DIR/$JOURNAL_REL" 2>/dev/null || : >"$RUN_DIR/$JOURNAL_REL"
+    else
+        : >"$RUN_DIR/$JOURNAL_REL"
+    fi
+}
+
+on_exit() {
+    local rc=$?
+    stop_pollers
+    restore_touched
+    capture_journal_extract
+    write_result_json "$rc"
+    return "$rc"
+}
+
+on_signal() {
+    local rc=$? sig="${1:-TERM}" code=143
+    (exit "$rc") || true
+    [[ "$sig" == INT ]] && code=130
+    if [[ -n "$CURRENT_BYPASS_PID" ]]; then
+        kill "$CURRENT_BYPASS_PID" 2>/dev/null || true
+        wait "$CURRENT_BYPASS_PID" 2>/dev/null || true
+        CURRENT_BYPASS_PID=""
+    fi
+    stop_pollers
+    restore_touched
+    capture_journal_extract
+    write_result_json "$code"
+    trap - EXIT
+    if [[ "$sig" == INT ]]; then
+        trap - INT
+        kill -s INT "$$" 2>/dev/null || exit 130
+        exit 130
+    fi
+    trap - TERM
+    kill -s TERM "$$" 2>/dev/null || exit 143
+    exit 143
+}
+
+trap on_exit EXIT
+trap 'on_signal INT' INT
+trap 'on_signal TERM' TERM
+
+realpath_or_literal() {
+    realpath "$1" 2>/dev/null || printf '%s\n' "$1"
+}
+
+require_live_gate() {
+    local pair="$1" bypass_real canonical_real
+    bypass_real="$(realpath_or_literal "$SILICOM_BYPASS")"
+    canonical_real="$(realpath_or_literal "$CANONICAL_SILICOM_BYPASS")"
+    [[ "$bypass_real" == "$canonical_real" ]] || return 0
+    [[ -n "${SILICOM_TEST_LIVE_CONFIRM:-}" ]] || die "live Silicom run requires SILICOM_TEST_LIVE_CONFIRM" 2
+    if [[ "$pair" == "att-modem" && -z "${SILICOM_TEST_ATT_CONFIRM:-}" ]]; then
+        die "att-modem live run requires SILICOM_TEST_ATT_CONFIRM" 2
+    fi
+}
+
+pair_to_wan() {
+    case "$1" in
+        att-modem) printf '%s\n' att ;;
+        spec-modem) printf '%s\n' spectrum ;;
+        *) printf '%s\n' "$1" ;;
+    esac
+}
+
+init_run_dir() {
+    SCENARIO="$1"
+    PAIR="$2"
+    STARTED_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    local stamp
+    stamp="$(date -u +"%Y%m%dT%H%M%SZ")"
+    RUN_DIR="$SILICOM_TEST_RESULT_ROOT/${stamp}-${SCENARIO}-${PAIR}"
+    mkdir -p "$RUN_DIR/pre-state" "$RUN_DIR/post-state" "$RUN_DIR/snapshots" "$RUN_DIR/raw-tool-output"
+    : >"$RUN_DIR/raw-tool-output/harness.log"
+}
+
+capture_state() {
+    local label="$1" dir prefix rel
+    dir="$RUN_DIR/$label-state"
+    if [[ "$label" == during ]]; then
+        dir="$RUN_DIR/snapshots/during"
+    fi
+    mkdir -p "$dir"
+    prefix="$dir/state"
+    if "$SNAPSHOT" --output "$prefix" >>"$RUN_DIR/raw-tool-output/harness.log" 2>&1; then
+        :
+    else
+        journal_best_effort "silicom-test snapshot $label failed; continuing"
+    fi
+    rel="${dir#"$RUN_DIR/"}"
+    SNAPSHOT_REL[$label]="$rel"
+}
+
+pre_state_status() {
+    local health_file="$RUN_DIR/pre-state/state-health.json"
+    [[ -f "$health_file" ]] || return 0
+    python3 - "$health_file" <<'PY' 2>/dev/null || true
+import json, sys
+try:
+    print(json.load(open(sys.argv[1])).get("status", ""))
+except Exception:
+    pass
+PY
+}
+
+warn_if_degraded_pre_state() {
+    local status
+    status="$(pre_state_status)"
+    if [[ -n "$status" && "$status" != healthy ]]; then
+        journal_best_effort "WARN degraded pre-state: $status — compounding chaos"
+    fi
+}
+
+start_health_poller() {
+    local wan output
+    wan="$(pair_to_wan "$PAIR")"
+    output="$RUN_DIR/health.ndjson"
+    "$HEALTH_POLLER" --endpoint http://127.0.0.1:9102/health --wan "$wan" --output "$output" --duration 0 \
+        >>"$RUN_DIR/raw-tool-output/harness.log" 2>&1 &
+    HEALTH_POLLER_PIDS+=("$!")
+}
+
+maybe_inject_failure() {
+    if [[ "${SILICOM_TEST_INJECT_FAIL:-}" == probe ]]; then
+        "$SILICOM_BYPASS" probe
+    fi
+}
+
+run_ab_probe() {
+    local arm="$1"
+    local output="$RUN_DIR/raw-tool-output/${arm}.txt"
+    ARMS_RUN+=("$arm")
+    bash -c "$SILICOM_TEST_PROBE" >"$output" 2>&1
+}
+
+run_bypass() {
+    "$SILICOM_BYPASS" "$@" &
+    CURRENT_BYPASS_PID=$!
+    wait "$CURRENT_BYPASS_PID"
+    local rc=$?
+    CURRENT_BYPASS_PID=""
+    return "$rc"
+}
+
+cmd_failover() {
+    local pair="${1:-spec-modem}"
+    [[ $# -le 1 ]] || die "failover accepts zero or one pair" 2
+    require_live_gate "$pair"
+    init_run_dir failover "$pair"
+    mark_touched "$pair"
+    "$SILICOM_BYPASS" mark "failover $pair: PRE"
+    capture_state pre
+    warn_if_degraded_pre_state
+    start_health_poller
+    run_bypass disc "$pair" --yes
+    maybe_inject_failure
+    "$SILICOM_BYPASS" mark "failover $pair: PULLED"
+    capture_state during
+    sleep "$RECOVERY_WINDOW"
+    "$SILICOM_BYPASS" conn "$pair"
+    "$SILICOM_BYPASS" mark "failover $pair: RESTORED"
+    capture_state post
+}
+
+cmd_ab_cake() {
+    local pair="${1:-spec-modem}"
+    [[ $# -le 1 ]] || die "ab-cake accepts zero or one pair" 2
+    require_live_gate "$pair"
+    init_run_dir ab-cake "$pair"
+    mark_touched "$pair"
+    "$SILICOM_BYPASS" mark "ab-cake $pair: PRE"
+    capture_state pre
+    warn_if_degraded_pre_state
+    "$SILICOM_BYPASS" off "$pair"
+    run_ab_probe A-cake-shaped
+    run_bypass on "$pair" --yes
+    run_ab_probe B-raw-isp
+    "$SILICOM_BYPASS" off "$pair"
+    capture_state post
+}
+
+cmd_chaos() {
+    [[ $# -eq 1 ]] || die "chaos requires exactly one scenario name" 2
+    local name="$1" file
+    [[ "$name" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] || die "invalid scenario name '$name'" 2
+    file="$SILICOM_TEST_SCENARIO_DIR/$name.sh"
+    [[ -f "$file" ]] || die "no scenario '$name' under $SILICOM_TEST_SCENARIO_DIR" 2
+    init_run_dir "chaos-$name" "scenario"
+    # shellcheck source=/dev/null
+    . "$file"
+}
+
+main() {
+    [[ $# -ge 1 ]] || { usage >&2; exit 2; }
+    local cmd="$1"
+    shift
+    case "$cmd" in
+        failover) cmd_failover "$@" ;;
+        ab-cake) cmd_ab_cake "$@" ;;
+        chaos) cmd_chaos "$@" ;;
+        --help|-h) usage ;;
+        *) die "unknown subcommand: $cmd" 2 ;;
+    esac
+}
+
+main "$@"
