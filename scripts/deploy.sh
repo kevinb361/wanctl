@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2029,SC2086,SC2155
 #
 # wanctl Unified Deployment Script
 #
@@ -531,6 +532,9 @@ deploy_att_cake_autorate() {
 print_silicom_bypass_plan() {
     echo "  - install scripts/silicom-bypass to /usr/local/sbin/silicom-bypass (0755)"
     echo "  - install scripts/wanctl-bpctl-init to /usr/local/sbin/wanctl-bpctl-init (0755)"
+    echo "  - install scripts/silicom-test to /usr/local/sbin/silicom-test (0755)"
+    echo "  - install scripts/silicom-test-scenarios/*.sh to /usr/local/share/silicom-test-scenarios/ (0644)"
+    echo "  - install phase213 capture helpers to /usr/local/libexec/wanctl/ (0755)"
     echo "  - install deploy/scripts/silicom-bypass.conf.example to /etc/silicom-bypass.conf only if absent (0644)"
     echo "  - install watchdog petter/bypass scripts and bpctl-watchdog att/spectrum envs only if absent"
     echo "  - install silicom-bypass-init.service, bpctl-silicom.service, and silicom-bypass-watchdog@.service to $TARGET_SYSTEMD_DIR"
@@ -577,6 +581,7 @@ deploy_silicom_bypass() {
     local remote_tmp
     remote_tmp=$(ssh "$TARGET_HOST" "mktemp -d /tmp/wanctl-silicom.XXXXXX")
     ssh "$TARGET_HOST" "chmod 700 '$remote_tmp'"
+    trap 'ssh "$TARGET_HOST" "rm -rf '\''$remote_tmp'\''" 2>/dev/null || true' RETURN
 
     scp "$PROJECT_ROOT/scripts/silicom-bypass" "$TARGET_HOST:$remote_tmp/silicom-bypass"
     ssh "$TARGET_HOST" "sudo install -o root -g root -m 0755 '$remote_tmp/silicom-bypass' /usr/local/sbin/silicom-bypass"
@@ -585,6 +590,30 @@ deploy_silicom_bypass() {
     scp "$PROJECT_ROOT/scripts/wanctl-bpctl-init" "$TARGET_HOST:$remote_tmp/wanctl-bpctl-init"
     ssh "$TARGET_HOST" "sudo install -o root -g root -m 0755 '$remote_tmp/wanctl-bpctl-init' /usr/local/sbin/wanctl-bpctl-init"
     echo "  -> /usr/local/sbin/wanctl-bpctl-init"
+
+    scp "$PROJECT_ROOT/scripts/silicom-test" "$TARGET_HOST:$remote_tmp/silicom-test"
+    ssh "$TARGET_HOST" "sudo install -o root -g root -m 0755 '$remote_tmp/silicom-test' /usr/local/sbin/silicom-test"
+    echo "  -> /usr/local/sbin/silicom-test"
+
+    ssh "$TARGET_HOST" "sudo install -d -o root -g root -m 0755 /usr/local/share/silicom-test-scenarios"
+    local scenario_file scenario_basename
+    for scenario_file in \
+        scripts/silicom-test-scenarios/cake-ab-spectrum.sh \
+        scripts/silicom-test-scenarios/failover-spectrum.sh; do
+        scenario_basename=$(basename "$scenario_file")
+        scp "$PROJECT_ROOT/$scenario_file" "$TARGET_HOST:$remote_tmp/$scenario_basename"
+        ssh "$TARGET_HOST" "sudo install -o root -g root -m 0644 '$remote_tmp/$scenario_basename' /usr/local/share/silicom-test-scenarios/$scenario_basename"
+        echo "  -> /usr/local/share/silicom-test-scenarios/$scenario_basename"
+    done
+
+    ssh "$TARGET_HOST" "sudo install -d -o root -g root -m 0755 /usr/local/libexec/wanctl"
+    scp "$PROJECT_ROOT/scripts/phase213-steering-snapshot.sh" "$TARGET_HOST:$remote_tmp/phase213-steering-snapshot.sh"
+    ssh "$TARGET_HOST" "sudo install -o root -g root -m 0755 '$remote_tmp/phase213-steering-snapshot.sh' /usr/local/libexec/wanctl/phase213-steering-snapshot.sh"
+    echo "  -> /usr/local/libexec/wanctl/phase213-steering-snapshot.sh"
+
+    scp "$PROJECT_ROOT/scripts/phase213-health-poller.sh" "$TARGET_HOST:$remote_tmp/phase213-health-poller.sh"
+    ssh "$TARGET_HOST" "sudo install -o root -g root -m 0755 '$remote_tmp/phase213-health-poller.sh' /usr/local/libexec/wanctl/phase213-health-poller.sh"
+    echo "  -> /usr/local/libexec/wanctl/phase213-health-poller.sh"
 
     scp "$PROJECT_ROOT/deploy/scripts/silicom-bypass.conf.example" "$TARGET_HOST:$remote_tmp/silicom-bypass.conf.example"
     ssh "$TARGET_HOST" "if sudo test -e /etc/silicom-bypass.conf; then :; else sudo install -o root -g root -m 0644 '$remote_tmp/silicom-bypass.conf.example' /etc/silicom-bypass.conf; fi"
@@ -612,6 +641,7 @@ deploy_silicom_bypass() {
     ssh "$TARGET_HOST" "sudo systemctl daemon-reload"
 
     ssh "$TARGET_HOST" "rm -rf '$remote_tmp'"
+    trap - RETURN
 
     print_success "Silicom bypass artifacts deployed (units not enabled or started)"
 }
