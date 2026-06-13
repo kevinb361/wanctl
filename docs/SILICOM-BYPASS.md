@@ -9,7 +9,7 @@ Operational notes for the Silicom `PE2G4BPI35A-SD REV:1.1` bypass NIC in the
 - Driver/tool location on `cake-shaper`: `/opt/bpctl-silicom/`
 - Utility: `/opt/bpctl-silicom/bpctl_util`
 - Module: `/opt/bpctl-silicom/bpctl_mod.ko`
-- DKMS module: `bpctl_mod/5.2.0.46`
+- DKMS module: `bpctl_mod/<bpctl-version>`
 - Device node: `/dev/bpctl0`
 - Boot service: `bpctl-silicom.service`
 
@@ -114,6 +114,10 @@ the next-steps banner. It only installs:
 
 - `/usr/local/sbin/silicom-bypass`
 - `/usr/local/sbin/wanctl-bpctl-init`
+- `/usr/local/sbin/silicom-test`
+- `/usr/local/share/silicom-test-scenarios/` seed scenario files
+- `/usr/local/libexec/wanctl/phase213-steering-snapshot.sh`
+- `/usr/local/libexec/wanctl/phase213-health-poller.sh`
 - `/etc/silicom-bypass.conf` if absent (operator edits are not clobbered)
 - `silicom-bypass-init.service`
 - `bpctl-silicom.service`
@@ -122,6 +126,40 @@ It runs `systemctl daemon-reload` only. It does **not** enable or start any unit
 The init unit has `Requires=bpctl-silicom.service`, so the standalone path also
 installs `bpctl-silicom.service` and `/usr/local/sbin/wanctl-bpctl-init`; the
 boot dependency chain is self-consistent after a standalone-only deploy.
+
+The `silicom-test` harness defaults its runtime capture helpers to the
+`/usr/local/libexec/wanctl/phase213-*.sh` paths above. Deploy the harness through
+this same standalone path so the CLI, scenario files, and capture dependencies
+move as one operator-tested artifact set.
+
+### Failure-injection harness
+
+`silicom-test` is an operator-invoked HIL harness for failure drills; it is not a
+timer, daemon, or autonomous chaos scheduler. It composes the guarded
+`silicom-bypass` verbs and registers restore handlers so touched pairs are sent
+back through `off` + `conn` on exit or signal.
+
+Live runs require an explicit environment gate:
+
+```bash
+SILICOM_TEST_LIVE_CONFIRM=1 silicom-test failover spec-modem
+```
+
+The default-safe live pair is `spec-modem`. ATT drills are intentionally louder
+because `att-modem` is a higher-risk live path; add the second gate only during
+an approved maintenance window:
+
+```bash
+SILICOM_TEST_LIVE_CONFIRM=1 SILICOM_TEST_ATT_CONFIRM=1 silicom-test failover att-modem
+```
+
+Seed scenarios are installed under `/usr/local/share/silicom-test-scenarios/` and
+can be invoked by name, for example `silicom-test chaos failover-spectrum` or
+`silicom-test chaos cake-ab-spectrum`. The harness writes per-run artifacts under
+`tests/silicom/<timestamp>-<scenario>-<pair>/`, including `result.json`,
+pre/post redacted snapshots, health polling output, raw probe output, and a
+journal extract. The A/B probe is selected with `SILICOM_TEST_PROBE`; do not swap
+probe tooling casually.
 
 ### Read-only live smoke
 
@@ -196,7 +234,7 @@ Current source and helper paths:
 
 ```text
 /root/bpctl-src/bpctl-silicom
-/usr/src/bpctl_mod-5.2.0.46
+/usr/src/bpctl_mod-<bpctl-version>
 /usr/local/sbin/wanctl-bpctl-dkms-install
 ```
 
@@ -432,8 +470,8 @@ Restarting wanctl@spectrum.service restored Spectrum to inline mode.
 
 Gracefully warm-rebooting odin stopped both watchdog services, put both pairs
 into powered bypass, autostarted cake-shaper after host boot, and restored both
-pairs to inline mode. A continuous external ping to 1.1.1.1 from the LAN did not
-drop during the host reboot.
+pairs to inline mode. A continuous external ping from the LAN did not drop during
+the host reboot.
 ```
 
 This is powered fail-open protection. It covers controller/service failure while
@@ -613,13 +651,13 @@ sudo ./bpctl_util spec-modem get_bypass_wd   # disabled for the test
 ip -br link show spec-modem spec-router br-spectrum
 tc qdisc show dev spec-router
 tc qdisc show dev spec-modem
-curl -4 --interface 10.10.110.223 https://ifconfig.me
+curl -4 --interface <lan-client-ip> https://<external-ip-echo-service>
 ```
 
 Validated 2026-04-28 result after stabilization:
 
 ```text
-iperf3 -4 -c 104.200.21.31 -p 5201 -B 10.10.110.223 -P 4 -t 20
+iperf3 -4 -c <iperf-target> -p 5201 -B <lan-client-ip> -P 4 -t 20
 SUM receiver: 38.9 Mbit/s
 qdisc drops: 0
 Silicom path: inline, non-bypass, WDT disabled only for the test
@@ -667,7 +705,7 @@ Provisional pieces that need retesting:
 - `cake_params.rtt: "1s"` was a diagnostic artifact from static CAKE testing, not
   a valid operating value. Keep Spectrum on a sane WAN interval such as `100ms`;
   only compare `200ms` or similar bounded values under controlled A/B tests.
-- Gateway-only `ping_hosts: ["10.10.110.1"]` was a diagnostic control for upload
+- Gateway-only `ping_hosts` was a diagnostic control for upload
   collapse during testing, not a valid operating mode. It masks WAN congestion and
   prevents autorate from seeing WAN-path RTT. Keep Spectrum on WAN-path reflectors
   unless deliberately running an isolation test.
@@ -678,7 +716,7 @@ Observed managed-mode behavior:
 
 - IRTT probe traffic contributed to the upload collapse, but disabling IRTT alone
   did not fully solve it.
-- A single public ICMP reflector (`1.1.1.1`) still reproduced the collapse in a
+- A single public ICMP reflector still reproduced the collapse in a
   managed test.
 - Gateway-only ICMP plus IRTT disabled produced the best managed upload run in the
   original session, about `25.3 Mbit/s` receiver throughput with no ping loss, but

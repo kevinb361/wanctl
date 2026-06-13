@@ -1343,8 +1343,6 @@ def test_artifacts_repo_owned() -> None:
 
     assert "scripts/silicom-bypass" in parsed
     assert "scripts/silicom-test" in parsed
-    assert "scripts/silicom-test-scenarios/cake-ab-spectrum.sh" in parsed
-    assert "scripts/silicom-test-scenarios/failover-spectrum.sh" in parsed
     assert "scripts/phase213-steering-snapshot.sh" in parsed
     assert "scripts/phase213-health-poller.sh" in parsed
     assert "scripts/wanctl-bpctl-init" in parsed
@@ -1356,6 +1354,9 @@ def test_artifacts_repo_owned() -> None:
     assert "wanctl-bpctl-init" in deploy_text
     assert "scripts/silicom-test-scenarios" in function_body
     assert "/usr/local/share/silicom-test-scenarios" in function_body
+    assert (REPO_ROOT / "scripts" / "silicom-test-scenarios").is_dir()
+    assert (REPO_ROOT / "scripts" / "silicom-test-scenarios" / "cake-ab-spectrum.sh").is_file()
+    assert (REPO_ROOT / "scripts" / "silicom-test-scenarios" / "failover-spectrum.sh").is_file()
 
     nonexistent = {path for path in parsed if not (REPO_ROOT / path).exists()}
     assert not nonexistent, "deploy.sh Silicom path references missing repo file(s): " + ", ".join(
