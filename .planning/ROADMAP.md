@@ -127,7 +127,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 237-03-PLAN.md — DEPLOY-03: extend deploy.sh standalone path + artifact-ownership tests + docs
+- [x] 237-03-PLAN.md — DEPLOY-03: extend deploy.sh standalone path + artifact-ownership tests + docs
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -147,7 +147,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 235. Bypass Operator CLI + Boot Baseline | v1.52 | 4/4 | Complete    | 2026-06-12 |
 | 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 2/2 | Complete    | 2026-06-12 |
-| 237. HIL Failure-Injection Harness + Closeout | v1.52 | 2/4 | In Progress|  |
+| 237. HIL Failure-Injection Harness + Closeout | v1.52 | 3/4 | In Progress|  |
 
 ---
 

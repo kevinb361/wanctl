@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.52
 milestone_name: Silicom Bypass Operationalization
 status: executing
-stopped_at: Completed 237-02-PLAN.md
-last_updated: "2026-06-13T01:24:29.724Z"
+stopped_at: Completed 237-03-PLAN.md
+last_updated: "2026-06-13T01:34:01.578Z"
 last_activity: 2026-06-13
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
   percent: 67
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12 after v1.51 milestone close)
 ## Current Position
 
 Phase: 237 (hil-failure-injection-harness-closeout) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-06-13
 
@@ -115,8 +115,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-13T01:24:13.508Z
-Stopped at: Completed 237-02-PLAN.md
+Last session: 2026-06-13T01:33:36.029Z
+Stopped at: Completed 237-03-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -151,6 +151,9 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 - [237-02]: Implemented `silicom-test` as bash composition over `silicom-bypass` only, preserving SAFE-16 and avoiding raw `bpctl_util`/`src/wanctl` surfaces.
 - [237-02]: Kept seed scenarios on `spec-modem`; `att-modem` live use requires the louder `SILICOM_TEST_ATT_CONFIRM` gate.
 - [237-02]: Used `SILICOM_TEST_PROBE` with a documented netperf placeholder default rather than hardcoding iperf or a new probe tool.
+- [237-03]: Reused `deploy.sh --silicom-bypass-only` for harness deployment instead of adding a separate installer.
+- [237-03]: Kept harness deployment install-only/off-by-default; `deploy_silicom_bypass` still ends at `systemctl daemon-reload` and enables/starts no units.
+- [237-03]: Scenario deploy coverage uses repo-owned file existence plus source/target directory membership so loop-installed scenarios are not silently missed.
 
 ## Decisions (v1.51)
 
@@ -227,3 +230,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 236 P02 | checkpointed; continuation 3 min | 5 tasks | 7 files |
 | Phase 237 P01 | 6min | 2 tasks | 4 files |
 | Phase 237 P02 | 5min | 2 tasks | 4 files |
+| Phase 237 P03 | 8 min | 2 tasks | 4 files |
