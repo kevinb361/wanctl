@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.52
 milestone_name: Silicom Bypass Operationalization
 status: executing
-stopped_at: Completed 237-01-PLAN.md
-last_updated: "2026-06-13T01:14:03.104Z"
+stopped_at: Completed 237-02-PLAN.md
+last_updated: "2026-06-13T01:24:29.724Z"
 last_activity: 2026-06-13
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 10
-  completed_plans: 7
+  completed_plans: 8
   percent: 67
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12 after v1.51 milestone close)
 ## Current Position
 
 Phase: 237 (hil-failure-injection-harness-closeout) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-13
 
@@ -115,8 +115,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-13T01:14:03.073Z
-Stopped at: Completed 237-01-PLAN.md
+Last session: 2026-06-13T01:24:13.508Z
+Stopped at: Completed 237-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -148,6 +148,9 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 - [236-02]: Retiring the old ATT variant requires sentinel-first, ExecStop blank-reset masking, post-disable sentinel cleanup, and active-env migration before arming folded `@att`.
 - [237-01]: Plan 01 intentionally leaves `tests/test_silicom_test_harness.py` RED until `scripts/silicom-test` lands in Plan 02; the RED failure is the missing harness executable, not import or collection failure.
 - [237-01]: SAFE-16 Phase 237 evidence stays anchored to `v1.51` (`531f36ac36ceccb2e4dd2d47edd84fba9081c053`) with SAFE-16 labeling throughout and no stale SAFE-13 strings.
+- [237-02]: Implemented `silicom-test` as bash composition over `silicom-bypass` only, preserving SAFE-16 and avoiding raw `bpctl_util`/`src/wanctl` surfaces.
+- [237-02]: Kept seed scenarios on `spec-modem`; `att-modem` live use requires the louder `SILICOM_TEST_ATT_CONFIRM` gate.
+- [237-02]: Used `SILICOM_TEST_PROBE` with a documented netperf placeholder default rather than hardcoding iperf or a new probe tool.
 
 ## Decisions (v1.51)
 
@@ -223,3 +226,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 236 P01 | 18 min | 6 tasks | 9 files |
 | Phase 236 P02 | checkpointed; continuation 3 min | 5 tasks | 7 files |
 | Phase 237 P01 | 6min | 2 tasks | 4 files |
+| Phase 237 P02 | 5min | 2 tasks | 4 files |

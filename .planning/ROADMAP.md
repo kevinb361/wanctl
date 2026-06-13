@@ -123,7 +123,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 237-02-PLAN.md — silicom-test orchestrator (failover/ab-cake/chaos) + always-on restore trap + seed scenarios
+- [x] 237-02-PLAN.md — silicom-test orchestrator (failover/ab-cake/chaos) + always-on restore trap + seed scenarios
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -147,7 +147,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 235. Bypass Operator CLI + Boot Baseline | v1.52 | 4/4 | Complete    | 2026-06-12 |
 | 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 2/2 | Complete    | 2026-06-12 |
-| 237. HIL Failure-Injection Harness + Closeout | v1.52 | 1/4 | In Progress|  |
+| 237. HIL Failure-Injection Harness + Closeout | v1.52 | 2/4 | In Progress|  |
 
 ---
 
