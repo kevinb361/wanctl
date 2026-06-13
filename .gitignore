@@ -26,6 +26,9 @@ io-sample-*.csv
 measurement-sample-*.csv
 rrul-sample-*.csv
 
+# Ephemeral HIL result dirs; opt-in commit redacted summaries under phase evidence.
+tests/silicom/
+
 # Logs
 *.log
 /logs/
