@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.52
-milestone_name: Silicom Bypass Operationalization
-status: milestone_complete
-stopped_at: Milestone complete (Phase 237 was final phase)
-last_updated: 2026-06-14T02:22:37Z
+milestone: v1.53
+milestone_name: Pluggable RTT Measurement Backend
+status: planning
+last_updated: "2026-06-14T03:38:37.331Z"
 last_activity: 2026-06-14
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 11
-  completed_plans: 11
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 ## Current Position
 
-Phase: None
-Plan: None
-Status: v1.52 milestone archived and ready for next milestone planning
-Last activity: 2026-06-14
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-14 — Milestone v1.53 started
 
 ## Deferred Items (carried into next milestone)
 

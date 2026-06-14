@@ -8,6 +8,26 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
+## Current Milestone: v1.53 Pluggable RTT Measurement Backend
+
+**Goal:** Introduce a config-selectable RTT measurement backend abstraction with `fping` as the first alternate, validate it against the live steering consumer via A/B, and flip the production default to `fping` only if evidence clearly wins — under a rollback anchor.
+
+**Target features:**
+
+- Pluggable RTT backend seam in the shared `rtt_measurement` path; `icmplib` refactored behind it as the default; backend selectable per WAN/config for both steering and autorate.
+- `fping` backend: source-IP binding (`-S`), multi-reflector fanout, robust timestamped-output parsing with loss / partial-line / stall / process-death handling, automatic fallback when `fping` is missing.
+- Cycle-budget + CPU benchmarking (idle and load) proving no 50ms cycle regression; unit tests built from captured `fping` output samples.
+- Controlled cake-shaper A/B (`icmplib` vs `fping`) on the **live steering consumer**, pre-registered accept/reject thresholds, rollback anchor.
+- Conditional production default flip to `fping` if A/B clearly wins; otherwise documented recommendation and safe stay on `icmplib`.
+
+**Key context:**
+
+- **First controller-path-touching milestone in 10** — ends the SAFE-07..16 zero-diff streak *by design*. In-scope source surface: `src/wanctl/rtt_measurement.py`, `src/wanctl/autorate_continuous.py`, `src/wanctl/steering/daemon.py`, plus configs.
+- `icmplib` stays default unless A/B proves `fping`; no hard `fping` dependency (fallback-capable).
+- Production runs cake-autorate on both WANs; **steering is the live RTT consumer and the A/B target.** Native autorate inherits the capability via the shared path but is not stood up for validation.
+- Phase numbering continues: v1.52 ended at Phase 237 → v1.53 starts at **Phase 238**.
+- Out of scope: IRTT backend, the dormant UL / D-14 / target-edge-churn seeds (SEED-003/004/005), native autorate retirement (ROLE-01).
+
 ## Recently Shipped: v1.52 Silicom Bypass Operationalization (shipped 2026-06-14)
 
 **Delivered:** Turned the validated-but-unused Silicom bypass card into an operated capability — safe operator verbs, watchdog-driven fail-open, and a hardware-in-the-loop failure harness — without touching the controller path. Full record: `milestones/v1.52-ROADMAP.md`, requirements archive `milestones/v1.52-REQUIREMENTS.md`, audit `milestones/v1.52-MILESTONE-AUDIT.md`.
@@ -685,7 +705,7 @@ thresholds or steering behavior.
 
 ### Active
 
-No active milestone selected. Next requirements should be defined by `/gsd-new-milestone`.
+**v1.53 Pluggable RTT Measurement Backend** — requirements being defined for this milestone (see `REQUIREMENTS.md` once written). Theme: config-selectable RTT backend abstraction + `fping` alternate, steering-validated A/B, evidence-gated default flip. First controller-path-touching milestone since v1.42 (SAFE-07..16 zero-diff streak ends by design).
 
 ### Deferred
 
@@ -1056,4 +1076,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-14 after v1.52 milestone close (Silicom Bypass Operationalization). Both WANs run cake-autorate external-controller mode with wanctl state bridges; `wanctl@{spectrum,att}` disabled as the verified rollback path; native wanctl remains the MikroTik controller and portable default. Next milestone not yet selected; Phase 218 watch dormant (instrumentation lives in the non-live native controller)._
+_Last updated: 2026-06-13 — v1.53 Pluggable RTT Measurement Backend milestone opened (starts at Phase 238). Theme: config-selectable RTT backend abstraction with `fping` first alternate, validated against the live steering consumer via A/B, evidence-gated production default flip under a rollback anchor. First controller-path-touching milestone in 10 — the SAFE-07..16 zero-diff streak ends by design. Both WANs still run cake-autorate external-controller mode with wanctl state bridges; steering is the live RTT consumer. v1.52 phase evidence archived to `milestones/v1.52-phases/` during this milestone open. Phase 218 watch remains dormant._
