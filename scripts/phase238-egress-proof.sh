@@ -152,7 +152,10 @@ def after(token):
 
 parsed = {
     "dev": after("dev"),
-    "src": after("src"),
+    # Linux may print source-bound route queries as `<dst> from <source> ...`
+    # without a separate `src <source>` token. Treat `from` as the parsed source
+    # fallback so fping -S/source-bound evidence is not falsely failed for src.
+    "src": after("src") or after("from"),
     "via": after("via"),
 }
 passed = parsed["src"] == expected_src and parsed["dev"] == expected_dev
@@ -207,6 +210,8 @@ PY
         "1.1.1.1 via 10.10.110.1 dev spec-modem src 10.10.110.223 uid 1000" "PASS"
     self_test_verdict_fixture "att src+dev pass" "att" "10.10.110.227" "att-modem" \
         "1.1.1.1 from 10.10.110.227 via 10.10.110.2 dev att-modem src 10.10.110.227 uid 1000" "PASS"
+    self_test_verdict_fixture "att from-only src pass" "att" "10.10.110.227" "att-modem" \
+        "1.1.1.1 from 10.10.110.227 via 10.10.110.2 dev att-modem uid 1000" "PASS"
     self_test_verdict_fixture "att wrong-src fail" "att" "10.10.110.227" "att-modem" \
         "1.1.1.1 from 10.10.110.227 via 10.10.110.1 dev att-modem src 10.10.110.223 uid 1000" "FAIL"
     self_test_verdict_fixture "att wrong-dev fail" "att" "10.10.110.227" "att-modem" \
