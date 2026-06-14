@@ -4,14 +4,14 @@ milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
 status: executing
 stopped_at: Phase 238 context gathered
-last_updated: "2026-06-14T19:39:54.287Z"
-last_activity: 2026-06-14 -- Phase 238 planning complete
+last_updated: "2026-06-14T22:14:24.360Z"
+last_activity: 2026-06-14
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 33
 ---
 
 # Session State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 238 — RTT-Provenance Verification (read-only entry gate)
+**Current focus:** Phase 238 — rtt-provenance-verification-read-only-entry-gate
 
 ## Current Position
 
-Phase: 238 of 9 phases (238-246) — RTT-Provenance Verification (Read-Only Entry Gate)
-Plan: — (roadmap created; phase not yet planned)
+Phase: 238 (rtt-provenance-verification-read-only-entry-gate) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-14 -- Phase 238 planning complete
+Last activity: 2026-06-14
 
-Progress: [░░░░░░░░░░] 0% (0/9 phases)
+Progress: [███░░░░░░░] 33%
 
 ## Deferred Items (carried into next milestone)
 
@@ -53,7 +53,7 @@ Acknowledged and deferred at v1.52 milestone close on 2026-06-14:
 
 ### v1.52-shipped-with-advisory-tech-debt
 
-- **Status:** Ready to execute
+- **Status:** Executing Phase 238
 - **Operator sign-off:** Kevin — 2026-06-14, via `/gsd-complete-milestone` audit acknowledgment and ship path.
 - **Why this is acceptable:** v1.52 audit status is `tech_debt`, not `passed`, but it found no requirement, integration, or flow blockers: 15/15 REQs, 3/3 phases, 5/5 integration seams, 5/5 E2E flows. SAFE-16 controller-path zero-diff held through closeout. Remaining items are advisory: normal deploy `eval rsync`, legacy raw watchdog docs, partial 235/237 Nyquist metadata, and Phase 236 summary metadata.
 
@@ -140,9 +140,9 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-14T11:49:01.549Z
+Last session: 2026-06-14T20:28:11.704Z
 Stopped at: Phase 238 context gathered
-Resume file: .planning/phases/238-rtt-provenance-verification-read-only-entry-gate/238-CONTEXT.md
+Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
@@ -151,6 +151,11 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 ## Operator Next Steps
 
 - Start the next milestone with /gsd-new-milestone
+
+## Decisions (v1.53)
+
+- [238-01]: Kept SAFE-17 as a lightweight controller-path git-diff assertion only; full fail-closed verifier and narrowed allowlist remain deferred to Phase 239 per D-09.
+- [238-01]: Constrained `--out` to the Phase 238 evidence directory and resolved `--anchor` to a commit SHA before diffing, so the read-only proof cannot be redirected into controller source or run against an unresolved ref.
 
 ## Decisions (v1.52)
 
@@ -264,3 +269,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 237 P03 | 8 min | 2 tasks | 4 files |
 | Phase 237 P04 | checkpointed; continuation 1 min | 2 tasks | 4 files |
 | Phase 237 P05 | 2 min | 2 tasks | 3 files |
+| Phase 238 P01 | 3min | 2 tasks | 3 files |

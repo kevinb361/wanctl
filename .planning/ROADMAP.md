@@ -53,7 +53,7 @@
   3. Operator can confirm via `ip route get <reflector> from <source_ip>` that `fping -S <source_ip>` would egress the intended WAN under the host's current `ip rule` policy routing.
   4. No source files changed; SAFE-17 boundary verifier passes (no controller-path drift).
 **Plans**: 3 plans
-- [ ] 238-01-PLAN.md — SAFE-17 lightweight controller-path git-diff boundary assertion (vs v1.52 anchor)
+- [x] 238-01-PLAN.md — SAFE-17 lightweight controller-path git-diff boundary assertion (vs v1.52 anchor)
 - [ ] 238-02-PLAN.md — Both-WAN read-only fping-egress proof script (PROV-03; operator-run on live host)
 - [ ] 238-03-PLAN.md — PROVENANCE-MAP.md evidence artifact + A/B recommendation with operator-ratification slot (PROV-01, PROV-02)
 
@@ -155,7 +155,7 @@
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 238. RTT-Provenance Verification (Read-Only Entry Gate) | v1.53 | 0/3 | Not started | - |
+| 238. RTT-Provenance Verification (Read-Only Entry Gate) | v1.53 | 1/3 | In Progress|  |
 | 239. Seam Refactor + IcmplibBackend (Byte-Identical) | v1.53 | 0/TBD | Not started | - |
 | 240. Config + Validator | v1.53 | 0/TBD | Not started | - |
 | 241. fping Backend (Offline) + Reflector Quality | v1.53 | 0/TBD | Not started | - |

@@ -66,7 +66,7 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 ### Safety Invariant
 
-- [ ] **SAFE-17**: Controller-path changes stay within a narrowed, pre-approved v1.53 allowlist — the RTT-measurement seam (`rtt_backend.py`, `fping_measurement.py`, `rtt_measurement.py`, factory/config/validator/health wiring) plus the explicitly-accepted reflector-scorer touch for REFL-01. A fail-closed source-diff verifier proves no out-of-allowlist controller-path drift (state machine, thresholds, EWMA, dwell, deadband, arbitration, fusion) at every phase boundary and at milestone close.
+- [x] **SAFE-17**: Controller-path changes stay within a narrowed, pre-approved v1.53 allowlist — the RTT-measurement seam (`rtt_backend.py`, `fping_measurement.py`, `rtt_measurement.py`, factory/config/validator/health wiring) plus the explicitly-accepted reflector-scorer touch for REFL-01. A fail-closed source-diff verifier proves no out-of-allowlist controller-path drift (state machine, thresholds, EWMA, dwell, deadband, arbitration, fusion) at every phase boundary and at milestone close.
 
 ## Future Requirements
 
@@ -131,7 +131,7 @@ Populated during roadmap creation. Each requirement maps to exactly one phase.
 | AB-02 | Phase 245 | Pending |
 | AB-03 | Phase 245 | Pending |
 | FLIP-01 | Phase 246 | Pending |
-| SAFE-17 | Phase 246 (cross-phase; verified at every boundary) | Pending |
+| SAFE-17 | Phase 246 (cross-phase; verified at every boundary) | Complete |
 
 **Coverage:**
 - v1 requirements: 26 total
