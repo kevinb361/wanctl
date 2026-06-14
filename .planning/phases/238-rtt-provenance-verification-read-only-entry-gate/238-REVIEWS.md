@@ -1,7 +1,7 @@
 ---
 phase: 238
 reviewers: [codex]
-reviewed_at: 2026-06-14T18:41:00Z
+reviewed_at: 2026-06-14T19:18:00Z
 plans_reviewed: [238-01-PLAN.md, 238-02-PLAN.md, 238-03-PLAN.md]
 cycles:
   - cycle: 1
@@ -13,6 +13,9 @@ cycles:
   - cycle: 3
     reviewers: [codex]
     unresolved_high: 1
+  - cycle: 4
+    reviewers: [codex]
+    unresolved_high: 0
 ---
 
 # Cross-AI Plan Review — Phase 238
@@ -345,3 +348,86 @@ remote commands from a **single shared function/array** consumed by both `--prin
 the live SSH path, with a mandatory pre-execution allowlist check (not optional self-assert).
 Operator may also accept this as a documented residual-rigor item given the read-only,
 operator-gated, `--print-commands`-inspectable posture.
+
+---
+
+# Cross-AI Plan RE-REVIEW — Phase 238 — Cycle 4 (2026-06-14T19:18:00Z)
+
+> Re-review after 238-02 was revised to close the single cycle-3 PARTIAL HIGH (mutation guard).
+> The revision: (a) replaced the prefix-only allowlist with a FULL-LINE, both-ends-anchored,
+> IPv4-argument-shaped pattern `^(ip route get <ipv4>( from <ipv4>)?|ip rule)$` plus
+> injection-rejection self-test fixtures (`ip route get 1.1.1.1; reboot` and a pipe/backtick
+> form must be REJECTED); and (b) introduced a single shared `generate_remote_commands` that is
+> the ONLY constructor of remote commands, consumed by BOTH `--print-commands` and the live SSH
+> path, with a MANDATORY pre-execution allowlist check that aborts non-zero before any ssh.
+> Carried MEDIUM/LOW items (BEGIN/END markers + exact command-count assertion; config `ul_if`
+> recheck) were also closed. Claude was skipped for independence (review ran inside Claude Code);
+> Codex is the external reviewer. Locked decisions D-01..D-09 remain out of scope — only plan
+> execution/rigor/safety risks were in scope.
+
+## Codex Review (Cycle 4)
+
+**Summary**
+
+Cycle 4 resolves the remaining Cycle 3 HIGH. The revised 238-02 plan now requires a full-line
+anchored command grammar, injection-rejection self-tests through the same allowlist, and a single
+`generate_remote_commands` path consumed by both `--print-commands` and live SSH with a mandatory
+pre-SSH abort gate. No new HIGHs were found in 238-02, 238-01, or 238-03.
+
+**Prior-HIGH Adjudication**
+
+**238-02 mutation guard (P2) — RESOLVED.**
+The prior prefix-only allowlist is replaced with the full-line pattern
+`^(ip route get [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+( from [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)?|ip rule)$`,
+which closes the `ip route get 1.1.1.1; reboot` bypass class because shell tails and metacharacters
+cannot fit the permitted token classes. The live-path binding is now explicit: 238-02-PLAN.md
+requires `generate_remote_commands` to be the ONLY constructor, consumed by both `--print-commands`
+and live SSH (line 92); the live path validates every generated command against the same allowlist
+and aborts non-zero with NO ssh on failure (line 98); the `--self-test` exercises injection fixtures
+through the same `is_allowed_remote_command` (line 102). The guarantee is now provable on the actual
+execution path, not just the printed enumeration.
+
+**New Concerns**
+
+- **HIGH:** None.
+- **MEDIUM (carried):** The 238-03 post-ratification structural recheck gap persists — Task 3
+  only greps `Selection: A|B` and Task 4 only reruns SAFE-17, so an operator edit could damage the
+  evidence JSON while still passing the final gates. Not a HIGH: it cannot mutate production or
+  controller source.
+- **LOW:** The IPv4 regex is shape-valid, not octet-range-valid (e.g. `999.999.999.999` would
+  match). Acceptable for the read-only safety boundary — such a value is still an `ip route get`
+  read, not a shell-injection path.
+
+**Final Tally**
+
+No HIGH remains unresolved or partial after Cycle 4.
+
+`UNRESOLVED_HIGH_COUNT: 0`
+
+**Risk Assessment**
+
+**LOW** — the read-only mutation guard is now specified tightly enough for the phase plan: exact
+command grammar, shared generator, mandatory pre-SSH gate, and injection-rejection self-test.
+
+---
+
+## Cycle 4 Disposition
+
+**Cycle-3 PARTIAL HIGH (1):** FULLY RESOLVED. The 238-02 mutation guard now combines (a) a
+full-line, both-ends-anchored, IPv4-argument-shaped allowlist that rejects shell tails/
+metacharacters, (b) a single shared `generate_remote_commands` consumed by both `--print-commands`
+and the live SSH path, (c) a MANDATORY pre-SSH allowlist check that aborts before any ssh on any
+non-allowlisted command, and (d) a `--self-test` injection-rejection fixture proving rejection
+through the same allowlist. Codex signed off RESOLVED.
+
+**Unresolved HIGH count this cycle: 0.**
+
+**New HIGHs introduced this cycle:** none. Two non-HIGH residuals remain, both on read-only
+deliverables with no production-mutation risk: 1 carried MEDIUM (238-03 no post-ratification
+provenance-map structural recheck) and 1 LOW (238-02 IPv4 regex is shape-valid not octet-range-valid).
+
+**Recommendation:** Phase 238 plans are converged — zero unresolved HIGHs across 238-01/02/03.
+The plans are executable. The carried MEDIUM (post-ratification map recheck) and the LOW (octet
+range) are optional polish: the operator may add a post-`Selection:` structural recheck to 238-03
+Task 4 or accept them as documented residual-rigor items given the read-only, operator-gated,
+`--print-commands`-inspectable posture.
