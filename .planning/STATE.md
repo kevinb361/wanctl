@@ -4,7 +4,7 @@ milestone: v1.52
 milestone_name: Silicom Bypass Operationalization
 status: milestone_complete
 stopped_at: Milestone complete (Phase 237 was final phase)
-last_updated: 2026-06-14T01:09:52.495Z
+last_updated: 2026-06-14T02:22:37Z
 last_activity: 2026-06-14
 progress:
   total_phases: 3
@@ -18,19 +18,42 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-12 after v1.51 milestone close)
+See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Milestone complete
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 237
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: None
+Plan: None
+Status: v1.52 milestone archived and ready for next milestone planning
 Last activity: 2026-06-14
 
 ## Deferred Items (carried into next milestone)
+
+Acknowledged and deferred at v1.52 milestone close on 2026-06-14:
+
+| Category | Item | Status |
+|----------|------|--------|
+| debug_sessions | knowledge-base | unknown |
+| todos | 2026-04-17-ingestion-rate-tool.md | open; audit-listed carry-forward |
+| todos | 2026-04-17-investigate-steering-degraded-on-clean-restart.md | open; audit-listed carry-forward |
+| todos | 2026-04-17-monitor-flapping-peak-count-on-next-docsis-event.md | open; event-gated carry-forward |
+| todos | 2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md | open; validation carry-forward |
+| todos | 2026-06-03-retest-spectrum-diffserv4-wash-after-local-qos-changes.md | open; validation carry-forward |
+| todos | audit remainder | 1 additional todo not expanded by audit-open JSON |
+| seeds | SEED-003-v143-d14-watchdog-recalibration | dormant |
+| seeds | SEED-004-v143-target-edge-churn-instrumentation | dormant |
+| seeds | SEED-005-v143-conservative-ul-tuning-sweep | dormant |
+| seeds | SEED-006-v145-silicom-bypass-tooling-and-harness | dormant metadata; implementation shipped in v1.52 |
+| seeds | SEED-007-v145-storage-hygiene-fire-on-change | dormant |
+
+### v1.52-shipped-with-advisory-tech-debt
+
+- **Status:** Milestone complete and archived.
+- **Operator sign-off:** Kevin — 2026-06-14, via `/gsd-complete-milestone` audit acknowledgment and ship path.
+- **Why this is acceptable:** v1.52 audit status is `tech_debt`, not `passed`, but it found no requirement, integration, or flow blockers: 15/15 REQs, 3/3 phases, 5/5 integration seams, 5/5 E2E flows. SAFE-16 controller-path zero-diff held through closeout. Remaining items are advisory: normal deploy `eval rsync`, legacy raw watchdog docs, partial 235/237 Nyquist metadata, and Phase 236 summary metadata.
 
 Re-acknowledged at v1.51 milestone close 2026-06-12 via `/gsd-complete-milestone` Acknowledge-all path. Open set shrank from 23 to 12 artifacts: v1.51 resolved the 12 orphan quick-task slugs (META-01), both stale silicom pending todos (META-02), the Phase 230 Nyquist PARTIAL (META-03), the `phase231-rollback.sh` confirm-path risk (FIX-01), and the digest-permission todo (FIX-02). Remaining open: 1 debug-session index file (false positive), 6 pending todos (event-gated/operational, incl. 2026-06-04 fping eval and 2026-06-03 diffserv4 retest), 5 dormant seeds. **Zero new v1.51 debt.** The 234-VERIFICATION SAFE-15 freshness gap found at close was fixed during close (evidence regenerated at HEAD `aa200dd3`, re-verified 11/11) — not deferred.
 

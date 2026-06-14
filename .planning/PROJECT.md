@@ -8,24 +8,23 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.52 Silicom Bypass Operationalization
+## Recently Shipped: v1.52 Silicom Bypass Operationalization (shipped 2026-06-14)
 
-**Goal:** Turn the validated-but-unused Silicom bypass card into an operated capability — safe operator verbs, watchdog-driven fail-open, and a hardware-in-the-loop failure harness — without touching the controller path.
+**Delivered:** Turned the validated-but-unused Silicom bypass card into an operated capability — safe operator verbs, watchdog-driven fail-open, and a hardware-in-the-loop failure harness — without touching the controller path. Full record: `milestones/v1.52-ROADMAP.md`, requirements archive `milestones/v1.52-REQUIREMENTS.md`, audit `milestones/v1.52-MILESTONE-AUDIT.md`.
 
-**Target features:**
+**What shipped:**
 
 - **`silicom-bypass` operator CLI** — `status/on/off/disc/conn/arm/disarm/mark` verbs; idempotent; refuses non-bypass-capable interfaces; `--yes` required on destructive ops; `--both-wan-confirm` guard against typo-induced dual-WAN loss
-- **Watchdog fail-open reconciled to two-mode reality** — Phase 236 folded both pairs onto the generic `silicom-bypass-watchdog@.service` template with per-WAN env files naming the live controller, added safe `arm`/`disarm`, retired the old ATT cake-autorate variant, and recorded live `cake-shaper` evidence with ATT/Spectrum watchdogs active against `cake-autorate-*` units
+- **Watchdog fail-open reconciled to two-mode reality** — both pairs folded onto the generic `silicom-bypass-watchdog@.service` template with per-WAN env files naming the live cake-autorate controller, safe `arm`/`disarm`, retired old ATT variant evidence, and W-INV sentinel-clean stop discipline
 - **`silicom-bypass-init` boot baseline** — known-good bpctl settings (`set_dis_bypass off`, `set_bypass_pwoff on`, `set_bypass_pwup off`, `set_disc_pwup off`, `set_std_nic off`) applied at boot and read-back-asserted
 - **HIL test harness (`silicom-test`)** — `ab-cake`, `failover`, `chaos` scenario orchestration composing the CLI verbs; always-on exit trap restoring NIC mode; structured per-run result capture (`tests/silicom/<timestamp>-<scenario>/`)
 
 **Key context:**
 
-- Joint Claude + Codex scope decision 2026-06-12: SEED-006 ranked #1 (operationally real failure mode, zero controller-path risk, harness pays forward). Codex: ROLE-01 premature at ~4 days soak — needs ≥14 stable days PLUS one exercised rollback drill; the SEED-006 harness enables exactly that drill.
-- Partial Phase A surface already exists in repo (bpctl init/dkms/petter/bypass scripts, env examples both WANs, ATT cake-autorate watchdog unit from v1.50) — milestone completes and reconciles, does not rebuild.
+- Joint Claude + Codex scope decision 2026-06-12 selected SEED-006 because it was operationally real, zero-controller-path risk, and paid forward via the rollback/failure harness.
+- Audit result: `tech_debt`, not `passed`; no requirement, integration, or E2E blockers remain.
 - Settled constraint: NO unpowered fail-open re-litigation (monostable relays, `AuxCurrent=0mA`; UPS coverage compensates — RCA in `docs/SILICOM-BYPASS.md`).
-- Phase 236 shipped 2026-06-12: watchdog two-mode reconciliation verified 14/14, SAFE-16 controller-path zero-diff held, and code review left three warning-level follow-ups for Phase 237/backlog triage (legacy raw-watchdog docs, partial-env arm failure path, ExecStop-mask simulation coverage).
-- SAFE-16 controller-path zero-diff expected, with one explicitly-scoped exception: cake-shaper bypass failure behavior in the watchdog phase.
+- SAFE-16 controller-path zero-diff held through closeout, with one explicitly-scoped exception limited to cake-shaper bypass failure behavior in watchdog units/scripts, not controller logic.
 - Out of scope: ROLE-01, TAIL-01, SEED-005/007, fping eval, steering changes, scheduled/continuous chaos runs, pytest-harness unification, wanctl Python control-loop integration (bypass path skips Linux entirely).
 
 ## Recently Shipped: v1.51 Post-Migration Consolidation (shipped 2026-06-12)
@@ -42,7 +41,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 - SAFE-15 held — 9th consecutive milestone with zero controller-path diff (SAFE-07..15 discipline unbroken since v1.43).
 - Milestone surface was scripts/docs/planning/tests only; the binding Out-of-Scope table was honored (no live rollback, no denylist touch, no SEED-006/007 build, no controller changes).
-- Still deferred to v1.52+ scoping: ROLE-01 native retirement (soak-gated), TAIL-01 Spectrum tail, SEED-005/006/007, fping RTT backend eval, RECLAIM-04.
+- Still deferred after v1.51: ROLE-01 native retirement (soak-gated), TAIL-01 Spectrum tail, SEED-005/007, fping RTT backend eval, RECLAIM-04. SEED-006 shipped in v1.52.
 
 ## Recently Shipped: v1.50 cake-autorate Migration Hardening (shipped 2026-06-10)
 
@@ -192,15 +191,13 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**Current v1.52 status:** Phases 235-237 complete (2026-06-14). `silicom-bypass` operator CLI + boot baseline, watchdog fail-open two-mode reconciliation, and `silicom-test` HIL harness all verified. Phase 237 gap closure hardened pair validation/result-path safety and PATH-resolved live-gate detection; SAFE-16 controller-path zero-diff held through closeout. v1.52 is ready for milestone completion.
-
-**Version:** v1.51 shipped 2026-06-12 (UAT 5/5, verification 11/11, tagged). **Production controller state:** both WANs run upstream cake-autorate with wanctl state bridges (`cake-autorate-{spectrum,att}.service` + `-state-bridge.service`, live since 2026-06-08); `wanctl@{spectrum,att}` disabled as the **verified** rollback path (SOAK-02 provable-path, preflight `overall_pass: true` both WANs); steering consumes bridge-written state; native wanctl remains the MikroTik/RouterOS controller and portable default. Spectrum CAKE: member-NIC `diffserv4 wash` 550M base DL autorate / fixed 18M UL. ATT: `diffserv4 nowash` 95M base DL autorate / fixed 19M UL. **Current position:** between milestones — v1.52 scoping next (SEED-006 silicom harness is the standing runner-up).
+**Version:** v1.52 shipped 2026-06-14 (audit `tech_debt`; 15/15 REQs, 3/3 phases, 5/5 integration, 5/5 flows). **Production controller state:** both WANs run upstream cake-autorate with wanctl state bridges (`cake-autorate-{spectrum,att}.service` + `-state-bridge.service`, live since 2026-06-08); `wanctl@{spectrum,att}` disabled as the **verified** rollback path (SOAK-02 provable-path, preflight `overall_pass: true` both WANs); steering consumes bridge-written state; native wanctl remains the MikroTik/RouterOS controller and portable default. Spectrum CAKE: member-NIC `diffserv4 wash` 550M base DL autorate / fixed 18M UL. ATT: `diffserv4 nowash` 95M base DL autorate / fixed 19M UL. **Current position:** between milestones — next milestone not yet selected.
 **Tests:** Phase 231 verification passed 16/16; SOAK-01 evidence recorded both-WAN `SOAK-01 PASS`, SOAK-02 closed by Kevin accepting the no-mutation provable path, Phase 231 focused tests passed `16 passed`, hot-path slice passed `673 passed`, and SAFE-14 milestone-close controller-path zero-diff passed. Phase 230 verification passed 7/7; soak-monitor ATT coverage tests passed `.venv/bin/pytest tests/test_soak_monitor_att_coverage.py -q` (`5 passed`), `shellcheck -S error scripts/soak-monitor.sh` passed, code review was clean, and SAFE-14 controller-path zero-diff passed. Phase 229 verification passed 14/14; ATT artifact tests passed `.venv/bin/pytest tests/test_att_cake_autorate_artifacts.py -q` (`6 passed`) and ATT + Spectrum parity tests passed (`11 passed`). Phase 227 focused suite passed `.venv/bin/pytest tests/test_phase227_marked_ef.py tests/test_phase227_qdisc_verify.py tests/test_phase227_safe13_boundary.py tests/test_phase227_evidence_completeness.py -q` (`25 passed`) plus evidence completeness `verdict-ready` and SAFE-13 boundary checks. Phase 226 Plan 05 gap closure passed `.venv/bin/pytest tests/phase226/ -q` (`7 passed`) plus retained evidence hash/provenance and SAFE-13 checks. Phase 223 full post-merge regression passed `5320 passed, 10 skipped, 2 deselected`; steering replay package passed `19 passed`, and `replay_harness.py --all` emits all seven fixtures including `clean-restart-degraded`. Phase 221 verification + closeout published `carried_narrower_with_close_with_prejudice_rule` (post-D-10 BGP overlay, authoritative); raw aggregator `defect_located` overlaid. Phase 220 verification passed 5/5 after the repaired wet rehearsal harness reproduced the Phase 214 dallas/Spectrum daytime anchor and the hot-path + Phase 220 regression slice passed `726 passed`. Phase 219 verification passed 5/5 after full regression `5238 passed, 14 skipped, 2 deselected` and production D-27 cycle-budget evidence (`avg_ms=2.857`, `p99_ms=6.4`). Phase 217 verification passed 12/12; Phase 216 verification passed 11/11; Phase 215 verification passed 25/25; Phase 214 UAT passed 8/8; Phase 213 verification passed 15/15; Phase 212 verification passed 16/16.
 **LOC:** ~40,915 Python (src/) — v1.47 source-surface delta was +3,361 / -28 across 15 files (additive observability + matrix tooling; zero controller-path mutation).
-**Milestones:** 52 shipped, shipped-with-deferral, or closed (v1.0–v1.51).
-**Active milestone:** v1.52 Silicom Bypass Operationalization — all planned phases complete; milestone closeout next. Phase 218 watch is dormant (its instrumentation lives in the native controller, which no longer runs Spectrum/ATT).
+**Milestones:** 53 shipped, shipped-with-deferral, or closed (v1.0–v1.52).
+**Active milestone:** none. Phase 218 watch is dormant (its instrumentation lives in the native controller, which no longer runs Spectrum/ATT).
 
-**Latest:** v1.52 Phase 237 complete — `silicom-test` HIL harness delivered with failover, ab-cake, named chaos scenarios, always-on restore traps, structured ignored runtime output, standalone deploy ownership, and SAFE-16 closeout evidence. Gap closure fixed pair traversal/result-root escape and PATH-resolved live-gate bypass; verification passed 7/7. Remaining review debt is advisory: normal `deploy_code` eval-rsync hardening and legacy raw-watchdog runbook cleanup.
+**Latest:** v1.52 shipped — `silicom-bypass` CLI + boot baseline, watchdog fail-open two-mode reconciliation, `silicom-test` HIL harness, standalone deploy ownership, and SAFE-16 closeout evidence. Remaining review debt is advisory: normal `deploy_code` eval-rsync hardening, legacy raw-watchdog runbook cleanup, and partial 235/237 Nyquist metadata.
 **Previous:** v1.51 shipped 2026-06-12 — BOUND-01 cleanup boundary guard live and fail-closed, rollback/digest tooling fixes landed, gated repo hygiene sweep done, planning metadata reconciled (12 orphan slugs indexed, silicom/SEED-006 single-canonical, Phase 230 Nyquist waiver operator-approved), SAFE-15 zero-diff proven at every boundary and fresh at close. UAT 5/5; 234-VERIFICATION re-verified 11/11.
 **Previous:** v1.51 Phase 233 complete — gated repo hygiene sweep removed approved superseded cake-autorate trial artifacts while preserving KEEP docs, annotated active docs for native vs external cake-autorate mode, pinned explicit Spectrum state-bridge identity env, fixed code-review doc warnings, and verified SAFE-15 controller-path zero-diff. Full-suite green was explicitly waived for known historical Phase 220/221 boundary-test noise; Phase 233 dedicated checks and verifier passed 18/18.
 **Previous:** v1.51 Phase 232 complete — BOUND-01 cleanup boundary guard now fails closed for protected-file removal, git-index removal, immutable drift, and directory replacement; `phase231-rollback.sh` confirm-path CR-01 is fixed without live rollback; operator-summary digest permission todo closed by v1.44 T12/TOOL-03 validation evidence; SAFE-15 controller-path zero-diff verified at the phase boundary. Advisory follow-ups remain for broader rollback external-unit post-check coverage and CLI missing-value polish.
@@ -308,6 +305,15 @@ thresholds or steering behavior.
 ## Requirements
 
 ### Validated
+
+**v1.52 Silicom Bypass Operationalization (shipped 2026-06-14):**
+
+- ✓ TOOL-01..04 — guarded `silicom-bypass` live status/change/mark verbs with idempotency, destructive-op confirmation, non-capable refusal, and dual-WAN non-NIC protection — v1.52 Phase 235.
+- ✓ BOOT-01 — `silicom-bypass-init.service` applies the known-good bpctl baseline to both pairs and asserts read-back — v1.52 Phase 235.
+- ✓ WDOG-01..03 — external cake-autorate watchdog units cover both pairs off-by-default, heartbeat-death behavior is proven non-destructively, and operator `arm`/`disarm` verbs are wired through sentinel-clean discipline — v1.52 Phase 236.
+- ✓ HARN-01..05 — `silicom-test` failover, A/B, and chaos scenarios capture state, restore touched pairs on exit/failure/signal, and write structured ignored results safely — v1.52 Phase 237.
+- ✓ DEPLOY-03 — all bypass tooling artifacts deploy through the documented standalone `--silicom-bypass-only` path — v1.52 Phase 237.
+- ✓ SAFE-16 — controller-path zero-diff vs v1.51 at every phase boundary and milestone close (10th consecutive SAFE milestone) — v1.52 cross-phase.
 
 **v1.51 Post-Migration Consolidation (shipped 2026-06-12):**
 
@@ -679,16 +685,7 @@ thresholds or steering behavior.
 
 ### Active
 
-**v1.51 Post-Migration Consolidation** (requirements being defined — REQ-IDs assigned in REQUIREMENTS.md):
-
-- [ ] **Cleanup boundary** — encode the binding no-delete list before any sweep work
-- [ ] **`phase231-rollback.sh` confirm-path fix** — pre-live-rollback hygiene, no rollback exercise
-- [ ] **Digest permission todo closure** — validate-then-close against Phase 208 T12/TOOL-03 behavior
-- [ ] **"Safe to remove soon" sweep** — trial scripts, stale docs, Spectrum-only hardcoding remnants
-- [ ] **Planning metadata reconciliation** — orphan quick-tasks, silicom todo/SEED-006 consistency, Phase 230 Nyquist decision
-- [ ] **SAFE-15** — controller-path zero-diff invariant
-
-(Note: prior candidate list here shipped in v1.50 — ATT deploy path, soak-monitor ATT coverage, ATT artifact tests, soak criteria all delivered. Upload autorate and the native-controller role decision remain future/gated.)
+No active milestone selected. Next requirements should be defined by `/gsd-new-milestone`.
 
 ### Deferred
 
@@ -700,7 +697,7 @@ thresholds or steering behavior.
 - [ ] Prometheus/Grafana export (OBSV-01..04) — Infrastructure not yet deployed; deferred from v1.23.
 - [ ] v1.39 measurement-validation gates (TIME-03/04, MEAS-06, VALN-02/03) — superseded by v1.40+ measurement axis; not retroactively retargetable.
 - [ ] VALN-05b ATT cake-primary canary — administratively deferred since v1.40; gating phrase historical; requires its own ADR for resolution.
-- [ ] SEED-006 — Silicom bypass NIC tooling + test harness. Dormant; candidate for v1.47+ depending on scoping.
+- ✓ SEED-006 — Silicom bypass NIC tooling + test harness shipped in v1.52; dormant seed metadata remains only as historical carry-forward noise.
 - [ ] SEED-007 — Storage hygiene (autorate flat-gauge fire-on-change + CAKE tin skip-on-unchanged consumer audit). Dormant; candidate for v1.47+ depending on PERF evidence.
 - ✓ WR-01 — `scripts/check-safe07-source-diff.sh` dirty-tree fail-closed gap resolved in v1.44 Phase 207 (unstaged, staged, and untracked `src/wanctl/` surfaces covered).
 - ✓ WR-02 — `scripts/soak-capture.sh` transient capture abort gap resolved in v1.44 Phase 207 with bounded failure tolerance and sidecar TSV diagnostics.
@@ -1059,4 +1056,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-12 after v1.52 Phase 235 completion (Silicom Bypass Operationalization). Both WANs run cake-autorate external-controller mode with wanctl state bridges; `wanctl@{spectrum,att}` disabled as the verified rollback path; native wanctl remains the MikroTik controller and portable default. Phase 236 is next; Phase 218 watch dormant (instrumentation lives in the non-live native controller)._
+_Last updated: 2026-06-14 after v1.52 milestone close (Silicom Bypass Operationalization). Both WANs run cake-autorate external-controller mode with wanctl state bridges; `wanctl@{spectrum,att}` disabled as the verified rollback path; native wanctl remains the MikroTik controller and portable default. Next milestone not yet selected; Phase 218 watch dormant (instrumentation lives in the non-live native controller)._

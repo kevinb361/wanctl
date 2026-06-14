@@ -1,5 +1,26 @@
 # Project Milestones: wanctl
 
+## v1.52 Silicom Bypass Operationalization (Shipped: 2026-06-14)
+
+**Phases completed:** 3 phases, 11 plans
+
+**Key accomplishments:**
+
+- `silicom-bypass` guarded operator CLI shipped for live card state, idempotent pair state changes, journal marks, destructive-op confirmation, and dual-WAN non-NIC protection.
+- `silicom-bypass-init.service` applies and read-back-asserts the known-good boot baseline while preserving module/device setup ownership in `bpctl-silicom.service`.
+- Watchdog fail-open units were reconciled to external cake-autorate mode for both WAN pairs, with per-pair opt-in `arm`/`disarm`, sentinel-clean stop discipline, and live ATT variant retirement evidence.
+- `silicom-test` HIL harness shipped `failover`, `ab-cake`, and named `chaos` scenarios with always-on NIC restore traps, structured ignored result capture, pair allowlist safety, and PATH-resolved live CLI gates.
+- `deploy.sh --silicom-bypass-only` now owns all bypass tooling artifacts through one install-only/off-by-default deploy path.
+- SAFE-16 held at every phase boundary and milestone close: zero protected controller-path / `configs/att.yaml` drift against `v1.51`.
+
+**Stats:** 108 matching milestone commits; 77 files changed since `v1.51`; ~30,852 Python LOC in `src/wanctl`; scripts/tests/docs/units/planning only for milestone implementation surface.
+
+**Audit:** `tech_debt` — 15/15 REQs satisfied, 5/5 integration seams wired, 5/5 E2E flows complete (`milestones/v1.52-MILESTONE-AUDIT.md`). Advisory debt: normal deploy `eval rsync`, legacy raw watchdog docs, and partial 235/237 Nyquist metadata.
+
+**Known deferred items at close:** 11 (see STATE.md Deferred Items) — 1 debug-index item, 5 listed todos plus 1 audit remainder, 5 dormant seeds. Zero requirement/integration/flow blockers.
+
+---
+
 ## v1.51 Post-Migration Consolidation (Shipped: 2026-06-12)
 
 **Phases completed:** 3 phases, 10 plans, 24 tasks

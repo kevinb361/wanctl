@@ -946,6 +946,51 @@ _A living document updated after each milestone. Lessons feed forward into futur
 - 73 commits over 3 days; 10 plans, ~24 tasks; several plans checkpointed for operator gates.
 - Surface: 74 files (+9,216/−283) — scripts/tests/docs/planning only; zero `src/wanctl/` mutation (SAFE-15, 9th consecutive).
 
+## Milestone: v1.52 — Silicom Bypass Operationalization
+
+**Shipped:** 2026-06-14
+**Phases:** 3 (235–237) | **Plans:** 11
+
+### What Was Built
+
+- Guarded `silicom-bypass` operator CLI for status/change/mark/arm/disarm flows, including destructive-op gates and dual-WAN non-NIC protection.
+- Read-back-asserted `silicom-bypass-init.service` boot baseline for the known-good Silicom bpctl settings.
+- Watchdog fail-open path reconciled to external cake-autorate mode for both WAN pairs, with sentinel-clean stop discipline and live ATT variant retirement evidence.
+- `silicom-test` HIL harness for failover, A/B, and named chaos scenarios, with always-on NIC restore traps and structured ignored result capture.
+- Standalone `deploy.sh --silicom-bypass-only` ownership for all bypass artifacts; install-only/off-by-default behavior preserved.
+
+### What Worked
+
+- The hard scripts/units/docs/tests-only scope made SAFE-16 mechanically provable at every boundary and at milestone close.
+- Building the HIL harness on top of `silicom-bypass` avoided a second raw bpctl mutation surface.
+- Small gap-closure plans fixed real safety issues without broadening scope: deploy staging/runbook hardening in Phase 235 and pair/live-gate hardening in Phase 237.
+- Operator-gated live evidence was used only where necessary; most behavior stayed offline-verifiable with fake bpctl/systemctl seams.
+
+### What Was Inefficient
+
+- Legacy raw watchdog examples in `docs/SILICOM-BYPASS.md` survived because invariant scans emphasized active script surfaces more than older operator snippets.
+- 235/237 Nyquist metadata remains partial despite verification passing; predictable metadata debt still created closeout noise.
+- The audit file had to be moved manually into the milestone archive because the direct CLI archival path was not used in this continuation.
+
+### Patterns Established
+
+- Bypass tooling deploys install-only/off-by-default; live arming and HIL scenarios remain explicit operator actions.
+- HIL pair-taking commands must validate allowlisted pair names before live gates, result paths, generated files, or mutation verbs.
+- Live CLI gate checks must resolve bare command names through `command -v` before canonical path comparison.
+- Failure-behavior work can be scoped as a SAFE exception only when it avoids controller logic and has explicit boundary evidence.
+
+### Key Lessons
+
+1. Operational failure tooling can be shipped safely when every live mutation composes through one guarded operator surface.
+2. Docs safety examples need invariant scanning too; command-shape drift in runbooks can undermine otherwise-correct safety models.
+3. Optional metadata debt should be cleaned before audit when it is predictable closeout friction.
+
+### Cost Observations
+
+- 108 matching milestone commits; 77 files changed since `v1.51`; implementation surface stayed scripts/tests/docs/units/planning.
+- 11 plans across 3 phases; two small gap-closure plans carried most of the late-stage risk reduction.
+- Audit verdict: `tech_debt`, with no requirement/integration/flow blockers.
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -966,6 +1011,7 @@ _A living document updated after each milestone. Lessons feed forward into futur
 | v1.20     | 6      | 13    | Adaptive tuning, StrategyFn pattern, 4-layer rotation, bug fix |
 | v1.25     | 1      | 2     | Boot infra (shell script, systemd wiring, deploy.sh)           |
 | v1.28     | 5      | 5     | Infrastructure optimization (IRQ, kernel, SFP+, WG, nftables)  |
+| v1.52     | 3      | 11    | Silicom bypass operations and HIL harness with SAFE-16 held    |
 
 ### Cumulative Quality
 
