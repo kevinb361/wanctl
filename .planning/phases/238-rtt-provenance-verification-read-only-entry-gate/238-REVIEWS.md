@@ -3,6 +3,13 @@ phase: 238
 reviewers: [codex]
 reviewed_at: 2026-06-14T17:43:19Z
 plans_reviewed: [238-01-PLAN.md, 238-02-PLAN.md, 238-03-PLAN.md]
+cycles:
+  - cycle: 1
+    reviewers: [codex]
+    unresolved_high: 6
+  - cycle: 2
+    reviewers: [codex]
+    unresolved_high: 2
 ---
 
 # Cross-AI Plan Review — Phase 238
@@ -117,3 +124,98 @@ None — single external reviewer this cycle.
 
 ### Disposition Note
 All six HIGH findings are plan-rigor / enforcement-hardening items on read-only deliverables, not production-mutation defects that have occurred. They are unresolved as of this review cycle and should be addressed via `/gsd:plan-phase 238 --reviews` (tighten verify gates, constrain `--out`, define egress criteria, harden mutation static checks, add structural evidence checks, fix declared dependency ordering + final SAFE-17 rerun).
+
+---
+
+# Cross-AI Plan RE-REVIEW — Phase 238 — Cycle 2 (2026-06-14T18:09:09Z)
+
+> Re-review after the Phase 238 plans were revised to address the 6 cycle-1 HIGH concerns
+> (unconstrained `--out`, no final SAFE-17 rerun gate, undefined egress pass/fail criteria,
+> weak mutation guard, grep-only/placeholder false-completion risk, cross-plan dependency
+> ordering). Claude was skipped for independence (review ran inside Claude Code); Codex
+> (gpt-5.5, xhigh reasoning) is the external reviewer. Locked decisions D-01..D-09 were
+> out of scope — only plan execution/rigor/safety risks were in scope.
+
+## Codex Review (Cycle 2)
+
+**Summary**  
+The revisions materially tighten Phase 238. The `--out` boundary, final SAFE-17 rerun, Plan dependencies, and provenance-map structural checks are mostly fixed. Two prior HIGHs remain only **PARTIALLY RESOLVED** because the automated guarantees still fall short of the claimed guarantees: 238-02 still does not mechanically prove ATT egress is the ATT uplink, and its mutation guard is still grep/denylist-based rather than a true remote-command allowlist.
+
+**Prior-HIGH Adjudication**
+
+1. **238-01 unconstrained `--out` write path — RESOLVED**  
+   Plan 01 now requires: “`--out` path is constrained to the phase evidence dir… any `--out` outside it… is refused with exit 2 BEFORE any file is created or written,” plus a concrete negative test: `--out src/wanctl/__should_not_write.json` must fail and not create the file. This is a concrete script-level guard with an automated verification path.
+
+2. **SAFE-17 staleness / no final gate — RESOLVED**  
+   Plan 03 now depends on both prior plans and adds Task 4: “This is the FINAL gate of Phase 238… after ALL other Phase 238 artifacts are in place… re-run `scripts/phase238-safe17-boundary-check.sh`.” The verify asserts `passed:true` and empty `git status --porcelain -- src/wanctl/`.
+
+3. **238-02 egress pass/fail undefined — PARTIAL**  
+   The plan now defines concrete expected source observables: “Spectrum src `10.10.110.223`, ATT src `10.10.110.227`,” and adds `--self-test` fixtures including an ATT wrong-src negative case. That resolves the “undefined” part. Remaining gap: the plan still relies on human confirmation that “the resolved `dev` is the ATT uplink”; the automated exit-0 logic is source-IP plus distinctness, not an encoded expected ATT dev/table/gateway. So the claimed “egresses intended WAN” guarantee is not fully mechanical.
+
+4. **238-02 weak mutation guard — PARTIAL**  
+   The revision says the script issues “ONLY `ip route get` and `ip rule` as remote commands” and adds grep checks for `sudo`, `systemctl`, `tc`, `tee`, `nft`, and common `ip` mutators. This is much stronger. But the automated guard is still mostly denylist grepping, not a parser/enumerator that proves every SSH command is exactly `ip route get …` or `ip rule`; it would miss other mutators or redirections not in the denylist.
+
+5. **238-03 grep-only verification / placeholder false-completion — RESOLVED**  
+   Plan 03 now requires structural checks: at least two parseable fenced JSON blocks with `raw_rtt_ms`, four unique 64-hex SHAs, embedded `ip rule` and `ip route get`, both WAN labels, and no `TODO|CAPTURE_PENDING|FIXME|XXX|<paste`. That is no longer grep-only placeholder acceptance.
+
+6. **Cross-plan dependency ordering — RESOLVED**  
+   Plan 02 declares `depends_on: ["238-01"]`; Plan 03 declares `depends_on: ["238-01", "238-02"]`; Plan 03 Task 4 reruns SAFE-17 last. This directly fixes the ordering concern.
+
+**New Concerns**
+
+- **MEDIUM — Final provenance-map structure is not rechecked after operator ratification.**  
+  Task 2 performs the strong structural map verification before Task 3. Task 3 then edits the map and only verifies `Selection: A|B`; Task 4 reruns SAFE-17 but does not rerun the provenance-map structural checks. Add a post-ratification map verification before or alongside the final SAFE-17 rerun.
+
+- **MEDIUM — 238-02 run location remains somewhat ambiguous.**  
+  The plan says the operator runs `scripts/phase238-egress-proof.sh --json` “on the live cake-shaper host,” but the script structure SSHes to `kevin@10.10.110.223`. Pick one canonical mode: run from dev over SSH, or run locally on cake-shaper without SSH.
+
+**Per-Plan Notes**
+
+**238-01**  
+Strong fix. The `--out` guard, anchor resolution with `rev-parse --verify --end-of-options`, and negative write test address the prior HIGH cleanly. Remaining non-high issue: the “byte-identical target list” claim is still stronger than grep-for-each-target unless the implementation compares the exact list/order.
+
+**238-02**  
+The expected-src criteria and self-test are a real improvement. Remaining concern is guarantee mismatch: source-IP matching is automated, but ATT-uplink identity is still human-confirmed. The mutation guard should become a true static allowlist over generated SSH commands, not only denylist greps.
+
+**238-03**  
+The evidence checks are much better: parseable JSON, SHA structure, no placeholders, egress output, and final SAFE-17 rerun. Add one final structural provenance-map verification after the `Selection:` edit.
+
+**Final Tally**
+
+HIGH concerns that remain unresolved or partially resolved:
+
+- **238-02 egress pass/fail criteria — PARTIAL:** expected source values are automated, but intended ATT uplink/dev is not mechanically enforced.
+- **238-02 mutation guard — PARTIAL:** improved denylist plus allowlist intent, but no automated proof that every remote command is exactly `ip route get` or `ip rule`.
+
+No newly introduced HIGH concerns.
+
+**Risk Assessment**  
+**MEDIUM.** The read-only phase shape is now mostly sound, and the worst Phase 238 boundary issues are fixed. The remaining risk is concentrated in 238-02’s automated proof strength: it can still overclaim egress correctness and read-only enforcement unless the script encodes exact remote-command and ATT-uplink expectations.
+
+---
+
+## Cycle 2 Disposition
+
+**Prior 6 HIGHs:** 4 FULLY RESOLVED (238-01 `--out` guard, final SAFE-17 rerun gate,
+238-03 structural evidence checks, cross-plan dependency ordering), 2 PARTIALLY RESOLVED
+(both in 238-02).
+
+**Unresolved HIGH count this cycle: 2** (both PARTIAL, both in 238-02):
+- **238-02 egress pass/fail (PARTIAL):** expected per-WAN `src` observables (Spectrum
+  10.10.110.223 / ATT 10.10.110.227) and a negative self-test fixture are now automated,
+  but the ATT *uplink dev* identity is still operator-confirmed, not mechanically encoded.
+  The "egresses the intended WAN" guarantee is therefore not fully mechanical.
+- **238-02 mutation guard (PARTIAL):** hardened from a few mutators to a broad
+  denylist (sudo/systemctl/tc-change/tee/nft/ip-mutators/redirects) plus stated allowlist
+  intent, but the automated check is still denylist-grep, not a parser proving every
+  generated SSH command is exactly `ip route get …` or `ip rule`.
+
+**New HIGHs introduced this cycle:** none. Two new MEDIUMs (no post-ratification
+provenance-map structural recheck; 238-02 run-location dev-over-SSH vs local ambiguity).
+
+**Recommendation:** Both remaining HIGHs are PARTIAL plan-rigor items confined to 238-02
+on a read-only deliverable (no production-mutation defect). Tighten 238-02 via
+`/gsd:plan-phase 238 --reviews`: (a) encode the expected ATT uplink `dev` as a per-WAN
+`verdict_for_line` criterion (add an ATT-correct-src-wrong-dev negative self-test fixture),
+and (b) convert the mutation guard to an allowlist that asserts every generated remote
+command matches exactly `^ip route get ` or `^ip rule$`.
