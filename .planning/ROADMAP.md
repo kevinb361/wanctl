@@ -54,7 +54,7 @@
   4. No source files changed; SAFE-17 boundary verifier passes (no controller-path drift).
 **Plans**: 3 plans
 - [x] 238-01-PLAN.md — SAFE-17 lightweight controller-path git-diff boundary assertion (vs v1.52 anchor)
-- [ ] 238-02-PLAN.md — Both-WAN read-only fping-egress proof script (PROV-03; operator-run on live host)
+- [x] 238-02-PLAN.md — Both-WAN read-only fping-egress proof script (PROV-03; operator-run on live host)
 - [ ] 238-03-PLAN.md — PROVENANCE-MAP.md evidence artifact + A/B recommendation with operator-ratification slot (PROV-01, PROV-02)
 
 ### Phase 239: Seam Refactor + IcmplibBackend (Byte-Identical)
@@ -155,7 +155,7 @@
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 238. RTT-Provenance Verification (Read-Only Entry Gate) | v1.53 | 1/3 | In Progress|  |
+| 238. RTT-Provenance Verification (Read-Only Entry Gate) | v1.53 | 2/3 | In Progress|  |
 | 239. Seam Refactor + IcmplibBackend (Byte-Identical) | v1.53 | 0/TBD | Not started | - |
 | 240. Config + Validator | v1.53 | 0/TBD | Not started | - |
 | 241. fping Backend (Offline) + Reflector Quality | v1.53 | 0/TBD | Not started | - |

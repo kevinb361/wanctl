@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
 status: executing
-stopped_at: Phase 238 context gathered
-last_updated: "2026-06-14T22:14:24.360Z"
+stopped_at: Completed 238-02-PLAN.md with non-pass PROV-03 evidence
+last_updated: "2026-06-14T22:27:58.830Z"
 last_activity: 2026-06-14
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 67
 ---
 
 # Session State
@@ -26,11 +26,15 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 ## Current Position
 
 Phase: 238 (rtt-provenance-verification-read-only-entry-gate) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-06-14
 
-Progress: [███░░░░░░░] 33%
+Progress: [███████░░░] 67%
+
+## Active Blockers / Concerns
+
+- PROV-03 non-pass: live egress proof resolved both Spectrum and ATT route queries on `dev ens18`, not expected `spec-modem`/`att-modem`; Plan 03 must surface this as drift or reconcile criterion/topology before claiming fping egress proven.
 
 ## Deferred Items (carried into next milestone)
 
@@ -53,7 +57,7 @@ Acknowledged and deferred at v1.52 milestone close on 2026-06-14:
 
 ### v1.52-shipped-with-advisory-tech-debt
 
-- **Status:** Executing Phase 238
+- **Status:** Executing Phase 238 Plan 03
 - **Operator sign-off:** Kevin — 2026-06-14, via `/gsd-complete-milestone` audit acknowledgment and ship path.
 - **Why this is acceptable:** v1.52 audit status is `tech_debt`, not `passed`, but it found no requirement, integration, or flow blockers: 15/15 REQs, 3/3 phases, 5/5 integration seams, 5/5 E2E flows. SAFE-16 controller-path zero-diff held through closeout. Remaining items are advisory: normal deploy `eval rsync`, legacy raw watchdog docs, partial 235/237 Nyquist metadata, and Phase 236 summary metadata.
 
@@ -140,8 +144,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-14T20:28:11.704Z
-Stopped at: Phase 238 context gathered
+Last session: 2026-06-14T22:27:58.779Z
+Stopped at: Completed 238-02-PLAN.md with non-pass PROV-03 evidence
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -150,10 +154,12 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Execute Phase 238 Plan 03 and embed the Plan 02 egress proof as non-pass/topology-drift evidence unless the proof criterion/topology is deliberately reconciled first.
 
 ## Decisions (v1.53)
 
+- [238-02]: Recorded operator egress-proof stdout as non-pass topology-drift evidence because both WANs resolved on `dev ens18` rather than repo-derived `spec-modem`/`att-modem`; PROV-03 remains unresolved until criterion/topology is reconciled.
+- [238-02]: Treat `ip route get <dst> from <source>` output's `from <source>` token as source-bound evidence when Linux omits a separate `src <source>` token; self-test now covers that shape.
 - [238-01]: Kept SAFE-17 as a lightweight controller-path git-diff assertion only; full fail-closed verifier and narrowed allowlist remain deferred to Phase 239 per D-09.
 - [238-01]: Constrained `--out` to the Phase 238 evidence directory and resolved `--anchor` to a commit SHA before diffing, so the read-only proof cannot be redirected into controller source or run against an unresolved ref.
 
@@ -270,3 +276,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 237 P04 | checkpointed; continuation 1 min | 2 tasks | 4 files |
 | Phase 237 P05 | 2 min | 2 tasks | 3 files |
 | Phase 238 P01 | 3min | 2 tasks | 3 files |
+| Phase 238 P02 | checkpointed; continuation 3 min | 2 tasks | 4 files |
