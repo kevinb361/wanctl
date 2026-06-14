@@ -1,0 +1,120 @@
+{
+  "anchor": "v1.52",
+  "anchor_sha": "69f39db17c03f53e6b29248fbb7540fcb721e5f0",
+  "baseline_commit": "69f39db17c03f53e6b29248fbb7540fcb721e5f0",
+  "checked_at": "2026-06-14T20:26:22Z",
+  "committed_clean": true,
+  "controller_path_diff_count": 0,
+  "dirty_tree": {
+    "staged": [],
+    "status_porcelain": [],
+    "unstaged": [],
+    "untracked": []
+  },
+  "dirty_tree_clean": true,
+  "head_commit": "83ddbb26883637693cc0b1229ea25ca547a813e5",
+  "notes": "SAFE-17 lightweight read-only boundary check vs v1.52; --anchor resolved to a commit SHA via rev-parse --end-of-options; --out constrained to phase evidence dir; full fail-closed verifier + narrowed allowlist deferred to Phase 239.",
+  "passed": true,
+  "per_path_diff": {
+    "src/wanctl/alert_engine.py": {
+      "added": 0,
+      "committed": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      },
+      "lines": [],
+      "removed": 0,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    },
+    "src/wanctl/cake_signal.py": {
+      "added": 0,
+      "committed": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      },
+      "lines": [],
+      "removed": 0,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    },
+    "src/wanctl/fusion_healer.py": {
+      "added": 0,
+      "committed": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      },
+      "lines": [],
+      "removed": 0,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    },
+    "src/wanctl/queue_controller.py": {
+      "added": 0,
+      "committed": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      },
+      "lines": [],
+      "removed": 0,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    },
+    "src/wanctl/wan_controller.py": {
+      "added": 0,
+      "committed": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      },
+      "lines": [],
+      "removed": 0,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    },
+    "src/wanctl/wan_controller_state.py": {
+      "added": 0,
+      "committed": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      },
+      "lines": [],
+      "removed": 0,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    }
+  },
+  "protected_paths": [
+    "src/wanctl/wan_controller.py",
+    "src/wanctl/wan_controller_state.py",
+    "src/wanctl/queue_controller.py",
+    "src/wanctl/cake_signal.py",
+    "src/wanctl/alert_engine.py",
+    "src/wanctl/fusion_healer.py",
+    "src/wanctl/backends/"
+  ],
+  "staged_clean": true
+}
