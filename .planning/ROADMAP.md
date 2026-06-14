@@ -114,7 +114,7 @@ Plans:
   5. All bypass tooling artifacts (CLI, watchdog units, boot service, harness, scenarios) are repo-owned and deployable via a single documented install/deploy path decided at plan time (DEPLOY-03).
   6. SAFE-16 controller-path zero-diff (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) is proven at this phase boundary AND at milestone close — 10th consecutive milestone holding the SAFE-07..15 discipline (SAFE-16).
 
-**Plans**: 4 plans
+**Plans**: 5 plans (01-04 executed; 05 closes verification gaps CR-01/WR-01)
 
 Plans:
 **Wave 1**
@@ -132,6 +132,10 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [x] 237-04-PLAN.md — SAFE-16 phase-boundary proof + gitignore HIL artifacts + milestone-close operator gate
+
+**Wave 5** *(gap closure — verification found gaps_found 2026-06-14)*
+
+- [ ] 237-05-PLAN.md — harden silicom-test pair allowlist before result paths (CR-01) and PATH-resolved live CLI gate detection (WR-01)
 
 **UI hint**: no
 
