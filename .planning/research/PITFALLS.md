@@ -1,434 +1,341 @@
 # Pitfalls Research
 
-**Domain:** Adaptive CAKE controller for production dual-WAN — v1.47 read-only measurement evidence closure
-**Researched:** 2026-05-29
-**Confidence:** HIGH (drawn from concrete v1.45/v1.46 phase artifacts and shipped controller behavior)
-**Scope:** v1.47 Scopes A (tcp_12down target/path sensitivity matrix) + D (ingestion-rate observability)
+**Domain:** Pluggable subprocess (`fping`) RTT measurement backend for a 50ms adaptive CAKE/steering control loop (wanctl v1.53)
+**Researched:** 2026-06-13
+**Confidence:** HIGH (grounded in in-repo code + live production config + fping/cake-autorate upstream docs)
+
+## Scope Note (read first)
+
+This milestone is the **first controller-path-touching milestone in 10** — it deliberately ends the SAFE-07..16 zero-diff streak. The in-scope surface is `src/wanctl/rtt_measurement.py`, `src/wanctl/autorate_continuous.py`, `src/wanctl/steering/daemon.py`, plus configs. Every pitfall below is specific to *adding an `fping`/subprocess RTT backend behind a config seam and A/B-ing it against the live consumer* — not generic subprocess advice.
+
+**Three load-bearing facts that anchor the whole risk picture:**
+
+1. **The existing hot path uses `icmplib` raw sockets — no fork/exec.** `RTTMeasurement.ping_host()` calls `icmplib.ping(..., source=self.source_ip, privileged=True)`. Switching to `fping` *introduces a subprocess into a path that currently has none.* That is the entire new risk surface.
+2. **There is already an in-repo subprocess-backend precedent: `irtt_measurement.py`.** It encodes most lifecycle lessons correctly (`shutil.which` availability gate, `subprocess.run(capture_output, timeout)`, parse-output-even-on-nonzero-exit, flock serialization, failure-log-level management, return-`None`-on-all-failures, always-instantiated/no-op-when-disabled). **The fping backend should be modeled on this wrapper, and the pitfalls below are mostly the places fping *diverges* from it** (line-oriented text not one JSON blob; loop/`-l` mode tempts long-lived processes; `-S` source binding).
+3. **`fping -S 10.10.110.223` already runs in production today** via upstream cake-autorate on the Spectrum shaper (`configs/cake-autorate/config.spectrum.sh`: `pinger_method=fping`, `ping_extra_args="-S 10.10.110.223"`). The observed STALL was a *systemd-lifecycle / buffering* problem under the first setup, **not** evidence fping is unfit. fping+source-binding is proven viable on this exact host.
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Confirmation bias on Vultr Dallas/Chicago supplemental evidence
+### Pitfall 1: Pipe-buffer stall — the observed systemd STALL, root-caused
 
 **What goes wrong:**
-The Phase 214 canonical Spectrum/Dallas matrix returned `ambiguous` / `reflector_loss` / `signal=none` and did NOT reproduce the historical catastrophic `p99 > 1000ms`. The off-peak supplemental Vultr Dallas (p99 `767ms`, median throughput `277.6 Mbit/s`) and Vultr Chicago (p99 `701ms`, `277.9 Mbit/s`) runs landed AFTER the official window closed clean (p99 `120ms`). v1.47 will be tempted to design a matrix that "obviously" reproduces those Vultr numbers — selecting target hosts, sizes, durations, and time windows that maximize the chance the supplemental anomaly reappears. The matrix then becomes a confirmation harness for the prior hypothesis, not a sensitivity test.
+An `fping` subprocess (especially in loop/`-l` or count/`-c` continuous mode) produces no readable lines for seconds-to-minutes while the controller starves, then dumps a burst — or never flushes at all. This is the exact STALL observed during the Spectrum cake-autorate trial: fping "entered STALL under the first systemd setup while classic `ping` produced live samples."
 
 **Why it happens:**
-The supplemental evidence is dramatic (severe p99, low throughput, LibreQoS bufferbloat grade B) and visceral — and it is already in the record (`214-REPORT.md` §Matrix Verdict). Phase 214 explicitly carried the folded `tcp_12down` todo **narrower**, not closed, which means humans now expect a follow-up to validate the supplemental signal. The matrix designer naturally biases cell selection toward conditions where the supplemental evidence was seen.
+By default, writes to stdout pass through a ~4096-byte block buffer **unless stdout is a TTY**, in which case it is line-buffered. Under systemd, the child's stdout is a pipe, not a TTY, so fping block-buffers its output. The controller's `readline()` blocks until 4 KB accumulates. `ping` happened to flush differently (or was line-buffered by glibc heuristics for its output cadence), so it "worked" — masking the real cause. fping only gained native line-buffered stdout in **v4.3 (2020-07-11)** (`#179`); any older fping, or any build/path where that behavior regresses, block-buffers into pipes. This is a buffering bug masquerading as an fping-is-bad result.
 
 **How to avoid:**
-- Pre-register kill criteria for the hypothesis BEFORE the matrix runs. Write `KILL.md` or a §Kill Criteria block in the phase CONTEXT that names: "hypothesis killed if N of M off-peak runs against Dallas/Chicago Vultr produce p99 ≤ X ms with throughput ≥ Y Mbit/s."
-- Include at least one **control cell** with a target known to be clean per the canonical matrix (the same Dallas reflector used in `RUN-20260529T060507Z`, which produced p99 `120ms` off-peak). If the control cell ALSO collapses in v1.47, the problem is local/path, not target-specific, and the hypothesis collapses too.
-- Require **both** the canonical Phase 214 reflector AND the supplemental Vultr targets in every time window — never a Vultr-only matrix.
-- Phase 215 bounded VOID is the template: declare upfront how many attempts equal exhausted, what counts as decisive vs. non-decisive evidence, and what the rollback (or in v1.47's case, the "kill" or "carry-narrower") looks like.
+- **Prefer one-shot invocation per measurement (the IRTT pattern), not a long-lived loop process.** `subprocess.run(["fping","-q","-C","<count>", ...], capture_output=True, text=True, timeout=...)` collects all output after process exit — no streaming, no buffer to stall. This sidesteps the entire buffering class and matches `irtt_measurement.py`. A 50ms cycle does **not** require a persistent pinger; the existing `BackgroundRTTThread` already decouples probe cadence from the control loop.
+- If a streaming/loop design is ever chosen anyway: force line buffering on the child with `stdbuf --output=L --error=L fping ...` (or fping ≥ 4.3 which line-buffers natively), and pin a minimum fping version with `shutil.which` + `fping -v` parse + hard-warn-below-4.3.
+- Never rely on the inherited systemd stdout being a TTY.
 
 **Warning signs:**
-- Cell list has only Vultr Dallas / Vultr Chicago and no canonical-matrix reflector.
-- Time windows weighted toward off-peak (where supplemental fired) and skipping daytime (where canonical also showed ambiguity).
-- Matrix CONTEXT.md references the supplemental p99 numbers but not the canonical p99 `120ms` off-peak result.
-- "Sensitivity matrix" actually has 1 dimension (target) varied while time-of-day and load shape are pinned to the conditions where the prior fired.
+A/B candidate shows long gaps with zero samples followed by bursts; `steering_rtt_measurement` PerfTimer shows bimodal latency (near-zero then multi-second); cycle `successful_count=0` runs clustered then a flood; behavior differs between interactive shell (works) and under systemd (stalls). The TTY-vs-pipe divergence *is* the fingerprint.
 
-**Phase to address:** Scope A primary matrix-design phase. Must be enforced in the phase CONTEXT/RESEARCH stage, before any live runs.
+**Phase to address:**
+Backend-implementation phase (the fping wrapper itself). One-shot design decision must be locked here. Re-verify under an actual systemd unit, not an interactive shell, in the benchmarking phase.
 
 ---
 
-### Pitfall 2: Missing pre-registered kill criteria — "carried-narrower forever"
+### Pitfall 2: Subprocess lifecycle fragility — zombies, orphan accumulation, hang-on-timeout
 
 **What goes wrong:**
-Phase 214 closed with `carried-narrower`, which was correct given the evidence. But v1.47 risks the same outcome by default: no matrix is "clean enough" to kill `tcp_12down`, and no matrix is "dirty enough" to declare a defect found, so the todo gets carried narrower a second time. Two milestones in, the todo is still live, the canonical evidence still shows ambiguous tail latency, and there is no path to closure.
+A subprocess RTT backend that forks every cycle (20 Hz) but doesn't reliably reap children leaks zombies; a child that hangs (DNS, dead reflector, kernel socket exhaustion) blocks the cycle past the 50ms budget or pegs the watchdog; on `subprocess.run` timeout the child may be left running because Python kills the immediate child but not its process group.
 
 **Why it happens:**
-"Carry narrower" is the path of least resistance when evidence is mixed. It feels intellectually honest. It is also the way live investigations become institutionally permanent. Without explicit, pre-registered closure criteria, every ambiguous result is a reason to investigate more.
+Naive `Popen` without `.wait()`/`.communicate()` leaks zombies. `subprocess.run(timeout=...)` raises `TimeoutExpired` and *does* kill the child, but if the backend ever moves to `Popen` + manual loop (or a wrapper shell), the grandchildren survive. At 20 Hz any per-cycle leak compounds fast. The IRTT wrapper avoids this by being one-shot per *burst* on a 10 s cadence, not per 50 ms cycle.
 
 **How to avoid:**
-- v1.47 must write **kill criteria AND defect criteria** before runs start, both quantitative and time-bound. Example: "Hypothesis killed if matrix produces ≥ 8 of 12 cells with p99 ≤ 200ms and no signal-disposition driver fires. Defect located if ≥ 4 cells produce p99 > 1000ms AND aligned-window evidence shows a single primary driver across them."
-- Bound the carry-narrower outcome explicitly: "If verdict is again `ambiguous`, the folded todo is **closed-with-prejudice** — no v1.48+ follow-up without new independent evidence (production journal event, operator-reported incident, or external benchmark)." This forces the matrix to either prove something or release the hypothesis.
-- The closeout decision report (already in milestone scope) must contain the explicit verdict statement — "defect located", "hypothesis killed", or "carried-narrower with the following close-with-prejudice rule" — and the rule must be machine-checkable for the next milestone.
+- **Do not fork per 50ms cycle.** Run the fping probe on the `BackgroundRTTThread` cadence (decoupled from the control loop), exactly like icmplib runs there today and like IRTT runs on `IRTTThread`. The control loop reads the cached `RTTSnapshot` lock-free; it never waits on a subprocess.
+- Use `subprocess.run(..., timeout=...)` (auto-reaps, raises on timeout) rather than hand-rolled `Popen`. Mirror `IRTTMeasurement._run_serialized()`.
+- Set `timeout = probe_window + grace` (IRTT uses `duration + 5s`); on `TimeoutExpired` return `None` and let the existing stale-prefer-`None` / history-fallback path carry the cycle.
+- If `Popen` is unavoidable, use `start_new_session=True` and kill the process *group* on timeout.
 
 **Warning signs:**
-- CONTEXT.md describes the matrix design but has no §Kill Criteria / §Defect Criteria sections.
-- The phase plan allows "iterate the matrix if results are ambiguous" without a stopping rule.
-- The roadmap names a v1.48+ tcp_12down follow-up phase preemptively — that means the team already expects to carry-narrower again.
+`ps --ppid <pid>` shows growing defunct/`<zombie>` children; RSS or fd count climbs over a soak; `steering_rtt_measurement` occasionally spikes to the timeout value; systemd `Tasks:` count for the unit trends upward.
 
-**Phase to address:** Scope A matrix-design phase (define criteria) + Scope A closeout decision report phase (apply criteria). Cross-cutting: also surface in milestone REQUIREMENTS as an explicit gate.
+**Phase to address:**
+Backend-implementation phase. Verify zombie/fd/task counts explicitly in the benchmarking/soak phase (add to the "looks done but isn't" checklist).
 
 ---
 
-### Pitfall 3: Sampling clustered in time / replicates without independence
+### Pitfall 3: Source-IP / policy-routing breakage (`-S` mismatch → silently wrong WAN)
 
 **What goes wrong:**
-Phase 214 captured exactly one run per window (one daytime, one prime-time, one off-peak). Each cell is `n=1`, which makes "ambiguous" the only honest verdict but also means the matrix cannot distinguish between "this target is consistently bad" and "this target had one bad minute." v1.47 risks repeating the pattern: 3 windows × 3 targets = 9 cells, each `n=1`, with all runs back-to-back on the same evening. Result: replicates clustered in time and share daytime-pattern-of-life, BGP path state, target-side load, and even local DOCSIS upstream contention.
+The fping backend probes egress the **wrong WAN** (or the host default route) because the source binding is missing, wrong, or silently ignored. The controller then measures the *other* link's latency and shapes/steers on garbage — and nothing errors, because pings still succeed.
 
 **Why it happens:**
-- Flent runs are slow (30-60s each), live cellular setup is fiddly, and operators want to finish the matrix in one sitting.
-- Phase 198 used a 3-run rerun pattern; v1.47 will be tempted to copy it without re-evaluating whether 3 back-to-back runs constitute independent replicates.
-- "Replicates" sounds like the answer, but n=3 separated by 5 minutes is functionally n=1 against any minute-scale environmental confounder (BGP path change, CMTS scheduler state, remote target daytime load shift).
+The icmplib path binds via `icmplib.ping(source=self.source_ip)`, and `ping_source_ip` is the policy-routing key (`configs/att.yaml: ping_source_ip: "10.10.110.227"`, Spectrum `.226`/`.223`). fping's equivalent is `-S <source_addr>`. If the seam doesn't *translate* `source_ip → -S`, or passes a hostname instead of the bound address, or the address isn't actually assigned/route-mapped, fping falls back to the default source and the policy route sends it out the default WAN. Success masks the error. This is a *correctness* failure, not a crash — the most dangerous kind in a control loop.
 
 **How to avoid:**
-- Replicates per cell must be separated by **at least one full envelope of the dominant confounder**. For prime-time DOCSIS, that's ≥ 30 minutes between replicates of the same (target, time-window) cell — not 5 minutes.
-- Aim for **minimum n=3 per cell**, with replicates intentionally spread across multiple days for at least one cell as a "day-of-week" control.
-- If matrix size makes that infeasible, **shrink the matrix**, not the per-cell n. A 2-target × 2-window × n=3 matrix with proper spacing beats a 4-target × 3-window × n=1 matrix.
-- Record per-replicate provenance (BGP path snapshot via `mtr --json --no-dns -c 3 <target>`, time of day in local TZ, ATT or steering-state context) so cells can be diagnosed after the fact.
+- The backend seam contract must carry `source_ip` and the fping backend must emit `-S <source_ip>` for every invocation. Production already proves this works (`fping -S 10.10.110.223` live on the Spectrum shaper).
+- Add a **binding-assertion test**: probe a known-asymmetric reflector and assert the measured path matches the intended WAN (e.g., compare against the icmplib baseline for the same `source_ip` — they must agree within tolerance). A divergence means the bind didn't take.
+- Validate at config-load that `source_ip` is a locally-assigned address before handing it to fping; fail closed.
+- Preserve the per-WAN distinction: ATT `.227`, Spectrum `.226`/`.223`. A single hardcoded `-S` is a foot-gun for the multi-WAN deployment.
 
 **Warning signs:**
-- Matrix plan shows all cells completing in < 2 hours of wall-clock time.
-- Cells with `n=1` and no plan to expand on disagreement.
-- No path/route snapshot captured per replicate — only the flent .gz.
-- Replicate timestamps cluster within minutes of each other.
+Candidate RTT for one WAN suddenly resembles the other WAN's baseline; loss/RTT no longer correlates with that link's known congestion events; `fping -S` silently accepted but `ip route get <reflector> from <source>` shows the wrong table. A/B "win" that's actually measuring the healthier WAN.
 
-**Phase to address:** Scope A matrix-design phase (sampling plan in CONTEXT) and the matrix-execution phase (operator-runbook discipline).
+**Phase to address:**
+Backend-implementation phase (seam must carry & emit `-S`). Binding-assertion verification in the benchmarking phase **before** any live A/B — a source-bind bug invalidates the entire A/B.
 
 ---
 
-### Pitfall 4: Confounders ignored — BGP/anycast/DNS variance, MTU asymmetry, captive-portal/CAPTCHA
+### Pitfall 4: Output-parsing edge cases (partial lines, loss markers, locale/timestamp/units)
 
 **What goes wrong:**
-A "target/path sensitivity matrix" implicitly assumes the target is stable per-cell and only varies across cells. In reality:
-- Anycast targets (Vultr public reflectors, LibreQoS endpoints) route to different POPs across minutes via BGP. Two consecutive runs against `zylone.org` may not hit the same physical host.
-- DNS resolution itself varies (TTLs, recursive resolver caching). A run that resolves `zylone.org` once and reuses the IP across replicates is measuring something different than a run that re-resolves every time.
-- MTU asymmetry between Spectrum DOCSIS upstream and Vultr datacenters (1500 vs typical 1500, but PPPoE/encapsulation may differ on ATT contrast or upstream peering) can produce path-MTU discovery storms that look like p99 outliers.
-- Target hosts can drift (Vultr instance migrations, LibreQoS endpoint rotations, IP reassignment) between v1.46 (when supplemental evidence was captured) and v1.47.
+The parser mis-reads fping output: treats a `-` / `timed out` / unreachable line as `0ms` (catastrophic — fakes a perfect link), drops a partial final line, mis-parses locale-formatted decimals (`12,3` vs `12.3`), confuses ICMP-error lines (`ICMP Host Unreachable`) with RTT lines, or mishandles fping's `: xmt/rcv/loss` summary vs per-probe `[seq], ... time=X ms` lines.
 
 **Why it happens:**
-Network measurement matrices are usually designed by people who treat the network as a wire. The wire is not a wire — it's a stack of policy decisions that change without notice.
+fping output is line-oriented and *mode-dependent*: `-C` emits per-target arrays, `-c`/`-l` emit summary stats, quiet `-q` suppresses per-probe lines and sends summary to **stderr**, loss shows as `-` in `-C` mode. The existing `parse_ping_output()` regex (`time=([0-9.]+)`) is tuned for classic `ping` and explicitly *not* used in the hot path — reusing it for fping will silently miss fping's distinct formats. Locale (`LC_NUMERIC`) can change the decimal separator. Loss markers parsed as numbers become `0.0`, which the controller reads as a perfect link → it *raises* shaping rate into congestion. This is the inverse-of-safe failure.
 
 **How to avoid:**
-- Pin the target by IP for the duration of a replicate window. Resolve once at run start, cache, log the IP, and use that IP for all sub-runs. Re-resolve only between replicates. Log the IP per replicate.
-- Capture an `mtr --json --no-dns -c 5 <ip>` snapshot before and after each replicate. If path AS-sequence changes between snapshots, mark the replicate as `path_changed=true` and exclude it from cell aggregation (or flag it for separate analysis).
-- Verify reflector availability with a low-noise probe before each replicate (e.g., 5 ICMP pings without load). If baseline RTT is > 2× the historical baseline for that target, skip and re-queue.
-- Add a known-stable **anchor target** (e.g., `1.1.1.1` or a hard-pinned operator-controlled host) to the matrix as a control. If the anchor degrades simultaneously with the supplemental target, the issue is local; if not, the target itself is suspect.
-- Document target host as `<hostname>@<resolved-ip>@<UTC-timestamp>` in matrix-summary.json; do not aggregate cells across IP rotations.
+- **Build the parser from captured real fping output samples** (the milestone already calls for this) covering: success, partial loss, total loss (`-`), unreachable/ICMP-error lines, the quiet-mode stderr summary, and a truncated trailing line. Unit-test each.
+- **Loss must map to "no sample," never to `0ms`.** Distinguish "host responded with RTT" from "host did not respond." Return per-host `None` for non-responses (matches `RTTSnapshot.per_host_results: dict[str, float | None]`).
+- Pin `-C <n>` (per-probe RTT arrays, machine-friendly) and force `LC_ALL=C` in the subprocess env so the decimal separator and field labels are stable regardless of host locale.
+- Mirror IRTT's discipline: parse even on non-zero exit (fping returns non-zero when *any* host is unreachable — see Pitfall 5), and return `None` only when *nothing* parseable was produced.
+- Only count the trailing line if complete; with one-shot `subprocess.run` (Pitfall 1) the output is whole at exit, eliminating partial-line risk entirely — another reason to prefer one-shot.
 
 **Warning signs:**
-- Same hostname produces wildly different baseline RTT across replicates (likely BGP/anycast rerouting).
-- Matrix output reports cells by hostname only, not by resolved IP.
-- LibreQoS or Vultr targets fail mid-matrix and the phase plan has no provision for substituting.
-- Captive-portal HTTP 302 redirects appear in network captures (this would invalidate the entire run).
+Candidate reports implausibly low/zero RTT during a known-bad window; loss events show as RTT dips instead of gaps; parser test corpus lacks a total-loss / unreachable fixture; RTT distribution has a spike at exactly `0.0`.
 
-**Phase to address:** Scope A matrix-execution phase (operator-runbook discipline). Add target-pinning and path-snapshot capture to the matrix wrapper script.
+**Phase to address:**
+Backend-implementation phase (parser + fixtures). The captured-sample unit tests are a hard gate before benchmarking.
 
 ---
 
-### Pitfall 5: Self-perturbing ingestion-rate observability
+### Pitfall 5: Exit-code / loss semantics treated as failure (or success) incorrectly
 
 **What goes wrong:**
-Scope D ships per-WAN `metrics.db` write-rate visibility. The naive implementation queries the live `metrics.db` from inside the controller cycle (or via the same SQLite connection pool the controller uses) at high frequency and writes its own row counter back to a new table. Result: the tool's own queries lock the DB more often, the tool's own writes inflate the very metric it's measuring, and the cycle budget — currently `avg=2.883ms`, `p99=6.9ms` per Phase 217 — picks up a non-trivial new tail.
+The backend treats fping's non-zero exit as "measurement failed" and discards valid RTT data for the reflectors that *did* respond — or conversely treats exit 0 as "all good" and never notices a reflector is dark.
 
 **Why it happens:**
-- "Observe what's happening" feels harmless. SQLite SELECT COUNT seems cheap. It isn't, under DB pressure.
-- Phase 217 confirmed `logging_metrics=8.26%` is already the dominant cycle category. Anything added to that path eats budget directly.
-- v1.44 Phase 208 already shipped `wanctl-history --ingestion-rate` as a CLI surface that queries from outside the daemon. v1.47 must extend that, not bypass it.
+fping exits non-zero if *any* target is unreachable (exit 1) or on bad arguments (exit 3+). In a multi-reflector fanout, one dead reflector makes the whole invocation exit non-zero even though 3 of 4 succeeded. A wrapper that keys off return code alone throws away good data. The IRTT wrapper already learned this exact lesson ("IRTT returns non-zero on 100% packet loss but stdout may still be valid" → parse output even on non-zero exit).
 
 **How to avoid:**
-- **Snapshot-derived, not live-queried**: compute ingestion rate from row-count deltas across the existing per-cycle telemetry the controller already produces, not from independent SQLite scans on the hot path. If the controller already writes `metrics_db_rowcount` (or can with one numeric field added to the existing periodic-maintenance pass), the observability tool reads the snapshot — not the DB.
-- **CLI tool vs `/health` boundary**: the CLI side (`wanctl-history --ingestion-rate`, or a new `wanctl-ingestion-rate`) runs out-of-band from the daemon and can be expensive. `/health` exposure (if any) must be O(1) — already-computed counters, never a live SELECT COUNT.
-- **Budget the hot-path cost**: any new in-controller measurement must be measured against the Phase 217 baseline (`cycle_total.avg_ms=2.883`, `p99=6.9`). Acceptance threshold: < 0.1ms added to `avg_ms`, < 0.5ms added to `p99_ms`. If it exceeds, push it off the hot path entirely.
-- **No new write paths in the cycle**: ingestion-rate observability MUST NOT introduce additional `metrics.db` writes inside the daemon. Compute deltas from existing rows, not from new tracker rows.
+- **Decouple exit code from data validity: always parse stdout, then decide.** Exit code is advisory, not authoritative.
+- Aggregate over responding reflectors only (the existing path already does median-of-3 / mean-of-2 / single over `successful_rtts`). One dark reflector should degrade quorum, not the whole cycle.
+- Reserve hard-fail for exit codes meaning *bad invocation* (3/4 — syntax/permission), which indicate a config/seam bug, not network loss.
 
 **Warning signs:**
-- Design includes "the daemon records its own ingestion rate to a new table." Reject.
-- Implementation plan adds a thread or scheduled callback to query SQLite at any rate > existing periodic maintenance cadence.
-- Cycle budget profiling after deployment shows `cycle_total.avg_ms` > 3.0 or `p99_ms` > 7.5.
-- New `/health` field requires a live SELECT to populate.
+`successful_count` collapses to 0 whenever a single reflector flaps; logs show "fping failed (exit 1)" while other reflectors were clearly reachable; A/B candidate has systematically fewer valid cycles than baseline for no network reason.
 
-**Phase to address:** Scope D ingestion-rate observability design phase. Must be enforced in CONTEXT/RESEARCH and verified post-deploy with a small Phase 217-style profiling capture.
+**Phase to address:**
+Backend-implementation phase. Cross-check against baseline cycle-success rate in the benchmarking phase.
 
 ---
 
-### Pitfall 6: Per-WAN vs per-metric vs per-table granularity hides the actual bottleneck
+### Pitfall 6: 50ms cycle-budget regression from fork/exec in the wrong place
 
 **What goes wrong:**
-Scope D ships a single global `ingestion_rate_rows_per_sec`. The number is steady. Phase 218 audit needs to know whether spectrum or att caused a 24h flapping event's ingestion to spike, AND whether the spike was alerts or cycles or both. Single-number observability cannot answer those questions, so the tool ships and Phase 218 still has to query SQLite directly.
+The fping backend adds fork/exec/parse cost to the hot path, pushing cycle p99 past the 50ms budget. Production baseline is `cycle_total.avg_ms≈2.86, p99≈6.9` over tens of thousands of samples — there is headroom, but fork/exec of a subprocess is ~ms-scale and *variable*, and doing it inline at 20 Hz would be reckless.
 
 **Why it happens:**
-"One number, easy to read" is a real UX pull. CLI tools in this project tend toward operator-friendly summaries. The dimension that matters for audit (per-WAN × per-table) is invisible from the summary.
+Replacing an in-process raw-socket call (icmplib, sub-ms, no syscall fork) with a subprocess fork/exec/wait/parse is orders of magnitude more expensive and far more jittery (scheduler, page faults, ELF load). If the measurement is left **inline in `run_cycle()`** (as steering's `_measure_current_rtt_with_retry()` currently is for the synchronous path) instead of on the background thread, every cycle eats the subprocess cost.
 
 **How to avoid:**
-- Default CLI output is per-WAN × per-table at a useful cadence (e.g., 1-minute buckets over the last hour, 5-minute buckets over the last day).
-- Provide a `--summary` flag for the operator-friendly single-number view, but the audit-grade output is the default.
-- Tables that matter for Phase 218 evidence audits: `cycles`, `alerts`, `transitions`, `signal_quality`, `irtt_measurements` (per the v1.18/v1.19 schemas). Pin the table list in code, not config, so it doesn't drift.
-- JSON output mode (consistent with Phase 208's `wanctl-history --ingestion-rate` table/object pattern) for scripted Phase 218 evidence collection.
+- **Keep fping off the synchronous control-loop path.** Run it on `BackgroundRTTThread` at the existing decoupled cadence; the control loop reads the cached snapshot lock-free. This is the architecture that already makes icmplib cheap from the loop's perspective.
+- Benchmark idle **and** under load, comparing `cycle_total` and `steering_rtt_measurement`/`rtt_background_cycle` p50/p99 against the icmplib baseline. Pre-register a "no cycle p99 regression beyond X%" gate (the milestone calls for this).
+- Account for CPU: 20 Hz × N reflectors × fork/exec is real CPU on the shaper host; measure CPU% delta, not just latency.
+- Use `OperationProfiler`/`PerfTimer` already wired into both threads — no new instrumentation needed.
 
 **Warning signs:**
-- Plan shows a single global counter and no per-WAN breakdown.
-- Plan does not enumerate which SQLite tables count toward "ingestion."
-- No JSON output mode (Phase 218 will need to consume the data programmatically).
-- The Phase 218 evidence-audit example does not exercise this tool.
+`cycle_total.p99` climbs above ~7ms baseline; overrun_count rises; CPU% on the shaper increases noticeably; `rtt_background_cycle` profiler shows fork/exec jitter; watchdog margin shrinks.
 
-**Phase to address:** Scope D design phase, with a Phase 218 audit example as the design driver (work backward from "what does Phase 218 need to query?").
+**Phase to address:**
+Benchmarking/cycle-budget phase. The "no regression" gate is a hard accept/reject criterion before the live A/B.
 
 ---
 
-### Pitfall 7: Stale snapshots vs live counter drift
+### Pitfall 7: Fallback that silently masks failure (fail-open into wrong shaping)
 
 **What goes wrong:**
-Scope D reports ingestion rate from a snapshot computed at maintenance cadence (say, every 60s). Operator runs the CLI at second 59, gets a 59-second-old snapshot showing 12 rows/sec. Operator restarts wanctl at second 60. CLI at second 61 shows the stale 12 rows/sec, masking the restart spike. Phase 218 audit pulls the wrong window and sees no incident.
+When fping is missing, stalls, or returns garbage, an over-eager fallback quietly substitutes another source (icmplib, stale cache, history average, autorate health) **without surfacing that the selected backend isn't actually running** — so the operator believes they're A/B-ing fping while production silently runs icmplib (or stale data), and the "no regression" result is meaningless.
 
 **Why it happens:**
-Pushing computation off the hot path (per Pitfall 5) means snapshots, not live counters. Snapshots are inherently stale. The implementer makes the staleness fixed but doesn't expose it.
+The milestone *requires* automatic fallback when fping is missing (no hard dependency) — correct for resilience, dangerous for evidence. The steering daemon already has a layered fallback chain (`autorate_health` → `autorate_irtt` → `history_fallback` → `unavailable`) with source-attribution counters (`_rtt_source_counts`, `rtt_source` health block). A new backend fallback that doesn't *attribute* which backend produced the sample makes silent masking invisible. Worse: stale-prefer-`None` + history fallback can keep steering "working" on data that no longer reflects reality.
 
 **How to avoid:**
-- Every snapshot field MUST be paired with a `_snapshot_age_sec` or `_snapshot_unix` field. CLI default output shows snapshot age inline.
-- Snapshot cadence should match or beat the operator-relevant decision interval. If Phase 218 needs minute-resolution evidence, snapshot at ≤ 30s cadence. If 5-minute resolution is enough, snapshot at ≤ 90s.
-- Provide a `--live` flag (CLI-only, never `/health`) that does an out-of-band live count for forensic use, with an explicit warning that it is more expensive.
-- Document staleness semantics in the help text and in `docs/CONFIGURATION.md`. The v1.38 pattern (`measurement_stale`, `measurement_staleness_sec`) is the precedent — match it.
+- **Make backend selection observable and attributed.** Extend the existing `rtt_source` health surface to record *which RTT backend* (icmplib vs fping) produced each sample, and a count of fallback activations. The A/B must read this to confirm the candidate backend actually ran.
+- **Fallback must log loudly the first time and stay counted** (mirror `IRTTMeasurement._log_failure`: WARN-once then DEBUG, INFO on recovery, monotonic failure counter). Silent fallback is forbidden in the A/B window.
+- Distinguish *configured backend unavailable* (fping not installed → loud, expected during dev) from *configured backend failing at runtime* (stall/parse error → alarming).
+- A/B acceptance must require a minimum fraction of cycles served by the *intended* backend; otherwise the comparison is confounded (see Pitfall 8).
 
 **Warning signs:**
-- Snapshot field exposed without a staleness field.
-- Snapshot cadence is hardcoded and not visible to the operator.
-- CLI does not display snapshot age.
-- The v1.38 measurement-staleness pattern is not referenced in the design.
+`rtt_source` shows `history_fallback`/`autorate_health` dominating during a supposed fping A/B; fallback counter non-zero but no WARN logged; identical RTT distributions for "icmplib leg" and "fping leg" (smell: both legs actually ran icmplib).
 
-**Phase to address:** Scope D design phase. Cross-cutting: applies to any `/health` exposure too.
+**Phase to address:**
+Backend-implementation phase (attribution + loud fallback). A/B-methodology phase (minimum-intended-backend-fraction gate).
 
 ---
 
-### Pitfall 8: Mutation-boundary tests pass while behavioral assertions sneak in via fixtures/tests
+### Pitfall 8: A/B methodology traps — confounded comparison, weak-evidence flip, no rollback anchor
 
 **What goes wrong:**
-Phase 214 enforced "zero `src/wanctl/` edits" via a passing mutation-boundary pytest. The boundary check looks at the source tree. But v1.47 could add a test fixture under `tests/fixtures/phase220/` that encodes "the controller SHOULD treat target X as degraded," and a follow-up phase quietly references that fixture as if it were a controller specification. The mutation boundary held; the behavioral commitment slipped in via the fixture / golden file.
+The A/B "proves" fping wins (or loses) for reasons unrelated to the backend: the two legs ran at different times of day / different congestion, on different reflector sets, with different counts/intervals, or one leg silently fell back (Pitfall 7). Or the default is flipped to fping on a handful of cycles or one quiet evening. Or there's no clean rollback anchor, so reverting after a regression is improvised.
 
 **Why it happens:**
-Read-only milestone discipline focuses on `src/wanctl/`. Tests, fixtures, golden files, and even YAML configs are easier to slip past the check because they "are not the controller."
+Network latency is non-stationary (diurnal load, DOCSIS contention, BGP path drift — the v1.47 `tcp_12down` matrix was literally contaminated by mid-run BGP drift). Sequential A/B (icmplib for a while, then fping) confounds backend with time. Different probe parameters (count, interval, reflector list) between legs confound backend with measurement config. The pull to "ship it, looked better" is strong on a control loop you're tired of babysitting.
 
 **How to avoid:**
-- Mutation-boundary tests in v1.47 must cover: `src/wanctl/**`, `configs/*.yaml` (production configs only), `deploy/systemd/*`, `scripts/*` that touch production. Test fixtures under `tests/fixtures/phase22*/` are allowed but flagged: PR review must confirm fixtures encode evidence, not specifications.
-- Phase CONTEXT.md must state explicitly: "v1.47 fixtures and tests assert evidence-shape, not controller-behavior. Behavioral assertions belong in v1.48+ tuning milestones gated on this evidence."
-- Closeout decision report cites every artifact and labels each as `evidence` or `analysis tool` — not `controller behavior change`. Any artifact that cannot be labeled cleanly is a smell.
-- Phase 215 is the positive template: it changed YAML (an explicit, operator-approved one-knob change with rollback), proved bounded-VOID, and rolled back. v1.47 has no equivalent approved mutation; everything stays measurement-shape.
+- **Hold everything constant except the backend:** same reflectors, same count/interval, same `source_ip`/`-S`, same aggregation, same host. The *only* variable is icmplib-vs-fping.
+- **Prefer concurrent / interleaved comparison over long sequential legs** where feasible: run both backends against the same reflectors in the same window and compare per-cycle, so diurnal load is shared. If that's impractical in the live consumer, use multiple matched windows and treat single-window deltas as suspect (v1.47/v1.49 precedent: matched windows, pre-registered thresholds, BGP-overlay exclusion).
+- **Pre-register accept/reject thresholds *before* looking at data** (the milestone requires this): RTT agreement vs icmplib within tolerance, no loss-detection regression, no cycle-budget regression (Pitfall 6), minimum intended-backend cycle fraction (Pitfall 7), stability (no new restarts/stalls over a soak).
+- **Rollback anchor first, always.** Capture a Snapshot-A-style anchor (config + version + the icmplib default), prove the revert path *before* flipping, and keep `icmplib` the default unless fping *clearly* wins. The milestone's stance — "stay on icmplib unless A/B clearly wins" — is the correct bias; honor it.
+- **A negative/inconclusive result is a valid close.** "Keep icmplib, document the finding" ships the milestone (v1.46/v1.47/v1.49 evidence-milestone precedent). Do not manufacture a flip.
 
 **Warning signs:**
-- Test fixtures named `expected_*.json` for hot-path behavior (vs. `observed_*.json` for evidence).
-- New tests added to the hot-path regression slice (`tests/test_cake_signal.py`, `tests/test_queue_controller.py`, `tests/test_wan_controller.py`, `tests/test_health_check.py`) — these are the controller-spec tests, not the evidence tests.
-- Plan summaries that talk about "the controller will now…" instead of "the matrix shows…"
-- Documentation under `docs/` (vs. `.planning/`) updated to pre-decide tuning before evidence lands.
+Single-window evidence driving a default flip; legs run on different days with no overlap; reflector list or probe count differs between legs; "win" margin within measurement noise / CI overlaps; rollback never rehearsed; pressure to flip "because we built it."
 
-**Phase to address:** Cross-cutting. Add to every v1.47 phase CONTEXT as a SAFE check. Mirror the v1.43/v1.44 SAFE-07/09 pattern.
+**Phase to address:**
+A/B-methodology + verdict phase. Threshold pre-registration and rollback-anchor capture are entry gates to the live A/B, not afterthoughts.
 
 ---
 
-### Pitfall 9: Documentation that pre-decides v1.47+ tuning before evidence lands
+### Pitfall 9: A/B-ing a code path the live consumer doesn't exercise
 
 **What goes wrong:**
-v1.47 is evidence-first read-only by mandate. But `docs/CONFIGURATION.md`, `CHANGELOG.md`, or `docs/PERFORMANCE.md` get edited mid-milestone with text like "future tuning may raise X threshold based on Phase 220 evidence" or "Vultr target sensitivity confirms the need for Y." This documentation commits the project to a position the matrix has not earned, and v1.48 inherits a foregone conclusion.
+You swap the backend in `RTTMeasurement.ping_host()` and benchmark it, but **production steering in cake-autorate mode doesn't take its live RTT from that call** — it reads RTT from the bridge-written autorate state (`measure_current_rtt()`: `autorate_health` → `autorate_irtt` → `history_fallback`). So the "live steering consumer A/B" measures a path steering isn't actually using right now, and the result doesn't transfer.
 
 **Why it happens:**
-Doc writers want to update operator-facing docs while the context is fresh. Evidence-first discipline doesn't usually feel like it applies to docs.
+The deployment moved to cake-autorate on both WANs (2026-06-08); `wanctl@` is the dormant rollback path. Steering still constructs an `RTTMeasurement` object, but in the live external-controller topology its authoritative RTT comes through the state bridge from cake-autorate's *own* fping pinger — which is a separate (shell) measurement, not wanctl's Python `RTTMeasurement`. wanctl's native `RTTMeasurement`/`BackgroundRTTThread` is fully exercised only by **native autorate** (dormant) and the steering *synchronous-ping* fallback path. It's easy to refactor the backend seam, pass all unit tests, benchmark green — and never touch the bytes that produce the steering signal in production.
 
 **How to avoid:**
-- v1.47 docs/ edits are restricted to: (a) describing the new ingestion-rate CLI tool, (b) describing the matrix script's operator interface. No threshold-tuning language, no "future" predictions, no controller-behavior implications.
-- The closeout decision report is the only place where verdicts are recorded. It lives under `.planning/`, not `docs/`. `CHANGELOG.md` cites the verdict by reference, not by paraphrase.
-- Add a doc-mutation guard to the mutation-boundary check: `docs/` files matched against an allowlist for the milestone.
+- **Pin down, before scoping the A/B, exactly where the live steering RTT originates in cake-autorate mode**, and target the A/B at *that* producer. If the live signal is cake-autorate's own fping, the wanctl-side fping backend A/B validates the *capability and parser*, not the production signal — say so explicitly and don't overclaim.
+- If the intent is to validate wanctl's fping backend as a *steering RTT source*, the A/B must route steering to consume wanctl's `RTTMeasurement` (the synchronous/`BackgroundRTTThread` path) for the comparison window, with a clean revert to the bridge source. That is itself a controller-path change and must be gated/anchored.
+- Be explicit in the verdict about which consumer was actually exercised. The milestone says "native autorate inherits the capability via the shared path but is not stood up for validation" — so the A/B's reach is the *steering* path; confirm that path is the one carrying the live signal, or scope the claim down.
 
 **Warning signs:**
-- `docs/CONFIGURATION.md` diff includes any threshold value or any new YAML key not directly tied to Scope D's CLI.
-- `docs/PERFORMANCE.md` diff references "expected future tuning" or "evidence suggests" without citing the closeout report.
-- `CHANGELOG.md` v1.47 entry contains verdicts rather than artifact references.
+Backend swap merged, tests green, but `rtt_source` in steering health still shows `autorate_health` (not the new backend) throughout the A/B; the A/B numbers come from a benchmark harness, not from the live steering daemon's own measurements; verdict claims "validated on live consumer" while production RTT provenance is the bridge.
 
-**Phase to address:** Cross-cutting. Enforce in every v1.47 phase, especially the closeout decision report phase.
+**Phase to address:**
+Requirements / A/B-design phase (provenance mapping is an entry gate). Verdict phase (scope the claim to what was actually exercised).
 
 ---
 
-### Pitfall 10: Declaring "defect found" on a single ambiguous cell
+### Pitfall 10: Breaking the SAFE zero-diff discipline carelessly now that it's intentionally lifted
 
 **What goes wrong:**
-One cell in the v1.47 matrix produces p99 `1100ms`. Everyone wants to call this the defect. The other 11 cells are clean (p99 < 200ms) or ambiguous (p99 300-600ms). The single hot cell is one (target, time, replicate) tuple and could trivially be a target-side garbage-collection event, a single BGP path flap, or a CMTS scheduler glitch. Declaring defect found on n=1 forces v1.48 into a tuning response based on noise.
+Because the streak is being broken "by design," the team relaxes the *whole* discipline and lets the diff sprawl beyond the RTT-measurement seam into unrelated controller logic (state machine, thresholds, EWMA, fusion, CAKE signal), introducing latent regressions that the 9-milestone zero-diff streak was specifically protecting against.
 
 **Why it happens:**
-- Severe p99 numbers are visceral. So is the user-perceived "the internet feels slow" framing.
-- The project has a known history (v1.40 cake-primary arbitration root cause) of carrier deprioritization producing real defects. Pattern-matching to that history is tempting.
-- Phase 215 bounded-VOID set the precedent that severe outcomes warrant action; v1.47 may misapply the same instinct to a non-corroborated single cell.
+"We're touching the controller path anyway" is a slippery permission. The SAFE invariant historically used an explicit allowlist + a fail-closed source-diff verifier (SAFE-07 verifier "fails closed on dirty/staged/untracked `src/wanctl/` surfaces"). Lifting the invariant entirely instead of *narrowing the allowlist* removes the guardrail at the exact moment risk is highest.
 
 **How to avoid:**
-- "Defect found" requires **corroboration across at least one orthogonal axis**: same target on a different day, or different targets in the same time window, or matched journal-log evidence in `aligned-window.json` (the Phase 214 mechanism).
-- Single-cell anomalies enter `signal_disposition=none` territory by default. Carry-narrower applies unless corroborated.
-- The closeout decision report must include the table of cells with verdict per cell, and the aggregate verdict must be explicitly derived from the cell verdicts via the pre-registered rule (Pitfall 2).
+- **Narrow, don't abolish.** Define a v1.53 allowlist scoped to the RTT-measurement seam: `rtt_measurement.py` (backend abstraction + fping backend), the explicit per-WAN config keys, and the *minimal* wiring in `autorate_continuous.py` / `steering/daemon.py` needed to select the backend. Everything else — state machine, thresholds, EWMA/dwell/deadband, fusion, `cake_signal.py`, `wan_controller.py` control logic — stays zero-diff and is verified at every phase boundary, same mechanics as SAFE-07..16.
+- Keep the seam *additive*: `icmplib` refactored *behind* the abstraction with byte-equivalent behavior as the default, so the no-fping-selected path is provably unchanged. Add a test that the icmplib-default path produces identical results to pre-refactor.
+- Run the source-diff verifier against the narrowed allowlist at each boundary and at milestone close. A control-logic diff outside the seam is a fail-closed stop.
 
 **Warning signs:**
-- Discussion log starts referring to "the defect" before the matrix is fully captured.
-- Closeout report headline cites a single p99 number.
-- Aggregate verdict is announced before per-cell verdicts are computed.
-- Plan to skip remaining cells because "we already know."
+Diff touches `wan_controller.py`/`cake_signal.py`/fusion/threshold files "while we're in here"; the icmplib-default path's outputs changed vs the pre-refactor baseline; no narrowed allowlist defined; verifier disabled "because the invariant is lifted."
 
-**Phase to address:** Scope A closeout decision report phase. Reinforced in matrix-design phase via §Defect Criteria.
-
----
-
-### Pitfall 11: Phase 218 watch-list interaction — coupling parallel work to v1.47 gates
-
-**What goes wrong:**
-Phase 218 is event-gated on a natural production DOCSIS flapping event with `peak_transition_count > 30`. It runs in parallel with v1.47. The risk is bidirectional coupling: (a) v1.47 phases wait on Phase 218 evidence that may never arrive in the milestone window, or (b) Phase 218 evidence audit needs Scope D's ingestion-rate tool before that tool has shipped, and Phase 218 fires before Scope D lands.
-
-**Why it happens:**
-"Ingestion-rate observability tool — sized for Phase 218 audit evidence" (per the milestone goal) creates an implicit dependency. The dependency is harmless if Scope D ships before Phase 218 fires; it is harmful if the order inverts.
-
-**How to avoid:**
-- Sequence Scope D before Scope A's matrix-execution phase, so the ingestion-rate tool is available the moment Phase 218 fires.
-- If Phase 218 fires before Scope D ships, Phase 218 falls back to the existing `wanctl-history --ingestion-rate` from v1.44 Phase 208. Document this fallback in the milestone REQUIREMENTS so there is no surprise.
-- v1.47 closeout decision report does NOT block on Phase 218. The report covers Scope A + Scope D outcomes. Phase 218 outcomes are tracked separately and may close after v1.47 ships-with-deferral.
-
-**Warning signs:**
-- Roadmap shows Scope A closeout depending on Phase 218 evidence.
-- Scope D ships after the matrix-execution phase — too late to support Phase 218.
-- Discussion log uses "Phase 218 will validate this" as a way to skip pre-registered kill criteria.
-
-**Phase to address:** Roadmap-level phase ordering. Cross-cutting: explicit in milestone REQUIREMENTS.
-
----
-
-### Pitfall 12: Treating `/health.status == healthy` or `GREEN` as good user experience
-
-**What goes wrong:**
-v1.46 close noted explicitly: "Do not treat `/health.status == healthy` or `GREEN` as sufficient proof of good user experience." Phase 214 showed exactly this: `/health` reported `healthy` while flent measured p99 `606ms` and the measurement state was `collapsed` on the same row. v1.47 closeout report risks reusing `/health`-derived signals as if they were quality signals — e.g., "during the matrix, `/health` showed no degradation, so the elevated p99 is a measurement artifact."
-
-**Why it happens:**
-`/health` is the canonical operator surface. It is what the daemon publishes. It is hard to remember it is a controller-state surface, not a user-experience surface.
-
-**How to avoid:**
-- Closeout report must derive user-experience claims **only** from flent-side measurements (or operator-reported incident evidence), never from `/health`-side claims.
-- When `/health` is cited, it must be cited as controller-state context, not as a quality signal. Use language like "`/health` reported `download_state=GREEN` while flent measured p99 `X`ms" — paired, never sole.
-- Aligned-window.json (Phase 214 mechanism) is the contract: it pairs flent and `/health` at 1Hz. Use it; do not abandon it.
-
-**Warning signs:**
-- Closeout report sentences like "the WAN was healthy during the matrix."
-- Verdict text references `/health` without paired flent evidence.
-- `aligned-window.json` is captured but not referenced in the verdict reasoning.
-
-**Phase to address:** Scope A closeout decision report phase. Cross-cutting reminder in phase CONTEXT templates.
+**Phase to address:**
+Every phase boundary (allowlist verifier). The narrowed-allowlist definition is an entry gate to the first implementation phase; the icmplib-default-unchanged proof is a gate on the refactor phase.
 
 ---
 
 ## Technical Debt Patterns
 
-Shortcuts that seem reasonable but create long-term problems.
-
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Reuse Phase 198 3-run pattern as-is for matrix replicates | Familiar script, fast to deploy | n=3 clustered in time is functionally n=1; matrix is unfalsifiable | Never in v1.47 — replicates must be time-separated |
-| Hardcode supplemental Vultr targets into matrix wrapper | Fast to script | Bakes confirmation bias into the harness | Never — targets must include a control cell and an anchor |
-| Compute ingestion rate via live `SELECT COUNT(*)` on hot path | Simple, accurate | Self-perturbation; eats Phase 217 cycle budget | Never on hot path; acceptable in CLI tool out-of-band |
-| Expose single global `ingestion_rate` number | Easy operator UX | Hides per-WAN × per-table dimension Phase 218 needs | Acceptable as `--summary` flag, never as default |
-| Ship snapshot without `_snapshot_age_sec` field | Less schema bookkeeping | Stale snapshots mask incidents; Phase 218 audits wrong window | Never — match the v1.38 measurement-staleness pattern |
-| Update `docs/CONFIGURATION.md` mid-milestone with "future tuning" language | Captures fresh thinking | Pre-commits to tuning the evidence hasn't earned | Never in v1.47 (evidence-first read-only) |
-| Skip per-replicate path snapshots to save time | Faster runs | Cannot diagnose BGP/anycast confounders post-hoc | Never — cheap to capture, essential to interpret |
-| Aggregate cells across hostname → IP rotations | Larger n per cell | Mixes measurements of different physical targets | Never — pin IP per replicate window |
-
----
+| Long-lived `fping -l` loop process instead of one-shot per burst | Slightly lower fork overhead; "feels" like real-time | Reintroduces the entire pipe-buffer STALL class (Pitfall 1), zombie/orphan risk on restart, partial-line parsing | Never for v1.53 — one-shot is strictly safer and the cadence doesn't need streaming |
+| Reuse `parse_ping_output()` regex for fping | No new parser | Silently misses fping loss markers / `-C` arrays / quiet-mode stderr → loss read as `0ms` (Pitfall 4) | Never — build an fping-specific parser from captured samples |
+| Hardcode a single `-S` source address | Quick to wire | Breaks multi-WAN (ATT vs Spectrum) source binding (Pitfall 3) | Never — seam must carry per-WAN `source_ip` |
+| Inline subprocess call in `run_cycle()` | Simplest wiring | Per-cycle fork/exec blows the 50ms budget (Pitfall 6) | Never — use `BackgroundRTTThread` |
+| Flip default to fping after one good window | Ships the milestone faster | Confounded/weak-evidence flip; possible silent fallback masking (Pitfalls 7,8) | Never — pre-registered thresholds + matched windows + rollback anchor required |
+| Lift SAFE invariant entirely instead of narrowing | Less ceremony | Latent controller regressions the 9-milestone streak prevented (Pitfall 10) | Never — narrow the allowlist, keep the verifier |
 
 ## Integration Gotchas
 
-Common mistakes when connecting to external services.
-
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| Vultr Dallas/Chicago public reflectors | Assume hostname → stable host | Resolve once per replicate, pin IP, log IP, capture mtr snapshot |
-| LibreQoS CLI endpoint | Treat its bufferbloat grade as ground truth | Use it as corroborating evidence only; do not derive verdicts from it solely |
-| flent | Trust `.flent.gz` produced even with netperf warnings | Phase 214 showed off-peak Dallas wrote a flent with repeated netperf no-data warnings; flag and exclude from cell aggregation |
-| SQLite `metrics.db` | Add a new ingestion tracker table | Compute deltas from existing rowcounts; no new write paths in the daemon |
-| RouterOS REST | Touch it from a "read-only" phase | v1.47 must not issue any RouterOS writes; matrix wrapper must not call into router-mutation paths |
-| systemd journal | Assume regex strings stable across versions | Phase 214 verified regex strings against v1.45.0 source; verify against current deployed source again before relying on them in classifier |
-
----
+| `fping` binary | Assume it's present; hard-crash if missing | `shutil.which("fping")` gate + automatic icmplib fallback with loud first-time WARN (IRTT pattern) |
+| `fping` version | Assume native line buffering | Require ≥ 4.3 for line-buffered stdout, *or* (better) use one-shot `subprocess.run` so buffering is moot; parse `fping -v` and warn below 4.3 |
+| systemd unit stdout | Assume TTY line-buffering | stdout is a pipe → block-buffered; one-shot invocation or `stdbuf --output=L` (Pitfall 1) |
+| Source binding (`-S`) | Pass hostname / omit / hardcode | Emit `-S <per-WAN source_ip>`; assert egress WAN via binding test (Pitfall 3) |
+| Locale (`LC_NUMERIC`) | Inherit host locale → `12,3` decimals | Force `LC_ALL=C` in subprocess env |
+| Exit code | `returncode != 0` ⇒ discard data | Always parse stdout; exit code advisory; one dead reflector ≠ failed cycle (Pitfall 5) |
+| cake-autorate's own fping | Assume swapping wanctl's backend changes the live steering signal | Map RTT provenance first — live signal may come via the bridge, not wanctl `RTTMeasurement` (Pitfall 9) |
 
 ## Performance Traps
 
-Patterns that work at small scale but fail as usage grows.
-
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| New in-cycle SQLite query for ingestion rate | `cycle_total.avg_ms` rising above Phase 217 baseline 2.883ms | Move computation off hot path; snapshot from existing per-cycle telemetry | Immediately on deploy; visible in JSON Cycle samples |
-| Ingestion-rate snapshot cadence too slow | Phase 218 audit windows show "no incident" during real incidents | Cadence ≤ operator decision interval; expose staleness | When operator/Phase 218 queries within snapshot interval of a real event |
-| Matrix wrapper writes to production SQLite | metrics.db gets observation rows mixed with control rows | Matrix wrapper writes only to phase-local `evidence/` paths | Immediately — corrupts metrics.db semantics |
-| Storing per-replicate raw flent .gz indefinitely | Disk pressure over months of matrix runs | Phase-local retention; cite `RUN-<UTC>/` paths in report; archive on milestone close | At ~50 runs × 30 MB each = 1.5 GB per matrix |
-| `wanctl-history --ingestion-rate` queries full table for time-windowed views | CLI slow on production-sized DB | Use indexed time columns; bound query scope by `--since` | When `metrics.db` exceeds ~1 GB |
+| Per-cycle fork/exec at 20 Hz | `cycle_total.p99` > 7ms, CPU% climb, overruns | Probe on `BackgroundRTTThread`; loop reads cached snapshot | Immediately at 50ms cycle under any load |
+| fork/exec jitter under memory pressure | Bimodal `rtt_background_cycle`; occasional multi-ms spikes | One-shot run with bounded timeout; soak-measure p99 not just avg | Under shaper-host load / page-fault pressure |
+| Reflector fanout × subprocess | Linear CPU growth with reflector count | Single fping invocation with multiple targets (fping's strength) rather than N subprocesses | As reflector count grows (currently 3-4 → 8) |
+| Stale-prefer-`None` hiding a dead backend | Steering "works" on frozen RTT | Cycle-status (`successful_count=0`) + fallback attribution surfaced in health | When the backend silently stops producing |
 
----
-
-## Read-Only Discipline Mistakes
-
-Domain-specific to v1.47's read-only mandate.
+## Security Mistakes
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Adding behavioral assertion via test fixture | Sneaks controller-spec change past `src/wanctl/` mutation boundary | Phase CONTEXT labels every artifact as `evidence` or `tool`; PR review enforces |
-| YAML edit "just to add an ingestion-rate config knob" | Production YAML edit equals mutation of operator-facing surface | Scope D's CLI must read from existing YAML or use defaults; no new keys in production configs |
-| Pre-deciding v1.48 tuning in `docs/` | Documentation commits position the evidence didn't earn | Doc-mutation guard; closeout report under `.planning/` only |
-| Running flent matrix on production routing path | Could induce real congestion incidents during prime-time captures | Use existing test windows; document the test load on production at run time; do not synthesize artificial load |
-| Quietly extending `/health` payload shape | Breaks the v1.46 "do not break payload shape casually" contract | Any new `/health` field needs the same review as a v1.39+ schema change |
-| Allowing `git checkout configs/spectrum.yaml` style rollback to be used | Loses targeted-rollback discipline (Phase 215 lesson) | Any v1.47 mutation that lands must roll back via targeted YAML edit, never branch reset |
+| `shell=True` / string-interpolated reflectors into fping cmd | Command injection via config-controlled reflector/source values | Build `cmd` as a list (IRTT pattern, `# noqa: S603` on the hardcoded invocation); never `shell=True` |
+| Running fping setuid/elevated unnecessarily | Privilege surface | fping needs raw-socket cap like icmplib (`CAP_NET_RAW`); grant the cap, don't run as root broadly |
+| Trusting reflector list / source_ip from unvalidated config | Probes to attacker-chosen targets / spoofed source | Validate `source_ip` is locally assigned; validate reflectors at config load |
 
----
+## UX / Operability Pitfalls
+
+| Pitfall | Operator Impact | Better Approach |
+|---------|-----------------|-----------------|
+| Backend selection invisible in `/health` | Can't tell which backend is live during A/B | Extend `rtt_source` health block to attribute backend (icmplib/fping) + fallback count |
+| Silent fallback | Operator thinks fping is running; it's icmplib/stale | Loud WARN-once + counter + health surface (Pitfall 7) |
+| No rollback verb / anchor | Improvised revert under pressure during a regression | Snapshot-A anchor + rehearsed revert before flip (Pitfall 8) |
+| Verdict overclaims "validated on live consumer" | False confidence | Scope claim to the path actually exercised (Pitfall 9) |
 
 ## "Looks Done But Isn't" Checklist
 
-Things that appear complete but are missing critical pieces.
-
-- [ ] **Matrix design:** Often missing pre-registered kill/defect criteria — verify §Kill Criteria and §Defect Criteria blocks exist in CONTEXT before any live run.
-- [ ] **Matrix design:** Often missing a control cell (canonical Phase 214 reflector) — verify cell list includes the off-peak `pass` baseline target.
-- [ ] **Matrix design:** Often missing an anchor target (known-stable like `1.1.1.1`) — verify cell list includes a low-noise anchor.
-- [ ] **Matrix execution:** Often missing per-replicate IP-pinning and mtr snapshots — verify operator runbook captures both.
-- [ ] **Matrix execution:** Often missing time-separation of replicates — verify replicates of any cell are ≥ 30 minutes apart.
-- [ ] **Ingestion-rate tool:** Often missing `_snapshot_age_sec` field — verify staleness exposed in every output mode.
-- [ ] **Ingestion-rate tool:** Often missing per-WAN × per-table breakdown — verify default output is not the global single number.
-- [ ] **Ingestion-rate tool:** Often missing Phase 217-style profiling capture after deploy — verify `cycle_total.avg_ms` ≤ 3.0 and `p99_ms` ≤ 7.5 on production.
-- [ ] **Closeout decision report:** Often missing explicit verdict statement — verify verdict is one of "defect located" / "hypothesis killed" / "carried-narrower with close-with-prejudice rule."
-- [ ] **Closeout decision report:** Often missing per-cell verdict table — verify aggregate verdict derived from cell verdicts via pre-registered rule.
-- [ ] **Closeout decision report:** Often missing folded-todo decision — verify `2026-04-08-investigate-tcp-12down-...` todo is either closed or carried with a hard stopping rule for v1.48.
-- [ ] **Mutation discipline:** Often missing fixture/test-level mutation check — verify mutation-boundary covers `tests/fixtures/phase22*/`, `configs/`, `deploy/systemd/`, `scripts/`, and `docs/` against allowlist.
-- [ ] **Phase 218 coupling:** Often missing fallback when ingestion-rate tool ships after Phase 218 fires — verify REQUIREMENTS names the v1.44 Phase 208 `wanctl-history --ingestion-rate` fallback.
-
----
+- [ ] **fping backend:** Often missing — verify it runs **under a real systemd unit** (pipe stdout), not just an interactive shell; confirm no STALL over a soak.
+- [ ] **One-shot vs loop:** Verify the design uses one-shot `subprocess.run` (or proven line-buffering) — check there's no long-lived `-l` process that can buffer-stall.
+- [ ] **Source binding:** Verify `-S <source_ip>` is emitted per WAN and a binding-assertion test proves probes egress the intended WAN (ATT `.227` vs Spectrum `.226/.223`).
+- [ ] **Loss semantics:** Verify total-loss / unreachable / `-` markers map to "no sample," never `0ms`; corpus includes a total-loss fixture.
+- [ ] **Exit code:** Verify non-zero exit with partial reflector success still yields valid aggregated RTT.
+- [ ] **Cycle budget:** Verify `cycle_total` p99 and CPU% measured idle **and** under load vs icmplib baseline (`p99≈6.9` anchor); gate pre-registered.
+- [ ] **Zombies/fds/tasks:** Verify no defunct children, fd leak, or systemd `Tasks:` growth over a soak.
+- [ ] **Fallback attribution:** Verify `/health` shows which backend produced samples + fallback count; silent fallback impossible.
+- [ ] **A/B provenance:** Verify the A/B actually exercised the live steering RTT producer (not a dead path) — `rtt_source` reflects the intended backend during the window.
+- [ ] **icmplib default unchanged:** Verify the no-fping path is byte-/behavior-equivalent to pre-refactor (regression test).
+- [ ] **SAFE narrowed allowlist:** Verify the source-diff verifier runs against the narrowed allowlist at every boundary; no control-logic diff outside the seam.
+- [ ] **Rollback anchor:** Verify Snapshot-A captured and revert rehearsed before any default flip.
 
 ## Recovery Strategies
 
-When pitfalls occur despite prevention, how to recover.
-
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Confirmation-bias matrix shipped without control cell | MEDIUM | Run control cell separately; re-aggregate verdict; update closeout report with addendum citing the recovery scope |
-| Carried-narrower for the second time without close-with-prejudice rule | MEDIUM | Write the close-with-prejudice rule retroactively into v1.47 closeout report's "carry-forward to v1.48" section; do not reopen the matrix |
-| Self-perturbing ingestion-rate tool degrades cycle budget | HIGH | Roll back the in-controller portion immediately; ship CLI-only version; re-baseline with Phase 217-style capture |
-| Single-cell defect declaration shipped | HIGH | Re-run the hot cell with n=5+ across days; if not reproducible, retract verdict in v1.48 closeout addendum; if reproducible, treat as v1.48 evidence opening |
-| Test fixture encodes behavioral assertion that slipped past review | MEDIUM | Re-label fixture as `expected_evidence` not `expected_behavior`; remove any controller-spec implication from comments; flag in v1.47 retro |
-| `docs/` pre-decided v1.48 tuning | LOW | Revert doc edits; route the prediction into v1.48 RESEARCH instead |
-| Phase 218 fires before Scope D ships | LOW | Use v1.44 Phase 208 `wanctl-history --ingestion-rate` fallback; defer Scope D-style audit to v1.48 |
-| Matrix wrapper accidentally wrote to production `metrics.db` | HIGH | Identify inserted rows by timestamp; quarantine; document contamination in closeout report; manually clean if rowcount semantics depend on it |
-
----
+| fping STALL in production A/B | LOW | Existing fallback/stale-prefer-`None` carries; flip backend config back to icmplib (anchor); root-cause buffering offline |
+| `-S` mismatch → wrong-WAN data | MEDIUM | Invalidate the A/B window (data is garbage); fix seam to emit correct `-S`; re-run binding test; restart A/B |
+| Loss parsed as `0ms` (raised into congestion) | HIGH | Controller may have shaped/steered wrong during window; revert to icmplib, audit shaping decisions in window, fix parser + add total-loss fixture, re-A/B |
+| Weak-evidence flip already shipped | MEDIUM | Revert default to icmplib via anchor; re-run matched-window A/B with pre-registered thresholds before re-flipping |
+| Control-logic diff leaked outside seam | MEDIUM-HIGH | Source-diff verifier should have caught it at boundary; revert the out-of-seam diff; re-prove icmplib-default unchanged |
+| A/B-d a dead path | LOW (process) | Re-scope: map live RTT provenance, route steering to the intended producer for the window or downscope the verdict claim |
 
 ## Pitfall-to-Phase Mapping
 
-How roadmap phases should address these pitfalls.
-
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| 1. Confirmation bias on Vultr supplemental | Scope A matrix-design phase (CONTEXT) | CONTEXT contains §Kill Criteria, control cell, anchor target |
-| 2. Carried-narrower forever | Scope A matrix-design + closeout decision report | Pre-registered kill/defect criteria; close-with-prejudice rule in closeout |
-| 3. Sampling clustered in time | Scope A matrix-design + matrix-execution | Replicate spacing ≥ 30 min; n ≥ 3 per cell; per-replicate provenance |
-| 4. Confounders ignored | Scope A matrix-execution (operator runbook) | Matrix wrapper pins IP, captures mtr per replicate; anchor cell present |
-| 5. Self-perturbing ingestion observability | Scope D design + post-deploy verification | Phase 217-style cycle-budget capture after deploy; threshold gates |
-| 6. Granularity hides bottleneck | Scope D design | Default output is per-WAN × per-table; JSON mode present; Phase 218 audit example exercised |
-| 7. Stale snapshots | Scope D design | Every snapshot field paired with `_snapshot_age_sec`; CLI displays staleness |
-| 8. Behavioral assertions in fixtures | Cross-cutting: every v1.47 phase CONTEXT | Mutation-boundary covers fixtures/configs/deploy/scripts/docs; PR review enforces labels |
-| 9. Docs pre-decide tuning | Cross-cutting: every v1.47 phase | Doc-mutation guard with allowlist; verdicts only in `.planning/` |
-| 10. Defect-found on single cell | Scope A closeout decision report | Per-cell verdict table; corroboration-axis requirement in §Defect Criteria |
-| 11. Phase 218 coupling | Roadmap phase ordering | Scope D sequenced before matrix-execution; fallback documented in REQUIREMENTS |
-| 12. `/health=healthy` treated as quality | Scope A closeout decision report | Verdict prose pairs flent + `/health` evidence; `aligned-window.json` referenced |
-
----
+| 1. Pipe-buffer STALL | Backend-implementation (one-shot design) | Soak under real systemd unit; no STALL; bimodal-latency check |
+| 2. Subprocess lifecycle/zombies | Backend-implementation | Soak: zombie/fd/Tasks counts flat |
+| 3. Source-binding `-S` | Backend-implementation (seam carries `source_ip`) | Binding-assertion test before live A/B |
+| 4. Output parsing edge cases | Backend-implementation (parser + captured-sample fixtures) | Unit tests incl. total-loss/unreachable/partial-line/locale |
+| 5. Exit-code/loss semantics | Backend-implementation | Partial-reflector-success yields valid RTT test |
+| 6. 50ms cycle-budget regression | Benchmarking phase | `cycle_total` p99 + CPU idle/load vs baseline; pre-registered gate |
+| 7. Silent fallback masking | Backend-implementation (attribution) + A/B phase | `/health` backend attribution; min-intended-backend-fraction gate |
+| 8. A/B methodology / weak flip / no anchor | A/B-design + verdict phase | Pre-registered thresholds; matched windows; rehearsed rollback |
+| 9. A/B-ing a dead path | Requirements/A/B-design phase | RTT-provenance map; `rtt_source` shows intended backend in window |
+| 10. SAFE discipline sprawl | Every phase boundary | Narrowed-allowlist source-diff verifier; icmplib-default-unchanged proof |
 
 ## Sources
 
-- `.planning/PROJECT.md` — v1.46 close section, v1.47 milestone definition
-- `.planning/milestones/v1.46-phases/214-measurement-collapse-investigation/214-REPORT.md` — canonical matrix verdict, supplemental Vultr evidence, signal disposition rationale
-- `.planning/milestones/v1.46-phases/214-measurement-collapse-investigation/214-VALIDATION.md` — mutation-boundary pytest pattern, manual-only verification semantics
-- `.planning/milestones/v1.46-phases/215-spectrum-upload-reclaim-canary/215-REPORT.md` — bounded VOID rollback pattern, targeted YAML edit discipline
-- Phase 217 production cycle-budget baseline — `cycle_total.avg_ms=2.883`, `p99_ms=6.9` over 71,560 samples; `logging_metrics=8.26%` dominant category
-- v1.46 close notes on `/health` vs user-experience distinction
-- v1.44 Phase 208 — existing `wanctl-history --ingestion-rate` CLI surface (Scope D extension baseline)
-- `/home/kevin/projects/wanctl/CLAUDE.md` — controller priorities (stability > safety > clarity > elegance); read-only architectural spine
+- In-repo: `src/wanctl/rtt_measurement.py` (icmplib hot path, `source=`, `BackgroundRTTThread`, stale-prefer-`None`), `src/wanctl/irtt_measurement.py` + `irtt_thread.py` (existing subprocess-backend precedent: `shutil.which`, `subprocess.run` timeout, parse-on-nonzero-exit, flock, failure-log-level, return-`None`), `src/wanctl/steering/daemon.py` (`measure_current_rtt` fallback chain, `rtt_source` health attribution, inline retry path), `src/wanctl/autorate_continuous.py` (`source_ip=config.ping_source_ip`) — HIGH
+- Live production config: `configs/cake-autorate/config.spectrum.sh` (`pinger_method=fping`, `ping_extra_args="-S 10.10.110.223"` — fping+source-binding proven viable on this host); `configs/att.yaml` / `configs/spectrum.yaml` (`ping_source_ip`, reflector lists) — HIGH
+- Project: `.planning/PROJECT.md` v1.53 milestone (SAFE streak break, A/B target, cycle baseline `p99≈6.9`); v1.47/v1.49 evidence-milestone precedent (matched windows, BGP-drift contamination, negative-result-is-valid-close) — HIGH
+- fping changelog: line-buffered stdout added v4.3 (2020-07-11, #179); SIGQUIT summary; per-lost-packet output v5.0 — https://fping.org/dist/CHANGELOG.md — HIGH
+- Unix stdout buffering (4096-byte block buffer on pipes, line-buffer only on TTY; `stdbuf --output=L`) — https://www.turnkeylinux.org/blog/unix-buffering — HIGH
+- cake-autorate pinger architecture (fping default round-robin; iputils-ping alternate; per-instance bash+fping processes; `$pinger_binary`/`pinger_method`) — https://github.com/lynxthecat/cake-autorate (README/CHANGELOG/INSTALLATION) — MEDIUM
+- fping options reference (`-l`, `-c`, `-C`, `-p`, `-S`, `-t`, `-q`, scriptable output) — https://linux.die.net/man/8/fping, https://netbeez.net/blog/linux-how-to-use-fping/ — MEDIUM
 
 ---
-*Pitfalls research for: wanctl v1.47 Measurement Evidence Closure*
-*Researched: 2026-05-29*
+*Pitfalls research for: pluggable fping/subprocess RTT backend in a 50ms adaptive CAKE/steering control loop (wanctl v1.53)*
+*Researched: 2026-06-13*
