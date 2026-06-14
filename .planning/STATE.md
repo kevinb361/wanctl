@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.52
 milestone_name: Silicom Bypass Operationalization
 status: verifying
-stopped_at: Completed 237-04-PLAN.md
-last_updated: "2026-06-14T00:22:29.134Z"
+stopped_at: Completed 237-05-PLAN.md
+last_updated: "2026-06-14T01:01:35.885Z"
 last_activity: 2026-06-14
 progress:
   total_phases: 3
   completed_phases: 3
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 11
+  completed_plans: 11
   percent: 100
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12 after v1.51 milestone close)
 ## Current Position
 
 Phase: 237 (hil-failure-injection-harness-closeout) — EXECUTING
-Plan: 4 of 4
+Plan: 5 of 5
 Status: Phase complete — ready for verification
 Last activity: 2026-06-14
 
@@ -115,8 +115,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-14T00:22:15.840Z
-Stopped at: Completed 237-04-PLAN.md
+Last session: 2026-06-14T01:01:35.861Z
+Stopped at: Completed 237-05-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -157,6 +157,9 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 - [237-04]: Resolved HIL result hygiene by gitignoring `tests/silicom/` runtime dirs; redacted summaries may be opt-in committed under phase evidence only.
 - [237-04]: Recorded SAFE-16 closeout sign-off as delegated/agent-verified approval after independent evidence and protected-path diff checks passed.
 - [237-04]: SAFE-16 `dirty_tree_clean` remains scoped to protected controller paths plus `configs/att.yaml`; global worktree status is recorded separately via `git status --short`.
+- [237-05]: Pair validation is fail-closed and limited to `att-modem|spec-modem`; `failover` and `ab-cake` validate before live gates, result paths, generated Python, or mutation verbs.
+- [237-05]: Bare `SILICOM_BYPASS` command names now resolve through `command -v` before canonical realpath comparison, so PATH-resolved live CLI invocations require `SILICOM_TEST_LIVE_CONFIRM`.
+- [237-05]: `SILICOM_TEST_CANONICAL_BYPASS` is a test-only seam for dev hosts without `/usr/local/sbin/silicom-bypass`; the production default canonical path is unchanged.
 
 ## Decisions (v1.51)
 
@@ -235,3 +238,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 237 P02 | 5min | 2 tasks | 4 files |
 | Phase 237 P03 | 8 min | 2 tasks | 4 files |
 | Phase 237 P04 | checkpointed; continuation 1 min | 2 tasks | 4 files |
+| Phase 237 P05 | 2 min | 2 tasks | 3 files |

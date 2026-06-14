@@ -135,7 +135,7 @@ Plans:
 
 **Wave 5** *(gap closure — verification found gaps_found 2026-06-14)*
 
-- [ ] 237-05-PLAN.md — harden silicom-test pair allowlist before result paths (CR-01) and PATH-resolved live CLI gate detection (WR-01)
+- [x] 237-05-PLAN.md — harden silicom-test pair allowlist before result paths (CR-01) and PATH-resolved live CLI gate detection (WR-01)
 
 **UI hint**: no
 
@@ -151,7 +151,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 235. Bypass Operator CLI + Boot Baseline | v1.52 | 4/4 | Complete    | 2026-06-12 |
 | 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 2/2 | Complete    | 2026-06-12 |
-| 237. HIL Failure-Injection Harness + Closeout | v1.52 | 4/4 | Complete   | 2026-06-14 |
+| 237. HIL Failure-Injection Harness + Closeout | v1.52 | 5/5 | Complete   | 2026-06-14 |
 
 ---
 
