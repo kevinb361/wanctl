@@ -52,10 +52,11 @@
   2. The A/B target interpretation (A = revive steering's own pinger as the live RTT source, or B = evaluate at the autorate/bridge producer) is selected and recorded with supporting evidence, with scope boundaries stated.
   3. Operator can confirm via `ip route get <reflector> from <source_ip>` that `fping -S <source_ip>` would egress the intended WAN under the host's current `ip rule` policy routing.
   4. No source files changed; SAFE-17 boundary verifier passes (no controller-path drift).
-**Plans**: 3 plans
+**Plans**: 4 plans
 - [x] 238-01-PLAN.md — SAFE-17 lightweight controller-path git-diff boundary assertion (vs v1.52 anchor)
 - [x] 238-02-PLAN.md — Both-WAN read-only fping-egress proof script (PROV-03; operator-run on live host)
 - [x] 238-03-PLAN.md — PROVENANCE-MAP.md evidence artifact + A/B recommendation with operator-ratification slot (PROV-01, PROV-02)
+- [ ] 238-04-PLAN.md — PROV-03 gap closure: corrected host-route criterion, fresh passing egress evidence, and SAFE-17 refresh
 
 ### Phase 239: Seam Refactor + IcmplibBackend (Byte-Identical)
 **Goal**: A single `RttBackend` abstraction exists with the existing icmplib measurement refactored behind it, provably behavior-identical to the pre-refactor default so any later regression is unambiguously attributable to a backend, not the seam.
@@ -155,7 +156,7 @@
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 238. RTT-Provenance Verification (Read-Only Entry Gate) | v1.53 | 3/3 | Complete   | 2026-06-14 |
+| 238. RTT-Provenance Verification (Read-Only Entry Gate) | v1.53 | 3/4 | Gaps found | - |
 | 239. Seam Refactor + IcmplibBackend (Byte-Identical) | v1.53 | 0/TBD | Not started | - |
 | 240. Config + Validator | v1.53 | 0/TBD | Not started | - |
 | 241. fping Backend (Offline) + Reflector Quality | v1.53 | 0/TBD | Not started | - |
