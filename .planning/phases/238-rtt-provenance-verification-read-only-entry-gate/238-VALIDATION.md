@@ -41,8 +41,8 @@ created: 2026-06-14
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
 | 238-01-* | 01 | 1 | SAFE-17 | T-238-01 (accidental prod mutation) | Controller-path byte-unchanged vs `v1.52`; script is read-only (`set -euo pipefail`, no writes) | automated git assertion | `scripts/phase238-safe17-boundary-check.sh` | ❌ W0 | ⬜ pending |
-| 238-02-* | 02 | 2 | PROV-03 | T-238-02 (shell injection via arg) | Read-only `ip route get` / `ip rule` / `curl`; `--wan` arg validated against fixed allowlist | smoke (script self-test) | `scripts/phase238-egress-proof.sh --json` | ❌ W0 | ⬜ pending |
-| 238-03-* | 03 | 3 | PROV-01, PROV-02 | T-238-03 (infra detail leakage) | Internal IPs stay in phase-dir evidence; not promoted to public CLAUDE.md/README | artifact review (manual) | inspect `238-*/PROVENANCE-MAP.md` | ❌ W0 | ⬜ pending |
+| 238-02-* | 02 | 1 | PROV-03 | T-238-02 (shell injection via arg) | Read-only `ip route get` / `ip rule` / `curl`; `--wan` arg validated against fixed allowlist | smoke (script self-test) | `scripts/phase238-egress-proof.sh --json` | ❌ W0 | ⬜ pending |
+| 238-03-* | 03 | 2 | PROV-01, PROV-02 | T-238-03 (infra detail leakage) | Internal IPs stay in phase-dir evidence; not promoted to public CLAUDE.md/README | artifact review (manual) | inspect `238-*/PROVENANCE-MAP.md` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
