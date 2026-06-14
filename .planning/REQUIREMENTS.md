@@ -106,38 +106,38 @@ Populated during roadmap creation. Each requirement maps to exactly one phase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROV-01 | TBD | Pending |
-| PROV-02 | TBD | Pending |
-| PROV-03 | TBD | Pending |
-| SEAM-01 | TBD | Pending |
-| SEAM-02 | TBD | Pending |
-| SEAM-03 | TBD | Pending |
-| SEAM-04 | TBD | Pending |
-| FPING-01 | TBD | Pending |
-| FPING-02 | TBD | Pending |
-| FPING-03 | TBD | Pending |
-| FPING-04 | TBD | Pending |
-| FPING-05 | TBD | Pending |
-| CFG-01 | TBD | Pending |
-| CFG-02 | TBD | Pending |
-| CFG-03 | TBD | Pending |
-| FALL-01 | TBD | Pending |
-| FALL-02 | TBD | Pending |
-| BENCH-01 | TBD | Pending |
-| BENCH-02 | TBD | Pending |
-| HEALTH-01 | TBD | Pending |
-| REFL-01 | TBD | Pending |
-| AB-01 | TBD | Pending |
-| AB-02 | TBD | Pending |
-| AB-03 | TBD | Pending |
-| FLIP-01 | TBD | Pending |
-| SAFE-17 | TBD | Pending |
+| PROV-01 | Phase 238 | Pending |
+| PROV-02 | Phase 238 | Pending |
+| PROV-03 | Phase 238 | Pending |
+| SEAM-01 | Phase 239 | Pending |
+| SEAM-02 | Phase 239 | Pending |
+| SEAM-03 | Phase 239 | Pending |
+| SEAM-04 | Phase 239 | Pending |
+| FPING-01 | Phase 241 | Pending |
+| FPING-02 | Phase 241 | Pending |
+| FPING-03 | Phase 241 | Pending |
+| FPING-04 | Phase 241 | Pending |
+| FPING-05 | Phase 241 | Pending |
+| CFG-01 | Phase 240 | Pending |
+| CFG-02 | Phase 240 | Pending |
+| CFG-03 | Phase 240 | Pending |
+| FALL-01 | Phase 242 | Pending |
+| FALL-02 | Phase 242 | Pending |
+| BENCH-01 | Phase 243 | Pending |
+| BENCH-02 | Phase 243 | Pending |
+| HEALTH-01 | Phase 244 | Pending |
+| REFL-01 | Phase 241 | Pending |
+| AB-01 | Phase 245 | Pending |
+| AB-02 | Phase 245 | Pending |
+| AB-03 | Phase 245 | Pending |
+| FLIP-01 | Phase 246 | Pending |
+| SAFE-17 | Phase 246 (cross-phase; verified at every boundary) | Pending |
 
 **Coverage:**
 - v1 requirements: 26 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 26 ⚠️ (resolved by roadmapper)
+- Mapped to phases: 26 ✓
+- Unmapped: 0 — 100% coverage, zero orphans (roadmap created 2026-06-13, Phases 238-246)
 
 ---
 *Requirements defined: 2026-06-13*
-*Last updated: 2026-06-13 after initial definition (research-driven)*
+*Last updated: 2026-06-13 after roadmap creation (Phases 238-246; 26/26 mapped)*
