@@ -1,7 +1,7 @@
 ---
 phase: 238
 reviewers: [codex]
-reviewed_at: 2026-06-14T17:43:19Z
+reviewed_at: 2026-06-14T18:41:00Z
 plans_reviewed: [238-01-PLAN.md, 238-02-PLAN.md, 238-03-PLAN.md]
 cycles:
   - cycle: 1
@@ -10,6 +10,9 @@ cycles:
   - cycle: 2
     reviewers: [codex]
     unresolved_high: 2
+  - cycle: 3
+    reviewers: [codex]
+    unresolved_high: 1
 ---
 
 # Cross-AI Plan Review — Phase 238
@@ -219,3 +222,126 @@ on a read-only deliverable (no production-mutation defect). Tighten 238-02 via
 `verdict_for_line` criterion (add an ATT-correct-src-wrong-dev negative self-test fixture),
 and (b) convert the mutation guard to an allowlist that asserts every generated remote
 command matches exactly `^ip route get ` or `^ip rule$`.
+
+---
+
+# Cross-AI Plan RE-REVIEW — Phase 238 — Cycle 3 (2026-06-14T18:41:00Z)
+
+> Re-review after 238-02 was revised to close the two cycle-2 PARTIAL HIGHs:
+> (a) the egress verdict now mechanically enforces BOTH expected `src` AND expected `dev`
+> (repo-derived `spec-modem`/`att-modem` from the cake-autorate `ul_if` configs) via a shared
+> `verdict_for_line`, with a new correct-src/wrong-dev negative self-test fixture; and
+> (b) the mutation guard converted to an anchored allowlist-parser (`--print-commands`
+> machine-checkable section gated so every line matches `^ip route get ` or `^ip rule$`),
+> plus a fix for a latent always-exit-0 verify-block bug. Claude was skipped for independence
+> (review ran inside Claude Code); Codex is the external reviewer. Locked decisions D-01..D-09
+> remain out of scope — only plan execution/rigor/safety risks were in scope.
+
+## Codex Review (Cycle 3)
+
+**Summary**
+Cycle 3 fully closes P1: the egress verdict is now mechanical on both `src` and `dev`, with
+negative self-test coverage for correct-src/wrong-dev. The verify-block masking bug is also
+fixed. P2 is improved but Codex still marks it **PARTIAL**, not resolved: the allowlist is
+anchored but not a full-line command grammar, and the plan gates `--print-commands` output
+without mechanically proving the live SSH path can only execute that same validated list.
+
+**Prior-HIGH Adjudication**
+
+1. **238-02 egress pass/fail (P1) — RESOLVED.**
+   The plan now requires concrete per-WAN `src` + `dev` matching inside `verdict_for_line`
+   (parsed src == expected src AND parsed dev == expected dev), makes the expected devs
+   repo-derived (`spec-modem`/`att-modem` from `config.{spectrum,att}.sh ul_if`, not
+   operator-attested), and adds the missing negative fixture (ATT correct-src
+   `10.10.110.227` + WRONG dev → expected FAIL). That closes the prior ATT
+   "right source, wrong uplink" false-pass risk.
+
+2. **238-02 mutation guard (P2) — PARTIAL.**
+   Much stronger than cycle 2: `--print-commands` emits one bare remote command per line in a
+   machine-checkable section, the verify gate avoids vacuous-empty-pass (`test -n "$cmds"` +
+   requires a `^ip route get ` line), and the inversion
+   `! printf '%s\n' "$cmds" | grep -vqE '^(ip route get |ip rule$)'` is directionally correct
+   (fails if any line falls outside the allowlist). BUT the allowlist is still NOT a true
+   parser: `^ip route get ` is **prefix-only**, so a line like `ip route get 1.1.1.1; reboot`
+   would match the anchored pattern (the denylist is non-exhaustive defense-in-depth and would
+   not catch e.g. `reboot`). Additionally there is **no mechanical binding** between the
+   `--print-commands` enumeration and the live SSH execution path — the plan calls that output
+   "canonical" but does not require a single shared command-generation function/array used by
+   BOTH `--print-commands` and live execution, nor a mandatory live-path allowlist check
+   immediately before SSH. So the "ONLY `ip route get` / `ip rule`" guarantee is asserted on the
+   printed list, not provably on what actually runs.
+
+3. **Always-exit-0 verify-block bug — RESOLVED.**
+   The revised `<automated>` block is a fail-fast `&&`-chain with the positive clean-tree
+   assertion `test -z "$(git status --porcelain -- src/wanctl/)"` and no trailing `|| true`
+   mask. Previous false-success masking is closed.
+
+**New Concerns**
+
+- **HIGH — Allowlist accepts shell tails after `ip route get`.**
+  `^ip route get ` is prefix-only; `ip route get 1.1.1.1; reboot` passes. Make the route-get
+  pattern full-line / argument-shaped / shell-metacharacter-safe, e.g.
+  `^(ip route get [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+( from [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)?|ip rule)$`,
+  or better, compare against an exact generated command set.
+
+- **HIGH — `--print-commands` is not mechanically bound to live execution.**
+  Make command generation a single shared function/list; `--print-commands` prints it, live mode
+  validates the same list then executes only those entries, with the self-check mandatory (not
+  optional). (Codex folds both HIGH items into the single P2 PARTIAL in its Final Tally —
+  UNRESOLVED_HIGH_COUNT: 1.)
+
+- **MEDIUM — Command-section structural check is incomplete.**
+  The sed/grep extraction does not require both BEGIN and END markers, does not require the
+  `ip rule` line to appear in the section, and does not assert the expected command count
+  (default `all` should prove exactly 6 `ip route get` lines + 1 `ip rule`).
+
+- **MEDIUM — Post-ratification provenance-map structural recheck still unaddressed.**
+  238-03 Task 2 structurally verifies the map BEFORE ratification; Task 3 only checks
+  `Selection: A|B`; Task 4 only reruns SAFE-17. An operator edit that damages JSON/evidence
+  while adding `Selection:` could still let the phase complete. (Carried MEDIUM from cycle 2.)
+
+- **LOW — Repo-derived devs not mechanically rechecked against config during verify.**
+  The verify block greps script constants only; add a check that
+  `configs/cake-autorate/config.{spectrum,att}.sh` still contain the expected `ul_if` values.
+
+**Final Tally**
+
+- **238-02 mutation guard (P2) — PARTIAL:** anchored allowlist is prefix-based (accepts shell
+  tails) and gates `--print-commands` output without proving the live SSH path executes only
+  that same validated command list.
+
+`UNRESOLVED_HIGH_COUNT: 1`
+
+**Risk Assessment**
+**HIGH** until the remote-command guard becomes a full-line exact command parser tied directly
+to the live execution path; the rest of the revisions are solid, but this is the read-only
+safety boundary.
+
+---
+
+## Cycle 3 Disposition
+
+**Cycle-2 PARTIAL HIGHs (2):** 1 FULLY RESOLVED (P1 egress src+dev verdict, repo-derived devs,
+correct-src/wrong-dev negative fixture), 1 still PARTIAL (P2 mutation guard). The latent
+always-exit-0 verify-block bug is also RESOLVED.
+
+**Unresolved HIGH count this cycle: 1** (238-02 P2, PARTIAL):
+- **238-02 mutation guard (PARTIAL):** the allowlist is anchored but **prefix-only**
+  (`^ip route get ` admits `ip route get <ip>; reboot`), and there is no mechanical binding
+  proving the live SSH path runs ONLY the `--print-commands`-validated set (no shared
+  command-generation function + mandatory pre-SSH allowlist check). The "ONLY ip route get /
+  ip rule" guarantee holds on the printed enumeration, not provably on live execution.
+
+**New HIGHs introduced this cycle:** none net-new — both HIGH bullets Codex raised are facets of
+the same P2 PARTIAL and are counted as the single unresolved HIGH (Codex's own
+`UNRESOLVED_HIGH_COUNT: 1`). Two MEDIUMs persist (incomplete command-section structural check;
+post-ratification map recheck), one LOW (config `ul_if` not rechecked in verify).
+
+**Recommendation:** One remaining HIGH, confined to 238-02 on a read-only deliverable (no
+production-mutation defect). To converge, tighten 238-02 via `/gsd:plan-phase 238 --reviews`:
+(a) make the remote-command allowlist a **full-line, argument-shaped** pattern (anchor end too,
+constrain to IPv4 args) or compare against an exact generated command set; and (b) generate
+remote commands from a **single shared function/array** consumed by both `--print-commands` and
+the live SSH path, with a mandatory pre-execution allowlist check (not optional self-assert).
+Operator may also accept this as a documented residual-rigor item given the read-only,
+operator-gated, `--print-commands`-inspectable posture.
