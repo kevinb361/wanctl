@@ -10,9 +10,9 @@ This artifact records the PROV-01 evidence and PROV-02 recommendation. It does *
 
 **Operator ratification slot:**
 
-- Selection: <pending>
+- Selection: A
 - Ratifier: Kevin
-- Ratification note: fill with `Selection: A` or `Selection: B` after reviewing this map.
+- Ratification note: operator approved Interpretation A after reviewing this map.
 
 ## Live RTT Source — Verified Code-Path Trace
 
@@ -237,7 +237,7 @@ This is a recommendation, not the binding verdict. The binding selection is the 
 | Requirement | Evidence in this map | Status |
 | --- | --- | --- |
 | PROV-01 | Verified steering consumption trace, live `/health` captures, deployed bridge identity | Satisfied by read-only evidence |
-| PROV-02 | Both A/B interpretations, fidelity-rubric recommendation, explicit ratification slot | Awaiting operator selection |
+| PROV-02 | Both A/B interpretations, fidelity-rubric recommendation, explicit ratification slot | Satisfied by operator Selection: A |
 | PROV-03 | Plan 02 egress proof embedded as non-pass/topology-drift evidence | Non-pass truth preserved; not marked complete |
 | SAFE-17 | To be re-run after ratification as final phase gate | Pending final gate |
 |
