@@ -8,7 +8,7 @@ set -euo pipefail
 : "${RECOVERY_WINDOW:=0}"
 : "${LOGGER:=logger}"
 
-CANONICAL_SILICOM_BYPASS="/usr/local/sbin/silicom-bypass"
+CANONICAL_SILICOM_BYPASS="${SILICOM_TEST_CANONICAL_BYPASS:-/usr/local/sbin/silicom-bypass}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 DEFAULT_SNAPSHOT="/usr/local/libexec/wanctl/phase213-steering-snapshot.sh"
 DEFAULT_HEALTH_POLLER="/usr/local/libexec/wanctl/phase213-health-poller.sh"
@@ -207,14 +207,24 @@ trap on_exit EXIT
 trap 'on_signal INT' INT
 trap 'on_signal TERM' TERM
 
-realpath_or_literal() {
-    realpath "$1" 2>/dev/null || printf '%s\n' "$1"
+resolve_command_path() {
+    local cmd="$1" resolved
+    if [[ "$cmd" == */* ]]; then
+        realpath "$cmd" 2>/dev/null || printf '%s\n' "$cmd"
+        return 0
+    fi
+    resolved="$(command -v -- "$cmd" 2>/dev/null || true)"
+    if [[ -n "$resolved" ]]; then
+        realpath "$resolved" 2>/dev/null || printf '%s\n' "$resolved"
+        return 0
+    fi
+    printf '%s\n' "$cmd"
 }
 
 require_live_gate() {
     local pair="$1" bypass_real canonical_real
-    bypass_real="$(realpath_or_literal "$SILICOM_BYPASS")"
-    canonical_real="$(realpath_or_literal "$CANONICAL_SILICOM_BYPASS")"
+    bypass_real="$(resolve_command_path "$SILICOM_BYPASS")"
+    canonical_real="$(resolve_command_path "$CANONICAL_SILICOM_BYPASS")"
     [[ "$bypass_real" == "$canonical_real" ]] || return 0
     [[ -n "${SILICOM_TEST_LIVE_CONFIRM:-}" ]] || die "live Silicom run requires SILICOM_TEST_LIVE_CONFIRM" 2
     if [[ "$pair" == "att-modem" && -z "${SILICOM_TEST_ATT_CONFIRM:-}" ]]; then
@@ -222,11 +232,18 @@ require_live_gate() {
     fi
 }
 
+validate_pair() {
+    case "$1" in
+        att-modem|spec-modem) return 0 ;;
+        *) die "invalid pair '$1' (expected att-modem or spec-modem)" 2 ;;
+    esac
+}
+
 pair_to_wan() {
     case "$1" in
         att-modem) printf '%s\n' att ;;
         spec-modem) printf '%s\n' spectrum ;;
-        *) printf '%s\n' "$1" ;;
+        *) die "invalid pair '$1' (expected att-modem or spec-modem)" 2 ;;
     esac
 }
 
@@ -312,6 +329,7 @@ run_bypass() {
 cmd_failover() {
     local pair="${1:-spec-modem}"
     [[ $# -le 1 ]] || die "failover accepts zero or one pair" 2
+    validate_pair "$pair"
     require_live_gate "$pair"
     init_run_dir failover "$pair"
     mark_touched "$pair"
@@ -332,6 +350,7 @@ cmd_failover() {
 cmd_ab_cake() {
     local pair="${1:-spec-modem}"
     [[ $# -le 1 ]] || die "ab-cake accepts zero or one pair" 2
+    validate_pair "$pair"
     require_live_gate "$pair"
     init_run_dir ab-cake "$pair"
     mark_touched "$pair"
