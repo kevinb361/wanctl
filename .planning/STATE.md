@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
-status: executing
-stopped_at: Completed 238-02-PLAN.md with non-pass PROV-03 evidence
-last_updated: "2026-06-14T22:27:58.830Z"
+status: verifying
+stopped_at: Completed 238-03-PLAN.md
+last_updated: "2026-06-14T22:45:56.466Z"
 last_activity: 2026-06-14
 progress:
   total_phases: 9
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 67
+  completed_plans: 3
+  percent: 11
 ---
 
 # Session State
@@ -27,14 +27,14 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 Phase: 238 (rtt-provenance-verification-read-only-entry-gate) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-14
 
-Progress: [███████░░░] 67%
+Progress: [██████████] 100%
 
 ## Active Blockers / Concerns
 
-- PROV-03 non-pass: live egress proof resolved both Spectrum and ATT route queries on `dev ens18`, not expected `spec-modem`/`att-modem`; Plan 03 must surface this as drift or reconcile criterion/topology before claiming fping egress proven.
+- PROV-03 non-pass: live egress proof resolved both Spectrum and ATT route queries on `dev ens18`, not expected `spec-modem`/`att-modem`; Plan 03 surfaced this as topology drift, and downstream Phase 245 must not claim fping egress on the expected modem labels until criterion/topology is reconciled.
 
 ## Deferred Items (carried into next milestone)
 
@@ -57,7 +57,7 @@ Acknowledged and deferred at v1.52 milestone close on 2026-06-14:
 
 ### v1.52-shipped-with-advisory-tech-debt
 
-- **Status:** Executing Phase 238 Plan 03
+- **Status:** v1.52 shipped with advisory tech debt; Phase 238 Plan 03 is now complete and ready for verification.
 - **Operator sign-off:** Kevin — 2026-06-14, via `/gsd-complete-milestone` audit acknowledgment and ship path.
 - **Why this is acceptable:** v1.52 audit status is `tech_debt`, not `passed`, but it found no requirement, integration, or flow blockers: 15/15 REQs, 3/3 phases, 5/5 integration seams, 5/5 E2E flows. SAFE-16 controller-path zero-diff held through closeout. Remaining items are advisory: normal deploy `eval rsync`, legacy raw watchdog docs, partial 235/237 Nyquist metadata, and Phase 236 summary metadata.
 
@@ -144,8 +144,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-14T22:27:58.779Z
-Stopped at: Completed 238-02-PLAN.md with non-pass PROV-03 evidence
+Last session: 2026-06-14T22:45:56.441Z
+Stopped at: Completed 238-03-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -154,10 +154,14 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Operator Next Steps
 
-- Execute Phase 238 Plan 03 and embed the Plan 02 egress proof as non-pass/topology-drift evidence unless the proof criterion/topology is deliberately reconciled first.
+- Verify Phase 238 Plan 03 outputs, especially the binding `Selection: A` in `238-PROVENANCE-MAP.md` and the final SAFE-17 `passed:true` evidence.
+- Carry the unresolved PROV-03 topology drift forward: do not treat `spec-modem` / `att-modem` fping egress as proven until criterion/topology is reconciled.
 
 ## Decisions (v1.53)
 
+- [238-03]: Operator ratified Selection A: revive steering's own pinger as the live RTT source for the v1.53 A/B target, because it is the only reachable path that can produce a high-fidelity icmplib-vs-fping comparison.
+- [238-03]: Preserved Plan 02 PROV-03 as non-pass topology-drift evidence; distinct source/path evidence exists, but the expected-dev labels remain unresolved and are not marked complete.
+- [238-03]: Re-ran the lightweight SAFE-17 boundary gate after ratification and preserved passed:true evidence with zero controller-path diff.
 - [238-02]: Recorded operator egress-proof stdout as non-pass topology-drift evidence because both WANs resolved on `dev ens18` rather than repo-derived `spec-modem`/`att-modem`; PROV-03 remains unresolved until criterion/topology is reconciled.
 - [238-02]: Treat `ip route get <dst> from <source>` output's `from <source>` token as source-bound evidence when Linux omits a separate `src <source>` token; self-test now covers that shape.
 - [238-01]: Kept SAFE-17 as a lightweight controller-path git-diff assertion only; full fail-closed verifier and narrowed allowlist remain deferred to Phase 239 per D-09.
@@ -277,3 +281,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 237 P05 | 2 min | 2 tasks | 3 files |
 | Phase 238 P01 | 3min | 2 tasks | 3 files |
 | Phase 238 P02 | checkpointed; continuation 3 min | 2 tasks | 4 files |
+| Phase 238 P03 | 3min continuation | 4 tasks | 3 files |
