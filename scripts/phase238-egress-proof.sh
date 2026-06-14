@@ -5,12 +5,12 @@
 # Read-only. Proves fping -S <source_ip> egress per WAN via ip route get / ip rule.
 # No worktree, prod, CAKE-mode, unit, or controller-source mutation.
 #
-# Expected per-WAN verdicts are mechanical, not operator-attested:
-#   spectrum: src 10.10.110.223 AND dev spec-modem
-#   att:      src 10.10.110.227 AND dev att-modem
-# The expected dev values are repo-derived from configs/cake-autorate/config.spectrum.sh
-# and configs/cake-autorate/config.att.sh ul_if (line 6 in each file). If the live
-# host resolves a different egress dev, this script correctly FAILs to surface drift.
+# PASS criterion: host-route proof `src 10.10.110.223 + dev ens18` for Spectrum
+# and `from/src 10.10.110.227 + dev ens18` for ATT, plus distinct source-bound
+# route keys. `spec-modem` and `att-modem` are cake-autorate `ul_if` labels from
+# configs/cake-autorate/config.{spectrum,att}.sh, but they are downstream of the
+# shaper host's route lookup in this topology and are documented as context, not
+# used as `ip route get` expected devs.
 #
 # Remote command allowlist: only exact full lines shaped as `ip route get <IPv4>`,
 # `ip route get <IPv4> from <IPv4>`, or `ip rule` are accepted. Shell metacharacters
@@ -20,8 +20,8 @@
 set -euo pipefail
 
 TARGETS=(
-    "kevin@10.10.110.223|spectrum|<none>|10.10.110.223|spec-modem|spectrum-default|1.1.1.1 9.9.9.9 208.67.222.222"
-    "kevin@10.10.110.223|att|10.10.110.227|10.10.110.227|att-modem|att-source-bound|1.1.1.1 8.8.8.8 151.101.1.57"
+    "kevin@10.10.110.223|spectrum|<none>|10.10.110.223|ens18|spectrum-default|1.1.1.1 9.9.9.9 208.67.222.222"
+    "kevin@10.10.110.223|att|10.10.110.227|10.10.110.227|ens18|att-source-bound|1.1.1.1 8.8.8.8 151.101.1.57"
 )
 
 SSH_OPTS=(-o ConnectTimeout=10 -o BatchMode=yes)
@@ -45,13 +45,16 @@ Options:
   --help, -h               Show this help
 
 Expected verdicts:
-  spectrum: ip route get <reflector> must resolve src 10.10.110.223 and dev spec-modem
+  spectrum: PASS criterion is the host-route proof src 10.10.110.223 + dev ens18
             (Spectrum uses source sentinel <none>, so the proof uses the default route)
-  att:      ip route get <reflector> from 10.10.110.227 must resolve src 10.10.110.227
-            and dev att-modem
+  att:      PASS criterion is the host-route proof from/src 10.10.110.227 + dev ens18
+            using ip route get <reflector> from 10.10.110.227
+  both:     source-bound route keys must remain distinct between Spectrum and ATT
 
-Expected devs are repo-derived from configs/cake-autorate/config.{spectrum,att}.sh
-ul_if (line 6), not operator attestation. Live drift from those ul_if values fails.
+Context: spec-modem and att-modem are cake-autorate ul_if labels from
+configs/cake-autorate/config.{spectrum,att}.sh, but those labels are downstream
+of the shaper host's route lookup in this topology and are not used as ip route
+get expected devs.
 
 Posture: read-only SSH queries only. The script does not modify the worktree,
 production state, CAKE mode, services, routing policy, or controller source.
@@ -206,16 +209,16 @@ PY
         fi
     }
 
-    self_test_verdict_fixture "spectrum src+dev pass" "spectrum" "10.10.110.223" "spec-modem" \
-        "1.1.1.1 via 10.10.110.1 dev spec-modem src 10.10.110.223 uid 1000" "PASS"
-    self_test_verdict_fixture "att src+dev pass" "att" "10.10.110.227" "att-modem" \
-        "1.1.1.1 from 10.10.110.227 via 10.10.110.2 dev att-modem src 10.10.110.227 uid 1000" "PASS"
-    self_test_verdict_fixture "att from-only src pass" "att" "10.10.110.227" "att-modem" \
-        "1.1.1.1 from 10.10.110.227 via 10.10.110.2 dev att-modem uid 1000" "PASS"
-    self_test_verdict_fixture "att wrong-src fail" "att" "10.10.110.227" "att-modem" \
-        "1.1.1.1 from 10.10.110.227 via 10.10.110.1 dev att-modem src 10.10.110.223 uid 1000" "FAIL"
-    self_test_verdict_fixture "att wrong-dev fail" "att" "10.10.110.227" "att-modem" \
-        "1.1.1.1 from 10.10.110.227 via 10.10.110.1 dev spec-modem src 10.10.110.227 uid 1000" "FAIL"
+    self_test_verdict_fixture "spectrum ens18 pass" "spectrum" "10.10.110.223" "ens18" \
+        "1.1.1.1 via 10.10.110.1 dev ens18 src 10.10.110.223 uid 1000" "PASS"
+    self_test_verdict_fixture "att ens18 src pass" "att" "10.10.110.227" "ens18" \
+        "1.1.1.1 from 10.10.110.227 via 10.10.110.1 dev ens18 src 10.10.110.227 uid 1000" "PASS"
+    self_test_verdict_fixture "att ens18 from-only pass" "att" "10.10.110.227" "ens18" \
+        "1.1.1.1 from 10.10.110.227 via 10.10.110.1 dev ens18 uid 1000" "PASS"
+    self_test_verdict_fixture "att wrong-src fail" "att" "10.10.110.227" "ens18" \
+        "1.1.1.1 from 10.10.110.227 via 10.10.110.1 dev ens18 src 10.10.110.223 uid 1000" "FAIL"
+    self_test_verdict_fixture "att wrong-dev fail" "att" "10.10.110.227" "ens18" \
+        "1.1.1.1 from 10.10.110.227 via 10.10.110.1 dev att-modem src 10.10.110.227 uid 1000" "FAIL"
 
     self_test_reject_fixture "semicolon chain" 'ip route get 1.1.1.1; reboot'
     self_test_reject_fixture "backtick substitution" 'ip route get `reboot`'
