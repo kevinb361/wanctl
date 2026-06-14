@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.52
 milestone_name: Silicom Bypass Operationalization
-status: executing
-stopped_at: Completed 237-03-PLAN.md
-last_updated: "2026-06-13T01:34:01.578Z"
-last_activity: 2026-06-13
+status: verifying
+stopped_at: Completed 237-04-PLAN.md
+last_updated: "2026-06-14T00:22:29.134Z"
+last_activity: 2026-06-14
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 10
-  completed_plans: 9
-  percent: 67
+  completed_plans: 10
+  percent: 100
 ---
 
 # Session State
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-12 after v1.51 milestone close)
 
 Phase: 237 (hil-failure-injection-harness-closeout) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
-Last activity: 2026-06-13
+Status: Phase complete — ready for verification
+Last activity: 2026-06-14
 
 ## Deferred Items (carried into next milestone)
 
@@ -69,7 +69,7 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ### v1.51-shipped-clean
 
-- **Status:** Ready to execute
+- **Status:** v1.51 milestone complete
 - **Operator sign-off:** Kevin — 2026-06-12, via /gsd-verify-work 234 (operator-delegated checks, 5/5 pass) → /gsd-complete-milestone → Acknowledge-all path. 10/10 v1.51 requirements satisfied.
 - **Why this is acceptable:** Milestone surface was scripts/docs/planning/tests only; SAFE-15 controller-path zero-diff held at every phase boundary and was re-proven fresh at close HEAD `aa200dd3` after the verifier flagged stale evidence. No milestone audit was run (planning/docs-only milestone; operator chose acknowledge+close). `/gsd-secure-phase 234` not run — zero code surface, no threat flags declared.
 
@@ -115,8 +115,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-13T01:33:36.029Z
-Stopped at: Completed 237-03-PLAN.md
+Last session: 2026-06-14T00:22:15.840Z
+Stopped at: Completed 237-04-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -154,6 +154,9 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 - [237-03]: Reused `deploy.sh --silicom-bypass-only` for harness deployment instead of adding a separate installer.
 - [237-03]: Kept harness deployment install-only/off-by-default; `deploy_silicom_bypass` still ends at `systemctl daemon-reload` and enables/starts no units.
 - [237-03]: Scenario deploy coverage uses repo-owned file existence plus source/target directory membership so loop-installed scenarios are not silently missed.
+- [237-04]: Resolved HIL result hygiene by gitignoring `tests/silicom/` runtime dirs; redacted summaries may be opt-in committed under phase evidence only.
+- [237-04]: Recorded SAFE-16 closeout sign-off as delegated/agent-verified approval after independent evidence and protected-path diff checks passed.
+- [237-04]: SAFE-16 `dirty_tree_clean` remains scoped to protected controller paths plus `configs/att.yaml`; global worktree status is recorded separately via `git status --short`.
 
 ## Decisions (v1.51)
 
@@ -231,3 +234,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 237 P01 | 6min | 2 tasks | 4 files |
 | Phase 237 P02 | 5min | 2 tasks | 4 files |
 | Phase 237 P03 | 8 min | 2 tasks | 4 files |
+| Phase 237 P04 | checkpointed; continuation 1 min | 2 tasks | 4 files |

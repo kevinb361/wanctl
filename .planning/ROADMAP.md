@@ -131,7 +131,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 237-04-PLAN.md — SAFE-16 phase-boundary proof + gitignore HIL artifacts + milestone-close operator gate
+- [x] 237-04-PLAN.md — SAFE-16 phase-boundary proof + gitignore HIL artifacts + milestone-close operator gate
 
 **UI hint**: no
 
@@ -147,7 +147,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 235. Bypass Operator CLI + Boot Baseline | v1.52 | 4/4 | Complete    | 2026-06-12 |
 | 236. Watchdog Fail-Open Two-Mode Reconciliation | v1.52 | 2/2 | Complete    | 2026-06-12 |
-| 237. HIL Failure-Injection Harness + Closeout | v1.52 | 3/4 | In Progress|  |
+| 237. HIL Failure-Injection Harness + Closeout | v1.52 | 4/4 | Complete   | 2026-06-14 |
 
 ---
 
