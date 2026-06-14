@@ -2,7 +2,7 @@
   "anchor": "v1.52",
   "anchor_sha": "69f39db17c03f53e6b29248fbb7540fcb721e5f0",
   "baseline_commit": "69f39db17c03f53e6b29248fbb7540fcb721e5f0",
-  "checked_at": "2026-06-14T22:40:52Z",
+  "checked_at": "2026-06-14T22:41:24Z",
   "committed_clean": true,
   "controller_path_diff_count": 0,
   "dirty_tree": {
@@ -12,7 +12,7 @@
     "untracked": []
   },
   "dirty_tree_clean": true,
-  "head_commit": "6970347cf43729c01648d626810e1176ba82d5b4",
+  "head_commit": "fcd5b91e16639b0b7db5f7d50de77408d9584e0a",
   "notes": "SAFE-17 lightweight read-only boundary check vs v1.52; --anchor resolved to a commit SHA via rev-parse --end-of-options; --out constrained to phase evidence dir; full fail-closed verifier + narrowed allowlist deferred to Phase 239.",
   "passed": true,
   "per_path_diff": {
