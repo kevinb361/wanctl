@@ -34,7 +34,7 @@ def _fake_helper(tmp_path: Path, name: str) -> Path:
             f"""\
             #!/usr/bin/env bash
             set -euo pipefail
-            printf '%s\n' "$*" >> {tmp_path / f'{name}.log'}
+            printf '%s\n' "$*" >> {tmp_path / f"{name}.log"}
             exit 0
             """
         ),
@@ -145,10 +145,90 @@ def _calls_for(calls: list[str], verb: str) -> list[str]:
     return [line for line in calls if line == verb or line.startswith(prefix)]
 
 
+def _mutation_calls(calls: list[str]) -> list[str]:
+    mutation_verbs = ("disc", "on", "off", "conn")
+    return [line for line in calls if line.split(maxsplit=1)[0] in mutation_verbs]
+
+
+def _assert_no_result_dirs(result_root: Path) -> None:
+    if result_root.exists():
+        assert list(result_root.iterdir()) == []
+
+
 def _assert_after(calls: list[str], later: str, earlier: str) -> None:
     assert earlier in calls
     assert later in calls
     assert calls.index(later) > calls.index(earlier)
+
+
+def test_rejects_malformed_pairs_before_result_dir_creation(tmp_path: Path) -> None:
+    fake_cli, calls_log = _fake_silicom_bypass(tmp_path)
+    bad_pairs = ("../escape", "spec-modem/evil", "../../../../escape")
+
+    for bad_pair in bad_pairs:
+        result_root = tmp_path / "results"
+        result = _run(tmp_path, fake_cli, "failover", bad_pair)
+
+        assert result.returncode == 2
+        assert (
+            "invalid pair" in f"{result.stdout}\n{result.stderr}"
+            or "unknown pair" in f"{result.stdout}\n{result.stderr}"
+        )
+        _assert_no_result_dirs(result_root)
+        assert not (tmp_path / "escape").exists()
+        assert not (tmp_path.parent / "escape").exists()
+
+    assert not _mutation_calls(_calls(calls_log))
+
+
+def test_rejects_unknown_pair_before_ab_cake_result_dir_creation(tmp_path: Path) -> None:
+    fake_cli, calls_log = _fake_silicom_bypass(tmp_path)
+    result = _run(tmp_path, fake_cli, "ab-cake", "unknown-pair")
+
+    assert result.returncode == 2
+    assert (
+        "invalid pair" in f"{result.stdout}\n{result.stderr}"
+        or "unknown pair" in f"{result.stdout}\n{result.stderr}"
+    )
+    _assert_no_result_dirs(tmp_path / "results")
+    assert not _mutation_calls(_calls(calls_log))
+
+
+def test_live_gate_resolves_bare_silicom_bypass_through_path(tmp_path: Path) -> None:
+    _fake_cli, calls_log = _fake_silicom_bypass(tmp_path)
+    canonical = tmp_path / "usr" / "local" / "sbin" / "silicom-bypass"
+    canonical.parent.mkdir(parents=True)
+    canonical.write_text(
+        textwrap.dedent(
+            f"""\
+            #!/usr/bin/env bash
+            set -euo pipefail
+            printf '%s\n' "$*" >> {calls_log}
+            exit 0
+            """
+        ),
+        encoding="utf-8",
+    )
+    canonical.chmod(0o755)
+    path_dir = tmp_path / "path"
+    path_dir.mkdir()
+    (path_dir / "silicom-bypass").symlink_to(canonical)
+
+    result = _run(
+        tmp_path,
+        canonical,
+        "failover",
+        PAIR,
+        extra_env={
+            "SILICOM_BYPASS": "silicom-bypass",
+            "SILICOM_TEST_CANONICAL_BYPASS": str(canonical),
+            "PATH": f"{path_dir}:{os.environ.get('PATH', '')}",
+        },
+    )
+
+    assert result.returncode == 2
+    assert "SILICOM_TEST_LIVE_CONFIRM" in f"{result.stdout}\n{result.stderr}"
+    assert not _mutation_calls(_calls(calls_log))
 
 
 def test_failover_inject_and_recover(tmp_path: Path) -> None:
@@ -191,7 +271,9 @@ def test_chaos_dispatch_no_scheduling(tmp_path: Path) -> None:
 
 def test_restore_on_midrun_failure(tmp_path: Path) -> None:
     fake_cli, calls_log = _fake_silicom_bypass(tmp_path, fail_on="probe")
-    result = _run(tmp_path, fake_cli, "failover", PAIR, extra_env={"SILICOM_TEST_INJECT_FAIL": "probe"})
+    result = _run(
+        tmp_path, fake_cli, "failover", PAIR, extra_env={"SILICOM_TEST_INJECT_FAIL": "probe"}
+    )
 
     assert result.returncode != 0
     calls = _calls(calls_log)
@@ -229,7 +311,9 @@ def test_restore_on_signal(tmp_path: Path) -> None:
             break
         if proc.poll() is not None:
             stdout, stderr = proc.communicate()
-            pytest.fail(f"harness exited before signal point: rc={proc.returncode} {stdout} {stderr}")
+            pytest.fail(
+                f"harness exited before signal point: rc={proc.returncode} {stdout} {stderr}"
+            )
         time.sleep(0.05)
     else:
         proc.kill()
