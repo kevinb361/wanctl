@@ -412,9 +412,9 @@ minimal and avoid any appearance of loader/controller drift — validation does 
 
 **All other claims in this research are VERIFIED against the named file:line anchors or live tool runs.**
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should the shared enum/helper live in `check_config_validators.py` or a new small module?**
+1. **Should the shared enum/helper live in `check_config_validators.py` or a new small module?** **(RESOLVED — helper + `MEASUREMENT_BACKENDS` live in `check_config_validators.py`; steering imports via the existing function-local cross-import dodge. No new module; `check_config.py`/`autorate_config.py` untouched.)**
    - What we know: both validators already do local cross-imports to dodge circular deps; placing
      the helper in `check_config_validators.py` and importing it from the steering dispatcher works.
    - What's unclear: whether the planner prefers a tiny new module (e.g. `measurement_backend.py`)
@@ -423,13 +423,10 @@ minimal and avoid any appearance of loader/controller drift — validation does 
      steering validator. Avoid touching `check_config.py` and `autorate_config.py` to keep the
      SAFE-17 allowlist as small as possible.
 
-2. **Anchor for the 240 boundary check — v1.52 or cumulative HEAD-of-239?**
+2. **Anchor for the 240 boundary check — v1.52 or cumulative HEAD-of-239?** **(RESOLVED — keep `ANCHOR="v1.52"` with the union allowlist {239 seam files} ∪ {240 validator files} for rebase robustness, AND add a SECOND `PHASE239_CLOSE_ANCHOR` diff check proving zero new diff in `rtt_backend.py`/`rtt_measurement.py` relative to the Phase-239 close. The union-at-v1.52 allowlist alone left a false-pass hole — it permits `rtt_backend.py` edits the protected-body helper does not catch [review HIGH #2]; the second anchor closes it.)**
    - What we know: 239 anchored at v1.52 and allowed `rtt_backend.py`/`rtt_measurement.py`. If 240
      anchors at v1.52 too, its allowlist must ALSO include the 239 files (else 239's committed edits
      show as out-of-allowlist drift).
-   - Recommendation: anchor 240 at v1.52 and union the allowlist = {239 seam files} ∪ {240 validator
-     files}, OR anchor at the 239 close commit so only 240's diff is evaluated. Planner picks; the
-     union-at-v1.52 form is more robust to rebase.
 
 ## Environment Availability
 

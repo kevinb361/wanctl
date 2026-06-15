@@ -63,23 +63,38 @@ MEASUREMENT_BACKENDS: tuple[str, ...] = ("icmplib", "fping")  # Phase 240; 'irtt
 ```
 
 **Edit 3 — New cross-field validator function.** Pattern source is the tc-binary
-probe in `validate_linux_cake` (see steering file excerpt below). Use
-`_get_nested` to read the key, return `[]` when absent (Pitfall 1: do NOT use a
-`SCHEMA` `choices=` entry — it emits a PASS line for absent keys and perturbs the
-CFG-03 delta). Illustrative shape (executor finalizes):
+probe in `validate_linux_cake` (see steering file excerpt below). **Do direct
+shape discrimination via `data.get("measurement")` — do NOT rely on
+`_get_nested(data, "measurement.backend")` alone (it returns `None` for BOTH a
+truly-absent key AND a present-but-malformed `measurement` block, conflating the
+two and silently falling back to icmplib on an operator typo — review HIGH #1).**
+Only a truly-absent `backend` is silent; a non-dict `measurement` or a
+present-but-invalid `backend` (None / non-string / unknown) is `Severity.ERROR`.
+(Pitfall 1: do NOT use a `SCHEMA` `choices=` entry — it emits a PASS line for
+absent keys and perturbs the CFG-03 delta.) Illustrative shape (executor
+finalizes):
 
 ```python
 import shutil
 def validate_measurement_backend(data: dict) -> list[CheckResult]:
-    backend = _get_nested(data, "measurement.backend")   # config_base._get_nested
-    if backend is None:
-        return []  # CFG-01: absent -> icmplib, silent, NO result emitted
-    if backend not in MEASUREMENT_BACKENDS:
+    measurement = data.get("measurement")
+    if measurement is None and "measurement" not in data:
+        return []  # CFG-01: truly absent -> icmplib, silent, NO result
+    if not isinstance(measurement, dict):
+        return [CheckResult(
+            "Measurement Backend", "measurement", Severity.ERROR,
+            f"measurement must be a mapping with a backend key, got {type(measurement).__name__}",
+            suggestion="Use 'measurement:\\n  backend: icmplib' (or 'fping')",
+        )]  # HIGH #1: present-but-malformed (non-dict) -> ERROR
+    if "backend" not in measurement:
+        return []  # backend sub-key absent (legit: measurement may hold other sub-keys) -> silent
+    backend = measurement.get("backend")
+    if not isinstance(backend, str) or backend not in MEASUREMENT_BACKENDS:
         return [CheckResult(
             "Measurement Backend", "measurement.backend", Severity.ERROR,
             f"Unknown measurement.backend: {backend!r}. Must be one of: {list(MEASUREMENT_BACKENDS)}",
             suggestion="Use 'icmplib' (default) or 'fping'",
-        )]  # CFG-02: unknown (incl. 'irtt') -> ERROR
+        )]  # CFG-02 + HIGH #1: unknown / None / non-string (incl. 'irtt') -> ERROR
     results = [CheckResult(
         "Measurement Backend", "measurement.backend", Severity.PASS,
         f"measurement.backend: {backend}",
@@ -90,7 +105,7 @@ def validate_measurement_backend(data: dict) -> list[CheckResult]:
             "measurement.backend is 'fping' but fping binary not found on PATH "
             "(validator host may differ from deploy host -- advisory only)",
             suggestion="Install fping on the deploy host, or rely on Phase 242 runtime fallback",
-        ))  # CFG-02: fping+absent -> non-gating WARN, advisory
+        ))  # CFG-02: fping+absent -> non-gating WARN (CLI exit 2, not ERROR/exit 1), advisory
     return results
 ```
 
