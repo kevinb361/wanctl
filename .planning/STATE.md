@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
-status: executing
-stopped_at: Phase 240 context gathered
-last_updated: "2026-06-15T19:29:31.924Z"
+status: verifying
+stopped_at: Completed 240-02-PLAN.md
+last_updated: "2026-06-15T19:37:11.754Z"
 last_activity: 2026-06-15
 progress:
   total_phases: 9
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 9
-  completed_plans: 8
-  percent: 89
+  completed_plans: 9
+  percent: 100
 ---
 
 # Session State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 Phase: 240 (config-validator) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-15
 
-Progress: [█████████░] 89%
+Progress: [██████████] 100%
 
 ## Active Blockers / Concerns
 
@@ -57,7 +57,7 @@ Acknowledged and deferred at v1.52 milestone close on 2026-06-14:
 
 ### v1.52-shipped-with-advisory-tech-debt
 
-- **Status:** Ready to execute
+- **Status:** Phase complete — ready for verification
 - **Operator sign-off:** Kevin — 2026-06-14, via `/gsd-complete-milestone` audit acknowledgment and ship path.
 - **Why this is acceptable:** v1.52 audit status is `tech_debt`, not `passed`, but it found no requirement, integration, or flow blockers: 15/15 REQs, 3/3 phases, 5/5 integration seams, 5/5 E2E flows. SAFE-16 controller-path zero-diff held through closeout. Remaining items are advisory: normal deploy `eval rsync`, legacy raw watchdog docs, partial 235/237 Nyquist metadata, and Phase 236 summary metadata.
 
@@ -144,8 +144,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-15T19:11:23.057Z
-Stopped at: Completed 240-01-PLAN.md
+Last session: 2026-06-15T19:37:11.726Z
+Stopped at: Completed 240-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -159,6 +159,8 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Decisions (v1.53)
 
+- [240-02]: Pinned PHASE239_CLOSE_ANCHOR to 03c82de0 so Phase 240 rejects any new rtt_backend.py/rtt_measurement.py drift even though the v1.52 union allowlist permits those paths.
+- [240-02]: Reused phase239-protected-body-diff.py unchanged for the protected-body layer; Phase 240 adds only a wrapper boundary script and regression tests.
 - [240-01]: Kept measurement.backend validation out of Config.SCHEMA so absent keys emit no result.
 - [240-01]: Kept fping availability as an advisory shutil.which WARN, not a gating error.
 - [239-03]: Layer 3 compares `RTTMeasurement` by header, class-level statements, and pre-existing child methods rather than whole-class source so additive `probe()` is allowed without hiding drift.
@@ -294,3 +296,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 239 P02 | 10min | 2 tasks | 2 files |
 | Phase 239 P03 | 6min | 3 tasks | 4 files |
 | Phase 240 P01 | 5min | 3 tasks | 4 files |
+| Phase 240 P02 | 4 min | 2 tasks | 4 files |

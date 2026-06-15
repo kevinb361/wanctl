@@ -33,7 +33,7 @@
 
 - [x] **Phase 238: RTT-Provenance Verification (Read-Only Entry Gate)** — Map which producer feeds live steering RTT; select and record the A/B target with evidence; no code changes. ✅ verified 2026-06-15 (4/4 truths; PROV-01/02/03 + SAFE-17; Selection A ratified)
 - [ ] **Phase 239: Seam Refactor + IcmplibBackend (Byte-Identical)** — Land the `RttBackend` Protocol with icmplib refactored behind it, provably byte-identical to pre-refactor; define the SAFE-17 allowlist.
-- [ ] **Phase 240: Config + Validator** — Additive `measurement.backend` per WAN/consumer; validator allow-list; absent key resolves to icmplib; all existing configs validate unchanged.
+- [x] **Phase 240: Config + Validator** — Additive `measurement.backend` per WAN/consumer; validator allow-list; absent key resolves to icmplib; all existing configs validate unchanged. ✅ ready for verification 2026-06-15 (2/2 plans; CFG-01/02/03 + SAFE-17)
 - [ ] **Phase 241: fping Backend (Offline) + Reflector Quality** — One-shot subprocess fping backend with `-S` binding, multi-reflector fanout, robust loss-safe parser from captured 5.1 samples, stall/death handling, and per-reflector loss feeding reflector scoring.
 - [ ] **Phase 242: Backend Factory + Loud Fallback** — `build_rtt_backend()` centralizing construction with automatic, loud, observable icmplib fallback when fping is absent.
 - [ ] **Phase 243: Cycle-Budget Benchmark Gate** — Pre-registered idle+load cycle-budget/CPU benchmark under a real systemd unit; hard no-regression gate that blocks the live A/B.
@@ -84,7 +84,7 @@
   4. SAFE-17 boundary verifier passes (additive config/validator surface only; no controller-path drift).
 **Plans**: 2 plans
   - [x] 240-01-PLAN.md — Shared measurement.backend validator + registry wiring in both validators + unit/CFG-03 tests (CFG-01/02/03)
-  - [ ] 240-02-PLAN.md — Phase 240 SAFE-17 boundary verifier (expanded allowlist clone of 239) + regression test (SAFE-17)
+  - [x] 240-02-PLAN.md — Phase 240 SAFE-17 boundary verifier (expanded allowlist clone of 239) + regression test (SAFE-17)
 
 ### Phase 241: fping Backend (Offline) + Reflector Quality
 **Goal**: A selectable `fping` backend probes off the hot loop via one-shot subprocess bursts, binds the correct source IP, fans out across reflectors, parses real fping 5.1 output safely (loss never read as 0ms), survives subprocess stall/death, and feeds per-reflector loss into reflector-quality scoring — all proven offline against captured fixtures.
@@ -163,7 +163,7 @@
 |-------|-----------|----------------|--------|-----------|
 | 238. RTT-Provenance Verification (Read-Only Entry Gate) | v1.53 | 3/4 | Gaps found | - |
 | 239. Seam Refactor + IcmplibBackend (Byte-Identical) | v1.53 | 3/3 | Complete    | 2026-06-15 |
-| 240. Config + Validator | v1.53 | 1/2 | In Progress|  |
+| 240. Config + Validator | v1.53 | 2/2 | Complete   | 2026-06-15 |
 | 241. fping Backend (Offline) + Reflector Quality | v1.53 | 0/TBD | Not started | - |
 | 242. Backend Factory + Loud Fallback | v1.53 | 0/TBD | Not started | - |
 | 243. Cycle-Budget Benchmark Gate | v1.53 | 0/TBD | Not started | - |
