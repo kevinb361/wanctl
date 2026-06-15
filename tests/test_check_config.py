@@ -13,6 +13,7 @@ Covers all phase requirements:
   CVAL-11: Exit codes 0/1/2
 """
 
+import copy
 import json
 import sys
 from unittest.mock import patch
@@ -32,6 +33,7 @@ from wanctl.check_config import (
 from wanctl.check_config_validators import (
     KNOWN_AUTORATE_PATHS,
     MEASUREMENT_BACKENDS,
+    _run_autorate_validators,
     check_deprecated_params,
     check_env_vars,
     check_paths,
@@ -41,6 +43,7 @@ from wanctl.check_config_validators import (
     validate_schema_fields,
 )
 from wanctl.check_steering_validators import (
+    _run_steering_validators,
     check_steering_cross_config,
     check_steering_deprecated_params,
     check_steering_unknown_keys,
@@ -1180,6 +1183,13 @@ class TestMeasurementBackendValidation:
         assert len(self._warnings(results)) == 0
         assert any(r.severity == Severity.PASS for r in results)
 
+    def test_valid_fping_present_passes_without_warning_or_error(self):
+        with patch("wanctl.check_config_validators.shutil.which", return_value="/usr/bin/fping"):
+            results = validate_measurement_backend({"measurement": {"backend": "fping"}})
+        assert len(self._errors(results)) == 0
+        assert len(self._warnings(results)) == 0
+        assert any(r.severity == Severity.PASS for r in results)
+
     def test_malformed_measurement_container_errors(self):
         for measurement in ("fping", []):
             results = validate_measurement_backend({"measurement": measurement})
@@ -1200,6 +1210,36 @@ class TestMeasurementBackendValidation:
             results = validate_measurement_backend({"measurement": {"backend": "fping"}})
         assert len(self._errors(results)) == 0
         assert len(self._warnings(results)) == 1
+
+    def test_cfg03_real_config_delta_has_no_new_schema_unknown_or_backend_warnings(self):
+        cases = (
+            ("configs/att.yaml", _run_autorate_validators),
+            ("configs/spectrum.yaml", _run_autorate_validators),
+            ("configs/steering.yaml", _run_steering_validators),
+        )
+        compared_categories = {"Schema Validation", "Unknown Keys", "Measurement Backend"}
+
+        for path, dispatcher in cases:
+            with open(path) as f:
+                baseline_data = yaml.safe_load(f)
+
+            present_data = copy.deepcopy(baseline_data)
+            present_data.setdefault("measurement", {})["backend"] = "icmplib"
+
+            baseline_results = dispatcher(baseline_data)
+            present_results = dispatcher(present_data)
+
+            baseline_failures = self._failure_signatures(baseline_results, compared_categories)
+            present_failures = self._failure_signatures(present_results, compared_categories)
+
+            assert present_failures - baseline_failures == set(), path
+
+    def _failure_signatures(self, results, categories):
+        return {
+            (result.category, result.field, result.severity, result.message)
+            for result in results
+            if result.category in categories and result.severity in {Severity.ERROR, Severity.WARN}
+        }
 
 
 # =============================================================================
