@@ -104,10 +104,26 @@ Delivers seven requirements:
   bursts never pile. `subprocess.TimeoutExpired` → `_log_failure`-style log →
   return `None` → recover-and-continue. Mirror `irtt_measurement.py`'s lifecycle
   shape (bounded run, failure-as-None, daemon never crashes).
-- **D-07:** **Reuse `BackgroundRTTThread`** to drive the fping `probe()` — fping
-  is a second `RttBackend` implementing the same `probe(hosts) -> RttSample|None`
-  contract Phase 239 landed. No new scheduler thread; no long-lived `fping -l`
-  loop.
+- **D-07 (AMENDED 2026-06-15, cycle-2 review):** **Introduce a new cloned
+  `FpingThread`** (modeled on `BackgroundRTTThread`) to drive the fping `probe()`
+  on its independent `cadence_sec` (D-06). fping remains a second `RttBackend`
+  implementing the same `probe(hosts) -> RttSample|None` contract Phase 239
+  landed; there is still **no long-lived `fping -l` loop** — the thread fires
+  bounded one-shot bursts on cadence, identical in shape to `BackgroundRTTThread`.
+
+  **Amendment rationale (supersedes the original "reuse `BackgroundRTTThread`,
+  no new scheduler thread" wording):** cloning `BackgroundRTTThread` into a
+  dedicated `FpingThread` keeps the icmplib `BackgroundRTTThread` **byte-frozen**,
+  which is the stronger SAFE-17 posture and is consistent with the byte-frozen
+  `irtt_thread.py` precedent. Editing `BackgroundRTTThread` to take an independent
+  cadence + a swappable backend would mutate a frozen controller-path file to
+  serve only the fping path, contradicting SAFE-17's "icmplib path byte-unchanged"
+  mandate. The clone lives inside the SAFE-17 allowlist (alongside the new
+  `fping_measurement.py` / `rtt_measurement.py` mirror surface), and the original
+  reuse intent — "no bespoke scheduler, same cadence-driven bounded-burst shape" —
+  is preserved by modeling the clone directly on `BackgroundRTTThread`. The cost
+  of the clone (a small amount of structural duplication) is explicitly accepted
+  in exchange for not touching the frozen icmplib thread.
 
 ### Offline Fixture Capture (FPING-04 proof)
 - **D-08:** Phase **ships a small capture helper script**; **operator (Kevin)
