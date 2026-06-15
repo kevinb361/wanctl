@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import logging
+import shlex
 import subprocess
 import threading
 import time
@@ -13,6 +15,7 @@ from wanctl.fping_measurement import FpingMeasurement, FpingThread
 from wanctl.reflector_scorer import ReflectorScorer
 
 FIXTURES = Path(__file__).parent / "fixtures" / "fping"
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _backend(tmp_path: Path, **overrides: object) -> FpingMeasurement:
@@ -36,6 +39,56 @@ def _completed(stdout: str = "", stderr: str = "", returncode: int = 0) -> subpr
     )
 
 
+def _fixture_process(name: str) -> subprocess.CompletedProcess[str]:
+    text = (FIXTURES / name).read_text()
+    lines = text.splitlines()
+    command: list[str] | None = None
+    returncode: int | None = None
+    stdout_lines: list[str] = []
+    stderr_lines: list[str] = []
+    stream: str | None = None
+    for line in lines:
+        if line.startswith("# command-json: "):
+            command = json.loads(line.removeprefix("# command-json: "))
+            continue
+        if line.startswith("# returncode: "):
+            returncode = int(line.removeprefix("# returncode: "))
+            continue
+        if line == "# --- stdout ---":
+            stream = "stdout"
+            continue
+        if line == "# --- stderr ---":
+            stream = "stderr"
+            continue
+        if stream == "stdout":
+            stdout_lines.append(line)
+        elif stream == "stderr":
+            stderr_lines.append(line)
+    assert command is not None, name
+    assert returncode is not None, name
+    return subprocess.CompletedProcess(
+        args=command,
+        returncode=returncode,
+        stdout="\n".join(stdout_lines).rstrip("\n"),
+        stderr="\n".join(stderr_lines).rstrip("\n"),
+    )
+
+
+def _fixture_hosts(process: subprocess.CompletedProcess[str]) -> list[str]:
+    args = list(process.args)
+    start = args.index("-q") + 1
+    if start < len(args) and args[start] == "-S":
+        start += 2
+    return args[start:]
+
+
+def _fixture_source_ip(process: subprocess.CompletedProcess[str]) -> str | None:
+    args = list(process.args)
+    if "-S" not in args:
+        return None
+    return args[args.index("-S") + 1]
+
+
 def test_build_command_uses_resolved_binary(tmp_path: Path) -> None:
     with (
         patch("wanctl.fping_measurement.shutil.which", return_value="/opt/fake/fping"),
@@ -57,6 +110,46 @@ def test_build_command_uses_resolved_binary(tmp_path: Path) -> None:
         "192.0.2.10",
         "198.51.100.10",
     ]
+
+
+def test_capture_command_matches_build_command(tmp_path: Path) -> None:
+    source_ip = "10.10.110.223"
+    hosts = ["1.1.1.1", "9.9.9.9"]
+    result = subprocess.run(
+        [
+            str(REPO_ROOT / "scripts" / "capture-fping-fixtures.sh"),
+            "--print-command",
+            "--fping-bin",
+            "/usr/bin/fping",
+            "--source-ip",
+            source_ip,
+            "--reflectors",
+            " ".join(hosts),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    printed = shlex.split(result.stdout.strip())
+    with (
+        patch("wanctl.fping_measurement.shutil.which", return_value="/usr/bin/fping"),
+        patch.dict("os.environ", {"WANCTL_RUN_DIR": str(tmp_path)}),
+    ):
+        fping = FpingMeasurement(
+            {"source_ip": source_ip, "count": 5, "period_ms": 200},
+            logging.getLogger("test_fping_measurement"),
+        )
+
+    assert printed == fping._build_command(hosts)
+
+
+def test_process_death_fixture_returncode_is_negative(tmp_path: Path) -> None:
+    process = _fixture_process("process_death.txt")
+    assert process.returncode < 0
+    fping = _backend(tmp_path, source_ip=_fixture_source_ip(process))
+
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=process):
+        assert fping.probe(_fixture_hosts(process)) is None
 
 
 def test_dash_token_never_zero(tmp_path: Path) -> None:
@@ -218,41 +311,43 @@ def test_timeout_must_be_less_than_cadence(tmp_path: Path) -> None:
 
 
 def test_dash_token_never_zero_from_fixture(tmp_path: Path) -> None:
-    fping = _backend(tmp_path)
-    stdout = (FIXTURES / "partial_loss.txt").read_text()
-    with patch("wanctl.fping_measurement.subprocess.run", return_value=_completed(stdout=stdout, returncode=1)):
-        sample = fping.probe(["198.51.100.10", "198.51.100.11"])
+    process = _fixture_process("partial_loss.txt")
+    hosts = _fixture_hosts(process)
+    fping = _backend(tmp_path, source_ip=_fixture_source_ip(process))
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=process):
+        sample = fping.probe(hosts)
 
     assert sample is not None
     assert all(value is None or value > 0.0 for value in sample.per_host_results.values())
-    assert sample.per_host_loss == {"198.51.100.10": 20.0, "198.51.100.11": 20.0}
+    assert any(loss is not None and 0.0 < loss < 100.0 for loss in sample.per_host_loss.values())
 
 
 def test_all_fail_feeds_scorer(tmp_path: Path) -> None:
-    hosts = ["198.51.100.10", "198.51.100.11"]
+    process = _fixture_process("total_loss.txt")
+    hosts = _fixture_hosts(process)
     real_scorer = ReflectorScorer(hosts, wan_name="test")
     scorer_spy = Mock(wraps=real_scorer)
-    fping = _backend(tmp_path, scorer=scorer_spy)
-    stdout = (FIXTURES / "total_loss.txt").read_text()
+    fping = _backend(tmp_path, source_ip=_fixture_source_ip(process), scorer=scorer_spy)
 
-    with patch("wanctl.fping_measurement.subprocess.run", return_value=_completed(stdout=stdout, returncode=1)):
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=process):
         sample = fping.probe(hosts)
 
     assert sample is None
-    scorer_spy.record_results.assert_called_once_with({"198.51.100.10": False, "198.51.100.11": False})
+    scorer_spy.record_results.assert_called_once_with({host: False for host in hosts})
 
 
 def test_unmeasured_host_not_scored_from_fixture(tmp_path: Path) -> None:
+    process = _fixture_process("partial_line.txt")
+    hosts = _fixture_hosts(process)
     scorer = Mock()
     fping = _backend(tmp_path, scorer=scorer)
-    stdout = (FIXTURES / "partial_line.txt").read_text()
 
-    with patch("wanctl.fping_measurement.subprocess.run", return_value=_completed(stdout=stdout, returncode=1)):
-        sample = fping.probe(["198.51.100.10", "198.51.100.11"])
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=process):
+        sample = fping.probe(hosts)
 
     assert sample is not None
-    assert sample.per_host_loss["198.51.100.11"] is None
-    scorer.record_results.assert_called_once_with({"198.51.100.10": True})
+    assert sample.per_host_loss[hosts[-1]] is None
+    scorer.record_results.assert_called_once_with({host: True for host in hosts[:-1]})
 
 
 def test_exact_aggregation_1_2_3(tmp_path: Path) -> None:
@@ -278,45 +373,46 @@ def test_exact_aggregation_1_2_3(tmp_path: Path) -> None:
 
 
 def test_reply_fixture_loss_zero(tmp_path: Path) -> None:
-    fping = _backend(tmp_path)
-    stdout = (FIXTURES / "reply.txt").read_text()
+    process = _fixture_process("reply.txt")
+    hosts = _fixture_hosts(process)
+    fping = _backend(tmp_path, source_ip=_fixture_source_ip(process))
 
-    with patch("wanctl.fping_measurement.subprocess.run", return_value=_completed(stdout=stdout)):
-        sample = fping.probe(["198.51.100.10", "198.51.100.11", "198.51.100.12"])
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=process):
+        sample = fping.probe(hosts)
 
     assert sample is not None
-    assert sample.rtt_ms == 22.0
-    assert sample.per_host_loss == {
-        "198.51.100.10": 0.0,
-        "198.51.100.11": 0.0,
-        "198.51.100.12": 0.0,
-    }
+    assert sample.source_ip == _fixture_source_ip(process)
+    assert set(sample.per_host_results) == set(hosts)
+    assert sample.per_host_loss == {host: 0.0 for host in hosts}
 
 
 def test_banner_noise_ignored(tmp_path: Path) -> None:
-    fping = _backend(tmp_path)
-    stdout = (FIXTURES / "banner_noise.txt").read_text()
+    process = _fixture_process("banner_noise.txt")
+    hosts = _fixture_hosts(process)
+    fping = _backend(tmp_path, source_ip=_fixture_source_ip(process))
 
-    with patch("wanctl.fping_measurement.subprocess.run", return_value=_completed(stdout=stdout, returncode=1)):
-        sample = fping.probe(["198.51.100.10", "198.51.100.11"])
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=process):
+        sample = fping.probe(hosts)
 
     assert sample is not None
-    assert sample.per_host_results == {"198.51.100.10": 12.0, "198.51.100.11": 22.5}
-    assert sample.per_host_loss == {"198.51.100.10": 0.0, "198.51.100.11": 20.0}
+    assert process.stderr.startswith("/usr/bin/fping: Version 5.1")
+    assert sample.per_host_results[hosts[0]] is not None
+    assert sample.per_host_results[hosts[1]] is None
+    assert sample.per_host_loss[hosts[1]] == 100.0
 
 
 def test_process_death_fixture_empty_output_returns_none(tmp_path: Path) -> None:
+    process = _fixture_process("process_death.txt")
     fping = _backend(tmp_path)
-    stdout = (FIXTURES / "process_death.txt").read_text()
 
-    with patch("wanctl.fping_measurement.subprocess.run", return_value=_completed(stdout=stdout, returncode=-15)):
-        assert fping.probe(["198.51.100.10"]) is None
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=process):
+        assert fping.probe(_fixture_hosts(process)) is None
 
 
 def test_scorer_feed_shape(tmp_path: Path) -> None:
+    process = _fixture_process("partial_loss.txt")
+    hosts = _fixture_hosts(process)
     fping = _backend(tmp_path)
-    parsed = fping._parse_fping(
-        (FIXTURES / "partial_loss.txt").read_text(), ["198.51.100.10", "198.51.100.11"]
-    )
+    parsed = fping._parse_fping(f"{process.stdout}\n{process.stderr}", hosts)
 
-    assert fping._scorer_results(parsed) == {"198.51.100.10": False, "198.51.100.11": False}
+    assert fping._scorer_results(parsed) == {host: False for host in hosts}

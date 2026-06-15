@@ -1,6 +1,11 @@
-# SYNTHETIC BOOTSTRAP fping 5.1 -C sample; Plan 03 replaces with operator-captured output.
-fping: warning: synthetic banner noise
-ICMP Host Unreachable from 203.0.113.1 for ICMP Echo sent to 198.51.100.99
-198.51.100.10 : 10.0 11.0 12.0 13.0 14.0
-203.0.113.99 : 1.0 1.0 1.0 1.0 1.0
-198.51.100.11 : 20.0 - 22.0 23.0 24.0
+# REAL FPING CAPTURE
+# fping-version: /usr/bin/fping: Version 5.1
+# command-json: ["/usr/bin/fping", "-C", "5", "-p", "200", "-q", "-S", "10.10.110.223", "1.1.1.1", "192.0.2.1"]
+# command: /usr/bin/fping -C 5 -p 200 -q -S 10.10.110.223 1.1.1.1 192.0.2.1
+# returncode: 1
+# --- stdout ---
+
+# --- stderr ---
+/usr/bin/fping: Version 5.1
+1.1.1.1   : 42.1 49.7 18.9 31.2 67.4
+192.0.2.1 : - - - - -

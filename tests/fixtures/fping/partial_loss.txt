@@ -1,3 +1,9 @@
-# SYNTHETIC BOOTSTRAP fping 5.1 -C sample; Plan 03 replaces with operator-captured output.
-198.51.100.10 : 91.7 37.0 29.2 - 36.8
-198.51.100.11 : 20.0 - 22.0 23.0 24.0
+# REAL FPING CAPTURE
+# fping-version: /usr/bin/fping: Version 5.1
+# command-json: ["/usr/bin/fping", "-C", "5", "-p", "200", "-q", "-S", "10.10.110.223", "yandex.com"]
+# command: /usr/bin/fping -C 5 -p 200 -q -S 10.10.110.223 yandex.com
+# returncode: 0
+# --- stdout ---
+
+# --- stderr ---
+yandex.com : 187 194 184 - 191

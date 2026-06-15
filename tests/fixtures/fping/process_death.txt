@@ -1,1 +1,9 @@
-# SYNTHETIC BOOTSTRAP fping 5.1 -C sample; Plan 03 replaces with operator-captured output.
+# REAL FPING CAPTURE
+# fping-version: /usr/bin/fping: Version 5.1
+# command-json: ["/usr/bin/fping", "-C", "5", "-p", "200", "-q", "-S", "10.10.110.223", "1.1.1.1", "9.9.9.9", "208.67.222.222"]
+# command: /usr/bin/fping -C 5 -p 200 -q -S 10.10.110.223 1.1.1.1 9.9.9.9 208.67.222.222
+# returncode: -15
+# --- stdout ---
+
+# --- stderr ---
+
