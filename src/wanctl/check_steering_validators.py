@@ -44,6 +44,7 @@ KNOWN_STEERING_PATHS: set[str] = {
     "mangle_rule",
     "mangle_rule.comment",
     "measurement",
+    "measurement.backend",
     "measurement.interval_seconds",
     "measurement.ping_host",
     "measurement.ping_count",
@@ -579,7 +580,11 @@ def _run_steering_validators(data: dict) -> list[CheckResult]:
     """Run all steering-specific validators."""
     # Local import to avoid circular dependency (check_paths/check_env_vars
     # live in check_config_validators which imports CheckResult from check_config)
-    from wanctl.check_config_validators import check_env_vars, check_paths
+    from wanctl.check_config_validators import (
+        check_env_vars,
+        check_paths,
+        validate_measurement_backend,
+    )
 
     results: list[CheckResult] = []
     results.extend(validate_steering_schema_fields(data))
@@ -589,4 +594,5 @@ def _run_steering_validators(data: dict) -> list[CheckResult]:
     results.extend(check_env_vars(data))
     results.extend(check_steering_deprecated_params(data))
     results.extend(check_steering_cross_config(data))
+    results.extend(validate_measurement_backend(data))
     return results
