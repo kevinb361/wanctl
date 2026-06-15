@@ -82,6 +82,28 @@ class TestPingHostsWithResults:
         assert result["8.8.8.8"] is None
 
 
+class TestRTTMeasurementProbe:
+    """Tests for RTTMeasurement.probe() backend seam."""
+
+    @pytest.fixture
+    def mock_logger(self):
+        """Create a mock logger."""
+        return MagicMock()
+
+    @pytest.fixture
+    def rtt_measurement(self, mock_logger):
+        """Create an RTTMeasurement instance with mocked logger."""
+        return RTTMeasurement(
+            logger=mock_logger,
+            timeout_ping=1,
+            aggregation_strategy=RTTAggregationStrategy.AVERAGE,
+        )
+
+    def test_probe_empty_hosts(self, rtt_measurement):
+        """Empty hosts produce no sample."""
+        assert rtt_measurement.probe([]) is None
+
+
 class TestPingHostsConcurrent:
     """Tests for RTTMeasurement.ping_hosts_concurrent() method."""
 
