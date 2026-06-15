@@ -1,0 +1,190 @@
+{
+  "all_identical": true,
+  "allowed_shape_ok": true,
+  "anchor": "v1.52",
+  "anchor_sha": "69f39db17c03f53e6b29248fbb7540fcb721e5f0",
+  "baseline_commit": "69f39db17c03f53e6b29248fbb7540fcb721e5f0",
+  "changed_paths": [
+    "src/wanctl/rtt_backend.py",
+    "src/wanctl/rtt_measurement.py"
+  ],
+  "checked_at": "2026-06-15T17:17:31Z",
+  "controller_path_diff_count": 2,
+  "dirty_tree": {
+    "staged": [],
+    "status_porcelain": [],
+    "unstaged": [],
+    "untracked": []
+  },
+  "dirty_tree_clean": true,
+  "disallowed_paths": [],
+  "head_commit": "4b842c20601f0f847ad246ecfabe4c6060a15b14",
+  "notes": "SAFE-17 v1.53 Phase 239 boundary check: path allowlist plus protected-body and complete allowed-diff-shape guard anchored at v1.52.",
+  "passed": true,
+  "path_allowlist_regex": "^src/wanctl/(rtt_backend\\.py|rtt_measurement\\.py)$",
+  "per_path_diff": {
+    "src/wanctl/rtt_backend.py": {
+      "added": 99,
+      "committed": {
+        "added": 99,
+        "lines": [
+          "99\t0\tsrc/wanctl/rtt_backend.py"
+        ],
+        "removed": 0
+      },
+      "lines": [
+        "99\t0\tsrc/wanctl/rtt_backend.py"
+      ],
+      "removed": 0,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    },
+    "src/wanctl/rtt_measurement.py": {
+      "added": 43,
+      "committed": {
+        "added": 43,
+        "lines": [
+          "43\t7\tsrc/wanctl/rtt_measurement.py"
+        ],
+        "removed": 7
+      },
+      "lines": [
+        "43\t7\tsrc/wanctl/rtt_measurement.py"
+      ],
+      "removed": 7,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    }
+  },
+  "protected": [
+    {
+      "file": "src/wanctl/rtt_measurement.py",
+      "function": "RTTSnapshot",
+      "identical": true,
+      "reason": "identical"
+    },
+    {
+      "file": "src/wanctl/rtt_measurement.py",
+      "function": "RTTMeasurement.__init__",
+      "identical": true,
+      "reason": "identical"
+    },
+    {
+      "file": "src/wanctl/rtt_measurement.py",
+      "function": "RTTMeasurement.ping_host",
+      "identical": true,
+      "reason": "identical"
+    },
+    {
+      "file": "src/wanctl/rtt_measurement.py",
+      "function": "RTTMeasurement._aggregate_rtts",
+      "identical": true,
+      "reason": "identical"
+    },
+    {
+      "file": "src/wanctl/rtt_measurement.py",
+      "function": "RTTMeasurement.ping_hosts_with_results",
+      "identical": true,
+      "reason": "identical"
+    },
+    {
+      "file": "src/wanctl/rtt_measurement.py",
+      "function": "BackgroundRTTThread._run",
+      "identical": true,
+      "reason": "identical"
+    },
+    {
+      "file": "src/wanctl/rtt_measurement.py",
+      "function": "BackgroundRTTThread._ping_with_persistent_pool",
+      "identical": true,
+      "reason": "identical"
+    },
+    {
+      "file": "src/wanctl/wan_controller.py",
+      "function": "WANController.measure_rtt",
+      "identical": true,
+      "reason": "identical"
+    }
+  ],
+  "protected_body": {
+    "all_identical": true,
+    "anchor": "v1.52",
+    "anchor_sha": "69f39db17c03f53e6b29248fbb7540fcb721e5f0",
+    "protected": [
+      {
+        "file": "src/wanctl/rtt_measurement.py",
+        "function": "RTTSnapshot",
+        "identical": true,
+        "reason": "identical"
+      },
+      {
+        "file": "src/wanctl/rtt_measurement.py",
+        "function": "RTTMeasurement.__init__",
+        "identical": true,
+        "reason": "identical"
+      },
+      {
+        "file": "src/wanctl/rtt_measurement.py",
+        "function": "RTTMeasurement.ping_host",
+        "identical": true,
+        "reason": "identical"
+      },
+      {
+        "file": "src/wanctl/rtt_measurement.py",
+        "function": "RTTMeasurement._aggregate_rtts",
+        "identical": true,
+        "reason": "identical"
+      },
+      {
+        "file": "src/wanctl/rtt_measurement.py",
+        "function": "RTTMeasurement.ping_hosts_with_results",
+        "identical": true,
+        "reason": "identical"
+      },
+      {
+        "file": "src/wanctl/rtt_measurement.py",
+        "function": "BackgroundRTTThread._run",
+        "identical": true,
+        "reason": "identical"
+      },
+      {
+        "file": "src/wanctl/rtt_measurement.py",
+        "function": "BackgroundRTTThread._ping_with_persistent_pool",
+        "identical": true,
+        "reason": "identical"
+      },
+      {
+        "file": "src/wanctl/wan_controller.py",
+        "function": "WANController.measure_rtt",
+        "identical": true,
+        "reason": "identical"
+      }
+    ],
+    "shape": {
+      "added_qualnames": [
+        "RTTMeasurement.probe"
+      ],
+      "allowed_shape_ok": true,
+      "changed_nodes": [],
+      "file": "src/wanctl/rtt_measurement.py",
+      "module_level_ok": true,
+      "removed_qualnames": []
+    }
+  },
+  "shape": {
+    "added_qualnames": [
+      "RTTMeasurement.probe"
+    ],
+    "allowed_shape_ok": true,
+    "changed_nodes": [],
+    "file": "src/wanctl/rtt_measurement.py",
+    "module_level_ok": true,
+    "removed_qualnames": []
+  }
+}
