@@ -1,7 +1,9 @@
 """Tests for RTTMeasurement class in rtt_measurement module."""
 
 import dataclasses
+import subprocess
 import statistics
+import sys
 import threading
 import time
 from unittest.mock import MagicMock, patch
@@ -102,6 +104,84 @@ class TestRTTMeasurementProbe:
     def test_probe_empty_hosts(self, rtt_measurement):
         """Empty hosts produce no sample."""
         assert rtt_measurement.probe([]) is None
+
+    def test_probe_all_failures(self, rtt_measurement):
+        """All failed hosts produce no sample."""
+        with patch.object(rtt_measurement, "ping_hosts_with_results") as mock_ping_hosts:
+            mock_ping_hosts.return_value = {
+                "8.8.8.8": None,
+                "1.1.1.1": None,
+            }
+
+            assert rtt_measurement.probe(["8.8.8.8", "1.1.1.1"]) is None
+
+    def test_probe_partial_success(self, rtt_measurement):
+        """Partial success returns an RttSample with successful host metadata."""
+        from wanctl.rtt_backend import RttSample
+
+        with patch.object(rtt_measurement, "ping_hosts_with_results") as mock_ping_hosts:
+            mock_ping_hosts.return_value = {
+                "8.8.8.8": 10.0,
+                "1.1.1.1": None,
+                "9.9.9.9": 30.0,
+            }
+
+            sample = rtt_measurement.probe(["8.8.8.8", "1.1.1.1", "9.9.9.9"])
+
+        assert isinstance(sample, RttSample)
+        assert sample.backend == "icmplib"
+        assert sample.per_host_results == {
+            "8.8.8.8": 10.0,
+            "1.1.1.1": None,
+            "9.9.9.9": 30.0,
+        }
+        assert sample.active_hosts == ("8.8.8.8", "1.1.1.1", "9.9.9.9")
+        assert sample.successful_hosts == ("8.8.8.8", "9.9.9.9")
+        assert sample.rtt_ms == pytest.approx(statistics.mean([10.0, 30.0]))
+
+    def test_probe_aggregation_matches_rule(self, rtt_measurement):
+        """probe() matches median-of-3+, average-of-2, single pass-through."""
+        with patch.object(rtt_measurement, "ping_hosts_with_results") as mock_ping_hosts:
+            mock_ping_hosts.return_value = {"a": 30.0, "b": 10.0, "c": 20.0}
+            three_host_sample = rtt_measurement.probe(["a", "b", "c"])
+
+            mock_ping_hosts.return_value = {"a": 30.0, "b": 10.0}
+            two_host_sample = rtt_measurement.probe(["a", "b"])
+
+            mock_ping_hosts.return_value = {"a": 30.0}
+            one_host_sample = rtt_measurement.probe(["a"])
+
+        assert three_host_sample is not None
+        assert two_host_sample is not None
+        assert one_host_sample is not None
+        assert three_host_sample.rtt_ms == pytest.approx(statistics.median([30.0, 10.0, 20.0]))
+        assert two_host_sample.rtt_ms == pytest.approx(statistics.mean([30.0, 10.0]))
+        assert one_host_sample.rtt_ms == pytest.approx(30.0)
+
+    def test_probe_source_ip_metadata(self, mock_logger):
+        """probe() includes RTTMeasurement source_ip metadata on successful samples."""
+        rtt_measurement = RTTMeasurement(
+            logger=mock_logger,
+            timeout_ping=1,
+            source_ip="10.10.110.224",
+        )
+        with patch.object(rtt_measurement, "ping_hosts_with_results") as mock_ping_hosts:
+            mock_ping_hosts.return_value = {"8.8.8.8": 12.5}
+
+            sample = rtt_measurement.probe(["8.8.8.8"])
+
+        assert sample is not None
+        assert sample.source_ip == "10.10.110.224"
+
+    def test_rtt_measurement_imports_clean(self):
+        """Fresh import of rtt_measurement succeeds with quoted probe annotation."""
+        result = subprocess.run(
+            [sys.executable, "-c", "import wanctl.rtt_measurement"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
 
 
 class TestPingHostsConcurrent:
