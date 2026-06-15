@@ -322,6 +322,42 @@ class RTTMeasurement:
 
         return results
 
+    def probe(self, hosts: list[str]) -> "RttSample | None":
+        from wanctl.rtt_backend import RttSample
+
+        t0 = time.perf_counter()
+        per_host_results = self.ping_hosts_with_results(hosts)
+        measurement_ms = (time.perf_counter() - t0) * 1000.0
+
+        successful_hosts = tuple(
+            host for host, rtt in per_host_results.items() if rtt is not None
+        )
+        successful_rtts = [
+            rtt for rtt in per_host_results.values() if rtt is not None
+        ]
+        if not successful_rtts:
+            return None
+
+        # Same aggregation as WANController.measure_rtt() and BackgroundRTTThread._run:
+        # median-of-3+, average-of-2, single pass-through.
+        if len(successful_rtts) >= 3:
+            rtt_ms = statistics.median(successful_rtts)
+        elif len(successful_rtts) == 2:
+            rtt_ms = statistics.mean(successful_rtts)
+        else:
+            rtt_ms = successful_rtts[0]
+
+        return RttSample(
+            rtt_ms=rtt_ms,
+            per_host_results=per_host_results,
+            timestamp=time.monotonic(),
+            measurement_ms=measurement_ms,
+            active_hosts=tuple(hosts),
+            successful_hosts=successful_hosts,
+            backend="icmplib",
+            source_ip=self.source_ip,
+        )
+
     def ping_hosts_concurrent(
         self, hosts: list[str], count: int = 1, timeout: float = 3.0
     ) -> list[float]:
