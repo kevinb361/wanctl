@@ -31,7 +31,7 @@
 
 **Dependency spine (researcher-converged):** provenance gate (238) → seam refactor behind icmplib, byte-identical (239) → config+validator (240) → fping backend offline + reflector-quality touch (241) → factory+fallback (242) → cycle-budget benchmark hard gate under real systemd (243) → additive health attribution metadata (244) → live A/B + rollback anchor (245) → conditional default flip / closeout (246). Phases 240 (config) and 241 (fping) may overlap after the seam (239) lands.
 
-- [ ] **Phase 238: RTT-Provenance Verification (Read-Only Entry Gate)** — Map which producer feeds live steering RTT; select and record the A/B target with evidence; no code changes.
+- [x] **Phase 238: RTT-Provenance Verification (Read-Only Entry Gate)** — Map which producer feeds live steering RTT; select and record the A/B target with evidence; no code changes. ✅ verified 2026-06-15 (4/4 truths; PROV-01/02/03 + SAFE-17; Selection A ratified)
 - [ ] **Phase 239: Seam Refactor + IcmplibBackend (Byte-Identical)** — Land the `RttBackend` Protocol with icmplib refactored behind it, provably byte-identical to pre-refactor; define the SAFE-17 allowlist.
 - [ ] **Phase 240: Config + Validator** — Additive `measurement.backend` per WAN/consumer; validator allow-list; absent key resolves to icmplib; all existing configs validate unchanged.
 - [ ] **Phase 241: fping Backend (Offline) + Reflector Quality** — One-shot subprocess fping backend with `-S` binding, multi-reflector fanout, robust loss-safe parser from captured 5.1 samples, stall/death handling, and per-reflector loss feeding reflector scoring.

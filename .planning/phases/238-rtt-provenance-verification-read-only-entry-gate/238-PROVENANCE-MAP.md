@@ -245,6 +245,6 @@ This is a recommendation, not the binding verdict. The binding selection is the 
 | PROV-01     | Verified steering consumption trace, live `/health` captures, deployed bridge identity | Satisfied by read-only evidence                      |
 | PROV-02     | Both A/B interpretations, fidelity-rubric recommendation, explicit ratification slot   | Satisfied by operator Selection: A                   |
 | PROV-03     | Corrected source-bound router-hop egress proof, both WANs PASS on `ens18`              | Satisfied by corrected read-only host-route evidence |
-| SAFE-17     | To be re-run after ratification as final phase gate                                    | Pending final gate                                   |
+| SAFE-17     | Lightweight read-only boundary gate re-run after Plan 04 gap closure                   | Satisfied — `safe17-boundary-238.json` passed:true, zero controller-path diff |
 
 |

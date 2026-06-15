@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
-status: verifying
-stopped_at: Completed 238-04-PLAN.md
-last_updated: "2026-06-15T11:35:00.000Z"
-last_activity: 2026-06-15 -- Phase 238 Plan 04 PROV-03 gap closed
+status: phase_verified
+stopped_at: Verified Phase 238 (4/4 truths passed)
+last_updated: "2026-06-15T13:25:00.000Z"
+last_activity: 2026-06-15 -- Phase 238 re-verified PASSED (PROV-03 gap closed)
 progress:
   total_phases: 9
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
   completed_plans: 4
   percent: 11
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 ## Current Position
 
-Phase: 238 (rtt-provenance-verification-read-only-entry-gate) — ALL PLANS COMPLETE, READY FOR VERIFICATION
-Plan: 4 of 4
-Status: Phase 238 complete (4/4 plans); PROV-03 gap closed — ready for phase verification
-Last activity: 2026-06-15 -- Phase 238 Plan 04 PROV-03 gap closed (corrected egress proof PASS both WANs)
+Phase: 238 (rtt-provenance-verification-read-only-entry-gate) — VERIFIED PASSED (4/4 truths)
+Plan: 4 of 4 complete
+Status: Phase 238 verified passed; next is Phase 239 (seam refactor + IcmplibBackend, byte-identical) — first code-touching phase
+Last activity: 2026-06-15 -- Phase 238 re-verified PASSED after PROV-03 gap closure
 
 Progress: [██████████] 100%
 

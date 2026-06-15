@@ -13,7 +13,7 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 - [x] **PROV-01**: Operator can read a documented map of which producer feeds live steering RTT in the current cake-autorate production topology (state bridge / autorate `/health` `measurement.raw_rtt_ms` vs wanctl `RTTMeasurement`), captured read-only with no production mutation.
 - [x] **PROV-02**: The A/B target interpretation — (A) revive steering's own pinger as the live RTT source, or (B) evaluate at the autorate/bridge producer — is selected and recorded with evidence before any backend code is written.
-- [ ] **PROV-03**: Operator can confirm `fping -S <source_ip>` egresses the intended WAN under the host's current `ip rule` policy routing via a read-only `ip route get <reflector> from <source_ip>` proof.
+- [x] **PROV-03**: Operator can confirm `fping -S <source_ip>` egresses the intended WAN under the host's current `ip rule` policy routing via a read-only `ip route get <reflector> from <source_ip>` proof. _(Satisfied by Plan 04 corrected source-bound router-hop proof: both WANs PASS on host egress dev `ens18` with distinct source-bound route keys; `spec-modem`/`att-modem` are downstream `ul_if` labels, not host route devs.)_
 
 ### Backend Seam
 
@@ -108,7 +108,7 @@ Populated during roadmap creation. Each requirement maps to exactly one phase.
 |-------------|-------|--------|
 | PROV-01 | Phase 238 | Complete |
 | PROV-02 | Phase 238 | Complete |
-| PROV-03 | Phase 238 | Pending |
+| PROV-03 | Phase 238 | Complete |
 | SEAM-01 | Phase 239 | Pending |
 | SEAM-02 | Phase 239 | Pending |
 | SEAM-03 | Phase 239 | Pending |
