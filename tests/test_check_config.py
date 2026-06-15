@@ -31,11 +31,13 @@ from wanctl.check_config import (
 )
 from wanctl.check_config_validators import (
     KNOWN_AUTORATE_PATHS,
+    MEASUREMENT_BACKENDS,
     check_deprecated_params,
     check_env_vars,
     check_paths,
     check_unknown_keys,
     validate_cross_fields,
+    validate_measurement_backend,
     validate_schema_fields,
 )
 from wanctl.check_steering_validators import (
@@ -1147,6 +1149,57 @@ class TestJsonOutput:
         parser = create_parser()
         args = parser.parse_args(["test.yaml"])
         assert args.json is False
+
+
+# =============================================================================
+# MEASUREMENT BACKEND VALIDATION (CFG-01/CFG-02)
+# =============================================================================
+
+
+class TestMeasurementBackendValidation:
+    """Tests for measurement.backend enum validation."""
+
+    def _errors(self, results):
+        return [r for r in results if r.severity == Severity.ERROR]
+
+    def _warnings(self, results):
+        return [r for r in results if r.severity == Severity.WARN]
+
+    def test_backend_enum_constant_excludes_irtt(self):
+        assert MEASUREMENT_BACKENDS == ("icmplib", "fping")
+
+    def test_absent_measurement_is_silent(self):
+        assert validate_measurement_backend({}) == []
+
+    def test_measurement_dict_without_backend_is_silent(self):
+        assert validate_measurement_backend({"measurement": {"interval_seconds": 5}}) == []
+
+    def test_valid_icmplib_passes_without_warning_or_error(self):
+        results = validate_measurement_backend({"measurement": {"backend": "icmplib"}})
+        assert len(self._errors(results)) == 0
+        assert len(self._warnings(results)) == 0
+        assert any(r.severity == Severity.PASS for r in results)
+
+    def test_malformed_measurement_container_errors(self):
+        for measurement in ("fping", []):
+            results = validate_measurement_backend({"measurement": measurement})
+            assert len(self._errors(results)) == 1
+
+    def test_malformed_backend_value_errors(self):
+        for backend in (None, 123):
+            results = validate_measurement_backend({"measurement": {"backend": backend}})
+            assert len(self._errors(results)) == 1
+
+    def test_unknown_backend_and_irtt_error(self):
+        for backend in ("bogus", "irtt"):
+            results = validate_measurement_backend({"measurement": {"backend": backend}})
+            assert len(self._errors(results)) == 1
+
+    def test_fping_absent_warns_without_error(self):
+        with patch("wanctl.check_config_validators.shutil.which", return_value=None):
+            results = validate_measurement_backend({"measurement": {"backend": "fping"}})
+        assert len(self._errors(results)) == 0
+        assert len(self._warnings(results)) == 1
 
 
 # =============================================================================
