@@ -26,6 +26,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 - `icmplib` stays default unless A/B proves `fping`; no hard `fping` dependency (fallback-capable).
 - Production runs cake-autorate on both WANs; **steering is the live RTT consumer and the A/B target.** Native autorate inherits the capability via the shared path but is not stood up for validation.
 - Phase numbering continues: v1.52 ended at Phase 237 → v1.53 starts at **Phase 238**.
+- Phase 239 complete (2026-06-15): `RttBackend`/`RttSample` seam landed, `RTTMeasurement.probe()` makes the existing icmplib path structurally conform without consumer rewiring, and SAFE-17 evidence passed for the bounded source diff.
 - Out of scope: IRTT backend, the dormant UL / D-14 / target-edge-churn seeds (SEED-003/004/005), native autorate retirement (ROLE-01).
 
 ## Recently Shipped: v1.52 Silicom Bypass Operationalization (shipped 2026-06-14)
