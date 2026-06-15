@@ -99,7 +99,7 @@
 **Plans**: 4 plans
 - [x] 241-01-PLAN.md — fping backend: FpingMeasurement.probe + loss-safe parser + FpingThread + REFL-01 loss→bool scorer feed + bootstrap fixtures (FPING-01..05, REFL-01)
 - [x] 241-02-PLAN.md — SAFE-17 expanded-allowlist boundary verifier + mirror test + light fping sub-param validators (SAFE-17, FPING-01)
-- [ ] 241-03-PLAN.md — D-08 operator-run capture helper + real fping 5.1 fixtures + re-pointed parser/scorer tests (FPING-04, REFL-01)
+- [x] 241-03-PLAN.md — D-08 operator-run capture helper + real fping 5.1 fixtures + re-pointed parser/scorer tests (FPING-04, REFL-01)
 - [ ] 241-04-PLAN.md — [BLOCKING] SAFE-17 boundary gate: zero out-of-allowlist drift, byte-identical protected bodies (SAFE-17)
 **UI hint**: no
 
@@ -168,7 +168,7 @@
 | 238. RTT-Provenance Verification (Read-Only Entry Gate) | v1.53 | 3/4 | Gaps found | - |
 | 239. Seam Refactor + IcmplibBackend (Byte-Identical) | v1.53 | 3/3 | Complete    | 2026-06-15 |
 | 240. Config + Validator | v1.53 | 2/2 | Complete    | 2026-06-15 |
-| 241. fping Backend (Offline) + Reflector Quality | v1.53 | 2/4 | In Progress|  |
+| 241. fping Backend (Offline) + Reflector Quality | v1.53 | 3/4 | In Progress|  |
 | 242. Backend Factory + Loud Fallback | v1.53 | 0/TBD | Not started | - |
 | 243. Cycle-Budget Benchmark Gate | v1.53 | 0/TBD | Not started | - |
 | 244. Health-Payload Attribution Metadata | v1.53 | 0/TBD | Not started | - |

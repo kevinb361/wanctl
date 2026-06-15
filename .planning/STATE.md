@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
 status: executing
-stopped_at: Completed 241-01-PLAN.md
-last_updated: "2026-06-15T22:33:30.837Z"
+stopped_at: Completed 241-03-PLAN.md
+last_updated: "2026-06-15T23:01:07.257Z"
 last_activity: 2026-06-15
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 13
-  completed_plans: 11
-  percent: 85
+  completed_plans: 12
+  percent: 92
 ---
 
 # Session State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 ## Current Position
 
 Phase: 241 (fping-backend-offline-reflector-quality) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-06-15
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 92%
 
 ## Active Blockers / Concerns
 
@@ -144,7 +144,7 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-15T22:33:30.837Z
+Last session: 2026-06-15T23:01:07.230Z
 Stopped at: Completed 241-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
@@ -159,6 +159,9 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Decisions (v1.53)
 
+- [241-03]: Ran only the approved non-mutating fping capture path on cake-shaper; no routing, CAKE, qdisc, tc, RouterOS, service, or firewall mutations were made.
+- [241-03]: Used yandex.com as the natural lossy reflector after 8.8.8.8 stopped producing partial loss during retry capture.
+- [241-03]: Preserved stdout/stderr metadata fidelity for fping 5.1 -q by truncating partial_line in the stream that actually carries target lines.
 - [241-02]: Kept reflector_scorer.py allowlisted for Phase 241 membership but byte-identical by explicit diff guard against a181ca27.
 - [241-02]: Registered measurement.fping.* autorate config keys, including timeout_grace_sec, so valid fping config produces no unknown-key warnings.
 - [241-02]: Kept timeout-vs-cadence as a validator WARN while runtime construction remains fail-closed; steering-side fping validation remains deferred to Phase 242/244.
@@ -305,3 +308,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 240 P02 | 4 min | 2 tasks | 4 files |
 | Phase 241 P01 | 9min | 3 tasks | 10 files |
 | Phase 241 P02 | 7min | 2 tasks | 7 files |
+| Phase 241 P03 | 13min continuation | 3 tasks | 10 files |
