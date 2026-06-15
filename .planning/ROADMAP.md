@@ -69,7 +69,7 @@
   4. The abstraction is shaped to absorb the existing IRTT path (adapter seam present), with full IRTT migration explicitly deferred.
   5. The narrowed SAFE-17 allowlist is defined and the fail-closed source-diff verifier runs at the phase boundary, proving no out-of-allowlist controller-path drift.
 **Plans**: 3 plans
-  - [ ] 239-01-PLAN.md — RttBackend Protocol + RttSample superset + IRTT adapter stub (SEAM-01/03/04) with unit tests
+  - [x] 239-01-PLAN.md — RttBackend Protocol + RttSample superset + IRTT adapter stub (SEAM-01/03/04) with unit tests
   - [ ] 239-02-PLAN.md — Additive RTTMeasurement.probe() returning RttSample; byte-identity via hot-path slice (SEAM-01/02)
   - [ ] 239-03-PLAN.md — Fail-closed SAFE-17 v1.53 allowlist verifier + phase-boundary evidence (SAFE-17)
 
@@ -160,7 +160,7 @@
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 238. RTT-Provenance Verification (Read-Only Entry Gate) | v1.53 | 3/4 | Gaps found | - |
-| 239. Seam Refactor + IcmplibBackend (Byte-Identical) | v1.53 | 0/TBD | Not started | - |
+| 239. Seam Refactor + IcmplibBackend (Byte-Identical) | v1.53 | 1/3 | In Progress|  |
 | 240. Config + Validator | v1.53 | 0/TBD | Not started | - |
 | 241. fping Backend (Offline) + Reflector Quality | v1.53 | 0/TBD | Not started | - |
 | 242. Backend Factory + Loud Fallback | v1.53 | 0/TBD | Not started | - |

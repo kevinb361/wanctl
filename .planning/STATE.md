@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
 status: executing
-stopped_at: Completed 238-03-PLAN.md
-last_updated: "2026-06-15T14:36:04.591Z"
-last_activity: 2026-06-15 -- Phase 239 planning complete
+stopped_at: Completed 239-01-PLAN.md
+last_updated: "2026-06-15T16:56:34.455Z"
+last_activity: 2026-06-15
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 5
   percent: 11
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 238 — rtt-provenance-verification-read-only-entry-gate
+**Current focus:** Phase 239 — seam-refactor-icmplibbackend-byte-identical
 
 ## Current Position
 
-Phase: 238 (rtt-provenance-verification-read-only-entry-gate) — VERIFIED PASSED (4/4 truths)
-Plan: 4 of 4 complete
+Phase: 239 (seam-refactor-icmplibbackend-byte-identical) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-15 -- Phase 239 planning complete
+Last activity: 2026-06-15
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 71%
 
 ## Active Blockers / Concerns
 
@@ -144,8 +144,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-14T22:45:56.441Z
-Stopped at: Completed 238-03-PLAN.md
+Last session: 2026-06-15T16:56:12.452Z
+Stopped at: Completed 239-01-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -159,6 +159,8 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Decisions (v1.53)
 
+- [239-01]: Kept the Protocol and RttSample in `src/wanctl/rtt_backend.py` without retyping or rewiring existing consumers, preserving live-path behavior for this plan.
+- [239-01]: Kept live IRTT probing explicitly deferred behind `IRTT-MIG-01` while adding a pure mapping helper as the SEAM-04 proof.
 - [238-03]: Operator ratified Selection A: revive steering's own pinger as the live RTT source for the v1.53 A/B target, because it is the only reachable path that can produce a high-fidelity icmplib-vs-fping comparison.
 - [238-03]: Preserved Plan 02 PROV-03 as non-pass topology-drift evidence; distinct source/path evidence exists, but the expected-dev labels remain unresolved and are not marked complete.
 - [238-03]: Re-ran the lightweight SAFE-17 boundary gate after ratification and preserved passed:true evidence with zero controller-path diff.
@@ -282,3 +284,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 238 P01 | 3min | 2 tasks | 3 files |
 | Phase 238 P02 | checkpointed; continuation 3 min | 2 tasks | 4 files |
 | Phase 238 P03 | 3min continuation | 4 tasks | 3 files |
+| Phase 239 P01 | 3min | 2 tasks | 2 files |
