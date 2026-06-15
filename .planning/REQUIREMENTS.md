@@ -32,9 +32,9 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 ### Config & Validation
 
-- [ ] **CFG-01**: Operator can set `measurement.backend: icmplib|fping` per WAN/consumer in YAML; an absent key resolves to `icmplib`.
-- [ ] **CFG-02**: The config validator rejects unknown backend values and WARNs (does not fail) when `fping` is selected but the binary is absent.
-- [ ] **CFG-03**: All existing deployment configs validate unchanged — no migration required.
+- [x] **CFG-01**: Operator can set `measurement.backend: icmplib|fping` per WAN/consumer in YAML; an absent key resolves to `icmplib`.
+- [x] **CFG-02**: The config validator rejects unknown backend values and WARNs (does not fail) when `fping` is selected but the binary is absent.
+- [x] **CFG-03**: All existing deployment configs validate unchanged — no migration required.
 
 ### Fallback
 
@@ -118,9 +118,9 @@ Populated during roadmap creation. Each requirement maps to exactly one phase.
 | FPING-03 | Phase 241 | Pending |
 | FPING-04 | Phase 241 | Pending |
 | FPING-05 | Phase 241 | Pending |
-| CFG-01 | Phase 240 | Pending |
-| CFG-02 | Phase 240 | Pending |
-| CFG-03 | Phase 240 | Pending |
+| CFG-01 | Phase 240 | Complete |
+| CFG-02 | Phase 240 | Complete |
+| CFG-03 | Phase 240 | Complete |
 | FALL-01 | Phase 242 | Pending |
 | FALL-02 | Phase 242 | Pending |
 | BENCH-01 | Phase 243 | Pending |

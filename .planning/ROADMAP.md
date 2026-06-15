@@ -83,7 +83,7 @@
   3. All existing deployment configs validate unchanged — no migration required.
   4. SAFE-17 boundary verifier passes (additive config/validator surface only; no controller-path drift).
 **Plans**: 2 plans
-  - [ ] 240-01-PLAN.md — Shared measurement.backend validator + registry wiring in both validators + unit/CFG-03 tests (CFG-01/02/03)
+  - [x] 240-01-PLAN.md — Shared measurement.backend validator + registry wiring in both validators + unit/CFG-03 tests (CFG-01/02/03)
   - [ ] 240-02-PLAN.md — Phase 240 SAFE-17 boundary verifier (expanded allowlist clone of 239) + regression test (SAFE-17)
 
 ### Phase 241: fping Backend (Offline) + Reflector Quality
@@ -163,7 +163,7 @@
 |-------|-----------|----------------|--------|-----------|
 | 238. RTT-Provenance Verification (Read-Only Entry Gate) | v1.53 | 3/4 | Gaps found | - |
 | 239. Seam Refactor + IcmplibBackend (Byte-Identical) | v1.53 | 3/3 | Complete    | 2026-06-15 |
-| 240. Config + Validator | v1.53 | 0/TBD | Not started | - |
+| 240. Config + Validator | v1.53 | 1/2 | In Progress|  |
 | 241. fping Backend (Offline) + Reflector Quality | v1.53 | 0/TBD | Not started | - |
 | 242. Backend Factory + Loud Fallback | v1.53 | 0/TBD | Not started | - |
 | 243. Cycle-Budget Benchmark Gate | v1.53 | 0/TBD | Not started | - |

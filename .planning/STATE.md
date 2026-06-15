@@ -4,14 +4,14 @@ milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
 status: executing
 stopped_at: Phase 240 context gathered
-last_updated: "2026-06-15T18:45:59.909Z"
-last_activity: 2026-06-15 -- Phase 240 planning complete
+last_updated: "2026-06-15T19:29:31.924Z"
+last_activity: 2026-06-15
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 9
-  completed_plans: 7
-  percent: 22
+  completed_plans: 8
+  percent: 89
 ---
 
 # Session State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 240 — config + validator
+**Current focus:** Phase 240 — config-validator
 
 ## Current Position
 
-Phase: 240
-Plan: Not started
+Phase: 240 (config-validator) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-06-15 -- Phase 240 planning complete
+Last activity: 2026-06-15
 
-Progress: [██████████] 100%
+Progress: [█████████░] 89%
 
 ## Active Blockers / Concerns
 
@@ -144,9 +144,9 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-15T18:08:42.785Z
-Stopped at: Phase 240 context gathered
-Resume file: .planning/phases/240-config-validator/240-CONTEXT.md
+Last session: 2026-06-15T19:11:23.057Z
+Stopped at: Completed 240-01-PLAN.md
+Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
@@ -159,6 +159,8 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Decisions (v1.53)
 
+- [240-01]: Kept measurement.backend validation out of Config.SCHEMA so absent keys emit no result.
+- [240-01]: Kept fping availability as an advisory shutil.which WARN, not a gating error.
 - [239-03]: Layer 3 compares `RTTMeasurement` by header, class-level statements, and pre-existing child methods rather than whole-class source so additive `probe()` is allowed without hiding drift.
 - [239-03]: Negative SAFE-17 drift tests use disposable detached worktrees with inline git identity, allowing committed drift cases to reach verifier layers without dirtying the real tree.
 - [239-02]: Added `RTTMeasurement.probe()` as a standalone additive wrapper over `ping_hosts_with_results()`, leaving `BackgroundRTTThread._run` and `WANController.measure_rtt()` untouched.
@@ -291,3 +293,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 239 P01 | 3min | 2 tasks | 2 files |
 | Phase 239 P02 | 10min | 2 tasks | 2 files |
 | Phase 239 P03 | 6min | 3 tasks | 4 files |
+| Phase 240 P01 | 5min | 3 tasks | 4 files |
