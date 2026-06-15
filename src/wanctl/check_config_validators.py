@@ -252,6 +252,12 @@ KNOWN_AUTORATE_PATHS: set[str] = {
     # Measurement backend selection (Phase 240, CFG-01) -- additive, inert until Phase 242
     "measurement",
     "measurement.backend",
+    "measurement.fping",
+    "measurement.fping.count",
+    "measurement.fping.period_ms",
+    "measurement.fping.cadence_sec",
+    "measurement.fping.loss_fail_threshold",
+    "measurement.fping.timeout_grace_sec",
     # Hysteresis suppression alert (WANController.__init__)
     "continuous_monitoring.thresholds.suppression_alert_threshold",
     # CAKE signal arbitration (Phase 193-197)
@@ -1013,6 +1019,218 @@ def validate_measurement_backend(data: dict) -> list[CheckResult]:
     return results
 
 
+def validate_measurement_fping(data: dict) -> list[CheckResult]:
+    """Validate optional measurement.fping sub-parameters.
+
+    These are additive preflight checks for the Phase 241 offline fping backend.
+    Missing measurement / fping blocks are intentionally silent so existing
+    icmplib configs validate unchanged.
+    """
+    measurement = data.get("measurement")
+    if measurement is None and "measurement" not in data:
+        return []
+    if not isinstance(measurement, dict):
+        return []
+    if "fping" not in measurement:
+        return []
+
+    fping = measurement.get("fping")
+    if not isinstance(fping, dict):
+        return [
+            CheckResult(
+                "Measurement Fping",
+                "measurement.fping",
+                Severity.ERROR,
+                "measurement.fping must be a mapping when present",
+                suggestion="Use measurement: {fping: {count: 5, period_ms: 200, cadence_sec: 10}}",
+            )
+        ]
+
+    results: list[CheckResult] = []
+    count = _validate_optional_int_min(
+        fping,
+        key="count",
+        path="measurement.fping.count",
+        minimum=1,
+        results=results,
+    )
+    period_ms = _validate_optional_int_min(
+        fping,
+        key="period_ms",
+        path="measurement.fping.period_ms",
+        minimum=10,
+        results=results,
+    )
+    cadence_sec = _validate_optional_float_min(
+        fping,
+        key="cadence_sec",
+        path="measurement.fping.cadence_sec",
+        minimum=0.0,
+        strict=True,
+        results=results,
+    )
+    _validate_optional_float_range(
+        fping,
+        key="loss_fail_threshold",
+        path="measurement.fping.loss_fail_threshold",
+        minimum=0.0,
+        maximum=100.0,
+        results=results,
+    )
+    timeout_grace_sec = _validate_optional_float_min(
+        fping,
+        key="timeout_grace_sec",
+        path="measurement.fping.timeout_grace_sec",
+        minimum=0.0,
+        strict=False,
+        results=results,
+    )
+
+    if count is not None and period_ms is not None and cadence_sec is not None:
+        grace = 0.0 if timeout_grace_sec is None else timeout_grace_sec
+        timeout_sec = (count * period_ms / 1000.0) + grace
+        if timeout_sec >= cadence_sec:
+            results.append(
+                CheckResult(
+                    "Measurement Fping",
+                    "measurement.fping.timeout_vs_cadence",
+                    Severity.WARN,
+                    "measurement.fping timeout may overlap cadence: "
+                    f"(count * period_ms / 1000) + timeout_grace_sec = {timeout_sec:.3f}s "
+                    f">= cadence_sec {cadence_sec:.3f}s",
+                    suggestion="Increase cadence_sec, reduce count/period_ms, or reduce timeout_grace_sec",
+                )
+            )
+
+    if results:
+        return results
+    if fping:
+        return [
+            CheckResult(
+                "Measurement Fping",
+                "measurement.fping",
+                Severity.PASS,
+                "measurement.fping parameters: valid",
+            )
+        ]
+    return []
+
+
+def _validate_optional_int_min(
+    data: dict,
+    *,
+    key: str,
+    path: str,
+    minimum: int,
+    results: list[CheckResult],
+) -> int | None:
+    if key not in data:
+        return None
+    raw = data[key]
+    if isinstance(raw, bool) or not isinstance(raw, int):
+        results.append(
+            CheckResult(
+                "Measurement Fping",
+                path,
+                Severity.ERROR,
+                f"{path} must be an integer >= {minimum}, got {raw!r}",
+            )
+        )
+        return None
+    if raw < minimum:
+        results.append(
+            CheckResult(
+                "Measurement Fping",
+                path,
+                Severity.ERROR,
+                f"{path} ({raw}) must be >= {minimum}",
+            )
+        )
+        return None
+    return int(raw)
+
+
+def _validate_optional_float_min(
+    data: dict,
+    *,
+    key: str,
+    path: str,
+    minimum: float,
+    strict: bool,
+    results: list[CheckResult],
+) -> float | None:
+    if key not in data:
+        return None
+    raw = data[key]
+    try:
+        if isinstance(raw, bool):
+            raise TypeError
+        value = float(raw)
+    except (TypeError, ValueError):
+        op = ">" if strict else ">="
+        results.append(
+            CheckResult(
+                "Measurement Fping",
+                path,
+                Severity.ERROR,
+                f"{path} must be numeric and {op} {minimum:g}, got {raw!r}",
+            )
+        )
+        return None
+    valid = value > minimum if strict else value >= minimum
+    if not valid:
+        op = ">" if strict else ">="
+        results.append(
+            CheckResult(
+                "Measurement Fping",
+                path,
+                Severity.ERROR,
+                f"{path} ({value:g}) must be {op} {minimum:g}",
+            )
+        )
+        return None
+    return value
+
+
+def _validate_optional_float_range(
+    data: dict,
+    *,
+    key: str,
+    path: str,
+    minimum: float,
+    maximum: float,
+    results: list[CheckResult],
+) -> float | None:
+    if key not in data:
+        return None
+    raw = data[key]
+    try:
+        if isinstance(raw, bool):
+            raise TypeError
+        value = float(raw)
+    except (TypeError, ValueError):
+        results.append(
+            CheckResult(
+                "Measurement Fping",
+                path,
+                Severity.ERROR,
+                f"{path} must be numeric in [{minimum:g}, {maximum:g}], got {raw!r}",
+            )
+        )
+        return None
+    if not (minimum <= value <= maximum):
+        results.append(
+            CheckResult(
+                "Measurement Fping",
+                path,
+                Severity.ERROR,
+                f"{path} ({value:g}) must be in [{minimum:g}, {maximum:g}]",
+            )
+        )
+        return None
+    return value
+
+
 # =============================================================================
 # VALIDATOR DISPATCHERS
 # =============================================================================
@@ -1033,4 +1251,5 @@ def _run_autorate_validators(data: dict) -> list[CheckResult]:
     results.extend(check_deprecated_params(data))
     results.extend(validate_linux_cake(data))
     results.extend(validate_measurement_backend(data))
+    results.extend(validate_measurement_fping(data))
     return results
