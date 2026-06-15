@@ -646,9 +646,10 @@ subprocess inside the 50ms loop, hard fping dependency.
 | A5 | The REFL-01 call site can live entirely on the fping side without editing any protected/ non-allowlisted file | Architecture / Pitfalls | MEDIUM — the obvious icmplib feed is in `measure_rtt` (protected). Putting it on the fping side is clean but must be designed so a not-yet-wired backend (Phase 242 wires it live) still has a sensible scorer instance to feed in tests. |
 | A6 | Default invocation `-C 5 -p 200 -q -S <ip>` reproduces all six scenarios with capture-script loss induction | Fixture scenarios | LOW — operator-run capture validates empirically; flag exact flags before capture (Pitfall 6). |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **fping sub-param validators — register now or defer?**
+   - RESOLVED: register light range validators in 241 → Plan 02-T2 (`check_config_validators.py`, additive).
    - Known: `measurement.backend` enum is already validated (Phase 240) in
      `check_config_validators.py` (allowlisted). The new knobs (`count`/`period_ms`/
      `cadence_sec`/`loss_fail_threshold`) have NO validator yet.
@@ -659,6 +660,7 @@ subprocess inside the 50ms loop, hard fping dependency.
      operator-typo safety with the feature. Confirm with operator; keep additive.
 
 2. **Scorer instance ownership for an unwired backend.**
+   - RESOLVED: inject an optional scorer/callback at construction → Plan 01-T1; Phase 242 factory supplies the real one.
    - Known: the live `ReflectorScorer` is constructed in `wan_controller.py` (not allowlisted).
    - Unclear: in 241 (backend not wired live), how does the fping path obtain a scorer to feed?
    - Recommendation: design the backend to accept an optional scorer (or a results-callback)
@@ -666,6 +668,7 @@ subprocess inside the 50ms loop, hard fping dependency.
      factory injects the real one. Avoids any `wan_controller.py` edit this phase.
 
 3. **`-D` timestamp prefix: include or not?**
+   - RESOLVED: OMIT `-D`, parse defensively → Plan 01-T1.
    - If `-D` is used, every line gains a leading Unix-timestamp token the parser must strip.
    - Recommendation: OMIT `-D` for simplicity (we already timestamp the sample with
      `time.monotonic()`); but the parser should defensively tolerate a leading numeric token to
