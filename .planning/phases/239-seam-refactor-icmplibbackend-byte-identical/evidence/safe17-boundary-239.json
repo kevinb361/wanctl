@@ -8,7 +8,7 @@
     "src/wanctl/rtt_backend.py",
     "src/wanctl/rtt_measurement.py"
   ],
-  "checked_at": "2026-06-15T17:24:24Z",
+  "checked_at": "2026-06-15T17:28:59Z",
   "controller_path_diff_count": 2,
   "dirty_tree": {
     "staged": [],
@@ -18,7 +18,7 @@
   },
   "dirty_tree_clean": true,
   "disallowed_paths": [],
-  "head_commit": "259e73deb98e355271f70fee8df3ae0450ccadf4",
+  "head_commit": "ff787d4360ba73f6c24a4dd89de9a0555475ebac",
   "notes": "SAFE-17 v1.53 Phase 239 boundary check: path allowlist plus protected-body and complete allowed-diff-shape guard anchored at v1.52.",
   "passed": true,
   "path_allowlist_regex": "^src/wanctl/(rtt_backend\\.py|rtt_measurement\\.py)$",
