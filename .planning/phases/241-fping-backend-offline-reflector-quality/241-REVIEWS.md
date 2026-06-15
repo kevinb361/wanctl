@@ -1,160 +1,144 @@
 ---
 phase: 241
 reviewers: [codex]
-reviewed_at: 2026-06-15T21:11:28Z
+reviewed_at: 2026-06-15T21:34:40Z
 plans_reviewed: [241-01-PLAN.md, 241-02-PLAN.md, 241-03-PLAN.md, 241-04-PLAN.md]
-review_cycle: 2
-note: "Re-review of post-replan plans (commit 617cd6fd). Prior cycle 1 HIGHs H1/H2/H3 confirmed FULLY RESOLVED; two NEW HIGHs raised."
+review_cycle: 3
+note: "Re-review of revised plans (head 834f2446). Cycle-2 NEW HIGHs (D-07 contradiction; process-death returncode fidelity) confirmed FULLY RESOLVED. No new HIGHs raised. Verdict: approve after revision (precision-gap MEDIUMs only)."
 ---
 
-# Cross-AI Plan Review — Phase 241
+# Cross-AI Plan Review — Phase 241 (Cycle 3)
 
 ## Codex Review
 
-Overall: the revised plans materially improve the prior version and the prior HIGH findings are resolved in the plan text. I would still require a small revision before execution because there are two new HIGH risks: a direct D-07 scheduling-decision contradiction, and a likely incorrect process-death capture return code in the bash fixture helper.
+**Prior Finding Disposition**
 
-## 241-01-PLAN.md
+| Prior finding | Status | Evidence |
+|---|---:|---|
+| **HIGH: D-07 contradiction** | **FULLY RESOLVED** | CONTEXT amends D-07 to explicitly ratify a cloned `FpingThread`; Plan 01/Task 2 repeats that `BackgroundRTTThread` stays byte-frozen. |
+| **HIGH: process-death returncode fidelity** | **FULLY RESOLVED** | Plan 03 requires Python `Popen`/`terminate`, recorded returncode `< 0`, shape validation, and a test proving the fixture exercises Plan 01's `returncode < 0` gate. |
+| **MEDIUM: parse any non-negative returncode** | **FULLY RESOLVED** | Plan 01 now gates parsing to `{0,1,2}` only; `>2` and negative returncodes get no scorer feed. |
+| **MEDIUM: unmeasured/garbled host penalized as failure** | **FULLY RESOLVED** | Plan 01 adds `observed_hosts`; scorer feed keys only observed hosts, omitting `per_host_loss is None`. |
+| **MEDIUM: FPING-01 marked complete despite no live wiring** | **FULLY RESOLVED** | Plan 01 explicitly says FPING-01 is only partially satisfied in Phase 241 and must not be marked fully complete until Phase 242. |
+| **MEDIUM: `reflector_scorer.py` allowlist too broad** | **FULLY RESOLVED** | Plan 02 adds `reflector_scorer_unchanged` guard vs `a181ca27` plus a negative test where scorer edits fail closed. |
+| **MEDIUM: steering-side validation coverage** | **PARTIALLY RESOLVED** | Plan 02 explicitly defers steering-side `measurement.fping.*` validation to Phase 242/244. That is acceptable for offline Phase 241, but it still needs a concrete downstream gate before live steering selection. |
+| **MEDIUM: partial-loss capture nondeterministic** | **FULLY RESOLVED** | Plan 03 requires shape validation: partial loss must contain both RTT floats and `-` on the same host line or fail loudly. |
+| **MEDIUM: TEST-NET may emit routing/ICMP errors** | **FULLY RESOLVED** | Plan 03 treats routing/ICMP lines as noise and validates required fixture shape before writing. |
+| **MEDIUM: evidence `head_commit == HEAD` ambiguity** | **FULLY RESOLVED** | Plan 04 defines emit-time `head_commit == HEAD` and durable post-commit freshness as `HEAD^ == evidence.head_commit`. |
+| **MEDIUM: capture-vs-command / `CompletedProcess` fidelity** | **FULLY RESOLVED** | Plan 03 uses metadata with stdout/stderr/returncode and tests feed `CompletedProcess`; command parity is mechanically checked via `--print-command` vs `_build_command`. |
+| **MEDIUM: `KNOWN_AUTORATE_PATHS` fping keys** | **FULLY RESOLVED** | Plan 02 registers all `measurement.fping.*` keys including `timeout_grace_sec` and requires a zero unknown-key warning test. |
 
-### Summary
-Strong backend implementation plan: new `fping_measurement.py`, combined stdout/stderr parsing, explicit parse-result seam, all-fail scorer feed, lifecycle tests, and no live wiring yet.
+Carried cycle-1 HIGHs H1/H2/H3 remain resolved in the current text: parse/scorer separation, combined stdout+stderr parsing, and cumulative-vs-phase-local SAFE-17 changed-path accounting are all explicitly retained.
 
-### Strengths
-- H1 is directly addressed: `FpingParseResult` separates parsing from sample return, and scorer feed happens before `probe()` returns `None`.
-- H2 is directly addressed: combined `stdout + "\n" + stderr` parsing, plus stderr-only tests.
-- Good containment: one new allowlisted module, frozen controller files untouched.
-- Good tests for `-` tokens, all-fail, unknown hosts, negative returncode, aggregation, and real `measurement_ms`.
+### 241-01-PLAN.md
+**Summary:** Strong offline backend plan. It fixes the prior parser/scorer semantics, codifies returncode gates, keeps frozen controller files untouched, and is honest about FPING-01 partial completion.
 
-### Concerns
-- **HIGH:** Plan contradicts D-07 from the provided decisions. Context says “Reuse `BackgroundRTTThread`… No new scheduler thread”; Plan 01 says “a new `FpingThread`… BackgroundRTTThread is NOT edited.” Either the decision record must be updated with rationale, or the plan must follow D-07.
-- **MEDIUM:** Return-code handling is inconsistent. Must-have says only expected fping return codes are parseable, but action says parse regardless of any non-negative returncode. `returncode=3`/usage errors should not feed scorer loss.
-- **MEDIUM:** `_scorer_results` maps `loss is None` to `False`. That means missing/garbled/no parsed host lines can penalize reflectors even when loss was not actually measured.
-- **MEDIUM:** FPING-01 says operator can select fping, but this plan explicitly says no factory/wiring and “inert/test-reachable.” That is okay for “offline backend,” but not okay if FPING-01 is marked complete here.
-- **LOW:** `_build_command()` discovers `self._binary_path` but runs `"fping"` rather than the resolved path.
+**Strengths:**
+- Clean `FpingParseResult` seam with `observed_hosts`.
+- Correct `{0,1,2}` parseable returncode boundary.
+- Uses resolved binary path, real `measurement_ms`, and combined stdout/stderr.
+- D-07 amended clone strategy is now explicit.
 
-### Suggestions
-- Reconcile D-07 before execution.
-- Restrict parseable return codes to `{0, 1, 2}`; treat `>2` as subprocess/config failure with no scorer feed.
-- Add `parsed_hosts` or `observed_hosts` to `FpingParseResult`; only feed scorer for measured loss, or explicitly test/justify missing-host-as-fail.
-- Mark FPING-01 as partially satisfied until Phase 242 factory/wiring, unless Phase 241 adds actual selectable construction.
+**Concerns:**
+- **MEDIUM:** Partial/truncated lines with fewer valid float tokens can still be misread as measured loss because loss is computed as `count - len(rtts)`. A truncated line like `host : 10.1 11.2` would become 60% loss rather than unmeasured. The parser should count total RTT/loss tokens and require exactly `count` tokens before scoring.
+- **MEDIUM:** The lock path says it hashes `source_ip + sorted reflector identity`, but `__init__` has no `hosts`; hosts arrive at `probe(hosts)`. Either lock by source/backend only, pass reflector identity into config, or build lock identity per probe.
+- **LOW:** Runtime `timeout < cadence` behavior is still open-ended: "clamp or raise." Pick one so validators, tests, and operator behavior match.
+- **LOW:** A scorer exception currently appears able to collapse an otherwise valid probe to `None`. Since scoring is auxiliary, consider isolating scorer-feed exceptions from sample construction.
 
-### Risk Assessment
-**MEDIUM-HIGH** until D-07 and return-code/scorer semantics are clarified.
+**Risk Assessment:** **MEDIUM** until partial-line token-count handling and lock identity are clarified.
 
-## 241-02-PLAN.md
+### 241-02-PLAN.md
+**Summary:** Good SAFE-17 verifier and validator plan. The allowed-but-expected-unchanged scorer guard is the right fix.
 
-### Summary
-Good verifier/validator plan: clones Phase 240 SAFE-17 verifier, expands allowlist, adds fping knob validators, and registers `measurement.fping.*`.
+**Strengths:**
+- Verifier remains fail-closed and adds a scorer byte-identical guard.
+- Fping config keys are registered and validated additively.
+- Unknown-key regression coverage is explicit.
 
-### Strengths
-- M2 is fully addressed: all `measurement.fping.*` keys, including `timeout_grace_sec`, are registered in `KNOWN_AUTORATE_PATHS`.
-- Keeps validator additions additive and absent-key-safe.
-- Mirror verifier tests preserve fail-closed behavior for dirty tree, out-of-allowlist drift, protected body drift, and RTT seam drift.
+**Concerns:**
+- **MEDIUM:** Steering-side validation is only deferred, not made a downstream acceptance criterion. That is fine for offline Phase 241, but Phase 242/244 should explicitly require parity before live steering can consume fping config.
+- **LOW:** Validator warns on `timeout >= cadence`, while runtime behavior is still undecided in Plan 01. Align after choosing raise vs clamp.
 
-### Concerns
-- **MEDIUM:** Adding `reflector_scorer.py` to the verifier allowlist is broader than the actual implementation, since the plan says it remains byte-unchanged. Plan 04 catches phase-local drift, but the verifier itself would allow scorer edits.
-- **MEDIUM:** Validators are added only to `check_config_validators.py`. If steering later accepts the same `measurement.fping.*` block, make sure Phase 242/244 covers steering-side validation.
-- **LOW:** Validator warning for `timeout >= cadence_sec` may conflict with runtime behavior if Plan 01 chooses to raise rather than warn.
+**Suggestions:**
+- Add a Phase 242 checklist item: steering-side fping config acceptance must either share the autorate validator or explicitly prove equivalent coverage.
+- Choose one runtime pile-up policy now.
 
-### Suggestions
-- Prefer not allowlisting `reflector_scorer.py` unless a plan actually edits it, or add an explicit “allowed but expected unchanged” assertion into the script/evidence.
-- Decide whether `timeout >= cadence` is warning-only or construction-failing, then keep validator/runtime behavior aligned.
+**Risk Assessment:** **LOW-MEDIUM**.
 
-### Risk Assessment
-**MEDIUM** due to allowlist breadth; otherwise solid.
+### 241-03-PLAN.md
+**Summary:** The revised capture plan directly fixes the prior high-risk returncode issue and adds good fixture-shape validation.
 
-## 241-03-PLAN.md
+**Strengths:**
+- Python `Popen` process-death capture gives real negative returncodes.
+- Shape validation prevents bogus partial-loss and process-death fixtures.
+- Tests reconstruct `CompletedProcess`, preserving stdout/stderr/returncode behavior.
+- Non-mutating production safety is stated clearly.
 
-### Summary
-Good intent: replace synthetic fixtures with real fping 5.1 captures, preserve stdout/stderr/returncode metadata, and mechanically verify capture command parity.
+**Concerns:**
+- **MEDIUM:** `--print-command` is required to work without fping, but `_build_command()` uses `shutil.which("fping")` as argv[0]. The plan should specify a fake/override binary for print-command tests or compare only argv[1:] intentionally.
+- **LOW:** Redaction defaults to off. If these fixtures land in a repo with operational source IPs/reflectors, the plan should record why that is acceptable or require `--redact-source`.
 
-### Strengths
-- M3 is addressed in design: `--print-command` compared mechanically to `_build_command()`.
-- Tests are required to feed `CompletedProcess(args, stdout, stderr, returncode)`, not bare text.
-- Human checkpoint is appropriate; this cannot honestly be fully autonomous if real live-host captures are required.
-- Non-mutating production-safety language is clear.
+**Suggestions:**
+- Add `--fping-bin` or an env override for command-print tests.
+- Record the fixture metadata sensitivity decision in the summary.
 
-### Concerns
-- **HIGH:** Bash signal return codes are likely wrong for the process-death fixture. A shell typically reports SIGTERM as `143`, not Python’s `CompletedProcess.returncode == -15`. The plan says “negative returncode,” but a bash helper must explicitly normalize `128+signal` to `-signal` or use Python `Popen` to capture the real negative returncode.
-- **MEDIUM:** Real partial-loss capture is not deterministic. “Distant/lossy target” may produce 0% or 100%, and the script forbids automatic `tc/netem`. This can block the phase.
-- **MEDIUM:** TEST-NET `192.0.2.1` may produce routing/ICMP errors rather than a clean `host : - - - - -` line. The helper should validate fixture shape.
-- **LOW:** Fixtures may record source IPs, reflectors, and commands. Confirm this repo is allowed to carry that operational detail, or sanitize where possible.
+**Risk Assessment:** **MEDIUM**, mostly due to the human capture dependency and command-print ambiguity.
 
-### Suggestions
-- Implement capture using a small Python helper, or normalize bash status `128+N` to `-N` in metadata.
-- Make the script fail if each scenario does not match its required shape: partial loss must include both RTTs and `-` tokens for the same host; total loss must include all `-`; process death must have normalized negative returncode.
-- Add a redaction policy for fixture metadata if live source IPs should not be committed.
+### 241-04-PLAN.md
+**Summary:** Strong boundary-gate plan. It correctly distinguishes cumulative SAFE-17 drift from phase-local drift and fixes evidence freshness semantics.
 
-### Risk Assessment
-**HIGH** until process-death returncode and partial-loss capture reliability are fixed.
+**Strengths:**
+- Correct 5-path cumulative changed-path expectation.
+- Correct phase-local diff against `a181ca27`.
+- Full suite and hot-path slice are now acceptance criteria.
+- Evidence freshness is unambiguous.
 
-## 241-04-PLAN.md
+**Concerns:**
+- **MEDIUM:** Plan 02 says not to include a passes-at-boundary verifier test yet, but Plan 04 expects `tests/test_phase241_safe17_verifier.py` to include the now-runnable passes-at-boundary case. Add an explicit Plan 04 task to enable/add that test after all commits land.
+- **LOW:** "Evidence committed as the very next commit" is good, but brittle operationally. The post-commit `HEAD^ == evidence.head_commit` check should be scripted or included in the verifier test path.
 
-### Summary
-Strong boundary-gate plan: separates cumulative SAFE-17 changed paths from phase-local diff, fixes prior H3, and requires clean `src/wanctl` before running the verifier.
+**Risk Assessment:** **LOW-MEDIUM**.
 
-### Strengths
-- H3 is fully addressed: cumulative changed paths are correctly stated as 5, not 2.
-- Phase-local diff uses the Phase 240 close commit `a181ca27`, not tautological `HEAD` checks.
-- Verifier checks dirty tree, disallowed paths, protected bodies, and RTT seam drift.
+### Overall Verdict
+**Approve after revision.** The two cycle-2 HIGH blockers are fully resolved in the current plan text. No new HIGH concerns.
 
-### Concerns
-- **MEDIUM:** Evidence `head_commit == HEAD` is only true before committing the evidence file. If the evidence JSON is later committed, HEAD changes and the evidence appears stale. The plan needs explicit semantics: either evidence is uncommitted, or `head_commit` is expected to equal the parent/source commit.
-- **LOW:** Full suite and hot-path slice are in the verification block, but not strongly represented in task acceptance criteria.
-
-### Suggestions
-- Define evidence freshness as `head_commit == source_commit_before_evidence_commit`, or commit evidence with a check that `HEAD^ == evidence.head_commit`.
-- Add full-suite/hot-path acceptance criteria to Plan 04, not only the final verification prose.
-
-### Risk Assessment
-**MEDIUM**; boundary logic is good, evidence commit semantics need tightening.
-
-## Prior-MEDIUM Disposition
-
-- **M1 parser robustness:** **PARTIALLY RESOLVED.** Negative returncode, unknown host, whitespace tolerance, and `measurement_ms` are addressed. Remaining gap: action parses all non-negative returncodes, not only expected fping codes, and missing/garbled output can feed scorer failure.
-- **M2 `KNOWN_AUTORATE_PATHS`:** **FULLY RESOLVED.** Plan 02 registers all fping keys and adds a zero unknown-key warning test.
-- **M3 capture-vs-command / CompletedProcess tests:** **FULLY RESOLVED in plan intent.** Mechanical `--print-command` comparison and stdout/stderr/returncode fixture metadata are present. Fix the signal returncode capture detail above.
-
-## Prior-HIGH Disposition
-
-- **H1 all-fail scorer feed dropped:** **FULLY RESOLVED.** Plan 01 explicitly feeds scorer from `FpingParseResult.per_host_loss` before returning `None`, and Plan 01/03 require `test_all_fail_feeds_scorer`.
-- **H2 stdout-only parsing misses stderr:** **FULLY RESOLVED.** Plan 01 parses combined stdout+stderr, and Plan 03 requires tests using captured split streams.
-- **H3 Plan 04 cumulative changed_paths wrong:** **FULLY RESOLVED.** Plan 04 correctly distinguishes cumulative 5-path SAFE-17 diff from 2-path phase-local diff against `a181ca27`.
-
-Overall verdict: **approve after revision**, not as-is. The prior HIGHs are fixed, but D-07 must be reconciled and the process-death capture path must produce Python-equivalent negative returncodes before execution.
+Overall risk: **MEDIUM**. The remaining issues are mostly precision gaps: partial-line token-count semantics, lock identity, command-print behavior without fping, and a small Plan 02/04 test handoff gap. These should be fixed before execution, but they do not require rethinking the phase.
 
 ---
 
 ## Consensus Summary
 
-Single reviewer (Codex) this cycle. The revised plans (post cycle-1 replan) are a
-material improvement: all three prior-cycle HIGH concerns are confirmed **FULLY
-RESOLVED**, and two of three prior MEDIUMs are FULLY RESOLVED (M2, M3-intent), with
-M1 PARTIALLY RESOLVED. Verdict: **approve after revision** — not blocking-broken, but
-two NEW HIGH issues should be reconciled before execution.
+Single reviewer (Codex) this cycle (cycle 3, re-review of revised plans at head
+`834f2446`). The revision lands every cycle-2 finding: **both cycle-2 NEW HIGHs are
+confirmed FULLY RESOLVED** (D-07 amended to ratify the cloned `FpingThread` while
+keeping `BackgroundRTTThread` byte-frozen; process-death captured via Python `Popen`
+yielding a genuine negative returncode that exercises Plan 01's `returncode < 0`
+gate). Of the cycle-2 MEDIUMs, all are FULLY RESOLVED except steering-side validation,
+which is PARTIALLY RESOLVED (intentionally deferred to Phase 242/244). **No new HIGH
+concerns.** Verdict: **approve after revision** — the remaining MEDIUM/LOW items are
+precision gaps that should be tightened before execution, not phase-rethinking risks.
 
 ### Agreed Strengths
-- Containment: all backend logic in one new allowlisted module `fping_measurement.py`; frozen controller files untouched.
-- `FpingParseResult` parse/scorer-feed seam correctly resolves H1 (all-fail still penalizes reflectors before `probe()` returns `None`).
-- Combined stdout+stderr parsing resolves H2; tests required to feed real `CompletedProcess(stdout, stderr, returncode)`.
-- Plan 04 correctly separates cumulative 5-path SAFE-17 diff from the 2-path phase-local diff vs `a181ca27` (resolves H3).
-- `-C` (not `-c`), loss-safe `-` handling, and fping-gated scorer feed keep the icmplib path byte-unchanged.
+- Containment held: backend logic in `fping_measurement.py`; frozen controller files untouched.
+- `FpingParseResult` + `observed_hosts` seam resolves H1 and the cycle-2 None→fail MEDIUM.
+- `{0,1,2}`-only returncode gating; `>2` and negative returncodes get no scorer feed.
+- Resolved binary path used; combined stdout+stderr parse; real `measurement_ms`.
+- Plan 03 Python-`Popen` process-death capture gives genuine negative returncodes + per-scenario shape validation.
+- Plan 04 cumulative-vs-phase-local SAFE-17 diff distinction and unambiguous evidence-freshness semantics.
 
-### Agreed Concerns (highest priority)
-- **NEW-HIGH (D-07 contradiction):** CONTEXT decision D-07 says "Reuse `BackgroundRTTThread`… No new scheduler thread", but Plan 01 introduces a NEW `FpingThread` and explicitly leaves `BackgroundRTTThread` unedited. The decision record and the plan disagree. Reconcile: either update D-07 with rationale (a new cloned thread keeps the icmplib `BackgroundRTTThread` byte-frozen, which is the stronger SAFE-17 posture) or follow D-07. **Recommendation: ratify the FpingThread choice and amend D-07** — cloning is the more conservative SAFE-17 move and is consistent with the byte-frozen `irtt_thread.py` posture.
-- **NEW-HIGH (process-death returncode, Plan 03):** A bash capture helper reports SIGTERM as shell exit `143` (`128+15`), NOT Python's `CompletedProcess.returncode == -15`. Plan 01's process-death gate keys on a NEGATIVE returncode, so the captured fixture metadata must normalize `128+N → -N` (or capture via a Python `Popen` helper) or the `process_death` fixture will not exercise the negative-returncode gate the tests assert.
-
-### Other Concerns Worth Folding
-- **MEDIUM (return-code parse breadth, Plan 01):** Action parses any non-negative returncode; restrict parseable codes to `{0,1,2}` and treat `>2` (usage/config error) as failure with NO scorer feed.
-- **MEDIUM (`_scorer_results` None→fail, Plan 01):** `loss is None` (unmeasured/garbled) currently maps to fail; an unmeasured host should not be penalized as a real loss. Add `observed_hosts` to `FpingParseResult` and feed scorer only for measured hosts, or explicitly justify/test missing-host-as-fail.
-- **MEDIUM (`reflector_scorer.py` allowlist breadth, Plan 02):** the verifier allowlists `reflector_scorer.py` though it stays byte-unchanged; Plan 04 catches phase-local drift but the verifier itself would permit scorer edits. Consider an explicit "allowed-but-expected-unchanged" assertion.
-- **MEDIUM (partial-loss/TEST-NET capture determinism, Plan 03):** "distant/lossy target" may yield 0% or 100%; `192.0.2.1` may emit routing/ICMP-error lines rather than a clean `host : - - - - -`. Add per-scenario shape validation so a bad capture fails loudly instead of producing a misleading fixture.
-- **MEDIUM (evidence `head_commit == HEAD` semantics, Plan 04):** once the evidence JSON is committed, HEAD advances and the evidence looks stale. Define freshness as `HEAD^ == evidence.head_commit` (evidence committed as the next commit) or keep evidence uncommitted.
-- **LOW:** `_build_command` resolves `self._binary_path` but invokes `"fping"`; FPING-01 marked complete here despite no live wiring (selectable-but-inert) — consider marking partially-satisfied until Phase 242; fixture metadata may carry source IPs/reflectors (confirm repo policy / sanitize).
+### Agreed Concerns (highest priority — all MEDIUM/LOW, none blocking)
+- **MEDIUM (Plan 01 partial-line token count):** loss computed as `count - len(rtts)` can misread a truncated line (e.g. `host : 10.1 11.2`) as 60% measured loss. Require exactly `count` tokens before scoring; treat short reads as unmeasured.
+- **MEDIUM (Plan 01 lock identity):** lock hashes `source_ip + sorted reflector identity`, but `__init__` has no `hosts` (they arrive at `probe(hosts)`). Lock by source/backend only, pass reflector identity into config, or build lock identity per probe.
+- **MEDIUM (Plan 03 `--print-command` without fping):** `_build_command()` uses `shutil.which("fping")` as argv[0]; print-command must work with fping absent. Add `--fping-bin`/env override or compare only `argv[1:]`.
+- **MEDIUM (Plan 02 steering-side validation):** deferral to Phase 242/244 is fine for offline 241 but should become an explicit downstream acceptance criterion before live steering consumes fping config.
+- **MEDIUM (Plan 02/04 verifier-test handoff):** Plan 02 defers the passes-at-boundary verifier test; Plan 04 expects it present. Add an explicit Plan 04 task to enable that test after all commits land.
 
 ### Divergent Views
 - Single reviewer; no cross-reviewer divergence this cycle.
 
 ### Prior-Cycle HIGH Disposition (carried, for audit)
-- **H1 all-fail scorer feed dropped** — FULLY RESOLVED (FpingParseResult seam + `test_all_fail_feeds_scorer`).
-- **H2 stdout-only parsing misses stderr** — FULLY RESOLVED (combined-stream parse + split-stream tests).
-- **H3 Plan 04 cumulative changed_paths wrong (2 vs 5)** — FULLY RESOLVED (cumulative-vs-phase-local diff distinction).
+- **Cycle-1 H1** all-fail scorer feed dropped — FULLY RESOLVED (carried).
+- **Cycle-1 H2** stdout-only parsing misses stderr — FULLY RESOLVED (carried).
+- **Cycle-1 H3** Plan 04 cumulative changed_paths wrong (2 vs 5) — FULLY RESOLVED (carried).
+- **Cycle-2 NEW-HIGH** D-07 contradiction — FULLY RESOLVED (D-07 amended to ratify cloned `FpingThread`).
+- **Cycle-2 NEW-HIGH** process-death returncode fidelity — FULLY RESOLVED (Python `Popen` negative returncode + shape validation + gate test).
