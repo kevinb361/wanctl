@@ -17,9 +17,13 @@ import shutil
 import statistics
 import subprocess
 import tempfile
+import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
+
+from wanctl.perf_profiler import OperationProfiler
 
 if TYPE_CHECKING:
     from wanctl.rtt_backend import RttSample
@@ -272,3 +276,77 @@ def _is_float_token(value: str) -> bool:
     except ValueError:
         return False
     return True
+
+
+class FpingThread:
+    """Coordinate background fping bursts on an independent cadence.
+
+    D-07 amended ratifies this cloned-thread shape instead of editing the
+    byte-frozen ``BackgroundRTTThread`` in ``rtt_measurement.py``.  The scorer
+    feed still happens synchronously inside ``FpingMeasurement.probe()``; live
+    Phase 242 wiring must add thread-safety around any shared scorer instance
+    before the backend is connected to controller readers.
+    """
+
+    def __init__(
+        self,
+        measurement: FpingMeasurement,
+        hosts_fn: Callable[[], list[str]],
+        cadence_sec: float,
+        shutdown_event: threading.Event,
+        logger: logging.Logger,
+    ) -> None:
+        if measurement._timeout >= cadence_sec:
+            msg = f"fping timeout {measurement._timeout:.3f}s must be less than cadence {cadence_sec:.3f}s"
+            raise ValueError(msg)
+        self._measurement = measurement
+        self._hosts_fn = hosts_fn
+        self._cadence_sec = cadence_sec
+        self._shutdown_event = shutdown_event
+        self._logger = logger
+        self._cached_result: RttSample | None = None
+        self._profiler = OperationProfiler(max_samples=1200)
+        self._thread: threading.Thread | None = None
+
+    @property
+    def cadence_sec(self) -> float:
+        """fping measurement cadence in seconds."""
+        return self._cadence_sec
+
+    def get_latest(self) -> RttSample | None:
+        """Return the most recent successful fping sample, or ``None``."""
+        return self._cached_result
+
+    def get_profile_stats(self) -> dict[str, object]:
+        """Return background fping timing stats."""
+        return self._profiler.stats("fping_background_cycle")
+
+    def start(self) -> None:
+        """Create and start the background daemon thread."""
+        self._thread = threading.Thread(
+            target=self._run,
+            name="wanctl-fping",
+            daemon=True,
+        )
+        self._thread.start()
+        self._logger.info(f"fping thread started (cadence={self._cadence_sec}s)")
+
+    def stop(self) -> None:
+        """Join the background thread (up to 5 s timeout)."""
+        if self._thread is not None:
+            self._thread.join(timeout=5.0)
+            self._logger.info("fping thread stopped")
+
+    def _run(self) -> None:
+        """Measurement loop -- runs until *shutdown_event* is set."""
+        while not self._shutdown_event.is_set():
+            try:
+                t0 = time.perf_counter()
+                result = self._measurement.probe(self._hosts_fn())
+                elapsed_ms = (time.perf_counter() - t0) * 1000.0
+                self._profiler.record("fping_background_cycle", elapsed_ms)
+                if result is not None:
+                    self._cached_result = result
+            except Exception:
+                self._logger.debug("fping measurement error", exc_info=True)
+            self._shutdown_event.wait(timeout=self._cadence_sec)
