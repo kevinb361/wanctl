@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
 status: verifying
-stopped_at: Completed 238-03-PLAN.md
-last_updated: "2026-06-14T22:45:56.466Z"
-last_activity: 2026-06-14
+stopped_at: Completed 238-04-PLAN.md
+last_updated: "2026-06-15T11:35:00.000Z"
+last_activity: 2026-06-15 -- Phase 238 Plan 04 PROV-03 gap closed
 progress:
   total_phases: 9
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 0
+  total_plans: 4
+  completed_plans: 4
   percent: 11
 ---
 
@@ -25,16 +25,16 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 ## Current Position
 
-Phase: 238 (rtt-provenance-verification-read-only-entry-gate) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-06-14
+Phase: 238 (rtt-provenance-verification-read-only-entry-gate) — ALL PLANS COMPLETE, READY FOR VERIFICATION
+Plan: 4 of 4
+Status: Phase 238 complete (4/4 plans); PROV-03 gap closed — ready for phase verification
+Last activity: 2026-06-15 -- Phase 238 Plan 04 PROV-03 gap closed (corrected egress proof PASS both WANs)
 
 Progress: [██████████] 100%
 
 ## Active Blockers / Concerns
 
-- PROV-03 non-pass: live egress proof resolved both Spectrum and ATT route queries on `dev ens18`, not expected `spec-modem`/`att-modem`; Plan 03 surfaced this as topology drift, and downstream Phase 245 must not claim fping egress on the expected modem labels until criterion/topology is reconciled.
+- None blocking. PROV-03 is **resolved**: Plan 04 corrected the egress-proof criterion (host egress dev `ens18` + distinct source-bound route keys; `spec-modem`/`att-modem` are downstream cake-autorate `ul_if` labels, not host route devs) and the re-run PASSED for both WANs. Phase 245 should read PROV-03 as a source-bound router-hop guarantee (correct source IP + distinct route key), not a named-modem-interface claim.
 
 ## Deferred Items (carried into next milestone)
 
@@ -57,7 +57,7 @@ Acknowledged and deferred at v1.52 milestone close on 2026-06-14:
 
 ### v1.52-shipped-with-advisory-tech-debt
 
-- **Status:** v1.52 shipped with advisory tech debt; Phase 238 Plan 03 is now complete and ready for verification.
+- **Status:** Executing Phase 238
 - **Operator sign-off:** Kevin — 2026-06-14, via `/gsd-complete-milestone` audit acknowledgment and ship path.
 - **Why this is acceptable:** v1.52 audit status is `tech_debt`, not `passed`, but it found no requirement, integration, or flow blockers: 15/15 REQs, 3/3 phases, 5/5 integration seams, 5/5 E2E flows. SAFE-16 controller-path zero-diff held through closeout. Remaining items are advisory: normal deploy `eval rsync`, legacy raw watchdog docs, partial 235/237 Nyquist metadata, and Phase 236 summary metadata.
 

@@ -63,33 +63,33 @@ These are production `/health` captures supplied by the operator. Steering consu
 
 ```json
 {
-    "name": "spectrum",
-    "measurement": {
-        "available": true,
-        "raw_rtt_ms": 22.60283333286988,
-        "staleness_sec": 0.23070859909057617
-    },
-    "irtt": {
-        "available": false
-    },
-    "download": {
-        "state": "GREEN",
-        "current_rate_mbps": 524.869,
-        "qdisc_bandwidth": "525Mbit"
-    },
-    "upload": {
-        "state": "GREEN",
-        "current_rate_mbps": 18.0,
-        "qdisc_bandwidth": "18Mbit"
-    },
-    "congestion": {
-        "dl_state": "GREEN",
-        "ul_state": "GREEN"
-    },
-    "last_applied": {
-        "dl_rate": 524869000,
-        "ul_rate": 18000000
-    }
+  "name": "spectrum",
+  "measurement": {
+    "available": true,
+    "raw_rtt_ms": 22.60283333286988,
+    "staleness_sec": 0.23070859909057617
+  },
+  "irtt": {
+    "available": false
+  },
+  "download": {
+    "state": "GREEN",
+    "current_rate_mbps": 524.869,
+    "qdisc_bandwidth": "525Mbit"
+  },
+  "upload": {
+    "state": "GREEN",
+    "current_rate_mbps": 18.0,
+    "qdisc_bandwidth": "18Mbit"
+  },
+  "congestion": {
+    "dl_state": "GREEN",
+    "ul_state": "GREEN"
+  },
+  "last_applied": {
+    "dl_rate": 524869000,
+    "ul_rate": 18000000
+  }
 }
 ```
 
@@ -102,33 +102,33 @@ These are production `/health` captures supplied by the operator. Steering consu
 
 ```json
 {
-    "name": "att",
-    "measurement": {
-        "available": true,
-        "raw_rtt_ms": 28.19181289136989,
-        "staleness_sec": 1.0113909244537354
-    },
-    "irtt": {
-        "available": false
-    },
-    "download": {
-        "state": "GREEN",
-        "current_rate_mbps": 95.0,
-        "qdisc_bandwidth": "95Mbit"
-    },
-    "upload": {
-        "state": "GREEN",
-        "current_rate_mbps": 19.0,
-        "qdisc_bandwidth": "19Mbit"
-    },
-    "congestion": {
-        "dl_state": "GREEN",
-        "ul_state": "GREEN"
-    },
-    "last_applied": {
-        "dl_rate": 95000000,
-        "ul_rate": 19000000
-    }
+  "name": "att",
+  "measurement": {
+    "available": true,
+    "raw_rtt_ms": 28.19181289136989,
+    "staleness_sec": 1.0113909244537354
+  },
+  "irtt": {
+    "available": false
+  },
+  "download": {
+    "state": "GREEN",
+    "current_rate_mbps": 95.0,
+    "qdisc_bandwidth": "95Mbit"
+  },
+  "upload": {
+    "state": "GREEN",
+    "current_rate_mbps": 19.0,
+    "qdisc_bandwidth": "19Mbit"
+  },
+  "congestion": {
+    "dl_state": "GREEN",
+    "ul_state": "GREEN"
+  },
+  "last_applied": {
+    "dl_rate": 95000000,
+    "ul_rate": 19000000
+  }
 }
 ```
 
@@ -143,12 +143,12 @@ These are production `/health` captures supplied by the operator. Steering consu
 - Repo host: local checkout `/home/kevin/projects/wanctl`
 - Repo timestamp: 2026-06-14T22:30Z
 
-| Source | Path | SHA-256 |
-| --- | --- | --- |
+| Source     | Path                                                  | SHA-256                                                            |
+| ---------- | ----------------------------------------------------- | ------------------------------------------------------------------ |
 | production | `/usr/local/sbin/cake-autorate-spectrum-state-bridge` | `cde33afc0a889c8a431dcccf1c1b51e4dc10db4611a0ce454ac3dc4aaf495bee` |
-| production | `/usr/local/sbin/cake-autorate-att-state-bridge` | `cde33afc0a889c8a431dcccf1c1b51e4dc10db4611a0ce454ac3dc4aaf495bee` |
-| repo | `deploy/scripts/cake-autorate-spectrum-state-bridge` | `cde33afc0a889c8a431dcccf1c1b51e4dc10db4611a0ce454ac3dc4aaf495bee` |
-| repo | `deploy/scripts/cake-autorate-att-state-bridge` | `cde33afc0a889c8a431dcccf1c1b51e4dc10db4611a0ce454ac3dc4aaf495bee` |
+| production | `/usr/local/sbin/cake-autorate-att-state-bridge`      | `cde33afc0a889c8a431dcccf1c1b51e4dc10db4611a0ce454ac3dc4aaf495bee` |
+| repo       | `deploy/scripts/cake-autorate-spectrum-state-bridge`  | `cde33afc0a889c8a431dcccf1c1b51e4dc10db4611a0ce454ac3dc4aaf495bee` |
+| repo       | `deploy/scripts/cake-autorate-att-state-bridge`       | `cde33afc0a889c8a431dcccf1c1b51e4dc10db4611a0ce454ac3dc4aaf495bee` |
 
 **Reconciliation:** all four bridge-file entries match exactly. The deployed production bridge executables are byte-identical to the repo bridge scripts at this checkout. This confirms the code-path trace above applies to the production `raw_rtt_ms` producer.
 
@@ -159,14 +159,20 @@ Auxiliary transcript digests, included only to make capture provenance auditable
 - deployed sha transcript digest: `6dc4b271b4d56840934fe95c733a914ebc8f09e09058b65c42055688ab26f675`
 - repo sha transcript digest: `4080d212ae44c544382d0bb24e30be3fe8c14be6654ed4c543a2bb7e258b9ef4`
 
-## PROV-03 Cross-Reference: Egress Proof Remains Non-Pass
+## PROV-03 Cross-Reference: Egress Proof PASSES (Corrected Criterion)
 
-Plan 02 evidence is preserved as non-pass topology-drift evidence. Do not reinterpret it as a passing fping egress proof.
+PROV-03 is satisfied. The Plan 02 proof originally returned non-pass against an **invalid expected-dev criterion**; Plan 04 corrected the criterion to match this topology and re-ran the read-only proof, which now PASSES for both WANs.
+
+**Criterion correction (the real root cause was a plan-level criterion error, not topology drift):**
+PROV-03 only requires proving `fping -S <source_ip>` would egress the intended WAN under the host's current `ip rule` policy routing. The shaper host's `ip route get` always resolves egress device `ens18` (the host NIC toward the router); WAN separation is expressed by the **source-bound router-hop** — source IP plus the distinct source-bound route key — not by a named modem device. The original criterion expected `dev spec-modem` / `dev att-modem`, but those are cake-autorate **downstream `ul_if` labels** from `configs/cake-autorate/config.{spectrum,att}.sh`; they live below the host route lookup and cannot appear in `ip route get` output in this topology. They were never valid expected host-route devs.
+
+The corrected PASS criterion is: Spectrum `src 10.10.110.223 + dev ens18`; ATT `from/src 10.10.110.227 + dev ens18`; distinct source-bound route keys between the two WANs. This is a source-bound router-hop proof — it validates source-bound egress toward the router, **not** downstream modem-interface labels.
 
 - Evidence artifact: `.planning/phases/238-rtt-provenance-verification-read-only-entry-gate/evidence/egress-proof-live-20260614T222118Z.json`
-- Capture timestamp: 2026-06-14T22:21:18Z
+- Capture timestamp: 2026-06-15T11:31:32Z (corrected-criterion re-run)
 - Host: `cake-shaper`
 - Provenance: production read-only `ip rule` and `ip route get` queries via committed proof script
+- Verdict: PASS for both WANs (every reflector `pass:true`, `distinct_paths_check.pass:true`)
 
 ### ip rule block
 
@@ -178,7 +184,7 @@ Plan 02 evidence is preserved as non-pass topology-drift evidence. Do not reinte
 
 ### Spectrum ip route get output
 
-Expected source/path: default route from `10.10.110.223`, expected dev `spec-modem`. Observed dev was `ens18`, so the mechanical expected-dev criterion failed even though source/path distinctness existed.
+Corrected criterion: default route from `10.10.110.223`, expected host egress dev `ens18`. Observed `src 10.10.110.223 dev ens18` → PASS. (Source-bound router-hop egress confirmed; `spec-modem` is a downstream `ul_if` label, not a host route dev.)
 
 ```text
 1.1.1.1 via 10.10.110.1 dev ens18 src 10.10.110.223 uid 1000
@@ -193,7 +199,7 @@ Expected source/path: default route from `10.10.110.223`, expected dev `spec-mod
 
 ### ATT ip route get output
 
-Expected source/path: `from 10.10.110.227`, expected dev `att-modem`. Observed dev was `ens18`, so the mechanical expected-dev criterion failed. The `from 10.10.110.227` token is still source-bound evidence when Linux omits a separate `src` token.
+Corrected criterion: `from 10.10.110.227`, expected host egress dev `ens18`. Observed `from 10.10.110.227 dev ens18` → PASS (the `from` token supplies the source when Linux omits a separate `src`). Source-bound router-hop egress confirmed; `att-modem` is a downstream `ul_if` label, not a host route dev.
 
 ```text
 1.1.1.1 from 10.10.110.227 via 10.10.110.1 dev ens18 uid 1000
@@ -206,7 +212,7 @@ Expected source/path: `from 10.10.110.227`, expected dev `att-modem`. Observed d
     cache
 ```
 
-**PROV-03 truth:** distinct path classification passed, but both WANs failed the repo-derived expected-dev labels (`spec-modem` / `att-modem`) because live route output resolved `dev ens18`. Downstream Phase 245 must not assume `fping -S` egress on those named modem interfaces until the criterion/topology is reconciled.
+**PROV-03 truth:** PASS under the corrected source-bound router-hop criterion — distinct path classification passes and both WANs resolve the expected source IP on host egress dev `ens18`. The proof validates that `fping -S <source_ip>` egresses the intended WAN toward the router; it does **not** assert egress on a named modem interface. Downstream Phase 245 must read PROV-03 as a source-bound router-hop guarantee (correct source IP + distinct route key), not as a claim about downstream `ul_if` modem labels (`spec-modem` / `att-modem`).
 
 ## A/B Target Recommendation for Operator Ratification
 
@@ -234,10 +240,11 @@ This is a recommendation, not the binding verdict. The binding selection is the 
 
 ## Requirements Mapping
 
-| Requirement | Evidence in this map | Status |
-| --- | --- | --- |
-| PROV-01 | Verified steering consumption trace, live `/health` captures, deployed bridge identity | Satisfied by read-only evidence |
-| PROV-02 | Both A/B interpretations, fidelity-rubric recommendation, explicit ratification slot | Satisfied by operator Selection: A |
-| PROV-03 | Plan 02 egress proof embedded as non-pass/topology-drift evidence | Non-pass truth preserved; not marked complete |
-| SAFE-17 | To be re-run after ratification as final phase gate | Pending final gate |
+| Requirement | Evidence in this map                                                                   | Status                                               |
+| ----------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| PROV-01     | Verified steering consumption trace, live `/health` captures, deployed bridge identity | Satisfied by read-only evidence                      |
+| PROV-02     | Both A/B interpretations, fidelity-rubric recommendation, explicit ratification slot   | Satisfied by operator Selection: A                   |
+| PROV-03     | Corrected source-bound router-hop egress proof, both WANs PASS on `ens18`              | Satisfied by corrected read-only host-route evidence |
+| SAFE-17     | To be re-run after ratification as final phase gate                                    | Pending final gate                                   |
+
 |

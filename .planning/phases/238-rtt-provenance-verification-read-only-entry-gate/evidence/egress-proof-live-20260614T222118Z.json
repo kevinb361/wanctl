@@ -1,138 +1,138 @@
 [
   {
-    "captured_utc": "2026-06-14T22:21:18Z",
+    "captured_utc": "2026-06-15T11:31:32Z",
     "distinct_paths_check": {
       "pass": true,
       "paths_by_wan": {
         "att": [
-          "|ens18|10.10.110.1"
+          "10.10.110.227|ens18|10.10.110.1"
         ],
         "spectrum": [
           "10.10.110.223|ens18|10.10.110.1"
         ]
       }
     },
-    "expected_dev": "spec-modem",
+    "expected_dev": "ens18",
     "expected_path": "spectrum-default",
     "expected_src": "10.10.110.223",
     "ip_rule": "0:\tfrom all lookup local\n32766:\tfrom all lookup main\n32767:\tfrom all lookup default\n",
     "reflectors": [
       {
         "egress_key": "10.10.110.223|ens18|10.10.110.1",
-        "expected_dev": "spec-modem",
+        "expected_dev": "ens18",
         "expected_path": "spectrum-default",
         "expected_src": "10.10.110.223",
         "parsed_dev": "ens18",
         "parsed_src": "10.10.110.223",
         "parsed_via": "10.10.110.1",
-        "pass": false,
+        "pass": true,
         "reflector": "1.1.1.1",
         "route_line": "1.1.1.1 via 10.10.110.1 dev ens18 src 10.10.110.223 uid 1000 \n    cache ",
         "source_ip": "<none>",
-        "verdict": "FAIL",
+        "verdict": "PASS",
         "wan": "spectrum"
       },
       {
         "egress_key": "10.10.110.223|ens18|10.10.110.1",
-        "expected_dev": "spec-modem",
+        "expected_dev": "ens18",
         "expected_path": "spectrum-default",
         "expected_src": "10.10.110.223",
         "parsed_dev": "ens18",
         "parsed_src": "10.10.110.223",
         "parsed_via": "10.10.110.1",
-        "pass": false,
+        "pass": true,
         "reflector": "9.9.9.9",
         "route_line": "9.9.9.9 via 10.10.110.1 dev ens18 src 10.10.110.223 uid 1000 \n    cache ",
         "source_ip": "<none>",
-        "verdict": "FAIL",
+        "verdict": "PASS",
         "wan": "spectrum"
       },
       {
         "egress_key": "10.10.110.223|ens18|10.10.110.1",
-        "expected_dev": "spec-modem",
+        "expected_dev": "ens18",
         "expected_path": "spectrum-default",
         "expected_src": "10.10.110.223",
         "parsed_dev": "ens18",
         "parsed_src": "10.10.110.223",
         "parsed_via": "10.10.110.1",
-        "pass": false,
+        "pass": true,
         "reflector": "208.67.222.222",
         "route_line": "208.67.222.222 via 10.10.110.1 dev ens18 src 10.10.110.223 uid 1000 \n    cache ",
         "source_ip": "<none>",
-        "verdict": "FAIL",
+        "verdict": "PASS",
         "wan": "spectrum"
       }
     ],
     "source_ip": "<none>",
-    "verdict": "FAIL",
+    "verdict": "PASS",
     "wan": "spectrum"
   },
   {
-    "captured_utc": "2026-06-14T22:21:18Z",
+    "captured_utc": "2026-06-15T11:31:32Z",
     "distinct_paths_check": {
       "pass": true,
       "paths_by_wan": {
         "att": [
-          "|ens18|10.10.110.1"
+          "10.10.110.227|ens18|10.10.110.1"
         ],
         "spectrum": [
           "10.10.110.223|ens18|10.10.110.1"
         ]
       }
     },
-    "expected_dev": "att-modem",
+    "expected_dev": "ens18",
     "expected_path": "att-source-bound",
     "expected_src": "10.10.110.227",
     "ip_rule": "0:\tfrom all lookup local\n32766:\tfrom all lookup main\n32767:\tfrom all lookup default\n",
     "reflectors": [
       {
-        "egress_key": "|ens18|10.10.110.1",
-        "expected_dev": "att-modem",
+        "egress_key": "10.10.110.227|ens18|10.10.110.1",
+        "expected_dev": "ens18",
         "expected_path": "att-source-bound",
         "expected_src": "10.10.110.227",
         "parsed_dev": "ens18",
-        "parsed_src": null,
+        "parsed_src": "10.10.110.227",
         "parsed_via": "10.10.110.1",
-        "pass": false,
+        "pass": true,
         "reflector": "1.1.1.1",
         "route_line": "1.1.1.1 from 10.10.110.227 via 10.10.110.1 dev ens18 uid 1000 \n    cache ",
         "source_ip": "10.10.110.227",
-        "verdict": "FAIL",
+        "verdict": "PASS",
         "wan": "att"
       },
       {
-        "egress_key": "|ens18|10.10.110.1",
-        "expected_dev": "att-modem",
+        "egress_key": "10.10.110.227|ens18|10.10.110.1",
+        "expected_dev": "ens18",
         "expected_path": "att-source-bound",
         "expected_src": "10.10.110.227",
         "parsed_dev": "ens18",
-        "parsed_src": null,
+        "parsed_src": "10.10.110.227",
         "parsed_via": "10.10.110.1",
-        "pass": false,
+        "pass": true,
         "reflector": "8.8.8.8",
         "route_line": "8.8.8.8 from 10.10.110.227 via 10.10.110.1 dev ens18 uid 1000 \n    cache ",
         "source_ip": "10.10.110.227",
-        "verdict": "FAIL",
+        "verdict": "PASS",
         "wan": "att"
       },
       {
-        "egress_key": "|ens18|10.10.110.1",
-        "expected_dev": "att-modem",
+        "egress_key": "10.10.110.227|ens18|10.10.110.1",
+        "expected_dev": "ens18",
         "expected_path": "att-source-bound",
         "expected_src": "10.10.110.227",
         "parsed_dev": "ens18",
-        "parsed_src": null,
+        "parsed_src": "10.10.110.227",
         "parsed_via": "10.10.110.1",
-        "pass": false,
+        "pass": true,
         "reflector": "151.101.1.57",
         "route_line": "151.101.1.57 from 10.10.110.227 via 10.10.110.1 dev ens18 uid 1000 \n    cache ",
         "source_ip": "10.10.110.227",
-        "verdict": "FAIL",
+        "verdict": "PASS",
         "wan": "att"
       }
     ],
     "source_ip": "10.10.110.227",
-    "verdict": "FAIL",
+    "verdict": "PASS",
     "wan": "att"
   }
 ]

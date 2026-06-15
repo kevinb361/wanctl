@@ -56,7 +56,7 @@
 - [x] 238-01-PLAN.md — SAFE-17 lightweight controller-path git-diff boundary assertion (vs v1.52 anchor)
 - [x] 238-02-PLAN.md — Both-WAN read-only fping-egress proof script (PROV-03; operator-run on live host)
 - [x] 238-03-PLAN.md — PROVENANCE-MAP.md evidence artifact + A/B recommendation with operator-ratification slot (PROV-01, PROV-02)
-- [ ] 238-04-PLAN.md — PROV-03 gap closure: corrected host-route criterion, fresh passing egress evidence, and SAFE-17 refresh
+- [x] 238-04-PLAN.md — PROV-03 gap closure: corrected host-route criterion, fresh passing egress evidence, and SAFE-17 refresh
 
 ### Phase 239: Seam Refactor + IcmplibBackend (Byte-Identical)
 **Goal**: A single `RttBackend` abstraction exists with the existing icmplib measurement refactored behind it, provably behavior-identical to the pre-refactor default so any later regression is unambiguously attributable to a backend, not the seam.
