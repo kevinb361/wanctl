@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
 status: executing
-stopped_at: Phase 241 context gathered
-last_updated: "2026-06-15T21:28:48.903Z"
-last_activity: 2026-06-15 -- Phase 241 planning complete
+stopped_at: Completed 241-01-PLAN.md
+last_updated: "2026-06-15T22:18:09.300Z"
+last_activity: 2026-06-15
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 13
-  completed_plans: 9
-  percent: 33
+  completed_plans: 10
+  percent: 77
 ---
 
 # Session State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 241 — fping backend (offline) + reflector quality
+**Current focus:** Phase 241 — fping-backend-offline-reflector-quality
 
 ## Current Position
 
-Phase: 241
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-15 -- Phase 241 planning complete
+Phase: 241 (fping-backend-offline-reflector-quality) — EXECUTING
+Plan: 2 of 4
+Status: Executing Phase 241
+Last activity: 2026-06-15
 
-Progress: [██████████] 100%
+Progress: [████████░░] 77%
 
 ## Active Blockers / Concerns
 
@@ -144,9 +144,9 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-15T20:09:11.576Z
-Stopped at: Phase 241 context gathered
-Resume file: .planning/phases/241-fping-backend-offline-reflector-quality/241-CONTEXT.md
+Last session: 2026-06-15T22:18:09.285Z
+Stopped at: Completed 241-01-PLAN.md
+Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
@@ -159,6 +159,9 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Decisions (v1.53)
 
+- [241-01]: Kept fping backend inert/offline in Plan 01; no live autorate, steering, factory, or fallback wiring until Phase 242.
+- [241-01]: Required exact fping `-C` token count before a host is observed/scored, so truncated lines remain unmeasured instead of becoming synthetic loss.
+- [241-01]: Chose fail-closed `ValueError` for fping timeout >= cadence rather than clamping, preserving the no-burst-pile invariant.
 - [240-02]: Pinned PHASE239_CLOSE_ANCHOR to 03c82de0 so Phase 240 rejects any new rtt_backend.py/rtt_measurement.py drift even though the v1.52 union allowlist permits those paths.
 - [240-02]: Reused phase239-protected-body-diff.py unchanged for the protected-body layer; Phase 240 adds only a wrapper boundary script and regression tests.
 - [240-01]: Kept measurement.backend validation out of Config.SCHEMA so absent keys emit no result.
@@ -297,3 +300,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 239 P03 | 6min | 3 tasks | 4 files |
 | Phase 240 P01 | 5min | 3 tasks | 4 files |
 | Phase 240 P02 | 4 min | 2 tasks | 4 files |
+| Phase 241 P01 | 9min | 3 tasks | 10 files |

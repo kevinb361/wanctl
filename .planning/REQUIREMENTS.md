@@ -25,10 +25,10 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 ### fping Backend
 
 - [ ] **FPING-01**: Operator can select an `fping` RTT backend that probes via one-shot `subprocess.run` bursts on a background cadence, never on the synchronous 50ms control loop.
-- [ ] **FPING-02**: The fping backend binds source IP per WAN via `-S`, matching the existing `ping_source_ip` configuration.
-- [ ] **FPING-03**: The fping backend probes multiple reflectors in a single process and returns per-reflector results.
-- [ ] **FPING-04**: The fping output parser, built from captured real fping 5.1 samples, handles reply, total loss, partial loss, partial lines, banner, and process-death output; loss tokens map to "no sample" and are never recorded as `0ms`.
-- [ ] **FPING-05**: The fping backend tolerates subprocess stall and death without crashing the daemon (bounded timeout, recover-and-continue), mirroring the existing `irtt_measurement.py` lifecycle.
+- [x] **FPING-02**: The fping backend binds source IP per WAN via `-S`, matching the existing `ping_source_ip` configuration.
+- [x] **FPING-03**: The fping backend probes multiple reflectors in a single process and returns per-reflector results.
+- [x] **FPING-04**: The fping output parser, built from captured real fping 5.1 samples, handles reply, total loss, partial loss, partial lines, banner, and process-death output; loss tokens map to "no sample" and are never recorded as `0ms`.
+- [x] **FPING-05**: The fping backend tolerates subprocess stall and death without crashing the daemon (bounded timeout, recover-and-continue), mirroring the existing `irtt_measurement.py` lifecycle.
 
 ### Config & Validation
 
@@ -52,7 +52,7 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 ### Reflector Quality (differentiator)
 
-- [ ] **REFL-01**: Per-reflector loss reported by fping feeds reflector-quality scoring (additive, gated to the fping backend). This is an explicitly-accepted controller-path touch covered by the SAFE-17 allowlist exception.
+- [x] **REFL-01**: Per-reflector loss reported by fping feeds reflector-quality scoring (additive, gated to the fping backend). This is an explicitly-accepted controller-path touch covered by the SAFE-17 allowlist exception.
 
 ### A/B Evidence
 
@@ -114,10 +114,10 @@ Populated during roadmap creation. Each requirement maps to exactly one phase.
 | SEAM-03 | Phase 239 | Complete |
 | SEAM-04 | Phase 239 | Complete |
 | FPING-01 | Phase 241 | Pending |
-| FPING-02 | Phase 241 | Pending |
-| FPING-03 | Phase 241 | Pending |
-| FPING-04 | Phase 241 | Pending |
-| FPING-05 | Phase 241 | Pending |
+| FPING-02 | Phase 241 | Complete |
+| FPING-03 | Phase 241 | Complete |
+| FPING-04 | Phase 241 | Complete |
+| FPING-05 | Phase 241 | Complete |
 | CFG-01 | Phase 240 | Complete |
 | CFG-02 | Phase 240 | Complete |
 | CFG-03 | Phase 240 | Complete |
@@ -126,7 +126,7 @@ Populated during roadmap creation. Each requirement maps to exactly one phase.
 | BENCH-01 | Phase 243 | Pending |
 | BENCH-02 | Phase 243 | Pending |
 | HEALTH-01 | Phase 244 | Pending |
-| REFL-01 | Phase 241 | Pending |
+| REFL-01 | Phase 241 | Complete |
 | AB-01 | Phase 245 | Pending |
 | AB-02 | Phase 245 | Pending |
 | AB-03 | Phase 245 | Pending |
