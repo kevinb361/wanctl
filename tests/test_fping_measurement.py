@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import logging
 import subprocess
+import threading
+import time
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from wanctl.fping_measurement import FpingMeasurement
+import pytest
+
+from wanctl.fping_measurement import FpingMeasurement, FpingThread
 
 
 def _backend(tmp_path: Path, **overrides: object) -> FpingMeasurement:
@@ -148,3 +152,63 @@ def test_measurement_ms_recorded(tmp_path: Path) -> None:
 
     assert sample is not None
     assert sample.measurement_ms > 0.0
+
+
+def test_timeout_expired_returns_none_then_recovers(tmp_path: Path) -> None:
+    fping = _backend(tmp_path)
+    good = _completed(stdout="198.51.100.10 : 10.0 11.0 12.0 13.0 14.0")
+    with patch(
+        "wanctl.fping_measurement.subprocess.run",
+        side_effect=[subprocess.TimeoutExpired(cmd=["fping"], timeout=3.0), good],
+    ):
+        assert fping.probe(["198.51.100.10"]) is None
+        assert fping.probe(["198.51.100.10"]) is not None
+
+
+def test_process_death_fixture_returns_none(tmp_path: Path) -> None:
+    fping = _backend(tmp_path)
+    with patch(
+        "wanctl.fping_measurement.subprocess.run",
+        return_value=_completed(stdout="", stderr="", returncode=-15),
+    ):
+        assert fping.probe(["198.51.100.10"]) is None
+
+
+def test_fping_thread_caches_latest_success_and_skips_none(tmp_path: Path) -> None:
+    shutdown = threading.Event()
+    measurement = Mock()
+    first = _backend(tmp_path)._parse_fping(
+        "198.51.100.10 : 10.0 11.0 12.0 13.0 14.0", ["198.51.100.10"]
+    )
+    sample = Mock(name="sample")
+    measurement._timeout = 0.01
+    measurement.probe.side_effect = [sample, None]
+
+    thread = FpingThread(
+        measurement=measurement,
+        hosts_fn=lambda: ["198.51.100.10"],
+        cadence_sec=0.05,
+        shutdown_event=shutdown,
+        logger=logging.getLogger("test_fping_measurement"),
+    )
+
+    assert first.observed_hosts == ["198.51.100.10"]
+    thread.start()
+    time.sleep(0.12)
+    shutdown.set()
+    thread.stop()
+
+    assert thread.get_latest() is sample
+    assert measurement.probe.call_count >= 2
+
+
+def test_timeout_must_be_less_than_cadence(tmp_path: Path) -> None:
+    measurement = _backend(tmp_path)
+    with pytest.raises(ValueError, match="timeout .* cadence"):
+        FpingThread(
+            measurement=measurement,
+            hosts_fn=lambda: ["198.51.100.10"],
+            cadence_sec=measurement._timeout,
+            shutdown_event=threading.Event(),
+            logger=logging.getLogger("test_fping_measurement"),
+        )
