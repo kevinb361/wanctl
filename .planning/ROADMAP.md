@@ -68,7 +68,10 @@
   3. RTT samples carry backend / source-IP / loss metadata (`RttSample` as a strict superset of `RTTSnapshot`) without breaking `WANController.measure_rtt()`, the scorer, or other existing consumers.
   4. The abstraction is shaped to absorb the existing IRTT path (adapter seam present), with full IRTT migration explicitly deferred.
   5. The narrowed SAFE-17 allowlist is defined and the fail-closed source-diff verifier runs at the phase boundary, proving no out-of-allowlist controller-path drift.
-**Plans**: TBD
+**Plans**: 3 plans
+  - [ ] 239-01-PLAN.md — RttBackend Protocol + RttSample superset + IRTT adapter stub (SEAM-01/03/04) with unit tests
+  - [ ] 239-02-PLAN.md — Additive RTTMeasurement.probe() returning RttSample; byte-identity via hot-path slice (SEAM-01/02)
+  - [ ] 239-03-PLAN.md — Fail-closed SAFE-17 v1.53 allowlist verifier + phase-boundary evidence (SAFE-17)
 
 ### Phase 240: Config + Validator
 **Goal**: An operator can select the RTT backend per WAN/consumer in YAML, with safe defaults and validation, and every existing deployment config keeps validating with no migration.
