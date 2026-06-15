@@ -18,7 +18,7 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 ### Backend Seam
 
 - [x] **SEAM-01**: wanctl exposes a single `RttBackend` abstraction (Protocol) consumed by both steering and autorate, with the existing icmplib measurement refactored behind it.
-- [ ] **SEAM-02**: icmplib-default RTT behavior is byte-identical to pre-refactor, proven by the hot-path test slice plus snapshot equivalence.
+- [x] **SEAM-02**: icmplib-default RTT behavior is byte-identical to pre-refactor, proven by the hot-path test slice plus snapshot equivalence.
 - [x] **SEAM-03**: RTT samples carry backend / source-IP / loss metadata (`RttSample` as a strict superset of `RTTSnapshot`) without breaking `WANController.measure_rtt()`, the scorer, or other existing consumers.
 - [x] **SEAM-04**: The abstraction is shaped to absorb the existing IRTT measurement path (adapter seam present); full IRTT migration is deferred.
 
@@ -110,7 +110,7 @@ Populated during roadmap creation. Each requirement maps to exactly one phase.
 | PROV-02 | Phase 238 | Complete |
 | PROV-03 | Phase 238 | Complete |
 | SEAM-01 | Phase 239 | Complete |
-| SEAM-02 | Phase 239 | Pending |
+| SEAM-02 | Phase 239 | Complete |
 | SEAM-03 | Phase 239 | Complete |
 | SEAM-04 | Phase 239 | Complete |
 | FPING-01 | Phase 241 | Pending |
