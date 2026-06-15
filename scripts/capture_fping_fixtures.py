@@ -102,18 +102,40 @@ def run_process_death(scenario: str, cmd: list[str], version: str, sleep_sec: fl
     return Capture(scenario, cmd, stdout, stderr, proc.returncode, version)
 
 
-def truncate_stdout(capture: Capture) -> Capture:
-    lines = capture.stdout.splitlines()
-    if lines:
-        lines[-1] = " ".join(lines[-1].split()[:4])
-    stdout = "\n".join(lines)
-    if capture.stdout.endswith("\n"):
-        stdout += "\n"
+def truncate_target_stream(capture: Capture) -> Capture:
+    """Truncate the stream that contains fping target lines.
+
+    fping 5.1 with ``-q`` may emit ``host : ...`` summary lines on stderr rather
+    than stdout.  Keep the captured stdout/stderr split faithful by truncating
+    whichever stream actually carries a target line instead of moving data
+    between streams.
+    """
+    stdout_host_lines = [line for line in capture.stdout.splitlines() if parse_host_line(line)]
+    stderr_host_lines = [line for line in capture.stderr.splitlines() if parse_host_line(line)]
+    if stdout_host_lines:
+        stream_name = "stdout"
+        text = capture.stdout
+    elif stderr_host_lines:
+        stream_name = "stderr"
+        text = capture.stderr
+    else:
+        raise ValueError("partial_line shape invalid: no target line available to truncate")
+
+    lines = text.splitlines()
+    for index in range(len(lines) - 1, -1, -1):
+        if parse_host_line(lines[index]) is not None:
+            lines[index] = " ".join(lines[index].split()[:4])
+            del lines[index + 1 :]
+            break
+    truncated = "\n".join(lines)
+    if text.endswith("\n"):
+        truncated += "\n"
+
     return Capture(
         capture.scenario,
         capture.command,
-        stdout,
-        capture.stderr,
+        truncated if stream_name == "stdout" else capture.stdout,
+        truncated if stream_name == "stderr" else capture.stderr,
         capture.returncode,
         capture.fping_version,
     )
@@ -195,13 +217,13 @@ def validate_shape(capture: Capture) -> None:
         return
 
     if capture.scenario == "partial_line":
-        raw_lines = [line for line in capture.stdout.splitlines() if line.strip()]
+        raw_lines = [line for line in combined_lines(capture) if line.strip()]
         if not raw_lines:
-            raise ValueError("partial_line shape invalid: stdout is empty")
+            raise ValueError("partial_line shape invalid: stdout/stderr are empty")
         last = raw_lines[-1]
         item = parse_host_line(last)
         if item is not None and len(item[1]) >= 5:
-            raise ValueError("partial_line shape invalid: final stdout line is complete")
+            raise ValueError("partial_line shape invalid: final target line is complete")
         return
 
     raise ValueError(f"unknown scenario: {capture.scenario}")
@@ -314,7 +336,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             if scenario == "process_death":
                 capture = run_process_death(scenario, cmd, version, min(0.5, max(0.1, timeout / 3)))
             elif scenario == "partial_line":
-                capture = truncate_stdout(run_capture(scenario, cmd, version, timeout))
+                capture = truncate_target_stream(run_capture(scenario, cmd, version, timeout))
             else:
                 capture = run_capture(scenario, cmd, version, timeout)
             path = write_fixture(capture, args.out_dir, args.redact_source)
