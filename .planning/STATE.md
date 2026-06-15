@@ -4,14 +4,14 @@ milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
 status: executing
 stopped_at: Completed 241-01-PLAN.md
-last_updated: "2026-06-15T22:18:09.300Z"
+last_updated: "2026-06-15T22:33:30.837Z"
 last_activity: 2026-06-15
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 13
-  completed_plans: 10
-  percent: 77
+  completed_plans: 11
+  percent: 85
 ---
 
 # Session State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 ## Current Position
 
 Phase: 241 (fping-backend-offline-reflector-quality) — EXECUTING
-Plan: 2 of 4
-Status: Executing Phase 241
+Plan: 3 of 4
+Status: Ready to execute
 Last activity: 2026-06-15
 
-Progress: [████████░░] 77%
+Progress: [█████████░] 85%
 
 ## Active Blockers / Concerns
 
@@ -144,8 +144,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-15T22:18:09.285Z
-Stopped at: Completed 241-01-PLAN.md
+Last session: 2026-06-15T22:33:30.837Z
+Stopped at: Completed 241-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -159,6 +159,9 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Decisions (v1.53)
 
+- [241-02]: Kept reflector_scorer.py allowlisted for Phase 241 membership but byte-identical by explicit diff guard against a181ca27.
+- [241-02]: Registered measurement.fping.* autorate config keys, including timeout_grace_sec, so valid fping config produces no unknown-key warnings.
+- [241-02]: Kept timeout-vs-cadence as a validator WARN while runtime construction remains fail-closed; steering-side fping validation remains deferred to Phase 242/244.
 - [241-01]: Kept fping backend inert/offline in Plan 01; no live autorate, steering, factory, or fallback wiring until Phase 242.
 - [241-01]: Required exact fping `-C` token count before a host is observed/scored, so truncated lines remain unmeasured instead of becoming synthetic loss.
 - [241-01]: Chose fail-closed `ValueError` for fping timeout >= cadence rather than clamping, preserving the no-burst-pile invariant.
@@ -301,3 +304,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 240 P01 | 5min | 3 tasks | 4 files |
 | Phase 240 P02 | 4 min | 2 tasks | 4 files |
 | Phase 241 P01 | 9min | 3 tasks | 10 files |
+| Phase 241 P02 | 7min | 2 tasks | 7 files |
