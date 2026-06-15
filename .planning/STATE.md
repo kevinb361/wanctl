@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
-status: executing
-stopped_at: Completed 241-03-PLAN.md
-last_updated: "2026-06-15T23:01:07.257Z"
+status: verifying
+stopped_at: Completed 241-04-PLAN.md
+last_updated: "2026-06-15T23:15:01.892Z"
 last_activity: 2026-06-15
 progress:
   total_phases: 9
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 13
-  completed_plans: 12
-  percent: 92
+  completed_plans: 13
+  percent: 100
 ---
 
 # Session State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 Phase: 241 (fping-backend-offline-reflector-quality) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-15
 
-Progress: [█████████░] 92%
+Progress: [██████████] 100%
 
 ## Active Blockers / Concerns
 
@@ -57,7 +57,7 @@ Acknowledged and deferred at v1.52 milestone close on 2026-06-14:
 
 ### v1.52-shipped-with-advisory-tech-debt
 
-- **Status:** Ready to execute
+- **Status:** verifying
 - **Operator sign-off:** Kevin — 2026-06-14, via `/gsd-complete-milestone` audit acknowledgment and ship path.
 - **Why this is acceptable:** v1.52 audit status is `tech_debt`, not `passed`, but it found no requirement, integration, or flow blockers: 15/15 REQs, 3/3 phases, 5/5 integration seams, 5/5 E2E flows. SAFE-16 controller-path zero-diff held through closeout. Remaining items are advisory: normal deploy `eval rsync`, legacy raw watchdog docs, partial 235/237 Nyquist metadata, and Phase 236 summary metadata.
 
@@ -144,7 +144,7 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-15T23:01:07.230Z
+Last session: 2026-06-15T23:14:04.167Z
 Stopped at: Completed 241-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
@@ -159,6 +159,8 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Decisions (v1.53)
 
+- [241-04]: Committed SAFE-17 evidence as the immediate next commit after verifier emission; durable freshness is `HEAD^ == evidence.head_commit`.
+- [241-04]: Treated legacy full-suite boundary-test failures as out-of-scope historical test hygiene while preserving SAFE-17, phase-local, hot-path, and verifier proofs.
 - [241-03]: Ran only the approved non-mutating fping capture path on cake-shaper; no routing, CAKE, qdisc, tc, RouterOS, service, or firewall mutations were made.
 - [241-03]: Used yandex.com as the natural lossy reflector after 8.8.8.8 stopped producing partial loss during retry capture.
 - [241-03]: Preserved stdout/stderr metadata fidelity for fping 5.1 -q by truncating partial_line in the stream that actually carries target lines.
@@ -309,3 +311,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 241 P01 | 9min | 3 tasks | 10 files |
 | Phase 241 P02 | 7min | 2 tasks | 7 files |
 | Phase 241 P03 | 13min continuation | 3 tasks | 10 files |
+| Phase 241 P04 | 9min | 2 tasks | 3 files |
