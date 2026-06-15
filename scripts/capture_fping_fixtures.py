@@ -141,6 +141,32 @@ def truncate_target_stream(capture: Capture) -> Capture:
     )
 
 
+def ensure_banner_noise(capture: Capture) -> Capture:
+    """Ensure banner_noise contains a real fping non-host banner line.
+
+    On fping 5.1, the byte-identical runtime command uses ``-q`` and may emit
+    only target summary lines.  When that happens, prepend the already-captured
+    real ``fping --version`` banner to stderr so the fixture still exercises
+    combined-stream non-host-line tolerance without changing routes or command
+    flags.
+    """
+    raw_lines = [line for line in combined_lines(capture) if line.strip()]
+    valid_raw = {line for line in raw_lines if parse_host_line(line) is not None}
+    if any(line not in valid_raw and not line.startswith("#") for line in raw_lines):
+        return capture
+
+    banner = capture.fping_version.splitlines()[0] if capture.fping_version else "fping banner unavailable"
+    stderr = f"{banner}\n{capture.stderr}" if capture.stderr else f"{banner}\n"
+    return Capture(
+        capture.scenario,
+        capture.command,
+        capture.stdout,
+        stderr,
+        capture.returncode,
+        capture.fping_version,
+    )
+
+
 def combined_lines(capture: Capture) -> list[str]:
     return (capture.stdout + "\n" + capture.stderr).splitlines()
 
@@ -337,6 +363,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 capture = run_process_death(scenario, cmd, version, min(0.5, max(0.1, timeout / 3)))
             elif scenario == "partial_line":
                 capture = truncate_target_stream(run_capture(scenario, cmd, version, timeout))
+            elif scenario == "banner_noise":
+                capture = ensure_banner_noise(run_capture(scenario, cmd, version, timeout))
             else:
                 capture = run_capture(scenario, cmd, version, timeout)
             path = write_fixture(capture, args.out_dir, args.redact_source)
