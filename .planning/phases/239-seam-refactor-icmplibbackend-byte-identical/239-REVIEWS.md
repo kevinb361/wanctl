@@ -1,113 +1,95 @@
 ---
 phase: 239
-cycle: 3
+cycle: 4
 reviewers: [codex]
-reviewed_at: 2026-06-15T14:43:00Z
+reviewed_at: 2026-06-15T16:46:33Z
 plans_reviewed: [239-01-PLAN.md, 239-02-PLAN.md, 239-03-PLAN.md]
-prior_cycle_highs: [forward-annotation-import-time-eval, safe17-allowed-diff-shape-gap]
-current_unresolved_highs: 1
+prior_cycle_highs: [safe17-layer3-container-class-segment-contradiction]
+current_unresolved_highs: 0
 ---
 
-# Cross-AI Plan Review — Phase 239 (Cycle 3, FINAL)
+# Cross-AI Plan Review — Phase 239 (Cycle 4, FINAL)
 
-This is the cycle-3 (final) re-review. The plans were replanned twice. Cycle 1 raised 3 HIGHs
-(circular import; probe() zero-success semantics; SAFE-17 intra-file drift). Cycle 2 fully
-resolved zero-success and left two HIGHs: **H1** (forward-annotation import-time evaluation in a
-non-`__future__` module) and **H3** (SAFE-17 allowed-diff-shape gap — unprotected intra-file
-surfaces could drift undetected). Both were addressed before this cycle: H1 by mandating the
-quoted `-> "RttSample | None"` form with grep gates + an import-clean subprocess test; H3 by a
-Layer-3 AST allowed-diff-shape assertion (qualname-set equality + byte-identity of pre-existing
-nodes and module statements) plus expanding the named protected set to RTTSnapshot and
-`RTTMeasurement.__init__`.
+This is the cycle-4 (final) re-review. The plans were replanned three times. Cumulative history:
+
+- **Cycle 1** raised 3 HIGHs: circular import; `probe()` zero-success semantics; SAFE-17 intra-file drift.
+- **Cycle 2** fully resolved zero-success and left two HIGHs: **H1** (forward-annotation import-time
+  evaluation in a non-`__future__` module) and **H3** (SAFE-17 allowed-diff-shape gap — unprotected
+  intra-file surfaces could drift undetected).
+- **Cycle 3** fully resolved H1 (quoted `-> "RttSample | None"` mandate + grep gates + import-clean
+  subprocess test) and closed H3's original under-checking gap (protected set expanded to RTTSnapshot
+  and `RTTMeasurement.__init__`; Layer-3 qualname-set + per-node byte-identity + module-statement
+  checks). BUT the H3 fix introduced ONE new mechanical HIGH: the Layer-3 verifier compared the WHOLE
+  `RTTMeasurement` container-class source segment for byte-identity while simultaneously allowing the
+  additive `probe()` method inside it — a self-contradiction that would reject the very change it must
+  permit. Cycle 3 closed with `current_unresolved_highs = 1`.
+
+**The cycle-3 HIGH was addressed before this cycle.** Plan 03 now specifies the Layer-3 verifier
+compares the modified container class `RTTMeasurement` BY PARTS: (i) class header/decorators/bases,
+(ii) class-level non-function statements, and (iii) each PRE-EXISTING child method individually for
+byte-identity — permitting ONLY the additive `probe()` method as the delta. All OTHER pre-existing
+nodes (RTTSnapshot, RTTCycleStatus, BackgroundRTTThread, parse_ping_output, etc.) are still compared
+as whole byte-identical source segments. A new positive unit test asserts the allowed-shape helper
+PASSES on the legitimate `probe()`-only addition and FAILS on pre-existing-child drift. The dead
+`from __future__ import annotations` exception was removed.
 
 Codex was the single external reviewer (Claude is the executing CLI and is skipped for
-independence). It was asked to judge each prior HIGH as FULLY / PARTIALLY / OPEN against the
-current plan text and to raise NEW HIGHs only for genuine unresolved risk. Findings below are
-Codex's, verified against the actual plan lines by the orchestrator.
+independence). It was asked to judge each prior HIGH as FULLY / PARTIALLY / OPEN against the current
+plan text and to raise NEW HIGHs only for genuine unresolved risk. Findings below are Codex's,
+verified against the actual plan lines by the orchestrator.
 
 ## Codex Review
 
 **Summary**
 
-H1 is fully resolved in the current text. H3 is much stronger than cycle 2, but is NOT fully
-resolved as written because the Layer-3 AST allowed-diff-shape rule is internally
-self-contradictory: it records each `ClassDef` as a qualname (line 129) and then requires every
-pre-existing node *including classes* to be byte-identical to v1.52 by `ast.get_source_segment`
-(line 138). Adding `RTTMeasurement.probe()` necessarily changes the enclosing `RTTMeasurement`
-class's source segment, so the verifier as specified would reject the exact change it is meant to
-allow. This blocks the phase verifier (or pressures the executor to weaken it).
+0 unresolved HIGHs. The cycle-3 container-class contradiction is resolved in the current Plan 03
+text. Plan 03 now explicitly does NOT compare the whole `RTTMeasurement` `ClassDef` segment; it
+compares the class header/decorators/bases, the class-level statements, and each pre-existing child
+method individually, while allowing only `RTTMeasurement.probe` as the single added child. The
+positive helper test covers the exact legitimate "same class plus one added method" case, and the
+helper still fails on pre-existing-child drift. All prior HIGHs across cycles 1–3 are FULLY RESOLVED.
 
 **Prior-HIGH Disposition**
 
-- **H1 (forward-annotation import-time eval): FULLY RESOLVED.**
-  Plan 02 explains the import-time annotation risk (239-02:47), mandates
-  `def probe(...) -> "RttSample | None"` (239-02:113), adds a grep gate for the quoted form
-  (239-02:128), rejects the bare form unless `from __future__` is present (239-02:129), and adds
-  the `test_rtt_measurement_imports_clean` subprocess import test (239-02:154, 172). That is a
-  real verification mechanism, not just prose.
-
-- **H3 (SAFE-17 allowed-diff-shape gap): PARTIALLY RESOLVED.**
-  The intended mitigation is strong and directionally correct: the protected set is expanded to
-  include `RTTSnapshot` and `RTTMeasurement.__init__` (239-03:17, 89-90), Layer 3 requires
-  exactly `{RTTMeasurement.probe}` as the single added qualname (239-03:18, 137), and negative
-  tests cover RTTSnapshot-field, `__init__`, and `_RTT_PATTERN` drift (239-03:221-223). The
-  ORIGINAL cycle-2 gap (under-checking of unprotected surfaces) is closed. However a NEW,
-  mechanical defect was introduced by the fix: Layer-3 step 2 (239-03:138) compares the full
-  source segment of every pre-existing node including container classes, while step 1 (239-03:137)
-  legitimately allows adding `RTTMeasurement.probe` inside the `RTTMeasurement` class. These two
-  rules conflict — the container class's source segment cannot stay byte-identical while gaining a
-  method. As written, the verifier cannot simultaneously pass the intended edit and enforce the
-  shape. Net: the H3 area carries one unresolved HIGH this cycle.
+| Prior HIGH | Disposition | Mechanism |
+|------------|-------------|-----------|
+| Cycle 1 — circular import risk | FULLY RESOLVED | Plan 01 requires `TYPE_CHECKING` + local `RTTSnapshot` import and both import-order tests (239-01:114, 132). Plan 02 requires local `RttSample` import + quoted-annotation/import gates (239-02:113, 127). EXCLUDED from count. |
+| Cycle 1 — `probe()` zero-success semantics | FULLY RESOLVED | `None` is the explicit contract, no `0`/NaN/raise fallback; tests cover empty/all-fail (239-02:45, 117, 171). EXCLUDED from count. |
+| Cycle 1/2 — SAFE-17 intra-file under-checking (H3 original) | FULLY RESOLVED | Plan 03 has Layer 1 path allowlist, Layer 2 protected-body guard, Layer 3 full allowed-shape guard; protects RTTSnapshot, `RTTMeasurement.__init__`, hot-path methods, `WANController.measure_rtt`, module statements, and all pre-existing nodes (239-03:51, 86, 136). EXCLUDED from count. |
+| Cycle 2 — H1 forward-annotation import-time eval | FULLY RESOLVED | Plan 02 mandates `-> "RttSample \| None"`, rejects the bare form unless postponed annotations present, adds import-clean subprocess coverage (239-02:47, 128, 172). EXCLUDED from count. |
+| Cycle 3 — Layer-3 container-class whole-segment contradiction | FULLY RESOLVED | Plan 03 now explicitly does NOT compare the whole `RTTMeasurement` `ClassDef`; it compares header/decorators/bases + class-level statements + each pre-existing child method individually, allowing only `RTTMeasurement.probe` (239-03:55, 137, 145). Positive helper test covers the legitimate "same class plus one added method" case and asserts failure on pre-existing-child drift (239-03:230, 244). EXCLUDED from count. |
 
 **Strengths**
 
-- H1 is now enforced by prose, grep gates, both-import-order checks, and a subprocess import test.
-- SAFE-17 has the right conceptual shape: path allowlist (Layer 1) + protected-body guard
-  (Layer 2) + full allowed-diff-shape guard (Layer 3).
-- Negative tests are tree-safe via disposable detached worktrees with inline git identity — the
+- The cycle-3 fix is encoded as a first-class, importable, pure allowed-shape helper, making the
+  exact container-class-plus-one-method case unit-testable in isolation so the false-positive cannot
+  recur (239-03:145).
+- The positive unit test asserts BOTH directions: PASS on the legitimate `probe()`-only addition and
+  FAIL on pre-existing-child drift (239-03:244, 255).
+- SAFE-17 retains the correct three-layer shape: path allowlist (Layer 1) + protected-body guard
+  (Layer 2) + full allowed-diff-shape guard (Layer 3), all fail-closed and gating `passed:true`.
+- The dead `from __future__` exception was removed, keeping the module-level statement set strictly
+  unchanged and Layer 3 maximally strict (239-03:142).
+- Negative tests remain tree-safe via disposable detached worktrees with inline git identity — the
   correct approach for a 50ms production codebase.
-- Runtime behavior is untouched: no consumer rewiring, no `_cached` retyping, no `wan_controller.py`
-  edit; the publish boundary stays byte-identical.
-- Evidence JSON `passed:true` is gated on ALL THREE verifier layers passing.
+- Runtime behavior is untouched: additive `probe()` only, no consumer rewiring, publish boundary
+  byte-identical.
 
 **Concerns**
 
-- **HIGH (NEW, H3 mechanical): Layer 3 cannot pass as written.** The pre-existing `RTTMeasurement`
-  `ClassDef` source segment necessarily differs once `RTTMeasurement.probe` is added, yet line 138
-  requires every pre-existing node — including classes — to be byte-identical to v1.52. Line 129
-  records the ClassDef as a comparable qualname, and line 137 separately allows the new method, so
-  the spec self-contradicts: it forbids the container class from changing while permitting a new
-  method inside it. This blocks the phase verifier or pressures the executor to weaken the guard.
-  See 239-03:129, 239-03:137, 239-03:138.
-- **MEDIUM:** Plan 03 still carries a one-off module-level `from __future__ import annotations`
-  exception (239-03:139) while its own binding ALLOWED-SHAPE text says only `probe()` is allowed
-  and the module-level statement set is unchanged (239-03:59). Since H1 now MANDATES the quoted
-  annotation (no module-level change), this fallback is dead and should be removed so Layer 3 stays
-  maximally strict and unambiguous.
-- **LOW:** "Byte-identical" via `ast.get_source_segment` is behaviorally adequate but will not catch
-  every comment-only / formatting-only drift outside AST statement spans. Acceptable, but the
-  wording should avoid overclaiming raw whole-file byte identity.
-
-**Suggestions**
-
-- Fix Layer 3 by NOT comparing the full source segment of container classes that have allowed child
-  additions. For `RTTMeasurement`, compare the class decorators/header/bases plus the class-level
-  non-function statements, then compare every pre-existing CHILD node (each method) byte-for-byte
-  individually. Keep full `ClassDef` source-segment equality only for classes with NO allowed child
-  additions (RTTSnapshot, RTTCycleStatus, BackgroundRTTThread).
-- Remove the `from __future__ import annotations` exception from Plan 03 (239-03:139) and add a
-  negative test for an unexpected module-level import.
-- Add ONE positive unit test for the allowed-shape helper against a synthetic "old class plus one
-  added method" fixture so this exact false-positive (container-class segment mismatch) cannot recur.
+- **LOW:** The positive helper test explicitly requires a pre-existing-child drift failure case but
+  does not separately require synthetic failure cases for `RTTMeasurement` class-header drift or
+  class-level non-function statement drift. The verifier spec requires those checks (239-03:139), so
+  this is not a HIGH — the behavior is specified and the CLI path exercises it — but adding two small
+  in-memory cases would further lock down the cycle-3 fix. See 239-03:139, 239-03:244.
 
 **Risk Assessment**
 
-**HIGH as written** — for plan completion, not runtime behavior. H1 is closed. The H3 design is
-directionally right and closes the original under-checking gap, but the core verifier specification
-currently rejects the intended allowed change (the additive `probe()` method) because of the
-container-class source-segment comparison. After fixing the parent-class comparison rule (compare
-header + class-level statements + per-child nodes, not the whole class segment) and removing the
-dead future-import exception, residual risk drops to LOW.
+**LOW.** H1 is closed. The cycle-3 Layer-3 container-class contradiction is resolved: the by-parts
+comparison permits the additive `probe()` method while holding every pre-existing child, the class
+header, and class-level statements byte-identical, and the positive helper test proves the legitimate
+shape is accepted. No new HIGH-severity defect was introduced by the fix. Residual risk is a single
+LOW (optional extra synthetic test cases) that does not block phase completion or affect runtime.
 
 ---
 
@@ -116,23 +98,22 @@ dead future-import exception, residual risk drops to LOW.
 Single external reviewer this cycle (Codex; Claude skipped for independence). Findings are Codex's,
 verified against the actual plan text by the orchestrator.
 
-### Prior-HIGH Resolution Status (cycle 2 → cycle 3)
+### Prior-HIGH Resolution Status (cycle 3 → cycle 4)
 
-| Cycle-2 HIGH | Cycle-3 Disposition | Mechanism |
+| Cycle-3 HIGH | Cycle-4 Disposition | Mechanism |
 |--------------|---------------------|-----------|
-| Forward-annotation import-time eval (H1) | FULLY RESOLVED | Quoted `-> "RttSample \| None"` mandated (239-02:113), grep gate for quoted form (239-02:128), bare form rejected (239-02:129), `test_rtt_measurement_imports_clean` subprocess import test (239-02:154,172). Real verification mechanism. EXCLUDED from count. |
-| SAFE-17 allowed-diff-shape gap (H3) | PARTIALLY RESOLVED | Original under-checking gap closed (protected set expanded to RTTSnapshot + `__init__`; Layer-3 qualname-set + per-node byte-identity + module-statement checks; three new drift negative tests). BUT the fix introduces a new mechanical self-contradiction (container-class segment vs allowed child addition) that blocks the intended edit. COUNTED as one unresolved HIGH. |
+| Layer-3 container-class source-segment contradiction | FULLY RESOLVED | Plan 03 compares `RTTMeasurement` BY PARTS — header/decorators/bases + class-level statements + each pre-existing child method individually — permitting only the additive `probe()` (239-03:18, 55, 59, 138-145). Importable pure helper + positive unit test asserting PASS on `probe()`-only addition and FAIL on pre-existing-child drift (239-03:145, 230, 244, 255). EXCLUDED from count. |
+
+### Agreed Strengths
+
+- The cycle-3 contradiction is resolved by the by-parts container comparison, made unit-testable via
+  an importable pure helper.
+- Three-layer fail-closed SAFE-17 invariant preserved; `passed:true` requires all three layers.
+- Tree-safe negative tests; runtime publish boundary byte-identical.
 
 ### Agreed Concerns (carried forward as unresolved HIGH)
 
-1. **Layer-3 container-class source-segment contradiction (HIGH)** — Plan 03 records each
-   `ClassDef` as a comparable qualname (239-03:129) and requires every pre-existing node including
-   classes to be byte-identical to v1.52 (239-03:138), while simultaneously allowing the additive
-   `RTTMeasurement.probe` method inside the `RTTMeasurement` class (239-03:137). The enclosing
-   class's source segment cannot remain byte-identical while gaining a method, so the verifier as
-   specified rejects the one change it must permit. Fix: for container classes with an allowed child
-   addition, compare class header/decorators/bases + class-level non-function statements + each
-   pre-existing child node individually, instead of the whole-class source segment.
+None. Zero unresolved HIGHs this cycle.
 
 ### Divergent Views
 
@@ -140,11 +121,10 @@ None — single external reviewer this cycle.
 
 ### Orchestrator Note on Counting
 
-- H1 is FULLY RESOLVED (quoted-annotation mandate + grep gates + import-clean test) and is EXCLUDED.
-- H3's PARTIALLY-RESOLVED disposition and Codex's single NEW HIGH (Layer-3 container-class
-  contradiction) are the SAME finding — the partial status is *because of* that one mechanical
-  defect — so it is counted ONCE.
-- Net unresolved HIGH this cycle = **1** (the Layer-3 container-class source-segment contradiction).
-- Note: the original cycle-2 H3 gap (under-checking of unprotected surfaces — RTTSnapshot fields,
-  `__init__`, module constants) IS closed; the surviving HIGH is a *different* defect (over-strict
-  whole-class comparison) introduced by the H3 fix, not the original gap re-counted.
+- All cycle 1–2 HIGHs (circular import, zero-success, H1 import-time eval, H3 original under-checking)
+  remain FULLY RESOLVED and are EXCLUDED.
+- The sole cycle-3 HIGH (Layer-3 container-class whole-segment contradiction) is now FULLY RESOLVED
+  by the by-parts comparison + importable helper + positive/negative unit tests, verified against the
+  current plan text, and is EXCLUDED.
+- The remaining Codex finding is LOW (optional extra synthetic test cases) and is NOT counted.
+- Net unresolved HIGH this cycle = **0**.
