@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[1]
 VERIFIER = ROOT / "scripts" / "phase241-safe17-boundary-check.sh"
 BODY_DIFF = ROOT / "scripts" / "phase239-protected-body-diff.py"
