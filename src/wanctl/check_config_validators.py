@@ -9,6 +9,7 @@ KNOWN_AUTORATE_PATHS registry of valid config paths.
 import difflib
 import os
 import re
+import shutil
 import stat
 from pathlib import Path
 
@@ -26,6 +27,7 @@ from wanctl.config_validation_utils import validate_bandwidth_order, validate_th
 # This must cover ALL paths in production configs (spectrum.yaml, att.yaml)
 # to avoid false-positive "unknown key" warnings.
 _DOCSIS_SETPOINT_PATH = "continuous_monitoring.upload.setpoint_mbps"
+MEASUREMENT_BACKENDS: tuple[str, ...] = ("icmplib", "fping")
 
 KNOWN_AUTORATE_PATHS: set[str] = {
     # From BASE_SCHEMA
@@ -247,6 +249,9 @@ KNOWN_AUTORATE_PATHS: set[str] = {
     # Cycle budget warning (WANController.__init__)
     "continuous_monitoring.warning_threshold_pct",
     "continuous_monitoring.cake_stats_cadence_sec",
+    # Measurement backend selection (Phase 240, CFG-01) -- additive, inert until Phase 242
+    "measurement",
+    "measurement.backend",
     # Hysteresis suppression alert (WANController.__init__)
     "continuous_monitoring.thresholds.suppression_alert_threshold",
     # CAKE signal arbitration (Phase 193-197)
@@ -946,6 +951,68 @@ def check_deprecated_params(data: dict) -> list[CheckResult]:
     return results
 
 
+def validate_measurement_backend(data: dict) -> list[CheckResult]:
+    """Validate the optional measurement.backend enum.
+
+    Only a truly absent measurement block or absent backend sub-key is silent.
+    Present-but-malformed shapes are errors so operator typos cannot silently fall
+    back to the downstream icmplib default.
+    """
+    measurement = data.get("measurement")
+
+    if measurement is None and "measurement" not in data:
+        return []
+
+    if not isinstance(measurement, dict):
+        return [
+            CheckResult(
+                "Measurement Backend",
+                "measurement.backend",
+                Severity.ERROR,
+                "measurement must be a mapping with a backend key",
+                suggestion="Use measurement: {backend: icmplib} or measurement: {backend: fping}",
+            )
+        ]
+
+    if "backend" not in measurement:
+        return []
+
+    backend = measurement.get("backend")
+    if not isinstance(backend, str) or backend not in MEASUREMENT_BACKENDS:
+        return [
+            CheckResult(
+                "Measurement Backend",
+                "measurement.backend",
+                Severity.ERROR,
+                f"Unknown measurement.backend: {backend!r}. Must be one of: {list(MEASUREMENT_BACKENDS)}",
+                suggestion="Use 'icmplib' (default) or 'fping'",
+            )
+        ]
+
+    results = [
+        CheckResult(
+            "Measurement Backend",
+            "measurement.backend",
+            Severity.PASS,
+            f"measurement.backend: {backend}",
+        )
+    ]
+
+    if backend == "fping" and shutil.which("fping") is None:
+        results.append(
+            CheckResult(
+                "Measurement Backend",
+                "measurement.backend",
+                Severity.WARN,
+                "measurement.backend is 'fping' but fping binary not found on PATH "
+                "(validator host may differ from deploy host -- advisory only)",
+                suggestion="Install fping on the deploy host, or rely on runtime fallback",
+            )
+        )
+
+    return results
+
+
 # =============================================================================
 # VALIDATOR DISPATCHERS
 # =============================================================================
@@ -965,4 +1032,5 @@ def _run_autorate_validators(data: dict) -> list[CheckResult]:
     results.extend(check_env_vars(data))
     results.extend(check_deprecated_params(data))
     results.extend(validate_linux_cake(data))
+    results.extend(validate_measurement_backend(data))
     return results
