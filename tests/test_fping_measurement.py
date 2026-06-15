@@ -10,6 +10,9 @@ from unittest.mock import Mock, patch
 import pytest
 
 from wanctl.fping_measurement import FpingMeasurement, FpingThread
+from wanctl.reflector_scorer import ReflectorScorer
+
+FIXTURES = Path(__file__).parent / "fixtures" / "fping"
 
 
 def _backend(tmp_path: Path, **overrides: object) -> FpingMeasurement:
@@ -212,3 +215,108 @@ def test_timeout_must_be_less_than_cadence(tmp_path: Path) -> None:
             shutdown_event=threading.Event(),
             logger=logging.getLogger("test_fping_measurement"),
         )
+
+
+def test_dash_token_never_zero_from_fixture(tmp_path: Path) -> None:
+    fping = _backend(tmp_path)
+    stdout = (FIXTURES / "partial_loss.txt").read_text()
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=_completed(stdout=stdout, returncode=1)):
+        sample = fping.probe(["198.51.100.10", "198.51.100.11"])
+
+    assert sample is not None
+    assert all(value is None or value > 0.0 for value in sample.per_host_results.values())
+    assert sample.per_host_loss == {"198.51.100.10": 20.0, "198.51.100.11": 20.0}
+
+
+def test_all_fail_feeds_scorer(tmp_path: Path) -> None:
+    hosts = ["198.51.100.10", "198.51.100.11"]
+    real_scorer = ReflectorScorer(hosts, wan_name="test")
+    scorer_spy = Mock(wraps=real_scorer)
+    fping = _backend(tmp_path, scorer=scorer_spy)
+    stdout = (FIXTURES / "total_loss.txt").read_text()
+
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=_completed(stdout=stdout, returncode=1)):
+        sample = fping.probe(hosts)
+
+    assert sample is None
+    scorer_spy.record_results.assert_called_once_with({"198.51.100.10": False, "198.51.100.11": False})
+
+
+def test_unmeasured_host_not_scored_from_fixture(tmp_path: Path) -> None:
+    scorer = Mock()
+    fping = _backend(tmp_path, scorer=scorer)
+    stdout = (FIXTURES / "partial_line.txt").read_text()
+
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=_completed(stdout=stdout, returncode=1)):
+        sample = fping.probe(["198.51.100.10", "198.51.100.11"])
+
+    assert sample is not None
+    assert sample.per_host_loss["198.51.100.11"] is None
+    scorer.record_results.assert_called_once_with({"198.51.100.10": True})
+
+
+def test_exact_aggregation_1_2_3(tmp_path: Path) -> None:
+    fping = _backend(tmp_path)
+    one = "198.51.100.10 : 10.0 - - - -"
+    two = "198.51.100.10 : 10.0 - - - -\n198.51.100.11 : 20.0 - - - -"
+    three = (
+        "198.51.100.10 : 10.0 - - - -\n"
+        "198.51.100.11 : 20.0 - - - -\n"
+        "198.51.100.12 : 100.0 - - - -"
+    )
+
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=_completed(stdout=one, returncode=1)):
+        sample_one = fping.probe(["198.51.100.10"])
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=_completed(stdout=two, returncode=1)):
+        sample_two = fping.probe(["198.51.100.10", "198.51.100.11"])
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=_completed(stdout=three, returncode=1)):
+        sample_three = fping.probe(["198.51.100.10", "198.51.100.11", "198.51.100.12"])
+
+    assert sample_one is not None and sample_one.rtt_ms == 10.0
+    assert sample_two is not None and sample_two.rtt_ms == 15.0
+    assert sample_three is not None and sample_three.rtt_ms == 20.0
+
+
+def test_reply_fixture_loss_zero(tmp_path: Path) -> None:
+    fping = _backend(tmp_path)
+    stdout = (FIXTURES / "reply.txt").read_text()
+
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=_completed(stdout=stdout)):
+        sample = fping.probe(["198.51.100.10", "198.51.100.11", "198.51.100.12"])
+
+    assert sample is not None
+    assert sample.rtt_ms == 22.0
+    assert sample.per_host_loss == {
+        "198.51.100.10": 0.0,
+        "198.51.100.11": 0.0,
+        "198.51.100.12": 0.0,
+    }
+
+
+def test_banner_noise_ignored(tmp_path: Path) -> None:
+    fping = _backend(tmp_path)
+    stdout = (FIXTURES / "banner_noise.txt").read_text()
+
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=_completed(stdout=stdout, returncode=1)):
+        sample = fping.probe(["198.51.100.10", "198.51.100.11"])
+
+    assert sample is not None
+    assert sample.per_host_results == {"198.51.100.10": 12.0, "198.51.100.11": 22.5}
+    assert sample.per_host_loss == {"198.51.100.10": 0.0, "198.51.100.11": 20.0}
+
+
+def test_process_death_fixture_empty_output_returns_none(tmp_path: Path) -> None:
+    fping = _backend(tmp_path)
+    stdout = (FIXTURES / "process_death.txt").read_text()
+
+    with patch("wanctl.fping_measurement.subprocess.run", return_value=_completed(stdout=stdout, returncode=-15)):
+        assert fping.probe(["198.51.100.10"]) is None
+
+
+def test_scorer_feed_shape(tmp_path: Path) -> None:
+    fping = _backend(tmp_path)
+    parsed = fping._parse_fping(
+        (FIXTURES / "partial_loss.txt").read_text(), ["198.51.100.10", "198.51.100.11"]
+    )
+
+    assert fping._scorer_results(parsed) == {"198.51.100.10": False, "198.51.100.11": False}

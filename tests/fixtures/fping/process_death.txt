@@ -1,0 +1,1 @@
+# SYNTHETIC BOOTSTRAP fping 5.1 -C sample; Plan 03 replaces with operator-captured output.
