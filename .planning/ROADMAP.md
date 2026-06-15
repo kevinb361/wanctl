@@ -82,7 +82,9 @@
   2. The config validator rejects unknown backend values and WARNs (does not fail) when `fping` is selected but the binary is absent.
   3. All existing deployment configs validate unchanged — no migration required.
   4. SAFE-17 boundary verifier passes (additive config/validator surface only; no controller-path drift).
-**Plans**: TBD
+**Plans**: 2 plans
+  - [ ] 240-01-PLAN.md — Shared measurement.backend validator + registry wiring in both validators + unit/CFG-03 tests (CFG-01/02/03)
+  - [ ] 240-02-PLAN.md — Phase 240 SAFE-17 boundary verifier (expanded allowlist clone of 239) + regression test (SAFE-17)
 
 ### Phase 241: fping Backend (Offline) + Reflector Quality
 **Goal**: A selectable `fping` backend probes off the hot loop via one-shot subprocess bursts, binds the correct source IP, fans out across reflectors, parses real fping 5.1 output safely (loss never read as 0ms), survives subprocess stall/death, and feeds per-reflector loss into reflector-quality scoring — all proven offline against captured fixtures.
