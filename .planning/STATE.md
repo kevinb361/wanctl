@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
-status: executing
-stopped_at: Completed 239-02-PLAN.md
-last_updated: "2026-06-15T17:10:12.372Z"
+status: verifying
+stopped_at: Completed 239-03-PLAN.md
+last_updated: "2026-06-15T17:20:11.392Z"
 last_activity: 2026-06-15
 progress:
   total_phases: 9
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 6
-  percent: 11
+  completed_plans: 7
+  percent: 22
 ---
 
 # Session State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 Phase: 239 (seam-refactor-icmplibbackend-byte-identical) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-15
 
-Progress: [█████████░] 86%
+Progress: [██████████] 100%
 
 ## Active Blockers / Concerns
 
@@ -57,7 +57,7 @@ Acknowledged and deferred at v1.52 milestone close on 2026-06-14:
 
 ### v1.52-shipped-with-advisory-tech-debt
 
-- **Status:** Ready to execute
+- **Status:** Shipped with advisory tech debt
 - **Operator sign-off:** Kevin — 2026-06-14, via `/gsd-complete-milestone` audit acknowledgment and ship path.
 - **Why this is acceptable:** v1.52 audit status is `tech_debt`, not `passed`, but it found no requirement, integration, or flow blockers: 15/15 REQs, 3/3 phases, 5/5 integration seams, 5/5 E2E flows. SAFE-16 controller-path zero-diff held through closeout. Remaining items are advisory: normal deploy `eval rsync`, legacy raw watchdog docs, partial 235/237 Nyquist metadata, and Phase 236 summary metadata.
 
@@ -144,8 +144,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-15T17:09:45.839Z
-Stopped at: Completed 239-02-PLAN.md
+Last session: 2026-06-15T17:19:51.067Z
+Stopped at: Completed 239-03-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -159,6 +159,8 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Decisions (v1.53)
 
+- [239-03]: Layer 3 compares `RTTMeasurement` by header, class-level statements, and pre-existing child methods rather than whole-class source so additive `probe()` is allowed without hiding drift.
+- [239-03]: Negative SAFE-17 drift tests use disposable detached worktrees with inline git identity, allowing committed drift cases to reach verifier layers without dirtying the real tree.
 - [239-02]: Added `RTTMeasurement.probe()` as a standalone additive wrapper over `ping_hosts_with_results()`, leaving `BackgroundRTTThread._run` and `WANController.measure_rtt()` untouched.
 - [239-02]: Kept `RttSample` imported locally inside `probe()` with the quoted return annotation to preserve the acyclic import contract in a non-postponed-annotations module.
 - [239-01]: Kept the Protocol and RttSample in `src/wanctl/rtt_backend.py` without retyping or rewiring existing consumers, preserving live-path behavior for this plan.
@@ -288,3 +290,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 238 P03 | 3min continuation | 4 tasks | 3 files |
 | Phase 239 P01 | 3min | 2 tasks | 2 files |
 | Phase 239 P02 | 10min | 2 tasks | 2 files |
+| Phase 239 P03 | 6min | 3 tasks | 4 files |
