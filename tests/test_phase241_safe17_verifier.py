@@ -19,6 +19,11 @@ EVIDENCE = (
     / "safe17-boundary-241.json"
 )
 
+# Phase 241 close commit. The boundary verifier is a point-in-time gate that only
+# holds at its own phase boundary; pin the worktree here instead of HEAD so the
+# test stays green as later phases (242+) legitimately expand the allowlist.
+PHASE_CLOSE_ANCHOR = "8972b9b5"
+
 ALLOWED_SRC_PATHS = {
     "src/wanctl/rtt_backend.py",
     "src/wanctl/rtt_measurement.py",
@@ -45,7 +50,9 @@ def run(
 @pytest.fixture
 def detached_worktree(tmp_path: Path):
     worktree = tmp_path / "safe17-worktree"
-    result = run(["git", "worktree", "add", "--detach", str(worktree), "HEAD"])
+    result = run(
+        ["git", "worktree", "add", "--detach", str(worktree), PHASE_CLOSE_ANCHOR]
+    )
     assert result.returncode == 0, result.stderr
     try:
         yield worktree
@@ -78,7 +85,9 @@ def test_static_phase241_script_contract():
     assert VERIFIER.exists()
     assert os.access(VERIFIER, os.X_OK)
     assert "safe17-boundary-241.json" in text
-    assert ".planning/phases/241-fping-backend-offline-reflector-quality/evidence/" in text
+    assert (
+        ".planning/phases/241-fping-backend-offline-reflector-quality/evidence/" in text
+    )
     assert "PHASE239_CLOSE_ANCHOR" in text
     assert "PHASE240_CLOSE_ANCHOR" in text
     assert "03c82de0" in text
@@ -132,7 +141,9 @@ def test_fails_on_protected_body_drift(detached_worktree: Path):
     target.write_text(text.replace("elapsed_s = 0.0", "elapsed_s = 0.001", 1))
     commit_worktree_change(detached_worktree, "safe17 test protected body drift")
 
-    body = run([sys.executable, str(BODY_DIFF), "--anchor", "v1.52"], cwd=detached_worktree)
+    body = run(
+        [sys.executable, str(BODY_DIFF), "--anchor", "v1.52"], cwd=detached_worktree
+    )
     verifier = run(["bash", str(VERIFIER)], cwd=detached_worktree)
     assert body.returncode != 0
     assert verifier.returncode != 0
@@ -151,7 +162,9 @@ def test_fails_on_rtt_backend_drift_since_phase239(detached_worktree: Path):
 
 def test_reflector_scorer_edit_fails_closed(detached_worktree: Path):
     target = detached_worktree / "src" / "wanctl" / "reflector_scorer.py"
-    target.write_text(target.read_text() + "\n# phase241 scorer drift should fail closed\n")
+    target.write_text(
+        target.read_text() + "\n# phase241 scorer drift should fail closed\n"
+    )
     commit_worktree_change(detached_worktree, "safe17 test reflector scorer drift")
 
     result = run(["bash", str(VERIFIER)], cwd=detached_worktree)

@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[1]
 VERIFIER = ROOT / "scripts" / "phase239-safe17-boundary-check.sh"
 BODY_DIFF = ROOT / "scripts" / "phase239-protected-body-diff.py"
@@ -18,6 +17,11 @@ EVIDENCE = (
     / "evidence"
     / "safe17-boundary-239.json"
 )
+
+# Phase 239 close commit. The boundary verifier is a point-in-time gate that only
+# holds at its own phase boundary; pin the worktree here instead of HEAD so the
+# test stays green as later phases (242+) legitimately expand the allowlist.
+PHASE_CLOSE_ANCHOR = "03c82de0"
 
 
 def run(
@@ -36,7 +40,9 @@ def run(
 @pytest.fixture
 def detached_worktree(tmp_path: Path):
     worktree = tmp_path / "safe17-worktree"
-    result = run(["git", "worktree", "add", "--detach", str(worktree), "HEAD"])
+    result = run(
+        ["git", "worktree", "add", "--detach", str(worktree), PHASE_CLOSE_ANCHOR]
+    )
     assert result.returncode == 0, result.stderr
     try:
         yield worktree
@@ -63,10 +69,21 @@ def commit_worktree_change(worktree: Path, message: str) -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_verifier_passes_at_boundary():
-    result = run(["bash", str(VERIFIER)])
+def test_verifier_passes_at_boundary(detached_worktree: Path):
+    # Run against a worktree pinned at the Phase 239 close anchor (not the main
+    # tree at HEAD, which drifts as later phases land). cwd=worktree also keeps
+    # the verifier from rewriting the committed main-tree evidence JSON.
+    result = run(["bash", str(VERIFIER)], cwd=detached_worktree)
     assert result.returncode == 0, result.stderr
-    assert EVIDENCE.exists()
+    evidence = (
+        detached_worktree
+        / ".planning"
+        / "phases"
+        / "239-seam-refactor-icmplibbackend-byte-identical"
+        / "evidence"
+        / "safe17-boundary-239.json"
+    )
+    assert evidence.exists()
 
 
 def test_fails_on_out_of_allowlist_change(detached_worktree: Path):
@@ -84,7 +101,9 @@ def test_fails_on_protected_body_drift(detached_worktree: Path):
     target.write_text(text.replace("elapsed_s = 0.0", "elapsed_s = 0.001", 1))
     commit_worktree_change(detached_worktree, "safe17 test protected body drift")
 
-    body = run([sys.executable, str(BODY_DIFF), "--anchor", "v1.52"], cwd=detached_worktree)
+    body = run(
+        [sys.executable, str(BODY_DIFF), "--anchor", "v1.52"], cwd=detached_worktree
+    )
     verifier = run(["bash", str(VERIFIER)], cwd=detached_worktree)
     assert body.returncode != 0
     assert verifier.returncode != 0
@@ -110,7 +129,11 @@ def test_fails_on_init_drift(detached_worktree: Path):
     target = detached_worktree / "src" / "wanctl" / "rtt_measurement.py"
     text = target.read_text()
     target.write_text(
-        text.replace("        self.source_ip = source_ip\n", "        self.source_ip = source_ip\n        _phase239_drift = None\n", 1)
+        text.replace(
+            "        self.source_ip = source_ip\n",
+            "        self.source_ip = source_ip\n        _phase239_drift = None\n",
+            1,
+        )
     )
     commit_worktree_change(detached_worktree, "safe17 test init drift")
 
@@ -121,7 +144,13 @@ def test_fails_on_init_drift(detached_worktree: Path):
 def test_fails_on_module_constant_drift(detached_worktree: Path):
     target = detached_worktree / "src" / "wanctl" / "rtt_measurement.py"
     text = target.read_text()
-    target.write_text(text.replace(r'_RTT_PATTERN = re.compile(r"time=([0-9.]+)")', r'_RTT_PATTERN = re.compile(r"time<([0-9.]+)")', 1))
+    target.write_text(
+        text.replace(
+            r'_RTT_PATTERN = re.compile(r"time=([0-9.]+)")',
+            r'_RTT_PATTERN = re.compile(r"time<([0-9.]+)")',
+            1,
+        )
+    )
     commit_worktree_change(detached_worktree, "safe17 test module constant drift")
 
     result = run(["bash", str(VERIFIER)], cwd=detached_worktree)
@@ -140,7 +169,7 @@ def test_allowed_shape_passes_on_container_plus_added_method():
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
 
-    old_source = '''
+    old_source = """
 VALUE = 1
 
 class RTTMeasurement:
@@ -151,8 +180,8 @@ class RTTMeasurement:
 
     def ping_host(self):
         return 1
-'''
-    new_source = '''
+"""
+    new_source = """
 VALUE = 1
 
 class RTTMeasurement:
@@ -166,7 +195,7 @@ class RTTMeasurement:
 
     def probe(self):
         return None
-'''
+"""
     result = module.compare_allowed_shape(
         old_source,
         new_source,

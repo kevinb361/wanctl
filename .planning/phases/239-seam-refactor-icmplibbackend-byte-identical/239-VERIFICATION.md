@@ -1,110 +1,129 @@
 ---
 phase: 239-seam-refactor-icmplibbackend-byte-identical
-verified: 2026-06-15T17:30:54Z
+verified: 2026-06-16T00:00:00Z
 status: passed
-score: 12/12 must-haves verified
+score: 5/5 must-haves verified
 overrides_applied: 0
+re_verification:
+  previous_status: passed
+  previous_score: 12/12
+  note: >-
+    Prior report (2026-06-15T17:30:54Z) was produced at HEAD ff787d43 (the 239
+    boundary). This backfill re-derives the 5 authoritative ROADMAP success
+    criteria against current HEAD fcc2e15b, after Phase 242 landed on top.
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
+deferred:
+  - truth: >-
+      The Phase 239 narrow SAFE-17 verifier (2-file allowlist) no longer passes
+      against current HEAD; `WANController.measure_rtt` and `__init__` have
+      drifted from v1.52, and wan_controller.py + 9 other files are now
+      out-of-allowlist relative to the 239 boundary.
+    addressed_in: "Phase 242"
+    evidence: >-
+      git blame attributes the measure_rtt/init drift to Phase 242 commits
+      b58403c1/a640e778/a2512810/4e606540 (factory wiring + fping scorer skip).
+      Phase 242 expands the SAFE-17 allowlist to include wan_controller.py and
+      its boundary evidence evidence/safe17-boundary-242.json records
+      passed:true with disallowed_paths:[]. The 239 verifier failing at HEAD is
+      the 242 boundary surfacing, not a 239 deliverable regression. The 239
+      seam files themselves (rtt_backend.py byte-identical to 239-01; the 7
+      icmplib protected bodies in rtt_measurement.py identical to v1.52) are
+      intact, and Phase 239's own boundary evidence (safe17-boundary-239.json,
+      passed:true at commit ff787d43) remains valid.
 ---
 
 # Phase 239: Seam Refactor + IcmplibBackend (Byte-Identical) Verification Report
 
-**Phase Goal:** Land the RttBackend Protocol with icmplib refactored behind it, provably byte-identical to pre-refactor; define the SAFE-17 allowlist.
-**Verified:** 2026-06-15T17:30:54Z
+**Phase Goal:** A single `RttBackend` abstraction exists with the existing icmplib measurement refactored behind it, provably behavior-identical to the pre-refactor default so any later regression is unambiguously attributable to a backend, not the seam.
+**Verified:** 2026-06-16 (backfill against HEAD fcc2e15b)
 **Status:** passed
-**Re-verification:** No — initial verification
+**Re-verification:** Yes — backfill re-derive of ROADMAP success criteria against current HEAD (prior report was at the 239 boundary HEAD ff787d43)
 
 ## Goal Achievement
 
-### Observable Truths
+### Observable Truths (ROADMAP Success Criteria — authoritative)
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | A single `RttBackend` Protocol exists and is the seam for icmplib without introducing a second silo. | ✓ VERIFIED | `src/wanctl/rtt_backend.py:19-33` defines one `@runtime_checkable class RttBackend(Protocol)` with `probe() -> "RttSample \| None"`. `src/wanctl/rtt_measurement.py:325-359` adds `RTTMeasurement.probe()`, so existing `RTTMeasurement` structurally conforms; no `IcmplibBackend` parallel class was introduced. |
-| 2 | Phase 239 does not claim consumer rewiring; steering and autorate continue holding concrete `RTTMeasurement` while it now conforms structurally. | ✓ VERIFIED | `grep` found `RTTMeasurement(` construction in `src/wanctl/autorate_continuous.py:145` and `src/wanctl/steering/daemon.py:2554`; no source consumers import `RttBackend` except the new seam/local probe import. This matches the phase constraint: SEAM-01 is structural, not a call-site rewrite. |
-| 3 | `RttBackend.probe()` contract returns `RttSample \| None`; `None` means no successful measurement and successful samples carry real RTT. | ✓ VERIFIED | Protocol signature and docstring at `rtt_backend.py:21-33`; `RTTMeasurement.probe()` returns `None` when `successful_rtts` is empty (`rtt_measurement.py:338-339`) and only constructs `RttSample` after successful RTT aggregation (`rtt_measurement.py:341-359`). Spot-check asserted `m.probe([]) is None`. |
-| 4 | `RttSample` is a strict superset of `RTTSnapshot` with backend/source/loss metadata and percent loss units. | ✓ VERIFIED | `rtt_backend.py:36-54` defines frozen+slots `RttSample`; first six fields match `RTTSnapshot`, then `backend`, `source_ip`, `per_host_loss`. Docstring fixes percent units (`0.0` to `100.0`) at lines 40-43. Spot-check asserted dataclass field order and strict superset. |
-| 5 | `RttSample.to_snapshot()` returns a byte-equal legacy snapshot subset. | ✓ VERIFIED | `rtt_backend.py:56-67` constructs `RTTSnapshot` with only the six legacy fields. `tests/test_rtt_backend.py:44-71` asserts frozen-dataclass equality to a hand-built `RTTSnapshot`; independent spot-check repeated this assertion. |
-| 6 | IRTT adapter seam exists while live IRTT migration remains deferred/unwired. | ✓ VERIFIED | `sample_from_irtt_result()` maps `IRTTResult` to `RttSample` at `rtt_backend.py:70-91`; `IrttRttBackend.probe()` intentionally raises `NotImplementedError("IRTT-MIG-01")` at lines 94-99. `tests/test_rtt_backend.py:74-108` covers both mapping and deferral. |
-| 7 | Imports are acyclic by design. | ✓ VERIFIED | `rtt_backend.py` imports `RTTSnapshot` only under `TYPE_CHECKING` (`lines 14-16`) and locally in `to_snapshot()` (`line 58`). `rtt_measurement.py` imports `RttSample` only locally inside `probe()` (`line 326`) and uses the quoted return annotation at `line 325`. `tests/test_rtt_backend.py:111-124` verifies both import orders. |
-| 8 | icmplib-default RTT behavior is byte-identical to pre-refactor. | ✓ VERIFIED | `scripts/phase239-protected-body-diff.py --anchor v1.52 --json` reported all protected bodies identical, including `RTTSnapshot`, `RTTMeasurement.__init__`, `ping_host`, `_aggregate_rtts`, `ping_hosts_with_results`, `BackgroundRTTThread._run`, `_ping_with_persistent_pool`, and `WANController.measure_rtt`. Hot-path slice passed: `673 passed in 41.07s`. |
-| 9 | `BackgroundRTTThread` still publishes `RTTSnapshot`, not `RttSample`. | ✓ VERIFIED | `src/wanctl/rtt_measurement.py:541-548` still assigns `self._cached = RTTSnapshot(...)`; protected-body verifier confirms `_run` is byte-identical to `v1.52`. |
-| 10 | SAFE-17 allowlist verifier exists and fails closed around the Phase 239 allowed source shape. | ✓ VERIFIED | `scripts/phase239-safe17-boundary-check.sh` defines `V153_ALLOWLIST_RE='^src/wanctl/(rtt_backend\.py\|rtt_measurement\.py)$'` and invokes `phase239-protected-body-diff.py` before emitting pass evidence. `tests/test_phase239_safe17_verifier.py` contains eight pass/fail-closed tests. |
-| 11 | SAFE-17 evidence exists and records `passed:true`. | ✓ VERIFIED | `.planning/phases/239-seam-refactor-icmplibbackend-byte-identical/evidence/safe17-boundary-239.json` has `passed: true`, changed paths only `src/wanctl/rtt_backend.py` and `src/wanctl/rtt_measurement.py`, `all_identical: true`, `allowed_shape_ok: true`, and `shape.added_qualnames == ["RTTMeasurement.probe"]`. |
-| 12 | Code review artifact exists and is clean. | ✓ VERIFIED | `239-REVIEW.md` exists; frontmatter records `status: clean`, `findings.critical: 0`, `warning: 0`, `info: 0`, `total: 0`, and lists all seven phase implementation/test files reviewed. |
+| 1 | A single `RttBackend` Protocol is consumed by both steering and autorate, with the existing icmplib path refactored behind it (no second silo introduced). | ✓ VERIFIED | One `@runtime_checkable class RttBackend(Protocol)` at `src/wanctl/rtt_backend.py:19-33` with `probe(hosts) -> "RttSample \| None"`. `RTTMeasurement.probe()` (`src/wanctl/rtt_measurement.py:325-359`) makes the existing icmplib class structurally conform — no parallel `IcmplibBackend` silo. The single seam is consumed via `rtt_backend_factory.py:34,94` (`backend: RttBackend`), which both autorate (`autorate_continuous.py:38` imports `build_rtt_backend`) and steering use through the shared factory landed in Phase 242. At the 239 boundary the conformance was structural; the factory consumer wiring is the natural downstream consumption of the same single protocol — no second silo at any point. |
+| 2 | icmplib-default RTT behavior is byte-identical to pre-refactor, proven by the hot-path test slice plus snapshot equivalence. | ✓ VERIFIED | `scripts/phase239-protected-body-diff.py --anchor v1.52` reports all 7 icmplib protected bodies identical to v1.52: `RTTSnapshot`, `RTTMeasurement.__init__`, `ping_host`, `_aggregate_rtts`, `ping_hosts_with_results`, `BackgroundRTTThread._run`, `_ping_with_persistent_pool` (PASS each). `rtt_backend.py` is byte-identical to its 239-01 commit (`git diff 1df1aeb4 HEAD` empty). Snapshot-equivalence test `tests/test_rtt_backend.py` asserts `RttSample.to_snapshot()` equals a hand-built `RTTSnapshot`. Hot-path slice (`tests/test_cake_signal.py tests/test_queue_controller.py tests/test_wan_controller.py tests/test_health_check.py`) ran clean: **678 passed**. (The verifier's 8th protected node, `WANController.measure_rtt`, now shows drift — attributed to Phase 242, see Deferred.) |
+| 3 | RTT samples carry backend / source-IP / loss metadata (`RttSample` as a strict superset of `RTTSnapshot`) without breaking `WANController.measure_rtt()`, the scorer, or other existing consumers. | ✓ VERIFIED | `RttSample` (`rtt_backend.py:36-54`, frozen+slots) — first six fields (`rtt_ms, per_host_results, timestamp, measurement_ms, active_hosts, successful_hosts`) match `RTTSnapshot` (`rtt_measurement.py:101-106`) in order and type, then adds `backend`, `source_ip`, `per_host_loss` (documented 0.0–100.0 percent). `BackgroundRTTThread` still publishes `RTTSnapshot`, not `RttSample`. `measure_rtt` and the reflector scorer remain functional — `test_wan_controller.py` is part of the 678-pass hot-path slice; the scorer `record_results` consumer (`wan_controller.py:1196+`) still operates on `snapshot.per_host_results`. |
+| 4 | The abstraction is shaped to absorb the existing IRTT path (adapter seam present), with full IRTT migration explicitly deferred. | ✓ VERIFIED | Pure mapper `sample_from_irtt_result(IRTTResult) -> RttSample` at `rtt_backend.py:70-91` (loss = max(send, receive), no I/O). `IrttRttBackend.probe()` at `rtt_backend.py:94-99` intentionally `raise NotImplementedError("IRTT-MIG-01")` — adapter seam present, live migration deferred. Covered by `tests/test_rtt_backend.py`. |
+| 5 | The narrowed SAFE-17 allowlist is defined and the fail-closed source-diff verifier runs at the phase boundary, proving no out-of-allowlist controller-path drift. | ✓ VERIFIED (at 239 boundary) | `scripts/phase239-safe17-boundary-check.sh:15` defines the narrowed allowlist `V153_ALLOWLIST_RE='^src/wanctl/(rtt_backend\.py\|rtt_measurement\.py)$'`, fails closed on out-of-allowlist paths (`:224-227`), invokes the AST protected-body helper, and emits evidence. Phase-boundary evidence `evidence/safe17-boundary-239.json`: `passed:true`, `all_identical:true`, `allowed_shape_ok:true`, `changed_paths` = only the two seam files, `disallowed_paths:[]`, `added_qualnames:["RTTMeasurement.probe"]`, anchored at v1.52 (`anchor_sha 69f39db1…`, matches the annotated-tag deref), head_commit `ff787d43` (the 239 boundary). The verifier rerun at *current* HEAD reports drift — that is Phase 242 surfacing, see Deferred items. |
 
-**Score:** 12/12 truths verified
+**Score:** 5/5 truths verified
+
+### Deferred Items
+
+Items observed at current HEAD that are owned by a later milestone phase, not Phase 239 deliverables.
+
+| # | Item | Addressed In | Evidence |
+|---|------|--------------|----------|
+| 1 | `phase239-safe17-boundary-check.sh` fails at HEAD; `WANController.measure_rtt`/`__init__` drift from v1.52; wan_controller.py + 9 files out-of-allowlist vs the 239 narrow allowlist. `tests/test_phase239_safe17_verifier.py::test_verifier_passes_at_boundary` fails for the same reason. | Phase 242 | Drift attributed to Phase 242 commits (`b58403c1` factory fallback, `a640e778` wire call sites, `a2512810` fallback health signal, `4e606540` skip fping scorer). Phase 242's allowlist expands to include `wan_controller.py` (+9); `evidence/safe17-boundary-242.json` records `passed:true`, `disallowed_paths:[]`. Phase 239's own seam files are intact (rtt_backend.py byte-identical to 239-01; 7 icmplib protected bodies identical to v1.52), and 239's own boundary evidence at commit ff787d43 is valid. |
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |---|---|---|---|
-| `src/wanctl/rtt_backend.py` | `RttBackend` Protocol, `RttSample`, IRTT mapping helper, unwired adapter | ✓ VERIFIED | 99 lines; defines protocol, frozen+slots sample, percent-loss docs, local `to_snapshot()` import, `sample_from_irtt_result()`, and `IrttRttBackend`. |
-| `src/wanctl/rtt_measurement.py` | Additive `RTTMeasurement.probe()` with quoted annotation and local import | ✓ VERIFIED | `probe()` at lines 325-359; local `RttSample` import at line 326; zero-success returns `None`; existing publish boundary remains `RTTSnapshot`. |
-| `tests/test_rtt_backend.py` | Seam conformance/superset/snapshot/IRTT/import tests | ✓ VERIFIED | Six tests present; `pytest tests/test_rtt_backend.py tests/test_rtt_measurement.py -q` passed as part of 73-test focused run. |
-| `tests/test_rtt_measurement.py` | Probe empty/all-fail/partial/aggregation/source/import tests | ✓ VERIFIED | Six named probe/import tests found at lines 104, 108, 118, 142, 161, 176. |
-| `scripts/phase239-protected-body-diff.py` | AST protected-body + allowed-diff-shape verifier | ✓ VERIFIED | Expanded `PROTECTED` set includes `RTTSnapshot`, `RTTMeasurement.__init__`, hot-path bodies, and `WANController.measure_rtt`; CLI returned all-identical/shape OK. |
-| `scripts/phase239-safe17-boundary-check.sh` | Fail-closed SAFE-17 boundary verifier | ✓ VERIFIED | `bash -n` passed; script has dirty-tree precheck, v1.52 anchor, output confinement, two-file allowlist, and helper gate before evidence pass. |
-| `tests/test_phase239_safe17_verifier.py` | Tree-safe positive/negative tests for verifier | ✓ VERIFIED | `8 passed in 15.97s`; tests cover out-of-allowlist, protected-body, RTTSnapshot, init, module-constant, unresolved-anchor, and allowed-shape cases. |
-| `evidence/safe17-boundary-239.json` | Phase-boundary SAFE-17 evidence | ✓ VERIFIED | `passed:true`, `dirty_tree_clean:true`, no disallowed paths, all protected bodies identical, allowed shape only adds `RTTMeasurement.probe`. |
-| `239-REVIEW.md` | Clean code-review artifact | ✓ VERIFIED | `status: clean`; zero findings. |
+| `src/wanctl/rtt_backend.py` | `RttBackend` Protocol, `RttSample` superset, IRTT mapper, deferred adapter | ✓ VERIFIED | 99 lines; protocol (`:19-33`), frozen+slots sample (`:36-54`), `to_snapshot()` (`:56-67`), `sample_from_irtt_result()` (`:70-91`), `IrttRttBackend` raising IRTT-MIG-01 (`:94-99`). Byte-identical to 239-01 commit. |
+| `src/wanctl/rtt_measurement.py` | Additive `RTTMeasurement.probe()`; legacy bodies untouched | ✓ VERIFIED | `probe()` `:325-359`, local `RttSample` import `:326`, returns `None` on zero success `:338-339`. 7 icmplib protected bodies identical to v1.52. |
+| `scripts/phase239-protected-body-diff.py` | AST protected-body + allowed-shape verifier | ✓ VERIFIED | Run at HEAD: 7 icmplib bodies PASS, allowed-shape PASS (`added_qualnames:["RTTMeasurement.probe"]`). 8th node (`measure_rtt`) FAIL — Phase 242 drift (deferred). |
+| `scripts/phase239-safe17-boundary-check.sh` | Fail-closed narrowed-allowlist boundary verifier | ✓ VERIFIED | Narrow 2-file allowlist (`:15`), fail-closed on disallowed paths (`:224-227`), v1.52 anchor, helper gate before evidence. |
+| `tests/test_rtt_backend.py` | Conformance/superset/snapshot/IRTT/import tests | ✓ VERIFIED | Pass within the seam test run (part of 80 passed). |
+| `tests/test_rtt_measurement.py` | probe empty/all-fail/partial/aggregation/source/import tests | ✓ VERIFIED | Pass within the seam test run. |
+| `tests/test_phase239_safe17_verifier.py` | Positive/negative verifier tests | ⚠️ 7/8 PASS | `test_verifier_passes_at_boundary` FAILS at HEAD because Phase 242 changes are out-of-239-allowlist (deferred — see below). 7 negative/fail-closed tests pass. |
+| `evidence/safe17-boundary-239.json` | Phase-boundary SAFE-17 evidence | ✓ VERIFIED | `passed:true`, `all_identical:true`, only 2 seam files changed, `disallowed_paths:[]`, head_commit ff787d43 (the 239 boundary). |
+| `239-REVIEW.md` | Clean code-review artifact | ✓ VERIFIED | `findings.critical:0`; 7 files reviewed. |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |---|---|---|---|---|
-| `RttSample.to_snapshot()` | `RTTSnapshot` | Local runtime import | ✓ WIRED | `rtt_backend.py:58` imports `RTTSnapshot` inside the method only; equality test verifies exact subset coercion. |
-| `RTTMeasurement.probe()` | `RttSample` | Local runtime import | ✓ WIRED | `rtt_measurement.py:326` imports `RttSample` inside `probe()`; quoted annotation keeps module import-safe. |
-| Autorate / steering construction | `RTTMeasurement` as structural backend | Existing concrete construction | ✓ WIRED | Existing `RTTMeasurement` instances in autorate and steering remain; now `isinstance(m, RttBackend)` is true. No consumer rewiring claimed. |
-| `phase239-safe17-boundary-check.sh` | `phase239-protected-body-diff.py` | Location-resolved helper invocation | ✓ WIRED | Shell script uses `SCRIPT_DIR` and calls helper with `--json` before `passed:true`; verifier tests passed. |
-| SAFE-17 verifier | `v1.52` anchor | `git rev-parse --verify --end-of-options` + `git show` | ✓ WIRED | Helper command independently returned anchor SHA `69f39db...`, protected bodies identical, and allowed shape OK. |
-
-### Data-Flow Trace (Level 4)
-
-| Artifact | Data Variable | Source | Produces Real Data | Status |
-|---|---|---|---|---|
-| `RTTMeasurement.probe()` | `per_host_results`, `successful_rtts` | Existing `ping_hosts_with_results()` wrapper over `ping_host()` | Yes when invoked; tested with mocked per-host RTT values | ✓ FLOWING |
-| `BackgroundRTTThread._run` | `_cached: RTTSnapshot` | Existing `_ping_with_persistent_pool()` and legacy aggregation | Yes; body byte-identical to v1.52 | ✓ FLOWING |
-| `sample_from_irtt_result()` | `IRTTResult` fields | Pure function argument | Yes for adapter-shape mapping; live IRTT probe intentionally deferred | ✓ FLOWING |
-| SAFE-17 evidence | Git diff / AST verifier JSON | Shell verifier + Python helper | Yes; evidence records passed:true and detailed protected/shape data | ✓ FLOWING |
+| `RttSample.to_snapshot()` | `RTTSnapshot` | Local runtime import | ✓ WIRED | `rtt_backend.py:58` imports inside method; snapshot-equality test passes. |
+| `RTTMeasurement.probe()` | `RttSample` | Local runtime import | ✓ WIRED | `rtt_measurement.py:326` local import; quoted return annotation keeps module acyclic. |
+| `RttBackend` protocol | `rtt_backend_factory` | `backend: RttBackend` | ✓ WIRED | `rtt_backend_factory.py:34,94` — single protocol consumed by the shared factory used by both autorate and steering. No second silo. |
+| `phase239-safe17-boundary-check.sh` | `phase239-protected-body-diff.py` | SCRIPT_DIR helper invocation | ✓ WIRED | Shell gates evidence pass on helper JSON. |
+| 239 SAFE-17 verifier | v1.52 anchor | annotated-tag deref | ✓ WIRED | `v1.52` (tag) → `69f39db1…`, matching evidence anchor_sha. |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |---|---|---|---|
-| Protocol, snapshot, evidence invariants | `.venv/bin/python - <<'PY' ...` | `OK` | ✓ PASS |
-| Protected bodies and allowed shape | `.venv/bin/python scripts/phase239-protected-body-diff.py --anchor v1.52 --json` | All eight protected nodes PASS; allowed-shape PASS | ✓ PASS |
-| RTT seam and measurement tests | `.venv/bin/pytest -o addopts='' tests/test_rtt_backend.py tests/test_rtt_measurement.py -q` | `73 passed in 20.84s` | ✓ PASS |
-| SAFE-17 verifier syntax/tests | `bash -n scripts/phase239-safe17-boundary-check.sh && .venv/bin/pytest -o addopts='' tests/test_phase239_safe17_verifier.py -q` | `8 passed in 15.97s` | ✓ PASS |
-| Hot-path byte-identity slice | `.venv/bin/pytest -o addopts='' tests/test_cake_signal.py tests/test_queue_controller.py tests/test_wan_controller.py tests/test_health_check.py -q` | `673 passed in 41.07s` | ✓ PASS |
+| icmplib protected bodies identical to v1.52 | `.venv/bin/python scripts/phase239-protected-body-diff.py --anchor v1.52 --json` | 7 icmplib bodies PASS + allowed-shape PASS; `measure_rtt` FAIL (Phase 242 drift, deferred); exit 1 | ✓ PASS (239 scope) |
+| Seam + measurement + verifier-negative tests | `.venv/bin/pytest -o addopts='' tests/test_rtt_backend.py tests/test_rtt_measurement.py tests/test_phase239_safe17_verifier.py -q` | 80 passed, 1 failed (`test_verifier_passes_at_boundary` — Phase 242 deferred) | ✓ PASS (239 scope) |
+| Hot-path byte-identity slice | `.venv/bin/pytest -o addopts='' tests/test_cake_signal.py tests/test_queue_controller.py tests/test_wan_controller.py tests/test_health_check.py -q` | 678 passed | ✓ PASS |
 
 ### Requirements Coverage
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |---|---|---|---|---|
-| SEAM-01 | Plans 01, 02 | Single `RttBackend` abstraction consumed structurally by steering and autorate; icmplib behind it | ✓ SATISFIED | One protocol in `rtt_backend.py`; `RTTMeasurement.probe()` makes existing class conform; autorate/steering still construct `RTTMeasurement`; no second silo or consumer rewrite. |
-| SEAM-02 | Plans 01, 02 | icmplib-default RTT behavior byte-identical to pre-refactor | ✓ SATISFIED | Snapshot equality test; protected-body verifier vs `v1.52`; hot-path slice `673 passed`. |
-| SEAM-03 | Plan 01 | `RttSample` strict superset carries backend/source/loss metadata without breaking consumers | ✓ SATISFIED | RttSample field order/metadata verified; `WANController.measure_rtt` protected identical; `BackgroundRTTThread._cached` remains `RTTSnapshot`. |
-| SEAM-04 | Plan 01 | Abstraction shaped to absorb IRTT; full migration deferred | ✓ SATISFIED | Pure `sample_from_irtt_result()` maps `IRTTResult`; `IrttRttBackend.probe()` raises `IRTT-MIG-01`; tests cover both. |
-| SAFE-17 | Plan 03 | Fail-closed source-diff verifier and phase-boundary evidence | ✓ SATISFIED | `phase239-safe17-boundary-check.sh`, helper, negative tests, and JSON evidence with `passed:true`. |
+| SEAM-01 | 239-01, 239-02 | Single `RttBackend` consumed by steering+autorate; icmplib behind it | ✓ SATISFIED | One protocol; `RTTMeasurement.probe()` conforms; factory consumes the single protocol; no second silo. |
+| SEAM-02 | 239-01, 239-02 | icmplib-default byte-identical | ✓ SATISFIED | 7 icmplib bodies identical to v1.52; snapshot-equality; 678-pass hot-path slice. |
+| SEAM-03 | 239-01 | `RttSample` strict superset, no consumer break | ✓ SATISFIED | Field-order superset; `BackgroundRTTThread` still emits `RTTSnapshot`; scorer/measure_rtt still pass. |
+| SEAM-04 | 239-01 | IRTT adapter seam, migration deferred | ✓ SATISFIED | `sample_from_irtt_result()` + `IrttRttBackend` raising IRTT-MIG-01. |
+| SAFE-17 | 239-03 | Fail-closed narrowed-allowlist boundary verifier + evidence | ✓ SATISFIED (at 239 boundary) | Narrow 2-file allowlist verifier + `safe17-boundary-239.json` passed:true at commit ff787d43. Later drift owned by Phase 242 (its allowlist + evidence). |
 
-**Orphaned requirement check:** Phase 239 roadmap lists SEAM-01, SEAM-02, SEAM-03, SEAM-04, SAFE-17. All five appear in plan frontmatter and are verified above. REQUIREMENTS.md traceability also maps SEAM-01..04 to Phase 239 and SAFE-17 as cross-phase/complete. None orphaned.
+**Orphaned requirement check:** ROADMAP Phase 239 lists SEAM-01..04 + SAFE-17. All five present in plan frontmatter and verified. None orphaned.
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |---|---:|---|---|---|
-| `src/wanctl/rtt_backend.py` | 94-99 | `IrttRttBackend.probe()` raises `NotImplementedError("IRTT-MIG-01")` | ℹ️ Info | Intentional and required: full IRTT migration is deferred while pure mapping proves the adapter seam. Not a blocker. |
-| — | — | TODO/FIXME/placeholder/empty implementation scan on phase source/scripts | ℹ️ Info | No blocker anti-patterns found in verifier scripts or seam code. |
+| `src/wanctl/rtt_backend.py` | 99 | `IrttRttBackend.probe()` raises `NotImplementedError("IRTT-MIG-01")` | ℹ️ Info | Intentional deferred-migration seam (SEAM-04). Marker references formal follow-up ID `IRTT-MIG-01` — not an unreferenced debt marker. Not a blocker. |
 
 ### Human Verification Required
 
-None. This phase is offline/code-verifier scoped; all must-haves are deterministically checkable through source inspection, AST diff verification, JSON evidence, and test commands. No visual, live-network, or external-service behavior is required for Phase 239.
+None. Phase 239 is offline/code-verifier scoped; all truths are deterministically checkable via source inspection, AST protected-body diff vs v1.52, JSON evidence, and the test slices run above. No visual, live-network, or external-service behavior required.
 
 ### Gaps Summary
 
-No gaps. Phase 239 achieved the seam goal conservatively: the new protocol/value seam exists, icmplib is structurally behind it via `RTTMeasurement.probe()`, live consumers were not rewired, legacy behavior is protected by snapshot equality plus hot-path/protected-body checks, and SAFE-17 evidence records a passing boundary with only the intended source deltas.
+No gaps against Phase 239's deliverable. The single `RttBackend` protocol exists with icmplib refactored behind it via the additive `RTTMeasurement.probe()`; the 7 icmplib hot-path bodies are byte-identical to v1.52 and `rtt_backend.py` is byte-identical to its 239-01 commit; `RttSample` is a strict superset with backend/source/loss metadata while `BackgroundRTTThread` keeps publishing `RTTSnapshot`; the IRTT adapter seam is present and explicitly deferred; and the narrowed fail-closed SAFE-17 verifier produced passing phase-boundary evidence at the 239 commit.
+
+The only at-HEAD anomaly — the 239 SAFE-17 verifier and `test_verifier_passes_at_boundary` now failing because `WANController.measure_rtt`/`__init__` (and 10 files total) are out-of-allowlist vs the 239 narrow allowlist — is fully attributable to Phase 242 (factory wiring + fping scorer skip), which intentionally expands the allowlist and carries its own passing boundary evidence (`safe17-boundary-242.json`, passed:true). This is later-phase progression, not a Phase 239 regression, and is recorded as a deferred item rather than a gap.
 
 ---
 
-_Verified: 2026-06-15T17:30:54Z_
-_Verifier: the agent (gsd-verifier)_
+_Verified: 2026-06-16 (backfill)_
+_Verifier: Claude (gsd-verifier)_

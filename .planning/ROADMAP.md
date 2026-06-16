@@ -32,10 +32,10 @@
 **Dependency spine (researcher-converged):** provenance gate (238) → seam refactor behind icmplib, byte-identical (239) → config+validator (240) → fping backend offline + reflector-quality touch (241) → factory+fallback (242) → cycle-budget benchmark hard gate under real systemd (243) → additive health attribution metadata (244) → live A/B + rollback anchor (245) → conditional default flip / closeout (246). Phases 240 (config) and 241 (fping) may overlap after the seam (239) lands.
 
 - [x] **Phase 238: RTT-Provenance Verification (Read-Only Entry Gate)** — Map which producer feeds live steering RTT; select and record the A/B target with evidence; no code changes. ✅ verified 2026-06-15 (4/4 truths; PROV-01/02/03 + SAFE-17; Selection A ratified)
-- [ ] **Phase 239: Seam Refactor + IcmplibBackend (Byte-Identical)** — Land the `RttBackend` Protocol with icmplib refactored behind it, provably byte-identical to pre-refactor; define the SAFE-17 allowlist.
-- [x] **Phase 240: Config + Validator** — Additive `measurement.backend` per WAN/consumer; validator allow-list; absent key resolves to icmplib; all existing configs validate unchanged. ✅ ready for verification 2026-06-15 (2/2 plans; CFG-01/02/03 + SAFE-17)
-- [ ] **Phase 241: fping Backend (Offline) + Reflector Quality** — One-shot subprocess fping backend with `-S` binding, multi-reflector fanout, robust loss-safe parser from captured 5.1 samples, stall/death handling, and per-reflector loss feeding reflector scoring.
-- [ ] **Phase 242: Backend Factory + Loud Fallback** — `build_rtt_backend()` centralizing construction with automatic, loud, observable icmplib fallback when fping is absent.
+- [x] **Phase 239: Seam Refactor + IcmplibBackend (Byte-Identical)** — Land the `RttBackend` Protocol with icmplib refactored behind it, provably byte-identical to pre-refactor; define the SAFE-17 allowlist. ✅ verified 2026-06-16 (5/5 truths; SEAM-01..04 + SAFE-17; icmplib byte-identical proven)
+- [x] **Phase 240: Config + Validator** — Additive `measurement.backend` per WAN/consumer; validator allow-list; absent key resolves to icmplib; all existing configs validate unchanged. ✅ verified 2026-06-16 (4/4 truths; CFG-01/02/03 + SAFE-17)
+- [x] **Phase 241: fping Backend (Offline) + Reflector Quality** — One-shot subprocess fping backend with `-S` binding, multi-reflector fanout, robust loss-safe parser from captured 5.1 samples, stall/death handling, and per-reflector loss feeding reflector scoring. ✅ verified 2026-06-16 (5/5 truths; FPING-01..05 + REFL-01 + SAFE-17)
+- [x] **Phase 242: Backend Factory + Loud Fallback** — `build_rtt_backend()` centralizing construction with automatic, loud, observable icmplib fallback when fping is absent. ✅ verified 2026-06-16 (12/12 truths; FALL-01/02 + SAFE-17; WR-01 reflector-scorer gap closed by 242-05, re-verified)
 - [ ] **Phase 243: Cycle-Budget Benchmark Gate** — Pre-registered idle+load cycle-budget/CPU benchmark under a real systemd unit; hard no-regression gate that blocks the live A/B.
 - [ ] **Phase 244: Health-Payload Attribution Metadata** — Additively expose `measurement.backend` / `source_ip` in `/health` (existing contract byte-preserved) so every A/B sample is attributable.
 - [ ] **Phase 245: Live A/B + Rollback Anchor** — Pre-registered live A/B (icmplib vs fping) on the Phase-238-selected target, one WAN under test, concurrent/interleaved, under a Snapshot-A rollback anchor; verdict computed against pre-committed thresholds.
@@ -117,7 +117,7 @@
   - [x] 242-02-PLAN.md — build_rtt_backend() factory module: resolution + construction-time loud fallback + (backend, thread) bundle
   - [x] 242-03-PLAN.md — Collapse both call sites to the factory (+ steering source_ip, D-01a); thread additive /health fallback signal through the producer
   - [x] 242-04-PLAN.md — SAFE-17 boundary gate: zero out-of-allowlist drift + byte-identical protected bodies + full-suite/hot-path green
-  - [ ] 242-05-PLAN.md — Gap closure: preserve fping attribution, skip reflector scorer updates for fping background samples, and refresh SAFE-17 evidence
+  - [x] 242-05-PLAN.md — Gap closure: preserve fping attribution, skip reflector scorer updates for fping background samples, and refresh SAFE-17 evidence
 
 ### Phase 243: Cycle-Budget Benchmark Gate
 **Goal**: A pre-registered, committed-before-the-run benchmark proves fping introduces no 50ms cycle-budget regression under a real systemd unit, and acts as a hard gate that blocks the live A/B on regression.
@@ -174,7 +174,7 @@
 | 239. Seam Refactor + IcmplibBackend (Byte-Identical) | v1.53 | 3/3 | Complete    | 2026-06-15 |
 | 240. Config + Validator | v1.53 | 2/2 | Complete    | 2026-06-15 |
 | 241. fping Backend (Offline) + Reflector Quality | v1.53 | 4/4 | Complete    | 2026-06-16 |
-| 242. Backend Factory + Loud Fallback | v1.53 | 4/5 | Gaps found | - |
+| 242. Backend Factory + Loud Fallback | v1.53 | 5/5 | Complete    | 2026-06-16 |
 | 243. Cycle-Budget Benchmark Gate | v1.53 | 0/TBD | Not started | - |
 | 244. Health-Payload Attribution Metadata | v1.53 | 0/TBD | Not started | - |
 | 245. Live A/B + Rollback Anchor | v1.53 | 0/TBD | Not started | - |
