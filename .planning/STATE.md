@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
 status: executing
-stopped_at: Completed 242-01-PLAN.md
-last_updated: "2026-06-16T12:36:47.550Z"
+stopped_at: Completed 242-02-PLAN.md
+last_updated: "2026-06-16T12:48:25.451Z"
 last_activity: 2026-06-16
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 17
-  completed_plans: 14
+  completed_plans: 15
   percent: 44
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 ## Current Position
 
 Phase: 242 (backend-factory-loud-fallback) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-16
 
@@ -148,8 +148,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-16T12:36:12.675Z
-Stopped at: Completed 242-01-PLAN.md
+Last session: 2026-06-16T12:48:25.420Z
+Stopped at: Completed 242-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -163,6 +163,9 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Decisions (v1.53)
 
+- [242-02]: Kept fping background-thread-only in Phase 242; controller helper paths bind to icmplib controller_measurement while fping drives only the adapted background snapshot path.
+- [242-02]: Used measurement.fping.cadence_sec for FpingThread construction instead of controller background cadence, preserving fping activity with default cadence.
+- [242-02]: Added optional WANController rtt_thread_factory seam to satisfy the committed live-path factory contract while preserving default BackgroundRTTThread behavior.
 - [242-01]: Kept factory tests intentionally RED on missing `wanctl.rtt_backend_factory` import so Plan 02 lands against fixed contracts instead of stubs.
 - [242-01]: Phase 242 SAFE-17 self-test uses a committed edit inside a detached worktree so the allowlist, not the dirty-tree gate, rejects out-of-scope controller edits.
 - [241-04]: Committed SAFE-17 evidence as the immediate next commit after verifier emission; durable freshness is `HEAD^ == evidence.head_commit`.
@@ -319,3 +322,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 241 P03 | 13min continuation | 3 tasks | 10 files |
 | Phase 241 P04 | 9min | 2 tasks | 3 files |
 | Phase 242 P01 | 7 min | 3 tasks | 3 files |
+| Phase 242 P02 | 7 min | 1 task | 4 files |
