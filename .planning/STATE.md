@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
-status: executing
-stopped_at: Completed 242-03-PLAN.md
-last_updated: "2026-06-16T13:08:49.258Z"
+status: verifying
+stopped_at: Completed 242-04-PLAN.md
+last_updated: "2026-06-16T13:50:34.071Z"
 last_activity: 2026-06-16
 progress:
   total_phases: 9
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 17
-  completed_plans: 16
-  percent: 44
+  completed_plans: 17
+  percent: 56
 ---
 
 # Session State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 Phase: 242 (backend-factory-loud-fallback) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-16
 
 Milestone progress: [████████░░░░░░░░░░░░] 4/9 phases (44%)
@@ -61,7 +61,7 @@ Acknowledged and deferred at v1.52 milestone close on 2026-06-14:
 
 ### v1.52-shipped-with-advisory-tech-debt
 
-- **Status:** Ready to execute
+- **Status:** Phase complete — ready for verification
 - **Operator sign-off:** Kevin — 2026-06-14, via `/gsd-complete-milestone` audit acknowledgment and ship path.
 - **Why this is acceptable:** v1.52 audit status is `tech_debt`, not `passed`, but it found no requirement, integration, or flow blockers: 15/15 REQs, 3/3 phases, 5/5 integration seams, 5/5 E2E flows. SAFE-16 controller-path zero-diff held through closeout. Remaining items are advisory: normal deploy `eval rsync`, legacy raw watchdog docs, partial 235/237 Nyquist metadata, and Phase 236 summary metadata.
 
@@ -148,8 +148,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-16T13:08:04.501Z
-Stopped at: Completed 242-03-PLAN.md
+Last session: 2026-06-16T13:50:34.045Z
+Stopped at: Completed 242-04-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -163,6 +163,9 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Decisions (v1.53)
 
+- [242-04]: Restored rtt_measurement.py byte-for-byte to the Phase 239 close anchor so the SAFE-17 RTT seam guard remains authoritative.
+- [242-04]: Added explicit phase241_frozen_no_new_diff evidence and asserted it directly rather than inferring Phase 241 frozen-file no-drift from pass/fail.
+- [242-04]: Preserved legacy module-level RTTMeasurement / RTTAggregationStrategy exports as test compatibility seams while preserving factory-based runtime construction.
 - [242-03]: Bound WANController.rtt_measurement to handle.controller_measurement so fping remains background-thread-only in Phase 242 while helper paths keep icmplib RTTMeasurement semantics.
 - [242-03]: Resolved steering backend and source_ip from the primary WAN autorate config via an explicit Config-like helper; steering consumption remains deferred to Phase 245.
 - [242-03]: Surfaced fallback attribution from each controller's own handle status rather than any module-global fallback state.
@@ -327,3 +330,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 242 P01 | 7 min | 3 tasks | 3 files |
 | Phase 242 P02 | 7 min | 1 task | 4 files |
 | Phase 242-backend-factory-loud-fallback P03 | 15 min | 2 tasks | 6 files |
+| Phase 242-backend-factory-loud-fallback P04 | 30 min | 1 task | 5 files |

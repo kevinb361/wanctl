@@ -116,7 +116,7 @@
   - [x] 242-01-PLAN.md — Wave 0: FALL-01/FALL-02 factory tests + /health byte-preservation + SAFE-17 boundary verifier (clone of 241, expanded allowlist)
   - [x] 242-02-PLAN.md — build_rtt_backend() factory module: resolution + construction-time loud fallback + (backend, thread) bundle
   - [x] 242-03-PLAN.md — Collapse both call sites to the factory (+ steering source_ip, D-01a); thread additive /health fallback signal through the producer
-  - [ ] 242-04-PLAN.md — SAFE-17 boundary gate: zero out-of-allowlist drift + byte-identical protected bodies + full-suite/hot-path green
+  - [x] 242-04-PLAN.md — SAFE-17 boundary gate: zero out-of-allowlist drift + byte-identical protected bodies + full-suite/hot-path green
 
 ### Phase 243: Cycle-Budget Benchmark Gate
 **Goal**: A pre-registered, committed-before-the-run benchmark proves fping introduces no 50ms cycle-budget regression under a real systemd unit, and acts as a hard gate that blocks the live A/B on regression.
@@ -173,7 +173,7 @@
 | 239. Seam Refactor + IcmplibBackend (Byte-Identical) | v1.53 | 3/3 | Complete    | 2026-06-15 |
 | 240. Config + Validator | v1.53 | 2/2 | Complete    | 2026-06-15 |
 | 241. fping Backend (Offline) + Reflector Quality | v1.53 | 4/4 | Complete    | 2026-06-16 |
-| 242. Backend Factory + Loud Fallback | v1.53 | 2/4 | In Progress|  |
+| 242. Backend Factory + Loud Fallback | v1.53 | 4/4 | Complete   | 2026-06-16 |
 | 243. Cycle-Budget Benchmark Gate | v1.53 | 0/TBD | Not started | - |
 | 244. Health-Payload Attribution Metadata | v1.53 | 0/TBD | Not started | - |
 | 245. Live A/B + Rollback Anchor | v1.53 | 0/TBD | Not started | - |
