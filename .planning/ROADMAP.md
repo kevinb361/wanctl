@@ -115,7 +115,7 @@
 **Plans**: 4 plans
   - [x] 242-01-PLAN.md — Wave 0: FALL-01/FALL-02 factory tests + /health byte-preservation + SAFE-17 boundary verifier (clone of 241, expanded allowlist)
   - [x] 242-02-PLAN.md — build_rtt_backend() factory module: resolution + construction-time loud fallback + (backend, thread) bundle
-  - [ ] 242-03-PLAN.md — Collapse both call sites to the factory (+ steering source_ip, D-01a); thread additive /health fallback signal through the producer
+  - [x] 242-03-PLAN.md — Collapse both call sites to the factory (+ steering source_ip, D-01a); thread additive /health fallback signal through the producer
   - [ ] 242-04-PLAN.md — SAFE-17 boundary gate: zero out-of-allowlist drift + byte-identical protected bodies + full-suite/hot-path green
 
 ### Phase 243: Cycle-Budget Benchmark Gate

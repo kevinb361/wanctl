@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
 status: executing
-stopped_at: Completed 242-02-PLAN.md
-last_updated: "2026-06-16T12:48:25.451Z"
+stopped_at: Completed 242-03-PLAN.md
+last_updated: "2026-06-16T13:08:49.258Z"
 last_activity: 2026-06-16
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 17
-  completed_plans: 15
+  completed_plans: 16
   percent: 44
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 ## Current Position
 
 Phase: 242 (backend-factory-loud-fallback) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-06-16
 
@@ -148,8 +148,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-16T12:48:25.420Z
-Stopped at: Completed 242-02-PLAN.md
+Last session: 2026-06-16T13:08:04.501Z
+Stopped at: Completed 242-03-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -163,6 +163,9 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Decisions (v1.53)
 
+- [242-03]: Bound WANController.rtt_measurement to handle.controller_measurement so fping remains background-thread-only in Phase 242 while helper paths keep icmplib RTTMeasurement semantics.
+- [242-03]: Resolved steering backend and source_ip from the primary WAN autorate config via an explicit Config-like helper; steering consumption remains deferred to Phase 245.
+- [242-03]: Surfaced fallback attribution from each controller's own handle status rather than any module-global fallback state.
 - [242-02]: Kept fping background-thread-only in Phase 242; controller helper paths bind to icmplib controller_measurement while fping drives only the adapted background snapshot path.
 - [242-02]: Used measurement.fping.cadence_sec for FpingThread construction instead of controller background cadence, preserving fping activity with default cadence.
 - [242-02]: Added optional WANController rtt_thread_factory seam to satisfy the committed live-path factory contract while preserving default BackgroundRTTThread behavior.
@@ -323,3 +326,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 241 P04 | 9min | 2 tasks | 3 files |
 | Phase 242 P01 | 7 min | 3 tasks | 3 files |
 | Phase 242 P02 | 7 min | 1 task | 4 files |
+| Phase 242-backend-factory-loud-fallback P03 | 15 min | 2 tasks | 6 files |
