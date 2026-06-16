@@ -187,6 +187,7 @@ record = {
     "rtt_seam_unchanged_since_phase239": rtt_seam_unchanged_raw == "true",
     "reflector_scorer_unchanged": reflector_scorer_unchanged_raw == "true",
     "phase241_frozen_unchanged": phase241_frozen_unchanged_raw == "true",
+    "phase241_frozen_no_new_diff": phase241_frozen_unchanged_raw == "true",
     "per_path_diff": per_path_diff,
     "dirty_tree": dirty_tree,
     "dirty_tree_clean": dirty_tree_clean,
