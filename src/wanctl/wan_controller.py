@@ -48,6 +48,7 @@ from wanctl.rate_utils import RateLimiter
 from wanctl.reflector_scorer import ReflectorScorer
 from wanctl.router_connectivity import RouterConnectivityState
 from wanctl.routeros_interface import RouterOS
+from wanctl.rtt_backend import RttSample
 from wanctl.rtt_measurement import (
     BackgroundRTTThread,
     RTTCycleStatus,
@@ -76,7 +77,7 @@ class _BackgroundRttDriver(Protocol):
 
     def stop(self) -> None: ...
 
-    def get_latest(self) -> RTTSnapshot | None: ...
+    def get_latest(self) -> RTTSnapshot | RttSample | None: ...
 
     def get_cycle_status(self) -> RTTCycleStatus | None: ...
 
@@ -1195,14 +1196,21 @@ class WANController:
         if age > 0.5:  # Soft warning per D-04
             self.logger.debug(f"{self.wan_name}: RTT data aging ({age:.1f}s)")
 
+        snapshot_backend = getattr(snapshot, "backend", "icmplib")
+        skip_scorer_for_backend = snapshot_backend == "fping"
+        zero_success_cycle = bool(cycle_status and self._should_skip_scorer_update(cycle_status))
+
         # Skip stale cached attribution during zero-success blackout cycles.
-        if not (cycle_status and self._should_skip_scorer_update(cycle_status)):
+        # Phase 242 also keeps fping background samples out of reflector scoring;
+        # fping loss/scorer consumption is deferred to a later attribution phase.
+        if not zero_success_cycle and not skip_scorer_for_backend:
             self._reflector_scorer.record_results(
                 {host: rtt_val is not None for host, rtt_val in snapshot.per_host_results.items()}
             )
         self._persist_reflector_events()
         now = time.monotonic()
-        if cycle_status is not None and self._should_skip_scorer_update(cycle_status):
+        if zero_success_cycle:
+            assert cycle_status is not None
             active_hosts = list(cycle_status.active_hosts)
             successful_hosts: list[str] = []
             blackout_cycles = int(getattr(self, "_zero_success_blackout_cycles", 0)) + 1

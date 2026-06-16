@@ -31,7 +31,7 @@ from typing import Any, Protocol
 
 from wanctl.check_config_validators import MEASUREMENT_BACKENDS
 from wanctl.fping_measurement import FpingMeasurement, FpingThread
-from wanctl.rtt_backend import RttBackend
+from wanctl.rtt_backend import RttBackend, RttSample
 from wanctl.rtt_measurement import (
     BackgroundRTTThread,
     RTTAggregationStrategy,
@@ -53,7 +53,7 @@ class RttDriverThread(Protocol):
 
     def stop(self) -> None: ...
 
-    def get_latest(self) -> RTTSnapshot | None: ...
+    def get_latest(self) -> RTTSnapshot | RttSample | None: ...
     def get_cycle_status(self) -> RTTCycleStatus | None: ...
     def get_profile_stats(self) -> dict[str, object]: ...
 
@@ -74,11 +74,11 @@ class _FpingDriverThread:
     def stop(self) -> None:
         self._fping_thread.stop()
 
-    def get_latest(self) -> RTTSnapshot | None:
+    def get_latest(self) -> RttSample | None:
         sample = self._fping_thread.get_latest()
         if sample is None:
             return None
-        return sample.to_snapshot()
+        return sample
 
     def get_cycle_status(self) -> RTTCycleStatus | None:
         return None
