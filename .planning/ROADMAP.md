@@ -52,7 +52,7 @@
   2. The A/B target interpretation (A = revive steering's own pinger as the live RTT source, or B = evaluate at the autorate/bridge producer) is selected and recorded with supporting evidence, with scope boundaries stated.
   3. Operator can confirm via `ip route get <reflector> from <source_ip>` that `fping -S <source_ip>` would egress the intended WAN under the host's current `ip rule` policy routing.
   4. No source files changed; SAFE-17 boundary verifier passes (no controller-path drift).
-**Plans**: 4 plans
+**Plans**: 5 plans
 - [x] 238-01-PLAN.md — SAFE-17 lightweight controller-path git-diff boundary assertion (vs v1.52 anchor)
 - [x] 238-02-PLAN.md — Both-WAN read-only fping-egress proof script (PROV-03; operator-run on live host)
 - [x] 238-03-PLAN.md — PROVENANCE-MAP.md evidence artifact + A/B recommendation with operator-ratification slot (PROV-01, PROV-02)
@@ -117,6 +117,7 @@
   - [x] 242-02-PLAN.md — build_rtt_backend() factory module: resolution + construction-time loud fallback + (backend, thread) bundle
   - [x] 242-03-PLAN.md — Collapse both call sites to the factory (+ steering source_ip, D-01a); thread additive /health fallback signal through the producer
   - [x] 242-04-PLAN.md — SAFE-17 boundary gate: zero out-of-allowlist drift + byte-identical protected bodies + full-suite/hot-path green
+  - [ ] 242-05-PLAN.md — Gap closure: preserve fping attribution, skip reflector scorer updates for fping background samples, and refresh SAFE-17 evidence
 
 ### Phase 243: Cycle-Budget Benchmark Gate
 **Goal**: A pre-registered, committed-before-the-run benchmark proves fping introduces no 50ms cycle-budget regression under a real systemd unit, and acts as a hard gate that blocks the live A/B on regression.
@@ -173,7 +174,7 @@
 | 239. Seam Refactor + IcmplibBackend (Byte-Identical) | v1.53 | 3/3 | Complete    | 2026-06-15 |
 | 240. Config + Validator | v1.53 | 2/2 | Complete    | 2026-06-15 |
 | 241. fping Backend (Offline) + Reflector Quality | v1.53 | 4/4 | Complete    | 2026-06-16 |
-| 242. Backend Factory + Loud Fallback | v1.53 | 4/4 | Complete   | 2026-06-16 |
+| 242. Backend Factory + Loud Fallback | v1.53 | 4/5 | Gaps found | - |
 | 243. Cycle-Budget Benchmark Gate | v1.53 | 0/TBD | Not started | - |
 | 244. Health-Payload Attribution Metadata | v1.53 | 0/TBD | Not started | - |
 | 245. Live A/B + Rollback Anchor | v1.53 | 0/TBD | Not started | - |
