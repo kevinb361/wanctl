@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
 status: executing
-stopped_at: Phase 242 context gathered
-last_updated: "2026-06-16T11:56:43.093Z"
-last_activity: 2026-06-16 -- Phase 242 planning complete
+stopped_at: Completed 242-01-PLAN.md
+last_updated: "2026-06-16T12:36:47.550Z"
+last_activity: 2026-06-16
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 17
-  completed_plans: 13
+  completed_plans: 14
   percent: 44
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 242 — backend factory + loud fallback
+**Current focus:** Phase 242 — backend-factory-loud-fallback
 
 ## Current Position
 
-Phase: 241 complete (4/4) — Phase 242 not yet planned
-Plan: Phase 242 not started (no directory, no CONTEXT.md)
+Phase: 242 (backend-factory-loud-fallback) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-06-16 -- Phase 242 planning complete
+Last activity: 2026-06-16
 
 Milestone progress: [████████░░░░░░░░░░░░] 4/9 phases (44%)
 
@@ -148,9 +148,9 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-16T01:23:27.512Z
-Stopped at: Phase 242 context gathered
-Resume file: .planning/phases/242-backend-factory-loud-fallback/242-CONTEXT.md
+Last session: 2026-06-16T12:36:12.675Z
+Stopped at: Completed 242-01-PLAN.md
+Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
 Archived v1.50 evidence: `.planning/milestones/v1.50-phases/`
@@ -163,6 +163,8 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Decisions (v1.53)
 
+- [242-01]: Kept factory tests intentionally RED on missing `wanctl.rtt_backend_factory` import so Plan 02 lands against fixed contracts instead of stubs.
+- [242-01]: Phase 242 SAFE-17 self-test uses a committed edit inside a detached worktree so the allowlist, not the dirty-tree gate, rejects out-of-scope controller edits.
 - [241-04]: Committed SAFE-17 evidence as the immediate next commit after verifier emission; durable freshness is `HEAD^ == evidence.head_commit`.
 - [241-04]: Treated legacy full-suite boundary-test failures as out-of-scope historical test hygiene while preserving SAFE-17, phase-local, hot-path, and verifier proofs.
 - [241-03]: Ran only the approved non-mutating fping capture path on cake-shaper; no routing, CAKE, qdisc, tc, RouterOS, service, or firewall mutations were made.
@@ -316,3 +318,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 241 P02 | 7min | 2 tasks | 7 files |
 | Phase 241 P03 | 13min continuation | 3 tasks | 10 files |
 | Phase 241 P04 | 9min | 2 tasks | 3 files |
+| Phase 242 P01 | 7 min | 3 tasks | 3 files |

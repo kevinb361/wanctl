@@ -38,8 +38,8 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 ### Fallback
 
-- [ ] **FALL-01**: When the `fping` binary is unavailable, the backend factory falls back to `icmplib` automatically.
-- [ ] **FALL-02**: Fallback is loud and observable (WARN-once + fallback counter + `/health` attribution), never silent.
+- [x] **FALL-01**: When the `fping` binary is unavailable, the backend factory falls back to `icmplib` automatically.
+- [x] **FALL-02**: Fallback is loud and observable (WARN-once + fallback counter + `/health` attribution), never silent.
 
 ### Cycle-Budget Benchmark
 
@@ -121,8 +121,8 @@ Populated during roadmap creation. Each requirement maps to exactly one phase.
 | CFG-01 | Phase 240 | Complete |
 | CFG-02 | Phase 240 | Complete |
 | CFG-03 | Phase 240 | Complete |
-| FALL-01 | Phase 242 | Pending |
-| FALL-02 | Phase 242 | Pending |
+| FALL-01 | Phase 242 | Complete |
+| FALL-02 | Phase 242 | Complete |
 | BENCH-01 | Phase 243 | Pending |
 | BENCH-02 | Phase 243 | Pending |
 | HEALTH-01 | Phase 244 | Pending |
