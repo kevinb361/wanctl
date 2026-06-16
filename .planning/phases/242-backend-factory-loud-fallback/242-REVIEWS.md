@@ -1,164 +1,157 @@
 ---
 phase: 242
 reviewers: [codex]
-reviewed_at: 2026-06-15T00:00:00Z
+reviewed_at: 2026-06-16T02:22:33Z
 plans_reviewed: [242-01-PLAN.md, 242-02-PLAN.md, 242-03-PLAN.md, 242-04-PLAN.md]
+cycle: 2
+prior_cycle_high: 1
+current_cycle_high: 1
 ---
 
-# Cross-AI Plan Review — Phase 242
+# Cross-AI Plan Review — Phase 242 (Cycle 2 / re-review of revised plans)
+
+This is the second review cycle. The plans below are the REPLANNED versions authored to
+close the prior cycle's load-bearing HIGH (raw `FpingThread` → `AttributeError` in
+`measure_rtt()` via missing `get_cycle_status()`) plus five MEDIUM findings. Codex was
+asked to confirm closure of each prior finding and to surface any newly-introduced gap.
+
+## Prior-Finding Closure (Cycle 1 → Cycle 2)
+
+| Cycle-1 finding | Status | Evidence |
+|---|---|---|
+| **HIGH** — Raw `FpingThread` breaks `measure_rtt()` (`get_cycle_status()` absent) | **FULLY RESOLVED** | Plans 01/02/03 introduce `RttBackendHandle` + deferred `make_thread()` + an in-module fping adapter (`get_cycle_status()->None`, `get_latest()->RttSample.to_snapshot()`); `test_thread_protocol_contract` + `test_fping_selected_measure_rtt_no_attributeerror` pin it. A raw `FpingThread` is never assigned to `_rtt_thread`. |
+| **MEDIUM** — Per-WAN vs process-global fallback state | **FULLY RESOLVED** | WARN-once keyed by `wan_key`; `fallback_count` per-handle; `/health` reads `self._rtt_backend_status` (per-controller), not a module global. Two-controller independence test required. |
+| **MEDIUM** — fping timeout >= cadence: validator WARN vs `FpingThread` `ValueError` startup crash | **FULLY RESOLVED** | Plan 02 decides loud fallback to icmplib on `ValueError`; `test_fping_timeout_ge_cadence_falls_back` proves no propagated crash. |
+| **MEDIUM** — Steering `source_ip` silently `None` defeats D-01a | **FULLY RESOLVED (for source IP)** | Plan 03 reads primary-WAN `ping_source_ip`, WARNs on missing/`None`, with a non-`None` plumbing test. (Backend source-of-truth ambiguity remains as a new MEDIUM, see below.) |
+| **MEDIUM** — Plan 04 `changed_paths` expectation wrong vs v1.52 anchor | **FULLY RESOLVED** | Plan 04 now requires `changed_paths` ⊆ full v1.53 allowlist with the five 242 files present, not "only five files." |
+
+All five Cycle-1 findings (including the load-bearing HIGH) are closed in the revised plans.
+**However, the revision introduces one new load-bearing HIGH** of the same failure class.
 
 ## Codex Review
 
-## Overall
-
-The plans are directionally right, but not yet executable-safe. The biggest unresolved issue is the factory/thread contract: current `WANController.start_background_rtt()` always builds `BackgroundRTTThread` later, and `WANController.measure_rtt()` unconditionally calls `get_cycle_status()` on the thread. `FpingThread` does not provide that method. See `wan_controller.py:1080`, `wan_controller.py:1152`, and `fping_measurement.py:281`. That must be resolved explicitly before execution.
-
-## 242-01-PLAN.md
-
 **Summary**
 
-Good TDD/scaffolding plan, but it risks freezing the wrong public contract before the factory design is settled. The verifier work is useful, but grep-only validation is weak for a hard SAFE-17 gate.
+The replans materially improve the original design: the raw `FpingThread`/`measure_rtt()`
+`AttributeError` failure is now directly addressed with a handle, deferred `make_thread()`,
+an fping adapter, and regression tests. The prior per-WAN fallback, timeout-vs-cadence,
+source-IP loudness, and changed-path expectation findings are also closed on paper. I would
+not execute yet, though: the revised plans introduce one new load-bearing gap around
+`WANController.rtt_measurement`. In live code it is still used for
+`ping_hosts_with_results()`, `ping_host()`, and reflector probing
+(`ReflectorScorer.maybe_probe()`), not only for `BackgroundRTTThread` construction. If Plan
+03 binds `handle.backend` as `rtt_measurement` when fping is active, the live controller can
+still `AttributeError`, just somewhere else.
+
+### 242-01-PLAN.md
 
 **Strengths**
-
-- Establishes fallback behavior before implementation.
-- Correctly adds a standing `/health` subset-preservation regression.
-- Creates the Phase 242 boundary verifier early enough for later plans to use.
+- Explicitly tests the adapter protocol: `get_cycle_status()` and RTTSnapshot-shaped `get_latest()`.
+- Adds the live `measure_rtt()` regression that would have caught the prior HIGH.
+- Converts timeout-vs-cadence into an executable decision.
+- Keeps `/health` preservation subset-based rather than full-dict brittle.
+- Adds a negative SAFE-17 self-test — the right answer to the prior "grep-only" concern.
 
 **Concerns**
+- **HIGH:** The test contract does not assert what object remains in `WANController.rtt_measurement`. Live code calls `self.rtt_measurement.ping_hosts_with_results()` (blocking fallback), `ping_host()` (gateway checks), and passes it to `ReflectorScorer.maybe_probe()`; `FpingMeasurement` lacks those methods. `wan_controller.py:1269`, `:1474`, `:3127`.
+- **MEDIUM:** The verifier `--self-test` can be short-circuited by the dirty-tree gate. If the synthetic out-of-allowlist edit is uncommitted in the throwaway worktree, the script proves "dirty tree fails," not "allowlist fails." Commit the synthetic edit inside a detached worktree first.
+- **MEDIUM:** `test_fping_selected_builds_fping` monkeypatches the factory module's `shutil.which`, but `FpingMeasurement.__init__` also calls its own `shutil.which`. The "no WARN" assertion can become environment-dependent unless both are patched or the factory owns binary-path injection.
+- **LOW:** `byte_preserved` is acceptable if it remains clearly subset/value preservation, not literal JSON bytes.
 
-- **MEDIUM:** The factory tests may force an invalid return shape if they assert concrete `BackgroundRTTThread` / `FpingThread` instances too early. Autorate cannot build either real thread at `_create_wan_components()` time because host selection, shutdown event, and pool are later.
-- **MEDIUM:** The SAFE-17 verifier acceptance relies mostly on `grep` and `bash -n`; this catches syntax and strings, not whether the allowlist fails closed.
-- **LOW:** "Byte-preserved" is slightly misleading for JSON with additive keys. The test should assert exact values and rounding for the three fields, not object bytes or full dict equality.
+**Risk Assessment:** MEDIUM-HIGH — scaffolding is mostly strong but can still green-light an implementation that breaks live fping mode outside `measure_rtt()`.
 
-**Suggestions**
-
-- Define the stable factory public contract in the test as a small handle/bundle shape, not a raw tuple unless that shape is already decided.
-- Add a verifier negative self-test or detached-worktree test that proves an out-of-allowlist `src/wanctl` edit fails.
-- Make the `/health` preservation test explicitly subset-based: `available`, `raw_rtt_ms`, `staleness_sec`.
-
-**Risk Assessment**
-
-MEDIUM. It only adds tests/scripts, but bad tests here can drive Plans 02/03 toward an unsafe implementation.
-
-## 242-02-PLAN.md
-
-**Summary**
-
-This is the weakest plan. It says "factory returns backend and thread," but the current runtime lifecycle makes that impossible as written. The plan needs a precise backend handle and thread-factory protocol before implementation.
+### 242-02-PLAN.md
 
 **Strengths**
-
-- Correctly keeps factory out of `rtt_backend.py`.
-- Correctly uses construction-time `shutil.which("fping")`.
-- Keeps fallback loud and observable as a first-class contract.
+- Correctly avoids building runtime threads before `hosts_fn`/pool/shutdown event exist.
+- Keeps the adapter in the new factory module instead of modifying frozen Phase 241 files.
+- Makes fallback loud and per-WAN; catches `FpingThread` timeout/cadence `ValueError` and degrades.
 
 **Concerns**
+- **HIGH:** The factory contract lacks a separate legacy `RTTMeasurement` for `WANController.rtt_measurement`. If Plan 03 passes `handle.backend` and the active backend is fping, controller helper paths can still fail with missing `ping_host()` / `ping_hosts_with_results()`.
+- **MEDIUM:** Timeout fallback flips `fell_back`/`backend_active` but does not explicitly say to replace `handle.backend` with the icmplib `RTTMeasurement`. Leaving `backend` as `FpingMeasurement` while `backend_active == "icmplib"` is inconsistent.
+- **MEDIUM:** Fping scorer semantics are not pinned. `FpingMeasurement` can feed a scorer via loss threshold, while `measure_rtt()` also records snapshot results — risk of lost loss-aware scoring or duplicated scoring depending on whether a scorer is passed.
+- **MEDIUM:** Double `shutil.which("fping")` probing creates test/observability ambiguity unless handled deliberately.
+- **LOW:** Invalid direct factory input should raise, not silently default, even if validators normally catch it.
 
-- **HIGH:** `build_rtt_backend(config, source_ip, shutdown_event, logger)` is not a viable autorate construction signature. `shutdown_event`, `hosts_fn`, pool, and reflector scorer context are not all available at `_create_wan_components()`.
-- **HIGH:** `FpingThread` is not interchangeable with `BackgroundRTTThread`; `measure_rtt()` requires `get_cycle_status()`. Returning raw `FpingThread` will break the live path.
-- **HIGH:** `BackgroundRTTThread` cannot wrap `FpingMeasurement`; it is built around the legacy RTT measurement path, not the `RttBackend.probe()` protocol.
-- **MEDIUM:** Fping timeout-vs-cadence is currently validator `WARN`, but `FpingThread` raises `ValueError`. If Phase 242 constructs fping live, a warned config can become a startup crash.
-- **MEDIUM:** Fallback counter semantics are vague. Global process counter vs per-WAN counter affects `/health` attribution in multi-WAN operation.
-- **MEDIUM:** WARN-once should be scoped at least per WAN/requested backend. Process-global once can hide fallback on the second WAN.
+**Risk Assessment:** HIGH until the legacy `RTTMeasurement` dependency is explicitly handled.
 
-**Suggestions**
-
-- Introduce an explicit dataclass, e.g. `RttBackendHandle`, with `backend`, `backend_active`, `fell_back`, `fallback_count`, and `make_thread(...)`.
-- Introduce a common thread protocol: `start`, `stop`, `get_latest`, `get_cycle_status`, `get_profile_stats`, `cadence_sec`.
-- Add an adapter in the factory module for fping, or explicitly expand scope to make `FpingThread` satisfy the protocol. Given the 241 freeze, an adapter inside `rtt_backend_factory.py` is safer.
-- Add tests for fping selected with valid binary but invalid timeout/cadence behavior. Decide whether that is loud fallback or startup failure.
-
-**Risk Assessment**
-
-HIGH. Without a concrete handle/thread protocol, this can pass unit tests while still breaking the live autorate path.
-
-## 242-03-PLAN.md
-
-**Summary**
-
-The intended wiring is right, but the plan understates the live-path implications. It says "construction only," but for autorate, `measurement.backend: fping` would become live consumption once wired. That is acceptable only if the thread protocol and tests are made explicit.
+### 242-03-PLAN.md
 
 **Strengths**
-
-- Correctly preserves steering consumption as autorate `/health` based. Current steering still uses autorate health in `measure_current_rtt()` at `daemon.py:1757`.
-- Correctly treats `/health` keys as additive and preserves the three steering-consumed fields in `health_check.py:493`.
-- Correctly identifies `source_ip` binding as worth fixing before Phase 245.
+- Optional trailing constructor params avoid broad call-site churn.
+- `start_background_rtt()` uses `make_thread()` while leaving `measure_rtt()` protected.
+- `/health` signal is per-controller/per-WAN, not module-global.
+- Steering source IP is intended to be non-`None` and loud on failure; preserves steering's current autorate-`/health` consumption.
 
 **Concerns**
+- **HIGH:** `_create_wan_components()` currently returns `(router, rtt_measurement)` and `ContinuousAutoRate` passes that into `WANController`. The plan says it "stops constructing `RTTMeasurement` directly" but does not clearly preserve a legacy `RTTMeasurement` for the controller helper methods (`ping_hosts_with_results`/`ping_host`/`maybe_probe`).
+- **MEDIUM:** Steering backend source-of-truth is contradictory. The text says steering resolves `measurement.backend` from the primary WAN autorate config, but `build_rtt_backend(config, ...)` resolves from `config.data` — passing `SteeringConfig` would use steering.yaml, not the primary WAN config.
+- **MEDIUM:** Plan metadata `files_modified` omits the test files, but the action says to add tests in `tests/test_wan_controller.py` / `tests/test_health_check.py`. Matters for reproducible execution and the SAFE-17 evidence diff.
+- **MEDIUM:** Source-IP loading duplicates the raw-YAML pattern from `_derive_primary_health_url()`. A helper returning `(primary_cfg, warnings)` would reduce drift and ease testing the loud path.
+- **MEDIUM:** Fping scorer/loss semantics still unspecified when the fping adapter is live.
 
-- **HIGH:** Autorate fping selection is a live behavior change, not construction-only. The default remains icmplib, but selected fping must be treated as live controller-path behavior.
-- **HIGH:** `WANController` needs a thread factory/status handle, probably as optional constructor state. Making it required would churn many tests and call sites.
-- **HIGH:** Assigning a raw `FpingThread` to `_rtt_thread` breaks `measure_rtt()` because `get_cycle_status()` is missing.
-- **MEDIUM:** Steering `source_ip` loading via raw YAML and swallowed exceptions can silently pass `None`, defeating D-01a. This should be loud in logs and covered by a test.
-- **MEDIUM:** It is unclear whether steering factory construction should use steering config's backend default or the primary WAN autorate config's `measurement.backend`. For Phase 245 readiness, this should be explicit.
-- **MEDIUM:** `/health` fallback metadata must be per controller/WAN, not just read from a module-level global accessor.
-- **LOW:** Mock health tests need updating carefully; otherwise they may prove `health_check.py` reflection but not real `WANController.get_health_data()` production.
+**Risk Assessment:** HIGH — this is the live wiring plan, and the remaining ambiguity can still produce runtime `AttributeError`s when fping is selected.
 
-**Suggestions**
-
-- Add `WANController(..., rtt_thread_factory=None, rtt_backend_status=None)` defaults to avoid broad test churn.
-- Add a real `tests/test_wan_controller.py` assertion that `get_health_data()["measurement"]` includes `backend_active`, `fell_back`, `fallback_count`.
-- Add a fping-selected integration/unit test that starts background RTT with the factory-produced thread handle and calls `measure_rtt()` without AttributeError.
-- Add a steering test that `_create_steering_components()` passes non-`None` `source_ip` from the primary WAN config and does not consume the constructed pinger.
-
-**Risk Assessment**
-
-HIGH. This is the actual controller-path wiring. The plan is sound in intent but underspecified at the exact compatibility point most likely to fail.
-
-## 242-04-PLAN.md
-
-**Summary**
-
-Good hard-gate concept. The verifier-first posture fits SAFE-17, but the plan overstates what the evidence should look like and leaves too much room to wave off full-suite failures.
+### 242-04-PLAN.md
 
 **Strengths**
-
-- Requires clean committed `src/wanctl` before running the boundary verifier.
-- Keeps protected-body verification in place.
-- Correctly says not to widen the allowlist to pass.
+- Corrects `changed_paths` to full-allowlist-subset semantics.
+- Requires committed source before evidence generation.
+- Asserts explicit `phase241_frozen_no_new_diff` rather than inferring from pass/fail.
+- Requires named full-suite failure classification, not a bulk "legacy" waiver.
+- Keeps protected-body and hot-path gates.
 
 **Concerns**
+- **MEDIUM:** The verifier dirty gate checks `src/wanctl`, but Plan 04 also depends on committed tests and scripts. Acceptance should require `git status --porcelain` clean for `scripts/`, `tests/`, and the relevant `.planning/` files before evidence.
+- **MEDIUM:** Reproducing failures on old anchors should use a temporary `git worktree add --detach`; checkout/stash in the main worktree can invalidate the "evidence immediate next commit" discipline.
+- **LOW:** The "HEAD^ == evidence.head_commit" convention should account for whether summaries are committed with evidence or separately.
 
-- **MEDIUM:** The expected `changed_paths` wording is wrong if diffing against `v1.52`: prior Phase 239-241 allowlisted files will also appear, not only the five Phase 242 files.
-- **MEDIUM:** "Legacy full-suite failures" is too broad. Any full-suite failure should be classified with evidence, ideally by reproducing on the pre-242 anchor or citing prior phase evidence.
-- **MEDIUM:** The verifier script itself and Plan 01 test changes should be committed before evidence generation, or the evidence is not fully reproducible.
-- **LOW:** The 241-close guard is good, but it should emit explicit fields for the new no-drift result so Plan 04 can assert it directly, not infer from pass/fail.
+**Risk Assessment:** MEDIUM — gate concept is solid; residual issues are execution hygiene, not design-breaking.
 
-**Suggestions**
-
-- Change Plan 04 expected evidence to: `changed_paths` is a subset of the full SAFE-17 allowlist, with Phase 242 source files present as expected.
-- Require phase-local tests, hot-path tests, and full suite classification with concrete failure names if not green.
-- Assert the new 241-close guard field directly in the JSON.
-- Commit verifier/test/source changes before the final evidence run, then commit evidence immediately after.
-
-**Risk Assessment**
-
-MEDIUM. The gate is the right control, but inaccurate evidence expectations can either create false failures or normalize weak signoff.
-
-## Final Risk
-
-Overall risk is **HIGH until the thread-factory contract is fixed**, then likely **MEDIUM**. The phase can satisfy FALL-01/FALL-02/SAFE-17, but only if Plans 02/03 explicitly define a common thread handle compatible with `WANController.measure_rtt()` and keep fallback metadata per-WAN.
+**Overall Risk:** HIGH until the `WANController.rtt_measurement` legacy-method dependency is
+explicitly resolved. After that, drops to MEDIUM (controller-path wiring + evidence
+discipline, with fping scorer semantics still needing a clear decision before live A/B).
 
 ---
 
 ## Consensus Summary
 
-Single reviewer (Codex) this cycle; no cross-reviewer consensus to compute. The orchestrator independently verified the central HIGH finding against live source (see below).
+Single reviewer (Codex) this cycle; no cross-reviewer consensus to compute. The orchestrator
+independently verified the new HIGH finding against live source (see below).
 
 ### Agreed Strengths
 
-- Verifier-first / TDD posture: fallback contract and SAFE-17 boundary verifier authored before implementation (Plans 01, 04).
-- Factory correctly kept out of the byte-frozen `rtt_backend.py`; construction-time `shutil.which("fping")` is the right fallback trigger (Plan 02).
-- `/health` keys are additive and the three steering-consumed fields are preserved; steering consumption correctly stays dead until Phase 245 (Plan 03).
+- The Cycle-1 load-bearing HIGH (raw `FpingThread` in `measure_rtt()`) is now genuinely closed: handle + deferred `make_thread()` + fping adapter + a live `measure_rtt()`-no-`AttributeError` regression.
+- Per-WAN fallback state, loud timeout-vs-cadence fallback, loud steering source_ip, subset `/health` byte-preservation, and the negative SAFE-17 self-test are all sound.
+- Plan 04 evidence expectations (full-allowlist subset, explicit 241-close-guard field, per-failure classification) are corrected.
 
 ### Agreed Concerns (highest priority)
 
-- **HIGH — Thread/backend contract mismatch (Plans 02 + 03).** `WANController.measure_rtt()` (`wan_controller.py:1152`) unconditionally calls `self._rtt_thread.get_cycle_status()`. `FpingThread` (`fping_measurement.py:281-340`) does **not** implement `get_cycle_status()` (it has only `cadence_sec`/`get_latest`/`get_profile_stats`/`start`/`stop`). `BackgroundRTTThread` (`rtt_measurement.py:472`) does. Additionally `get_latest()` returns `RttSample` on `FpingThread` vs `RTTSnapshot` on `BackgroundRTTThread`. So a factory that hands a raw `FpingThread` to `_rtt_thread` will `AttributeError` on the live autorate path the moment `measurement.backend: fping` is selected — while unit tests asserting only on the fallback signal stay green. **Verified by orchestrator against live code.** The plans say "thread or builder" but never define the common thread protocol `measure_rtt()` requires. This is the load-bearing gap.
-- **MEDIUM — Per-WAN vs process-global fallback state.** WARN-once and `fallback_count` scoped process-globally can hide a fallback on the second WAN and corrupt `/health` attribution in the dual-WAN deployment.
-- **MEDIUM — fping timeout-vs-cadence is validator WARN but FpingThread raises ValueError.** A "warned" config can become a startup crash once 242 constructs fping live; the plans don't decide whether that is loud fallback or hard failure.
-- **MEDIUM — Steering source_ip via raw YAML with swallowed exceptions can silently pass None,** defeating D-01a; should be loud + test-covered.
-- **MEDIUM — Plan 04 evidence expectation ("changed_paths contains only the five 242 files") is wrong against the v1.52 anchor;** prior 239–241 allowlisted files will also appear. Should be "subset of the full allowlist, with the 242 files present."
+- **HIGH (NEW, verified) — Incomplete `rtt_measurement` substitution.** The revision fixed the
+  *thread* contract but not the *measurement object* contract. `WANController` consumes
+  `self.rtt_measurement` for more than thread construction:
+  - `self.rtt_measurement.ping_hosts_with_results(...)` — `wan_controller.py:1269` (blocking fallback)
+  - `self.rtt_measurement.ping_host(...)` — `wan_controller.py:1474` (gateway connectivity check)
+  - `self._reflector_scorer.maybe_probe(now, self.rtt_measurement)` — `wan_controller.py:3127`
+
+  `FpingMeasurement` implements only `probe()`; it has neither `ping_host` nor
+  `ping_hosts_with_results`. Plan 03 says autorate "stops constructing `RTTMeasurement`
+  directly" and constructs `WANController(..., rtt_thread_factory=handle,
+  rtt_backend_status=handle)` but **never specifies what object fills the existing positional
+  `rtt_measurement` slot.** If `handle.backend` (the `FpingMeasurement`) is bound there when
+  fping is selected, the live autorate path `AttributeError`s in the blocking-fallback,
+  gateway-check, and reflector-probe paths — the same failure class as the Cycle-1 HIGH, new
+  call sites. Unit tests that assert only on `measure_rtt()` stay GREEN while live fping mode
+  breaks. **Verified by orchestrator against live code.**
+
+- **MEDIUM** — fping scorer/loss semantics unspecified for live fping mode (single scorer
+  writer not decided; risk of lost `per_host_loss` threshold semantics or duplicated scoring).
+- **MEDIUM** — steering backend source-of-truth ambiguity (`build_rtt_backend` reads
+  `config.data`; passing `SteeringConfig` would read steering.yaml, not the primary WAN config).
+- **MEDIUM** — Plan 03 `files_modified` omits the test files it directs the executor to add.
+- **MEDIUM** — verifier `--self-test` and Plan 04 reproduction must commit synthetic/anchor
+  edits in detached worktrees, and the dirty-tree precheck should cover `tests/`+`scripts/`.
 
 ### Divergent Views
 
@@ -166,4 +159,17 @@ None — single reviewer.
 
 ### Orchestrator Note (verification)
 
-The central HIGH finding was independently confirmed against live source: `get_cycle_status` is called at `wan_controller.py:1152` and is absent from `FpingThread`. The recommended remediation (a `RttBackendHandle` dataclass exposing a `make_thread(...)` builder plus a common thread protocol — `start/stop/get_latest/get_cycle_status/get_profile_stats/cadence_sec` — with an fping adapter living in `rtt_backend_factory.py` so the 241-frozen `fping_measurement.py` is not touched) is consistent with the SAFE-17 allowlist and the Pitfall-1 thread-timing note already in the plans. Replanning Plans 02 and 03 to pin this contract before execution is warranted.
+The new HIGH was independently confirmed against live source:
+- `grep 'self\.rtt_measurement\.' src/wanctl/wan_controller.py` → `:1269 ping_hosts_with_results`, `:1474 ping_host`.
+- `src/wanctl/wan_controller.py:3127` passes `self.rtt_measurement` into `ReflectorScorer.maybe_probe`.
+- `FpingMeasurement` (`src/wanctl/fping_measurement.py`) defines only `probe()`; `RTTMeasurement` (`src/wanctl/rtt_measurement.py:174,287,325,361`) defines `ping_host`, `ping_hosts_with_results`, `probe`, `ping_hosts_concurrent`.
+- `src/wanctl/autorate_continuous.py:152` returns `(router, rtt_measurement)` and `:167` constructs `WANController(config.wan_name, config, router, rtt_measurement, logger)`.
+
+Recommended remediation (consistent with the SAFE-17 allowlist): have the factory expose a
+legacy/controller `RTTMeasurement` on the handle (e.g. `RttBackendHandle.controller_measurement`)
+and keep `WANController.rtt_measurement` bound to that icmplib object even when the *background
+RTT thread* runs fping via the adapter — OR explicitly scope fping mode so those helper paths
+are not exercised, with a test exercising `verify_local_connectivity()` / `maybe_probe()` under
+a fping-selected config. Also keep the timeout-fallback handle coherent (replace `backend` with
+the icmplib object, not just flip `backend_active`). Replanning Plans 02 and 03 to pin the
+measurement-object contract before execution is warranted.
