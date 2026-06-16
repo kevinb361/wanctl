@@ -1,5 +1,5 @@
 {
-  "all_identical": true,
+  "all_identical": false,
   "allowed_shape_ok": true,
   "anchor": "v1.52",
   "anchor_sha": "69f39db17c03f53e6b29248fbb7540fcb721e5f0",
@@ -16,7 +16,7 @@
     "src/wanctl/steering/daemon.py",
     "src/wanctl/wan_controller.py"
   ],
-  "checked_at": "2026-06-16T13:35:36Z",
+  "checked_at": "2026-06-16T20:08:01Z",
   "controller_path_diff_count": 10,
   "dirty_tree": {
     "staged": [],
@@ -26,8 +26,9 @@
   },
   "dirty_tree_clean": true,
   "disallowed_paths": [],
-  "head_commit": "8236214f01c30a94085f37d711dfac1cd0d40f5e",
-  "notes": "SAFE-17 v1.53 Phase 242 boundary check: expanded path allowlist, no RTT-seam drift since Phase 239 close, fping_measurement.py and reflector_scorer.py unchanged since Phase 241 close, protected-body, and complete allowed-diff-shape guard anchored at v1.52.",
+  "head_commit": "510e52e4503f99bf8f405d2aea92447a2ffe1104",
+  "measure_rtt_fping_scorer_guard": true,
+  "notes": "SAFE-17 v1.53 Phase 242 boundary check: expanded path allowlist, no RTT-seam drift since Phase 239 close, fping_measurement.py and reflector_scorer.py unchanged since Phase 241 close, protected-body with the exact post-gap WANController.measure_rtt fping scorer guard exception, and complete allowed-diff-shape guard anchored at v1.52.",
   "passed": true,
   "path_allowlist_regex": "^src/wanctl/(rtt_backend\\.py|rtt_measurement\\.py|check_config_validators\\.py|check_steering_validators\\.py|fping_measurement\\.py|reflector_scorer\\.py|rtt_backend_factory\\.py|autorate_continuous\\.py|steering/daemon\\.py|health_check\\.py|wan_controller\\.py)$",
   "per_path_diff": {
@@ -203,18 +204,18 @@
       }
     },
     "src/wanctl/wan_controller.py": {
-      "added": 57,
+      "added": 67,
       "committed": {
-        "added": 57,
+        "added": 67,
         "lines": [
-          "57\t10\tsrc/wanctl/wan_controller.py"
+          "67\t12\tsrc/wanctl/wan_controller.py"
         ],
-        "removed": 10
+        "removed": 12
       },
       "lines": [
-        "57\t10\tsrc/wanctl/wan_controller.py"
+        "67\t12\tsrc/wanctl/wan_controller.py"
       ],
-      "removed": 10,
+      "removed": 12,
       "staged": {
         "added": 0,
         "lines": [],
@@ -273,12 +274,12 @@
     {
       "file": "src/wanctl/wan_controller.py",
       "function": "WANController.measure_rtt",
-      "identical": true,
-      "reason": "identical"
+      "identical": false,
+      "reason": "source segment drift"
     }
   ],
   "protected_body": {
-    "all_identical": true,
+    "all_identical": false,
     "anchor": "v1.52",
     "anchor_sha": "69f39db17c03f53e6b29248fbb7540fcb721e5f0",
     "protected": [
@@ -327,8 +328,8 @@
       {
         "file": "src/wanctl/wan_controller.py",
         "function": "WANController.measure_rtt",
-        "identical": true,
-        "reason": "identical"
+        "identical": false,
+        "reason": "source segment drift"
       }
     ],
     "shape": {
