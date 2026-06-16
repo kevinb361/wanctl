@@ -112,7 +112,11 @@
   2. Fallback is loud and observable (WARN-once + fallback counter + `/health` attribution), never silent.
   3. The factory is the single construction site used by `autorate_continuous.py` and (if Phase 238 routed it there) `steering/daemon.py`.
   4. SAFE-17 boundary verifier passes.
-**Plans**: TBD
+**Plans**: 4 plans
+  - [ ] 242-01-PLAN.md — Wave 0: FALL-01/FALL-02 factory tests + /health byte-preservation + SAFE-17 boundary verifier (clone of 241, expanded allowlist)
+  - [ ] 242-02-PLAN.md — build_rtt_backend() factory module: resolution + construction-time loud fallback + (backend, thread) bundle
+  - [ ] 242-03-PLAN.md — Collapse both call sites to the factory (+ steering source_ip, D-01a); thread additive /health fallback signal through the producer
+  - [ ] 242-04-PLAN.md — SAFE-17 boundary gate: zero out-of-allowlist drift + byte-identical protected bodies + full-suite/hot-path green
 
 ### Phase 243: Cycle-Budget Benchmark Gate
 **Goal**: A pre-registered, committed-before-the-run benchmark proves fping introduces no 50ms cycle-budget regression under a real systemd unit, and acts as a hard gate that blocks the live A/B on regression.
