@@ -331,12 +331,14 @@ class WANController:
         router: RouterOS,
         rtt_measurement: RTTMeasurement,
         logger: logging.Logger,
+        rtt_thread_factory: Any | None = None,
     ):
         self.wan_name = wan_name
         self.config = config
         self.router = router
         self.rtt_measurement = rtt_measurement
         self.logger = logger
+        self._rtt_thread_factory = rtt_thread_factory
         self.router_connectivity = RouterConnectivityState(self.logger)
         self.pending_rates = PendingRateChange()
 
@@ -769,7 +771,7 @@ class WANController:
         )
 
         # Background RTT measurement (Phase 132: PERF-02)
-        self._rtt_thread: BackgroundRTTThread | None = None
+        self._rtt_thread: Any | None = None
         self._rtt_pool: concurrent.futures.ThreadPoolExecutor | None = None
 
         # Background CAKE stats thread (offloads 7-20ms netlink I/O from main loop)
@@ -1092,14 +1094,22 @@ class WANController:
             max_workers=max_workers,
             thread_name_prefix="wanctl-rtt-ping",
         )
-        self._rtt_thread = BackgroundRTTThread(
-            rtt_measurement=self.rtt_measurement,
-            hosts_fn=self._reflector_scorer.get_active_hosts,
-            shutdown_event=shutdown_event,
-            logger=self.logger,
-            pool=self._rtt_pool,
-            cadence_sec=self._background_rtt_cadence_sec(),
-        )
+        if self._rtt_thread_factory is not None:
+            self._rtt_thread = self._rtt_thread_factory.make_thread(
+                self._reflector_scorer.get_active_hosts,
+                shutdown_event,
+                pool=self._rtt_pool,
+                cadence_sec=self._background_rtt_cadence_sec(),
+            )
+        else:
+            self._rtt_thread = BackgroundRTTThread(
+                rtt_measurement=self.rtt_measurement,
+                hosts_fn=self._reflector_scorer.get_active_hosts,
+                shutdown_event=shutdown_event,
+                logger=self.logger,
+                pool=self._rtt_pool,
+                cadence_sec=self._background_rtt_cadence_sec(),
+            )
         self._rtt_thread.start()
 
     def _background_rtt_cadence_sec(self) -> float:

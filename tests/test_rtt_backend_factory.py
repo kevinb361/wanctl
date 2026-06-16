@@ -18,13 +18,33 @@ import pytest
 
 from wanctl.fping_measurement import FpingMeasurement, FpingThread
 from wanctl.rtt_backend import RttSample
-from wanctl.rtt_measurement import BackgroundRTTThread, RTTCycleStatus, RTTSnapshot, RTTMeasurement
 from wanctl.rtt_backend_factory import build_rtt_backend
+from wanctl.rtt_measurement import BackgroundRTTThread, RTTCycleStatus, RTTMeasurement
 from wanctl.wan_controller import WANController
 
 
 class FactoryConfig:
     """Minimal config object exposing the fields factory/controller tests need."""
+
+    def __getattr__(self, name: str):
+        """Return conservative defaults for WANController init fields outside this contract."""
+        if name.startswith("_"):
+            return False
+        if name.endswith("_config") or name in {"data", "storage_config", "alerting_config"}:
+            return {}
+        if name.endswith("_hosts") or name.endswith("_targets"):
+            return []
+        if (
+            name.startswith(("enable_", "use_", "check_"))
+            or name.endswith("_enabled")
+            or name in {"docsis_mode", "fusion_enabled"}
+        ):
+            return False
+        if name.endswith(("_ms", "_sec", "_seconds", "_pct")) or "rtt" in name:
+            return 1.0
+        if name.endswith(("_cycles", "_count")):
+            return 1
+        return 0
 
     def __init__(self, *, backend: str | None = None, fping: dict[str, object] | None = None) -> None:
         measurement: dict[str, object] = {}
@@ -39,6 +59,8 @@ class FactoryConfig:
         self.ping_hosts = ["198.51.100.10", "198.51.100.11", "198.51.100.12"]
         self.cycle_interval_ms = 50
         self.baseline_rtt_initial = 20.0
+        self.baseline_rtt_min = 5.0
+        self.baseline_rtt_max = 200.0
         self.download_floor_green = 100_000_000
         self.download_floor_yellow = 90_000_000
         self.download_floor_soft_red = 80_000_000
@@ -76,13 +98,26 @@ class FactoryConfig:
         self.warning_threshold_pct = 60.0
         self.cake_stats_cadence_sec = 0.25
         self.storage_config = {}
-        self.alerting_config = {"enabled": False}
+        self.alerting_config = {}
         self.irtt_config = {"enabled": False}
         self.fusion_enabled = False
-        self.reflector_quality_config = {}
-        self.owd_asymmetry_config = {"enabled": False}
-        self.tuning_config = {"enabled": False}
-        self.cake_signal_config = {"enabled": False}
+        self.fusion_config = {"enabled": False, "icmp_weight": 1.0}
+        self.reflector_quality_config = {
+            "min_score": 0.5,
+            "window_size": 5,
+            "probe_interval_sec": 60.0,
+            "recovery_count": 2,
+        }
+        self.owd_asymmetry_config = {"ratio_threshold": 3.0}
+        self.asymmetry_gate_config = {
+            "enabled": False,
+            "damping_factor": 0.5,
+            "min_ratio": 3.0,
+            "confirm_readings": 2,
+            "staleness_sec": 5.0,
+        }
+        self.tuning_config = SimpleNamespace(enabled=False)
+        self.cake_signal_config = SimpleNamespace(enabled=False)
 
 
 @pytest.fixture

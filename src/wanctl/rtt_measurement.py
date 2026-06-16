@@ -15,10 +15,14 @@ import threading
 import time
 from collections.abc import Callable
 from enum import Enum
+from typing import TYPE_CHECKING
 
 import icmplib
 
 from wanctl.perf_profiler import OperationProfiler
+
+if TYPE_CHECKING:
+    from wanctl.rtt_backend import RttSample
 
 # Pre-compiled regex for RTT parsing (avoids per-call compilation overhead)
 _RTT_PATTERN = re.compile(r"time=([0-9.]+)")
