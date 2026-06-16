@@ -24,7 +24,7 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 ### fping Backend
 
-- [ ] **FPING-01**: Operator can select an `fping` RTT backend that probes via one-shot `subprocess.run` bursts on a background cadence, never on the synchronous 50ms control loop.
+- [x] **FPING-01**: Operator can select an `fping` RTT backend that probes via one-shot `subprocess.run` bursts on a background cadence, never on the synchronous 50ms control loop.
 - [x] **FPING-02**: The fping backend binds source IP per WAN via `-S`, matching the existing `ping_source_ip` configuration.
 - [x] **FPING-03**: The fping backend probes multiple reflectors in a single process and returns per-reflector results.
 - [x] **FPING-04**: The fping output parser, built from captured real fping 5.1 samples, handles reply, total loss, partial loss, partial lines, banner, and process-death output; loss tokens map to "no sample" and are never recorded as `0ms`.
@@ -113,7 +113,7 @@ Populated during roadmap creation. Each requirement maps to exactly one phase.
 | SEAM-02 | Phase 239 | Complete |
 | SEAM-03 | Phase 239 | Complete |
 | SEAM-04 | Phase 239 | Complete |
-| FPING-01 | Phase 241 | Pending |
+| FPING-01 | Phase 241 | Complete |
 | FPING-02 | Phase 241 | Complete |
 | FPING-03 | Phase 241 | Complete |
 | FPING-04 | Phase 241 | Complete |

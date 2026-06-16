@@ -168,7 +168,7 @@
 | 238. RTT-Provenance Verification (Read-Only Entry Gate) | v1.53 | 3/4 | Gaps found | - |
 | 239. Seam Refactor + IcmplibBackend (Byte-Identical) | v1.53 | 3/3 | Complete    | 2026-06-15 |
 | 240. Config + Validator | v1.53 | 2/2 | Complete    | 2026-06-15 |
-| 241. fping Backend (Offline) + Reflector Quality | v1.53 | 4/4 | Complete   | 2026-06-15 |
+| 241. fping Backend (Offline) + Reflector Quality | v1.53 | 4/4 | Complete    | 2026-06-16 |
 | 242. Backend Factory + Loud Fallback | v1.53 | 0/TBD | Not started | - |
 | 243. Cycle-Budget Benchmark Gate | v1.53 | 0/TBD | Not started | - |
 | 244. Health-Payload Attribution Metadata | v1.53 | 0/TBD | Not started | - |
