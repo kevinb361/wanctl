@@ -60,7 +60,8 @@ from ..perf_profiler import (
 from ..retry_utils import measure_with_retry, verify_with_retry
 from ..router_client import clear_router_password, get_router_client_with_failover
 from ..router_connectivity import RouterConnectivityState
-from ..rtt_measurement import RTTAggregationStrategy, RTTMeasurement
+from ..rtt_backend_factory import build_rtt_backend
+from ..rtt_measurement import RTTMeasurement
 from ..runtime_pressure import get_storage_file_snapshot, read_process_memory_status
 from ..signal_utils import (
     SHUTDOWN_TIMEOUT_SECONDS,
@@ -2551,14 +2552,80 @@ def _create_steering_components(
     )
     state_mgr.load()
     router = RouterOSController(config, logger)
-    rtt_measurement = RTTMeasurement(
-        logger,
-        timeout_ping=config.timeout_ping,
-        aggregation_strategy=RTTAggregationStrategy.MEDIAN,
-        log_sample_stats=False,
+    primary_rtt_config, source_ip, warnings = _load_primary_wan_config_for_rtt_backend(config)
+    for warning in warnings:
+        logger.warning(warning)
+    # Phase 242 route-construction only: steering resolves both backend and
+    # source_ip from the primary WAN autorate config via this Config-like helper
+    # so Phase 245 inherits a coherent source-bound backend pairing. Steering
+    # still consumes autorate /health until that A/B flip; fping does not drive
+    # reflector scoring in 242.
+    rtt_backend = build_rtt_backend(
+        primary_rtt_config,
+        source_ip=source_ip,
+        logger=logger,
+        wan_key=config.primary_wan,
     )
+    rtt_measurement = rtt_backend.controller_measurement
     baseline_loader = BaselineLoader(config, logger)
     return state_mgr, router, rtt_measurement, baseline_loader
+
+
+class _PrimaryWanRttConfig:
+    """Config-like wrapper exposing primary WAN measurement data to the factory."""
+
+    def __init__(self, data: dict[str, Any], timeout_ping: float) -> None:
+        self.data = data
+        self.timeout_ping = timeout_ping
+
+
+def _load_primary_wan_config_for_rtt_backend(
+    config: SteeringConfig,
+) -> tuple[_PrimaryWanRttConfig, str | None, list[str]]:
+    """Load primary WAN autorate config fields needed by build_rtt_backend().
+
+    Steering's own YAML has no ping_source_ip or measurement.backend source of
+    truth. Reading the primary WAN autorate config keeps backend selection and
+    source binding paired for the Phase 245 live-consumption flip.
+    """
+    warnings: list[str] = []
+    try:
+        import yaml
+
+        with config.primary_wan_config.open() as f:
+            primary_cfg = yaml.safe_load(f) or {}
+    except Exception as exc:
+        warnings.append(
+            f"{config.primary_wan}: failed to read primary WAN config "
+            f"{config.primary_wan_config} for RTT backend/source_ip: {exc}; "
+            "falling back to icmplib with source_ip=None"
+        )
+        primary_cfg = {}
+
+    if not isinstance(primary_cfg, dict):
+        warnings.append(
+            f"{config.primary_wan}: primary WAN config {config.primary_wan_config} "
+            "did not load as a mapping; falling back to icmplib with source_ip=None"
+        )
+        primary_cfg = {}
+
+    source_ip = primary_cfg.get("ping_source_ip")
+    if not isinstance(source_ip, str) or not source_ip:
+        warnings.append(
+            f"{config.primary_wan}: primary WAN config {config.primary_wan_config} "
+            "does not define non-empty ping_source_ip for steering RTT backend"
+        )
+        source_ip = None
+
+    measurement = primary_cfg.get("measurement")
+    if not isinstance(measurement, dict):
+        measurement = {}
+    timeouts = primary_cfg.get("timeouts")
+    if not isinstance(timeouts, dict):
+        timeouts = {}
+    timeout_ping = timeouts.get("ping", config.timeout_ping)
+
+    return _PrimaryWanRttConfig({"measurement": measurement}, timeout_ping), source_ip, warnings
 
 
 def _cleanup_steering_daemon(

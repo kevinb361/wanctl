@@ -34,10 +34,7 @@ from wanctl.metrics import (
 )
 from wanctl.router_client import clear_router_password
 from wanctl.routeros_interface import RouterOS
-from wanctl.rtt_measurement import (
-    RTTAggregationStrategy,
-    RTTMeasurement,
-)
+from wanctl.rtt_backend_factory import RttBackendHandle, build_rtt_backend
 from wanctl.signal_utils import (
     SHUTDOWN_TIMEOUT_SECONDS,
     get_shutdown_event,
@@ -117,7 +114,7 @@ def _log_startup_config(config: "Config", logger: logging.Logger) -> None:
     logger.info(f"Ping: hosts={config.ping_hosts}, median-of-three={config.use_median_of_three}")
 
 
-def _create_wan_components(config: "Config", logger: logging.Logger) -> tuple[Any, RTTMeasurement]:
+def _create_wan_components(config: "Config", logger: logging.Logger) -> tuple[Any, RttBackendHandle]:
     """Create router backend and RTT measurement for a WAN.
 
     Validates transport/cake_params compatibility and selects the appropriate
@@ -142,14 +139,13 @@ def _create_wan_components(config: "Config", logger: logging.Logger) -> tuple[An
         router = RouterOS(config, logger)
     clear_router_password(config)
 
-    rtt_measurement = RTTMeasurement(
-        logger,
-        timeout_ping=config.timeout_ping,
-        aggregation_strategy=RTTAggregationStrategy.AVERAGE,
-        log_sample_stats=True,
+    rtt_backend = build_rtt_backend(
+        config,
         source_ip=config.ping_source_ip,
+        logger=logger,
+        wan_key=config.wan_name,
     )
-    return router, rtt_measurement
+    return router, rtt_backend
 
 
 class ContinuousAutoRate:
@@ -163,8 +159,20 @@ class ContinuousAutoRate:
             config = Config(config_file)
             logger = setup_logging(config, "cake_continuous", debug)
             _log_startup_config(config, logger)
-            router, rtt_measurement = _create_wan_components(config, logger)
-            wan_controller = WANController(config.wan_name, config, router, rtt_measurement, logger)
+            router, rtt_backend = _create_wan_components(config, logger)
+            # controller_measurement is always icmplib RTTMeasurement so
+            # ping_host, ping_hosts_with_results, and reflector maybe_probe keep
+            # full helper semantics. In Phase 242 fping, when selected, feeds
+            # only the background thread; scorer consumption is a Phase 245 A/B concern.
+            wan_controller = WANController(
+                config.wan_name,
+                config,
+                router,
+                rtt_backend.controller_measurement,
+                logger,
+                rtt_thread_factory=rtt_backend,
+                rtt_backend_status=rtt_backend,
+            )
             self.wan_controllers.append(
                 {"controller": wan_controller, "config": config, "logger": logger}
             )

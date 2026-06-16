@@ -4624,6 +4624,133 @@ class TestBackgroundRttWiring:
 
         assert controller._background_rtt_cadence_sec() == pytest.approx(1.0)
 
+    def test_factory_handle_start_background_rtt_keeps_fping_active(self, mock_autorate_config):
+        """Phase 242: real start_background_rtt keeps fping active via factory adapter.
+
+        This is the live-path regression for wan_controller.py:1082: the controller
+        still passes its ~0.25s cadence to handle.make_thread(), but the fping
+        branch uses resolved measurement.fping.cadence_sec and installs an adapter,
+        not BackgroundRTTThread and not a raw FpingThread.
+        """
+        from wanctl.fping_measurement import FpingThread
+        from wanctl.rtt_backend_factory import build_rtt_backend
+        from wanctl.wan_controller import WANController
+
+        mock_autorate_config.data = {
+            "measurement": {"backend": "fping", "fping": {"cadence_sec": 8.0}}
+        }
+        mock_autorate_config.timeout_ping = 1
+        mock_autorate_config.ping_source_ip = "192.0.2.10"
+        mock_autorate_config.ping_hosts = ["198.51.100.10", "198.51.100.11", "198.51.100.12"]
+
+        with (
+            patch("wanctl.rtt_backend_factory.shutil.which", return_value="/usr/bin/fping"),
+            patch("wanctl.fping_measurement.shutil.which", return_value="/usr/bin/fping"),
+        ):
+            handle = build_rtt_backend(
+                mock_autorate_config,
+                source_ip=mock_autorate_config.ping_source_ip,
+                logger=MagicMock(),
+                wan_key="spectrum",
+            )
+
+        router = MagicMock(needs_rate_limiting=False, rate_limit_params={})
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                "spectrum",
+                mock_autorate_config,
+                router,
+                handle.controller_measurement,
+                MagicMock(),
+                rtt_thread_factory=handle,
+            )
+        shutdown_event = threading.Event()
+        try:
+            ctrl.start_background_rtt(shutdown_event)
+            assert handle.backend_active == "fping"
+            assert ctrl._rtt_thread is not None
+            assert not isinstance(ctrl._rtt_thread, BackgroundRTTThread)
+            assert not isinstance(ctrl._rtt_thread, FpingThread)
+            assert ctrl._rtt_thread.cadence_sec == pytest.approx(8.0)
+        finally:
+            shutdown_event.set()
+            if ctrl._rtt_thread is not None:
+                ctrl._rtt_thread.stop()
+            if ctrl._rtt_pool is not None:
+                ctrl._rtt_pool.shutdown(wait=True)
+
+    def test_factory_controller_measurement_covers_helper_paths(self, mock_autorate_config):
+        """Phase 242: fping-selected controllers keep icmplib helper semantics.
+
+        The three helper paths at wan_controller.py:1279, :1484, and :3137 need
+        RTTMeasurement methods. Binding handle.controller_measurement, never
+        handle.backend, lets them run without AttributeError under fping mode.
+        """
+        from wanctl.rtt_backend_factory import build_rtt_backend
+        from wanctl.rtt_measurement import RTTMeasurement
+        from wanctl.wan_controller import WANController
+
+        mock_autorate_config.data = {"measurement": {"backend": "fping"}}
+        mock_autorate_config.timeout_ping = 1
+        mock_autorate_config.ping_source_ip = "192.0.2.10"
+        mock_autorate_config.ping_hosts = ["198.51.100.10"]
+        mock_autorate_config.fallback_check_gateway = True
+        mock_autorate_config.fallback_gateway_ip = "192.0.2.1"
+
+        with (
+            patch("wanctl.rtt_backend_factory.shutil.which", return_value="/usr/bin/fping"),
+            patch("wanctl.fping_measurement.shutil.which", return_value="/usr/bin/fping"),
+        ):
+            handle = build_rtt_backend(
+                mock_autorate_config,
+                source_ip=mock_autorate_config.ping_source_ip,
+                logger=MagicMock(),
+                wan_key="spectrum",
+            )
+        assert isinstance(handle.controller_measurement, RTTMeasurement)
+
+        router = MagicMock(needs_rate_limiting=False, rate_limit_params={})
+        with patch.object(WANController, "load_state"):
+            ctrl = WANController(
+                "spectrum",
+                mock_autorate_config,
+                router,
+                handle.controller_measurement,
+                MagicMock(),
+                rtt_thread_factory=handle,
+            )
+        ctrl.rtt_measurement.ping_host = MagicMock(return_value=12.0)
+        ctrl.rtt_measurement.ping_hosts_with_results = MagicMock(return_value={"198.51.100.10": 12.0})
+        ctrl._reflector_scorer._hosts = ["198.51.100.10"]
+        ctrl._reflector_scorer._deprioritized = {"198.51.100.10"}
+        ctrl._reflector_scorer._last_probe_time = {"198.51.100.10": 0.0}
+
+        ctrl.verify_local_connectivity()
+        ctrl._measure_rtt_blocking()
+        ctrl._reflector_scorer.maybe_probe(time.monotonic() + 10_000, ctrl.rtt_measurement)
+
+    def test_steering_primary_wan_config_helper_resolves_backend_and_source_ip(self, tmp_path):
+        """Phase 242: steering sources backend+source_ip from primary WAN config."""
+        from wanctl.steering.daemon import _load_primary_wan_config_for_rtt_backend
+
+        primary = tmp_path / "primary.yaml"
+        primary.write_text(
+            "ping_source_ip: 192.0.2.20\n"
+            "timeouts:\n"
+            "  ping: 3\n"
+            "measurement:\n"
+            "  backend: fping\n",
+            encoding="utf-8",
+        )
+        config = MagicMock(primary_wan="spectrum", primary_wan_config=primary, timeout_ping=2)
+
+        config_like, source_ip, warnings = _load_primary_wan_config_for_rtt_backend(config)
+
+        assert source_ip == "192.0.2.20"
+        assert config_like.timeout_ping == 3
+        assert config_like.data["measurement"]["backend"] == "fping"
+        assert warnings == []
+
 
 class TestProtocolDeprioritizationFusionAwareCooldown:
     """Coverage for fusion-aware protocol deprioritization log cooldowns."""
