@@ -90,9 +90,9 @@ ARM EXECUTION (operator-run on .226 / .233)                       │
                               ▼                                        ▼
   (under-load arm only) flent RRUL ──► netperf      journalctl -u <unit> -o cat        soak sampler (clone soak-capture.sh)
    Dallas Linode 104.200.21.31 (-S WAN src)            │ raw NDJSON                       1Hz: /proc/<pid>/fd | task | stat(Z)
-   real CAKE rate-adjust + elevated RTT                ▼                                         + systemctl show -p TasksCurrent
+   real CAKE rate-adjust + elevated RTT                ▼                                         + systemctl show -p TasksCurrent + CPUUsageNSec
                                             profiling_collector_json.py                          ▼
-                                              → <arm>.profile.json (avg/p99)         <arm>.hygiene.ndjson
+                                              → <arm>.profile.json (avg/p99)         <arm>.hygiene.ndjson (fd/zombie/tasks/cpu_nsec)
                                                          │                                       │
                                                          └──────────────┬────────────────────────┘
                                                                         ▼
@@ -100,7 +100,7 @@ ARM EXECUTION (operator-run on .226 / .233)                       │
     phase243-gate-eval.py  ──►  243-BENCHMARK-VERDICT.json
       • fping avg/p99 delta vs same-run icmplib arm ≤ 20%   (D-04)
       • fping p99 < 10ms absolute ceiling                   (D-04)
-      • CPU% delta < pre-committed bound (~2 pts)           (D-04)
+      • CPU% delta < pre-committed bound (~2 pts)           (D-04; cpu_delta_pts from CPUUsageNSec window deltas)
       • zombies == 0; fd no monotonic upward trend; Tasks bounded  (D-04a)
       • zero cycle gap > 100ms attributable to a burst      (D-04b STALL)
       • per-arm n ≥ max(10k cycles, 30 min)                 (D-04c validity floor)
@@ -153,18 +153,19 @@ journalctl -u wanctl-bench-spectrum-fping-load -o cat --no-pager \
 The collector requires `autorate_cycle_total` samples or it errors (profiling_collector_json.py:124) — a built-in validity check that the loop actually ran.
 
 ### Pattern 2: Subprocess-hygiene soak sampling (clone soak-capture.sh)
-**What:** A 1Hz NDJSON sampler keyed on the unit's MainPID recording fd count, thread/Tasks count, and zombie count.
+**What:** A 1Hz NDJSON sampler keyed on the unit's MainPID recording fd count, thread/Tasks count, zombie count, and the per-unit cumulative CPUUsageNSec counter (the CPU% gate producer).
 **Example:**
 ```bash
 # Source: scripts/soak-capture.sh (NDJSON-per-tick pattern, bounded failure tolerance)
 PID=$(systemctl show -p MainPID --value wanctl-bench-spectrum-fping-load)
 fd=$(ls /proc/$PID/fd | wc -l)
 tasks=$(systemctl show -p TasksCurrent --value wanctl-bench-spectrum-fping-load)
+cpu_nsec=$(systemctl show -p CPUUsageNSec --value wanctl-bench-spectrum-fping-load)  # cumulative; gate takes window delta
 # zombie children of PID: scan /proc/*/stat for state Z whose PPID==PID
 zombies=$(awk '...' /proc/[0-9]*/stat)   # count R/S/D vs Z; Z under this PID = reaping bug
-printf '{"t":%s,"fd":%s,"tasks":%s,"zombies":%s}\n' "$(date +%s)" "$fd" "$tasks" "$zombies"
+printf '{"t":%s,"fd":%s,"tasks":%s,"zombies":%s,"cpu_nsec":%s}\n' "$(date +%s)" "$fd" "$tasks" "$zombies" "$cpu_nsec"
 ```
-**Trend test (stdlib):** import `percentile` from `soak_summary_aggregate.py`; "flat/bounded" = `(last-quartile median fd) - (first-quartile median fd) <= small_epsilon` AND `max(fd) - min(fd)` within a jitter band. Reject monotonic upward: split the series into N windows, assert window medians are not strictly increasing across all windows. Zombies: assert `max(zombies) == 0`. Tasks: assert `max(tasks) <= baseline_tasks + bound`.
+**Trend test (stdlib):** import `percentile` from `soak_summary_aggregate.py`; "flat/bounded" = `(last-quartile median fd) - (first-quartile median fd) <= small_epsilon` AND `max(fd) - min(fd)` within a jitter band. Reject monotonic upward: split the series into N windows, assert window medians are not strictly increasing across all windows. Zombies: assert `max(zombies) == 0`. Tasks: assert `max(tasks) <= baseline_tasks + bound`. **CPU:** `cpu_pct = (cpu_nsec_last - cpu_nsec_first) / (window_wall_ns * n_cores) * 100`; the gate compares the fping-arm cpu_pct vs the same-run icmplib-arm cpu_pct as `cpu_delta_pts`.
 
 ### Pattern 3: STALL (cycle-gap) detection — the TTY-vs-pipe fingerprint
 **What:** From the per-cycle NDJSON, reconstruct inter-cycle wall gaps (from the `timestamp` field on each `"Cycle timing"` record, JSONFormatter logging_utils.py:84-86) and flag any gap `> 2× budget = >100ms` (D-04b). A pipe-buffering hang manifests as a missing-cycle spike.
@@ -186,6 +187,7 @@ printf '{"t":%s,"fd":%s,"tasks":%s,"zombies":%s}\n' "$(date +%s)" "$fd" "$tasks"
 | Soak NDJSON loop w/ failure tolerance | New capture loop | Clone `soak-capture.sh` | Bounded-failure NDJSON pattern already battle-tested. |
 | Backend selection per arm | New backend switch | `build_rtt_backend()` (242 factory) | Single construction site; config-driven. |
 | Load generation | New traffic generator | flent RRUL via `benchmark.py` / `phase213-baseline-capture.sh --bind-map` | D-03 reuse; source-bound to Dallas Linode. |
+| Per-unit CPU% | `/proc/<pid>/stat` utime+stime hand-rolling | `systemctl show -p CPUUsageNSec` cgroup delta | Per-unit cgroup accounting isolates the bench process tree; no PID-tree walking. |
 | Pre-registered threshold → verdict | New gate logic | `phase206-gate-check.py` / `phase224-gate-eval.py` + thresholds JSON | Established pre-registration→verdict shape. |
 | Boundary diff verifier | New SAFE-17 logic | Clone `phase242-safe17-boundary-check.sh` | Fail-closed pattern proven 238→242. |
 
@@ -262,7 +264,8 @@ The 242 verifier carries 239/240/241 protected-body machinery because those phas
 #   avg_delta_pct = (fping.avg - icmplib.avg) / icmplib.avg * 100   ; require <= 20
 #   p99_delta_pct = (fping.p99 - icmplib.p99) / icmplib.p99 * 100   ; require <= 20
 #   require fping.p99 < 10.0                                         # absolute ceiling
-#   require cpu_delta_pts < CPU_BOUND                               # pre-committed (~2.0)
+#   cpu_pct(arm) = cpu_nsec_delta / (window_wall_sec*1e9*n_cores) * 100   # from CPUUsageNSec window deltas
+#   cpu_delta_pts = fping_arm.cpu_pct - icmplib_arm.cpu_pct ; require cpu_delta_pts < CPU_DELTA_PCT_POINTS  # frozen 2.0
 #   require max(hygiene.zombies) == 0
 #   require fd trend not monotonic-upward (windowed-median test)
 #   require max(hygiene.tasks) <= tasks_baseline + TASKS_BOUND
@@ -293,19 +296,22 @@ The 242 verifier carries 239/240/241 protected-body machinery because those phas
 | A5 | `fping` 5.1 is installed on both .226/.233 hosts. | Supporting Stack | FALL-01/02 means absence falls back to icmplib — but the benchmark *needs* fping present to measure it. Verify `fping --version` on both hosts before the run (MISSING on this research VM). `[ASSUMED]` |
 | A6 | The transient bench unit can run with a config that does not collide with live cake-autorate/bridge/steering (unique port/lock/state). | Runtime State | Collision risk on health port 9101 / `/run/wanctl` lock. Verify with `ss -ltnp` + lock inspection before launch. `[ASSUMED]` |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does the bench unit need to actually drive CAKE, or can it observe-only?**
+   - **RESOLVED:** operator-confirmed at run — the bench config drives the dev host's own CAKE (the loop's router communication is part of the measured cycle budget); the Plan 04 runbook instructs the operator to confirm the bench config targets the dev shaper, not production.
    - What we know: D-01 says run the *real* loop; the under-load arm needs the controller "in active CAKE rate-adjustment with elevated RTT" (D-03) to create realistic per-cycle work + contention.
    - What's unclear: whether the bench config should point at a real (dev) router/CAKE or a no-op router backend to avoid mutating dev shaping.
    - Recommendation: bench config drives the dev host's own CAKE (the loop's router communication is part of the cycle budget being measured); ensure it targets the dev shaper, not production. If observe-only is acceptable for the idle arm, the under-load arm still must exercise the real router path for representativeness. Operator-confirm.
 
 2. **CPU% measurement method.**
+   - **RESOLVED:** CPUUsageNSec delta, sampled per-arm and rolled into evidence — the Plan 02 hygiene sampler emits a per-tick `cpu_nsec` field (`systemctl show -p CPUUsageNSec`), and the Plan 04 bench-run launcher records `cpu_nsec_start`/`cpu_nsec_end`/`cpu_nsec_delta`/`window_wall_sec`/`n_cores` into each per-arm evidence JSON. The Plan 03 gate-eval derives `cpu_pct = cpu_nsec_delta / (window_wall_sec*1e9*n_cores)*100` and gates `cpu_delta_pts = fping_arm.cpu_pct − icmplib_arm.cpu_pct` against the frozen `CPU_DELTA_PCT_POINTS = 2.0`.
    - What we know: D-04 requires a bounded CPU% delta (~2 pts, planner pre-commits the figure).
    - What's unclear: per-arm CPU% source — `systemctl show -p CPUUsageNSec` (cgroup CPU accounting, clean per-unit) vs `/proc/<pid>/stat` utime+stime sampling.
    - Recommendation: use `systemd` cgroup `CPUUsageNSec` deltas over the soak window divided by wall time × cores → %; it's per-unit and isolates the bench process tree. Pre-commit the exact figure in `phase243-thresholds.json`.
 
 3. **Transient unit vs committed template — final choice.**
+   - **RESOLVED:** transient `systemd-run --unit=... --collect` unit (throwaway, zero repo footprint, reversible) — the Plan 04 bench-run launcher uses the transient form; no committed `wanctl-bench@.service` template is added.
    - Recommendation: transient `systemd-run --unit=... --collect` (throwaway, zero repo footprint, reversible). Only commit a `wanctl-bench@.service` template if the planner wants the invocation pinned/reviewable in-repo; then it lives in `deploy/systemd/` and is in the SAFE-17 scaffolding allowlist (not a controller-path file).
 
 ## Environment Availability
@@ -343,8 +349,8 @@ The 242 verifier carries 239/240/241 protected-body machinery because those phas
 | SAFE-17 | scaffolding-only; any `src/wanctl/` edit fails the boundary verifier (pinned to 243 close anchor) | unit (git-diff harness) | `.venv/bin/pytest tests/test_phase243_safe17_verifier.py -x` | ❌ Wave 0 (clone `test_phase241_safe17_verifier.py`) |
 | SAFE-17 | verifier `--self-test` trips on a committed out-of-allowlist edit | shell self-test | `bash scripts/phase243-safe17-boundary-check.sh --self-test` | ❌ Wave 0 |
 | BENCH-01 | cycle rollup parses `"Cycle timing"` NDJSON → avg/p99 per arm | unit | `.venv/bin/pytest tests/test_phase243_cycle_rollup.py -x` (fixture NDJSON) | ❌ Wave 0 |
-| BENCH-01 | hygiene sampler emits well-formed fd/zombie/Tasks NDJSON | unit | `.venv/bin/pytest tests/test_phase243_hygiene_sampler.py -x` | ❌ Wave 0 |
-| BENCH-02 | gate evaluator computes correct pass/fail vs frozen thresholds (delta%, ceiling, zombie, fd-trend, stall, n-floor) on fixtures | unit | `.venv/bin/pytest tests/test_phase243_gate_eval.py -x` | ❌ Wave 0 |
+| BENCH-01 | hygiene sampler emits well-formed fd/zombie/Tasks/cpu_nsec NDJSON | unit | `.venv/bin/pytest tests/test_phase243_hygiene_sampler.py -x` | ❌ Wave 0 |
+| BENCH-02 | gate evaluator computes correct pass/fail vs frozen thresholds (delta%, ceiling, CPU delta, zombie, fd-trend, stall, n-floor) on fixtures | unit | `.venv/bin/pytest tests/test_phase243_gate_eval.py -x` | ❌ Wave 0 |
 | BENCH-02 | pre-registration thresholds JSON exists & is committed before evidence (git-order assertion / presence check) | unit | `.venv/bin/pytest tests/test_phase243_prereg.py -x` | ❌ Wave 0 |
 | BENCH-01/02 | end-to-end smoke: 60s real-unit run produces a non-empty `.profile.json` with `autorate_cycle_total` | manual (operator, on WAN host) | operator runbook step; collector errors if no cycle samples (built-in guard) | manual-only (requires real host + WAN) |
 
@@ -357,8 +363,8 @@ The 242 verifier carries 239/240/241 protected-body machinery because those phas
 ### Wave 0 Gaps
 - [ ] `tests/test_phase243_safe17_verifier.py` — clone of 241 mirror test, pinned to 243 `PHASE_CLOSE_ANCHOR`
 - [ ] `tests/test_phase243_cycle_rollup.py` — NDJSON fixture → avg/p99 + stall-gap detector
-- [ ] `tests/test_phase243_hygiene_sampler.py` — fd/zombie/Tasks NDJSON shape + trend test
-- [ ] `tests/test_phase243_gate_eval.py` — frozen-threshold verdict logic on synthetic arms (pass + each fail mode)
+- [ ] `tests/test_phase243_hygiene_sampler.py` — fd/zombie/Tasks/cpu_nsec NDJSON shape + trend test
+- [ ] `tests/test_phase243_gate_eval.py` — frozen-threshold verdict logic on synthetic arms (pass + each fail mode, incl. CPU delta)
 - [ ] `tests/test_phase243_prereg.py` — pre-registration artifact presence/shape
 - [ ] `scripts/phase243-thresholds.json` + `243-BENCHMARK-PREREGISTRATION.md` committed **before** the run (BENCH-02 discipline)
 - [ ] Framework install: none (pytest already present)
