@@ -1936,6 +1936,35 @@ class TestSignalQualityHealth:
         finally:
             server.shutdown()
 
+    def test_measurement_byte_preserved(self, mock_wan_with_signal):
+        """Phase 242: steering-consumed measurement fields stay byte-preserved.
+
+        This is deliberately a subset assertion.  Phase 242/244 may add
+        backend/fallback attribution keys beside these fields, but steering's
+        existing ``available``, ``raw_rtt_ms``, and ``staleness_sec`` values and
+        rounding must not change.
+        """
+        raw_rtt = 26.129
+        staleness = 0.2496
+        mock_wan_with_signal._last_raw_rtt = raw_rtt
+        mock_wan_with_signal._last_raw_rtt_staleness_sec = staleness
+        mock_wan_with_signal._last_active_reflector_hosts = ["1.1.1.1", "9.9.9.9"]
+        mock_wan_with_signal._last_successful_reflector_hosts = ["1.1.1.1"]
+        controller = self._make_controller(mock_wan_with_signal)
+
+        port = find_free_port()
+        server = start_health_server(host="127.0.0.1", port=port, controller=controller)
+        try:
+            url = f"http://127.0.0.1:{port}/health"
+            with urllib.request.urlopen(url, timeout=5) as response:
+                data = json.loads(response.read().decode())
+            measurement = data["wans"][0]["measurement"]
+            assert measurement["available"] is True
+            assert measurement["raw_rtt_ms"] == round(raw_rtt, 2)
+            assert measurement["staleness_sec"] == round(staleness, 3)
+        finally:
+            server.shutdown()
+
 
 class TestIRTTHealth:
     """Tests for irtt section in health endpoint."""
