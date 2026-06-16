@@ -19,7 +19,7 @@ import pytest
 from wanctl.fping_measurement import FpingMeasurement, FpingThread
 from wanctl.rtt_backend import RttSample
 from wanctl.rtt_backend_factory import build_rtt_backend
-from wanctl.rtt_measurement import BackgroundRTTThread, RTTCycleStatus, RTTMeasurement
+from wanctl.rtt_measurement import BackgroundRTTThread, RTTCycleStatus, RTTMeasurement, RTTSnapshot
 from wanctl.wan_controller import WANController
 
 
@@ -320,26 +320,68 @@ def test_thread_protocol_contract(binary_path: str | None, logger: logging.Logge
 
 
 def test_fping_selected_measure_rtt_no_attributeerror(logger: logging.Logger) -> None:
-    """Factory-produced fping thread works with WANController.measure_rtt() without AttributeError."""
+    """Factory-produced fping background samples do not feed ReflectorScorer."""
     with _patch_fping_present("/usr/bin/fping")[0], _patch_fping_present("/usr/bin/fping")[1]:
         handle = _build(backend="fping", logger=logger)
     controller = _make_controller(handle)
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
         controller._rtt_thread = handle.make_thread(
-            lambda: ["198.51.100.10"], threading.Event(), pool=pool, cadence_sec=0.25
+            lambda: ["h1", "h2"], threading.Event(), pool=pool, cadence_sec=0.25
         )
-    controller._rtt_thread._cached_result = RttSample(
+    controller._rtt_thread._fping_thread._cached_result = RttSample(
         rtt_ms=12.5,
-        per_host_results={"198.51.100.10": 12.5},
+        per_host_results={"h1": 12.5, "h2": None},
         timestamp=time.monotonic(),
         measurement_ms=1.0,
-        active_hosts=("198.51.100.10",),
-        successful_hosts=("198.51.100.10",),
+        active_hosts=("h1", "h2"),
+        successful_hosts=("h1",),
         backend="fping",
         source_ip="192.0.2.10",
     )
+    controller._reflector_scorer.record_results = MagicMock()
 
-    assert controller.measure_rtt() in (None, 12.5)
+    assert controller.measure_rtt() == 12.5
+    controller._reflector_scorer.record_results.assert_not_called()
+    assert controller._zero_success_blackout_cycles == 0
+    assert controller._last_active_reflector_hosts == ["h1", "h2"]
+    assert controller._last_successful_reflector_hosts == ["h1"]
+
+
+def test_icmplib_background_snapshot_still_updates_reflector_scorer(logger: logging.Logger) -> None:
+    """Normal icmplib background snapshots still feed ReflectorScorer."""
+    handle = _build(logger=logger)
+    controller = _make_controller(handle)
+
+    class IcmplibThread:
+        cadence_sec = 0.25
+
+        def get_latest(self):
+            return RTTSnapshot(
+                rtt_ms=11.0,
+                per_host_results={"h1": 11.0, "h2": None},
+                timestamp=time.monotonic(),
+                measurement_ms=1.0,
+                active_hosts=("h1", "h2"),
+                successful_hosts=("h1",),
+            )
+
+        def get_cycle_status(self):
+            return None
+
+        def get_profile_stats(self):
+            return {}
+
+        def start(self):
+            return None
+
+        def stop(self):
+            return None
+
+    controller._rtt_thread = IcmplibThread()
+    controller._reflector_scorer.record_results = MagicMock()
+
+    assert controller.measure_rtt() == 11.0
+    controller._reflector_scorer.record_results.assert_called_once_with({"h1": True, "h2": False})
 
 
 def test_fping_timeout_ge_cadence_falls_back(caplog: pytest.LogCaptureFixture, logger: logging.Logger) -> None:
