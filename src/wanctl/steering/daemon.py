@@ -61,7 +61,7 @@ from ..retry_utils import measure_with_retry, verify_with_retry
 from ..router_client import clear_router_password, get_router_client_with_failover
 from ..router_connectivity import RouterConnectivityState
 from ..rtt_backend_factory import build_rtt_backend
-from ..rtt_measurement import RTTMeasurement
+from ..rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from ..runtime_pressure import get_storage_file_snapshot, read_process_memory_status
 from ..signal_utils import (
     SHUTDOWN_TIMEOUT_SECONDS,
