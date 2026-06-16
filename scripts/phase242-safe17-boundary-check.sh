@@ -27,6 +27,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 RTT_SEAM_UNCHANGED_SINCE_PHASE239="false"
 REFLECTOR_SCORER_UNCHANGED="false"
 PHASE241_FROZEN_UNCHANGED="false"
+MEASURE_RTT_FPING_SCORER_GUARD="false"
 
 usage() {
     cat <<'EOF'
@@ -57,7 +58,7 @@ require_command() {
 emit_evidence() {
     local passed="$1"
     local helper_json_path="$2"
-    python3 - "$ANCHOR" "$ANCHOR_SHA" "$OUT" "$V153_ALLOWLIST_RE" "$passed" "$helper_json_path" "$PHASE239_CLOSE_ANCHOR" "$RTT_SEAM_UNCHANGED_SINCE_PHASE239" "$PHASE240_CLOSE_ANCHOR" "$REFLECTOR_SCORER_UNCHANGED" "$PHASE241_CLOSE_ANCHOR" "$PHASE241_FROZEN_UNCHANGED" <<'PY'
+    python3 - "$ANCHOR" "$ANCHOR_SHA" "$OUT" "$V153_ALLOWLIST_RE" "$passed" "$helper_json_path" "$PHASE239_CLOSE_ANCHOR" "$RTT_SEAM_UNCHANGED_SINCE_PHASE239" "$PHASE240_CLOSE_ANCHOR" "$REFLECTOR_SCORER_UNCHANGED" "$PHASE241_CLOSE_ANCHOR" "$PHASE241_FROZEN_UNCHANGED" "$MEASURE_RTT_FPING_SCORER_GUARD" <<'PY'
 import json
 import subprocess
 import sys
@@ -77,6 +78,7 @@ from pathlib import Path
     reflector_scorer_unchanged_raw,
     phase241_close_anchor,
     phase241_frozen_unchanged_raw,
+    measure_rtt_fping_scorer_guard_raw,
 ) = sys.argv[1:]
 out = Path(out_path)
 
@@ -188,6 +190,7 @@ record = {
     "reflector_scorer_unchanged": reflector_scorer_unchanged_raw == "true",
     "phase241_frozen_unchanged": phase241_frozen_unchanged_raw == "true",
     "phase241_frozen_no_new_diff": phase241_frozen_unchanged_raw == "true",
+    "measure_rtt_fping_scorer_guard": measure_rtt_fping_scorer_guard_raw == "true",
     "per_path_diff": per_path_diff,
     "dirty_tree": dirty_tree,
     "dirty_tree_clean": dirty_tree_clean,
@@ -198,7 +201,7 @@ record = {
     "allowed_shape_ok": bool(shape.get("allowed_shape_ok", False)) if isinstance(shape, dict) else False,
     "passed": passed_raw == "true",
     "checked_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-    "notes": "SAFE-17 v1.53 Phase 242 boundary check: expanded path allowlist, no RTT-seam drift since Phase 239 close, fping_measurement.py and reflector_scorer.py unchanged since Phase 241 close, protected-body, and complete allowed-diff-shape guard anchored at v1.52.",
+    "notes": "SAFE-17 v1.53 Phase 242 boundary check: expanded path allowlist, no RTT-seam drift since Phase 239 close, fping_measurement.py and reflector_scorer.py unchanged since Phase 241 close, protected-body with the exact post-gap WANController.measure_rtt fping scorer guard exception, and complete allowed-diff-shape guard anchored at v1.52.",
 }
 
 out.parent.mkdir(parents=True, exist_ok=True)
@@ -250,6 +253,152 @@ run_self_test() {
         rc=1
     fi
     return "$rc"
+}
+
+check_measure_rtt_fping_scorer_guard() {
+    python3 - <<'PY'
+import ast
+import subprocess
+from pathlib import Path
+
+PATH = "src/wanctl/wan_controller.py"
+ANCHOR = "v1.52"
+FORBIDDEN_TOKENS = (
+    "EWMA",
+    "ewma",
+    "dwell",
+    "deadband",
+    "arbitration",
+    "fusion",
+    "factor_down",
+    "step_up",
+    "ceiling",
+    "floor",
+)
+STALENESS_TOKENS = ("5.0", "0.5")
+
+
+def git_show(ref: str, path: str) -> str:
+    return subprocess.run(
+        ["git", "show", f"{ref}:{path}"],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+    ).stdout
+
+
+def measure_rtt_segment(source: str) -> str:
+    tree = ast.parse(source)
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef) and node.name == "WANController":
+            for child in node.body:
+                if isinstance(child, ast.FunctionDef) and child.name == "measure_rtt":
+                    segment = ast.get_source_segment(source, child)
+                    if segment is None:
+                        raise SystemExit("measure_rtt source segment unavailable")
+                    return segment
+    raise SystemExit("WANController.measure_rtt not found")
+
+
+def calls_record_results(node: ast.AST) -> bool:
+    return any(
+        isinstance(child, ast.Call)
+        and isinstance(child.func, ast.Attribute)
+        and child.func.attr == "record_results"
+        for child in ast.walk(node)
+    )
+
+
+def touches_blackout_cycles(node: ast.AST) -> bool:
+    return any(
+        isinstance(child, ast.Attribute) and child.attr == "_zero_success_blackout_cycles"
+        for child in ast.walk(node)
+    )
+
+
+def is_not_name(node: ast.AST, name: str) -> bool:
+    return (
+        isinstance(node, ast.UnaryOp)
+        and isinstance(node.op, ast.Not)
+        and isinstance(node.operand, ast.Name)
+        and node.operand.id == name
+    )
+
+
+source = Path(PATH).read_text()
+segment = measure_rtt_segment(source)
+tree = ast.parse(segment)
+func = tree.body[0]
+
+if 'getattr(snapshot, "backend", "icmplib")' not in segment:
+    raise SystemExit("measure_rtt missing snapshot backend getattr guard")
+if "skip_scorer_for_backend = snapshot_backend == \"fping\"" not in segment:
+    raise SystemExit("measure_rtt missing fping skip flag")
+if "zero_success_cycle =" not in segment:
+    raise SystemExit("measure_rtt missing zero_success_cycle split")
+
+record_guard_ok = False
+zero_success_guard_ok = False
+for node in ast.walk(func):
+    if not isinstance(node, ast.If):
+        continue
+    if isinstance(node.test, ast.BoolOp) and isinstance(node.test.op, ast.And):
+        values = list(node.test.values)
+        if (
+            any(is_not_name(value, "zero_success_cycle") for value in values)
+            and any(is_not_name(value, "skip_scorer_for_backend") for value in values)
+            and calls_record_results(node)
+        ):
+            record_guard_ok = True
+    if isinstance(node.test, ast.Name) and node.test.id == "zero_success_cycle" and touches_blackout_cycles(node):
+        zero_success_guard_ok = True
+
+if not record_guard_ok:
+    raise SystemExit("record_results is not guarded by both zero_success_cycle and skip_scorer_for_backend")
+if not zero_success_guard_ok:
+    raise SystemExit("zero-success blackout branch is not guarded by zero_success_cycle")
+
+anchor_segment = measure_rtt_segment(git_show(ANCHOR, PATH))
+for token in STALENESS_TOKENS:
+    if segment.count(token) != anchor_segment.count(token):
+        raise SystemExit(f"measure_rtt changed staleness token count for {token}")
+for token in FORBIDDEN_TOKENS:
+    if token in segment:
+        raise SystemExit(f"measure_rtt contains forbidden threshold/state/timing token: {token}")
+
+print("PASS measure_rtt_fping_scorer_guard")
+PY
+}
+
+protected_body_ok_with_measure_rtt_exception() {
+    local helper_json_path="$1"
+    python3 - "$helper_json_path" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text())
+shape = payload.get("shape", {})
+if not shape.get("allowed_shape_ok", False):
+    raise SystemExit("allowed shape failed")
+
+failures = [
+    item
+    for item in payload.get("protected", [])
+    if not item.get("identical", False)
+]
+expected = [
+    item
+    for item in failures
+    if item.get("file") == "src/wanctl/wan_controller.py"
+    and item.get("function") == "WANController.measure_rtt"
+]
+if len(failures) == 1 and len(expected) == 1:
+    print("PASS protected-body exception limited to WANController.measure_rtt")
+    raise SystemExit(0)
+
+raise SystemExit(f"unexpected protected-body failures: {failures!r}")
+PY
 }
 
 while [[ $# -gt 0 ]]; do
@@ -389,13 +538,24 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if ! python3 "$SCRIPT_DIR/phase239-protected-body-diff.py" --anchor "$ANCHOR" --json >"$HELPER_JSON" 2>"$HELPER_ERR"; then
-    echo "SAFE-17 VIOLATION: protected-body or allowed-shape drift detected" >&2
-    cat "$HELPER_ERR" >&2
-    emit_evidence false "$HELPER_JSON"
+if ! check_measure_rtt_fping_scorer_guard >&2; then
+    echo "SAFE-17 VIOLATION: measure_rtt fping scorer guard assertion failed" >&2
+    MEASURE_RTT_FPING_SCORER_GUARD="false"
+    emit_evidence false -
     exit 1
 fi
+MEASURE_RTT_FPING_SCORER_GUARD="true"
 
-cat "$HELPER_ERR" >&2
+if ! python3 "$SCRIPT_DIR/phase239-protected-body-diff.py" --anchor "$ANCHOR" --json >"$HELPER_JSON" 2>"$HELPER_ERR"; then
+    cat "$HELPER_ERR" >&2
+    if ! protected_body_ok_with_measure_rtt_exception "$HELPER_JSON" >&2; then
+        echo "SAFE-17 VIOLATION: protected-body or allowed-shape drift exceeded the fping scorer guard exception" >&2
+        emit_evidence false "$HELPER_JSON"
+        exit 1
+    fi
+else
+    cat "$HELPER_ERR" >&2
+fi
+
 emit_evidence true "$HELPER_JSON"
 echo "SAFE-17 boundary check passed: $OUT"
