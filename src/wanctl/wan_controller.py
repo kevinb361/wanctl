@@ -4485,6 +4485,22 @@ class WANController:
             self._cake_stats_thread.get_latest() if self._cake_stats_thread is not None else None
         )
         irtt_latest = self._irtt_thread.get_latest() if self._irtt_thread is not None else None
+        rtt_backend_status = self._rtt_backend_status
+        backend_active = (
+            getattr(rtt_backend_status, "backend_active", "icmplib")
+            if rtt_backend_status is not None
+            else "icmplib"
+        )
+        fell_back = (
+            bool(getattr(rtt_backend_status, "fell_back", False))
+            if rtt_backend_status is not None
+            else False
+        )
+        fallback_count = (
+            int(getattr(rtt_backend_status, "fallback_count", 0))
+            if rtt_backend_status is not None
+            else 0
+        )
         return {
             "cycle_budget": {
                 "profiler": self._profiler,
@@ -4526,6 +4542,9 @@ class WANController:
                     if self._rtt_thread is not None
                     else self._background_rtt_cadence_sec()
                 ),
+                "backend_active": backend_active,
+                "fell_back": fell_back,
+                "fallback_count": fallback_count,
             },
             "background_workers": {
                 "rtt": {

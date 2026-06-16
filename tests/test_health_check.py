@@ -141,6 +141,21 @@ def _configure_wan_health_data(wan_mock: MagicMock) -> None:
                     if isinstance(getattr(wan_mock, "_last_successful_reflector_hosts", None), list)
                     else []
                 ),
+                "backend_active": (
+                    wan_mock._backend_active
+                    if isinstance(getattr(wan_mock, "_backend_active", None), str)
+                    else "icmplib"
+                ),
+                "fell_back": (
+                    wan_mock._fell_back
+                    if isinstance(getattr(wan_mock, "_fell_back", None), bool)
+                    else False
+                ),
+                "fallback_count": (
+                    wan_mock._fallback_count
+                    if isinstance(getattr(wan_mock, "_fallback_count", None), int)
+                    else 0
+                ),
             },
             "background_workers": (
                 wan_mock._background_workers_health
@@ -1919,6 +1934,9 @@ class TestSignalQualityHealth:
         mock_wan_with_signal._last_raw_rtt_staleness_sec = 0.25
         mock_wan_with_signal._last_active_reflector_hosts = ["1.1.1.1", "9.9.9.9"]
         mock_wan_with_signal._last_successful_reflector_hosts = ["1.1.1.1"]
+        mock_wan_with_signal._backend_active = "fping"
+        mock_wan_with_signal._fell_back = False
+        mock_wan_with_signal._fallback_count = 0
         controller = self._make_controller(mock_wan_with_signal)
 
         port = find_free_port()
@@ -1933,6 +1951,9 @@ class TestSignalQualityHealth:
             assert measurement["staleness_sec"] == 0.25
             assert measurement["active_reflector_hosts"] == ["1.1.1.1", "9.9.9.9"]
             assert measurement["successful_reflector_hosts"] == ["1.1.1.1"]
+            assert measurement["backend_active"] == "fping"
+            assert measurement["fell_back"] is False
+            assert measurement["fallback_count"] == 0
         finally:
             server.shutdown()
 
@@ -1964,6 +1985,45 @@ class TestSignalQualityHealth:
             assert measurement["staleness_sec"] == round(staleness, 3)
         finally:
             server.shutdown()
+
+    def test_measurement_backend_fallback_keys_are_per_wan(self):
+        """Phase 242: additive fallback signal is reflected independently per WAN."""
+        handler = HealthCheckHandler.__new__(HealthCheckHandler)
+        common = {
+            "raw_rtt_ms": 26.0,
+            "staleness_sec": 0.2,
+            "cadence_sec": 0.25,
+            "active_reflector_hosts": ["1.1.1.1"],
+            "successful_reflector_hosts": ["1.1.1.1"],
+        }
+
+        spectrum = handler._build_measurement_section(
+            {
+                "measurement": {
+                    **common,
+                    "backend_active": "fping",
+                    "fell_back": False,
+                    "fallback_count": 0,
+                }
+            }
+        )
+        att = handler._build_measurement_section(
+            {
+                "measurement": {
+                    **common,
+                    "backend_active": "icmplib",
+                    "fell_back": True,
+                    "fallback_count": 1,
+                }
+            }
+        )
+
+        assert spectrum["backend_active"] == "fping"
+        assert spectrum["fell_back"] is False
+        assert spectrum["fallback_count"] == 0
+        assert att["backend_active"] == "icmplib"
+        assert att["fell_back"] is True
+        assert att["fallback_count"] == 1
 
 
 class TestIRTTHealth:

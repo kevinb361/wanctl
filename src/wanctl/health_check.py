@@ -511,6 +511,11 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             stale = staleness > 3 * cadence_sec
         else:
             stale = True
+        fallback_count_raw = measurement.get("fallback_count", 0)
+        fallback_count = fallback_count_raw if isinstance(fallback_count_raw, int) else 0
+        backend_active = measurement.get("backend_active", "icmplib")
+        if not isinstance(backend_active, str) or not backend_active:
+            backend_active = "icmplib"
 
         return {
             "available": raw_rtt is not None,
@@ -521,6 +526,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             "state": state,
             "successful_count": successful_count,
             "stale": stale,
+            "backend_active": backend_active,
+            "fell_back": bool(measurement.get("fell_back", False)),
+            "fallback_count": fallback_count,
         }
 
     def _build_background_workers_section(
