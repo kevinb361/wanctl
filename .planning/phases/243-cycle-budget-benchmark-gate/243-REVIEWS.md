@@ -1,137 +1,117 @@
 ---
 phase: 243
 reviewers: [codex]
-reviewed_at: 2026-06-16T23:14:13Z
-review_cycle: 2
+reviewed_at: 2026-06-16T23:29:23Z
+review_cycle: 3
 plans_reviewed: [243-01-PLAN.md, 243-02-PLAN.md, 243-03-PLAN.md, 243-04-PLAN.md]
-prior_high_count: 4
-unresolved_high_count: 1
+prior_high_count: 1
+unresolved_high_count: 0
 ---
 
-# Cross-AI Plan Review — Phase 243 (Cycle-Budget Benchmark Gate) — CYCLE 2
+# Cross-AI Plan Review — Phase 243 (Cycle-Budget Benchmark Gate) — CYCLE 3 (FINAL)
 
-> Reviewer: Codex (codex-cli 0.135.0, default model). Claude self-skipped (review ran
-> inside Claude Code; `--codex` requested). Gemini CLI not installed.
+> Reviewer: Codex (codex-cli 0.135.0, model `gpt-5.5`, reasoning effort xhigh). Claude
+> self-skipped (review ran inside Claude Code; `--codex` requested). Gemini CLI not installed.
 >
-> Cycle 2 focus: verify that the plan revisions actually resolve the 4 prior-cycle HIGH
-> concerns (live-shaping collision preflight, committed bench configs, journal
-> invocation-id scoping, representativeness hard-gate) and surface any new HIGH issues
-> introduced by the revisions. Prior cycle: see git history of this file
-> (cycle-1 raised HIGH-1..HIGH-4, all on Plans 02/03/04).
+> Cycle 3 focus: verify that the Plan-04 revisions resolve the ONE unresolved cycle-2 HIGH
+> (missing `CAP_NET_RAW`/`CAP_NET_ADMIN` on the bench transient unit) and the three cycle-2
+> MEDIUMs (stable-field qdisc diff, bounded-stop/trap teardown, launcher-owned journal
+> scoping), and surface any NEW HIGH introduced by the revisions. Plans 01-03 unchanged this
+> cycle; only Plan 04 was revised. Prior cycles: see git history of this file.
 
 ## Codex Review
 
 **Summary**
-The four prior HIGHs are materially resolved in the revised plans: each now has a
-concrete gate/test path instead of prose-only mitigation. One NEW HIGH was found: the
-benchmark transient unit likely lacks the network capabilities required to run
-`linux-cake` as `wanctl`, so the safe throwaway-qdisc design may not actually run.
+Plan 04 resolves the prior HIGH at the plan level: the transient bench unit now explicitly
+carries `AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN` and the matching
+`CapabilityBoundingSet`, with correct `systemd-run --property="... ..."` quoting (each
+space-containing property value is one quoted argument). No new HIGH blockers. One cycle-2
+MEDIUM (journal scoping) is only PARTIALLY resolved because Task 3 still permits a `-o cat`
+fallback with weaker first-record validation instead of requiring per-record JSON
+verification; two fresh MEDIUMs are raised around the grep-based contract test and that same
+journal fallback. None is operator-run-blocking.
 
-**Prior HIGH Disposition**
+**Prior-Finding Disposition**
 
-| Prior HIGH | Disposition | Load-Bearing Mechanism |
+| Cycle-2 Finding | Disposition | Load-Bearing Mechanism |
 |---|---|---|
-| HIGH-1 live-shaping collision | RESOLVED | Plan 04 Task 1 forces `router.transport = linux-cake` with throwaway `cake_params.download_interface/upload_interface`; Task 2 preflight (`scripts/phase243-bench-preflight.sh`) aborts fail-closed unless interfaces are bench-only, disjoint from the live cake-autorate shapers, and transport is not a REST/SSH writer pointed at the prod RouterOS; Task 3 launcher runs the preflight FIRST and refuses to start otherwise, then post-checks a live qdisc snapshot diff (untouched-proof). |
-| HIGH-2 no committed/tested bench configs | RESOLVED | Plan 04 Task 1 adds committed `configs/bench/gen-bench-configs.sh` + `tests/test_phase243_bench_configs.py` asserting backend key, `ping_source_ip`, unique health/metrics ports (≠ live 9101/9100, no two arms share), bench-marked lock/state, no production metrics DB, throwaway qdisc interfaces — with a negative assertion that FAILS if any bench path/port equals a live one. |
-| HIGH-3 journal scoping | RESOLVED | Plan 02 makes `--invocation-id` REQUIRED and fails closed (exit 2) if absent, records it in the profile; Plan 04 launcher captures `InvocationID` and drains with `journalctl _SYSTEMD_INVOCATION_ID="$INVOCATION" -o cat \| phase243-cycle-rollup.py --invocation-id "$INVOCATION"`, explicitly NOT `journalctl -u <unit>` alone. |
-| HIGH-4 representativeness warn-only | RESOLVED | Plan 01 freezes `ICMPLIB_REPRESENTATIVE_*_TOL_MS` into the thresholds JSON; Plan 03 runs the representativeness gate FIRST and returns `outcome: input_error` / `EXIT_ABORT` when the same-run icmplib arm is outside the band, with a test requiring non-pass + nonzero exit (no longer advisory). |
+| HIGH: transient unit missing `CAP_NET_RAW`/`CAP_NET_ADMIN` | RESOLVED | Plan 04 `NEW-HIGH` truth + interfaces example + Task 3 launch action + acceptance criteria require BOTH `--property="AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN"` and `--property="CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN"`; verify block greps for both; key_link points at `wanctl@.service:26,45`. Quoting syntax correct (space-containing value = one quoted arg). Orchestrator confirmed the live grant (`wanctl@.service:26,45` = both caps; `steering.service:26,45` = CAP_NET_RAW only). |
+| MEDIUM: qdisc untouched-proof diffs volatile counter/rate text | RESOLVED | Must-have requires STABLE qdisc ownership only; Task 2 captures handle/kind/parent/dev attachment with counters stripped; Task 3 re-diffs the SAME stable reduction after teardown; acceptance criteria explicitly reject counter-sensitive diffing ("counter-only churn is expected and must NOT fail"). |
+| MEDIUM: `--collect` does not stop the long-running autorate loop | RESOLVED | Task 3 requires `RuntimeMaxSec=<window>`, explicit `systemctl stop <unit>`, AND a `trap` on EXIT/INT/TERM that stops the unit + runs the residue check on launcher abort; verify greps `RuntimeMaxSec|systemctl stop` and `trap`. |
+| MEDIUM: journal scoping not independently provable from `-o cat` | PARTIALLY RESOLVED | Task 3 adds launcher-owned scoping and PREFERS `journalctl ... -o json` with per-record `_SYSTEMD_INVOCATION_ID` verification — but still ALLOWS a `-o cat` fallback validating only the first record + nonzero line count, and `key_links` still shows `-o cat`. The launcher remains the scoping trust boundary (HIGH-3 stays resolved), but the "per-record JSON verification" revision is not the single enforced path. |
 
 **New Concerns**
 
-- **HIGH (new):** Plan 04's transient unit omits required network capabilities. It runs
-  `systemd-run --uid=wanctl ...` with `linux-cake`, but the production unit grants
-  `CAP_NET_RAW CAP_NET_ADMIN` via `AmbientCapabilities` and `CapabilityBoundingSet`
-  in `deploy/systemd/wanctl@.service:26,45`. Without `CAP_NET_ADMIN`, the
-  construction-time `tc qdisc replace` on the throwaway interfaces likely FAILS;
-  without `CAP_NET_RAW`, ICMP backend behavior may depend on binary file-caps. The
-  launcher's `systemd-run` properties (and the runbook + a launcher contract test)
-  should add `--property=AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN` (and the
-  matching bounding set), or the benchmark harness as planned may not actually run as
-  `wanctl`. **Verified against live source by the orchestrator** (see note below).
+- **MEDIUM:** The capability contract test is grep-based (asserts the capability strings
+  appear in the launcher source). It can pass if the strings remain in a comment while being
+  dropped from the actual `systemd-run` invocation. The runtime HIGH is resolved by the
+  correct launch properties, but the test should assert the executable command construction
+  (e.g. that the `--property=...` tokens are on the `systemd-run` argv), not just source-text
+  presence.
 
-- **MEDIUM:** Plan 02's rollup cannot independently prove stdin was invocation-scoped
-  once `journalctl -o cat` strips metadata. The launcher path IS scoped (so HIGH-3 is
-  resolved), but the safer contract is for the launcher to own capture, or use journal
-  JSON and verify every record's `_SYSTEMD_INVOCATION_ID`.
-
-- **MEDIUM:** Plan 04 says the post-run `tc qdisc show` diff proves live qdiscs
-  untouched. With live cake-autorate active (throwaway-interface posture), bandwidth /
-  counter text legitimately changes tick-to-tick. Compare stable ownership / handle /
-  kind / interface-attachment only, or the untouched-proof becomes a false-fail gate.
-
-- **MEDIUM:** Plan 04 teardown relies on `systemd-run --collect`, but `--collect` only
-  reaps a unit AFTER it exits — it does not stop a long-running `autorate_continuous`
-  loop. The launcher should add an explicit `systemctl stop` (or `--property=RuntimeMaxSec=`)
-  plus a trap-based cleanup so an arm cannot outlive its window.
+- **MEDIUM:** Journal scoping should be tightened to a single path: drain `-o json`, verify
+  every record's `_SYSTEMD_INVOCATION_ID`, then transform only verified records for the
+  rollup. Keeping the `-o cat` fallback leaves the cycle-2 journal-scoping MEDIUM partially
+  open.
 
 **Risk Assessment**
-Overall risk: **HIGH until the transient-unit capability gap is fixed.** The original
-four HIGHs are resolved; there is **1 unresolved HIGH** remaining from the revisions
-(missing `CAP_NET_ADMIN`/`CAP_NET_RAW` on the bench transient unit). The three MEDIUMs
-are cheap hardening folds, best addressed in the same Plan 04 touch.
+Overall risk: **MEDIUM**. No operator-run blocker remains at HIGH severity. The
+journal-scoping fallback and the grep-only launcher contract test are weak enough to justify
+a final wording/test tightening before execution, but neither blocks the 8-arm run.
+
+**Unresolved HIGH count: 0**
 
 ---
 
 ## Consensus Summary
 
 Single external reviewer (Codex); "consensus" here is Codex's verdict plus orchestrator
-verification of the load-bearing claims against live code.
+verification of the load-bearing capability claim against live source.
 
-### Cycle-2 verdict
-- **4/4 prior HIGHs RESOLVED** — each prior concern now has a concrete, fail-closed,
-  testable mechanism (hard preflight gate that aborts; committed configs + isolation
-  test with a negative assertion; required `--invocation-id` that fails closed;
-  representativeness as a terminal `input_error` outcome), not prose-only mitigation.
-- **1 NEW HIGH** — the bench transient unit grants `--uid=wanctl` but no
-  `CAP_NET_ADMIN`/`CAP_NET_RAW`, so the construction-time `tc qdisc replace` (and
-  possibly ICMP raw-socket behavior) likely fails. The harness may not run as designed.
+### Cycle-3 verdict
+- **Prior HIGH RESOLVED** — the bench transient unit now carries the prod-matching
+  `AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN` + `CapabilityBoundingSet`, with correct
+  systemd-run quoting, a contract test, a key_link to `wanctl@.service:26,45`, and a runbook
+  note. The construction-time `tc qdisc replace` can now run under `--uid=wanctl`.
+- **0 new HIGH** — the revisions introduce no new blocker.
+- **2 prior MEDIUMs RESOLVED** (stable-field qdisc diff; RuntimeMaxSec + explicit stop +
+  trap teardown), **1 prior MEDIUM PARTIALLY RESOLVED** (journal scoping — `-o cat` fallback
+  retained), plus **2 fresh MEDIUMs** (grep-only capability contract test; tighten journal
+  scoping to a single `-o json` per-record path).
 
 ### Agreed Strengths (carried + confirmed this cycle)
-- The HIGH-1 fix is the right shape: isolation is now a HARD fail-closed preflight the
-  launcher must pass (throwaway-interface OR maintenance-window posture), with a
-  pre/post `tc qdisc show` ownership snapshot — not a throwaway unit name alone.
-- HIGH-2/HIGH-3/HIGH-4 each landed as a *test- or exit-code-enforced* contract: the
-  bench-config isolation test fails if any bench path/port equals a live one; the
-  rollup fails closed without an invocation id; the gate returns `input_error` outside
-  the frozen representativeness band.
-- The launcher↔gate-eval evidence-key contract is pinned by a schema check (WARNING-1
-  carryover), so a future rename fails loudly instead of silently tripping the
-  fail-closed missing-cpu guard.
+- The capability fix is correctly shaped: it mirrors the RIGHT production unit
+  (`wanctl@.service`, both caps) and explicitly NOT `steering.service` (CAP_NET_RAW-only, no
+  tc), with the correct quoted-property syntax and a launcher contract test.
+- The two MEDIUM hardening folds landed concretely: the untouched-proof now diffs stable
+  ownership only (no false-fail on live counter churn), and the arm cannot outlive its window
+  (RuntimeMaxSec + systemctl stop + trap).
+- All four cycle-1 HIGHs and the cycle-2 HIGH are now closed; the only residue is MEDIUM
+  hardening, not a blocker.
 
-### Agreed Concerns (priority for replan)
-1. **[Plan 04 — HIGH, verified] Missing network capabilities on the bench unit.**
-   Add `AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN` (+ bounding set) to the
-   `systemd-run` properties; assert in a launcher contract test + document in the
-   runbook. Without it `tc qdisc replace` at adapter construction fails under
-   `--uid=wanctl`.
-
-### Notable MEDIUM concerns (fold into the same Plan 04 touch)
-- Post-run qdisc untouched-proof should diff stable ownership/handle/kind only, not
-  volatile rate/counter text (false-fail risk with live cake-autorate active).
-- `--collect` does not stop a running loop; add explicit `systemctl stop` /
-  `RuntimeMaxSec` / trap cleanup so an arm cannot outlive its window.
-- Rollup invocation-scoping is enforced at the launcher, not independently provable
-  from `-o cat` stdin; acceptable, but launcher-owned capture or JSON-record
-  verification would be a stronger contract.
+### Notable MEDIUM concerns (optional pre-execution tightening, non-blocking)
+1. Make the capability contract test assert the `systemd-run` argv (executable command
+   construction), not just source-text presence — so a comment cannot mask a dropped grant.
+2. Collapse journal scoping to one enforced path: `-o json` + per-record
+   `_SYSTEMD_INVOCATION_ID` verification, dropping the `-o cat` fallback, to fully close the
+   cycle-2 journal-scoping MEDIUM.
 
 ### Divergent Views
 None — single reviewer.
 
 ### Orchestrator note
-Codex's new Plan-04 HIGH was independently verified against live source:
-`deploy/systemd/wanctl@.service:26,45` grants `AmbientCapabilities=CAP_NET_RAW
-CAP_NET_ADMIN` and the matching `CapabilityBoundingSet`; `steering.service:26` grants
-`CAP_NET_RAW` only. Plan 04's launcher (`243-04-PLAN.md`) specifies `--uid=wanctl`,
-`--property=CPUAccounting=yes`, `--working-directory`, and `--setenv`, but `grep -i
-capabilit` over the plan returns NOTHING — the capability grant is genuinely absent.
-Since `LinuxCakeAdapter.from_config()` does `tc qdisc replace` at construction
-(orchestrator-confirmed in the cycle-1 review), an unprivileged `wanctl` uid without
-`CAP_NET_ADMIN` will fail that call and the bench arm cannot start. This is a real,
-load-bearing gap, not hypothetical.
+The cycle-2 HIGH was the only blocker. Independently re-verified against live source this
+cycle: `deploy/systemd/wanctl@.service:26` = `AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN`,
+line 45 = matching `CapabilityBoundingSet`; `deploy/systemd/steering.service:26,45` =
+`CAP_NET_RAW` only. Plan 04 Task 3 now specifies BOTH `--property=` grants verbatim (objective
++ interfaces example + action + acceptance criteria + verify grep + key_link), so the
+construction-time `tc qdisc replace` will run under `--uid=wanctl`. The HIGH is genuinely
+closed. The two outstanding MEDIUMs (argv-level contract assertion; single `-o json` scoping
+path) are cheap correctness hardening, not gates — they can be folded at execution time or
+deferred without blocking the operator 8-arm run.
 
-**Recommendation:** one more `/gsd:plan-phase 243 --reviews` pass to (a) add the
-`CAP_NET_RAW CAP_NET_ADMIN` ambient+bounding properties to the bench `systemd-run`
-launcher + a contract test + runbook note, and (b) fold the three MEDIUMs (stable-field
-qdisc diff, explicit stop/RuntimeMaxSec teardown, optional launcher-owned capture).
-The 4 prior HIGHs are closed; this is the only remaining blocker before the operator
-8-arm run.
+**Recommendation:** No further review cycle required — **0 unresolved HIGH**. Proceed to
+`/gsd:execute-phase 243` (Tasks 1-3 autonomous; Task 4 operator-gated live run). Optionally
+fold the two MEDIUMs into the Task-3 implementation: assert the capability grant at the
+`systemd-run` argv level (not just source text), and collapse the journal drain to a single
+`-o json` per-record-verified path.
