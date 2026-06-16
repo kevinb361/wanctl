@@ -128,7 +128,11 @@
   2. A pre-registered no-regression gate, committed before the run, blocks the live A/B if fping regresses cycle budget (vs `avg≈2.85ms` / `p99≈6.9ms` baseline), leaks file descriptors or zombies, or stalls under systemd.
   3. Benchmark evidence (cycle avg/p99 idle+load, CPU% delta, zombie/fd/Tasks counts over soak) is captured and the gate verdict is recorded.
   4. SAFE-17 boundary verifier passes.
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 243-01-PLAN.md — Pre-registration (frozen D-04 thresholds JSON + PREREGISTRATION.md) + empty-diff SAFE-17 verifier + mirror/prereg tests (BENCH-02, SAFE-17)
+- [ ] 243-02-PLAN.md — Cycle-budget rollup (+ STALL gap detector) + fd/zombie/Tasks hygiene sampler + fixture unit tests (BENCH-01)
+- [ ] 243-03-PLAN.md — Frozen-threshold gate evaluator (same-run delta + ceiling/hygiene/STALL/n-floor, fail-closed) + full pass/fail-mode matrix (BENCH-02)
+- [ ] 243-04-PLAN.md — Bench-run launcher (throwaway journal-pipe unit, flent load, collision preflight) + operator runbook + operator-gated 8-arm live run → recorded verdict (BENCH-01, BENCH-02, SAFE-17)
 
 ### Phase 244: Health-Payload Attribution Metadata
 **Goal**: Every RTT sample is attributable to a backend and source IP via `/health` before the A/B starts, with the existing health contract byte-preserved.
@@ -175,7 +179,7 @@
 | 240. Config + Validator | v1.53 | 2/2 | Complete    | 2026-06-15 |
 | 241. fping Backend (Offline) + Reflector Quality | v1.53 | 4/4 | Complete    | 2026-06-16 |
 | 242. Backend Factory + Loud Fallback | v1.53 | 5/5 | Complete    | 2026-06-16 |
-| 243. Cycle-Budget Benchmark Gate | v1.53 | 0/TBD | Not started | - |
+| 243. Cycle-Budget Benchmark Gate | v1.53 | 0/4 | Not started | - |
 | 244. Health-Payload Attribution Metadata | v1.53 | 0/TBD | Not started | - |
 | 245. Live A/B + Rollback Anchor | v1.53 | 0/TBD | Not started | - |
 | 246. Conditional Default Flip + Milestone Closeout | v1.53 | 0/TBD | Not started | - |
