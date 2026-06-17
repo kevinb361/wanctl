@@ -10,6 +10,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 GENERATOR = ROOT / "configs/bench/gen-bench-configs.sh"
 LAUNCHER = ROOT / "scripts/phase243-bench-run.sh"
+PREFLIGHT = ROOT / "scripts/phase243-bench-preflight.sh"
 GATE_EVAL = ROOT / "scripts/phase243-gate-eval.py"
 
 LIVE_INTERFACES = {"spec-router", "spec-modem", "ens28", "ens27"}
@@ -103,3 +104,13 @@ def test_launcher_systemd_run_argv_contains_capability_grants() -> None:
     systemd_run_block = source[source.index("sudo systemd-run") : source.index("/opt/wanctl/.venv/bin/python")]
     assert '--property="AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN"' in systemd_run_block
     assert '--property="CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN"' in systemd_run_block
+
+
+def test_preflight_derives_live_device_from_source_bound_route() -> None:
+    source = PREFLIGHT.read_text(encoding="utf-8")
+    assert "ip route get 104.200.21.31 from" in source
+    assert "spec-router" not in source
+    assert "spec-modem" not in source
+    assert "ens28" not in source
+    assert "ens27" not in source
+    assert "bench download interface missing" in source

@@ -166,10 +166,15 @@ ARM_DIR="${EVIDENCE_DIR}/${ARM}"
 mkdir -p "$ARM_DIR"
 LOCK_FILE=$(yaml_get lock_file)
 SOURCE_IP=$(yaml_get ping_source_ip || true)
-case "$WAN" in
-  spectrum) LIVE_IFACES=(spec-router spec-modem) ;;
-  att) LIVE_IFACES=(ens28 ens27) ;;
-esac
+LIVE_ROUTE_DEV=$(python3 -c 'import sys
+tokens = sys.stdin.read().split()
+for idx, token in enumerate(tokens):
+    if token == "dev" and idx + 1 < len(tokens):
+        print(tokens[idx + 1])
+        raise SystemExit(0)
+raise SystemExit(1)' < <(ip route get 104.200.21.31 from "$SOURCE_IP" 2>/dev/null)) \
+  || { echo "ERROR: cannot resolve route dev for source IP ${SOURCE_IP}" >&2; exit 2; }
+LIVE_IFACES=("$LIVE_ROUTE_DEV")
 
 HYGIENE_PID=""
 trap 'residue_check' EXIT INT TERM

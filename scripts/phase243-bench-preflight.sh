@@ -64,6 +64,17 @@ for raw in sys.stdin:
 PY
 }
 
+route_dev_for_source() {
+  local source_ip="$1"
+  python3 -c 'import sys
+tokens = sys.stdin.read().split()
+for idx, token in enumerate(tokens):
+    if token == "dev" and idx + 1 < len(tokens):
+        print(tokens[idx + 1])
+        raise SystemExit(0)
+raise SystemExit(1)' < <(ip route get 104.200.21.31 from "$source_ip" 2>/dev/null)
+}
+
 write_proof() {
   local passed="$1" reason="${2:-}"
   local proof_path="${EVIDENCE_DIR}/phase243-${WAN}-${BACKEND}-isolation-proof.json"
@@ -72,7 +83,7 @@ import json
 import pathlib
 
 payload = {
-    "passed": ${passed},
+    "passed": (${passed@Q} == "true"),
     "reason": ${reason@Q},
     "posture": ${POSTURE@Q},
     "wan": ${WAN@Q},
@@ -117,11 +128,13 @@ HEALTH_PORT=$(yaml_get health_check.port)
 METRICS_PORT=$(yaml_get metrics.port)
 LOCK_FILE=$(yaml_get lock_file)
 STATE_FILE=$(yaml_get state_file)
+SOURCE_IP=$(yaml_get ping_source_ip)
+LIVE_IFACES_JSON='[]'
+UNIT_STATES_JSON='{}'
+SNAPSHOT_FILES_JSON='[]'
 
-case "$WAN" in
-  spectrum) LIVE_IFACES=(spec-router spec-modem) ;;
-  att) LIVE_IFACES=(ens28 ens27) ;;
-esac
+LIVE_ROUTE_DEV=$(route_dev_for_source "$SOURCE_IP") || abort "cannot resolve route dev for source IP ${SOURCE_IP}"
+LIVE_IFACES=("$LIVE_ROUTE_DEV")
 LIVE_IFACES_JSON=$(python3 - "${LIVE_IFACES[@]}" <<'PY'
 import json
 import sys
@@ -129,10 +142,10 @@ import sys
 print(json.dumps(sys.argv[1:]))
 PY
 )
-UNIT_STATES_JSON='{}'
-SNAPSHOT_FILES_JSON='[]'
 
 [[ "$BENCH_DL" == bench-* && "$BENCH_UL" == bench-* ]] || abort "bench interfaces must be throwaway bench-* names"
+[ -d "/sys/class/net/${BENCH_DL}" ] || abort "bench download interface missing: ${BENCH_DL}"
+[ -d "/sys/class/net/${BENCH_UL}" ] || abort "bench upload interface missing: ${BENCH_UL}"
 for live_iface in "${LIVE_IFACES[@]}"; do
   if [ "$BENCH_DL" = "$live_iface" ] || [ "$BENCH_UL" = "$live_iface" ]; then
     abort "bench interface collides with live shaping interface ${live_iface}"
