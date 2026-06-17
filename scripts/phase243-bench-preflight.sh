@@ -74,6 +74,24 @@ if dev:
 raise SystemExit(1)' < <(ip route get 104.200.21.31 from "$source_ip" 2>/dev/null)
 }
 
+live_config_ifaces() {
+  local wan="$1"
+  local live_config="/etc/wanctl/${wan}.yaml"
+  [ -f "$live_config" ] || return 1
+  python3 - "$live_config" <<'PY'
+import sys
+import yaml
+
+with open(sys.argv[1], encoding="utf-8") as fh:
+    data = yaml.safe_load(fh) or {}
+cake = data.get("cake_params") or {}
+for key in ("download_interface", "upload_interface"):
+    value = cake.get(key)
+    if value:
+        print(value)
+PY
+}
+
 write_proof() {
   local passed="$1" reason="${2:-}"
   local proof_path="${EVIDENCE_DIR}/phase243-${WAN}-${BACKEND}-isolation-proof.json"
@@ -132,8 +150,11 @@ LIVE_IFACES_JSON='[]'
 UNIT_STATES_JSON='{}'
 SNAPSHOT_FILES_JSON='[]'
 
-LIVE_ROUTE_DEV=$(route_dev_for_source "$SOURCE_IP") || abort "cannot resolve route dev for source IP ${SOURCE_IP}"
-LIVE_IFACES=("$LIVE_ROUTE_DEV")
+mapfile -t LIVE_IFACES < <(live_config_ifaces "$WAN" || true)
+if [ "${#LIVE_IFACES[@]}" -eq 0 ]; then
+  LIVE_ROUTE_DEV=$(route_dev_for_source "$SOURCE_IP") || abort "cannot resolve route dev for source IP ${SOURCE_IP}"
+  LIVE_IFACES=("$LIVE_ROUTE_DEV")
+fi
 LIVE_IFACES_JSON=$(python3 - "${LIVE_IFACES[@]}" <<'PY'
 import json
 import sys

@@ -112,6 +112,7 @@ def test_launcher_systemd_run_argv_contains_capability_grants() -> None:
 
 def test_preflight_derives_live_device_from_source_bound_route() -> None:
     source = PREFLIGHT.read_text(encoding="utf-8")
+    assert "/etc/wanctl/${wan}.yaml" in source
     assert "ip route get 104.200.21.31 from" in source
     assert "spec-router" not in source
     assert "spec-modem" not in source

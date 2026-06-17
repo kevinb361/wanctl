@@ -164,7 +164,25 @@ ARM_DIR="${EVIDENCE_DIR}/${ARM}"
 mkdir -p "$ARM_DIR"
 LOCK_FILE=$(yaml_get lock_file)
 SOURCE_IP=$(yaml_get ping_source_ip || true)
-LIVE_ROUTE_DEV=$(python3 -c 'import sys
+if [ -f "/etc/wanctl/${WAN}.yaml" ]; then
+  mapfile -t LIVE_IFACES < <(python3 - "/etc/wanctl/${WAN}.yaml" <<'PY'
+import sys
+import yaml
+
+with open(sys.argv[1], encoding="utf-8") as fh:
+    data = yaml.safe_load(fh) or {}
+cake = data.get("cake_params") or {}
+for key in ("download_interface", "upload_interface"):
+    value = cake.get(key)
+    if value:
+        print(value)
+PY
+)
+else
+  LIVE_IFACES=()
+fi
+if [ "${#LIVE_IFACES[@]}" -eq 0 ]; then
+  LIVE_ROUTE_DEV=$(python3 -c 'import sys
 tokens = sys.stdin.read().split()
 dev = None
 for idx, token in enumerate(tokens):
@@ -175,8 +193,9 @@ if dev:
     print(dev)
     raise SystemExit(0)
 raise SystemExit(1)' < <(ip route get 104.200.21.31 from "$SOURCE_IP" 2>/dev/null)) \
-  || { echo "ERROR: cannot resolve route dev for source IP ${SOURCE_IP}" >&2; exit 2; }
-LIVE_IFACES=("$LIVE_ROUTE_DEV")
+    || { echo "ERROR: cannot resolve route dev for source IP ${SOURCE_IP}" >&2; exit 2; }
+  LIVE_IFACES=("$LIVE_ROUTE_DEV")
+fi
 
 HYGIENE_PID=""
 trap 'residue_check' EXIT INT TERM
