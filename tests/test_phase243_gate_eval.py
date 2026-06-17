@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "phase243-gate-eval.py"
 PROVENANCE = ROOT / "scripts" / "phase243-prereg-provenance.sh"
@@ -63,8 +65,8 @@ def profile(
 
 def hygiene(*, fd: list[int] | None = None, tasks: list[int] | None = None, zombies: list[int] | None = None) -> list[dict[str, int]]:
     fd_values = fd or [10, 10, 11, 10]
-    task_values = tasks or [4, 4, 5, 4]
-    zombie_values = zombies or [0, 0, 0, 0]
+    task_values = tasks or [4 for _ in fd_values]
+    zombie_values = zombies or [0 for _ in fd_values]
     return [
         {"t": index, "fd": f, "tasks": task_values[index], "zombies": zombie_values[index], "cpu_nsec": index * 100}
         for index, f in enumerate(fd_values)
@@ -195,21 +197,15 @@ def test_missing_cpu_nsec_or_invocation_id_fails_closed() -> None:
     module = load_module()
     arms = pass_arms()
     arms["fping"]["profile"] = profile(cpu_nsec_delta=None)
-    try:
+    with pytest.raises(module.GateEvalError) as cpu_exc:
         module.evaluate({"spectrum/idle": arms}, thresholds_path=THRESHOLDS)
-    except module.GateEvalError as exc:
-        assert exc.gate_id == "gate_input_completeness"
-    else:  # pragma: no cover - expected RED/GREEN assertion
-        raise AssertionError("missing cpu_nsec evidence should fail closed")
+    assert cpu_exc.value.gate_id == "gate_input_completeness"
 
     arms = pass_arms()
     arms["fping"]["profile"] = profile(invocation_id=None)
-    try:
+    with pytest.raises(module.GateEvalError) as invocation_exc:
         module.evaluate({"spectrum/idle": arms}, thresholds_path=THRESHOLDS)
-    except module.GateEvalError as exc:
-        assert exc.gate_id == "gate_input_completeness"
-    else:  # pragma: no cover - expected RED/GREEN assertion
-        raise AssertionError("missing invocation_id should fail closed")
+    assert invocation_exc.value.gate_id == "gate_input_completeness"
 
 
 def test_cli_writes_verdict_and_maps_input_error_to_exit_abort(tmp_path: Path) -> None:
