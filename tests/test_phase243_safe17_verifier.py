@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[1]
 VERIFIER = ROOT / "scripts" / "phase243-safe17-boundary-check.sh"
 EVIDENCE = (

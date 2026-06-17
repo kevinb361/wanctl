@@ -3,7 +3,6 @@ import re
 import subprocess
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 THRESHOLDS = ROOT / "scripts" / "phase243-thresholds.json"
 PREREG = ROOT / ".planning" / "phases" / "243-cycle-budget-benchmark-gate" / "243-BENCHMARK-PREREGISTRATION.md"
@@ -16,8 +15,7 @@ def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
         cwd=ROOT,
         check=check,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
 
 
