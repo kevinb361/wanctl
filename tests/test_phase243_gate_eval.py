@@ -193,6 +193,30 @@ def test_n_floor_uses_frozen_cycle_hz_and_fails_closed_below_floor() -> None:
     assert gate(verdict, "gate_n_floor")["value"]["floor"] == floor
 
 
+def test_n_floor_boundary_from_frozen_cycle_hz_passes_at_floor() -> None:
+    t = thresholds()
+    floor = max(int(t["MIN_CYCLES"]), int(t["CYCLE_HZ"]) * 60 * int(t["MIN_MINUTES"]))
+    arms = pass_arms()
+    arms["icmplib"]["profile"] = profile(count=floor)
+    arms["fping"]["profile"] = profile(count=floor, avg_ms=3.3, p99_ms=8.0, cpu_nsec_delta=800_000_000)
+
+    verdict = evaluate_pair(arms)
+
+    assert verdict["outcome"] == "pass"
+    assert gate(verdict, "gate_n_floor")["value"]["floor"] == floor
+
+
+def test_missing_autorate_cycle_total_fails_closed() -> None:
+    module = load_module()
+    arms = pass_arms()
+    del arms["fping"]["profile"]["autorate_cycle_total"]
+
+    with pytest.raises(module.GateEvalError) as exc:
+        module.evaluate({"spectrum/idle": arms}, thresholds_path=THRESHOLDS)
+
+    assert exc.value.gate_id == "gate_input_completeness"
+
+
 def test_missing_cpu_nsec_or_invocation_id_fails_closed() -> None:
     module = load_module()
     arms = pass_arms()
@@ -206,6 +230,32 @@ def test_missing_cpu_nsec_or_invocation_id_fails_closed() -> None:
     with pytest.raises(module.GateEvalError) as invocation_exc:
         module.evaluate({"spectrum/idle": arms}, thresholds_path=THRESHOLDS)
     assert invocation_exc.value.gate_id == "gate_input_completeness"
+
+
+def test_frozen_threshold_boundaries_flip_verdict() -> None:
+    t = thresholds()
+    arms = pass_arms()
+    avg_limit = 3.0 * (1 + float(t["CYCLE_AVG_REGRESSION_PCT"]) / 100.0)
+    p99_limit = 7.0 * (1 + float(t["CYCLE_P99_REGRESSION_PCT"]) / 100.0)
+    arms["fping"]["profile"] = profile(avg_ms=avg_limit, p99_ms=p99_limit, cpu_nsec_delta=800_000_000)
+    assert evaluate_pair(arms)["outcome"] == "pass"
+
+    arms = pass_arms()
+    arms["fping"]["profile"] = profile(avg_ms=avg_limit + 0.001, p99_ms=8.0, cpu_nsec_delta=800_000_000)
+    assert gate(evaluate_pair(arms), "gate_avg_delta_pct")["verdict"] == "fail"
+
+    arms = pass_arms()
+    arms["fping"]["profile"] = profile(avg_ms=3.3, p99_ms=float(t["CYCLE_P99_ABS_CEILING_MS"]), cpu_nsec_delta=800_000_000)
+    assert gate(evaluate_pair(arms), "gate_p99_abs_ceiling_ms")["verdict"] == "fail"
+
+    arms = pass_arms()
+    arms["icmplib"]["profile"] = profile(cpu_nsec_delta=0, window_wall_sec=10.0, n_cores=4)
+    arms["fping"]["profile"] = profile(
+        cpu_nsec_delta=int(float(t["CPU_DELTA_PCT_POINTS"]) / 100.0 * 10.0 * 1_000_000_000 * 4),
+        window_wall_sec=10.0,
+        n_cores=4,
+    )
+    assert gate(evaluate_pair(arms), "gate_cpu_delta_pts")["verdict"] == "fail"
 
 
 def test_cli_writes_verdict_and_maps_input_error_to_exit_abort(tmp_path: Path) -> None:

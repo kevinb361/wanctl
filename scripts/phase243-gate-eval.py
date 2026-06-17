@@ -18,6 +18,7 @@ EXIT_BLOCK = 1
 EXIT_ABORT = 2
 
 JsonDict = dict[str, Any]
+FLOAT_EPSILON = 1e-9
 
 
 class GateEvalError(ValueError):
@@ -207,13 +208,13 @@ def _evaluate_pair(pair_id: str, arms: JsonDict, thresholds: JsonDict) -> JsonDi
 
     avg_delta_pct = _delta_pct(float(fping_cycle["avg_ms"]), icmp_avg)
     gates["gate_avg_delta_pct"] = _gate(
-        "pass" if avg_delta_pct <= float(thresholds["CYCLE_AVG_REGRESSION_PCT"]) else "fail",
+        "pass" if avg_delta_pct <= float(thresholds["CYCLE_AVG_REGRESSION_PCT"]) + FLOAT_EPSILON else "fail",
         {"avg_delta_pct": avg_delta_pct, "threshold_pct": thresholds["CYCLE_AVG_REGRESSION_PCT"]},
     )
 
     p99_delta_pct = _delta_pct(float(fping_cycle["p99_ms"]), icmp_p99)
     gates["gate_p99_delta_pct"] = _gate(
-        "pass" if p99_delta_pct <= float(thresholds["CYCLE_P99_REGRESSION_PCT"]) else "fail",
+        "pass" if p99_delta_pct <= float(thresholds["CYCLE_P99_REGRESSION_PCT"]) + FLOAT_EPSILON else "fail",
         {"p99_delta_pct": p99_delta_pct, "threshold_pct": thresholds["CYCLE_P99_REGRESSION_PCT"]},
     )
 
