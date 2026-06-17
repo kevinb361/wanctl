@@ -43,6 +43,9 @@ metrics:
 
 router:
   transport: "linux-cake"
+  host: "10.10.99.1"
+  user: "admin"
+  ssh_key: "/etc/wanctl/ssh/router.key"
 
 queues:
   download: "WAN-Bench-${wan}-Download"

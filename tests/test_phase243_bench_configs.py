@@ -54,6 +54,9 @@ def test_generator_emits_isolated_configs_for_all_backend_wan_pairs() -> None:
         assert dl_iface not in LIVE_INTERFACES
         assert ul_iface not in LIVE_INTERFACES
         assert cfg["router"]["transport"] == "linux-cake"
+        assert cfg["router"]["host"]
+        assert cfg["router"]["user"]
+        assert cfg["router"]["ssh_key"]
         assert cfg["ping_source_ip"] == EXPECTED_SOURCE_IPS[wan]
 
         health_port = int(cfg["health_check"]["port"])
