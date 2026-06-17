@@ -47,8 +47,10 @@ def test_generator_emits_isolated_configs_for_all_backend_wan_pairs() -> None:
         cake_params = cfg["cake_params"]
         dl_iface = cake_params["download_interface"]
         ul_iface = cake_params["upload_interface"]
-        assert dl_iface.startswith(f"bench-{wan}-")
-        assert ul_iface.startswith(f"bench-{wan}-")
+        assert dl_iface.startswith("bench-")
+        assert ul_iface.startswith("bench-")
+        assert len(dl_iface) <= 15
+        assert len(ul_iface) <= 15
         assert dl_iface not in LIVE_INTERFACES
         assert ul_iface not in LIVE_INTERFACES
         assert cfg["router"]["transport"] == "linux-cake"

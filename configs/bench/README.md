@@ -20,8 +20,8 @@ These configs are **bench-only**. They must never be installed as live shapers.
 - `router.transport` is `linux-cake`, so CAKE construction targets only the YAML
   `cake_params` interfaces.
 - `cake_params.download_interface` / `upload_interface` are throwaway names:
-  `bench-<wan>-dl` and `bench-<wan>-ul`. They are intentionally not the live
-  `spec-router`, `spec-modem`, `ens28`, or `ens27` interfaces.
+  `bench-spec-dl` / `bench-spec-ul` for Spectrum and `bench-att-dl` /
+  `bench-att-ul` for ATT. They are intentionally not the live interfaces.
 - Health and metrics ports are unique bench ports, never live `9101` or `9100`.
 - `metrics.enabled` is `false` and `storage.db_path` points under
   `/var/tmp/wanctl-bench`, so the benchmark does not write production metrics DBs.
@@ -36,8 +36,8 @@ Before running a throwaway-interface benchmark posture, the operator creates the
 named bench netdevs on the live host and confirms the preflight passes. The exact
 device type is an operator choice for the host, but the names must match the YAML:
 
-- `bench-spectrum-dl`
-- `bench-spectrum-ul`
+- `bench-spec-dl`
+- `bench-spec-ul`
 - `bench-att-dl`
 - `bench-att-ul`
 

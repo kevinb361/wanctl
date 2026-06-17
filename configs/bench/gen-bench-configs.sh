@@ -14,8 +14,12 @@ fi
 
 emit_config() {
   local wan="$1" backend="$2" health_port="$3" metrics_port="$4" source_ip="$5"
-  local dl_iface="bench-${wan}-dl"
-  local ul_iface="bench-${wan}-ul"
+  local if_prefix="bench-${wan}"
+  if [ "$wan" = "spectrum" ]; then
+    if_prefix="bench-spec"
+  fi
+  local dl_iface="${if_prefix}-dl"
+  local ul_iface="${if_prefix}-ul"
 
   cat <<YAML
 wan_name: "${wan}"
