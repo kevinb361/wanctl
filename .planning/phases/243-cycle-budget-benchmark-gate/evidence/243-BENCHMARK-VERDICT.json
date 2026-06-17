@@ -1,0 +1,375 @@
+{
+  "comparisons": {
+    "att/idle": {
+      "gates": {
+        "gate_avg_delta_pct": {
+          "value": {
+            "avg_delta_pct": 1388.413215449046,
+            "threshold_pct": 20.0
+          },
+          "verdict": "fail"
+        },
+        "gate_cpu_delta_pts": {
+          "value": {
+            "cpu_delta_pts": -0.007080925925925907,
+            "fping_cpu_pct": 2.6329588333333334,
+            "icmplib_cpu_pct": 2.6400397592592593,
+            "normalization": "per_core",
+            "threshold_pts": 2.0
+          },
+          "verdict": "pass"
+        },
+        "gate_fd_trend": {
+          "value": {
+            "window_medians": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "verdict": "pass"
+        },
+        "gate_icmplib_representativeness": {
+          "outcome_on_fail": "input_error",
+          "value": {
+            "avg_delta_ms": 0.7010000000000001,
+            "avg_ms": 2.149,
+            "p99_delta_ms": 2.7,
+            "p99_ms": 4.2
+          },
+          "verdict": "pass"
+        },
+        "gate_n_floor": {
+          "value": {
+            "CYCLE_HZ": 20,
+            "floor": 36000,
+            "min_count": 5048
+          },
+          "verdict": "fail"
+        },
+        "gate_p99_abs_ceiling_ms": {
+          "value": {
+            "ceiling_ms": 10.0,
+            "p99_ms": 112.7
+          },
+          "verdict": "fail"
+        },
+        "gate_p99_delta_pct": {
+          "value": {
+            "p99_delta_pct": 2583.333333333333,
+            "threshold_pct": 20.0
+          },
+          "verdict": "fail"
+        },
+        "gate_stall_events": {
+          "value": {
+            "stall_event_count": 114,
+            "threshold_ms": 100.0
+          },
+          "verdict": "fail"
+        },
+        "gate_tasks_bound": {
+          "value": {
+            "baseline_tasks": 1,
+            "max_tasks": 7,
+            "task_limit": 5
+          },
+          "verdict": "fail"
+        },
+        "gate_zombies": {
+          "value": {
+            "max_zombies": 1,
+            "threshold": 0
+          },
+          "verdict": "fail"
+        }
+      }
+    },
+    "att/load": {
+      "gates": {
+        "gate_avg_delta_pct": {
+          "value": {
+            "avg_delta_pct": 1243.9045936395762,
+            "threshold_pct": 20.0
+          },
+          "verdict": "fail"
+        },
+        "gate_cpu_delta_pts": {
+          "value": {
+            "cpu_delta_pts": -0.07661104161839116,
+            "fping_cpu_pct": 2.7178814892136396,
+            "icmplib_cpu_pct": 2.7944925308320308,
+            "normalization": "per_core",
+            "threshold_pts": 2.0
+          },
+          "verdict": "pass"
+        },
+        "gate_fd_trend": {
+          "value": {
+            "window_medians": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "verdict": "pass"
+        },
+        "gate_icmplib_representativeness": {
+          "outcome_on_fail": "input_error",
+          "value": {
+            "avg_delta_ms": 0.5860000000000003,
+            "avg_ms": 2.264,
+            "p99_delta_ms": 2.5,
+            "p99_ms": 4.4
+          },
+          "verdict": "pass"
+        },
+        "gate_n_floor": {
+          "value": {
+            "CYCLE_HZ": 20,
+            "floor": 36000,
+            "min_count": 5131
+          },
+          "verdict": "fail"
+        },
+        "gate_p99_abs_ceiling_ms": {
+          "value": {
+            "ceiling_ms": 10.0,
+            "p99_ms": 84.3
+          },
+          "verdict": "fail"
+        },
+        "gate_p99_delta_pct": {
+          "value": {
+            "p99_delta_pct": 1815.9090909090905,
+            "threshold_pct": 20.0
+          },
+          "verdict": "fail"
+        },
+        "gate_stall_events": {
+          "value": {
+            "stall_event_count": 22,
+            "threshold_ms": 100.0
+          },
+          "verdict": "fail"
+        },
+        "gate_tasks_bound": {
+          "value": {
+            "baseline_tasks": 1,
+            "max_tasks": 7,
+            "task_limit": 5
+          },
+          "verdict": "fail"
+        },
+        "gate_zombies": {
+          "value": {
+            "max_zombies": 0,
+            "threshold": 0
+          },
+          "verdict": "pass"
+        }
+      }
+    },
+    "spectrum/idle": {
+      "gates": {
+        "gate_avg_delta_pct": {
+          "value": {
+            "avg_delta_pct": 1094.1811175337186,
+            "threshold_pct": 20.0
+          },
+          "verdict": "fail"
+        },
+        "gate_cpu_delta_pts": {
+          "value": {
+            "cpu_delta_pts": -0.40459990740740714,
+            "fping_cpu_pct": 2.756505148148148,
+            "icmplib_cpu_pct": 3.1611050555555553,
+            "normalization": "per_core",
+            "threshold_pts": 2.0
+          },
+          "verdict": "pass"
+        },
+        "gate_fd_trend": {
+          "value": {
+            "window_medians": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "verdict": "pass"
+        },
+        "gate_icmplib_representativeness": {
+          "outcome_on_fail": "input_error",
+          "value": {
+            "avg_delta_ms": 0.2549999999999999,
+            "avg_ms": 2.595,
+            "p99_delta_ms": 1.9000000000000004,
+            "p99_ms": 8.8
+          },
+          "verdict": "pass"
+        },
+        "gate_n_floor": {
+          "value": {
+            "CYCLE_HZ": 20,
+            "floor": 36000,
+            "min_count": 4928
+          },
+          "verdict": "fail"
+        },
+        "gate_p99_abs_ceiling_ms": {
+          "value": {
+            "ceiling_ms": 10.0,
+            "p99_ms": 87.9
+          },
+          "verdict": "fail"
+        },
+        "gate_p99_delta_pct": {
+          "value": {
+            "p99_delta_pct": 898.8636363636364,
+            "threshold_pct": 20.0
+          },
+          "verdict": "fail"
+        },
+        "gate_stall_events": {
+          "value": {
+            "stall_event_count": 35,
+            "threshold_ms": 100.0
+          },
+          "verdict": "fail"
+        },
+        "gate_tasks_bound": {
+          "value": {
+            "baseline_tasks": 1,
+            "max_tasks": 8,
+            "task_limit": 5
+          },
+          "verdict": "fail"
+        },
+        "gate_zombies": {
+          "value": {
+            "max_zombies": 0,
+            "threshold": 0
+          },
+          "verdict": "pass"
+        }
+      }
+    },
+    "spectrum/load": {
+      "gates": {
+        "gate_avg_delta_pct": {
+          "value": {
+            "avg_delta_pct": 729.9540416328737,
+            "threshold_pct": 20.0
+          },
+          "verdict": "fail"
+        },
+        "gate_cpu_delta_pts": {
+          "value": {
+            "cpu_delta_pts": -1.8484687181410933,
+            "fping_cpu_pct": 2.722523625608907,
+            "icmplib_cpu_pct": 4.57099234375,
+            "normalization": "per_core",
+            "threshold_pts": 2.0
+          },
+          "verdict": "pass"
+        },
+        "gate_fd_trend": {
+          "value": {
+            "window_medians": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "verdict": "pass"
+        },
+        "gate_icmplib_representativeness": {
+          "outcome_on_fail": "input_error",
+          "value": {
+            "avg_delta_ms": 0.8489999999999998,
+            "avg_ms": 3.699,
+            "p99_delta_ms": 5.799999999999999,
+            "p99_ms": 12.7
+          },
+          "verdict": "fail"
+        },
+        "gate_n_floor": {
+          "value": {
+            "CYCLE_HZ": 20,
+            "floor": 36000,
+            "min_count": 4713
+          },
+          "verdict": "fail"
+        },
+        "gate_p99_abs_ceiling_ms": {
+          "value": {
+            "ceiling_ms": 10.0,
+            "p99_ms": 84.8
+          },
+          "verdict": "fail"
+        },
+        "gate_p99_delta_pct": {
+          "value": {
+            "p99_delta_pct": 567.7165354330708,
+            "threshold_pct": 20.0
+          },
+          "verdict": "fail"
+        },
+        "gate_stall_events": {
+          "value": {
+            "stall_event_count": 23,
+            "threshold_ms": 100.0
+          },
+          "verdict": "fail"
+        },
+        "gate_tasks_bound": {
+          "value": {
+            "baseline_tasks": 1,
+            "max_tasks": 8,
+            "task_limit": 5
+          },
+          "verdict": "fail"
+        },
+        "gate_zombies": {
+          "value": {
+            "max_zombies": 0,
+            "threshold": 0
+          },
+          "verdict": "pass"
+        }
+      }
+    }
+  },
+  "evaluated_at": "2026-06-17T19:42:55.414900Z",
+  "outcome": "input_error",
+  "provenance": {
+    "prereg_commit_sha": "96520db0c80cb01bbf6f738c95fc70c8341d7716",
+    "thresholds_blob_sha": "c39915330d4e77652ed48b981652a075b7835a71",
+    "thresholds_path": "scripts/phase243-thresholds.json"
+  },
+  "thresholds": {
+    "CPU_DELTA_PCT_POINTS": 2.0,
+    "CPU_NORMALIZATION": "per_core",
+    "CYCLE_AVG_REGRESSION_PCT": 20.0,
+    "CYCLE_HZ": 20,
+    "CYCLE_INTERVAL_MS": 50.0,
+    "CYCLE_P99_ABS_CEILING_MS": 10.0,
+    "CYCLE_P99_REGRESSION_PCT": 20.0,
+    "ICMPLIB_REPRESENTATIVE_AVG_MS": 2.85,
+    "ICMPLIB_REPRESENTATIVE_AVG_TOL_MS": 1.5,
+    "ICMPLIB_REPRESENTATIVE_P99_MS": 6.9,
+    "ICMPLIB_REPRESENTATIVE_P99_TOL_MS": 3.5,
+    "MIN_CYCLES": 10000,
+    "MIN_MINUTES": 30,
+    "STALL_GAP_MS": 100.0,
+    "TASKS_BOUND": 4,
+    "ZOMBIES_MAX": 0,
+    "_notes": "BENCH-02 single source of truth committed before data collection for D-04/D-04a/D-04b/D-04c. CYCLE_HZ replaces the implicit cadence constant in n-floor math. ICMPLIB_REPRESENTATIVE_*_TOL_MS are HARD validity gates; Plan 03 returns input_error if the dev icmplib arm is outside the band, not a warning. CPU_NORMALIZATION=per_core fixes cpu_pct to percent-of-whole-machine by dividing by n_cores. Do not duplicate threshold literals in markdown.",
+    "thresholds_schema_version": 1
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "anchor": "fcc2e15b",
+  "anchor_sha": "fcc2e15bd9d01ac13064a0072bea61ac40218e6f",
+  "changed_paths": [],
+  "checked_at": "2026-06-17T19:44:43Z",
+  "controller_path_diff_count": 0,
+  "dirty_tree": {
+    "staged": [],
+    "status_porcelain": [],
+    "unstaged": [],
+    "untracked": []
+  },
+  "dirty_tree_clean": true,
+  "disallowed_paths": [],
+  "head_commit": "96520db0c80cb01bbf6f738c95fc70c8341d7716",
+  "notes": "SAFE-17 Phase 243 measurement-only boundary: any src/wanctl diff vs the Phase 242 close anchor is disallowed; dirty src/wanctl state fails closed.",
+  "passed": true
+}

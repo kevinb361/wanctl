@@ -1,0 +1,8 @@
+spectrum:idle:icmplib:/var/tmp/wanctl-phase243/evidence/spectrum-icmplib-idle-1781709957/profile.json:/var/tmp/wanctl-phase243/evidence/spectrum-icmplib-idle-1781709957/hygiene.ndjson
+spectrum:idle:fping:/var/tmp/wanctl-phase243/evidence/spectrum-fping-idle-1781711817/profile.json:/var/tmp/wanctl-phase243/evidence/spectrum-fping-idle-1781711817/hygiene.ndjson
+spectrum:load:icmplib:/var/tmp/wanctl-phase243/evidence/spectrum-icmplib-load-1781713677/profile.json:/var/tmp/wanctl-phase243/evidence/spectrum-icmplib-load-1781713677/hygiene.ndjson
+spectrum:load:fping:/var/tmp/wanctl-phase243/evidence/spectrum-fping-load-1781715657/profile.json:/var/tmp/wanctl-phase243/evidence/spectrum-fping-load-1781715657/hygiene.ndjson
+att:idle:icmplib:/var/tmp/wanctl-phase243/evidence/att-icmplib-idle-1781717637/profile.json:/var/tmp/wanctl-phase243/evidence/att-icmplib-idle-1781717637/hygiene.ndjson
+att:idle:fping:/var/tmp/wanctl-phase243/evidence/att-fping-idle-1781719497/profile.json:/var/tmp/wanctl-phase243/evidence/att-fping-idle-1781719497/hygiene.ndjson
+att:load:icmplib:/var/tmp/wanctl-phase243/evidence/att-icmplib-load-1781721357/profile.json:/var/tmp/wanctl-phase243/evidence/att-icmplib-load-1781721357/hygiene.ndjson
+att:load:fping:/var/tmp/wanctl-phase243/evidence/att-fping-load-1781723337/profile.json:/var/tmp/wanctl-phase243/evidence/att-fping-load-1781723337/hygiene.ndjson

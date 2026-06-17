@@ -1,0 +1,305 @@
+{
+  "autorate_cake_stats": {
+    "avg_ms": 0.0,
+    "count": 4928,
+    "max_ms": 0.0,
+    "min_ms": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0
+  },
+  "autorate_congestion_assess": {
+    "avg_ms": 0.1,
+    "count": 4928,
+    "max_ms": 0.3,
+    "min_ms": 0.1,
+    "p50_ms": 0.1,
+    "p95_ms": 0.1,
+    "p99_ms": 0.1
+  },
+  "autorate_cycle_total": {
+    "avg_ms": 30.989,
+    "count": 4928,
+    "max_ms": 577.0,
+    "min_ms": 1.8,
+    "p50_ms": 3.8,
+    "p95_ms": 73.6,
+    "p99_ms": 87.9
+  },
+  "autorate_ewma_spike": {
+    "avg_ms": 0.0,
+    "count": 4928,
+    "max_ms": 0.0,
+    "min_ms": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0
+  },
+  "autorate_irtt_observation": {
+    "avg_ms": 0.0,
+    "count": 4928,
+    "max_ms": 0.0,
+    "min_ms": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0
+  },
+  "autorate_logging_metrics": {
+    "avg_ms": 0.207,
+    "count": 4928,
+    "max_ms": 7.7,
+    "min_ms": 0.1,
+    "p50_ms": 0.2,
+    "p95_ms": 0.3,
+    "p99_ms": 0.3
+  },
+  "autorate_router_apply_pending": {
+    "avg_ms": 0.0,
+    "count": 4928,
+    "max_ms": 0.0,
+    "min_ms": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0
+  },
+  "autorate_router_apply_primary": {
+    "avg_ms": 0.077,
+    "count": 4928,
+    "max_ms": 9.0,
+    "min_ms": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 3.4
+  },
+  "autorate_router_communication": {
+    "avg_ms": 0.077,
+    "count": 4928,
+    "max_ms": 9.0,
+    "min_ms": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 3.4
+  },
+  "autorate_router_write_download": {
+    "avg_ms": 0.022,
+    "count": 4928,
+    "max_ms": 4.1,
+    "min_ms": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0
+  },
+  "autorate_router_write_fallback": {
+    "avg_ms": 0.0,
+    "count": 4928,
+    "max_ms": 0.0,
+    "min_ms": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0
+  },
+  "autorate_router_write_skipped": {
+    "avg_ms": 0.0,
+    "count": 4928,
+    "max_ms": 0.0,
+    "min_ms": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 0.0
+  },
+  "autorate_router_write_upload": {
+    "avg_ms": 0.043,
+    "count": 4928,
+    "max_ms": 5.0,
+    "min_ms": 0.0,
+    "p50_ms": 0.0,
+    "p95_ms": 0.0,
+    "p99_ms": 2.6
+  },
+  "autorate_rtt_measurement": {
+    "avg_ms": 28.828,
+    "count": 4928,
+    "max_ms": 571.9,
+    "min_ms": 0.0,
+    "p50_ms": 0.5,
+    "p95_ms": 71.5,
+    "p99_ms": 85.4
+  },
+  "autorate_signal_processing": {
+    "avg_ms": 0.302,
+    "count": 4928,
+    "max_ms": 1.0,
+    "min_ms": 0.2,
+    "p50_ms": 0.3,
+    "p95_ms": 0.5,
+    "p99_ms": 0.6
+  },
+  "autorate_state_management": {
+    "avg_ms": 1.535,
+    "count": 4928,
+    "max_ms": 10.0,
+    "min_ms": 1.1,
+    "p50_ms": 1.4,
+    "p95_ms": 2.2,
+    "p99_ms": 2.6
+  },
+  "cpu_nsec_delta": 148851278000,
+  "cpu_nsec_end": 148876572000,
+  "cpu_nsec_start": 25294000,
+  "invocation_id": "8017b339add24b5e89b548b14dd167e3",
+  "n_cores": 3,
+  "parse_counters": {
+    "cycle_records": 4928,
+    "json_decode_failures": 0,
+    "lines_seen": 84769,
+    "timestamped_records": 4928
+  },
+  "stall": {
+    "gap_threshold_ms": 100.0,
+    "max_gap_ms": 1351.0,
+    "stall_event_count": 35,
+    "stall_events": [
+      {
+        "gap_ms": 112.0,
+        "index": 162
+      },
+      {
+        "gap_ms": 101.0,
+        "index": 220
+      },
+      {
+        "gap_ms": 145.0,
+        "index": 230
+      },
+      {
+        "gap_ms": 121.0,
+        "index": 231
+      },
+      {
+        "gap_ms": 104.0,
+        "index": 349
+      },
+      {
+        "gap_ms": 105.0,
+        "index": 738
+      },
+      {
+        "gap_ms": 104.0,
+        "index": 933
+      },
+      {
+        "gap_ms": 104.0,
+        "index": 1129
+      },
+      {
+        "gap_ms": 116.0,
+        "index": 1325
+      },
+      {
+        "gap_ms": 104.0,
+        "index": 1374
+      },
+      {
+        "gap_ms": 119.0,
+        "index": 2306
+      },
+      {
+        "gap_ms": 118.0,
+        "index": 2501
+      },
+      {
+        "gap_ms": 101.0,
+        "index": 2696
+      },
+      {
+        "gap_ms": 109.0,
+        "index": 2893
+      },
+      {
+        "gap_ms": 104.0,
+        "index": 3089
+      },
+      {
+        "gap_ms": 115.0,
+        "index": 3480
+      },
+      {
+        "gap_ms": 112.0,
+        "index": 3488
+      },
+      {
+        "gap_ms": 101.0,
+        "index": 3725
+      },
+      {
+        "gap_ms": 103.0,
+        "index": 3870
+      },
+      {
+        "gap_ms": 110.0,
+        "index": 4070
+      },
+      {
+        "gap_ms": 107.0,
+        "index": 4081
+      },
+      {
+        "gap_ms": 115.0,
+        "index": 4085
+      },
+      {
+        "gap_ms": 108.0,
+        "index": 4086
+      },
+      {
+        "gap_ms": 577.0,
+        "index": 4096
+      },
+      {
+        "gap_ms": 104.0,
+        "index": 4097
+      },
+      {
+        "gap_ms": 104.0,
+        "index": 4099
+      },
+      {
+        "gap_ms": 126.0,
+        "index": 4263
+      },
+      {
+        "gap_ms": 109.0,
+        "index": 4306
+      },
+      {
+        "gap_ms": 104.0,
+        "index": 4324
+      },
+      {
+        "gap_ms": 104.0,
+        "index": 4436
+      },
+      {
+        "gap_ms": 104.0,
+        "index": 4491
+      },
+      {
+        "gap_ms": 103.0,
+        "index": 4498
+      },
+      {
+        "gap_ms": 107.0,
+        "index": 4630
+      },
+      {
+        "gap_ms": 104.0,
+        "index": 4674
+      },
+      {
+        "gap_ms": 1351.0,
+        "index": 4898
+      }
+    ]
+  },
+  "window_wall_sec": 1800.0
+}

@@ -1,0 +1,25 @@
+Starting Flent 2.2.0 using Python 3.13.5.
+Starting rrul test. Expected run time: 1810 seconds.
+Data file written to /var/tmp/wanctl-phase243/evidence/spectrum-icmplib-load-1781713677/flent/rrul-2026-06-17T112758.080575.flent.gz
+
+Summary of rrul test run from 2026-06-17 11:27:58
+
+                             avg       median       99th %          # data pts
+ Ping (ms) ICMP   :        61.40        40.40       527.00 ms             9050
+ Ping (ms) UDP BE :        61.67        40.54       508.90 ms             9050
+ Ping (ms) UDP BK :        60.98        39.77       511.16 ms             9050
+ Ping (ms) UDP EF :        60.57        39.45       511.56 ms             9050
+ Ping (ms) avg    :        61.16          N/A          N/A ms             9050
+ TCP download BE  :       645.38       656.46       936.25 Mbits/s        9050
+ TCP download BK  : No data.
+ TCP download CS5 : No data.
+ TCP download EF  : No data.
+ TCP download avg :       645.38          N/A          N/A Mbits/s        9050
+ TCP download sum :       645.38          N/A          N/A Mbits/s        9050
+ TCP totals       :       645.38          N/A          N/A Mbits/s        9050
+ TCP upload BE    : No data.
+ TCP upload BK    : No data.
+ TCP upload CS5   : No data.
+ TCP upload EF    : No data.
+ TCP upload avg   : No data.
+ TCP upload sum   : No data.

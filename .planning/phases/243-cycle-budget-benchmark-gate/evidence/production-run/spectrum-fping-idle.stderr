@@ -1,0 +1,4 @@
+phase243-bench-preflight: PASS — spectrum fping posture=maintenance-window
+Running as unit: wanctl-bench-spectrum-fping-idle-1781711817.service; invocation ID: 8017b339add24b5e89b548b14dd167e3
+phase243-hygiene-sampler: complete — row_total=1653 row_failed=0 threshold=0.01
+phase243-bench-run: PASS arm=spectrum-fping-idle-1781711817 profile=/var/tmp/wanctl-phase243/evidence/spectrum-fping-idle-1781711817/profile.json hygiene=/var/tmp/wanctl-phase243/evidence/spectrum-fping-idle-1781711817/hygiene.ndjson invocation=8017b339add24b5e89b548b14dd167e3

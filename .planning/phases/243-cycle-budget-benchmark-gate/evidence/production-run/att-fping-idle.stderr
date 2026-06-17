@@ -1,0 +1,5 @@
+phase243-bench-preflight: PASS — att fping posture=maintenance-window
+Running as unit: wanctl-bench-att-fping-idle-1781719497.service; invocation ID: bfd06af81d7c40b48fe928ba4b54fff3
+scripts/phase243-hygiene-sampler.sh: line 51: /proc/1172502/stat: No such file or directory
+phase243-hygiene-sampler: complete — row_total=1653 row_failed=0 threshold=0.01
+phase243-bench-run: PASS arm=att-fping-idle-1781719497 profile=/var/tmp/wanctl-phase243/evidence/att-fping-idle-1781719497/profile.json hygiene=/var/tmp/wanctl-phase243/evidence/att-fping-idle-1781719497/hygiene.ndjson invocation=bfd06af81d7c40b48fe928ba4b54fff3

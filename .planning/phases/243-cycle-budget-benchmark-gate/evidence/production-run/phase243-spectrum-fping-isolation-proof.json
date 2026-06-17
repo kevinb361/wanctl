@@ -1,0 +1,31 @@
+{
+  "backend": "fping",
+  "bench_config": "/var/tmp/wanctl-phase243/configs/bench/generated/spectrum-bench-fping.yaml",
+  "bench_interfaces": [
+    "bench-spec-dl",
+    "bench-spec-ul"
+  ],
+  "health_port": "9202",
+  "live_interfaces": [
+    "spec-router",
+    "spec-modem"
+  ],
+  "live_unit_states": {
+    "cake-autorate-att-state-bridge.service": "active",
+    "cake-autorate-att.service": "inactive",
+    "cake-autorate-spectrum-state-bridge.service": "active",
+    "cake-autorate-spectrum.service": "inactive",
+    "steering.service": "active"
+  },
+  "lock_file": "/run/wanctl/bench-spectrum-fping.lock",
+  "metrics_port": "9203",
+  "passed": true,
+  "posture": "maintenance-window",
+  "qdisc_snapshot_files": [
+    "/var/tmp/wanctl-phase243/evidence/phase243-spectrum-spec-router-qdisc-stable-before.txt",
+    "/var/tmp/wanctl-phase243/evidence/phase243-spectrum-spec-modem-qdisc-stable-before.txt"
+  ],
+  "reason": "",
+  "state_file": "/var/tmp/wanctl-bench/spectrum-fping_state.json",
+  "wan": "spectrum"
+}

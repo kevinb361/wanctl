@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
-status: executing
-stopped_at: Completed 243-03-PLAN.md
-last_updated: "2026-06-17T03:08:36.645Z"
+status: verifying
+stopped_at: Completed 243-04-PLAN.md with BENCH verdict input_error
+last_updated: "2026-06-17T19:46:08.799Z"
 last_activity: 2026-06-17
 progress:
   total_phases: 9
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 22
-  completed_plans: 21
-  percent: 56
+  completed_plans: 22
+  percent: 67
 ---
 
 # Session State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 Phase: 243 (cycle-budget-benchmark-gate) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification; BENCH verdict recorded as input_error (not pass)
 Last activity: 2026-06-17
 
-Milestone progress: [████████░░░░░░░░░░░░] 4/9 phases (44%)
+Milestone progress: [█████████████░░░░░░░] 6/9 phases (67%)
 
 Note: the 13/13-plan bar only counts the four planned phases (238–241);
 phases 242–246 are unplanned, so plan-count reads "100%" while the
@@ -38,7 +38,8 @@ milestone is 44% done by phase count. Trust completed_phases/total_phases.
 
 ## Active Blockers / Concerns
 
-- None blocking. PROV-03 is **resolved**: Plan 04 corrected the egress-proof criterion (host egress dev `ens18` + distinct source-bound route keys; `spec-modem`/`att-modem` are downstream cake-autorate `ul_if` labels, not host route devs) and the re-run PASSED for both WANs. Phase 245 should read PROV-03 as a source-bound router-hop guarantee (correct source IP + distinct route key), not a named-modem-interface claim.
+- Phase 243 Plan 04 completed the operator-gated 8-arm production benchmark, but the recorded BENCH verdict is `input_error`, not pass. Phase 245 live A/B should remain blocked unless the benchmark validity gaps are resolved/replanned or explicitly waived.
+- PROV-03 is **resolved**: Plan 04 corrected the egress-proof criterion (host egress dev `ens18` + distinct source-bound route keys; `spec-modem`/`att-modem` are downstream cake-autorate `ul_if` labels, not host route devs) and the re-run PASSED for both WANs. Phase 245 should read PROV-03 as a source-bound router-hop guarantee (correct source IP + distinct route key), not a named-modem-interface claim.
 
 ## Deferred Items (carried into next milestone)
 
@@ -148,8 +149,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-17T03:08:36.623Z
-Stopped at: Completed 243-03-PLAN.md
+Last session: 2026-06-17T19:46:08.777Z
+Stopped at: Completed 243-04-PLAN.md with BENCH verdict input_error
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -163,6 +164,9 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Decisions (v1.53)
 
+- [243-04]: Recorded the production BENCH verdict as `input_error`, not pass; Phase 245 remains blocked until benchmark validity gaps are resolved/replanned or explicitly waived.
+- [243-04]: Ran final gate evaluation locally over copied production evidence to preserve preregistration provenance because production temp staging was intentionally not a git repo.
+- [243-04]: Treated all live-run harness repairs as benchmark-harness correctness fixes only; `src/wanctl/` controller source remained untouched.
 - [243-02]: Kept cycle percentile semantics aligned with `profiling_collector_json.py` sorted-index statistics so Plan 03/04 consume the established profiling evidence contract.
 - [243-02]: Required and recorded `invocation_id` in cycle-rollup output so reused systemd unit names cannot contaminate p99 or stall evidence.
 - [243-02]: Made `CPUAccounting=yes` a hygiene sampler startup gate and treated nonnumeric `CPUUsageNSec` as row failure to keep the CPU delta gate fail-closed.
@@ -337,3 +341,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 243 P01 | 7 min | 3 tasks | 6 files |
 | Phase 243 P02 | 4 min | 3 tasks | 4 files |
 | Phase 243 P03 | 6 min | 2 tasks | 2 files |
+| Phase 243 P04 | checkpointed; live continuation | 4 tasks | 10 files |

@@ -1,0 +1,4 @@
+phase243-bench-preflight: PASS — att icmplib posture=maintenance-window
+Running as unit: wanctl-bench-att-icmplib-idle-1781717637.service; invocation ID: 1898db54dbd7468dbd6a0578769c3c44
+phase243-hygiene-sampler: complete — row_total=1654 row_failed=0 threshold=0.01
+phase243-bench-run: PASS arm=att-icmplib-idle-1781717637 profile=/var/tmp/wanctl-phase243/evidence/att-icmplib-idle-1781717637/profile.json hygiene=/var/tmp/wanctl-phase243/evidence/att-icmplib-idle-1781717637/hygiene.ndjson invocation=1898db54dbd7468dbd6a0578769c3c44

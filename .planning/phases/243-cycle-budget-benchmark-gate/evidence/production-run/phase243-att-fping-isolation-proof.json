@@ -1,0 +1,31 @@
+{
+  "backend": "fping",
+  "bench_config": "/var/tmp/wanctl-phase243/configs/bench/generated/att-bench-fping.yaml",
+  "bench_interfaces": [
+    "bench-att-dl",
+    "bench-att-ul"
+  ],
+  "health_port": "9212",
+  "live_interfaces": [
+    "ens28",
+    "ens27"
+  ],
+  "live_unit_states": {
+    "cake-autorate-att-state-bridge.service": "active",
+    "cake-autorate-att.service": "inactive",
+    "cake-autorate-spectrum-state-bridge.service": "active",
+    "cake-autorate-spectrum.service": "inactive",
+    "steering.service": "active"
+  },
+  "lock_file": "/run/wanctl/bench-att-fping.lock",
+  "metrics_port": "9213",
+  "passed": true,
+  "posture": "maintenance-window",
+  "qdisc_snapshot_files": [
+    "/var/tmp/wanctl-phase243/evidence/phase243-att-ens28-qdisc-stable-before.txt",
+    "/var/tmp/wanctl-phase243/evidence/phase243-att-ens27-qdisc-stable-before.txt"
+  ],
+  "reason": "",
+  "state_file": "/var/tmp/wanctl-bench/att-fping_state.json",
+  "wan": "att"
+}
