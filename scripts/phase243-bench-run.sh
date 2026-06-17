@@ -58,7 +58,7 @@ for raw in sys.stdin:
 residue_check() {
   local status=0
   if [ -n "${UNIT:-}" ]; then
-    systemctl stop "$UNIT" >/dev/null 2>&1 || true
+    sudo -n systemctl stop "$UNIT" >/dev/null 2>&1 || true
   fi
   if [ -n "${HYGIENE_PID:-}" ]; then
     wait "$HYGIENE_PID" >/dev/null 2>&1 || true
@@ -75,8 +75,10 @@ residue_check() {
   done
 
   if [ -n "${LOCK_FILE:-}" ] && [ -e "$LOCK_FILE" ]; then
-    printf 'phase243-bench-run: residue check failed: lock remains: %s\n' "$LOCK_FILE" >&2
-    status=1
+    sudo -n rm -f "$LOCK_FILE" || {
+      printf 'phase243-bench-run: residue check failed: lock remains: %s\n' "$LOCK_FILE" >&2
+      status=1
+    }
   fi
   if [ -n "${STATE_FILE:-}" ] && [ -e "$STATE_FILE" ]; then
     sudo -n rm -f "$STATE_FILE" || status=1
