@@ -189,7 +189,8 @@ sudo systemd-run \
   --uid=wanctl \
   --working-directory=/opt/wanctl \
   --setenv=WANCTL_LOG_FORMAT=json \
-  /opt/wanctl/.venv/bin/python -m wanctl.autorate_continuous \
+  --setenv=PYTHONPATH=/opt \
+  /usr/bin/python3 /opt/wanctl/autorate_continuous.py \
     --debug --config "$CONFIG"
 
 INVOCATION=$(systemctl show -p InvocationID --value "$UNIT")
