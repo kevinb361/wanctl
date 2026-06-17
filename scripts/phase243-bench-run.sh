@@ -79,7 +79,7 @@ residue_check() {
     status=1
   fi
   if [ -n "${STATE_FILE:-}" ] && [ -e "$STATE_FILE" ]; then
-    rm -f "$STATE_FILE" || status=1
+    sudo -n rm -f "$STATE_FILE" || status=1
   fi
   if [ -n "${UNIT:-}" ] && systemctl is-active --quiet "$UNIT" 2>/dev/null; then
     printf 'phase243-bench-run: residue check failed: unit remains active: %s\n' "$UNIT" >&2
@@ -169,7 +169,7 @@ mkdir -p "$ARM_DIR"
 LOCK_FILE=$(yaml_get lock_file)
 STATE_FILE=$(yaml_get state_file)
 SOURCE_IP=$(yaml_get ping_source_ip || true)
-if [ -f "/etc/wanctl/${WAN}.yaml" ]; then
+if [ -f "/etc/wanctl/${WAN}.yaml" ] || sudo -n test -f "/etc/wanctl/${WAN}.yaml" 2>/dev/null; then
   LIVE_CONFIG_READER=(python3)
   if [ ! -r "/etc/wanctl/${WAN}.yaml" ]; then
     sudo -n test -r "/etc/wanctl/${WAN}.yaml" 2>/dev/null || LIVE_CONFIG_READER=()
