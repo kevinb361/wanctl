@@ -15,8 +15,12 @@ fi
 emit_config() {
   local wan="$1" backend="$2" health_port="$3" metrics_port="$4" source_ip="$5"
   local if_prefix="bench-${wan}"
+  local fping_cadence_sec="10.0"
   if [ "$wan" = "spectrum" ]; then
     if_prefix="bench-spec"
+  fi
+  if [ "$backend" = "fping" ]; then
+    fping_cadence_sec="2.0"
   fi
   local dl_iface="${if_prefix}-dl"
   local ul_iface="${if_prefix}-ul"
@@ -28,7 +32,7 @@ ping_source_ip: "${source_ip}"
 measurement:
   backend: "${backend}"
   fping:
-    cadence_sec: 10.0
+    cadence_sec: ${fping_cadence_sec}
     timeout_sec: 0.5
     timeout_grace_sec: 0.2
 

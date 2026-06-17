@@ -89,6 +89,11 @@ arm immediately if durable cycle evidence is below `DURATION_SEC * CYCLE_HZ` or
 if the captured timestamp span is shorter than the requested window. This catches
 debug-log retention or evidence plumbing failures before a multi-hour run.
 
+For fping benchmark arms, keep `measurement.fping.cadence_sec` below the
+controller's 5s RTT stale limit. The generated Phase 243 fping configs use 2s;
+using the historical 10s fping cadence drives the controller into stale-data
+fallback cycles and invalidates the cycle-budget comparison.
+
 ## 6. Evidence checks before gate evaluation
 
 Before running `scripts/phase243-gate-eval.py`, verify every arm has:

@@ -89,6 +89,8 @@ def test_generator_emits_isolated_configs_for_all_backend_wan_pairs() -> None:
         assert cfg["metrics"]["enabled"] is False
         assert int(cfg["logging"]["max_bytes"]) == 104_857_600
         assert int(cfg["logging"]["backup_count"]) == 3
+        expected_fping_cadence = 2.0 if backend == "fping" else 10.0
+        assert float(cfg["measurement"]["fping"]["cadence_sec"]) == expected_fping_cadence
         assert "bench" in cfg["lock_file"]
         assert "bench" in cfg["state_file"]
         assert cfg["lock_file"] != f"/run/wanctl/{wan}.lock"
