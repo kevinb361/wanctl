@@ -15,6 +15,7 @@ GATE_EVAL = ROOT / "scripts/phase243-gate-eval.py"
 LIVE_INTERFACES = {"spec-router", "spec-modem", "ens28", "ens27"}
 LIVE_HEALTH_PORT = 9101
 LIVE_METRICS_PORT = 9100
+EXPECTED_SOURCE_IPS = {"spectrum": "10.10.110.226", "att": "10.10.110.233"}
 EXPECTED_EVIDENCE_KEYS = frozenset(
     {"cpu_nsec_start", "cpu_nsec_end", "cpu_nsec_delta", "window_wall_sec", "n_cores", "invocation_id"}
 )
@@ -50,6 +51,7 @@ def test_generator_emits_isolated_configs_for_all_backend_wan_pairs() -> None:
         assert dl_iface not in LIVE_INTERFACES
         assert ul_iface not in LIVE_INTERFACES
         assert cfg["router"]["transport"] == "linux-cake"
+        assert cfg["ping_source_ip"] == EXPECTED_SOURCE_IPS[wan]
 
         health_port = int(cfg["health_check"]["port"])
         metrics_port = int(cfg["metrics"]["port"])

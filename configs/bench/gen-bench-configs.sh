@@ -101,8 +101,8 @@ YAML
 arms=(
   "spectrum icmplib 9201 9200 10.10.110.226"
   "spectrum fping 9202 9203 10.10.110.226"
-  "att icmplib 9211 9210 10.10.110.227"
-  "att fping 9212 9213 10.10.110.227"
+  "att icmplib 9211 9210 10.10.110.233"
+  "att fping 9212 9213 10.10.110.233"
 )
 
 for arm in "${arms[@]}"; do
