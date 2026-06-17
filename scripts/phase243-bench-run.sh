@@ -158,6 +158,7 @@ case "$WAN" in spectrum|att) ;; *) echo "ERROR: WAN must be spectrum|att" >&2; e
 case "$BACKEND" in icmplib|fping) ;; *) echo "ERROR: BACKEND must be icmplib|fping" >&2; exit 2 ;; esac
 case "$LOAD" in idle|load) ;; *) echo "ERROR: LOAD must be idle|load" >&2; exit 2 ;; esac
 [[ "$DURATION_SEC" =~ ^[1-9][0-9]*$ ]] || { echo "ERROR: DURATION_SEC must be positive integer" >&2; exit 2; }
+RUNTIME_MAX_SEC=$((DURATION_SEC + 120))
 
 scripts/phase243-bench-preflight.sh "$CONFIG" "$WAN" "$POSTURE" "$EVIDENCE_DIR"
 
@@ -222,7 +223,7 @@ sudo systemd-run \
   --property=CPUAccounting=yes \
   --property="AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN" \
   --property="CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN" \
-  --property="RuntimeMaxSec=${DURATION_SEC}" \
+  --property="RuntimeMaxSec=${RUNTIME_MAX_SEC}" \
   --uid=wanctl \
   --working-directory="$CODE_DIR" \
   --setenv=WANCTL_LOG_FORMAT=json \
