@@ -7,7 +7,6 @@ from typing import Any
 import pytest
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
 GENERATOR = ROOT / "configs/bench/gen-bench-configs.sh"
 LAUNCHER = ROOT / "scripts/phase243-bench-run.sh"
