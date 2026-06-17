@@ -16,7 +16,7 @@ GATE_EVAL = ROOT / "scripts/phase243-gate-eval.py"
 LIVE_INTERFACES = {"spec-router", "spec-modem", "ens28", "ens27"}
 LIVE_HEALTH_PORT = 9101
 LIVE_METRICS_PORT = 9100
-EXPECTED_SOURCE_IPS = {"spectrum": "10.10.110.226", "att": "10.10.110.233"}
+EXPECTED_SOURCE_IPS = {"spectrum": "10.10.110.223", "att": "10.10.110.227"}
 EXPECTED_EVIDENCE_KEYS = frozenset(
     {"cpu_nsec_start", "cpu_nsec_end", "cpu_nsec_delta", "window_wall_sec", "n_cores", "invocation_id"}
 )

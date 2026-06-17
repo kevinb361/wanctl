@@ -28,7 +28,8 @@ These configs are **bench-only**. They must never be installed as live shapers.
 - `lock_file` and `state_file` contain `bench` and are separate from live
   `/run/wanctl/<wan>.lock` and `/var/lib/wanctl/<wan>_state.json`.
 - `ping_source_ip` is the real per-WAN source-binding input for RTT probing.
-  Spectrum binds to `10.10.110.226`; ATT binds to `10.10.110.233`.
+  On cake-shaper production, Spectrum binds to `10.10.110.223`; ATT binds to
+  `10.10.110.227`.
 
 ## Operator netdev setup
 
