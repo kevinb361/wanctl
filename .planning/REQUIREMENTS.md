@@ -44,7 +44,7 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 ### Cycle-Budget Benchmark
 
 - [ ] **BENCH-01**: Operator can run an idle-and-under-load cycle-budget + CPU benchmark of `fping` vs `icmplib` under a real systemd unit (not an interactive shell).
-- [ ] **BENCH-02**: A pre-registered no-regression gate, committed before the run, blocks the live A/B if fping regresses cycle budget (vs `avg≈2.85ms` / `p99≈6.9ms` baseline), leaks file descriptors or zombies, or stalls under systemd.
+- [x] **BENCH-02**: A pre-registered no-regression gate, committed before the run, blocks the live A/B if fping regresses cycle budget (vs `avg≈2.85ms` / `p99≈6.9ms` baseline), leaks file descriptors or zombies, or stalls under systemd.
 
 ### Health / Observability
 
@@ -124,7 +124,7 @@ Populated during roadmap creation. Each requirement maps to exactly one phase.
 | FALL-01 | Phase 242 | Complete |
 | FALL-02 | Phase 242 | Complete |
 | BENCH-01 | Phase 243 | Pending |
-| BENCH-02 | Phase 243 | Pending |
+| BENCH-02 | Phase 243 | Complete |
 | HEALTH-01 | Phase 244 | Pending |
 | REFL-01 | Phase 241 | Complete |
 | AB-01 | Phase 245 | Pending |
