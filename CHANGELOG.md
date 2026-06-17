@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Phase 213:** Verified the baseline harness threat register with `threats_open: 0`; accepted live-traffic and polling risks are documented in `213-SECURITY.md`.
 
+### Fixed
+
+- **Phase 243:** Hardened benchmark gate review findings by requiring the complete eight-arm benchmark design by default, validating CPU evidence arithmetic before gate math, and constraining transient bench lock/state cleanup paths to bench-only runtime locations.
+
 ### Planning
 
 - **Spectrum plan anchor:** Documented the actual Spectrum plan disclosure (1045 Mbps typical download, 40 Mbps typical upload, 19 ms typical latency) in `configs/spectrum.yaml` comments and `.planning/spectrum-plan-speed-anchor-2026-05-20.md`. Current 12/18 Mbps upload values remain latency-first validated operating points, not provisioned-capacity percentages.

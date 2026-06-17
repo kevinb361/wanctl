@@ -22,6 +22,8 @@ FLOAT_EPSILON = 1e-9
 REQUIRED_CPU_EVIDENCE_KEYS = frozenset(
     {"cpu_nsec_start", "cpu_nsec_end", "cpu_nsec_delta", "window_wall_sec", "n_cores", "invocation_id"}
 )
+REQUIRED_PAIR_IDS = frozenset({"spectrum/idle", "spectrum/load", "att/idle", "att/load"})
+REQUIRED_BACKENDS = frozenset({"icmplib", "fping"})
 
 
 class GateEvalError(ValueError):
@@ -89,6 +91,14 @@ def _require_profile(arm: JsonDict, *, label: str) -> JsonDict:
                 f"{label} arm missing cpu_nsec evidence field {key}",
                 gate_id="gate_input_completeness",
             )
+    cpu_start = _require_number(profile, "cpu_nsec_start", gate_id="gate_input_completeness")
+    cpu_end = _require_number(profile, "cpu_nsec_end", gate_id="gate_input_completeness")
+    cpu_delta = _require_number(profile, "cpu_nsec_delta", gate_id="gate_input_completeness")
+    if cpu_start < 0 or cpu_end < cpu_start or cpu_delta < 0 or abs(cpu_delta - (cpu_end - cpu_start)) > 1:
+        raise GateEvalError(
+            f"{label} CPU evidence is internally inconsistent",
+            gate_id="gate_input_completeness",
+        )
     return profile
 
 
@@ -284,7 +294,27 @@ def _evaluate_pair(pair_id: str, arms: JsonDict, thresholds: JsonDict) -> JsonDi
     return {"gates": gates}
 
 
-def evaluate(pairs: dict[str, JsonDict], thresholds_path: Path | None = None) -> JsonDict:
+def _require_complete_design(pairs: dict[str, JsonDict]) -> None:
+    missing_pairs = REQUIRED_PAIR_IDS - set(pairs)
+    extra_pairs = set(pairs) - REQUIRED_PAIR_IDS
+    if missing_pairs or extra_pairs:
+        raise GateEvalError(
+            f"benchmark arm set mismatch: missing={sorted(missing_pairs)} extra={sorted(extra_pairs)}",
+            gate_id="gate_input_completeness",
+        )
+    for pair_id, arms in pairs.items():
+        missing_backends = REQUIRED_BACKENDS - set(arms)
+        extra_backends = set(arms) - REQUIRED_BACKENDS
+        if missing_backends or extra_backends:
+            raise GateEvalError(
+                f"{pair_id} backend mismatch: missing={sorted(missing_backends)} extra={sorted(extra_backends)}",
+                gate_id="gate_input_completeness",
+            )
+
+
+def evaluate(pairs: dict[str, JsonDict], thresholds_path: Path | None = None, *, require_complete: bool = True) -> JsonDict:
+    if require_complete:
+        _require_complete_design(pairs)
     thresholds = load_thresholds(thresholds_path)
     comparisons = {pair_id: _evaluate_pair(pair_id, arms, thresholds) for pair_id, arms in pairs.items()}
     any_input_error = any(
@@ -385,6 +415,7 @@ def main(argv: list[str] | None = None) -> int:
         verdict = evaluate(_pairs_from_args(args.arm), thresholds_path=args.thresholds)
     except GateEvalError as exc:
         payload: JsonDict = {"error": str(exc), "gate_id": exc.gate_id, "outcome": "input_error"}
+        args.output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         print(json.dumps(payload, indent=2, sort_keys=True), file=sys.stderr)
         return EXIT_ABORT
 

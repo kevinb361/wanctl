@@ -120,6 +120,11 @@ payload = {
     "state_file": ${STATE_FILE@Q},
     "qdisc_snapshot_files": ${SNAPSHOT_FILES_JSON},
 }
+
+validate_bench_runtime_paths() {
+  [[ "$LOCK_FILE" == /run/wanctl/bench-*.lock ]] || abort "invalid bench lock path: ${LOCK_FILE}"
+  [[ "$STATE_FILE" == /var/tmp/wanctl-bench/*_state.json ]] || abort "invalid bench state path: ${STATE_FILE}"
+}
 path = pathlib.Path(${proof_path@Q})
 path.parent.mkdir(parents=True, exist_ok=True)
 path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -181,6 +186,7 @@ done
 [ "$HEALTH_PORT" != "9101" ] || abort "bench health port must not be live 9101"
 [ "$METRICS_PORT" != "9100" ] || abort "bench metrics port must not be live 9100"
 [[ "$LOCK_FILE" == *bench* && "$STATE_FILE" == *bench* ]] || abort "bench lock/state paths must contain bench marker"
+validate_bench_runtime_paths
 [ ! -e "$LOCK_FILE" ] || abort "bench lock already exists: ${LOCK_FILE}"
 [ ! -e "$STATE_FILE" ] || abort "bench state file already exists: ${STATE_FILE}"
 

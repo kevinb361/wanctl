@@ -141,6 +141,11 @@ with open(output_path, "w", encoding="utf-8") as fh:
 PY
 }
 
+validate_bench_runtime_paths() {
+  [[ "$LOCK_FILE" == /run/wanctl/bench-*.lock ]] || { echo "ERROR: invalid bench lock path: ${LOCK_FILE}" >&2; exit 2; }
+  [[ "$STATE_FILE" == /var/tmp/wanctl-bench/*_state.json ]] || { echo "ERROR: invalid bench state path: ${STATE_FILE}" >&2; exit 2; }
+}
+
 if [ "$#" -lt 6 ] || [ "$#" -gt 7 ]; then
   usage
   exit 2
@@ -171,6 +176,7 @@ ARM_DIR="${EVIDENCE_DIR}/${ARM}"
 mkdir -p "$ARM_DIR"
 LOCK_FILE=$(yaml_get lock_file)
 STATE_FILE=$(yaml_get state_file)
+validate_bench_runtime_paths
 SOURCE_IP=$(yaml_get ping_source_ip || true)
 if [ -f "/etc/wanctl/${WAN}.yaml" ] || sudo -n test -f "/etc/wanctl/${WAN}.yaml" 2>/dev/null; then
   LIVE_CONFIG_READER=(python3)

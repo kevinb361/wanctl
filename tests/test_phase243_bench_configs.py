@@ -113,6 +113,7 @@ def test_launcher_systemd_run_argv_contains_capability_grants() -> None:
     assert '"$CODE_DIR/autorate_continuous.py"' in source
     assert "STATE_FILE=$(yaml_get state_file)" in source
     assert 'rm -f "$STATE_FILE"' in source
+    assert "validate_bench_runtime_paths" in source
 
 
 def test_preflight_derives_live_device_from_source_bound_route() -> None:

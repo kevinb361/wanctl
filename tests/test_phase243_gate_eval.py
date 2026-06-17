@@ -82,7 +82,7 @@ def pass_arms() -> dict[str, dict[str, object]]:
 
 def evaluate_pair(arms: dict[str, dict[str, object]]) -> dict[str, object]:
     module = load_module()
-    return module.evaluate({"spectrum/idle": arms}, thresholds_path=THRESHOLDS)
+    return module.evaluate({"spectrum/idle": arms}, thresholds_path=THRESHOLDS, require_complete=False)
 
 
 def gate(verdict: dict[str, object], name: str) -> dict[str, object]:
@@ -230,6 +230,27 @@ def test_missing_cpu_nsec_or_invocation_id_fails_closed() -> None:
     with pytest.raises(module.GateEvalError) as invocation_exc:
         module.evaluate({"spectrum/idle": arms}, thresholds_path=THRESHOLDS)
     assert invocation_exc.value.gate_id == "gate_input_completeness"
+
+
+def test_incomplete_arm_set_fails_closed_by_default() -> None:
+    module = load_module()
+
+    with pytest.raises(module.GateEvalError) as exc:
+        module.evaluate({"spectrum/idle": pass_arms()}, thresholds_path=THRESHOLDS)
+
+    assert exc.value.gate_id == "gate_input_completeness"
+
+
+def test_inconsistent_cpu_evidence_fails_closed() -> None:
+    module = load_module()
+    arms = pass_arms()
+    arms["fping"]["profile"] = profile(cpu_nsec_delta=1_000)
+    arms["fping"]["profile"]["cpu_nsec_end"] = 1_500
+
+    with pytest.raises(module.GateEvalError) as exc:
+        module.evaluate({"spectrum/idle": arms}, thresholds_path=THRESHOLDS, require_complete=False)
+
+    assert exc.value.gate_id == "gate_input_completeness"
 
 
 def test_frozen_threshold_boundaries_flip_verdict() -> None:
