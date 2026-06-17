@@ -42,16 +42,12 @@ PY
 
 stable_qdisc_snapshot() {
   local iface="$1"
-  tc qdisc show dev "$iface" 2>/dev/null | python3 - "$iface" <<'PY'
-import re
-import sys
-
+  tc qdisc show dev "$iface" 2>/dev/null | python3 -c 'import re, sys
 iface = sys.argv[1]
 for raw in sys.stdin:
     line = raw.strip()
     if not line:
         continue
-    # Keep ownership/topology only: qdisc kind, handle, root/parent, dev attachment.
     kind_match = re.search(r"^qdisc\s+(\S+)", line)
     handle_match = re.search(r"\s(\S+:)\s", line)
     parent_match = re.search(r"\s(parent\s+\S+|root)\b", line)
@@ -60,18 +56,21 @@ for raw in sys.stdin:
         f"kind={kind_match.group(1)}" if kind_match else "kind=unknown",
         f"handle={handle_match.group(1)}" if handle_match else "handle=none",
         parent_match.group(1).replace(" ", "=") if parent_match else "attach=unknown",
-    ] if part))
-PY
+    ] if part))' "$iface"
 }
 
 route_dev_for_source() {
   local source_ip="$1"
   python3 -c 'import sys
 tokens = sys.stdin.read().split()
+dev = None
 for idx, token in enumerate(tokens):
     if token == "dev" and idx + 1 < len(tokens):
-        print(tokens[idx + 1])
-        raise SystemExit(0)
+        dev = tokens[idx + 1]
+        break
+if dev:
+    print(dev)
+    raise SystemExit(0)
 raise SystemExit(1)' < <(ip route get 104.200.21.31 from "$source_ip" 2>/dev/null)
 }
 

@@ -37,10 +37,7 @@ PY
 
 stable_qdisc_snapshot() {
   local iface="$1"
-  tc qdisc show dev "$iface" 2>/dev/null | python3 - "$iface" <<'PY'
-import re
-import sys
-
+  tc qdisc show dev "$iface" 2>/dev/null | python3 -c 'import re, sys
 iface = sys.argv[1]
 for raw in sys.stdin:
     line = raw.strip()
@@ -54,8 +51,7 @@ for raw in sys.stdin:
         f"kind={kind_match.group(1)}" if kind_match else "kind=unknown",
         f"handle={handle_match.group(1)}" if handle_match else "handle=none",
         parent_match.group(1).replace(" ", "=") if parent_match else "attach=unknown",
-    ] if part))
-PY
+    ] if part))' "$iface"
 }
 
 residue_check() {
@@ -168,10 +164,14 @@ LOCK_FILE=$(yaml_get lock_file)
 SOURCE_IP=$(yaml_get ping_source_ip || true)
 LIVE_ROUTE_DEV=$(python3 -c 'import sys
 tokens = sys.stdin.read().split()
+dev = None
 for idx, token in enumerate(tokens):
     if token == "dev" and idx + 1 < len(tokens):
-        print(tokens[idx + 1])
-        raise SystemExit(0)
+        dev = tokens[idx + 1]
+        break
+if dev:
+    print(dev)
+    raise SystemExit(0)
 raise SystemExit(1)' < <(ip route get 104.200.21.31 from "$SOURCE_IP" 2>/dev/null)) \
   || { echo "ERROR: cannot resolve route dev for source IP ${SOURCE_IP}" >&2; exit 2; }
 LIVE_IFACES=("$LIVE_ROUTE_DEV")
