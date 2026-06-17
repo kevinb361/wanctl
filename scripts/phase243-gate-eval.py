@@ -19,6 +19,9 @@ EXIT_ABORT = 2
 
 JsonDict = dict[str, Any]
 FLOAT_EPSILON = 1e-9
+REQUIRED_CPU_EVIDENCE_KEYS = frozenset(
+    {"cpu_nsec_start", "cpu_nsec_end", "cpu_nsec_delta", "window_wall_sec", "n_cores", "invocation_id"}
+)
 
 
 class GateEvalError(ValueError):
@@ -78,7 +81,9 @@ def _require_profile(arm: JsonDict, *, label: str) -> JsonDict:
                 f"{label} autorate_cycle_total missing numeric {key}",
                 gate_id="gate_input_completeness",
             )
-    for key in ("cpu_nsec_delta", "window_wall_sec", "n_cores"):
+    for key in REQUIRED_CPU_EVIDENCE_KEYS:
+        if key == "invocation_id":
+            continue
         if not isinstance(profile.get(key), int | float):
             raise GateEvalError(
                 f"{label} arm missing cpu_nsec evidence field {key}",

@@ -1,0 +1,104 @@
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+from typing import Any
+
+import pytest
+import yaml
+
+
+ROOT = Path(__file__).resolve().parents[1]
+GENERATOR = ROOT / "configs/bench/gen-bench-configs.sh"
+LAUNCHER = ROOT / "scripts/phase243-bench-run.sh"
+GATE_EVAL = ROOT / "scripts/phase243-gate-eval.py"
+
+LIVE_INTERFACES = {"spec-router", "spec-modem", "ens28", "ens27"}
+LIVE_HEALTH_PORT = 9101
+LIVE_METRICS_PORT = 9100
+EXPECTED_EVIDENCE_KEYS = frozenset(
+    {"cpu_nsec_start", "cpu_nsec_end", "cpu_nsec_delta", "window_wall_sec", "n_cores", "invocation_id"}
+)
+
+
+def _generated_configs() -> list[dict[str, Any]]:
+    result = subprocess.run([str(GENERATOR)], cwd=ROOT, text=True, capture_output=True, check=True)
+    docs = [doc for doc in yaml.safe_load_all(result.stdout) if doc]
+    assert len(docs) == 4
+    return docs
+
+
+def test_generator_emits_isolated_configs_for_all_backend_wan_pairs() -> None:
+    configs = _generated_configs()
+    seen = {(cfg["wan_name"], cfg["measurement"]["backend"]) for cfg in configs}
+    assert seen == {
+        ("spectrum", "icmplib"),
+        ("spectrum", "fping"),
+        ("att", "icmplib"),
+        ("att", "fping"),
+    }
+
+    health_ports: set[int] = set()
+    metrics_ports: set[int] = set()
+    for cfg in configs:
+        wan = cfg["wan_name"]
+        backend = cfg["measurement"]["backend"]
+        cake_params = cfg["cake_params"]
+        dl_iface = cake_params["download_interface"]
+        ul_iface = cake_params["upload_interface"]
+        assert dl_iface.startswith(f"bench-{wan}-")
+        assert ul_iface.startswith(f"bench-{wan}-")
+        assert dl_iface not in LIVE_INTERFACES
+        assert ul_iface not in LIVE_INTERFACES
+        assert cfg["router"]["transport"] == "linux-cake"
+
+        health_port = int(cfg["health_check"]["port"])
+        metrics_port = int(cfg["metrics"]["port"])
+        assert health_port != LIVE_HEALTH_PORT
+        assert metrics_port != LIVE_METRICS_PORT
+        assert health_port not in health_ports
+        assert metrics_port not in metrics_ports
+        assert health_port != metrics_port
+        health_ports.add(health_port)
+        metrics_ports.add(metrics_port)
+
+        assert cfg["metrics"]["enabled"] is False
+        assert "bench" in cfg["lock_file"]
+        assert "bench" in cfg["state_file"]
+        assert cfg["lock_file"] != f"/run/wanctl/{wan}.lock"
+        assert cfg["state_file"] != f"/var/lib/wanctl/{wan}_state.json"
+        assert cfg["storage"]["db_path"].startswith("/var/tmp/wanctl-bench/")
+        assert cfg["storage"]["db_path"] != "/var/lib/wanctl/metrics.db"
+        assert backend in {"icmplib", "fping"}
+
+
+def test_negative_assertion_would_catch_live_port_or_interface_collision() -> None:
+    cfg = _generated_configs()[0]
+    cfg["cake_params"]["download_interface"] = "spec-router"
+    cfg["health_check"]["port"] = 9101
+    assert cfg["cake_params"]["download_interface"] in LIVE_INTERFACES
+    assert cfg["health_check"]["port"] == LIVE_HEALTH_PORT
+
+
+def test_evidence_key_contract_matches_gate_eval_literals() -> None:
+    representative = {
+        "cpu_nsec_start": 100,
+        "cpu_nsec_end": 200,
+        "cpu_nsec_delta": 100,
+        "window_wall_sec": 10.0,
+        "n_cores": 4,
+        "invocation_id": "abc",
+    }
+    assert set(representative) >= EXPECTED_EVIDENCE_KEYS
+    source = GATE_EVAL.read_text(encoding="utf-8")
+    for key in EXPECTED_EVIDENCE_KEYS:
+        assert key in source
+
+
+def test_launcher_systemd_run_argv_contains_capability_grants() -> None:
+    if not LAUNCHER.exists():
+        pytest.skip("launcher lands in Task 3")
+    source = LAUNCHER.read_text(encoding="utf-8")
+    systemd_run_block = source[source.index("sudo systemd-run") : source.index("/opt/wanctl/.venv/bin/python")]
+    assert '--property=AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN' in systemd_run_block
+    assert '--property=CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN' in systemd_run_block
