@@ -111,6 +111,8 @@ def test_launcher_systemd_run_argv_contains_capability_grants() -> None:
     assert '--property="CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN"' in systemd_run_block
     assert "--setenv=PYTHONPATH=\"$CODE_PARENT\"" in systemd_run_block
     assert '"$CODE_DIR/autorate_continuous.py"' in source
+    assert "STATE_FILE=$(yaml_get state_file)" in source
+    assert 'rm -f "$STATE_FILE"' in source
 
 
 def test_preflight_derives_live_device_from_source_bound_route() -> None:
