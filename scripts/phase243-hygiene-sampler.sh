@@ -2,6 +2,7 @@
 # Phase 243 hygiene sampler: 1Hz fd/zombie/Tasks/cpu_nsec NDJSON for a bench unit.
 
 set -euo pipefail
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 : "${BENCH_UNIT:?BENCH_UNIT env var required (systemd unit name)}"
 : "${SOAK_DURATION_SEC:?SOAK_DURATION_SEC env var required}"

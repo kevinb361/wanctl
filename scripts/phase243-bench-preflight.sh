@@ -2,6 +2,7 @@
 # Phase 243 fail-closed bench isolation preflight.
 
 set -euo pipefail
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 usage() {
   cat >&2 <<'USAGE'

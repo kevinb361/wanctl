@@ -2,6 +2,7 @@
 # Phase 243 per-arm benchmark launcher.
 
 set -euo pipefail
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 usage() {
   cat >&2 <<'USAGE'
