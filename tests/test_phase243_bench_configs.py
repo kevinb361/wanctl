@@ -100,5 +100,5 @@ def test_launcher_systemd_run_argv_contains_capability_grants() -> None:
         pytest.skip("launcher lands in Task 3")
     source = LAUNCHER.read_text(encoding="utf-8")
     systemd_run_block = source[source.index("sudo systemd-run") : source.index("/opt/wanctl/.venv/bin/python")]
-    assert '--property=AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN' in systemd_run_block
-    assert '--property=CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN' in systemd_run_block
+    assert '--property="AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN"' in systemd_run_block
+    assert '--property="CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN"' in systemd_run_block
