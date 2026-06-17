@@ -106,7 +106,8 @@ def test_launcher_systemd_run_argv_contains_capability_grants() -> None:
     systemd_run_block = source[source.index("sudo systemd-run") : source.index("/usr/bin/python3")]
     assert '--property="AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN"' in systemd_run_block
     assert '--property="CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN"' in systemd_run_block
-    assert "--setenv=PYTHONPATH=/opt" in systemd_run_block
+    assert "--setenv=PYTHONPATH=\"$CODE_PARENT\"" in systemd_run_block
+    assert '"$CODE_DIR/autorate_continuous.py"' in source
 
 
 def test_preflight_derives_live_device_from_source_bound_route() -> None:

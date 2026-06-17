@@ -68,6 +68,13 @@ Use `scripts/phase243-bench-run.sh` for each arm. The launcher uses a unique
 `CPUAccounting=yes`, `WANCTL_LOG_FORMAT=json`, `RuntimeMaxSec`, `User=wanctl`, and
 `WorkingDirectory=/opt/wanctl`.
 
+If production `/opt/wanctl` has not yet been updated with the fping backend, stage
+the current checkout under a temporary directory on the production host and run the
+launcher with `WANCTL_BENCH_CODE_DIR=/var/tmp/wanctl-phase243/wanctl`. This leaves
+the installed `/opt/wanctl` tree untouched while still running on the production
+host with the production source IPs, qdisc devices, capabilities, and systemd
+execution path.
+
 Do not allocate a TTY. The benchmark exists to catch journal-pipe buffering and
 cycle-gap behavior. The under-load arm uses the established flent RRUL over netperf
 path to `104.200.21.31`; do not substitute synthetic CPU load or another traffic

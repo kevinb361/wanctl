@@ -147,6 +147,8 @@ DURATION_SEC="$4"
 CONFIG="$5"
 POSTURE="$6"
 EVIDENCE_DIR="${7:-.planning/phases/243-cycle-budget-benchmark-gate/evidence}"
+CODE_DIR="${WANCTL_BENCH_CODE_DIR:-/opt/wanctl}"
+CODE_PARENT=$(dirname "$CODE_DIR")
 
 case "$WAN" in spectrum|att) ;; *) echo "ERROR: WAN must be spectrum|att" >&2; exit 2 ;; esac
 case "$BACKEND" in icmplib|fping) ;; *) echo "ERROR: BACKEND must be icmplib|fping" >&2; exit 2 ;; esac
@@ -187,10 +189,10 @@ sudo systemd-run \
   --property="CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN" \
   --property="RuntimeMaxSec=${DURATION_SEC}" \
   --uid=wanctl \
-  --working-directory=/opt/wanctl \
+  --working-directory="$CODE_DIR" \
   --setenv=WANCTL_LOG_FORMAT=json \
-  --setenv=PYTHONPATH=/opt \
-  /usr/bin/python3 /opt/wanctl/autorate_continuous.py \
+  --setenv=PYTHONPATH="$CODE_PARENT" \
+  /usr/bin/python3 "$CODE_DIR/autorate_continuous.py" \
     --debug --config "$CONFIG"
 
 INVOCATION=$(systemctl show -p InvocationID --value "$UNIT")
