@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Phase 243:** Hardened benchmark gate review findings by requiring the complete eight-arm benchmark design by default, validating CPU evidence arithmetic before gate math, and constraining transient bench lock/state cleanup paths to bench-only runtime locations.
+- **Phase 243:** Hardened benchmark gate review findings by requiring the complete eight-arm benchmark design by default, validating CPU evidence arithmetic before gate math, constraining transient bench lock/state cleanup paths to bench-only runtime locations, and covering the preflight abort-path proof writer with a runtime regression test.
 
 ### Planning
 

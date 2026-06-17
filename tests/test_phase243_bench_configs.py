@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,22 @@ def _generated_configs() -> list[dict[str, Any]]:
     docs = [doc for doc in yaml.safe_load_all(result.stdout) if doc]
     assert len(docs) == 4
     return docs
+
+
+def _route_source_ip() -> str:
+    result = subprocess.run(
+        ["ip", "route", "get", "104.200.21.31"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        pytest.skip(f"no route for preflight abort-path test: {result.stderr.strip()}")
+    tokens = result.stdout.split()
+    if "src" not in tokens:
+        pytest.skip(f"route output lacks source IP: {result.stdout.strip()}")
+    return tokens[tokens.index("src") + 1]
 
 
 def test_generator_emits_isolated_configs_for_all_backend_wan_pairs() -> None:
@@ -125,3 +142,40 @@ def test_preflight_derives_live_device_from_source_bound_route() -> None:
     assert "ens28" not in source
     assert "ens27" not in source
     assert "bench download interface missing" in source
+
+
+def test_preflight_abort_path_writes_json_proof(tmp_path: Path) -> None:
+    config = tmp_path / "bench.yaml"
+    evidence_dir = tmp_path / "evidence"
+    config.write_text(
+        yaml.safe_dump(
+            {
+                "cake_params": {
+                    "download_interface": "live-dl",
+                    "upload_interface": "bench-ul",
+                },
+                "health_check": {"port": 19101},
+                "lock_file": "/run/wanctl/bench-spectrum-fping.lock",
+                "measurement": {"backend": "fping"},
+                "metrics": {"port": 19100},
+                "ping_source_ip": _route_source_ip(),
+                "router": {"transport": "linux-cake"},
+                "state_file": "/var/tmp/wanctl-bench/spectrum_fping_state.json",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [str(PREFLIGHT), str(config), "spectrum", "throwaway-interface", str(evidence_dir)],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 2, result.stderr
+    assert "bench interfaces must be throwaway bench-* names" in result.stderr
+    proof = json.loads((evidence_dir / "phase243-spectrum-fping-isolation-proof.json").read_text())
+    assert proof["passed"] is False
+    assert proof["reason"] == "bench interfaces must be throwaway bench-* names"

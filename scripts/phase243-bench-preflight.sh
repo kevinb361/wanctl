@@ -97,6 +97,11 @@ for key in ("download_interface", "upload_interface"):
 PY
 }
 
+validate_bench_runtime_paths() {
+  [[ "$LOCK_FILE" == /run/wanctl/bench-*.lock ]] || abort "invalid bench lock path: ${LOCK_FILE}"
+  [[ "$STATE_FILE" == /var/tmp/wanctl-bench/*_state.json ]] || abort "invalid bench state path: ${STATE_FILE}"
+}
+
 write_proof() {
   local passed="$1" reason="${2:-}"
   local proof_path="${EVIDENCE_DIR}/phase243-${WAN}-${BACKEND}-isolation-proof.json"
@@ -119,11 +124,6 @@ payload = {
     "lock_file": ${LOCK_FILE@Q},
     "state_file": ${STATE_FILE@Q},
     "qdisc_snapshot_files": ${SNAPSHOT_FILES_JSON},
-}
-
-validate_bench_runtime_paths() {
-  [[ "$LOCK_FILE" == /run/wanctl/bench-*.lock ]] || abort "invalid bench lock path: ${LOCK_FILE}"
-  [[ "$STATE_FILE" == /var/tmp/wanctl-bench/*_state.json ]] || abort "invalid bench state path: ${STATE_FILE}"
 }
 path = pathlib.Path(${proof_path@Q})
 path.parent.mkdir(parents=True, exist_ok=True)
