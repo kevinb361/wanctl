@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
 status: executing
-stopped_at: Completed 243-01-PLAN.md
-last_updated: "2026-06-17T02:52:16.421Z"
+stopped_at: Completed 243-02-PLAN.md
+last_updated: "2026-06-17T02:58:53.370Z"
 last_activity: 2026-06-17
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 22
-  completed_plans: 19
+  completed_plans: 20
   percent: 56
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 ## Current Position
 
 Phase: 243 (cycle-budget-benchmark-gate) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-17
 
@@ -148,8 +148,8 @@ Re-acknowledged at v1.50 milestone close 2026-06-10 via `/gsd-complete-milestone
 
 ## Session Continuity
 
-Last session: 2026-06-17T02:52:09.543Z
-Stopped at: Completed 243-01-PLAN.md
+Last session: 2026-06-17T02:58:31.713Z
+Stopped at: Completed 243-02-PLAN.md
 Resume file: None
 Archived v1.46 evidence: `.planning/milestones/v1.46-phases/`
 Archived v1.47 evidence: `.planning/milestones/v1.47-phases/`
@@ -163,6 +163,9 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Decisions (v1.53)
 
+- [243-02]: Kept cycle percentile semantics aligned with `profiling_collector_json.py` sorted-index statistics so Plan 03/04 consume the established profiling evidence contract.
+- [243-02]: Required and recorded `invocation_id` in cycle-rollup output so reused systemd unit names cannot contaminate p99 or stall evidence.
+- [243-02]: Made `CPUAccounting=yes` a hygiene sampler startup gate and treated nonnumeric `CPUUsageNSec` as row failure to keep the CPU delta gate fail-closed.
 - [242-04]: Restored rtt_measurement.py byte-for-byte to the Phase 239 close anchor so the SAFE-17 RTT seam guard remains authoritative.
 - [242-04]: Added explicit phase241_frozen_no_new_diff evidence and asserted it directly rather than inferring Phase 241 frozen-file no-drift from pass/fail.
 - [242-04]: Preserved legacy module-level RTTMeasurement / RTTAggregationStrategy exports as test compatibility seams while preserving factory-based runtime construction.
@@ -332,3 +335,4 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 | Phase 242-backend-factory-loud-fallback P03 | 15 min | 2 tasks | 6 files |
 | Phase 242-backend-factory-loud-fallback P04 | 30 min | 1 task | 5 files |
 | Phase 243 P01 | 7 min | 3 tasks | 6 files |
+| Phase 243 P02 | 4 min | 3 tasks | 4 files |

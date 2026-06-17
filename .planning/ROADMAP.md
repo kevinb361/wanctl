@@ -130,7 +130,7 @@
   4. SAFE-17 boundary verifier passes.
 **Plans**: 4 plans
 - [x] 243-01-PLAN.md — Pre-registration (frozen D-04 thresholds JSON + PREREGISTRATION.md) + empty-diff SAFE-17 verifier + mirror/prereg tests (BENCH-02, SAFE-17)
-- [ ] 243-02-PLAN.md — Cycle-budget rollup (+ STALL gap detector) + fd/zombie/Tasks hygiene sampler + fixture unit tests (BENCH-01)
+- [x] 243-02-PLAN.md — Cycle-budget rollup (+ STALL gap detector) + fd/zombie/Tasks hygiene sampler + fixture unit tests (BENCH-01)
 - [ ] 243-03-PLAN.md — Frozen-threshold gate evaluator (same-run delta + ceiling/hygiene/STALL/n-floor, fail-closed) + full pass/fail-mode matrix (BENCH-02)
 - [ ] 243-04-PLAN.md — Bench-run launcher (throwaway journal-pipe unit, flent load, collision preflight) + operator runbook + operator-gated 8-arm live run → recorded verdict (BENCH-01, BENCH-02, SAFE-17)
 
@@ -179,7 +179,7 @@
 | 240. Config + Validator | v1.53 | 2/2 | Complete    | 2026-06-15 |
 | 241. fping Backend (Offline) + Reflector Quality | v1.53 | 4/4 | Complete    | 2026-06-16 |
 | 242. Backend Factory + Loud Fallback | v1.53 | 5/5 | Complete    | 2026-06-16 |
-| 243. Cycle-Budget Benchmark Gate | v1.53 | 1/4 | In Progress|  |
+| 243. Cycle-Budget Benchmark Gate | v1.53 | 2/4 | In Progress|  |
 | 244. Health-Payload Attribution Metadata | v1.53 | 0/TBD | Not started | - |
 | 245. Live A/B + Rollback Anchor | v1.53 | 0/TBD | Not started | - |
 | 246. Conditional Default Flip + Milestone Closeout | v1.53 | 0/TBD | Not started | - |
