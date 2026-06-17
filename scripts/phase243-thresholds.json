@@ -1,0 +1,20 @@
+{
+  "thresholds_schema_version": 1,
+  "CYCLE_AVG_REGRESSION_PCT": 20.0,
+  "CYCLE_P99_REGRESSION_PCT": 20.0,
+  "CYCLE_P99_ABS_CEILING_MS": 10.0,
+  "CPU_DELTA_PCT_POINTS": 2.0,
+  "ZOMBIES_MAX": 0,
+  "TASKS_BOUND": 4,
+  "STALL_GAP_MS": 100.0,
+  "MIN_CYCLES": 10000,
+  "MIN_MINUTES": 30,
+  "ICMPLIB_REPRESENTATIVE_AVG_MS": 2.85,
+  "ICMPLIB_REPRESENTATIVE_P99_MS": 6.9,
+  "CYCLE_HZ": 20,
+  "CYCLE_INTERVAL_MS": 50.0,
+  "ICMPLIB_REPRESENTATIVE_AVG_TOL_MS": 1.5,
+  "ICMPLIB_REPRESENTATIVE_P99_TOL_MS": 3.5,
+  "CPU_NORMALIZATION": "per_core",
+  "_notes": "BENCH-02 single source of truth committed before data collection for D-04/D-04a/D-04b/D-04c. CYCLE_HZ replaces the implicit cadence constant in n-floor math. ICMPLIB_REPRESENTATIVE_*_TOL_MS are HARD validity gates; Plan 03 returns input_error if the dev icmplib arm is outside the band, not a warning. CPU_NORMALIZATION=per_core fixes cpu_pct to percent-of-whole-machine by dividing by n_cores. Do not duplicate threshold literals in markdown."
+}
