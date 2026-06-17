@@ -94,6 +94,8 @@ continuous_monitoring:
 logging:
   main_log: "/var/tmp/wanctl-bench/${wan}-${backend}.log"
   debug_log: "/var/tmp/wanctl-bench/${wan}-${backend}-debug.log"
+  max_bytes: 104857600
+  backup_count: 3
 
 lock_file: "/run/wanctl/bench-${wan}-${backend}.lock"
 lock_timeout: 300

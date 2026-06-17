@@ -87,6 +87,8 @@ def test_generator_emits_isolated_configs_for_all_backend_wan_pairs() -> None:
         metrics_ports.add(metrics_port)
 
         assert cfg["metrics"]["enabled"] is False
+        assert int(cfg["logging"]["max_bytes"]) == 104_857_600
+        assert int(cfg["logging"]["backup_count"]) == 3
         assert "bench" in cfg["lock_file"]
         assert "bench" in cfg["state_file"]
         assert cfg["lock_file"] != f"/run/wanctl/{wan}.lock"
@@ -126,11 +128,19 @@ def test_launcher_systemd_run_argv_contains_capability_grants() -> None:
     systemd_run_block = source[source.index("sudo systemd-run") : source.index("/usr/bin/python3")]
     assert '--property="AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN"' in systemd_run_block
     assert '--property="CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN"' in systemd_run_block
-    assert "--setenv=PYTHONPATH=\"$CODE_PARENT\"" in systemd_run_block
-    assert '"$CODE_DIR/autorate_continuous.py"' in source
+    assert "--setenv=PYTHONPATH=\"$PYTHONPATH_DIR\"" in systemd_run_block
+    assert '"$ENTRYPOINT"' in source
+    assert "resolve_bench_entrypoint" in source
+    assert '"$CODE_DIR/src/wanctl/autorate_continuous.py"' in source
     assert "STATE_FILE=$(yaml_get state_file)" in source
     assert 'rm -f "$STATE_FILE"' in source
     assert "validate_bench_runtime_paths" in source
+    assert "DEBUG_LOG=$(yaml_get logging.debug_log)" in source
+    assert "copy_cycle_evidence_from_debug_log" in source
+    assert "JOURNAL_MESSAGES_NDJSON" in source
+    assert "validate_cycle_evidence_floor" in source
+    assert "cycle evidence below floor" in source
+    assert "int(expected * 0.9)" in source
 
 
 def test_preflight_derives_live_device_from_source_bound_route() -> None:

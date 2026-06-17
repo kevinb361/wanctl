@@ -146,6 +146,74 @@ validate_bench_runtime_paths() {
   [[ "$STATE_FILE" == /var/tmp/wanctl-bench/*_state.json ]] || { echo "ERROR: invalid bench state path: ${STATE_FILE}" >&2; exit 2; }
 }
 
+validate_bench_log_paths() {
+  [[ "$DEBUG_LOG" == /var/tmp/wanctl-bench/*-debug.log ]] || { echo "ERROR: invalid bench debug log path: ${DEBUG_LOG}" >&2; exit 2; }
+}
+
+reset_bench_debug_log() {
+  sudo -n rm -f "$DEBUG_LOG" "$DEBUG_LOG".1 "$DEBUG_LOG".2 "$DEBUG_LOG".3 || { echo "ERROR: failed to clear bench debug log: ${DEBUG_LOG}" >&2; exit 2; }
+}
+
+copy_cycle_evidence_from_debug_log() {
+  local debug_copy="$1" cycle_ndjson="$2"
+  : >"$debug_copy"
+  for candidate in "$DEBUG_LOG".3 "$DEBUG_LOG".2 "$DEBUG_LOG".1 "$DEBUG_LOG"; do
+    if [ ! -s "$candidate" ]; then
+      continue
+    fi
+    if [ -r "$candidate" ]; then
+      cat "$candidate" >>"$debug_copy"
+    else
+      sudo -n cat "$candidate" >>"$debug_copy" || { echo "ERROR: failed to copy bench debug log: ${candidate}" >&2; exit 2; }
+    fi
+  done
+  if [ ! -s "$debug_copy" ]; then
+    echo "ERROR: bench debug log missing or empty: ${DEBUG_LOG}" >&2
+    exit 2
+  fi
+  cp "$debug_copy" "$cycle_ndjson"
+}
+
+validate_cycle_evidence_floor() {
+  python3 - "$MERGED_PROFILE_JSON" "$DURATION_SEC" scripts/phase243-thresholds.json <<'PY'
+import json
+import sys
+from pathlib import Path
+
+profile_path, duration_sec, thresholds_path = sys.argv[1:]
+profile = json.loads(Path(profile_path).read_text(encoding="utf-8"))
+thresholds = json.loads(Path(thresholds_path).read_text(encoding="utf-8"))
+cycle_hz = int(thresholds["CYCLE_HZ"])
+duration = int(duration_sec)
+expected = duration * cycle_hz
+full_window_sec = int(thresholds["MIN_MINUTES"]) * 60
+frozen_floor = max(int(thresholds["MIN_CYCLES"]), full_window_sec * cycle_hz)
+required_count = frozen_floor if duration >= full_window_sec else int(expected * 0.9)
+required_span = float(full_window_sec - 5) if duration >= full_window_sec else duration * 0.9
+count = int(profile.get("parse_counters", {}).get("cycle_records", 0))
+span_sec = float(profile.get("stall", {}).get("span_sec", 0.0))
+if count < required_count:
+    raise SystemExit(f"cycle evidence below floor: count={count} expected>={required_count}")
+if span_sec < required_span:
+    raise SystemExit(f"cycle evidence span too short: span_sec={span_sec} expected>={required_span}")
+PY
+}
+
+resolve_bench_entrypoint() {
+  if [ -f "$CODE_DIR/autorate_continuous.py" ]; then
+    ENTRYPOINT="$CODE_DIR/autorate_continuous.py"
+    PYTHONPATH_DIR="$CODE_PARENT"
+    return 0
+  fi
+  if [ -f "$CODE_DIR/src/wanctl/autorate_continuous.py" ]; then
+    ENTRYPOINT="$CODE_DIR/src/wanctl/autorate_continuous.py"
+    PYTHONPATH_DIR="$CODE_DIR/src"
+    return 0
+  fi
+  echo "ERROR: cannot find autorate_continuous.py under CODE_DIR=${CODE_DIR}" >&2
+  exit 2
+}
+
 if [ "$#" -lt 6 ] || [ "$#" -gt 7 ]; then
   usage
   exit 2
@@ -160,12 +228,15 @@ POSTURE="$6"
 EVIDENCE_DIR="${7:-.planning/phases/243-cycle-budget-benchmark-gate/evidence}"
 CODE_DIR="${WANCTL_BENCH_CODE_DIR:-/opt/wanctl}"
 CODE_PARENT=$(dirname "$CODE_DIR")
+ENTRYPOINT=""
+PYTHONPATH_DIR=""
 
 case "$WAN" in spectrum|att) ;; *) echo "ERROR: WAN must be spectrum|att" >&2; exit 2 ;; esac
 case "$BACKEND" in icmplib|fping) ;; *) echo "ERROR: BACKEND must be icmplib|fping" >&2; exit 2 ;; esac
 case "$LOAD" in idle|load) ;; *) echo "ERROR: LOAD must be idle|load" >&2; exit 2 ;; esac
 [[ "$DURATION_SEC" =~ ^[1-9][0-9]*$ ]] || { echo "ERROR: DURATION_SEC must be positive integer" >&2; exit 2; }
 RUNTIME_MAX_SEC=$((DURATION_SEC + 120))
+resolve_bench_entrypoint
 
 scripts/phase243-bench-preflight.sh "$CONFIG" "$WAN" "$POSTURE" "$EVIDENCE_DIR"
 
@@ -177,6 +248,9 @@ mkdir -p "$ARM_DIR"
 LOCK_FILE=$(yaml_get lock_file)
 STATE_FILE=$(yaml_get state_file)
 validate_bench_runtime_paths
+DEBUG_LOG=$(yaml_get logging.debug_log)
+validate_bench_log_paths
+reset_bench_debug_log
 SOURCE_IP=$(yaml_get ping_source_ip || true)
 if [ -f "/etc/wanctl/${WAN}.yaml" ] || sudo -n test -f "/etc/wanctl/${WAN}.yaml" 2>/dev/null; then
   LIVE_CONFIG_READER=(python3)
@@ -235,8 +309,8 @@ sudo systemd-run \
   --uid=wanctl \
   --working-directory="$CODE_DIR" \
   --setenv=WANCTL_LOG_FORMAT=json \
-  --setenv=PYTHONPATH="$CODE_PARENT" \
-  /usr/bin/python3 "$CODE_DIR/autorate_continuous.py" \
+  --setenv=PYTHONPATH="$PYTHONPATH_DIR" \
+  /usr/bin/python3 "$ENTRYPOINT" \
     --debug --config "$CONFIG"
 
 INVOCATION=$(systemctl show -p InvocationID --value "$UNIT")
@@ -279,12 +353,16 @@ systemctl stop "$UNIT" >/dev/null 2>&1 || true
 wait "$HYGIENE_PID" >/dev/null 2>&1 || true
 
 JOURNAL_JSON="${ARM_DIR}/journal.jsonl"
-VERIFIED_NDJSON="${ARM_DIR}/cycle.ndjson"
+JOURNAL_MESSAGES_NDJSON="${ARM_DIR}/journal-messages.ndjson"
+DEBUG_LOG_COPY="${ARM_DIR}/debug.log"
+CYCLE_NDJSON="${ARM_DIR}/cycle.ndjson"
 PROFILE_JSON="${ARM_DIR}/profile.raw.json"
 MERGED_PROFILE_JSON="${ARM_DIR}/profile.json"
-verify_journal_invocation "$JOURNAL_JSON" "$VERIFIED_NDJSON" "$INVOCATION"
-python3 scripts/phase243-cycle-rollup.py "$VERIFIED_NDJSON" --invocation-id "$INVOCATION" --output "$PROFILE_JSON"
+verify_journal_invocation "$JOURNAL_JSON" "$JOURNAL_MESSAGES_NDJSON" "$INVOCATION"
+copy_cycle_evidence_from_debug_log "$DEBUG_LOG_COPY" "$CYCLE_NDJSON"
+python3 scripts/phase243-cycle-rollup.py "$CYCLE_NDJSON" --invocation-id "$INVOCATION" --output "$PROFILE_JSON"
 merge_cpu_evidence
+validate_cycle_evidence_floor
 
 residue_check
 trap - EXIT INT TERM

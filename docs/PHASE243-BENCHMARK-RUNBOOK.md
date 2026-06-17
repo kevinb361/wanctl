@@ -83,11 +83,19 @@ tool during this gate.
 The launcher starts `scripts/phase243-hygiene-sampler.sh` at 1Hz and records
 `CPUUsageNSec` start/end/delta into each arm's profile JSON.
 
+Before spending a full 8-arm run, run one short smoke arm with a small
+`DURATION_SEC` value on the approved benchmark host. The launcher now fails the
+arm immediately if durable cycle evidence is below `DURATION_SEC * CYCLE_HZ` or
+if the captured timestamp span is shorter than the requested window. This catches
+debug-log retention or evidence plumbing failures before a multi-hour run.
+
 ## 6. Evidence checks before gate evaluation
 
 Before running `scripts/phase243-gate-eval.py`, verify every arm has:
 
 - a non-empty profile JSON with `autorate_cycle_total` count, avg, and p99;
+- `cycle.ndjson` copied from the per-arm bench debug log, not reconstructed from
+  the retained journald tail;
 - `cpu_nsec_start`, `cpu_nsec_end`, `cpu_nsec_delta`, `window_wall_sec`, `n_cores`,
   and `invocation_id`;
 - a hygiene NDJSON with fd, zombie, Tasks, and cpu_nsec rows;

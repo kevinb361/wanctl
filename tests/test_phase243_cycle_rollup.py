@@ -46,6 +46,9 @@ def test_rolls_up_cycle_stats_and_invocation_id() -> None:
     assert stats["p99_ms"] == 7.0
     assert profile["invocation_id"] == "inv-123"
     assert profile["stall"]["stall_events"] == []
+    assert profile["stall"]["first_timestamp"] == "2026-06-17T00:00:00Z"
+    assert profile["stall"]["last_timestamp"] == "2026-06-17T00:00:00.150000Z"
+    assert profile["stall"]["span_sec"] == 0.15
 
 
 def test_detects_stall_gap_over_100ms() -> None:

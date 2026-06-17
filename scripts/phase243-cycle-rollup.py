@@ -82,6 +82,11 @@ def build_stall_profile(timestamps: list[datetime]) -> dict[str, object]:
 
     return {
         "gap_threshold_ms": STALL_GAP_THRESHOLD_MS,
+        "first_timestamp": timestamps[0].isoformat().replace("+00:00", "Z") if timestamps else None,
+        "last_timestamp": timestamps[-1].isoformat().replace("+00:00", "Z") if timestamps else None,
+        "span_sec": round((timestamps[-1] - timestamps[0]).total_seconds(), 3)
+        if len(timestamps) >= 2
+        else 0.0,
         "stall_event_count": len(events),
         "stall_events": events,
         "max_gap_ms": max(gaps) if gaps else 0.0,
