@@ -165,7 +165,15 @@ mkdir -p "$ARM_DIR"
 LOCK_FILE=$(yaml_get lock_file)
 SOURCE_IP=$(yaml_get ping_source_ip || true)
 if [ -f "/etc/wanctl/${WAN}.yaml" ]; then
-  mapfile -t LIVE_IFACES < <(python3 - "/etc/wanctl/${WAN}.yaml" <<'PY'
+  LIVE_CONFIG_READER=(python3)
+  if [ ! -r "/etc/wanctl/${WAN}.yaml" ]; then
+    sudo -n test -r "/etc/wanctl/${WAN}.yaml" 2>/dev/null || LIVE_CONFIG_READER=()
+    if [ "${#LIVE_CONFIG_READER[@]}" -gt 0 ]; then
+      LIVE_CONFIG_READER=(sudo -n python3)
+    fi
+  fi
+  if [ "${#LIVE_CONFIG_READER[@]}" -gt 0 ]; then
+    mapfile -t LIVE_IFACES < <("${LIVE_CONFIG_READER[@]}" - "/etc/wanctl/${WAN}.yaml" <<'PY'
 import sys
 import yaml
 
@@ -178,6 +186,9 @@ for key in ("download_interface", "upload_interface"):
         print(value)
 PY
 )
+  else
+    LIVE_IFACES=()
+  fi
 else
   LIVE_IFACES=()
 fi

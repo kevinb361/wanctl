@@ -77,8 +77,12 @@ raise SystemExit(1)' < <(ip route get 104.200.21.31 from "$source_ip" 2>/dev/nul
 live_config_ifaces() {
   local wan="$1"
   local live_config="/etc/wanctl/${wan}.yaml"
-  [ -f "$live_config" ] || return 1
-  python3 - "$live_config" <<'PY'
+  local reader=(python3)
+  if [ ! -r "$live_config" ]; then
+    sudo -n test -r "$live_config" 2>/dev/null || return 1
+    reader=(sudo -n python3)
+  fi
+  "${reader[@]}" - "$live_config" <<'PY'
 import sys
 import yaml
 
