@@ -240,7 +240,14 @@ def health_payload() -> dict:
             "wans": [
                 {
                     "name": WAN_NAME,
-                    "measurement": {"available": False, "raw_rtt_ms": None, "staleness_sec": None},
+                    "measurement": {
+                        "available": False,
+                        "raw_rtt_ms": None,
+                        "staleness_sec": None,
+                        "producer": "cake-autorate-bridge",
+                        "backend": None,
+                        "source_ip": None,
+                    },
                     "irtt": {"available": False},
                 }
             ],
@@ -268,6 +275,9 @@ def health_payload() -> dict:
                     "available": available,
                     "raw_rtt_ms": float(raw_rtt) if isinstance(raw_rtt, (int, float)) else None,
                     "staleness_sec": age,
+                    "producer": "cake-autorate-bridge",
+                    "backend": None,
+                    "source_ip": None,
                 },
                 "irtt": {"available": False},
                 "download": {
