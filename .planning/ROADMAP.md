@@ -186,7 +186,7 @@
 | 241. fping Backend (Offline) + Reflector Quality | v1.53 | 4/4 | Complete    | 2026-06-16 |
 | 242. Backend Factory + Loud Fallback | v1.53 | 5/5 | Complete    | 2026-06-16 |
 | 243. Cycle-Budget Benchmark Gate | v1.53 | 5/5 | Complete (amended pass; Phase 245 awaits Phase 244) | 2026-06-18 |
-| 244. Health-Payload Attribution Metadata | v1.53 | 4/4 | Complete   | 2026-06-18 |
+| 244. Health-Payload Attribution Metadata | v1.53 | 4/4 | Complete    | 2026-06-18 |
 | 245. Live A/B + Rollback Anchor | v1.53 | 0/TBD | Not started | - |
 | 246. Conditional Default Flip + Milestone Closeout | v1.53 | 0/TBD | Not started | - |
 

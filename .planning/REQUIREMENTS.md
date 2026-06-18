@@ -48,7 +48,7 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 ### Health / Observability
 
-- [ ] **HEALTH-01**: `/health` additively exposes `measurement.backend` and `source_ip` so every RTT sample is attributable during the A/B; the existing payload contract (`raw_rtt_ms`, `available`, `staleness_sec`) is byte-preserved.
+- [x] **HEALTH-01**: `/health` additively exposes `measurement.backend` and `source_ip` so every RTT sample is attributable during the A/B; the existing payload contract (`raw_rtt_ms`, `available`, `staleness_sec`) is byte-preserved.
 
 ### Reflector Quality (differentiator)
 
@@ -125,7 +125,7 @@ Populated during roadmap creation. Each requirement maps to exactly one phase.
 | FALL-02 | Phase 242 | Complete |
 | BENCH-01 | Phase 243 | Complete |
 | BENCH-02 | Phase 243 | Complete |
-| HEALTH-01 | Phase 244 | Pending |
+| HEALTH-01 | Phase 244 | Complete |
 | REFL-01 | Phase 241 | Complete |
 | AB-01 | Phase 245 | Pending |
 | AB-02 | Phase 245 | Pending |
