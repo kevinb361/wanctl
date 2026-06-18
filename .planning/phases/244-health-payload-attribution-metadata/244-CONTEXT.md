@@ -33,23 +33,36 @@ autorate (NATIVE-AB-01, deferred).
      from Phase 242; add the fuller attribution here for consistency across wanctl paths.
   3. `deploy/scripts/cake-autorate-{spectrum,att}-state-bridge` — the live production
      `/health` today (both WANs on cake-autorate).
-- **D-02 (bridge honesty caveat — MANDATORY for the bridge surface):** On the state-bridge,
-  `raw_rtt_ms` is sourced from **upstream bash cake-autorate's EWMA log**, NOT from the
-  wanctl `RttBackend` seam (confirmed 238 D-04: the seam cannot reach this producer).
-  Therefore the bridge's `backend` field MUST honestly reflect that producer (e.g.
-  `"cake-autorate"` / an upstream-producer label) and MUST NOT claim `"icmplib"`/`"fping"`
-  from the wanctl seam — doing so would mislabel which code produced the number. If the
-  bridge cannot determine a meaningful `source_ip`, emit `null` rather than inventing one.
+- **D-02 (separate producer-class from backend — MANDATORY across all surfaces):** Do NOT
+  overload `backend` to also mean "which process produced this RTT." Those are two distinct
+  facts and conflating them makes the bridge's value look like a third A/B contender. Add a
+  separate **`producer`** field that names the RTT-producing process class, present and
+  uniform on ALL three surfaces:
+  - `producer: "wanctl-backend"` — RTT came from the wanctl `RttBackend` seam (steering +
+    autorate paths). `backend` is then `icmplib`/`fping`.
+  - `producer: "cake-autorate-bridge"` — RTT was parsed from **upstream bash cake-autorate's
+    EWMA log** (the state-bridge). The wanctl seam never ran here (238 D-04), so `backend`
+    MUST be `null` and `source_ip` MUST be `null` (unless the bridge genuinely knows the
+    configured source IP — see research item).
+
+  This keeps `/health` shape uniform across all three producers (operator's "all three"
+  intent in D-01) while guaranteeing `backend` **never lies**: it is non-null only where the
+  wanctl seam actually produced the sample. A Phase 245 A/B scraper filters cleanly on
+  `producer == "wanctl-backend"` (or `backend in {icmplib, fping}`) and structurally cannot
+  mix bridge EWMA RTT into the icmplib-vs-fping comparison. (Synthesis of Claude + Codex
+  second opinion; supersedes the earlier "label `backend` as cake-autorate" idea.)
   **Research item:** confirm whether the bridge process has access to the per-WAN
   `ping_source_ip` (it currently knows `DL_IF`/`UL_IF` env, not necessarily the source IP).
 
 ### `backend` key semantics (Claude's discretion — user said "you decide")
 - **D-03:** Add a **new per-sample `backend`** field = the backend that produced the
-  *current* sample (`RttSample.backend`). Keep Phase 242's `backend_active` = the
-  factory-*selected* backend. Rationale: after a loud fallback the two can legitimately
-  differ (selected=fping, producing=icmplib); preserving both maximizes A/B fidelity,
-  which is the whole point of the milestone. `backend_active` is byte-preserved (it is now
-  a contract field per 242); `backend` is the additive newcomer.
+  *current* sample (`RttSample.backend`), valued `icmplib` | `fping` | **`null`**. It is
+  `null` wherever the wanctl seam did not produce the sample (the bridge path; pre-first-
+  sample). Keep Phase 242's `backend_active` = the factory-*selected* backend. Rationale:
+  after a loud fallback the producing backend and the selected backend can legitimately
+  differ (selected=fping, producing=icmplib); preserving both maximizes A/B fidelity, which
+  is the whole point of the milestone. `backend_active` is byte-preserved (it is now a
+  contract field per 242); `backend` and `producer` (D-02) are the additive newcomers.
 
 ### `source_ip` semantics (Claude's discretion — user said "you decide")
 - **D-04:** `source_ip` reports the **per-WAN configured/intended source IP** the backend
@@ -58,8 +71,9 @@ autorate (NATIVE-AB-01, deferred).
   is attributability **before the A/B starts**; on Selection A the steering pinger is still
   dead pre-245, so an observed-only value would be `null` exactly when we most need it.
   Configured-intended is populated immediately and matches 242 D-01a ("plumb the correct
-  per-WAN source at the steering factory call now"). Place it as `measurement.source_ip`
-  (flat in the measurement block, parallel to `backend`).
+  per-WAN source at the steering factory call now"). Place it flat alongside `backend` /
+  `producer` in each endpoint's RTT attribution block. `source_ip` is `null` on the bridge
+  path (D-02) and on any path with no configured source.
 
 ### SAFE-17 / byte-preservation (deferred to planner — user said "let planner decide")
 - **D-05:** Planner chooses the verification mechanics. **Recommended approach** to weigh:
@@ -147,10 +161,22 @@ autorate (NATIVE-AB-01, deferred).
 <specifics>
 ## Specific Ideas
 
-- Field placement: `measurement.backend` and `measurement.source_ip` — flat keys inside the
-  existing `measurement` block, parallel to `backend_active` (not a new nested object), so
-  consumers parse them the same way they already parse `backend_active`.
-- Keep `backend_active` AND add `backend` (D-03) — they are different facts, not duplicates.
+- **Attribution triple (uniform across all three producers):** `producer`
+  (`wanctl-backend` | `cake-autorate-bridge`), `backend` (`icmplib` | `fping` | `null`),
+  `source_ip` (IP | `null`). Flat keys, not a nested object, so consumers parse them like the
+  existing `backend_active`.
+- Keep `backend_active` AND add `backend` (D-03) — different facts (selected vs producing),
+  not duplicates.
+- **Per-endpoint placement nuance (Codex-flagged — planner must reconcile):** the three
+  builders do NOT all use a `measurement` block today, so "uniform shape" is about the
+  resulting JSON keys, not a single shared code path:
+  - `health_check.py` (`_build_measurement_section`, ~454): has a `measurement` block with
+    `backend_active`; add `producer`/`backend`/`source_ip` here.
+  - `steering/health.py` (`_build_rtt_source_section`, ~359): emits an `rtt_source` section,
+    NOT a `measurement` block — planner decides exact attachment so the emitted keys match.
+  - state-bridge `health_payload()` (~234): minimal `measurement` block; already
+    producer-labeled at top level (`source: "cake-autorate-state-bridge"`). Add the triple
+    with `producer: "cake-autorate-bridge"`, `backend: null`, `source_ip: null`.
 
 </specifics>
 
