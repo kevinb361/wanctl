@@ -1,113 +1,162 @@
 ---
 phase: 244
 reviewers: [codex]
-reviewed_at: 2026-06-18T21:14:21Z
+review_cycle: 2
+reviewed_at: 2026-06-18T21:34:45Z
 plans_reviewed:
   - 244-01-safe17-and-contract-scaffold-PLAN.md
   - 244-02-autorate-attribution-PLAN.md
   - 244-03-steering-attribution-PLAN.md
   - 244-04-bridge-attribution-PLAN.md
+cycle1_high: 2
+cycle2_high_unresolved: 0
 ---
 
-# Cross-AI Plan Review — Phase 244
+# Cross-AI Plan Review — Phase 244 (Cycle 2)
 
-> Single external reviewer this cycle: **Codex** (`--codex`). Gemini not installed;
+> Single external reviewer: **Codex** (`--codex`, codex-cli 0.141.0). Gemini not installed;
 > Claude skipped for independence (review invoked from inside Claude Code). Codex is a
 > distinct CLI, so the independence requirement is satisfied.
+>
+> **Cycle 2 re-review.** Cycle 1 raised 2 HIGH concerns; the plans were revised to address
+> them. This cycle judges whether those HIGHs are genuinely closed and whether the revisions
+> introduced any new HIGH. Codex verdict: **both cycle-1 HIGHs FULLY RESOLVED, zero remaining
+> or newly-introduced HIGHs.** Orchestrator independently verified the load-bearing codebase
+> facts before the review (see Verification Notes).
 
 ## Codex Review
 
-**Summary**
+### Summary
 
-The plans are generally disciplined: narrow file scope, additive payload changes, verifier-first sequencing, and strong D-02 bridge honesty. But as written, they do not fully guarantee "every RTT sample is attributable." The main blocker is Plan 244-03: current steering RTT still comes from autorate health/IRTT/history, not the constructed wanctl backend, so stamping `rtt_source.producer="wanctl-backend"` can mislabel bridge-derived RTT as A/B backend RTT. Plan 244-02 also likely fails `source_ip` for autorate because `RttBackendHandle` does not expose `source_ip`.
+No remaining or newly introduced HIGH concerns. The revised plans genuinely close both
+cycle-1 HIGHs at the design level, with explicit guardrails and tests for the two attribution
+failure modes. The remaining issues are execution-quality concerns: tighten one steering test
+instruction so it cannot false-pass via a health-builder-only path, and make the autorate
+contract snapshot unambiguously pin all existing measurement keys.
 
-**Per-Plan Assessment**
+### HIGH-1 Verdict: FULLY RESOLVED
 
-- `244-01`: Mostly sound. Cloning the 242 verifier, anchoring to `49fb1393`, adding `steering/health.py` in both allowlists, and keeping protected-body machinery is the right shape.
-- `244-02`: Scope is good, but `getattr(rtt_backend_status, "source_ip", None)` will likely always return `None`; `RttBackendHandle` fields do not include `source_ip`.
-- `244-03`: Highest risk. Current steering code records `autorate_health`, `autorate_irtt`, or `history_fallback`, not direct backend samples. See `src/wanctl/steering/daemon.py:1756` and `:2558`.
-- `244-04`: Strong D-02 design. Literal `None` values in both bridge scripts are honest; add runtime coverage for degraded/no-state path.
+The revised 244-03 plan fixes the steering misattribution risk.
 
-**Strengths**
+Evidence:
 
-- SAFE-17 sequencing is good: Wave 0 verifier/tests before producer edits.
-- Anchor `49fb1393` is valid and matches the last 243-prefixed commit.
-- Bridge D-02 invariant is conceptually clean: `producer="cake-autorate-bridge"`, `backend=null`, `source_ip=null`.
-- Plans avoid controller algorithm/timing edits and stay within observed health-builder/wiring surfaces.
-- The separate `producer` field is the right contract shape for downstream A/B filtering.
+- Steering attribution is derived from the actual `rtt_source.current`, not stamped globally
+  (244-03 truths, line 16).
+- `_WANCTL_BACKEND_RTT_SOURCES` is an empty pre-245 frozenset, so existing sources
+  `autorate_health`, `autorate_irtt`, `history_fallback`, `unknown`, `unavailable` all emit
+  null attribution (244-03 line 17, line 112).
+- The derivation rule only emits `producer="wanctl-backend"` inside the seam-source branch
+  (244-03 line 121).
+- The negative test covers all pre-245 source strings even when `_rtt_source_ip` and
+  `_rtt_backend_active` are non-null (244-03 line 280).
+- The positive monkeypatched sentinel proves the gate is live, not dead code (244-03 line 287).
 
-**Concerns**
+Local source facts match the premise: current steering source strings are autorate/history/
+unavailable only (daemon.py:1756); the `/health` `rtt_source` block is built from
+`_current_rtt_source` (daemon.py:1425).
 
-- **HIGH — 244-03 misattributes steering RTT.** Current steering RTT comes from autorate state, autorate IRTT, or history fallback. Adding `producer="wanctl-backend"` based on the constructed future backend can let an A/B scraper mix bridge EWMA into `producer == "wanctl-backend"` data.
-- **HIGH — 244-02 autorate `source_ip` source is wrong.** `RttBackendHandle` has `backend`, `controller_measurement`, `backend_active`, etc., but no `source_ip`; see `src/wanctl/rtt_backend_factory.py:90`. Use `controller_measurement.source_ip`, add a handle field, or read the config explicitly.
-- **MEDIUM — "per-sample backend" is overstated.** Plans 02/03 mostly proxy `backend_active`, not the `RttSample.backend`. That may be acceptable if renamed/declared as selected backend, but it conflicts with D-03 wording.
-- **MEDIUM — byte preservation tests may not prove byte/order preservation.** Strict superset and type assertions are useful, but they do not prove existing key order or serialized shape. Since JSON is emitted with dict order, key-order assertions matter.
-- **MEDIUM — bridge degraded path lacks endpoint coverage.** Plan 04 edits both healthy and degraded blocks, but the current endpoint tests exercise healthy state. Grep counts help, but runtime coverage should hit `state is None`.
-- **LOW — mirror-test instructions conflict slightly.** Plan 244-01 says the 243 mirror uses `queue_controller.py`; current `tests/test_phase243_safe17_verifier.py` uses `wan_controller.py`, while the 243 script self-test uses `queue_controller.py`.
+### HIGH-2 Verdict: FULLY RESOLVED
 
-**Suggestions**
+The revised 244-02 plan fixes the nonexistent-handle-field bug.
 
-- Fix Plan 03 before execution: derive `producer/backend/source_ip` from the actual `rtt_source.current`. For `autorate_health`, `autorate_irtt`, and `history_fallback`, do not emit `producer="wanctl-backend"` unless the RTT actually came through the wanctl backend seam.
-- In Plan 02, retrieve source IP via `rtt_backend_status.controller_measurement.source_ip` or add `source_ip` to `RttBackendHandle`.
-- Add tests asserting incompatible combinations fail, e.g. `current="autorate_health"` must not produce `producer="wanctl-backend"` unless Phase 245 changes the source path.
-- Strengthen byte-preservation tests with `list(section.keys())[:N] == old_key_order` and value/type checks for old fields.
-- Add bridge no-state/degraded endpoint tests for both Spectrum and ATT.
-- Document downstream scraper rules explicitly: filter on `producer == "wanctl-backend"` and `backend in {"icmplib","fping"}`, and reject/ignore contradictory combinations.
+Evidence:
 
-**Risk Assessment**
+- The plan explicitly forbids `getattr(rtt_backend_status, "source_ip", None)` and requires
+  `rtt_backend_status.controller_measurement.source_ip` (244-02 line 56).
+- The implementation task repeats the correct accessor under a None-handle guard (244-02 line 154).
+- The verify step greps for the correct accessor and rejects the bad pattern (244-02 line 181).
 
-**HIGH as written for evidence correctness**, not controller stability. The control-path mutation risk is low because edits are narrow and SAFE-17 is well designed. The phase-goal risk is high because Plan 03 can make `/health` attribution lie about the actual RTT producer, which directly threatens Phase 245 A/B evidence. Fixing the steering attribution semantics and autorate `source_ip` source would bring this down to **MEDIUM/LOW**.
+Local source confirms the premise: `RttBackendHandle` has no `source_ip` field
+(rtt_backend_factory.py:90); `RTTMeasurement.source_ip` is real (rtt_measurement.py:172).
+
+### Remaining Concerns
+
+- **MEDIUM — Tighten the HIGH-1 negative test wording so it must exercise daemon
+  `get_health_data()`.** 244-03's acceptance criteria are strong, but the action text also
+  allows "the `_make_health_data + builder path`" (244-03 line 302). A builder-only test could
+  miss a daemon-side unconditional stamp. Require the negative test to set `_current_rtt_source`,
+  `_rtt_source_ip`, and `_rtt_backend_active` on a daemon/path object and assert the output of
+  daemon `get_health_data()` *before* the health.py pass-through.
+
+- **MEDIUM — Autorate contract snapshot wording is inconsistent about "exact existing
+  measurement keys."** 244-01 says exact keys/order are pinned, but the autorate task lists only
+  six fields (244-01 line 280). The actual builder returns additional existing keys —
+  `active_reflector_hosts`, `successful_reflector_hosts`, `state`, `successful_count`, `stale`
+  (health_check.py:520). Plan 02's interface already knows the full list (244-02 lines 116-118),
+  so align Plan 01's acceptance to pin the full existing key list.
+
+- **LOW — Autorate no-handle fallback can still produce a backend-looking value.** 244-02 sets
+  the new `backend` to `backend_active`, which defaults to `"icmplib"` when `_rtt_backend_status`
+  is None. Production `autorate_continuous` does pass the handle, so this is not a production
+  HIGH. For strict attribution, consider emitting `backend=None` when the handle is absent while
+  preserving the existing `backend_active` default for compatibility.
+
+### Risk Assessment
+
+Overall risk is **low-to-medium** and acceptable for execution. The important spoofing risks are
+addressed: steering cannot label autorate/history RTT as `wanctl-backend`, autorate gets
+`source_ip` from the real measurement object, and the bridge emits an honest non-A/B producer /
+null backend. The main risk is implementation drift from ambiguous test wording, not a remaining
+design flaw.
+
+---
+
+## Verification Notes (orchestrator, pre-review)
+
+Before invoking Codex, the orchestrator confirmed the load-bearing codebase facts the two fixes
+depend on, against current source:
+
+- `RttBackendHandle` (rtt_backend_factory.py:90-101) fields are `backend, controller_measurement,
+  backend_active, fell_back, fallback_count, fping_cadence_sec, _logger, _wan_key` — **no
+  `source_ip`** (HIGH-2 premise true). `controller_measurement` is an `RTTMeasurement` whose
+  `.source_ip` is set at construction (rtt_measurement.py:172) — the 244-02 accessor is real.
+- Steering `rtt_source.current` literals are exactly `autorate_health` / `autorate_irtt` /
+  `history_fallback` / `unavailable` / `unknown` (daemon.py:1159-1166, 1760, 1764, 1799); none
+  route through the wanctl `RttBackend` seam (HIGH-1 premise true).
+- `_create_steering_components` computes `source_ip` locally (daemon.py:2555) and drops it at the
+  4-tuple return (daemon.py:2571) — the 244-03 carry-spine targets the real discard point.
+
+The empty `_WANCTL_BACKEND_RTT_SOURCES` frozenset structurally bars every pre-245 current source
+from the `wanctl-backend` bucket — the fix is structural, not merely a runtime guard.
 
 ---
 
 ## Consensus Summary
 
 Single reviewer (Codex); "consensus" reflects Codex findings weighted against the locked
-Phase 244 design decisions (D-01..D-05).
+Phase 244 design decisions (D-01..D-05) and the orchestrator's source verification.
+
+### Cycle-1 → Cycle-2 HIGH resolution
+
+| Cycle-1 HIGH | Cycle-2 verdict |
+|---|---|
+| HIGH-1 — steering attribution could mislabel bridge/autorate/history RTT as `wanctl-backend` | **FULLY RESOLVED** — empty `_WANCTL_BACKEND_RTT_SOURCES` seam-gate + negative test + live-gate positive test; orchestrator-verified premise |
+| HIGH-2 — autorate `source_ip` read from non-existent `RttBackendHandle.source_ip` | **FULLY RESOLVED** — reads `controller_measurement.source_ip`; anti-pattern grep-forbidden; orchestrator-verified premise |
 
 ### Agreed Strengths
 
-- Verifier-first sequencing (Wave 0 SAFE-17 verifier + contract tests before producer edits).
-- SAFE-17 anchor `49fb1393` validated as the last 243-prefixed commit.
-- D-02 bridge honesty invariant (`producer="cake-autorate-bridge"`, `backend=null`,
-  `source_ip=null`) is the right shape and structurally keeps bridge EWMA out of the A/B filter.
-- Narrow file scope; no controller algorithm/timing edits.
+- Attribution derived from the actual current source / real measurement object, not stamped —
+  `backend` structurally never lies (D-02 upheld on all three surfaces).
+- Negative + positive (monkeypatched-sentinel) tests prove the steering gate is correct AND live.
+- Verifier-first Wave 0 sequencing; SAFE-17 anchor `49fb1393`; narrow additive file scope, no
+  controller algorithm/timing edits.
 
-### Agreed Concerns (highest priority)
+### Remaining Concerns (none HIGH)
 
-1. **HIGH — Steering attribution can lie (Plan 244-03).** Steering RTT today comes from
-   `autorate_health` / `autorate_irtt` / `history_fallback`, NOT the wanctl `RttBackend` seam
-   (the steering pinger revival is Phase 245 / Selection A). Unconditionally stamping
-   `producer="wanctl-backend"` would let a Phase 245 A/B scraper mix bridge-derived EWMA RTT
-   into the `wanctl-backend` bucket — defeating the entire attributability goal. Attribution
-   must be derived from the actual `rtt_source.current`, not the constructed-but-unconsumed
-   backend handle. **This is the load-bearing finding and directly contradicts D-02's "backend
-   never lies" guarantee for the steering surface.**
-2. **HIGH — Autorate `source_ip` plumbing is wrong (Plan 244-02).** `RttBackendHandle` exposes
-   no `source_ip` field, so `getattr(..., "source_ip", None)` silently returns `None`,
-   violating D-04. Must source it from `controller_measurement.source_ip`, add a handle field,
-   or read config explicitly.
-3. **MEDIUM — `backend` (D-03 per-sample) vs `backend_active` (selected) conflation.** Plans
-   02/03 proxy `backend_active` while D-03 specifies the per-sample `RttSample.backend`. Either
-   wire the true per-sample value or re-document the field semantics — don't silently ship the
-   selected backend under a per-sample name.
-4. **MEDIUM — Byte-preservation tests prove superset/types but not key ORDER / serialized
-   shape.** Add ordered-key assertions on the existing fields.
-5. **MEDIUM — Bridge degraded/no-state (`state is None`) path lacks runtime endpoint coverage.**
+1. **MEDIUM** — HIGH-1 negative test should be pinned to daemon `get_health_data()`, not a
+   builder-only path (244-03 line 302).
+2. **MEDIUM** — Plan 01 autorate contract snapshot should pin the FULL existing measurement key
+   list (not just six), matching health_check.py:520 / 244-02 lines 116-118.
+3. **LOW** — Optionally emit autorate `backend=None` on the no-handle path instead of the
+   `backend_active="icmplib"` default (non-production, strict-attribution nicety).
 
 ### Divergent Views
 
-None — single reviewer. Note the two HIGH findings are *evidence-correctness* risks (the
-attribution could mislead the Phase 245 A/B), not controller-stability risks; Codex explicitly
-rates control-path mutation risk as low and SAFE-17 design as sound.
+None — single reviewer.
 
 ### Recommended Action
 
-Both HIGHs are pre-execution plan fixes, well within Phase 244's additive scope:
-- 244-03: derive the attribution triple from `rtt_source.current`; only emit
-  `producer="wanctl-backend"` when RTT genuinely flows through the wanctl seam (otherwise
-  reflect the real producer / null). Add a test asserting `autorate_*` / `history_fallback`
-  current values cannot produce `producer="wanctl-backend"` pre-245.
-- 244-02: fix the `source_ip` accessor to a real source.
-
-Re-plan via `/gsd:plan-phase 244 --reviews` before executing.
+No HIGH concerns remain. The two MEDIUMs are minor plan-wording tightenings (test-path pinning,
+full key-list pinning) that the executor can fold without re-planning; the LOW is optional. Phase
+244 is **clear to execute**. Folding the two MEDIUMs via `/gsd:plan-phase 244 --reviews` (or
+directly during execution) is recommended but not blocking.
