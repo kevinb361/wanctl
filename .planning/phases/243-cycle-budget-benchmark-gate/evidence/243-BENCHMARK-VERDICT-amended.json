@@ -1,0 +1,413 @@
+{
+  "comparisons": {
+    "att/idle": {
+      "gates": {
+        "gate_avg_delta_pct": {
+          "value": {
+            "avg_delta_pct": -9.802459932910917,
+            "threshold_pct": 20.0
+          },
+          "verdict": "pass"
+        },
+        "gate_cpu_delta_pts": {
+          "value": {
+            "cpu_delta_pts": -0.1546508561020037,
+            "fping_cpu_pct": 2.558714918032787,
+            "icmplib_cpu_pct": 2.7133657741347905,
+            "normalization": "per_core",
+            "threshold_pts": 2.0
+          },
+          "verdict": "pass"
+        },
+        "gate_fd_trend": {
+          "value": {
+            "window_medians": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "verdict": "pass"
+        },
+        "gate_icmplib_representativeness": {
+          "outcome_on_fail": "input_error",
+          "value": {
+            "avg_blocking": true,
+            "avg_delta_ms": 0.16700000000000026,
+            "avg_ms": 2.683,
+            "p99_blocking": false,
+            "p99_delta_ms": 1.2000000000000002,
+            "p99_legacy_band_pass": true,
+            "p99_ms": 5.7
+          },
+          "verdict": "pass"
+        },
+        "gate_n_floor": {
+          "value": {
+            "CYCLE_HZ": 20,
+            "floor": 36000,
+            "min_count": 36307
+          },
+          "verdict": "pass"
+        },
+        "gate_p99_abs_ceiling_ms": {
+          "value": {
+            "ceiling_ms": 10.0,
+            "p99_ms": 4.3
+          },
+          "verdict": "pass"
+        },
+        "gate_p99_delta_pct": {
+          "value": {
+            "p99_delta_pct": -24.561403508771935,
+            "threshold_pct": 20.0
+          },
+          "verdict": "pass"
+        },
+        "gate_stall_events": {
+          "value": {
+            "stall_count_limit": 2,
+            "stall_event_count": 1,
+            "stall_rate_limit_pct": 0.01,
+            "stall_rate_pct": 0.002733510100319821,
+            "threshold_ms": 100.0
+          },
+          "verdict": "pass"
+        },
+        "gate_tasks_bound": {
+          "value": {
+            "fping_max_tasks": 5,
+            "icmplib_max_tasks": 8,
+            "task_delta": -3,
+            "task_delta_bound": 1,
+            "task_limit": 9
+          },
+          "verdict": "pass"
+        },
+        "gate_zombies": {
+          "value": {
+            "max_zombies": 0,
+            "threshold": 0
+          },
+          "verdict": "pass"
+        }
+      }
+    },
+    "att/load": {
+      "gates": {
+        "gate_avg_delta_pct": {
+          "value": {
+            "avg_delta_pct": -14.944521497919558,
+            "threshold_pct": 20.0
+          },
+          "verdict": "pass"
+        },
+        "gate_cpu_delta_pts": {
+          "value": {
+            "cpu_delta_pts": -0.15082362890825207,
+            "fping_cpu_pct": 2.6521832222791732,
+            "icmplib_cpu_pct": 2.8030068511874253,
+            "normalization": "per_core",
+            "threshold_pts": 2.0
+          },
+          "verdict": "pass"
+        },
+        "gate_fd_trend": {
+          "value": {
+            "window_medians": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "verdict": "pass"
+        },
+        "gate_icmplib_representativeness": {
+          "outcome_on_fail": "input_error",
+          "value": {
+            "avg_blocking": true,
+            "avg_delta_ms": 0.03399999999999981,
+            "avg_ms": 2.884,
+            "p99_blocking": false,
+            "p99_delta_ms": 2.1000000000000005,
+            "p99_legacy_band_pass": true,
+            "p99_ms": 4.8
+          },
+          "verdict": "pass"
+        },
+        "gate_n_floor": {
+          "value": {
+            "CYCLE_HZ": 20,
+            "floor": 36000,
+            "min_count": 38607
+          },
+          "verdict": "pass"
+        },
+        "gate_p99_abs_ceiling_ms": {
+          "value": {
+            "ceiling_ms": 10.0,
+            "p99_ms": 4.3
+          },
+          "verdict": "pass"
+        },
+        "gate_p99_delta_pct": {
+          "value": {
+            "p99_delta_pct": -10.416666666666668,
+            "threshold_pct": 20.0
+          },
+          "verdict": "pass"
+        },
+        "gate_stall_events": {
+          "value": {
+            "stall_count_limit": 2,
+            "stall_event_count": 2,
+            "stall_rate_limit_pct": 0.01,
+            "stall_rate_pct": 0.005135051864023827,
+            "threshold_ms": 100.0
+          },
+          "verdict": "pass"
+        },
+        "gate_tasks_bound": {
+          "value": {
+            "fping_max_tasks": 5,
+            "icmplib_max_tasks": 7,
+            "task_delta": -2,
+            "task_delta_bound": 1,
+            "task_limit": 8
+          },
+          "verdict": "pass"
+        },
+        "gate_zombies": {
+          "value": {
+            "max_zombies": 0,
+            "threshold": 0
+          },
+          "verdict": "pass"
+        }
+      }
+    },
+    "spectrum/idle": {
+      "gates": {
+        "gate_avg_delta_pct": {
+          "value": {
+            "avg_delta_pct": -22.678311499272194,
+            "threshold_pct": 20.0
+          },
+          "verdict": "pass"
+        },
+        "gate_cpu_delta_pts": {
+          "value": {
+            "cpu_delta_pts": -0.9293676427255986,
+            "fping_cpu_pct": 2.740916556169429,
+            "icmplib_cpu_pct": 3.6702841988950277,
+            "normalization": "per_core",
+            "threshold_pts": 2.0
+          },
+          "verdict": "pass"
+        },
+        "gate_fd_trend": {
+          "value": {
+            "window_medians": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "verdict": "pass"
+        },
+        "gate_icmplib_representativeness": {
+          "outcome_on_fail": "input_error",
+          "value": {
+            "avg_blocking": true,
+            "avg_delta_ms": 0.585,
+            "avg_ms": 3.435,
+            "p99_blocking": false,
+            "p99_delta_ms": 5.199999999999999,
+            "p99_legacy_band_pass": false,
+            "p99_ms": 12.1
+          },
+          "verdict": "pass"
+        },
+        "gate_n_floor": {
+          "value": {
+            "CYCLE_HZ": 20,
+            "floor": 36000,
+            "min_count": 36092
+          },
+          "verdict": "pass"
+        },
+        "gate_p99_abs_ceiling_ms": {
+          "value": {
+            "ceiling_ms": 10.0,
+            "p99_ms": 8.7
+          },
+          "verdict": "pass"
+        },
+        "gate_p99_delta_pct": {
+          "value": {
+            "p99_delta_pct": -28.099173553719016,
+            "threshold_pct": 20.0
+          },
+          "verdict": "pass"
+        },
+        "gate_stall_events": {
+          "value": {
+            "stall_count_limit": 2,
+            "stall_event_count": 1,
+            "stall_rate_limit_pct": 0.01,
+            "stall_rate_pct": 0.0027664813124187344,
+            "threshold_ms": 100.0
+          },
+          "verdict": "pass"
+        },
+        "gate_tasks_bound": {
+          "value": {
+            "fping_max_tasks": 5,
+            "icmplib_max_tasks": 8,
+            "task_delta": -3,
+            "task_delta_bound": 1,
+            "task_limit": 9
+          },
+          "verdict": "pass"
+        },
+        "gate_zombies": {
+          "value": {
+            "max_zombies": 0,
+            "threshold": 0
+          },
+          "verdict": "pass"
+        }
+      }
+    },
+    "spectrum/load": {
+      "gates": {
+        "gate_avg_delta_pct": {
+          "value": {
+            "avg_delta_pct": -34.39673782681698,
+            "threshold_pct": 20.0
+          },
+          "verdict": "pass"
+        },
+        "gate_cpu_delta_pts": {
+          "value": {
+            "cpu_delta_pts": -1.3976921029894593,
+            "fping_cpu_pct": 2.8713186625194402,
+            "icmplib_cpu_pct": 4.2690107655089,
+            "normalization": "per_core",
+            "threshold_pts": 2.0
+          },
+          "verdict": "pass"
+        },
+        "gate_fd_trend": {
+          "value": {
+            "window_medians": [
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "verdict": "pass"
+        },
+        "gate_icmplib_representativeness": {
+          "outcome_on_fail": "input_error",
+          "value": {
+            "avg_blocking": true,
+            "avg_delta_ms": 1.3189999999999995,
+            "avg_ms": 4.169,
+            "p99_blocking": false,
+            "p99_delta_ms": 5.699999999999999,
+            "p99_legacy_band_pass": false,
+            "p99_ms": 12.6
+          },
+          "verdict": "pass"
+        },
+        "gate_n_floor": {
+          "value": {
+            "CYCLE_HZ": 20,
+            "floor": 36000,
+            "min_count": 38244
+          },
+          "verdict": "pass"
+        },
+        "gate_p99_abs_ceiling_ms": {
+          "value": {
+            "ceiling_ms": 10.0,
+            "p99_ms": 8.0
+          },
+          "verdict": "pass"
+        },
+        "gate_p99_delta_pct": {
+          "value": {
+            "p99_delta_pct": -36.507936507936506,
+            "threshold_pct": 20.0
+          },
+          "verdict": "pass"
+        },
+        "gate_stall_events": {
+          "value": {
+            "stall_count_limit": 2,
+            "stall_event_count": 2,
+            "stall_rate_limit_pct": 0.01,
+            "stall_rate_pct": 0.005213220727765614,
+            "threshold_ms": 100.0
+          },
+          "verdict": "pass"
+        },
+        "gate_tasks_bound": {
+          "value": {
+            "fping_max_tasks": 5,
+            "icmplib_max_tasks": 8,
+            "task_delta": -3,
+            "task_delta_bound": 1,
+            "task_limit": 9
+          },
+          "verdict": "pass"
+        },
+        "gate_zombies": {
+          "value": {
+            "max_zombies": 0,
+            "threshold": 0
+          },
+          "verdict": "pass"
+        }
+      }
+    }
+  },
+  "evaluated_at": "2026-06-18T13:31:13.708972Z",
+  "outcome": "pass",
+  "provenance": {
+    "prereg_commit_sha": "1a757b9ae1ac74474bcb4cfd96a993d845d9dac1",
+    "thresholds_blob_sha": "1eb1af334ded03c674bde835fbfa76e4b3867e91",
+    "thresholds_path": "scripts/phase243-thresholds.json"
+  },
+  "thresholds": {
+    "AMENDMENT_ID": "243-05-production-calibrated-validity-semantics",
+    "AMENDMENT_REASON": "Fixed production evidence is complete; original validity gates were link-blind/over-tight for Spectrum p99 and brittle for rare stalls/control-arm task counts.",
+    "AMENDS_THRESHOLDS_BLOB_SHA": "c39915330d4e77652ed48b981652a075b7835a71",
+    "CPU_DELTA_PCT_POINTS": 2.0,
+    "CPU_NORMALIZATION": "per_core",
+    "CYCLE_AVG_REGRESSION_PCT": 20.0,
+    "CYCLE_HZ": 20,
+    "CYCLE_INTERVAL_MS": 50.0,
+    "CYCLE_P99_ABS_CEILING_MS": 10.0,
+    "CYCLE_P99_REGRESSION_PCT": 20.0,
+    "ICMPLIB_REPRESENTATIVE_AVG_MS": 2.85,
+    "ICMPLIB_REPRESENTATIVE_AVG_TOL_MS": 1.5,
+    "ICMPLIB_REPRESENTATIVE_P99_MS": 6.9,
+    "ICMPLIB_REPRESENTATIVE_P99_TOL_MS": 3.5,
+    "MIN_CYCLES": 10000,
+    "MIN_MINUTES": 30,
+    "STALL_GAP_MS": 100.0,
+    "STALL_MAX_COUNT_PER_ARM": 2,
+    "STALL_MAX_RATE_PCT": 0.01,
+    "TASKS_BACKEND_DELTA_BOUND": 1,
+    "TASKS_BOUND": 4,
+    "ZOMBIES_MAX": 0,
+    "_notes": "BENCH-02 original single source of truth was committed before data collection for D-04/D-04a/D-04b/D-04c. Phase 243-05 amends future evaluations with a new threshold blob: old icmplib p99 representativeness is retained for audit but no longer causes input_error; gate_p99_delta_pct remains the canonical same-run fping-vs-icmplib p99 regression gate. Zero-stall and first-sample task gates are superseded by bounded stall count/rate and backend-delta task semantics. CPU_NORMALIZATION=per_core fixes cpu_pct to percent-of-whole-machine by dividing by n_cores. Do not duplicate threshold literals in markdown.",
+    "thresholds_schema_version": 1
+  }
+}
