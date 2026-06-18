@@ -4,9 +4,12 @@
   "anchor": "ffaa8a0e",
   "anchor_sha": "ffaa8a0ee3797399ca0badd4d59c1963f9073f6e",
   "baseline_commit": "ffaa8a0ee3797399ca0badd4d59c1963f9073f6e",
-  "changed_paths": [],
-  "checked_at": "2026-06-18T23:50:24Z",
-  "controller_path_diff_count": 0,
+  "changed_paths": [
+    "src/wanctl/steering/daemon.py",
+    "src/wanctl/steering/health.py"
+  ],
+  "checked_at": "2026-06-18T23:54:31Z",
+  "controller_path_diff_count": 2,
   "dirty_tree": {
     "staged": [],
     "status_porcelain": [],
@@ -15,12 +18,51 @@
   },
   "dirty_tree_clean": true,
   "disallowed_paths": [],
-  "head_commit": "881e623029d2316069320ec01bc6acd84773aa7e",
+  "head_commit": "d62e8e28844103c221d5ea1d67c59592facfe3de",
   "measure_rtt_fping_scorer_guard": true,
   "notes": "SAFE-17 v1.53 Phase 245 boundary check: expanded path allowlist, no RTT-seam drift since Phase 239 close, fping_measurement.py and reflector_scorer.py unchanged since Phase 241 close, protected-body with the exact post-gap WANController.measure_rtt fping scorer guard exception, and complete allowed-diff-shape guard anchored at v1.52.",
   "passed": true,
   "path_allowlist_regex": "^src/wanctl/(rtt_backend\\.py|rtt_measurement\\.py|check_config_validators\\.py|check_steering_validators\\.py|fping_measurement\\.py|reflector_scorer\\.py|rtt_backend_factory\\.py|autorate_continuous\\.py|steering/daemon\\.py|steering/health\\.py|health_check\\.py|wan_controller\\.py)$",
-  "per_path_diff": {},
+  "per_path_diff": {
+    "src/wanctl/steering/daemon.py": {
+      "added": 27,
+      "committed": {
+        "added": 27,
+        "lines": [
+          "27\t5\tsrc/wanctl/steering/daemon.py"
+        ],
+        "removed": 5
+      },
+      "lines": [
+        "27\t5\tsrc/wanctl/steering/daemon.py"
+      ],
+      "removed": 5,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    },
+    "src/wanctl/steering/health.py": {
+      "added": 1,
+      "committed": {
+        "added": 1,
+        "lines": [
+          "1\t0\tsrc/wanctl/steering/health.py"
+        ],
+        "removed": 0
+      },
+      "lines": [
+        "1\t0\tsrc/wanctl/steering/health.py"
+      ],
+      "removed": 0,
+      "staged": {
+        "added": 0,
+        "lines": [],
+        "removed": 0
+      }
+    }
+  },
   "phase239_close_anchor": "03c82de04e8b6760fee33e54044901f7dd5ce75f",
   "phase240_close_anchor": "a181ca27ff20e429e07125d49e996c9ada1c3a32",
   "phase241_close_anchor": "d8179bb6ab72e078327dd609e02f778477ffc26f",
