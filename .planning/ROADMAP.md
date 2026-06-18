@@ -160,7 +160,11 @@
   3. The verdict is computed against thresholds committed before data collection (RTT agreement within tolerance, cycle-budget non-regression, loss-detection non-regression, minimum intended-backend cycle fraction, zero daemon restarts, steering-decision stability); "keep icmplib" is a valid passing close.
   4. `/health` attribution confirms the intended backend produced samples on the WAN under test during the A/B window.
   5. SAFE-17 boundary verifier passes.
-**Plans**: TBD
+**Plans**: 4 plans
+  - [ ] 245-01-PLAN.md — Wave 0: SAFE-17 verifier (anchor ffaa8a0e) + preregistered AB-03 thresholds + provenance script + tests (SAFE-17, AB-01, AB-03)
+  - [ ] 245-02-PLAN.md — Selection-A live flip in steering/daemon.py (seam-first measure_current_rtt + attribution gate) + steering tests + SAFE-17 boundary (AB-01, AB-02, SAFE-17)
+  - [ ] 245-03-PLAN.md — A/B operator tooling: six-dimension gate-eval (keep-icmplib==pass), interleaved run orchestration, armed --confirm rollback (AB-01, AB-02, AB-03)
+  - [ ] 245-04-PLAN.md — [LIVE/OPERATOR] preflight → deploy flip → run pre-registered A/B → verdict → armed rollback → boundary evidence (AB-01, AB-02, AB-03, SAFE-17)
 
 ### Phase 246: Conditional Default Flip + Milestone Closeout
 **Goal**: The production default is flipped to fping under an armed rollback with recorded sign-off iff the A/B clearly wins; otherwise the milestone records a documented "stay on icmplib" recommendation — and SAFE-17 controller-path accounting is proven fresh at milestone close.
@@ -187,7 +191,7 @@
 | 242. Backend Factory + Loud Fallback | v1.53 | 5/5 | Complete    | 2026-06-16 |
 | 243. Cycle-Budget Benchmark Gate | v1.53 | 5/5 | Complete (amended pass; Phase 245 awaits Phase 244) | 2026-06-18 |
 | 244. Health-Payload Attribution Metadata | v1.53 | 4/4 | Complete    | 2026-06-18 |
-| 245. Live A/B + Rollback Anchor | v1.53 | 0/TBD | Not started | - |
+| 245. Live A/B + Rollback Anchor | v1.53 | 0/4 | Not started | - |
 | 246. Conditional Default Flip + Milestone Closeout | v1.53 | 0/TBD | Not started | - |
 
 ---
