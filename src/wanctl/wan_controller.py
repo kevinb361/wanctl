@@ -83,6 +83,7 @@ class _BackgroundRttDriver(Protocol):
 
     def get_profile_stats(self) -> dict[str, object]: ...
 
+
 # =============================================================================
 # CONSTANTS
 # =============================================================================
@@ -4342,7 +4343,9 @@ class WANController:
         # Prune old transitions outside window
         while self._dl_zone_transitions and (now - self._dl_zone_transitions[0] > flap_window):
             self._dl_zone_transitions.popleft()
-        while self._dl_peak_window_transitions and (now - self._dl_peak_window_transitions[0] > flap_window):
+        while self._dl_peak_window_transitions and (
+            now - self._dl_peak_window_transitions[0] > flap_window
+        ):
             self._dl_peak_window_transitions.popleft()
 
         if len(self._dl_zone_transitions) >= flap_threshold:
@@ -4374,7 +4377,9 @@ class WANController:
         # Prune old transitions outside window
         while self._ul_zone_transitions and (now - self._ul_zone_transitions[0] > flap_window):
             self._ul_zone_transitions.popleft()
-        while self._ul_peak_window_transitions and (now - self._ul_peak_window_transitions[0] > flap_window):
+        while self._ul_peak_window_transitions and (
+            now - self._ul_peak_window_transitions[0] > flap_window
+        ):
             self._ul_peak_window_transitions.popleft()
 
         if len(self._ul_zone_transitions) >= flap_threshold:
@@ -4509,6 +4514,16 @@ class WANController:
             if rtt_backend_status is not None
             else 0
         )
+        source_ip = (
+            getattr(rtt_backend_status.controller_measurement, "source_ip", None)
+            if rtt_backend_status is not None
+            else None
+        )
+        if not isinstance(source_ip, str) or not source_ip:
+            source_ip = None
+        # Autorate does not retain per-sample RttSample.backend; this is the
+        # selected backend proxy. The per-sample A/B source lands on steering.
+        selected_backend = backend_active
         return {
             "cycle_budget": {
                 "profiler": self._profiler,
@@ -4553,6 +4568,9 @@ class WANController:
                 "backend_active": backend_active,
                 "fell_back": fell_back,
                 "fallback_count": fallback_count,
+                "producer": "wanctl-backend",
+                "backend": selected_backend,
+                "source_ip": source_ip,
             },
             "background_workers": {
                 "rtt": {
