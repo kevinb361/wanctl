@@ -2481,10 +2481,10 @@ class TestCurrentRTTSource:
         """Create a mock logger."""
         return MagicMock()
 
-    def test_measure_current_rtt_prefers_autorate_live_snapshot(self, mock_steering_config):
-        """Steering should consume autorate's live RTT before any fallback."""
+    def _make_daemon_for_rtt_source(self, mock_steering_config):
         from wanctl.steering.daemon import SteeringDaemon
 
+        mock_steering_config.ping_host = "1.1.1.1"
         state_mgr = MagicMock()
         state_mgr.state = {
             "current_state": "SPECTRUM_GOOD",
@@ -2503,8 +2503,6 @@ class TestCurrentRTTSource:
             "cake_read_failures": 0,
         }
         baseline_loader = MagicMock()
-        baseline_loader.load_live_rtt.return_value = 24.5
-        baseline_loader.load_live_irtt_rtt.return_value = 31.2
         router = MagicMock()
         logger = MagicMock()
         rtt_measurement = MagicMock()
@@ -2519,94 +2517,97 @@ class TestCurrentRTTSource:
                 logger=logger,
             )
 
+        return daemon, baseline_loader, rtt_measurement, logger
+
+    def test_measure_current_rtt_uses_wanctl_backend_seam_first(
+        self, mock_steering_config
+    ):
+        """Steering should consume the wanctl RttBackend seam before autorate."""
+        from wanctl.rtt_backend import RttSample
+
+        daemon, baseline_loader, rtt_measurement, _logger = self._make_daemon_for_rtt_source(
+            mock_steering_config
+        )
+        rtt_measurement.probe.return_value = RttSample(
+            rtt_ms=21.4,
+            per_host_results={"1.1.1.1": 21.4},
+            timestamp=123.0,
+            measurement_ms=1.2,
+            active_hosts=("1.1.1.1",),
+            successful_hosts=("1.1.1.1",),
+            backend="icmplib",
+            source_ip="10.10.110.223",
+        )
+        baseline_loader.load_live_rtt.return_value = 24.5
+
+        assert daemon.measure_current_rtt() == 21.4
+        rtt_measurement.probe.assert_called_once_with(["1.1.1.1"])
+        baseline_loader.load_live_rtt.assert_not_called()
+        assert daemon._current_rtt_source == "wanctl_backend"
+        assert daemon._last_measurement_source == "wanctl_backend"
+        assert daemon._rtt_source_counts["wanctl_backend"] == 1
+
+    def test_measure_current_rtt_falls_back_to_autorate_live_on_probe_none(
+        self, mock_steering_config
+    ):
+        """A None seam sample should preserve the autorate-health fallback."""
+        daemon, baseline_loader, rtt_measurement, _logger = self._make_daemon_for_rtt_source(
+            mock_steering_config
+        )
+        rtt_measurement.probe.return_value = None
+        baseline_loader.load_live_rtt.return_value = 24.5
+        baseline_loader.load_live_irtt_rtt.return_value = 31.2
+
         assert daemon.measure_current_rtt() == 24.5
-        rtt_measurement.ping_host.assert_not_called()
+        rtt_measurement.probe.assert_called_once_with(["1.1.1.1"])
         baseline_loader.load_live_irtt_rtt.assert_not_called()
+        assert daemon._current_rtt_source == "autorate_health"
 
     def test_measure_current_rtt_falls_back_to_autorate_irtt(self, mock_steering_config):
         """Steering should use fresh autorate IRTT when live ICMP RTT is unavailable."""
-        from wanctl.steering.daemon import SteeringDaemon
-
-        state_mgr = MagicMock()
-        state_mgr.state = {
-            "current_state": "SPECTRUM_GOOD",
-            "good_count": 0,
-            "baseline_rtt": 25.0,
-            "history_rtt": [],
-            "history_delta": [],
-            "transitions": [],
-            "last_transition_time": None,
-            "rtt_delta_ewma": 0.0,
-            "queue_ewma": 0.0,
-            "cake_drops_history": [],
-            "queue_depth_history": [],
-            "red_count": 0,
-            "congestion_state": "GREEN",
-            "cake_read_failures": 0,
-        }
-        baseline_loader = MagicMock()
+        daemon, baseline_loader, rtt_measurement, _logger = self._make_daemon_for_rtt_source(
+            mock_steering_config
+        )
+        rtt_measurement.probe.return_value = None
         baseline_loader.load_live_rtt.return_value = None
         baseline_loader.load_live_irtt_rtt.return_value = 31.2
-        router = MagicMock()
-        logger = MagicMock()
-        rtt_measurement = MagicMock()
-
-        with patch("wanctl.steering.daemon.CakeStatsReader"):
-            daemon = SteeringDaemon(
-                config=mock_steering_config,
-                state=state_mgr,
-                router=router,
-                rtt_measurement=rtt_measurement,
-                baseline_loader=baseline_loader,
-                logger=logger,
-            )
 
         assert daemon.measure_current_rtt() == 31.2
-        rtt_measurement.ping_host.assert_not_called()
+        rtt_measurement.probe.assert_called_once_with(["1.1.1.1"])
         assert daemon._current_rtt_source == "autorate_irtt"
         assert daemon._last_measurement_source == "autorate_irtt"
         assert daemon._rtt_source_counts["autorate_irtt"] == 1
 
-    def test_measure_current_rtt_has_no_self_probe_fallback(self, mock_steering_config):
-        """Steering should not self-ping when autorate offers no fresh RTT source."""
-        from wanctl.steering.daemon import SteeringDaemon
-
-        state_mgr = MagicMock()
-        state_mgr.state = {
-            "current_state": "SPECTRUM_GOOD",
-            "good_count": 0,
-            "baseline_rtt": 25.0,
-            "history_rtt": [],
-            "history_delta": [],
-            "transitions": [],
-            "last_transition_time": None,
-            "rtt_delta_ewma": 0.0,
-            "queue_ewma": 0.0,
-            "cake_drops_history": [],
-            "queue_depth_history": [],
-            "red_count": 0,
-            "congestion_state": "GREEN",
-            "cake_read_failures": 0,
-        }
-        baseline_loader = MagicMock()
+    def test_measure_current_rtt_returns_none_when_all_sources_unavailable(
+        self, mock_steering_config
+    ):
+        """Steering should report unavailable when seam and autorate sources fail."""
+        daemon, baseline_loader, rtt_measurement, _logger = self._make_daemon_for_rtt_source(
+            mock_steering_config
+        )
+        rtt_measurement.probe.return_value = None
         baseline_loader.load_live_rtt.return_value = None
         baseline_loader.load_live_irtt_rtt.return_value = None
-        router = MagicMock()
-        logger = MagicMock()
-        rtt_measurement = MagicMock()
-
-        with patch("wanctl.steering.daemon.CakeStatsReader"):
-            daemon = SteeringDaemon(
-                config=mock_steering_config,
-                state=state_mgr,
-                router=router,
-                rtt_measurement=rtt_measurement,
-                baseline_loader=baseline_loader,
-                logger=logger,
-            )
 
         assert daemon.measure_current_rtt() is None
-        rtt_measurement.ping_host.assert_not_called()
+        rtt_measurement.probe.assert_called_once_with(["1.1.1.1"])
+        assert daemon._current_rtt_source == "unavailable"
+
+    def test_measure_current_rtt_probe_exception_falls_back_and_counts(
+        self, mock_steering_config
+    ):
+        """A raising seam probe must not crash steering or skip autorate fallback."""
+        daemon, baseline_loader, rtt_measurement, logger = self._make_daemon_for_rtt_source(
+            mock_steering_config
+        )
+        rtt_measurement.probe.side_effect = RuntimeError("fping binary missing")
+        baseline_loader.load_live_rtt.return_value = 24.5
+
+        assert daemon.measure_current_rtt() == 24.5
+        rtt_measurement.probe.assert_called_once_with(["1.1.1.1"])
+        assert daemon._current_rtt_source == "autorate_health"
+        assert daemon._rtt_source_counts["probe_exception_count"] == 1
+        logger.warning.assert_called_once()
 
     def test_wan_zone_defaults_green_when_stale(self, tmp_path, mock_config, mock_logger):
         """File mtime > 5s old returns (baseline, 'GREEN') regardless of actual zone."""

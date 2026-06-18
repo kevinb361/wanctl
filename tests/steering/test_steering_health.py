@@ -1306,6 +1306,7 @@ class TestWanAwarenessHealth:
                 "last_rtt_ms": 31.25,
                 "last_measurement_age_sec": 1.234,
                 "counts": {
+                    "wanctl_backend": 5,
                     "autorate_health": 10,
                     "autorate_irtt": 2,
                     "history_fallback": 1,
@@ -1336,6 +1337,7 @@ class TestWanAwarenessHealth:
             assert section["last_successful"] == "autorate_irtt"
             assert section["last_rtt_ms"] == 31.25
             assert section["last_measurement_age_sec"] == 1.234
+            assert section["counts"]["wanctl_backend"] == 5
             assert section["counts"]["autorate_health"] == 10
             assert section["counts"]["autorate_irtt"] == 2
             assert section["counts"]["history_fallback"] == 1
@@ -1378,6 +1380,37 @@ class TestWanAwarenessHealth:
             assert section["producer"] is None
             assert section["backend"] is None
             assert section["source_ip"] is None
+
+    def test_wanctl_backend_current_yields_wanctl_backend_producer(self):
+        """Phase 245 seam source should emit producer/backend/source attribution."""
+        for backend in ("icmplib", "fping"):
+            daemon = SteeringDaemon.__new__(SteeringDaemon)
+            daemon._wan_state_enabled = False
+            daemon._wan_zone = None
+            daemon._storage_db_path = None
+            daemon._profiler = OperationProfiler(max_samples=1200)
+            daemon._overrun_count = 0
+            daemon._cycle_interval_ms = 50.0
+            daemon._current_rtt_source = "wanctl_backend"
+            daemon._last_measurement_source = "wanctl_backend"
+            daemon._last_measurement_rtt_ms = 24.5
+            daemon._last_measurement_ts = time.monotonic()
+            daemon._rtt_source_counts = {
+                "wanctl_backend": 5,
+                "autorate_health": 0,
+                "autorate_irtt": 0,
+                "history_fallback": 0,
+                "probe_exception_count": 0,
+            }
+            daemon._rtt_source_ip = "10.10.110.223"
+            daemon._rtt_backend_active = backend
+
+            section = daemon.get_health_data()["rtt_source"]
+
+            assert section["producer"] == "wanctl-backend"
+            assert section["backend"] == backend
+            assert section["source_ip"] == "10.10.110.223"
+            assert section["counts"]["wanctl_backend"] == 5
 
     def test_monkeypatched_seam_current_yields_wanctl_backend_producer(self, monkeypatch):
         """Forward-looking seam-source gate is live without populating it pre-245."""

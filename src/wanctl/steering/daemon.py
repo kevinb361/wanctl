@@ -1112,10 +1112,9 @@ class BaselineLoader:
 
 
 # Current rtt_source values that genuinely flow through the wanctl RttBackend
-# seam. EMPTY pre-245: steering RTT currently comes from autorate_health,
-# autorate_irtt, or history_fallback. Phase 245 (steering-pinger revival,
-# Selection A) adds the seam-routed source string here.
-_WANCTL_BACKEND_RTT_SOURCES: frozenset[str] = frozenset()
+# seam. Phase 245 Selection A makes steering's RttBackend seam the live
+# primary RTT source while preserving the autorate fallback chain.
+_WANCTL_BACKEND_RTT_SOURCES: frozenset[str] = frozenset({"wanctl_backend"})
 
 
 class SteeringDaemon:
@@ -1168,10 +1167,13 @@ class SteeringDaemon:
         self._last_measurement_rtt_ms: float | None = None
         self._last_measurement_ts: float | None = None
         self._rtt_source_counts = {
+            "wanctl_backend": 0,
             "autorate_health": 0,
             "autorate_irtt": 0,
             "history_fallback": 0,
+            "probe_exception_count": 0,
         }
+        self._last_probe_exception_log_ts = 0.0
 
     def _init_cake_reader(self, config: SteeringConfig) -> None:
         """Initialize CAKE congestion detection components."""
@@ -1780,7 +1782,27 @@ class SteeringDaemon:
         return state_changed
 
     def measure_current_rtt(self) -> float | None:
-        """Measure current RTT from autorate, falling back to fresh autorate IRTT."""
+        """Measure current RTT from the wanctl RttBackend seam.
+
+        Falls safe to autorate health/IRTT on a seam None return or exception.
+        """
+        sample = None
+        try:
+            sample = self.rtt_measurement.probe([self.config.ping_host])
+        except Exception as exc:
+            self._rtt_source_counts["probe_exception_count"] += 1
+            now = time.monotonic()
+            if now - self._last_probe_exception_log_ts >= 60.0:
+                self.logger.warning(
+                    "wanctl RTT backend probe failed; falling back to autorate RTT sources: %s",
+                    exc,
+                )
+                self._last_probe_exception_log_ts = now
+
+        if sample is not None and isinstance(sample.rtt_ms, (int, float)):
+            self._record_rtt_source_success("wanctl_backend", float(sample.rtt_ms))
+            return float(sample.rtt_ms)
+
         live_rtt = self.baseline_loader.load_live_rtt()
         if isinstance(live_rtt, (int, float)):
             self._record_rtt_source_success("autorate_health", float(live_rtt))

@@ -370,6 +370,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             "last_rtt_ms": round(last_rtt, 2) if isinstance(last_rtt, (int, float)) else None,
             "last_measurement_age_sec": (round(age, 3) if isinstance(age, (int, float)) else None),
             "counts": {
+                "wanctl_backend": int(counts.get("wanctl_backend", 0)),
                 "autorate_health": int(counts.get("autorate_health", 0)),
                 "autorate_irtt": int(counts.get("autorate_irtt", 0)),
                 "history_fallback": int(counts.get("history_fallback", 0)),
