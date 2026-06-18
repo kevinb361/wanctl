@@ -53,6 +53,7 @@ Acknowledged and deferred at v1.52 milestone close on 2026-06-14:
 | todos | 2026-04-17-monitor-flapping-peak-count-on-next-docsis-event.md | open; event-gated carry-forward |
 | todos | 2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md | open; validation carry-forward |
 | todos | 2026-06-03-retest-spectrum-diffserv4-wash-after-local-qos-changes.md | open; validation carry-forward |
+| todos | 2026-06-18-route-ownership-netwatch-to-wanctl-failover.md | open; high-priority pipeline item — decide/implement single route owner before enabling wanctl route mutation; Netwatch remains interim owner |
 | todos | audit remainder | 1 additional todo not expanded by audit-open JSON |
 | seeds | SEED-003-v143-d14-watchdog-recalibration | dormant |
 | seeds | SEED-004-v143-target-edge-churn-instrumentation | dormant |
