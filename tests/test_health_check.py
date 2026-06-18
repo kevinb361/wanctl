@@ -2022,6 +2022,7 @@ class TestSignalQualityHealth:
                 "measurement": {
                     **common,
                     "backend_active": "fping",
+                    "backend": "fping",
                     "fell_back": False,
                     "fallback_count": 0,
                 }
@@ -2032,6 +2033,7 @@ class TestSignalQualityHealth:
                 "measurement": {
                     **common,
                     "backend_active": "icmplib",
+                    "backend": "icmplib",
                     "fell_back": True,
                     "fallback_count": 1,
                 }

@@ -289,7 +289,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
         wan_health["tuning"] = self._build_tuning_section(health_data, wan_controller)
         wan_health["storage"] = self._build_storage_section(health_data)
-        wan_health["runtime"] = self._build_runtime_section(health_data, wan_health.get("cycle_budget"))
+        wan_health["runtime"] = self._build_runtime_section(
+            health_data, wan_health.get("cycle_budget")
+        )
 
         return wan_health
 
@@ -337,37 +339,25 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             # from YAML config echoes (Phase 200 RETRO Plan 05 bug 2 family).
             result.update(
                 {
-                    "docsis_mode_active": bool(
-                        qc_health.get("docsis_mode_active", False)
-                    ),
+                    "docsis_mode_active": bool(qc_health.get("docsis_mode_active", False)),
                     "setpoint_mbps": qc_health.get("setpoint_mbps"),
                     "headroom_state": qc_health.get("headroom_state", "EXHAUSTED"),
                     "rtt_integral_ms_s": qc_health.get("rtt_integral_ms_s", 0.0),
                     "cake_aligned": bool(qc_health.get("cake_aligned", False)),
-                    "floor_hit_cycles_total": int(
-                        qc_health.get("floor_hit_cycles_total", 0)
-                    ),
+                    "floor_hit_cycles_total": int(qc_health.get("floor_hit_cycles_total", 0)),
                     # Original Plan 201-13 fields (rev 1):
-                    "max_delay_delta_us": int(
-                        qc_health.get("max_delay_delta_us") or 0
-                    ),
+                    "max_delay_delta_us": int(qc_health.get("max_delay_delta_us") or 0),
                     "red_streak": int(qc_health.get("red_streak") or 0),
                     "zone_trace": list(qc_health.get("zone_trace") or []),
                     # Absorbed from Plan 201-14 rev 4 WARNING 4/6:
                     "headroom_exhausted_streak": int(
                         qc_health.get("headroom_exhausted_streak") or 0
                     ),
-                    "anti_windup_cycles": int(
-                        qc_health.get("anti_windup_cycles") or 60
-                    ),
-                    "anti_windup_triggers": int(
-                        qc_health.get("anti_windup_triggers") or 0
-                    ),
+                    "anti_windup_cycles": int(qc_health.get("anti_windup_cycles") or 60),
+                    "anti_windup_triggers": int(qc_health.get("anti_windup_triggers") or 0),
                     # REV 3 (codex MEDIUM-CODEX-3) — active-knob proof for
                     # Plan 201-15 rev 3 canary preflight:
-                    "red_decay_step_pct": float(
-                        qc_health.get("red_decay_step_pct") or 0.02
-                    ),
+                    "red_decay_step_pct": float(qc_health.get("red_decay_step_pct") or 0.02),
                     "red_decay_delta_max_pct": float(
                         qc_health.get("red_decay_delta_max_pct") or 0.10
                     ),
@@ -380,9 +370,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             )
         return result
 
-    def _build_signal_quality_section(
-        self, health_data: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    def _build_signal_quality_section(self, health_data: dict[str, Any]) -> dict[str, Any] | None:
         """Build signal quality status. Returns None if no signal data."""
         signal_result = health_data["signal_result"]
         if signal_result is None:
@@ -396,9 +384,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             "warming_up": signal_result.warming_up,
         }
 
-    def _build_irtt_section(
-        self, health_data: dict[str, Any], config: Any
-    ) -> dict[str, Any]:
+    def _build_irtt_section(self, health_data: dict[str, Any], config: Any) -> dict[str, Any]:
         """Build IRTT measurement status (OBSV-02). Always present."""
         irtt_data = health_data["irtt"]
         irtt_thread = irtt_data["thread"]
@@ -435,19 +421,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             "server": f"{irtt_result.server}:{irtt_result.port}",
             "staleness_sec": staleness,
             "protocol_correlation": (
-                round(irtt_correlation, 2)
-                if irtt_correlation is not None
-                else None
+                round(irtt_correlation, 2) if irtt_correlation is not None else None
             ),
             "asymmetry_direction": (
-                last_asymmetry_result.direction
-                if last_asymmetry_result is not None
-                else "unknown"
+                last_asymmetry_result.direction if last_asymmetry_result is not None else "unknown"
             ),
             "asymmetry_ratio": (
-                round(last_asymmetry_result.ratio, 2)
-                if last_asymmetry_result is not None
-                else None
+                round(last_asymmetry_result.ratio, 2) if last_asymmetry_result is not None else None
             ),
         }
 
@@ -516,6 +496,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         backend_active = measurement.get("backend_active", "icmplib")
         if not isinstance(backend_active, str) or not backend_active:
             backend_active = "icmplib"
+        backend = measurement.get("backend")
+        if backend not in {"icmplib", "fping"}:
+            backend = None
+        source_ip = measurement.get("source_ip")
+        if not isinstance(source_ip, str) or not source_ip:
+            source_ip = None
 
         return {
             "available": raw_rtt is not None,
@@ -529,6 +515,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             "backend_active": backend_active,
             "fell_back": bool(measurement.get("fell_back", False)),
             "fallback_count": fallback_count,
+            "producer": "wanctl-backend",
+            "backend": backend,
+            "source_ip": source_ip,
         }
 
     def _build_background_workers_section(
@@ -547,8 +536,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             cadence_sec = worker.get("cadence_sec")
             staleness_sec = worker.get("staleness_sec")
             entry: dict[str, Any] = {
-                "cadence_sec": round(cadence_sec, 3) if isinstance(cadence_sec, (int, float)) else None,
-                "staleness_sec": round(staleness_sec, 3) if isinstance(staleness_sec, (int, float)) else None,
+                "cadence_sec": round(cadence_sec, 3)
+                if isinstance(cadence_sec, (int, float))
+                else None,
+                "staleness_sec": round(staleness_sec, 3)
+                if isinstance(staleness_sec, (int, float))
+                else None,
                 "available": isinstance(stats, dict) and "avg_ms" in stats,
             }
             if isinstance(stats, dict) and "avg_ms" in stats:
@@ -657,9 +650,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             else None
         )
         fused_rtt_val = (
-            round(fusion_data["fused_rtt"], 2)
-            if fusion_data["fused_rtt"] is not None
-            else None
+            round(fusion_data["fused_rtt"], 2) if fusion_data["fused_rtt"] is not None else None
         )
         # If IRTT went stale, trust active_source over cached fused value
         if active_source == "icmp_only":
@@ -686,9 +677,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self._add_fusion_healer_state(fusion, health_data)
         return fusion
 
-    def _resolve_fusion_rtt_sources(
-        self, health_data: dict[str, Any]
-    ) -> tuple[float | None, str]:
+    def _resolve_fusion_rtt_sources(self, health_data: dict[str, Any]) -> tuple[float | None, str]:
         """Resolve IRTT RTT value and active source for fusion status."""
         irtt_rtt_val: float | None = None
         active_source = "icmp_only"
@@ -705,22 +694,16 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
         return irtt_rtt_val, active_source
 
-    def _add_fusion_healer_state(
-        self, fusion: dict[str, Any], health_data: dict[str, Any]
-    ) -> None:
+    def _add_fusion_healer_state(self, fusion: dict[str, Any], health_data: dict[str, Any]) -> None:
         """Add fusion healer state to fusion dict (Phase 119: FUSE-05)."""
         healer = health_data["fusion"]["healer"]
         if healer is not None:
             fusion["heal_state"] = healer.state.value
             fusion["pearson_correlation"] = (
-                round(healer.pearson_r, 4)
-                if healer.pearson_r is not None
-                else None
+                round(healer.pearson_r, 4) if healer.pearson_r is not None else None
             )
             fusion["correlation_window_avg"] = (
-                round(healer.window_avg, 4)
-                if healer.window_avg is not None
-                else None
+                round(healer.window_avg, 4) if healer.window_avg is not None else None
             )
             fusion["heal_grace_active"] = healer.is_grace_active
         else:
@@ -729,9 +712,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             fusion["correlation_window_avg"] = None
             fusion["heal_grace_active"] = False
 
-    def _build_asymmetry_gate_section(
-        self, health_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _build_asymmetry_gate_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
         """Build asymmetry gate status section (ASYM-01 through ASYM-03)."""
         gate = health_data.get("asymmetry_gate")
         if gate is None:
@@ -748,9 +729,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             ),
         }
 
-    def _build_cake_signal_section(
-        self, health_data: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    def _build_cake_signal_section(self, health_data: dict[str, Any]) -> dict[str, Any] | None:
         """Build CAKE signal status section (Phase 159, CAKE-04).
 
         Returns None if CAKE signal is not supported or not enabled.
@@ -816,9 +795,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
         return result
 
-    def _build_signal_arbitration_section(
-        self, health_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _build_signal_arbitration_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
         """Build signal_arbitration per-WAN block.
 
         Phase 193 introduced this block as observability-only with hardcoded
@@ -841,10 +818,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         return {
             "active_primary_signal": arb.get("active_primary_signal", "rtt"),
             "rtt_confidence": arb.get("rtt_confidence"),
-            "cake_av_delay_delta_us": arb.get(
-                "cake_av_delay_delta_us", av_delta_fallback
+            "cake_av_delay_delta_us": arb.get("cake_av_delay_delta_us", av_delta_fallback),
+            "control_decision_reason": arb.get(
+                "control_decision_reason", "rtt_primary_operating_normally"
             ),
-            "control_decision_reason": arb.get("control_decision_reason", "rtt_primary_operating_normally"),
             "refractory_active": arb.get("refractory_active", False),  # Phase 197 D-07
         }
 
@@ -887,15 +864,11 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             "recent_adjustments": recent,
         }
 
-        tuning["safety"] = self._build_tuning_safety_section(
-            health_data, tuning_state
-        )
+        tuning["safety"] = self._build_tuning_safety_section(health_data, tuning_state)
 
         return tuning
 
-    def _build_tuning_params_dict(
-        self, wan_controller: Any, tuning_state: Any
-    ) -> dict[str, Any]:
+    def _build_tuning_params_dict(self, wan_controller: Any, tuning_state: Any) -> dict[str, Any]:
         """Build parameters dict with current tuned values and bounds."""
         params_dict: dict[str, Any] = {}
         for param_name, current_val in tuning_state.parameters.items():
@@ -1406,9 +1379,10 @@ def _get_current_state_reason(
         return "green_recovering"
     if detection.get("backlog_suppressed_this_cycle"):
         return "recovery_held_by_backlog"
-    if getattr(queue_controller, "_yellow_dwell", 0) > 0 and getattr(
-        queue_controller, "_last_zone", "GREEN"
-    ) == "GREEN":
+    if (
+        getattr(queue_controller, "_yellow_dwell", 0) > 0
+        and getattr(queue_controller, "_last_zone", "GREEN") == "GREEN"
+    ):
         return "yellow_dwell_hold"
     if getattr(queue_controller, "_last_zone", "GREEN") == "YELLOW":
         return "yellow_active"
