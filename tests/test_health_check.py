@@ -35,6 +35,7 @@ def _configure_qc_health_data(qc_mock: MagicMock) -> None:
     Uses side_effect so values are read dynamically at call time,
     allowing tests to modify private attrs after fixture setup.
     """
+
     def _qc_health_data():
         completed_by_cause = getattr(qc_mock, "_last_completed_window_by_cause", None)
         if not isinstance(completed_by_cause, dict):
@@ -64,6 +65,7 @@ def _configure_qc_health_data(qc_mock: MagicMock) -> None:
                 ),
             },
         }
+
     qc_mock.get_health_data.side_effect = _qc_health_data
 
 
@@ -74,6 +76,7 @@ def _configure_wan_health_data(wan_mock: MagicMock) -> None:
     allowing tests to modify private attrs after fixture setup.
     Also configures get_health_data() on download and upload mocks.
     """
+
     def _wan_health_data():
         return {
             "cycle_budget": {
@@ -194,7 +197,9 @@ def _configure_wan_health_data(wan_mock: MagicMock) -> None:
                 ),
                 "last_result_age_sec": (
                     wan_mock._asymmetry_last_result_age_sec
-                    if not isinstance(getattr(wan_mock, "_asymmetry_last_result_age_sec", None), MagicMock)
+                    if not isinstance(
+                        getattr(wan_mock, "_asymmetry_last_result_age_sec", None), MagicMock
+                    )
                     else None
                 ),
             },
@@ -219,6 +224,7 @@ def _configure_wan_health_data(wan_mock: MagicMock) -> None:
                 else None
             ),
         }
+
     wan_mock.get_health_data.side_effect = _wan_health_data
     _configure_qc_health_data(wan_mock.download)
     _configure_qc_health_data(wan_mock.upload)
@@ -1980,6 +1986,20 @@ class TestSignalQualityHealth:
             with urllib.request.urlopen(url, timeout=5) as response:
                 data = json.loads(response.read().decode())
             measurement = data["wans"][0]["measurement"]
+            expected_old_order = [
+                "available",
+                "raw_rtt_ms",
+                "staleness_sec",
+                "active_reflector_hosts",
+                "successful_reflector_hosts",
+                "state",
+                "successful_count",
+                "stale",
+                "backend_active",
+                "fell_back",
+                "fallback_count",
+            ]
+            assert list(measurement.keys())[: len(expected_old_order)] == expected_old_order
             assert measurement["available"] is True
             assert measurement["raw_rtt_ms"] == round(raw_rtt, 2)
             assert measurement["staleness_sec"] == round(staleness, 3)
@@ -2018,12 +2038,34 @@ class TestSignalQualityHealth:
             }
         )
 
+        expected_old_order = [
+            "available",
+            "raw_rtt_ms",
+            "staleness_sec",
+            "active_reflector_hosts",
+            "successful_reflector_hosts",
+            "state",
+            "successful_count",
+            "stale",
+            "backend_active",
+            "fell_back",
+            "fallback_count",
+        ]
+        assert list(spectrum.keys())[: len(expected_old_order)] == expected_old_order
+        assert list(att.keys())[: len(expected_old_order)] == expected_old_order
+
         assert spectrum["backend_active"] == "fping"
         assert spectrum["fell_back"] is False
         assert spectrum["fallback_count"] == 0
+        assert spectrum["producer"] == "wanctl-backend"
+        assert spectrum["backend"] == "fping"
+        assert spectrum["source_ip"] is None
         assert att["backend_active"] == "icmplib"
         assert att["fell_back"] is True
         assert att["fallback_count"] == 1
+        assert att["producer"] == "wanctl-backend"
+        assert att["backend"] == "icmplib"
+        assert att["source_ip"] is None
 
 
 class TestIRTTHealth:
@@ -2966,9 +3008,16 @@ class TestHysteresisHealth:
             with urllib.request.urlopen(url, timeout=5) as response:
                 data = json.loads(response.read().decode())
             expected_upload_keys = {
-                "dwell_counter", "dwell_cycles", "deadband_ms", "transitions_suppressed",
-                "suppressions_per_min", "window_start_epoch", "alert_threshold_per_min",
-                "green_streak", "green_required", "last_zone",
+                "dwell_counter",
+                "dwell_cycles",
+                "deadband_ms",
+                "transitions_suppressed",
+                "suppressions_per_min",
+                "window_start_epoch",
+                "alert_threshold_per_min",
+                "green_streak",
+                "green_required",
+                "last_zone",
                 "suppressions_completed_window_count",
                 "suppressions_completed_window_by_cause",
                 "suppressions_lifetime_by_cause",
@@ -3102,9 +3151,7 @@ class TestDwellBypassedCountSurfacing:
         finally:
             server.shutdown()
 
-    def test_dwell_bypassed_count_present_in_download_hysteresis(
-        self, mock_wan_with_dwell_bypass
-    ):
+    def test_dwell_bypassed_count_present_in_download_hysteresis(self, mock_wan_with_dwell_bypass):
         """Download hysteresis exposes the queue-controller counter additively."""
         data = self._get_health_payload(mock_wan_with_dwell_bypass)
 
@@ -3127,9 +3174,7 @@ class TestDwellBypassedCountSurfacing:
                     "suppressions_per_min": (
                         mock_wan_with_dwell_bypass.download._window_suppressions
                     ),
-                    "window_start_epoch": (
-                        mock_wan_with_dwell_bypass.download._window_start_time
-                    ),
+                    "window_start_epoch": (mock_wan_with_dwell_bypass.download._window_start_time),
                 }
             }
 
@@ -3141,9 +3186,7 @@ class TestDwellBypassedCountSurfacing:
 
         assert data["wans"][0]["download"]["hysteresis"]["dwell_bypassed_count"] == 0
 
-    def test_existing_download_hysteresis_fields_unchanged(
-        self, mock_wan_with_dwell_bypass
-    ):
+    def test_existing_download_hysteresis_fields_unchanged(self, mock_wan_with_dwell_bypass):
         """Download hysteresis adds exactly one new key without removing existing ones."""
         data = self._get_health_payload(mock_wan_with_dwell_bypass)
 
@@ -3385,7 +3428,9 @@ class TestPhase201DiagnosticHealthFields:
         assert isinstance(upload["floor_hit_cycles_total"], int)
 
     def test_new_fields_present_when_docsis_mode_false(self):
-        upload = self._payload_for_wan(self._make_wan(docsis_mode_active=False))["wans"][0]["upload"]
+        upload = self._payload_for_wan(self._make_wan(docsis_mode_active=False))["wans"][0][
+            "upload"
+        ]
 
         for field in (
             "max_delay_delta_us",
@@ -3636,8 +3681,8 @@ class TestReloadCycleBudgetConfig:
         stub.config = MagicMock()
         stub.config.config_file_path = "/tmp/test_wanctl_config.yaml"
         stub.logger = MagicMock()
-        stub._reload_cycle_budget_config = (
-            WANController._reload_cycle_budget_config.__get__(stub, type(stub))
+        stub._reload_cycle_budget_config = WANController._reload_cycle_budget_config.__get__(
+            stub, type(stub)
         )
         return stub
 
@@ -4555,14 +4600,38 @@ class TestBuildCakeSignalSection:
             backlog_bytes=4096,
             peak_delay_us=250,
             tins=(
-                TinSnapshot(name="Bulk", dropped_packets=10, drop_delta=2,
-                            backlog_bytes=100, peak_delay_us=50, ecn_marked_packets=0),
-                TinSnapshot(name="BestEffort", dropped_packets=20, drop_delta=5,
-                            backlog_bytes=200, peak_delay_us=150, ecn_marked_packets=0),
-                TinSnapshot(name="Video", dropped_packets=5, drop_delta=1,
-                            backlog_bytes=300, peak_delay_us=250, ecn_marked_packets=0),
-                TinSnapshot(name="Voice", dropped_packets=1, drop_delta=0,
-                            backlog_bytes=0, peak_delay_us=10, ecn_marked_packets=0),
+                TinSnapshot(
+                    name="Bulk",
+                    dropped_packets=10,
+                    drop_delta=2,
+                    backlog_bytes=100,
+                    peak_delay_us=50,
+                    ecn_marked_packets=0,
+                ),
+                TinSnapshot(
+                    name="BestEffort",
+                    dropped_packets=20,
+                    drop_delta=5,
+                    backlog_bytes=200,
+                    peak_delay_us=150,
+                    ecn_marked_packets=0,
+                ),
+                TinSnapshot(
+                    name="Video",
+                    dropped_packets=5,
+                    drop_delta=1,
+                    backlog_bytes=300,
+                    peak_delay_us=250,
+                    ecn_marked_packets=0,
+                ),
+                TinSnapshot(
+                    name="Voice",
+                    dropped_packets=1,
+                    drop_delta=0,
+                    backlog_bytes=0,
+                    peak_delay_us=10,
+                    ecn_marked_packets=0,
+                ),
             ),
             cold_start=False,
         )
@@ -4597,10 +4666,22 @@ class TestBuildCakeSignalSection:
             backlog_bytes=0,
             peak_delay_us=0,
             tins=(
-                TinSnapshot(name="Bulk", dropped_packets=0, drop_delta=0,
-                            backlog_bytes=50, peak_delay_us=10, ecn_marked_packets=0),
-                TinSnapshot(name="BestEffort", dropped_packets=0, drop_delta=3,
-                            backlog_bytes=200, peak_delay_us=100, ecn_marked_packets=0),
+                TinSnapshot(
+                    name="Bulk",
+                    dropped_packets=0,
+                    drop_delta=0,
+                    backlog_bytes=50,
+                    peak_delay_us=10,
+                    ecn_marked_packets=0,
+                ),
+                TinSnapshot(
+                    name="BestEffort",
+                    dropped_packets=0,
+                    drop_delta=3,
+                    backlog_bytes=200,
+                    peak_delay_us=100,
+                    ecn_marked_packets=0,
+                ),
             ),
             cold_start=False,
         )
@@ -4789,9 +4870,7 @@ class TestBuildSignalArbitrationSection:
 
     def test_cake_av_delay_delta_is_none_when_snapshot_missing(self) -> None:
         handler = self._make_handler()
-        result = handler._build_signal_arbitration_section(
-            {"cake_signal": {"download": None}}
-        )
+        result = handler._build_signal_arbitration_section({"cake_signal": {"download": None}})
 
         assert result["active_primary_signal"] == "rtt"
         assert result["rtt_confidence"] is None
@@ -4857,9 +4936,7 @@ class TestBuildSignalArbitrationSection:
         assert result["cake_av_delay_delta_us"] is None
 
     @pytest.mark.parametrize("rtt_confidence", [0.0, 0.5, 1.0, None])
-    def test_phase195_renderer_passes_rtt_confidence_through(
-        self, rtt_confidence
-    ) -> None:
+    def test_phase195_renderer_passes_rtt_confidence_through(self, rtt_confidence) -> None:
         handler = self._make_handler()
 
         result = handler._build_signal_arbitration_section(
@@ -4900,9 +4977,7 @@ class TestBuildSignalArbitrationSection:
         result = handler._build_signal_arbitration_section(
             {
                 "cake_signal": {
-                    "download": self._make_snapshot(
-                        cold_start=True, max_delay_delta_us=4800
-                    ),
+                    "download": self._make_snapshot(cold_start=True, max_delay_delta_us=4800),
                 }
             }
         )
@@ -5058,9 +5133,7 @@ class TestBuildSignalArbitrationSection:
             patch.object(handler, "_build_storage_section", return_value={}),
             patch.object(handler, "_build_runtime_section", return_value={}),
         ):
-            wan_health = handler._build_wan_status(
-                {"controller": wan_controller, "config": config}
-            )
+            wan_health = handler._build_wan_status({"controller": wan_controller, "config": config})
 
         assert wan_health["signal_arbitration"]["cake_av_delay_delta_us"] == 1234
         assert "signal_arbitration" not in wan_health["download"]["hysteresis"]
@@ -5292,6 +5365,8 @@ class TestOperatorSummaryContract:
         row = result["summary"]["rows"][0]
         assert row["storage_status"] == "ok"
         assert row["status"] == "ok"
+
+
 class TestMeasurementContract:
     """Contract tests for Phase 186 measurement health fields in 186-01-PLAN."""
 

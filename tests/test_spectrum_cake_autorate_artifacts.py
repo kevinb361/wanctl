@@ -43,7 +43,10 @@ def test_spectrum_cake_autorate_artifacts_are_repo_owned() -> None:
 
     service = CAKE_SERVICE.read_text(encoding="utf-8")
     assert "Conflicts=wanctl@spectrum.service" in service
-    assert "ExecStart=/opt/cake-autorate/cake-autorate.sh /etc/cake-autorate/config.spectrum.sh" in service
+    assert (
+        "ExecStart=/opt/cake-autorate/cake-autorate.sh /etc/cake-autorate/config.spectrum.sh"
+        in service
+    )
     assert "ExecStartPre=/usr/local/sbin/cake-autorate-spectrum-qdisc-init" in service
 
     bridge_service = BRIDGE_SERVICE.read_text(encoding="utf-8")
@@ -63,7 +66,7 @@ def test_spectrum_cake_autorate_artifacts_are_repo_owned() -> None:
     assert "adjust_dl_shaper_rate=1" in config
     assert "adjust_ul_shaper_rate=0" in config
     assert "pinger_method=fping" in config
-    assert "ping_extra_args=\"-S 10.10.110.223\"" in config
+    assert 'ping_extra_args="-S 10.10.110.223"' in config
 
 
 def test_state_bridge_parses_cake_autorate_summary_and_writes_wanctl_state(tmp_path: Path) -> None:
@@ -205,14 +208,80 @@ def test_state_bridge_serves_wanctl_compatible_health_endpoint(tmp_path: Path) -
         assert payload["status"] == "healthy"
         assert payload["version"] == "cake-autorate-trial"
         assert wan["name"] == "spectrum"
+        expected_measurement_order = ["available", "raw_rtt_ms", "staleness_sec"]
+        assert list(wan["measurement"].keys())[: len(expected_measurement_order)] == (
+            expected_measurement_order
+        )
         assert wan["measurement"]["available"] is True
         assert wan["measurement"]["raw_rtt_ms"] > 0
         assert wan["measurement"]["staleness_sec"] <= 5
+        assert wan["measurement"]["producer"] == "cake-autorate-bridge"
+        assert wan["measurement"]["backend"] is None
+        assert wan["measurement"]["source_ip"] is None
         assert wan["download"]["state"] == "GREEN"
         assert wan["upload"]["state"] == "GREEN"
         assert wan["download"]["qdisc_bandwidth"] == "550Mbit"
         assert wan["upload"]["qdisc_bandwidth"] == "18Mbit"
         assert wan["last_applied"] == {"dl_rate": 549_500_000, "ul_rate": 17_900_000}
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=5)
+
+
+def test_state_bridge_serves_degraded_health_endpoint_without_state(tmp_path: Path) -> None:
+    log_path = tmp_path / "cake-autorate.spectrum.log"
+    state_path = tmp_path / "missing-spectrum-state.json"
+    port = free_tcp_port()
+    log_path.write_text("", encoding="utf-8")
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "CAKE_AUTORATE_BRIDGE_LOG": str(log_path),
+            "WANCTL_EXTERNAL_STATE_PATH": str(state_path),
+            "WANCTL_STATE_CHOWN": "0",
+            "WANCTL_EXTERNAL_METRICS_ENABLED": "0",
+            "CAKE_AUTORATE_BRIDGE_POLL_INTERVAL": "60",
+            "CAKE_AUTORATE_BRIDGE_HEALTH_PORT": str(port),
+        }
+    )
+    proc = subprocess.Popen(
+        [sys.executable, str(STATE_BRIDGE)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        deadline = time.time() + 5
+        payload = None
+        while time.time() < deadline:
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=0.2) as resp:
+                    payload = json.loads(resp.read().decode())
+                break
+            except OSError:
+                time.sleep(0.05)
+        assert payload is not None
+        wan = payload["wans"][0]
+        assert payload["source"] == "cake-autorate-state-bridge"
+        assert payload["status"] == "degraded"
+        assert wan["name"] == "spectrum"
+        expected_measurement_order = ["available", "raw_rtt_ms", "staleness_sec"]
+        assert list(wan["measurement"].keys())[: len(expected_measurement_order)] == (
+            expected_measurement_order
+        )
+        assert wan["measurement"]["available"] is False
+        assert wan["measurement"]["raw_rtt_ms"] is None
+        assert wan["measurement"]["staleness_sec"] is None
+        assert wan["measurement"]["producer"] == "cake-autorate-bridge"
+        assert wan["measurement"]["backend"] is None
+        assert wan["measurement"]["source_ip"] is None
     finally:
         proc.terminate()
         try:

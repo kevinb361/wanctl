@@ -104,7 +104,6 @@ class TestSteeringHealthServer:
         finally:
             server.shutdown()
 
-
     def test_health_includes_storage_section(self):
         """Steering health should expose bounded storage telemetry."""
         daemon = MagicMock()
@@ -1024,7 +1023,8 @@ class TestSteeringCycleBudget:
             for val in [29.0, 30.0, 31.0, 32.0, 33.0, 28.0, 27.0, 31.5, 30.5, 29.5]:
                 profiler.record("steering_cycle_total", val)
         daemon.get_health_data.return_value = _make_health_data(
-            profiler=profiler, overrun_count=overrun_count,
+            profiler=profiler,
+            overrun_count=overrun_count,
         )
 
         return daemon
@@ -1080,7 +1080,13 @@ class TestSteeringCycleBudget:
 
             cb = data["cycle_budget"]
             # Exact same top-level keys as autorate format
-            assert set(cb.keys()) == {"cycle_time_ms", "utilization_pct", "overrun_count", "status", "warning_threshold_pct"}
+            assert set(cb.keys()) == {
+                "cycle_time_ms",
+                "utilization_pct",
+                "overrun_count",
+                "status",
+                "warning_threshold_pct",
+            }
             # cycle_time_ms has avg, p95, p99
             assert set(cb["cycle_time_ms"].keys()) == {"avg", "p95", "p99"}
         finally:
@@ -1258,8 +1264,12 @@ class TestWanAwarenessHealth:
         }
         # WAN awareness via get_health_data() facade (enabled by default)
         daemon.get_health_data.return_value = _make_health_data(
-            wan_enabled=True, wan_zone="RED", effective_zone="RED",
-            grace_period_active=False, zone_age=2.3, stale=False,
+            wan_enabled=True,
+            wan_zone="RED",
+            effective_zone="RED",
+            grace_period_active=False,
+            zone_age=2.3,
+            stale=False,
         )
         return daemon
 
@@ -1298,6 +1308,9 @@ class TestWanAwarenessHealth:
                     "autorate_irtt": 2,
                     "history_fallback": 1,
                 },
+                "producer": None,
+                "backend": None,
+                "source_ip": None,
             }
         )
         port = find_free_port()
@@ -1309,6 +1322,14 @@ class TestWanAwarenessHealth:
                 data = json.loads(response.read().decode())
 
             section = data["rtt_source"]
+            expected_old_order = [
+                "current",
+                "last_successful",
+                "last_rtt_ms",
+                "last_measurement_age_sec",
+                "counts",
+            ]
+            assert list(section.keys())[: len(expected_old_order)] == expected_old_order
             assert section["current"] == "autorate_irtt"
             assert section["last_successful"] == "autorate_irtt"
             assert section["last_rtt_ms"] == 31.25
@@ -1316,6 +1337,9 @@ class TestWanAwarenessHealth:
             assert section["counts"]["autorate_health"] == 10
             assert section["counts"]["autorate_irtt"] == 2
             assert section["counts"]["history_fallback"] == 1
+            assert section["producer"] is None
+            assert section["backend"] is None
+            assert section["source_ip"] is None
         finally:
             server.shutdown()
 
@@ -1342,8 +1366,12 @@ class TestWanAwarenessHealth:
     def test_wan_awareness_grace_period_active(self, mock_daemon):
         """Test grace_period_active=true during startup grace period, effective_zone=None."""
         mock_daemon.get_health_data.return_value = _make_health_data(
-            wan_enabled=True, wan_zone="RED", effective_zone=None,
-            grace_period_active=True, zone_age=2.3, stale=False,
+            wan_enabled=True,
+            wan_zone="RED",
+            effective_zone=None,
+            grace_period_active=True,
+            zone_age=2.3,
+            stale=False,
         )
         port = find_free_port()
         server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
@@ -1363,8 +1391,12 @@ class TestWanAwarenessHealth:
     def test_wan_awareness_confidence_contribution_red(self, mock_daemon):
         """Test confidence_contribution reflects config-driven WAN weight for RED zone."""
         mock_daemon.get_health_data.return_value = _make_health_data(
-            wan_enabled=True, wan_zone="RED", effective_zone="RED",
-            red_weight=30, zone_age=2.3, stale=False,
+            wan_enabled=True,
+            wan_zone="RED",
+            effective_zone="RED",
+            red_weight=30,
+            zone_age=2.3,
+            stale=False,
         )
         port = find_free_port()
         server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
@@ -1382,8 +1414,11 @@ class TestWanAwarenessHealth:
     def test_wan_awareness_confidence_contribution_zero_for_green(self, mock_daemon):
         """Test confidence_contribution=0 when effective zone is GREEN."""
         mock_daemon.get_health_data.return_value = _make_health_data(
-            wan_enabled=True, wan_zone="GREEN", effective_zone="GREEN",
-            zone_age=2.3, stale=False,
+            wan_enabled=True,
+            wan_zone="GREEN",
+            effective_zone="GREEN",
+            zone_age=2.3,
+            stale=False,
         )
         port = find_free_port()
         server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)
@@ -1401,8 +1436,11 @@ class TestWanAwarenessHealth:
     def test_wan_awareness_staleness_age_numeric(self, mock_daemon):
         """Test staleness_age_sec is numeric float when file accessible, stale flag matches."""
         mock_daemon.get_health_data.return_value = _make_health_data(
-            wan_enabled=True, wan_zone="RED", effective_zone="RED",
-            zone_age=4.567, stale=False,
+            wan_enabled=True,
+            wan_zone="RED",
+            effective_zone="RED",
+            zone_age=4.567,
+            stale=False,
         )
         port = find_free_port()
         server = start_steering_health_server(host="127.0.0.1", port=port, daemon=mock_daemon)

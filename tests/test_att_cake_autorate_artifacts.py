@@ -30,6 +30,7 @@ ATT_ARTIFACTS = {
     "deploy/systemd/cake-autorate-att-state-bridge.service",
 }
 
+
 def free_tcp_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(("127.0.0.1", 0))
@@ -55,7 +56,9 @@ def test_att_cake_autorate_artifacts_are_repo_owned() -> None:
 
     service = CAKE_SERVICE.read_text(encoding="utf-8")
     assert "Conflicts=wanctl@att.service" in service
-    assert "ExecStart=/opt/cake-autorate/cake-autorate.sh /etc/cake-autorate/config.att.sh" in service
+    assert (
+        "ExecStart=/opt/cake-autorate/cake-autorate.sh /etc/cake-autorate/config.att.sh" in service
+    )
     assert "ExecStartPre=/usr/local/sbin/cake-autorate-att-qdisc-init" in service
 
     bridge_service = BRIDGE_SERVICE.read_text(encoding="utf-8")
@@ -253,9 +256,16 @@ def test_state_bridge_serves_att_health_endpoint(tmp_path: Path) -> None:
         assert payload["status"] == "healthy"
         assert payload["version"] == "cake-autorate-trial"
         assert wan["name"] == "att"
+        expected_measurement_order = ["available", "raw_rtt_ms", "staleness_sec"]
+        assert list(wan["measurement"].keys())[: len(expected_measurement_order)] == (
+            expected_measurement_order
+        )
         assert wan["measurement"]["available"] is True
         assert wan["measurement"]["raw_rtt_ms"] > 0
         assert wan["measurement"]["staleness_sec"] <= 5
+        assert wan["measurement"]["producer"] == "cake-autorate-bridge"
+        assert wan["measurement"]["backend"] is None
+        assert wan["measurement"]["source_ip"] is None
         assert wan["download"]["state"] == "GREEN"
         assert wan["upload"]["state"] == "GREEN"
         assert wan["download"]["qdisc_bandwidth"] == "95Mbit"
@@ -271,7 +281,9 @@ def test_state_bridge_serves_att_health_endpoint(tmp_path: Path) -> None:
 
 
 def _att_deploy_function_body(deploy_text: str) -> str:
-    match = re.search(r"^deploy_att_cake_autorate\(\) \{\n(?P<body>.*?)^\}", deploy_text, re.S | re.M)
+    match = re.search(
+        r"^deploy_att_cake_autorate\(\) \{\n(?P<body>.*?)^\}", deploy_text, re.S | re.M
+    )
     assert match is not None, "deploy_att_cake_autorate() function not found"
     return match.group("body")
 
@@ -303,3 +315,65 @@ def test_deploy_att_file_list_matches_repo() -> None:
         sorted(extra)
     )
     assert parsed == ATT_ARTIFACTS
+
+
+def test_state_bridge_serves_degraded_health_endpoint_without_state(tmp_path: Path) -> None:
+    log_path = tmp_path / "cake-autorate.att.log"
+    state_path = tmp_path / "missing-att-state.json"
+    port = free_tcp_port()
+    log_path.write_text("", encoding="utf-8")
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "CAKE_AUTORATE_BRIDGE_LOG": str(log_path),
+            "WANCTL_EXTERNAL_WAN_NAME": "att",
+            "WANCTL_EXTERNAL_DL_IF": "att-router",
+            "WANCTL_EXTERNAL_UL_IF": "att-modem",
+            "WANCTL_EXTERNAL_STATE_PATH": str(state_path),
+            "WANCTL_STATE_CHOWN": "0",
+            "WANCTL_EXTERNAL_METRICS_ENABLED": "0",
+            "CAKE_AUTORATE_BRIDGE_POLL_INTERVAL": "60",
+            "CAKE_AUTORATE_BRIDGE_HEALTH_PORT": str(port),
+        }
+    )
+    proc = subprocess.Popen(
+        [sys.executable, str(STATE_BRIDGE)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        deadline = time.time() + 5
+        payload = None
+        while time.time() < deadline:
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=0.2) as resp:
+                    payload = json.loads(resp.read().decode())
+                break
+            except OSError:
+                time.sleep(0.05)
+        assert payload is not None
+        wan = payload["wans"][0]
+        assert payload["source"] == "cake-autorate-state-bridge"
+        assert payload["status"] == "degraded"
+        assert wan["name"] == "att"
+        expected_measurement_order = ["available", "raw_rtt_ms", "staleness_sec"]
+        assert list(wan["measurement"].keys())[: len(expected_measurement_order)] == (
+            expected_measurement_order
+        )
+        assert wan["measurement"]["available"] is False
+        assert wan["measurement"]["raw_rtt_ms"] is None
+        assert wan["measurement"]["staleness_sec"] is None
+        assert wan["measurement"]["producer"] == "cake-autorate-bridge"
+        assert wan["measurement"]["backend"] is None
+        assert wan["measurement"]["source_ip"] is None
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=5)
