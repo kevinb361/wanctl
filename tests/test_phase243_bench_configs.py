@@ -143,6 +143,9 @@ def test_launcher_systemd_run_argv_contains_capability_grants() -> None:
     assert "validate_cycle_evidence_floor" in source
     assert "cycle evidence below floor" in source
     assert "int(expected * 0.9)" in source
+    assert 'if [ "$LOAD" = "load" ]; then' in source
+    assert "RUNTIME_MARGIN_SEC=300" in source
+    assert "CPUUsageNSec end unavailable" in source
 
 
 def test_preflight_derives_live_device_from_source_bound_route() -> None:

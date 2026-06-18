@@ -94,6 +94,12 @@ controller's 5s RTT stale limit. The generated Phase 243 fping configs use 2s;
 using the historical 10s fping cadence drives the controller into stale-data
 fallback cycles and invalidates the cycle-budget comparison.
 
+Load arms get a larger transient unit runtime margin than idle arms because
+`flent rrul` can overrun the requested test window while netperf children drain
+or time out. If systemd has already collected the transient unit before CPU
+accounting is read, the launcher must fail with a CPU evidence error rather than
+writing a profile with missing CPU fields.
+
 ## 6. Evidence checks before gate evaluation
 
 Before running `scripts/phase243-gate-eval.py`, verify every arm has:

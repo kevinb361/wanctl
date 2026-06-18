@@ -235,7 +235,11 @@ case "$WAN" in spectrum|att) ;; *) echo "ERROR: WAN must be spectrum|att" >&2; e
 case "$BACKEND" in icmplib|fping) ;; *) echo "ERROR: BACKEND must be icmplib|fping" >&2; exit 2 ;; esac
 case "$LOAD" in idle|load) ;; *) echo "ERROR: LOAD must be idle|load" >&2; exit 2 ;; esac
 [[ "$DURATION_SEC" =~ ^[1-9][0-9]*$ ]] || { echo "ERROR: DURATION_SEC must be positive integer" >&2; exit 2; }
-RUNTIME_MAX_SEC=$((DURATION_SEC + 120))
+RUNTIME_MARGIN_SEC=120
+if [ "$LOAD" = "load" ]; then
+  RUNTIME_MARGIN_SEC=300
+fi
+RUNTIME_MAX_SEC=$((DURATION_SEC + RUNTIME_MARGIN_SEC))
 resolve_bench_entrypoint
 
 scripts/phase243-bench-preflight.sh "$CONFIG" "$WAN" "$POSTURE" "$EVIDENCE_DIR"
@@ -348,6 +352,8 @@ CPU_END=$(systemctl show -p CPUUsageNSec --value "$UNIT")
 WINDOW_END_EPOCH=$(date +%s)
 WINDOW_WALL_SEC=$((WINDOW_END_EPOCH - WINDOW_START_EPOCH))
 N_CORES=$(getconf _NPROCESSORS_ONLN)
+[[ "$CPU_START" =~ ^[0-9]+$ ]] || { echo "ERROR: CPUUsageNSec start unavailable: ${CPU_START}" >&2; exit 2; }
+[[ "$CPU_END" =~ ^[0-9]+$ ]] || { echo "ERROR: CPUUsageNSec end unavailable: ${CPU_END}" >&2; exit 2; }
 
 systemctl stop "$UNIT" >/dev/null 2>&1 || true
 wait "$HYGIENE_PID" >/dev/null 2>&1 || true
