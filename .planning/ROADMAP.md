@@ -36,7 +36,7 @@
 - [x] **Phase 240: Config + Validator** — Additive `measurement.backend` per WAN/consumer; validator allow-list; absent key resolves to icmplib; all existing configs validate unchanged. ✅ verified 2026-06-16 (4/4 truths; CFG-01/02/03 + SAFE-17)
 - [x] **Phase 241: fping Backend (Offline) + Reflector Quality** — One-shot subprocess fping backend with `-S` binding, multi-reflector fanout, robust loss-safe parser from captured 5.1 samples, stall/death handling, and per-reflector loss feeding reflector scoring. ✅ verified 2026-06-16 (5/5 truths; FPING-01..05 + REFL-01 + SAFE-17)
 - [x] **Phase 242: Backend Factory + Loud Fallback** — `build_rtt_backend()` centralizing construction with automatic, loud, observable icmplib fallback when fping is absent. ✅ verified 2026-06-16 (12/12 truths; FALL-01/02 + SAFE-17; WR-01 reflector-scorer gap closed by 242-05, re-verified)
-- [x] **Phase 243: Cycle-Budget Benchmark Gate** — Pre-registered idle+load cycle-budget/CPU benchmark under a real systemd unit completed with recorded `input_error` verdict (not pass); hard gate blocks Phase 245 until resolved/replanned.
+- [x] **Phase 243: Cycle-Budget Benchmark Gate** — Pre-registered idle+load cycle-budget/CPU benchmark under a real systemd unit; original fixed verdict preserved as `input_error`, amended 243-05 provenance-bearing gate verdict passed. ✅ verified 2026-06-18 (10/10 truths; BENCH-01/02 + SAFE-17; Phase 245 now awaits Phase 244 attribution metadata)
 - [ ] **Phase 244: Health-Payload Attribution Metadata** — Additively expose `measurement.backend` / `source_ip` in `/health` (existing contract byte-preserved) so every A/B sample is attributable.
 - [ ] **Phase 245: Live A/B + Rollback Anchor** — Pre-registered live A/B (icmplib vs fping) on the Phase-238-selected target, one WAN under test, concurrent/interleaved, under a Snapshot-A rollback anchor; verdict computed against pre-committed thresholds.
 - [ ] **Phase 246: Conditional Default Flip + Milestone Closeout** — Operator-gated flip to fping iff the A/B clearly wins (armed rollback + sign-off) or a documented stay-on-icmplib recommendation; SAFE-17 milestone-close accounting.
@@ -128,11 +128,12 @@
   2. A pre-registered no-regression gate, committed before the run, blocks the live A/B if fping regresses cycle budget (vs `avg≈2.85ms` / `p99≈6.9ms` baseline), leaks file descriptors or zombies, or stalls under systemd.
   3. Benchmark evidence (cycle avg/p99 idle+load, CPU% delta, zombie/fd/Tasks counts over soak) is captured and the gate verdict is recorded.
   4. SAFE-17 boundary verifier passes.
-**Plans**: 4 plans
+**Plans**: 5 plans
 - [x] 243-01-PLAN.md — Pre-registration (frozen D-04 thresholds JSON + PREREGISTRATION.md) + empty-diff SAFE-17 verifier + mirror/prereg tests (BENCH-02, SAFE-17)
 - [x] 243-02-PLAN.md — Cycle-budget rollup (+ STALL gap detector) + fd/zombie/Tasks hygiene sampler + fixture unit tests (BENCH-01)
 - [x] 243-03-PLAN.md — Frozen-threshold gate evaluator (same-run delta + ceiling/hygiene/STALL/n-floor, fail-closed) + full pass/fail-mode matrix (BENCH-02)
 - [x] 243-04-PLAN.md — Bench-run launcher (throwaway journal-pipe unit, flent load, collision preflight) + operator runbook + operator-gated 8-arm live run → recorded verdict (BENCH-01, BENCH-02, SAFE-17)
+- [x] 243-05-PLAN.md — Amended benchmark gate semantics with provenance-bearing threshold basis; recorded amended passing verdict and verification (BENCH-02, SAFE-17)
 
 ### Phase 244: Health-Payload Attribution Metadata
 **Goal**: Every RTT sample is attributable to a backend and source IP via `/health` before the A/B starts, with the existing health contract byte-preserved.
@@ -174,12 +175,12 @@
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 238. RTT-Provenance Verification (Read-Only Entry Gate) | v1.53 | 3/4 | Gaps found | - |
+| 238. RTT-Provenance Verification (Read-Only Entry Gate) | v1.53 | 4/4 | Complete    | 2026-06-15 |
 | 239. Seam Refactor + IcmplibBackend (Byte-Identical) | v1.53 | 3/3 | Complete    | 2026-06-15 |
 | 240. Config + Validator | v1.53 | 2/2 | Complete    | 2026-06-15 |
 | 241. fping Backend (Offline) + Reflector Quality | v1.53 | 4/4 | Complete    | 2026-06-16 |
 | 242. Backend Factory + Loud Fallback | v1.53 | 5/5 | Complete    | 2026-06-16 |
-| 243. Cycle-Budget Benchmark Gate | v1.53 | 4/4 | Complete (input_error verdict; Phase 245 blocked) | 2026-06-17 |
+| 243. Cycle-Budget Benchmark Gate | v1.53 | 5/5 | Complete (amended pass; Phase 245 awaits Phase 244) | 2026-06-18 |
 | 244. Health-Payload Attribution Metadata | v1.53 | 0/TBD | Not started | - |
 | 245. Live A/B + Rollback Anchor | v1.53 | 0/TBD | Not started | - |
 | 246. Conditional Default Flip + Milestone Closeout | v1.53 | 0/TBD | Not started | - |
