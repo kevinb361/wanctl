@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
 status: verifying
-stopped_at: Completed 243-04-PLAN.md with BENCH verdict input_error
-last_updated: "2026-06-17T19:46:08.799Z"
-last_activity: 2026-06-17
+stopped_at: Phase 243 verified passed under amended 243-05 benchmark gate; Phase 244 remains next dependency before Phase 245
+last_updated: "2026-06-18T13:37:19Z"
+last_activity: 2026-06-18
 progress:
   total_phases: 9
   completed_phases: 6
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 ## Current Position
 
-Phase: 243 (cycle-budget-benchmark-gate) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification; BENCH verdict recorded as input_error (not pass)
-Last activity: 2026-06-17
+Phase: 243 (cycle-budget-benchmark-gate) — VERIFIED
+Plan: 5 of 5
+Status: Phase verified passed under amended 243-05 benchmark gate; amended verdict outcome=pass
+Last activity: 2026-06-18
 
 Milestone progress: [█████████████░░░░░░░] 6/9 phases (67%)
 
@@ -38,7 +38,7 @@ milestone is 44% done by phase count. Trust completed_phases/total_phases.
 
 ## Active Blockers / Concerns
 
-- Phase 243 Plan 04 completed the operator-gated 8-arm production benchmark, but the recorded BENCH verdict is `input_error`, not pass. Phase 245 live A/B should remain blocked unless the benchmark validity gaps are resolved/replanned or explicitly waived.
+- Phase 243 benchmark gate blocker is **cleared under the 243-05 amended provenance-bearing threshold basis**. The original fixed verdict remains `input_error` and did not pass; the amended verdict over existing fixed production evidence is `pass`. Phase 245 still depends on Phase 244 health attribution metadata per roadmap.
 - PROV-03 is **resolved**: Plan 04 corrected the egress-proof criterion (host egress dev `ens18` + distinct source-bound route keys; `spec-modem`/`att-modem` are downstream cake-autorate `ul_if` labels, not host route devs) and the re-run PASSED for both WANs. Phase 245 should read PROV-03 as a source-bound router-hop guarantee (correct source IP + distinct route key), not a named-modem-interface claim.
 
 ## Deferred Items (carried into next milestone)
@@ -164,7 +164,9 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Decisions (v1.53)
 
-- [243-04]: Recorded the production BENCH verdict as `input_error`, not pass; Phase 245 remains blocked until benchmark validity gaps are resolved/replanned or explicitly waived.
+- [243-05]: Amended Phase 243 benchmark gate semantics with a new provenance-bearing threshold blob (`AMENDS_THRESHOLDS_BLOB_SHA=c39915330d4e77652ed48b981652a075b7835a71`); original thresholds did not pass, amended fixed-evidence verdict is `pass`, and verifier reports Phase 243 `passed` 10/10.
+- [243-05]: Claude reviewed the amendment plan and found no HIGH blockers; implementation kept existing same-run `gate_p99_delta_pct` as canonical p99 regression gate, made old icmplib p99 band informational, and replaced zero-stall / first-sample task gates with bounded stall and backend-delta task semantics.
+- [243-04]: Recorded the production BENCH verdict as `input_error`, not pass; superseded by 243-05 amended gate semantics rather than rewritten.
 - [243-04]: Ran final gate evaluation locally over copied production evidence to preserve preregistration provenance because production temp staging was intentionally not a git repo.
 - [243-04]: Treated all live-run harness repairs as benchmark-harness correctness fixes only; `src/wanctl/` controller source remained untouched.
 - [243-02]: Kept cycle percentile semantics aligned with `profiling_collector_json.py` sorted-index statistics so Plan 03/04 consume the established profiling evidence contract.
