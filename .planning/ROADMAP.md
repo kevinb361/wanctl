@@ -147,7 +147,7 @@
 **Plans**: 4 plans
   - [x] 244-01-safe17-and-contract-scaffold-PLAN.md — Wave 0: SAFE-17 verifier (anchor 49fb1393) + mirror test + byte-preservation contract tests on all 3 producers
   - [x] 244-02-autorate-attribution-PLAN.md — Autorate /health: thread source_ip + backend proxy into get_health_data → _build_measurement_section triple
-  - [ ] 244-03-steering-attribution-PLAN.md — Steering /health (primary): carry dropped source_ip + backend_active through daemon wiring → rtt_source triple
+  - [x] 244-03-steering-attribution-PLAN.md — Steering /health (primary): carry dropped source_ip + backend_active through daemon wiring → rtt_source triple
   - [ ] 244-04-bridge-attribution-PLAN.md — Bridge /health (live prod): D-02 honest triple (producer=cake-autorate-bridge, backend/source_ip null) on both state-bridge scripts
 
 ### Phase 245: Live A/B + Rollback Anchor
@@ -186,7 +186,7 @@
 | 241. fping Backend (Offline) + Reflector Quality | v1.53 | 4/4 | Complete    | 2026-06-16 |
 | 242. Backend Factory + Loud Fallback | v1.53 | 5/5 | Complete    | 2026-06-16 |
 | 243. Cycle-Budget Benchmark Gate | v1.53 | 5/5 | Complete (amended pass; Phase 245 awaits Phase 244) | 2026-06-18 |
-| 244. Health-Payload Attribution Metadata | v1.53 | 2/4 | In Progress|  |
+| 244. Health-Payload Attribution Metadata | v1.53 | 3/4 | In Progress|  |
 | 245. Live A/B + Rollback Anchor | v1.53 | 0/TBD | Not started | - |
 | 246. Conditional Default Flip + Milestone Closeout | v1.53 | 0/TBD | Not started | - |
 
