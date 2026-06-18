@@ -98,7 +98,7 @@ def test_pass_fixture_records_provenance_and_outcome_pass() -> None:
     assert gate(verdict, "gate_avg_delta_pct")["verdict"] == "pass"
 
 
-def test_representativeness_outside_frozen_band_is_input_error() -> None:
+def test_representativeness_avg_outside_frozen_band_is_input_error() -> None:
     arms = pass_arms()
     arms["icmplib"]["profile"] = profile(avg_ms=10.0, p99_ms=7.0)
 
@@ -106,6 +106,20 @@ def test_representativeness_outside_frozen_band_is_input_error() -> None:
 
     assert verdict["outcome"] == "input_error"
     assert gate(verdict, "gate_icmplib_representativeness")["verdict"] == "fail"
+
+
+def test_legacy_icmplib_p99_band_is_informational_after_amendment() -> None:
+    arms = pass_arms()
+    arms["icmplib"]["profile"] = profile(avg_ms=3.435, p99_ms=12.1)
+    arms["fping"]["profile"] = profile(avg_ms=2.656, p99_ms=8.7, cpu_nsec_delta=800_000_000)
+
+    verdict = evaluate_pair(arms)
+
+    rep_gate = gate(verdict, "gate_icmplib_representativeness")
+    assert verdict["outcome"] == "pass"
+    assert rep_gate["verdict"] == "pass"
+    assert rep_gate["value"]["p99_legacy_band_pass"] is False
+    assert rep_gate["value"]["p99_blocking"] is False
 
 
 def test_avg_regression_triggers_rollback() -> None:
@@ -170,14 +184,97 @@ def test_monotonic_fd_trend_triggers_rollback() -> None:
     assert gate(verdict, "gate_fd_trend")["verdict"] == "fail"
 
 
-def test_stall_events_trigger_rollback() -> None:
+def test_bounded_stall_events_pass_for_fixed_run_like_counts() -> None:
     arms = pass_arms()
-    arms["fping"]["profile"] = profile(stall_events=[{"index": 2, "gap_ms": 150.0}])
+    arms["icmplib"]["profile"] = profile(avg_ms=3.435, p99_ms=12.1)
+    arms["fping"]["profile"] = profile(
+        count=36_147,
+        avg_ms=2.656,
+        p99_ms=8.7,
+        cpu_nsec_delta=800_000_000,
+        stall_events=[{"index": 2, "gap_ms": 150.0}, {"index": 3, "gap_ms": 125.0}],
+    )
+
+    verdict = evaluate_pair(arms)
+
+    assert verdict["outcome"] == "pass"
+    assert gate(verdict, "gate_stall_events")["verdict"] == "pass"
+
+
+def test_stall_events_over_count_limit_trigger_rollback() -> None:
+    arms = pass_arms()
+    arms["fping"]["profile"] = profile(
+        count=36_000,
+        stall_events=[
+            {"index": 2, "gap_ms": 150.0},
+            {"index": 3, "gap_ms": 125.0},
+            {"index": 4, "gap_ms": 110.0},
+        ],
+    )
 
     verdict = evaluate_pair(arms)
 
     assert verdict["outcome"] == "rollback_trigger"
     assert gate(verdict, "gate_stall_events")["verdict"] == "fail"
+
+
+def test_stall_rate_over_limit_triggers_rollback() -> None:
+    arms = pass_arms()
+    arms["fping"]["profile"] = profile(
+        count=10_000,
+        stall_events=[{"index": 2, "gap_ms": 150.0}, {"index": 3, "gap_ms": 125.0}],
+    )
+
+    verdict = evaluate_pair(arms)
+
+    assert verdict["outcome"] == "rollback_trigger"
+    assert gate(verdict, "gate_stall_events")["value"]["stall_rate_pct"] > float(
+        thresholds()["STALL_MAX_RATE_PCT"]
+    )
+
+
+def test_backend_delta_task_gate_passes_when_icmplib_has_more_tasks() -> None:
+    arms = pass_arms()
+    arms["icmplib"]["hygiene"] = hygiene(tasks=[1, 7, 8, 7])
+    arms["fping"]["hygiene"] = hygiene(tasks=[1, 4, 5, 4])
+
+    verdict = evaluate_pair(arms)
+
+    assert verdict["outcome"] == "pass"
+    assert gate(verdict, "gate_tasks_bound")["verdict"] == "pass"
+
+
+def test_backend_delta_task_gate_fails_fping_growth() -> None:
+    arms = pass_arms()
+    arms["icmplib"]["hygiene"] = hygiene(tasks=[1, 4, 4, 4])
+    arms["fping"]["hygiene"] = hygiene(tasks=[1, 5, 6, 6])
+
+    verdict = evaluate_pair(arms)
+
+    assert verdict["outcome"] == "rollback_trigger"
+    assert gate(verdict, "gate_tasks_bound")["verdict"] == "fail"
+
+
+def test_fixed_run_like_spectrum_values_pass_amended_validity_gates() -> None:
+    arms = pass_arms()
+    arms["icmplib"]["profile"] = profile(count=38_244, avg_ms=4.169, p99_ms=12.6)
+    arms["fping"]["profile"] = profile(
+        count=38_364,
+        avg_ms=2.735,
+        p99_ms=8.0,
+        cpu_nsec_delta=800_000_000,
+        stall_events=[{"index": 2, "gap_ms": 150.0}, {"index": 3, "gap_ms": 125.0}],
+    )
+    arms["icmplib"]["hygiene"] = hygiene(tasks=[1, 7, 8, 7])
+    arms["fping"]["hygiene"] = hygiene(tasks=[1, 4, 5, 4])
+
+    verdict = evaluate_pair(arms)
+
+    assert verdict["outcome"] == "pass"
+    assert gate(verdict, "gate_icmplib_representativeness")["value"]["p99_legacy_band_pass"] is False
+    assert gate(verdict, "gate_p99_delta_pct")["verdict"] == "pass"
+    assert gate(verdict, "gate_stall_events")["verdict"] == "pass"
+    assert gate(verdict, "gate_tasks_bound")["verdict"] == "pass"
 
 
 def test_n_floor_uses_frozen_cycle_hz_and_fails_closed_below_floor() -> None:

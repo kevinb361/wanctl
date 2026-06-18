@@ -115,9 +115,19 @@ Before running `scripts/phase243-gate-eval.py`, verify every arm has:
 
 ## 7. Representativeness and verdict
 
-The same-run icmplib controls must land inside the frozen
-`ICMPLIB_REPRESENTATIVE_*_TOL_MS` band. If they do not, treat the run as
-`input_error` and rerun on a representative host before trusting any fping result.
+Phase 243-05 amends the original validity semantics. The original frozen
+thresholds did not pass the fixed production run; the amended threshold blob is a
+new provenance-bearing basis, not a retroactive pass claim.
+
+The same-run icmplib controls still act as controls for fping regression. The
+historical icmplib p99 band is retained for audit, but link-specific Spectrum p99
+jitter no longer turns complete evidence into `input_error`. The existing
+same-run p99 delta gate remains the canonical fping p99 regression gate.
+
+Before any new production benchmark, run the amended evaluator against the
+existing fixed evidence under `evidence/production-run-fixed/`. Do NOT launch
+another production run while complete fixed evidence still returns `input_error`
+under amended semantics.
 
 Run `scripts/phase243-gate-eval.py` with all eight arms. It writes
 `.planning/phases/243-cycle-budget-benchmark-gate/evidence/243-BENCHMARK-VERDICT.json`

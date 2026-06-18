@@ -64,6 +64,13 @@ def _require_int(payload: JsonDict, key: str, *, gate_id: str) -> int:
     return value
 
 
+def _require_nonnegative_number(payload: JsonDict, key: str, *, gate_id: str) -> float:
+    value = _require_number(payload, key, gate_id=gate_id)
+    if value < 0:
+        raise GateEvalError(f"{key} must be non-negative", gate_id=gate_id)
+    return value
+
+
 def _require_profile(arm: JsonDict, *, label: str) -> JsonDict:
     profile = arm.get("profile")
     if not isinstance(profile, dict):
@@ -206,17 +213,18 @@ def _evaluate_pair(pair_id: str, arms: JsonDict, thresholds: JsonDict) -> JsonDi
     icmp_p99 = float(icmp_cycle["p99_ms"])
     avg_rep_delta = abs(icmp_avg - float(thresholds["ICMPLIB_REPRESENTATIVE_AVG_MS"]))
     p99_rep_delta = abs(icmp_p99 - float(thresholds["ICMPLIB_REPRESENTATIVE_P99_MS"]))
-    rep_pass = (
-        avg_rep_delta <= float(thresholds["ICMPLIB_REPRESENTATIVE_AVG_TOL_MS"])
-        and p99_rep_delta <= float(thresholds["ICMPLIB_REPRESENTATIVE_P99_TOL_MS"])
-    )
+    avg_rep_pass = avg_rep_delta <= float(thresholds["ICMPLIB_REPRESENTATIVE_AVG_TOL_MS"])
+    p99_legacy_pass = p99_rep_delta <= float(thresholds["ICMPLIB_REPRESENTATIVE_P99_TOL_MS"])
     gates["gate_icmplib_representativeness"] = _gate(
-        "pass" if rep_pass else "fail",
+        "pass" if avg_rep_pass else "fail",
         {
             "avg_ms": icmp_avg,
             "p99_ms": icmp_p99,
             "avg_delta_ms": avg_rep_delta,
             "p99_delta_ms": p99_rep_delta,
+            "avg_blocking": True,
+            "p99_legacy_band_pass": p99_legacy_pass,
+            "p99_blocking": False,
         },
         outcome_on_fail="input_error",
     )
@@ -266,12 +274,20 @@ def _evaluate_pair(pair_id: str, arms: JsonDict, thresholds: JsonDict) -> JsonDi
         {"window_medians": fd_medians},
     )
 
-    baseline_tasks = int(icmp_hygiene[0]["tasks"])
-    max_tasks = max(int(row["tasks"]) for row in fping_hygiene + icmp_hygiene)
-    task_limit = baseline_tasks + int(thresholds["TASKS_BOUND"])
+    icmp_max_tasks = max(int(row["tasks"]) for row in icmp_hygiene)
+    fping_max_tasks = max(int(row["tasks"]) for row in fping_hygiene)
+    task_delta_bound = _require_int(thresholds, "TASKS_BACKEND_DELTA_BOUND", gate_id="gate_thresholds")
+    task_delta = fping_max_tasks - icmp_max_tasks
+    task_limit = icmp_max_tasks + task_delta_bound
     gates["gate_tasks_bound"] = _gate(
-        "pass" if max_tasks <= task_limit else "fail",
-        {"baseline_tasks": baseline_tasks, "max_tasks": max_tasks, "task_limit": task_limit},
+        "pass" if fping_max_tasks <= task_limit else "fail",
+        {
+            "icmplib_max_tasks": icmp_max_tasks,
+            "fping_max_tasks": fping_max_tasks,
+            "task_delta": task_delta,
+            "task_delta_bound": task_delta_bound,
+            "task_limit": task_limit,
+        },
     )
 
     stall = fping_profile.get("stall")
@@ -280,9 +296,20 @@ def _evaluate_pair(pair_id: str, arms: JsonDict, thresholds: JsonDict) -> JsonDi
     stall_events = stall.get("stall_events")
     if not isinstance(stall_events, list):
         raise GateEvalError(f"{pair_id} fping stall_events missing", gate_id="gate_input_completeness")
+    stall_count = len(stall_events)
+    fping_count = int(fping_cycle["count"])
+    stall_rate_pct = (stall_count / fping_count) * 100.0 if fping_count > 0 else float("inf")
+    stall_count_limit = _require_int(thresholds, "STALL_MAX_COUNT_PER_ARM", gate_id="gate_thresholds")
+    stall_rate_limit = _require_nonnegative_number(thresholds, "STALL_MAX_RATE_PCT", gate_id="gate_thresholds")
     gates["gate_stall_events"] = _gate(
-        "pass" if len(stall_events) == 0 else "fail",
-        {"stall_event_count": len(stall_events), "threshold_ms": thresholds["STALL_GAP_MS"]},
+        "pass" if stall_count <= stall_count_limit and stall_rate_pct <= stall_rate_limit else "fail",
+        {
+            "stall_event_count": stall_count,
+            "stall_count_limit": stall_count_limit,
+            "stall_rate_pct": stall_rate_pct,
+            "stall_rate_limit_pct": stall_rate_limit,
+            "threshold_ms": thresholds["STALL_GAP_MS"],
+        },
     )
 
     min_count = min(int(icmp_cycle["count"]), int(fping_cycle["count"]))

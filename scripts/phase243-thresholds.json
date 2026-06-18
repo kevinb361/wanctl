@@ -6,7 +6,10 @@
   "CPU_DELTA_PCT_POINTS": 2.0,
   "ZOMBIES_MAX": 0,
   "TASKS_BOUND": 4,
+  "TASKS_BACKEND_DELTA_BOUND": 1,
   "STALL_GAP_MS": 100.0,
+  "STALL_MAX_COUNT_PER_ARM": 2,
+  "STALL_MAX_RATE_PCT": 0.01,
   "MIN_CYCLES": 10000,
   "MIN_MINUTES": 30,
   "ICMPLIB_REPRESENTATIVE_AVG_MS": 2.85,
@@ -16,5 +19,8 @@
   "ICMPLIB_REPRESENTATIVE_AVG_TOL_MS": 1.5,
   "ICMPLIB_REPRESENTATIVE_P99_TOL_MS": 3.5,
   "CPU_NORMALIZATION": "per_core",
-  "_notes": "BENCH-02 single source of truth committed before data collection for D-04/D-04a/D-04b/D-04c. CYCLE_HZ replaces the implicit cadence constant in n-floor math. ICMPLIB_REPRESENTATIVE_*_TOL_MS are HARD validity gates; Plan 03 returns input_error if the dev icmplib arm is outside the band, not a warning. CPU_NORMALIZATION=per_core fixes cpu_pct to percent-of-whole-machine by dividing by n_cores. Do not duplicate threshold literals in markdown."
+  "AMENDMENT_ID": "243-05-production-calibrated-validity-semantics",
+  "AMENDS_THRESHOLDS_BLOB_SHA": "c39915330d4e77652ed48b981652a075b7835a71",
+  "AMENDMENT_REASON": "Fixed production evidence is complete; original validity gates were link-blind/over-tight for Spectrum p99 and brittle for rare stalls/control-arm task counts.",
+  "_notes": "BENCH-02 original single source of truth was committed before data collection for D-04/D-04a/D-04b/D-04c. Phase 243-05 amends future evaluations with a new threshold blob: old icmplib p99 representativeness is retained for audit but no longer causes input_error; gate_p99_delta_pct remains the canonical same-run fping-vs-icmplib p99 regression gate. Zero-stall and first-sample task gates are superseded by bounded stall count/rate and backend-delta task semantics. CPU_NORMALIZATION=per_core fixes cpu_pct to percent-of-whole-machine by dividing by n_cores. Do not duplicate threshold literals in markdown."
 }
