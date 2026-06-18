@@ -11,6 +11,8 @@ import pytest
 from tests.helpers import find_free_port
 from wanctl import __version__
 from wanctl.perf_profiler import OperationProfiler
+from wanctl.steering import daemon as steering_daemon_module
+from wanctl.steering.daemon import SteeringDaemon
 from wanctl.steering.health import (
     SteeringHealthHandler,
     SteeringHealthServer,
@@ -1342,6 +1344,72 @@ class TestWanAwarenessHealth:
             assert section["source_ip"] is None
         finally:
             server.shutdown()
+
+    def test_non_seam_current_never_yields_wanctl_backend_producer(self):
+        """Pre-245 autorate/history RTT sources must not be A/B-attributed."""
+        for current in (
+            "autorate_health",
+            "autorate_irtt",
+            "history_fallback",
+            "unavailable",
+            "unknown",
+        ):
+            daemon = SteeringDaemon.__new__(SteeringDaemon)
+            daemon._wan_state_enabled = False
+            daemon._wan_zone = None
+            daemon._storage_db_path = None
+            daemon._profiler = OperationProfiler(max_samples=1200)
+            daemon._overrun_count = 0
+            daemon._cycle_interval_ms = 50.0
+            daemon._current_rtt_source = current
+            daemon._last_measurement_source = current
+            daemon._last_measurement_rtt_ms = 24.5
+            daemon._last_measurement_ts = time.monotonic()
+            daemon._rtt_source_counts = {
+                "autorate_health": 1,
+                "autorate_irtt": 1,
+                "history_fallback": 1,
+            }
+            daemon._rtt_source_ip = "10.10.110.224"
+            daemon._rtt_backend_active = "fping"
+
+            section = daemon.get_health_data()["rtt_source"]
+
+            assert section["producer"] is None
+            assert section["backend"] is None
+            assert section["source_ip"] is None
+
+    def test_monkeypatched_seam_current_yields_wanctl_backend_producer(self, monkeypatch):
+        """Forward-looking seam-source gate is live without populating it pre-245."""
+        monkeypatch.setattr(
+            steering_daemon_module,
+            "_WANCTL_BACKEND_RTT_SOURCES",
+            frozenset({"steering_backend"}),
+        )
+        daemon = SteeringDaemon.__new__(SteeringDaemon)
+        daemon._wan_state_enabled = False
+        daemon._wan_zone = None
+        daemon._storage_db_path = None
+        daemon._profiler = OperationProfiler(max_samples=1200)
+        daemon._overrun_count = 0
+        daemon._cycle_interval_ms = 50.0
+        daemon._current_rtt_source = "steering_backend"
+        daemon._last_measurement_source = "steering_backend"
+        daemon._last_measurement_rtt_ms = 24.5
+        daemon._last_measurement_ts = time.monotonic()
+        daemon._rtt_source_counts = {
+            "autorate_health": 0,
+            "autorate_irtt": 0,
+            "history_fallback": 0,
+        }
+        daemon._rtt_source_ip = "10.10.110.224"
+        daemon._rtt_backend_active = "fping"
+
+        section = daemon.get_health_data()["rtt_source"]
+
+        assert section["producer"] == "wanctl-backend"
+        assert section["backend"] == "fping"
+        assert section["source_ip"] == "10.10.110.224"
 
     def test_wan_awareness_disabled_shows_raw_zone(self, mock_daemon):
         """Test health response shows enabled=false with raw zone when disabled."""

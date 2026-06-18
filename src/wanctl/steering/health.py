@@ -67,7 +67,6 @@ def _parse_transition_timestamp(value: Any) -> datetime | None:
     return parsed.astimezone(UTC)
 
 
-
 def _format_iso_timestamp(
     monotonic_ts: float | str | None, server_start_time: float | None
 ) -> str | None:
@@ -155,9 +154,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
 
         return health
 
-    def _populate_daemon_health(
-        self, health: dict[str, Any], state: dict, uptime: float
-    ) -> bool:
+    def _populate_daemon_health(self, health: dict[str, Any], state: dict, uptime: float) -> bool:
         """Populate daemon-specific health sections. Returns router_reachable."""
         assert self.daemon is not None
 
@@ -259,19 +256,17 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
 
         return congestion
 
-    def _build_decision_section(
-        self, state: dict, uptime: float
-    ) -> dict[str, Any]:
+    def _build_decision_section(self, state: dict, uptime: float) -> dict[str, Any]:
         """Build decision info section (STEER-05)."""
         last_transition = state.get("last_transition_time")
         time_in_state = 0.0
         persisted_ts = _parse_transition_timestamp(last_transition)
         if persisted_ts is not None:
-            time_in_state = round(
-                max(0.0, (datetime.now(UTC) - persisted_ts).total_seconds()), 1
-            )
-        elif last_transition is not None and self.start_time is not None and isinstance(
-            last_transition, (int, float)
+            time_in_state = round(max(0.0, (datetime.now(UTC) - persisted_ts).total_seconds()), 1)
+        elif (
+            last_transition is not None
+            and self.start_time is not None
+            and isinstance(last_transition, (int, float))
         ):
             time_in_state = round(max(0.0, time.monotonic() - float(last_transition)), 1)
         elif self.start_time is not None:
@@ -340,9 +335,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             )
             wan_awareness["stale"] = wa["stale"]
 
-            wan_awareness["confidence_contribution"] = (
-                self._resolve_confidence_contribution(wa)
-            )
+            wan_awareness["confidence_contribution"] = self._resolve_confidence_contribution(wa)
 
             if self.daemon.confidence_controller:
                 ts = self.daemon.confidence_controller.timer_state
@@ -362,18 +355,28 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         counts = source.get("counts", {})
         age = source.get("last_measurement_age_sec")
         last_rtt = source.get("last_rtt_ms")
+        producer = source.get("producer")
+        if producer != "wanctl-backend":
+            producer = None
+        backend = source.get("backend")
+        if backend not in {"icmplib", "fping"}:
+            backend = None
+        source_ip = source.get("source_ip")
+        if not isinstance(source_ip, str) or not source_ip:
+            source_ip = None
         return {
             "current": source.get("current", "unknown"),
             "last_successful": source.get("last_successful", "unknown"),
             "last_rtt_ms": round(last_rtt, 2) if isinstance(last_rtt, (int, float)) else None,
-            "last_measurement_age_sec": (
-                round(age, 3) if isinstance(age, (int, float)) else None
-            ),
+            "last_measurement_age_sec": (round(age, 3) if isinstance(age, (int, float)) else None),
             "counts": {
                 "autorate_health": int(counts.get("autorate_health", 0)),
                 "autorate_irtt": int(counts.get("autorate_irtt", 0)),
                 "history_fallback": int(counts.get("history_fallback", 0)),
             },
+            "producer": producer,
+            "backend": backend,
+            "source_ip": source_ip,
         }
 
     def _resolve_confidence_contribution(self, wa: dict[str, Any]) -> float:
@@ -383,19 +386,13 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             from wanctl.steering.steering_confidence import ConfidenceWeights
 
             red_weight = wa.get("red_weight")
-            return (
-                red_weight
-                if red_weight is not None
-                else ConfidenceWeights.WAN_RED
-            )
+            return red_weight if red_weight is not None else ConfidenceWeights.WAN_RED
         if effective == "SOFT_RED":
             from wanctl.steering.steering_confidence import ConfidenceWeights
 
             soft_red_weight = wa.get("soft_red_weight")
             return (
-                soft_red_weight
-                if soft_red_weight is not None
-                else ConfidenceWeights.WAN_SOFT_RED
+                soft_red_weight if soft_red_weight is not None else ConfidenceWeights.WAN_SOFT_RED
             )
         return 0
 
