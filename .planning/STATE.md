@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
-status: ready_to_plan
-stopped_at: Phase 244 complete (4/4) — ready to discuss Phase 245
-last_updated: 2026-06-18T22:09:24.329Z
-last_activity: 2026-06-18 -- Phase 244 verified complete; ready to plan Phase 245
+status: executing
+stopped_at: Completed 244-01-safe17-and-contract-scaffold-PLAN.md
+last_updated: "2026-06-18T22:40:58.439Z"
+last_activity: 2026-06-18 -- Phase 245 planning complete
 progress:
   total_phases: 9
   completed_phases: 7
-  total_plans: 27
+  total_plans: 31
   completed_plans: 27
   percent: 78
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 Phase: 245
 Plan: Not started
-Status: Ready to plan Phase 245
-Last activity: 2026-06-18
+Status: Ready to execute
+Last activity: 2026-06-18 -- Phase 245 planning complete
 
 Milestone progress: [███████████████░░░░░] 7/9 phases (78%)
 
@@ -63,7 +63,7 @@ Acknowledged and deferred at v1.52 milestone close on 2026-06-14:
 
 ### v1.52-shipped-with-advisory-tech-debt
 
-- **Status:** Ready to plan
+- **Status:** Ready to execute
 - **Operator sign-off:** Kevin — 2026-06-14, via `/gsd-complete-milestone` audit acknowledgment and ship path.
 - **Why this is acceptable:** v1.52 audit status is `tech_debt`, not `passed`, but it found no requirement, integration, or flow blockers: 15/15 REQs, 3/3 phases, 5/5 integration seams, 5/5 E2E flows. SAFE-16 controller-path zero-diff held through closeout. Remaining items are advisory: normal deploy `eval rsync`, legacy raw watchdog docs, partial 235/237 Nyquist metadata, and Phase 236 summary metadata.
 
