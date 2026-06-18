@@ -144,7 +144,11 @@
   1. `/health` additively exposes `measurement.backend` and `source_ip` so every RTT sample is attributable during the A/B.
   2. The existing payload contract (`raw_rtt_ms`, `available`, `staleness_sec`) is byte-preserved.
   3. SAFE-17 boundary verifier passes (additive health surface only).
-**Plans**: TBD
+**Plans**: 4 plans
+  - [ ] 244-01-safe17-and-contract-scaffold-PLAN.md — Wave 0: SAFE-17 verifier (anchor 49fb1393) + mirror test + byte-preservation contract tests on all 3 producers
+  - [ ] 244-02-autorate-attribution-PLAN.md — Autorate /health: thread source_ip + backend proxy into get_health_data → _build_measurement_section triple
+  - [ ] 244-03-steering-attribution-PLAN.md — Steering /health (primary): carry dropped source_ip + backend_active through daemon wiring → rtt_source triple
+  - [ ] 244-04-bridge-attribution-PLAN.md — Bridge /health (live prod): D-02 honest triple (producer=cake-autorate-bridge, backend/source_ip null) on both state-bridge scripts
 
 ### Phase 245: Live A/B + Rollback Anchor
 **Goal**: A pre-registered live A/B on the Phase-238-selected target produces a clean, attributable verdict — icmplib vs fping, one WAN under test with the other as control, under a Snapshot-A rollback anchor — against thresholds committed before any data is collected.
