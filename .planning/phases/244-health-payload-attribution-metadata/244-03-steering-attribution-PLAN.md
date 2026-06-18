@@ -17,6 +17,8 @@ must_haves:
     - "_create_steering_components no longer drops the already-computed source_ip + backend_active; they are carried to SteeringDaemon and into the rtt_source health section."
     - "Existing rtt_source keys (current, last_successful, last_rtt_ms, last_measurement_age_sec, counts) are byte-preserved."
     - "The additive edits stay inside the SAFE-17 allowlist (steering/daemon.py + the newly-allowlisted steering/health.py) and touch no protected body."
+    - "D-03: the per-sample `backend` field (icmplib|fping|null) is surfaced here with TRUE fidelity — this is the Selection-A A/B surface, so it carries the daemon's real `backend_active`/handle backend, distinct from the autorate proxy — kept alongside 242's `backend_active`."
+    - "D-04: `source_ip` reports the per-WAN configured/intended source IP carried from `_create_steering_components` (no longer dropped), emitting null when none is configured, flat alongside `producer`/`backend` in the rtt_source block."
   artifacts:
     - path: "src/wanctl/steering/daemon.py"
       provides: "carries source_ip + backend_active from _create_steering_components → SteeringDaemon → rtt_source health dict"

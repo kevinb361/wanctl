@@ -21,6 +21,8 @@ must_haves:
     - "The 244 verifier rejects an out-of-allowlist controller-path edit (e.g. queue_controller.py) and a dirty src/wanctl/ tree."
     - "steering/health.py is in the verifier allowlist regex AND embedded allowed_paths set."
     - "Contract-snapshot tests pin the EXACT existing measurement keys+types on all three producers and assert the new triple is a strict superset (RED until Wave 1 lands the additive keys)."
+    - "D-01: the attribution triple targets all three /health producers — this plan's verifier allowlist + contract-snapshot tests cover all three surfaces; the additive edits land in plans 244-02/03/04."
+    - "D-05: SAFE-17 verification mechanics chosen — a contract-snapshot byte-preservation test plus a 244-specific boundary verifier (clone of phase242, anchor advanced to the resolved 243-close SHA 49fb1393, steering/health.py allowlisted), keeping the phase239 protected-body machinery verbatim (no protected-body widening needed)."
   artifacts:
     - path: "scripts/phase244-safe17-boundary-check.sh"
       provides: "Fail-closed controller-path drift verifier, anchor 49fb1393, allowlist incl. steering/health.py"

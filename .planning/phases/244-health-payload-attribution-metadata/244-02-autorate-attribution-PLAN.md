@@ -16,6 +16,8 @@ must_haves:
     - "Autorate /health measurement block additively exposes producer='wanctl-backend', backend (icmplib|fping|null), source_ip (configured per-WAN source|null)."
     - "Existing measurement keys (available, raw_rtt_ms, staleness_sec, backend_active, fell_back, fallback_count) are byte-preserved in keys, types, and position."
     - "The additive edits stay inside the SAFE-17 allowlist and touch no protected body (measure_rtt / RTT seam untouched)."
+    - "D-03: a per-sample `backend` field is added (icmplib|fping|null) distinct from 242's selected `backend_active`; on this non-A/B autorate path it is the planner-chosen proxy (mirrors `backend_active`), with true per-sample fidelity reserved for the steering A/B surface (244-03)."
+    - "D-04: `source_ip` reports the per-WAN configured/intended source IP the backend binds with, emitting null when none is configured, placed flat alongside `producer`/`backend` in the measurement block."
   artifacts:
     - path: "src/wanctl/health_check.py"
       provides: "_build_measurement_section appends the attribution triple to its return dict"
