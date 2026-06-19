@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.54
-milestone_name: fping Profiling + Storage Hygiene
-status: Awaiting next milestone
-stopped_at: v1.54 complete; ready to archive milestone and plan v1.55
-last_updated: "2026-06-19T21:45:43.609Z"
-last_activity: 2026-06-19 — Milestone v1.54 completed and archived
+milestone: v1.55
+milestone_name: Route Ownership / Netwatch Retirement
+status: planning
+last_updated: "2026-06-19T21:53:56.321Z"
+last_activity: 2026-06-19
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 11
-  completed_plans: 11
-  percent: 100
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
@@ -21,19 +20,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** v1.54 complete; ready for milestone archive / v1.55 planning
+**Current focus:** v1.55 Route Ownership / Netwatch Retirement — define requirements and plan Phase 251
 
 ## Current Position
 
-Phase: Milestone v1.54 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-19 — Milestone v1.54 completed and archived
+Status: Defining requirements
+Last activity: 2026-06-19 — Milestone v1.55 started
 
 ## Active Blockers / Concerns
 
 - SAFE-18 original zero-controller-diff invariant held through Phase 248.1 and was intentionally superseded by the operator-directed Phase 248.2 fping freshness controller fix. Storage hygiene phases 249/250 must avoid unrelated controller-path changes and document no additional controller behavior drift.
-- Phase 250 complete: TIN-01 consumer audit found `wanctl-history --tins` raw-history semantics and counter-shaped dropped/ECN metrics; TIN-02/TIN-03 deferred to v1.55 rather than changing emission density.
+- SAFE-19 for v1.55: no live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production default flip outside an explicitly approved canary phase.
+- Netwatch remains the interim WAN route owner at v1.55 open; wanctl route ownership must start safe/off with dry-run/observe mode and a visible ownership guard.
+- Phase 250 complete: TIN-01 consumer audit found `wanctl-history --tins` raw-history semantics and counter-shaped dropped/ECN metrics; TIN-02/TIN-03 deferred to future sparse-history work rather than changing emission density.
 - fping profiling was shadow-only through Phase 248. Phase 248.2 intentionally mutated the controller path to repair the live canary freshness bug; no production default keep was made.
 - Phase 247 complete: partial fping shadow soak ran 6.964h, stopped cleanly with `probe_stats_final`, and produced `.planning/phases/247-fping-shadow-capture-phase-245-evidence-review/evidence/phase247-shadow-summary.json` for Phase 248. No production default flip was made.
 - Phase 248 complete: `.planning/phases/248-fping-p99-distribution-analysis-profiling-verdict/248-FPING-VERDICT.md` says fping is switch-eligible for an operator-gated controlled canary; no production default flip was made.
@@ -78,15 +79,15 @@ See `.planning/todos/pending/` — 7+ active todos as listed in Deferred Items.
 
 ### Blockers / Concerns
 
-Phases 248.2–248.4 fixed the known native fping mechanical blockers: stale-window mismatch, native/external CAKE parity, and startup first-sample fallback noise. Phase 249 found no current flat-gauge write-rate candidates. Phase 250 closed the CAKE tin gate by deferring skip-on-unchanged to v1.55 because raw-history/counter-shaped semantics are not sparse-safe. Native fping keep remains deferred to an operator-gated keep canary.
+v1.55 focuses on route ownership / Netwatch retirement. Phases 248.2–248.4 fixed the known native fping mechanical blockers; native fping keep remains deferred to an operator-gated keep canary. Phase 250 closed the CAKE tin gate by deferring skip-on-unchanged to future sparse-history work because raw-history/counter-shaped semantics are not sparse-safe.
 
 ## Session Continuity
 
 Last session: 2026-06-19T21:39:50Z
-Stopped at: v1.54 complete; ready to archive milestone and plan v1.55
+Stopped at: v1.55 opened; ready to plan Phase 251
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Start Phase 251 with `/gsd-plan-phase 251`; this phase is read-only/design/inventory only.

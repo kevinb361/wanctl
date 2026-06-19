@@ -2,6 +2,7 @@
 
 ## Milestones
 
+- 🚧 **v1.55 Route Ownership / Netwatch Retirement** — Phases 251–254 (active; Netwatch remains interim route owner until wanctl ownership is proven and accepted)
 - ✅ **v1.54 fping Profiling + Storage Hygiene** — shipped-with-deferral 2026-06-19 (Phases 247–250; fping profiling/canary repairs complete, flat-gauge audit no-op, CAKE tin skip-on-unchanged deferred by consumer audit) — `milestones/v1.54-ROADMAP.md`
 - ✅ **v1.53 Pluggable RTT Measurement Backend** — shipped 2026-06-19 (Phases 238–246; 26/26 REQs; `RttBackend` seam behind icmplib default, `fping` implemented/selectable, live A/B verdict `rollback_trigger / keep-icmplib`, production stayed on icmplib, SAFE-17 held) — `milestones/v1.53-ROADMAP.md`
 - 📌 **Pipeline: WAN route ownership / Netwatch retirement** — pending high-priority follow-up: make exactly one component own WAN route mutation before enabling wanctl route failover; Netwatch remains interim owner until wanctl route ownership is designed, tested, canaried, and operator-approved — `.planning/todos/pending/2026-06-18-route-ownership-netwatch-to-wanctl-failover.md`
@@ -25,240 +26,116 @@
 
 ---
 
-## ✅ v1.54 fping Profiling + Storage Hygiene (Shipped-with-deferral)
+## 🚧 v1.55 Route Ownership / Netwatch Retirement (Active)
 
-**Milestone Goal:** Profile fping cycle p99 behavior to understand the Phase 245 `rollback_trigger` verdict and determine a path to a future production flip; run and repair the operator-gated fping canary path as needed; simultaneously reduce per-WAN DB write volume via fire-on-change hygiene.
+**Milestone Goal:** Make WAN route mutation have exactly one owner by designing, guarding, testing, and operator-gating a wanctl route-management path while keeping RouterOS Netwatch as the interim owner until the migration is proven.
 
-**SAFE-18 status:** The original controller-path zero-diff invariant held through Phase 248.1 but was intentionally superseded for Phase 248.2 after the live native canary exposed a real fping freshness bug. Storage hygiene phases 249/250 must still avoid unrelated controller-path changes.
+**SAFE-19 status:** No live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production default flip may occur outside an explicitly approved canary phase.
 
-**Phase gate:** TIN-01 consumer audit (Phase 250) may split the milestone. If any `wanctl_cake_tin_*` consumer is count-over-window style, TIN-02/TIN-03 defer to v1.55; the phase closes on the audit finding alone.
+**Route owner policy:** Netwatch remains the active/interim route owner at milestone open. wanctl route ownership must start safe/off, prove dry-run decisions, fail closed if Netwatch route-mutating entries are still active, and require explicit operator approval before any active route mutation.
 
 ### Phases
 
-- [x] **Phase 247: fping Shadow Capture + Phase 245 Evidence Review** - Run fping in shadow alongside icmplib and re-examine AB-03 threshold methodology
-- [x] **Phase 248: fping p99 Distribution Analysis + Profiling Verdict** - Compare fping vs icmplib distributions and produce the decision artifact
-- [x] **Phase 248.1: fping Controlled Canary** - Operator-gated Spectrum canary of native wanctl with `measurement.backend: fping`, explicit rollback to external cake-autorate/icmplib; canary rolled back on stale-RTT/cycle-budget behavior
-- [x] **Phase 248.2: fping Freshness / Staleness Repair** - Fix cadence-aware fping cached-sample staleness semantics; short native canary passed the stale-window gate and rolled back cleanly
-- [x] **Phase 248.3: Native Spectrum CAKE Parity** - Align native Spectrum CAKE config with external cake-autorate envelope for fair future fping canaries
-- [x] **Phase 248.4: fping Startup First-Sample Readiness** - Suppress native fping startup fallback noise while preserving icmplib fallback behavior
-- [x] **Phase 249: Autorate Flat-Gauge Fire-on-Change** - SEED-007 Phase A: live audit found no current stable-window >=2Hz flat-gauge candidates; no-op close
-- [x] **Phase 250: CAKE Tin Consumer Audit + Conditional Implementation** - SEED-007 Phase B (gated): audit found raw-history/counter-sensitive semantics; TIN-02/TIN-03 deferred to v1.55
+- [ ] **Phase 251: Route Ownership Decision + Read-Only Inventory** - Decide/record ownership policy, inspect live Netwatch/routes/scripts read-only, and capture Snapshot-A rollback evidence.
+- [ ] **Phase 252: Config-Gated Route Manager + RouterOS API Boundary** - Add safe/off route-management config, dry-run/observe mode, validation, idempotent route read/enable/disable API wrappers, and RouterOS failure handling.
+- [ ] **Phase 253: Ownership Guard + Decision Logic + Observability** - Add Netwatch conflict guard, multi-signal/hysteretic route decision policy, startup reconciliation/circuit breaker, logs/alerts/health/operator output, and focused tests.
+- [ ] **Phase 254: Dry-Run Observation + Operator-Gated Canary + Retirement Decision** - Run dry-run observation, require explicit approval for any one-WAN active canary, prove rollback, and decide keep/rollback/Netwatch retirement.
 
 ## Phase Details
 
-### Phase 247: fping Shadow Capture + Phase 245 Evidence Review
+### Phase 251: Route Ownership Decision + Read-Only Inventory
 
-**Goal**: fping runs concurrently with icmplib on Spectrum in shadow/read-only mode, capturing raw RTT samples and cycle p99 timing, while the Phase 245 AB-03 threshold methodology is re-examined to distinguish latency vs calibration as the root of the `rollback_trigger` verdict
-**Depends on**: Nothing (first v1.54 phase); must not touch control loop or production defaults
-**Requirements**: PROF-01, PROF-02
+**Goal**: Route ownership is unambiguous before any implementation or live mutation: Netwatch interim ownership is documented, wanctl authoritative ownership contract is defined, live RouterOS Netwatch/scripts/routes are inventoried read-only, and rollback evidence is captured.
+**Depends on**: v1.54 closeout
+**Requirements**: OWN-01, OWN-02, OWN-03, INV-01, INV-02, INV-03, SAFE-19
 **Success Criteria** (what must be TRUE):
 
-  1. fping produces per-cycle RTT samples alongside the live icmplib backend without influencing any congestion decision or production config
-  2. Phase 245 AB-03 threshold methodology is documented with a finding: was the verdict driven by fping latency, threshold calibration, or both?
-  3. SAFE-18 passes at phase close: zero diff in protected controller-path files vs v1.53 close
-
-**Plans**: 4 plans
-Plans:
-**Wave 1**
-
-- [x] 247-01-PLAN.md — Phase 245 AB-03 methodology review document (PROF-02)
-- [x] 247-02-PLAN.md — SAFE-18 boundary verifier script + tests
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 247-03-PLAN.md — fping shadow capture script + unit tests (PROF-01)
-
-**Wave 3** *(blocked on Wave 2 completion)*
-
-- [x] 247-04-PLAN.md — Deploy to cake-shaper + overnight soak + evidence collection (PROF-01)
-
-### Phase 248: fping p99 Distribution Analysis + Profiling Verdict
-
-**Goal**: A statistically comparable p99 RTT distribution for fping vs icmplib over a representative Spectrum production window is computed, and a decision artifact answers whether fping is ready for a future default-flip attempt and what (if anything) must change first
-**Depends on**: Phase 247
-**Requirements**: PROF-03, PROF-04
-**Success Criteria** (what must be TRUE):
-
-  1. A p99 RTT distribution comparison table exists, covering a representative Spectrum production window with both backends
-  2. A decision artifact (verdict document) exists stating: ready / not ready / what-must-change-first for a future fping default-flip attempt
-  3. The artifact explicitly traces back to Phase 245 evidence and Phase 247 threshold-methodology finding
-  4. SAFE-18 passes at phase close: zero diff in protected controller-path files
-
-**Plans**: 1 plan
-Plans:
-
-**Wave 1**
-
-- [x] 248-01-PLAN.md — fping distribution analysis + profiling verdict (PROF-03, PROF-04)
-
-### Phase 248.1: fping Controlled Canary
-
-**Goal**: With explicit operator approval, run a short, reversible Spectrum canary that moves live ownership from external cake-autorate to native `wanctl@spectrum.service` with `measurement.backend: "fping"`; prove rollback to external cake-autorate and `icmplib` before any keep decision.
-**Depends on**: Phase 248
-**Requirements**: FLIP-02
-**Success Criteria** (what must be TRUE):
-
-  1. Read-only preflight proves current live owner, unit conflict, backend config, health endpoint source, and rollback target.
-  2. No live config/service mutation occurs before explicit operator approval.
-  3. If approved, canary observes startup, health, restart count, RTT/loss/drop, qdisc state, and steering state over the approved window.
-  4. Rollback to external cake-autorate plus `measurement.backend: "icmplib"` is executed on failure or explicitly proven if canary is kept.
-
-**Plans**: 1 plan
-Plans:
-
-**Wave 1**
-
-- [x] 248.1-01-PLAN.md — operator-gated fping controlled canary (FLIP-02; rolled back, do not keep fping/native owner yet)
-
-### Phase 248.2: fping Freshness / Staleness Repair
-
-**Goal**: Fix the native fping cadence/staleness mismatch found by Phase 248.1 so the 50ms controller loop does not reject a healthy cached fping sample before the next expected 10s producer update; prove the repair locally and with a bounded live canary under armed rollback.
-**Depends on**: Phase 248.1
-**Requirements**: FPING-FRESHNESS-01
-**Success Criteria** (what must be TRUE):
-
-  1. `WANController.measure_rtt()` uses cadence-aware staleness limits while preserving existing icmplib floors.
-  2. Regression tests prove expected fping cadence gaps are accepted and truly stale fping samples are rejected.
-  3. A short native Spectrum fping canary shows zero `RTT data stale` events and no service restarts, then rolls back to external cake-autorate + `icmplib`.
-
-**Plans**: 1 plan
-Plans:
-
-**Wave 1**
-
-- [x] 248.2-01-PLAN.md — cadence-aware fping cached-sample freshness repair + bounded canary (FPING-FRESHNESS-01)
-
-### Phase 248.3: Native Spectrum CAKE Parity
-
-**Goal**: Align native `wanctl@spectrum` CAKE config with the external cake-autorate Spectrum production envelope so future native fping canaries do not conflate RTT backend behavior with qdisc/rate drift.
-**Depends on**: Phase 248.2
-**Requirements**: FPING-PARITY-01
-**Success Criteria** (what must be TRUE):
-
-  1. Native Spectrum download envelope is 550M green floor / 600M ceiling.
-  2. Native CAKE RTT is `25ms` to match external qdisc init.
-  3. Native download remains no-ack-filter and upload uses ack-filter via direction-aware CAKE defaults.
-  4. A bounded native canary verifies qdisc shape and rolls back to external cake-autorate.
-
-**Plans**: 1 plan
-Plans:
-
-**Wave 1**
-
-- [x] 248.3-01-PLAN.md — native Spectrum CAKE parity config + canary proof (FPING-PARITY-01)
-
-### Phase 248.4: fping Startup First-Sample Readiness
-
-**Goal**: Suppress native fping startup first-sample fallback noise by treating the bounded pre-sample window as producer readiness instead of ICMP failure, while preserving icmplib fallback behavior.
-**Depends on**: Phase 248.3
-**Requirements**: FPING-STARTUP-01
-**Success Criteria** (what must be TRUE):
-
-  1. The controller skips `handle_icmp_failure()` while fping is inside the bounded initial no-sample window.
-  2. The icmplib no-sample path still uses the historical fallback behavior.
-  3. A bounded live native fping canary shows no startup `No RTT data available`, `All ICMP pings failed`, `ICMP unavailable`, or `RTT data stale` warnings and rolls back to external cake-autorate.
-
-**Plans**: 1 plan
-Plans:
-
-**Wave 1**
-
-- [x] 248.4-01-PLAN.md — native fping startup first-sample readiness fix + canary proof (FPING-STARTUP-01)
-
-### Phase 249: Autorate Flat-Gauge Fire-on-Change
-
-**Goal**: Per-metric write rates on both WANs are audited via `wanctl-history --ingestion-rate`; confirmed flat-emitting gauges have the steering fire-on-change pattern applied one candidate per canary cycle with before/after write-rate measurement; each changed metric has unit-test coverage. Phase 249 closed as an audit-driven no-op because the current stable 60s/300s windows had zero >=2Hz flat-gauge candidates on either WAN.
-**Depends on**: Phase 248.4
-**Requirements**: GAUGE-01, GAUGE-02, GAUGE-03
-**Success Criteria** (what must be TRUE):
-
-  1. Audit output identifies which gauges emit at >= 2Hz with near-zero value variance on both WANs
-  2. Each confirmed flat-gauge candidate has fire-on-change applied and before/after write rates are recorded
-  3. Unit tests for each changed metric follow the `SimpleNamespace`-based pattern from `tests/steering/test_steering_metrics_recording.py::TestSteeringEnabledFireOnChange`
-  4. No unrelated controller-path changes are introduced by storage hygiene work
-
-**Plans**: 1 plan
-Plans:
-
-**Wave 1**
-
-- [x] 249-01-PLAN.md — live ingestion-rate + variance audit; no current stable candidates, no code change (GAUGE-01..03)
-
-### Phase 250: CAKE Tin Consumer Audit + Conditional Implementation
-
-**Goal**: All consumers of `wanctl_cake_tin_*` metrics are classified as last-value-style or count-over-window; if all are last-value-style, per-tin skip-on-unchanged cache is implemented and write-rate reduction is measured; if any consumer needs continuous sampling, Phase B defers to v1.55; storage-hygiene scope remains isolated from unrelated controller behavior
-**Depends on**: Phase 249
-**Requirements**: TIN-01, TIN-02, TIN-03
-**Success Criteria** (what must be TRUE):
-
-  1. A consumer audit document classifies every `wanctl_cake_tin_*` consumer across repo, docs, and dashboard queries as last-value-style or count-over-window, with explicit per-consumer disposition
-  2. If all consumers are last-value-style: per-tin per-direction skip-on-unchanged cache ships with before/after write-rate measurement and a defined rollback gate (emission rate regression or downstream query failure)
-  3. If any consumer is count-over-window: Phase B is explicitly deferred to v1.55 with the blocking consumer identified, and the phase closes on the audit finding alone
-  4. Milestone closeout documents the Phase 248.2 SAFE-18 exception and verifies no additional unrelated controller-path changes were introduced by storage hygiene
+  1. A route ownership decision artifact defines interim Netwatch ownership, future wanctl authority, coexistence/retirement policy, incident attribution, and allowed migration flags.
+  2. Live read-only inventory captures Netwatch entries (`Monitor-Spectrum`, `Monitor-ATT`), route-mutating scripts, route comments/IDs, distances, enabled/disabled state, and current owner evidence.
+  3. Snapshot-A rollback anchor exists for restoring Netwatch route ownership and current route state.
+  4. Evidence proves no RouterOS route or Netwatch mutation occurred during this phase.
 
 **Plans**:
 
-- [x] 250-01-PLAN.md — consumer audit found raw-history/counter-sensitive semantics; TIN-02/TIN-03 deferred to v1.55; no code change
-**UI hint**: no
+**Wave 1**
 
-## Phases (Archived Milestones)
+- [ ] 251-01-PLAN.md — ownership decision + live read-only inventory + Snapshot-A rollback anchor
 
-<details>
-<summary>✅ v1.53 Pluggable RTT Measurement Backend (Phases 238–246) — SHIPPED 2026-06-19</summary>
+### Phase 252: Config-Gated Route Manager + RouterOS API Boundary
 
-Full details: `milestones/v1.53-ROADMAP.md` · Requirements: `milestones/v1.53-REQUIREMENTS.md` · Audit: `milestones/v1.53-MILESTONE-AUDIT.md`
+**Goal**: wanctl has an inert, safe/off-by-default route-management surface with dry-run/observe mode and RouterOS route operations behind the existing integration boundary, without enabling active mutation.
+**Depends on**: Phase 251
+**Requirements**: CFG-01, CFG-02, CFG-03, API-01, API-02, API-03, SAFE-19
+**Success Criteria** (what must be TRUE):
 
-Summary: introduced the `RttBackend` seam, kept `icmplib` byte-identical/default, implemented selectable `fping` with fallback and attribution, ran the live A/B, and closed with `stay-on-icmplib` after the pre-registered safety gate returned `rollback_trigger`. Future fping work is deferred as non-production `FPING-PROFILE-01`.
+  1. Route-management config validates safe/off by default and fail-closed for malformed route mappings, unsafe active combinations, and impossible thresholds.
+  2. Dry-run/observe mode emits intended route decisions/actions without changing RouterOS route state.
+  3. Route read/enable/disable operations are implemented through the existing RouterOS integration boundary and are idempotent/comment-or-ID anchored.
+  4. RouterOS API failures fail closed with visible logs/alerts and no false belief that route state changed.
 
-</details>
+**Plans**:
 
-<details>
-<summary>✅ v1.52 Silicom Bypass Operationalization (Phases 235–237) — SHIPPED 2026-06-14</summary>
+**Wave 1**
 
-- [x] Phase 235: Bypass Operator CLI + Boot Baseline (4/4 plans) — completed 2026-06-12
-- [x] Phase 236: Watchdog Fail-Open Two-Mode Reconciliation (2/2 plans) — completed 2026-06-12
-- [x] Phase 237: HIL Failure-Injection Harness + Closeout (5/5 plans) — completed 2026-06-14
+- [ ] 252-01-PLAN.md — route-management config schema/validation + dry-run mode
+- [ ] 252-02-PLAN.md — RouterOS route API wrapper + idempotence/failure tests
 
-Full details: `milestones/v1.52-ROADMAP.md` · Requirements: `milestones/v1.52-REQUIREMENTS.md` · Audit: `milestones/v1.52-MILESTONE-AUDIT.md`
+### Phase 253: Ownership Guard + Decision Logic + Observability
 
-</details>
+**Goal**: Active wanctl route mutation is guarded against Netwatch conflicts, route decisions use multi-signal hysteretic health rather than brittle single probes, startup/circuit-breaker semantics are explicit, and operators can see ownership/decision state.
+**Depends on**: Phase 252
+**Requirements**: GUARD-01, GUARD-02, GUARD-03, HEALTH-01, HEALTH-02, HEALTH-03, CB-01, CB-03, OBS-01, OBS-03, SAFE-19
+**Success Criteria** (what must be TRUE):
 
-<details>
-<summary>✅ v1.51 Post-Migration Consolidation (Phases 232–234) — SHIPPED 2026-06-12</summary>
+  1. wanctl detects route-mutating Netwatch entries/scripts and refuses active route mutation unless explicit migration acknowledgement is configured.
+  2. Route failover/failback decisions require multi-signal WAN health, consecutive thresholds, and hysteresis; no one-sample/single-target replacement for Netwatch ships.
+  3. Startup reconciliation reads current route state and prior decision state before any active mutation path can run.
+  4. Circuit-breaker behavior is defined for crash/restart/router API loss and tested.
+  5. Logs/alerts/health/operator output expose route-owner mode, guard status, last intended/applied action, and evidence.
 
-- [x] Phase 232: Cleanup Boundary Guard + Tooling Fixes (4/4 plans) — completed 2026-06-11
-- [x] Phase 233: Gated Repo Hygiene Sweep (4/4 plans) — completed 2026-06-11
-- [x] Phase 234: Planning Metadata Reconciliation + Closeout (2/2 plans) — completed 2026-06-12
+**Plans**:
 
-Full details: `milestones/v1.51-ROADMAP.md` · Phases: `milestones/v1.51-phases/`
+**Wave 1**
 
-</details>
+- [ ] 253-01-PLAN.md — Netwatch ownership guard + migration flag fail-closed tests
+- [ ] 253-02-PLAN.md — multi-signal/hysteretic decision logic + startup/circuit-breaker tests
 
-<details>
-<summary>✅ v1.50 cake-autorate Migration Hardening (Phases 229–231) — SHIPPED 2026-06-10</summary>
+**Wave 2** *(blocked on Wave 1 completion)*
 
-- [x] Phase 229: ATT Deploy Path + Artifact Tests (3/3 plans) — completed 2026-06-09
-- [x] Phase 230: soak-monitor ATT Coverage (2/2 plans) — completed 2026-06-10
-- [x] Phase 231: Migration-Held Criteria, Rollback Verification & Doc Sweep (3/3 plans) — completed 2026-06-10
+- [ ] 253-03-PLAN.md — route ownership observability/alerts/operator output
 
-Full details: `milestones/v1.50-ROADMAP.md` · Audit: `milestones/v1.50-MILESTONE-AUDIT.md`
+### Phase 254: Dry-Run Observation + Operator-Gated Canary + Retirement Decision
 
-</details>
+**Goal**: The inactive route manager is observed against live state before mutation; any active one-WAN canary is explicitly approved, bounded, observable, and rollback-proven; milestone closes with a keep/rollback/Netwatch-retirement decision.
+**Depends on**: Phase 253
+**Requirements**: CB-02, OBS-02, CANARY-01, CANARY-02, CANARY-03, SAFE-19
+**Success Criteria** (what must be TRUE):
+
+  1. Dry-run observation compares intended wanctl decisions against current live Netwatch/route state without mutation.
+  2. Active one-WAN route mutation canary does not begin without explicit operator approval at Phase 254 execution time.
+  3. Snapshot-A rollback is executable/proven before active canary; rollback restores Netwatch ownership if needed.
+  4. Final decision records one of: keep Netwatch interim owner, keep wanctl route owner for approved scope, or retire/convert Netwatch to alert-only after acceptance.
+
+**Plans**:
+
+**Wave 1**
+
+- [ ] 254-01-PLAN.md — dry-run observation + pre-canary approval packet
+
+**Wave 2** *(operator approval required before active mutation)*
+
+- [ ] 254-02-PLAN.md — one-WAN active canary / rollback / Netwatch retirement decision
 
 ---
 
-## Progress
+<details>
+<summary>✅ v1.54 fping Profiling + Storage Hygiene (Phases 247–250) — SHIPPED-WITH-DEFERRAL 2026-06-19</summary>
 
-| Phase | Milestone | Plans Complete | Status | Completed |
-|-------|-----------|----------------|--------|-----------|
-| 247. fping Shadow Capture + Phase 245 Evidence Review | v1.54 | 4/4 | Complete | 2026-06-19 |
-| 248. fping p99 Distribution Analysis + Profiling Verdict | v1.54 | 1/1 | Complete | 2026-06-19 |
-| 248.1. fping Controlled Canary | v1.54 | 1/1 | Complete | 2026-06-19 |
-| 248.2. fping Freshness / Staleness Repair | v1.54 | 1/1 | Complete | 2026-06-19 |
-| 248.3. Native Spectrum CAKE Parity | v1.54 | 1/1 | Complete | 2026-06-19 |
-| 248.4. fping Startup First-Sample Readiness | v1.54 | 1/1 | Complete | 2026-06-19 |
-| 249. Autorate Flat-Gauge Fire-on-Change | v1.54 | 1/1 | Complete | 2026-06-19 |
-| 250. CAKE Tin Consumer Audit + Conditional Implementation | v1.54 | 1/1 | Complete | 2026-06-19 |
+Full details: `milestones/v1.54-ROADMAP.md` · Requirements: `milestones/v1.54-REQUIREMENTS.md`
+
+Summary: fping profiling/canary repair path completed without a production default flip; flat-gauge storage hygiene closed as a no-op because no current stable candidates existed; CAKE tin skip-on-unchanged deferred after consumer audit found raw-history/counter-sensitive semantics.
+
+</details>
 
 ---
 
@@ -272,7 +149,7 @@ Full details: `milestones/v1.50-ROADMAP.md` · Audit: `milestones/v1.50-MILESTON
 
 - **FLIP-02 follow-up** — permanent fping/native keep remains deferred to an operator-gated keep canary. The known mechanical blockers are closed: Phase 248.2 fixed stale-window behavior, Phase 248.3 aligned native Spectrum CAKE shape, and Phase 248.4 suppressed startup first-sample fallback noise.
 - **FPING-BENCH-01** — controlled A/B re-run with refined AB-03 thresholds derived from v1.54 PROF-02/03 profiling evidence.
-- **TIN-PHASE-B-DEFER** — CAKE tin skip-on-unchanged deferred from Phase 250 after TIN-01 found raw-history/counter-sensitive semantics in `wanctl-history --tins`; v1.55 must redesign/accept sparse history semantics before mutating emission.
+- **TIN-SPARSE-01** — CAKE tin skip-on-unchanged remains deferred after Phase 250 found raw-history/counter-sensitive semantics in `wanctl-history --tins`; a future storage milestone must redesign/accept sparse history semantics before mutating emission.
 - **GAUGE-EXT-01** — extend fire-on-change to additional per-metric candidates discovered post-v1.54 soak. Phase 249 found no current stable-window candidates; 3600s-only Spectrum CAKE zero-valued rows were canary-contaminated and deferred, not mutated.
 - **ROLE-01 (native-controller retirement decision)** — time/event-gated; needs >= 14 consecutive stable cake-autorate days PLUS one exercised rollback drill. `WANCTL_CAKE_AUTORATE_FUTURE.md` "What not to delete yet" governs until then; BOUND-01 guard protects the surface.
 - **TAIL-01 (Spectrum loaded-latency tail)** — valid future evidence/investigation milestone, different shape.
