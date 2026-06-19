@@ -67,17 +67,25 @@ set_spectrum_backend() {
   local backend="$1"
   # Spectrum only. ATT control WAN intentionally untouched.
   python3 - "configs/spectrum.yaml" "$backend" <<'PY'
+import re
 import sys
 from pathlib import Path
-import yaml
 
 path = Path(sys.argv[1])
 backend = sys.argv[2]
-data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-measurement = data.setdefault("measurement", {})
-measurement["backend"] = backend
-data.setdefault("ping_source_ip", "10.10.110.223")
-path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+text = path.read_text(encoding="utf-8")
+if "ping_source_ip:" not in text:
+    text = text.replace(
+        'wan_name: "spectrum"\n\n',
+        'wan_name: "spectrum"\n\n# Source IP for steering RTT backend probes — routes through Spectrum from cake-shaper\nping_source_ip: "10.10.110.223"\n\n',
+        1,
+    )
+if re.search(r"(?m)^measurement:\n(?:  .+\n)*?  backend: ", text):
+    text = re.sub(r'(?m)^(measurement:\n(?:  .+\n)*?  backend: ).*$', rf'\1"{backend}"', text, count=1)
+else:
+    insert = '\n# RTT measurement backend (Phase 245 A/B; default-safe Selection-A)\nmeasurement:\n  backend: "{}"\n'.format(backend)
+    text = text.replace('\n# State persistence (FHS compliant)\n', insert + '\n# State persistence (FHS compliant)\n', 1)
+path.write_text(text, encoding="utf-8")
 PY
 }
 
@@ -174,5 +182,9 @@ for ((i=0; i<WINDOWS; i++)); do
  done
 
 final_nrestarts="$(nrestarts)"
-write_summary "$summary" "$jsonl" "$baseline_nrestarts" "$planned_restarts" "$final_nrestarts" "$prereg_json"
+# systemd NRestarts counts automatic restarts, not operator-planned `systemctl restart`.
+# The verdict schema's total_nrestarts is inclusive, so add planned apply-restarts
+# back in before phase245-gate-eval subtracts them.
+inclusive_nrestarts=$((final_nrestarts + planned_restarts))
+write_summary "$summary" "$jsonl" "$baseline_nrestarts" "$planned_restarts" "$inclusive_nrestarts" "$prereg_json"
 echo "Phase 245 A/B summary: $summary"

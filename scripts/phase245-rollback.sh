@@ -12,7 +12,7 @@ set -euo pipefail
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 SSH_HOST="cake-shaper"
-HEALTH_URL="http://10.10.110.223:9101/health"
+HEALTH_URL="http://127.0.0.1:9102/health"
 OUT_FILE=".planning/phases/245-live-a-b-rollback-anchor/evidence/phase245-rollback-proof.json"
 CONFIRM="0"
 
@@ -51,15 +51,17 @@ nrestarts() {
 }
 
 health_check() {
-  python3 - "$HEALTH_URL" <<'PY'
+  local payload_file
+  payload_file="$(mktemp)"
+  ssh -o BatchMode=yes -o ConnectTimeout=5 "$SSH_HOST" "curl -fsS --max-time 5 '$HEALTH_URL'" >"$payload_file"
+  python3 - "$HEALTH_URL" "$payload_file" <<'PY'
 import json
 import sys
-from urllib.request import urlopen
+from pathlib import Path
 
-url = sys.argv[1]
+url, payload_file = sys.argv[1:]
 try:
-    with urlopen(url, timeout=3) as fh:
-        payload = json.load(fh)
+    payload = json.loads(Path(payload_file).read_text(encoding="utf-8"))
 except Exception as exc:
     raise SystemExit(f"HEALTH FAIL: {url}: {exc}")
 rtt = payload.get("rtt_source") if isinstance(payload, dict) else None
@@ -71,19 +73,23 @@ if backend != "icmplib" and producer == "wanctl-backend":
     raise SystemExit(f"HEALTH FAIL: backend={backend!r} producer={producer!r}; expected icmplib or non-wanctl producer")
 print(json.dumps({"backend": backend, "producer": producer, "source_ip": rtt.get("source_ip"), "counts": rtt.get("counts")}, sort_keys=True))
 PY
+  rm -f "$payload_file"
 }
 
 set_spectrum_icmplib() {
   python3 - "configs/spectrum.yaml" <<'PY'
-import sys
+import re
 from pathlib import Path
-import yaml
+import sys
 
 path = Path(sys.argv[1])
-data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-measurement = data.setdefault("measurement", {})
-measurement["backend"] = "icmplib"
-path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+text = path.read_text(encoding="utf-8")
+if re.search(r"(?m)^measurement:\n(?:  .+\n)*?  backend: ", text):
+    text = re.sub(r'(?m)^(measurement:\n(?:  .+\n)*?  backend: ).*$', r'\1"icmplib"', text, count=1)
+else:
+    insert = '\n# RTT measurement backend (Phase 245 A/B; default-safe Selection-A)\nmeasurement:\n  backend: "icmplib"\n'
+    text = text.replace('\n# State persistence (FHS compliant)\n', insert + '\n# State persistence (FHS compliant)\n', 1)
+path.write_text(text, encoding="utf-8")
 PY
 }
 
