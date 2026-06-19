@@ -19,6 +19,8 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
+import shlex
 import signal
 import subprocess
 import sys
@@ -32,7 +34,11 @@ import yaml
 
 _DEPLOY_SRC = Path("/opt/wanctl/src")
 _LOCAL_SRC = Path(__file__).resolve().parents[1] / "src"
-for _src_path in (_DEPLOY_SRC, _LOCAL_SRC):
+_SCRIPT_ROOT = Path(__file__).resolve().parents[1]
+_FLAT_DEPLOY_PARENT = _SCRIPT_ROOT.parent if (_SCRIPT_ROOT / "__init__.py").exists() else None
+for _src_path in (_DEPLOY_SRC, _LOCAL_SRC, _FLAT_DEPLOY_PARENT):
+    if _src_path is None:
+        continue
     if _src_path.exists() and str(_src_path) not in sys.path:
         sys.path.insert(0, str(_src_path))
 
@@ -53,7 +59,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def load_spectrum_config(config_path: Path) -> dict[str, Any]:
     with config_path.open(encoding="utf-8") as fh:
-        cfg = yaml.safe_load(fh) or {}
+        text = fh.read()
+    if config_path.suffix == ".sh":
+        return _load_cake_autorate_config(text)
+    cfg = yaml.safe_load(text) or {}
     continuous = cfg.get("continuous_monitoring")
     if not isinstance(continuous, dict):
         raise ValueError("missing continuous_monitoring section")
@@ -64,6 +73,38 @@ def load_spectrum_config(config_path: Path) -> dict[str, Any]:
     if not isinstance(source_ip, str) or not source_ip:
         raise ValueError("ping_source_ip must be a non-empty string")
     return cfg
+
+
+def _load_cake_autorate_config(text: str) -> dict[str, Any]:
+    """Return the shadow config shape from a cake-autorate shell config."""
+    reflectors_match = re.search(r"(?ms)^reflectors=\((.*?)\)", text)
+    if reflectors_match is None:
+        raise ValueError("cake-autorate config missing reflectors=(...)")
+    reflectors = shlex.split(reflectors_match.group(1))
+    if not reflectors:
+        raise ValueError("cake-autorate reflectors list is empty")
+
+    ping_args_match = re.search(r'(?m)^ping_extra_args=(.*)$', text)
+    if ping_args_match is None:
+        raise ValueError("cake-autorate config missing ping_extra_args")
+    ping_args_raw = ping_args_match.group(1).strip()
+    if (ping_args_raw.startswith('"') and ping_args_raw.endswith('"')) or (
+        ping_args_raw.startswith("'") and ping_args_raw.endswith("'")
+    ):
+        ping_args_raw = ping_args_raw[1:-1]
+    ping_args = shlex.split(ping_args_raw)
+    source_ip = None
+    for idx, token in enumerate(ping_args):
+        if token == "-S" and idx + 1 < len(ping_args):
+            source_ip = ping_args[idx + 1]
+            break
+    if not source_ip:
+        raise ValueError("cake-autorate ping_extra_args missing '-S <source_ip>'")
+
+    return {
+        "ping_source_ip": source_ip,
+        "continuous_monitoring": {"ping_hosts": reflectors},
+    }
 
 
 def _fping_defaults(cfg: dict[str, Any]) -> tuple[float, int, int, float]:

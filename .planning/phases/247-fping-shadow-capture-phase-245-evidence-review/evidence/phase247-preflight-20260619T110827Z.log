@@ -1,0 +1,12 @@
+# Phase 247 cake-shaper preflight retry — flat deploy + cake-autorate config
+2026-06-19T11:08:27Z
+## Local SAFE-18 before deploy
+SAFE-18 boundary check passed: .planning/phases/247-fping-shadow-capture-phase-245-evidence-review/evidence/safe18-boundary-247.json
+## cake-shaper fping
+/usr/bin/fping
+fping: Version 5.1
+## cake-shaper flat deploy/import model
+flat /opt/wanctl package confirmed
+yaml ok
+## /var/lib/wanctl writability
+drwxr-x--- 4 wanctl wanctl 4096 Jun 19 06:08 /var/lib/wanctl/

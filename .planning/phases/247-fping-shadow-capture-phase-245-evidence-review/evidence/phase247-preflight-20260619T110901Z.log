@@ -1,0 +1,83 @@
+# Phase 247 cake-shaper preflight retry — run as wanctl user
+2026-06-19T11:09:01Z
+## Local SAFE-18 before deploy
+SAFE-18 boundary check passed: .planning/phases/247-fping-shadow-capture-phase-245-evidence-review/evidence/safe18-boundary-247.json
+## cake-shaper fping
+/usr/bin/fping
+fping: Version 5.1
+## cake-shaper flat deploy/import model
+flat /opt/wanctl package confirmed
+yaml ok
+## /var/lib/wanctl writability as wanctl
+drwxr-x--- 4 wanctl wanctl 4096 Jun 19 06:09 /var/lib/wanctl/
+writable-as-wanctl
+## active service config
+ExecStartPre=/usr/local/sbin/cake-autorate-spectrum-qdisc-init
+ExecStart=/opt/cake-autorate/cake-autorate.sh /etc/cake-autorate/config.spectrum.sh
+ping_extra_args="-S 10.10.110.223"
+reflectors=("8.8.8.8" "9.9.9.9" "76.76.2.0" "9.9.9.10" "8.8.4.4" "76.76.10.0" "9.9.9.11" "208.67.222.222")
+## cake-shaper reflector routes
+### route 8.8.8.8
+8.8.8.8 from 10.10.110.223 via 10.10.110.1 dev ens18 uid 1000 
+### route 9.9.9.9
+9.9.9.9 from 10.10.110.223 via 10.10.110.1 dev ens18 uid 1000 
+### route 76.76.2.0
+76.76.2.0 from 10.10.110.223 via 10.10.110.1 dev ens18 uid 1000 
+### route 9.9.9.10
+9.9.9.10 from 10.10.110.223 via 10.10.110.1 dev ens18 uid 1000 
+### route 8.8.4.4
+8.8.4.4 from 10.10.110.223 via 10.10.110.1 dev ens18 uid 1000 
+### route 76.76.10.0
+76.76.10.0 from 10.10.110.223 via 10.10.110.1 dev ens18 uid 1000 
+### route 9.9.9.11
+9.9.9.11 from 10.10.110.223 via 10.10.110.1 dev ens18 uid 1000 
+### route 208.67.222.222
+208.67.222.222 from 10.10.110.223 via 10.10.110.1 dev ens18 uid 1000 
+## cake-shaper fping source check
+8.8.8.8        : [0], 64 bytes, 25.3 ms (25.3 avg, 0% loss)
+9.9.9.9        : [0], 64 bytes, 40.0 ms (40.0 avg, 0% loss)
+76.76.2.0      : [0], 64 bytes, 35.1 ms (35.1 avg, 0% loss)
+9.9.9.10       : [0], 64 bytes, 30.2 ms (30.2 avg, 0% loss)
+8.8.4.4        : [0], 64 bytes, 21.7 ms (21.7 avg, 0% loss)
+76.76.10.0     : [0], 64 bytes, 44.3 ms (44.3 avg, 0% loss)
+9.9.9.11       : [0], 64 bytes, 39.0 ms (39.0 avg, 0% loss)
+208.67.222.222 : [0], 64 bytes, 34.9 ms (34.9 avg, 0% loss)
+
+8.8.8.8        : xmt/rcv/%loss = 1/1/0%, min/avg/max = 25.3/25.3/25.3
+9.9.9.9        : xmt/rcv/%loss = 1/1/0%, min/avg/max = 40.0/40.0/40.0
+76.76.2.0      : xmt/rcv/%loss = 1/1/0%, min/avg/max = 35.1/35.1/35.1
+9.9.9.10       : xmt/rcv/%loss = 1/1/0%, min/avg/max = 30.2/30.2/30.2
+8.8.4.4        : xmt/rcv/%loss = 1/1/0%, min/avg/max = 21.7/21.7/21.7
+76.76.10.0     : xmt/rcv/%loss = 1/1/0%, min/avg/max = 44.3/44.3/44.3
+9.9.9.11       : xmt/rcv/%loss = 1/1/0%, min/avg/max = 39.0/39.0/39.0
+208.67.222.222 : xmt/rcv/%loss = 1/1/0%, min/avg/max = 34.9/34.9/34.9
+## output path collision
+absent
+resolved_soak_output=/var/lib/wanctl/phase247-fping-shadow.ndjson
+## transfer shadow script
+-rwxr-xr-x 1 root root 11551 Jun 19 06:09 /opt/wanctl/scripts/phase247-fping-shadow.py
+## import smoke via transferred script as wanctl
+usage: phase247-fping-shadow.py [-h] [--config CONFIG] [--output OUTPUT]
+                                [--stats-interval STATS_INTERVAL]
+
+Phase 247 fping shadow capture
+
+options:
+  -h, --help            show this help message and exit
+  --config CONFIG
+  --output OUTPUT
+  --stats-interval STATS_INTERVAL
+## bounded 2-cycle dry-run as wanctl
+2026-06-19 06:09:02,105 INFO phase247-shadow: fping thread started (cadence=10.0s)
+2026-06-19 06:09:36,972 INFO phase247-shadow: caught signal 15, shutting down
+2026-06-19 06:09:36,972 INFO phase247-shadow: fping thread stopped
+2026-06-19 06:09:36,972 INFO phase247-shadow: shadow capture complete; total_observed_probes=3
+## dry-run counts
+3
+1
+{"active_hosts": ["208.67.222.222", "76.76.10.0", "76.76.2.0", "8.8.4.4", "8.8.8.8", "9.9.9.10", "9.9.9.11", "9.9.9.9"], "all_loss": false, "backend": "fping", "elapsed_ms": 898.4957229986321, "inferred": false, "per_host_loss": {"208.67.222.222": 0.0, "76.76.10.0": 0.0, "76.76.2.0": 0.0, "8.8.4.4": 0.0, "8.8.8.8": 0.0, "9.9.9.10": 0.0, "9.9.9.11": 0.0, "9.9.9.9": 0.0}, "per_host_results": {"208.67.222.222": 20.2, "76.76.10.0": 35.8, "76.76.2.0": 16.0, "8.8.4.4": 23.7, "8.8.8.8": 23.3, "9.9.9.10": 17.0, "9.9.9.11": 41.0, "9.9.9.9": 39.1}, "probe_index": 2, "reflector_count": 8, "rtt_ms": 23.5, "sample_monotonic_ts": 226383.761058296, "source_ip": "10.10.110.223", "success": true, "successful_hosts": ["208.67.222.222", "76.76.10.0", "76.76.2.0", "8.8.4.4", "8.8.8.8", "9.9.9.10", "9.9.9.11", "9.9.9.9"], "ts": 1781867362.1108751, "type": "probe_cycle"}
+{"avg_ms": 903.0509069998516, "count": 2, "max_ms": 907.5805449974723, "min_ms": 898.5212690022308, "p95_ms": 898.5212690022308, "p99_ms": 898.5212690022308, "probe_count_at_snapshot": 2, "ts": 1781867362.1113424, "type": "probe_stats"}
+{"active_hosts": ["208.67.222.222", "76.76.10.0", "76.76.2.0", "8.8.4.4", "8.8.8.8", "9.9.9.10", "9.9.9.11", "9.9.9.9"], "all_loss": false, "backend": "fping", "elapsed_ms": 906.1415339820087, "inferred": false, "per_host_loss": {"208.67.222.222": 0.0, "76.76.10.0": 0.0, "76.76.2.0": 20.0, "8.8.4.4": 0.0, "8.8.8.8": 0.0, "9.9.9.10": 0.0, "9.9.9.11": 0.0, "9.9.9.9": 0.0}, "per_host_results": {"208.67.222.222": 19.0, "76.76.10.0": 39.4, "76.76.2.0": 18.95, "8.8.4.4": 20.0, "8.8.8.8": 22.6, "9.9.9.10": 18.5, "9.9.9.11": 39.4, "9.9.9.9": 37.9}, "probe_index": 3, "reflector_count": 8, "rtt_ms": 21.3, "sample_monotonic_ts": 226394.667411106, "source_ip": "10.10.110.223", "success": true, "successful_hosts": ["208.67.222.222", "76.76.10.0", "76.76.2.0", "8.8.4.4", "8.8.8.8", "9.9.9.10", "9.9.9.11", "9.9.9.9"], "ts": 1781867372.1115625, "type": "probe_cycle"}
+{"avg_ms": 904.0868386606841, "count": 3, "max_ms": 907.5805449974723, "min_ms": 898.5212690022308, "p95_ms": 906.1587019823492, "p99_ms": 906.1587019823492, "probe_count_at_snapshot": 3, "ts": 1781867372.1117003, "type": "probe_stats"}
+{"avg_ms": 904.7815229932894, "count": 4, "max_ms": 907.5805449974723, "min_ms": 898.5212690022308, "p95_ms": 906.8655759911053, "p99_ms": 906.8655759911053, "probe_count_at_snapshot": 3, "ts": 1781867376.9725368, "type": "probe_stats_final"}
+preflight ok

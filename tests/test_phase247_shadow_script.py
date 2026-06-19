@@ -136,6 +136,17 @@ class TestConfigLoading:
         with pytest.raises(ValueError, match="ping_source_ip"):
             module.load_spectrum_config(path)
 
+    def test_cake_autorate_shell_config_extracts_reflectors_and_source(self, module, tmp_path: Path):
+        path = tmp_path / "config.spectrum.sh"
+        path.write_text(
+            'ping_extra_args="-S 10.10.110.223"\n'
+            'reflectors=("8.8.8.8" "9.9.9.9" "208.67.222.222")\n',
+            encoding="utf-8",
+        )
+        cfg = module.load_spectrum_config(path)
+        assert cfg["ping_source_ip"] == "10.10.110.223"
+        assert cfg["continuous_monitoring"]["ping_hosts"] == ["8.8.8.8", "9.9.9.9", "208.67.222.222"]
+
 
 class TestSourceIpMapping:
     def test_source_ip_key_mapping(self, module, config_path: Path, monkeypatch):
