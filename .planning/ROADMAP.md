@@ -43,51 +43,71 @@
 ## Phase Details
 
 ### Phase 247: fping Shadow Capture + Phase 245 Evidence Review
+
 **Goal**: fping runs concurrently with icmplib on Spectrum in shadow/read-only mode, capturing raw RTT samples and cycle p99 timing, while the Phase 245 AB-03 threshold methodology is re-examined to distinguish latency vs calibration as the root of the `rollback_trigger` verdict
 **Depends on**: Nothing (first v1.54 phase); must not touch control loop or production defaults
 **Requirements**: PROF-01, PROF-02
 **Success Criteria** (what must be TRUE):
+
   1. fping produces per-cycle RTT samples alongside the live icmplib backend without influencing any congestion decision or production config
   2. Phase 245 AB-03 threshold methodology is documented with a finding: was the verdict driven by fping latency, threshold calibration, or both?
   3. SAFE-18 passes at phase close: zero diff in protected controller-path files vs v1.53 close
+
 **Plans**: 4 plans
 Plans:
+**Wave 1**
+
 - [ ] 247-01-PLAN.md — Phase 245 AB-03 methodology review document (PROF-02)
 - [ ] 247-02-PLAN.md — SAFE-18 boundary verifier script + tests
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 247-03-PLAN.md — fping shadow capture script + unit tests (PROF-01)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 247-04-PLAN.md — Deploy to cake-shaper + overnight soak + evidence collection (PROF-01)
 
 ### Phase 248: fping p99 Distribution Analysis + Profiling Verdict
+
 **Goal**: A statistically comparable p99 RTT distribution for fping vs icmplib over a representative Spectrum production window is computed, and a decision artifact answers whether fping is ready for a future default-flip attempt and what (if anything) must change first
 **Depends on**: Phase 247
 **Requirements**: PROF-03, PROF-04
 **Success Criteria** (what must be TRUE):
+
   1. A p99 RTT distribution comparison table exists, covering a representative Spectrum production window with both backends
   2. A decision artifact (verdict document) exists stating: ready / not ready / what-must-change-first for a future fping default-flip attempt
   3. The artifact explicitly traces back to Phase 245 evidence and Phase 247 threshold-methodology finding
   4. SAFE-18 passes at phase close: zero diff in protected controller-path files
+
 **Plans**: TBD
 
 ### Phase 249: Autorate Flat-Gauge Fire-on-Change
+
 **Goal**: Per-metric write rates on both WANs are audited via `wanctl-history --ingestion-rate`; confirmed flat-emitting gauges have the steering fire-on-change pattern applied one candidate per canary cycle with before/after write-rate measurement; each changed metric has unit-test coverage
 **Depends on**: Phase 248 (SAFE-18 establishes the no-mutation baseline for the milestone)
 **Requirements**: GAUGE-01, GAUGE-02, GAUGE-03
 **Success Criteria** (what must be TRUE):
+
   1. Audit output identifies which gauges emit at >= 2Hz with near-zero value variance on both WANs
   2. Each confirmed flat-gauge candidate has fire-on-change applied and before/after write rates are recorded
   3. Unit tests for each changed metric follow the `SimpleNamespace`-based pattern from `tests/steering/test_steering_metrics_recording.py::TestSteeringEnabledFireOnChange`
   4. SAFE-18 passes at phase close: confirmed zero diff in `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion
+
 **Plans**: TBD
 
 ### Phase 250: CAKE Tin Consumer Audit + Conditional Implementation
+
 **Goal**: All consumers of `wanctl_cake_tin_*` metrics are classified as last-value-style or count-over-window; if all are last-value-style, per-tin skip-on-unchanged cache is implemented and write-rate reduction is measured; if any consumer needs continuous sampling, Phase B defers to v1.55; SAFE-18 is verified at milestone close
 **Depends on**: Phase 249
 **Requirements**: TIN-01, TIN-02, TIN-03, SAFE-18
 **Success Criteria** (what must be TRUE):
+
   1. A consumer audit document classifies every `wanctl_cake_tin_*` consumer across repo, docs, and dashboard queries as last-value-style or count-over-window, with explicit per-consumer disposition
   2. If all consumers are last-value-style: per-tin per-direction skip-on-unchanged cache ships with before/after write-rate measurement and a defined rollback gate (emission rate regression or downstream query failure)
   3. If any consumer is count-over-window: Phase B is explicitly deferred to v1.55 with the blocking consumer identified, and the phase closes on the audit finding alone
   4. SAFE-18 milestone-close proof passes: zero diff in protected controller-path files vs v1.53 close at HEAD
+
 **Plans**: TBD
 **UI hint**: no
 
