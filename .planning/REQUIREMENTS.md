@@ -56,9 +56,9 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 ### A/B Evidence
 
-- [ ] **AB-01**: Operator runs a pre-registered live A/B (`icmplib` vs `fping`) on the Phase-238-selected target, one WAN under test with the other as control, under a Snapshot-A rollback anchor.
-- [ ] **AB-02**: The A/B supports concurrent / interleaved comparison within the same window to control diurnal confounding.
-- [ ] **AB-03**: The A/B verdict is computed against thresholds committed before data collection (RTT agreement within tolerance, cycle-budget non-regression, loss-detection non-regression, minimum intended-backend cycle fraction, zero daemon restarts, steering-decision stability); "keep icmplib" is a valid passing close.
+- [x] **AB-01**: Operator runs a pre-registered live A/B (`icmplib` vs `fping`) on the Phase-238-selected target, one WAN under test with the other as control, under a Snapshot-A rollback anchor.
+- [x] **AB-02**: The A/B supports concurrent / interleaved comparison within the same window to control diurnal confounding.
+- [x] **AB-03**: The A/B verdict is computed against thresholds committed before data collection (RTT agreement within tolerance, cycle-budget non-regression, loss-detection non-regression, minimum intended-backend cycle fraction, zero daemon restarts, steering-decision stability); "keep icmplib" is a valid passing close.
 
 ### Default Flip
 
@@ -127,9 +127,9 @@ Populated during roadmap creation. Each requirement maps to exactly one phase.
 | BENCH-02 | Phase 243 | Complete |
 | HEALTH-01 | Phase 244 | Complete |
 | REFL-01 | Phase 241 | Complete |
-| AB-01 | Phase 245 | Pending |
-| AB-02 | Phase 245 | Pending |
-| AB-03 | Phase 245 | Pending |
+| AB-01 | Phase 245 | Complete |
+| AB-02 | Phase 245 | Complete |
+| AB-03 | Phase 245 | Complete |
 | FLIP-01 | Phase 246 | Pending |
 | SAFE-17 | Phase 246 (cross-phase; verified at every boundary) | Complete |
 

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.53
 milestone_name: Pluggable RTT Measurement Backend
-status: executing
-stopped_at: Completed 244-01-safe17-and-contract-scaffold-PLAN.md
-last_updated: "2026-06-18T23:17:37.234Z"
+status: ready_to_plan
+stopped_at: Phase 245 complete (4/4) — ready to discuss Phase 246
+last_updated: 2026-06-19T00:36:23.326Z
 last_activity: 2026-06-18 -- Phase 245 planning complete
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 31
-  completed_plans: 27
+  completed_plans: 31
   percent: 78
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 245 — live a/b + rollback anchor
+**Current focus:** Phase 246 — conditional default flip + milestone closeout
 
 ## Current Position
 
-Phase: 245
+Phase: 246
 Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-18 -- Phase 245 planning complete
+Status: Ready to plan
+Last activity: 2026-06-19
 
 Milestone progress: [███████████████░░░░░] 7/9 phases (78%)
 
@@ -38,8 +38,8 @@ milestone is 44% done by phase count. Trust completed_phases/total_phases.
 
 ## Active Blockers / Concerns
 
-- Phase 243 benchmark gate blocker is **cleared under the 243-05 amended provenance-bearing threshold basis**. The original fixed verdict remains `input_error` and did not pass; the amended verdict over existing fixed production evidence is `pass`. Phase 245 still depends on Phase 244 health attribution metadata per roadmap.
-- PROV-03 is **resolved**: Plan 04 corrected the egress-proof criterion (host egress dev `ens18` + distinct source-bound route keys; `spec-modem`/`att-modem` are downstream cake-autorate `ul_if` labels, not host route devs) and the re-run PASSED for both WANs. Phase 245 should read PROV-03 as a source-bound router-hop guarantee (correct source IP + distinct route key), not a named-modem-interface claim.
+- Phase 245 live A/B completed with verdict `rollback_trigger` / recommendation `keep-icmplib`; Phase 246 should document stay-on-icmplib or require a new operator-approved basis before any default flip.
+- PROV-03 is **resolved**: Plan 04 corrected the egress-proof criterion (host egress dev `ens18` + distinct source-bound route keys; `spec-modem`/`att-modem` are downstream cake-autorate `ul_if` labels, not host route devs) and the re-run PASSED for both WANs. Treat PROV-03 as a source-bound router-hop guarantee (correct source IP + distinct route key), not a named-modem-interface claim.
 
 ## Deferred Items (carried into next milestone)
 
@@ -63,7 +63,7 @@ Acknowledged and deferred at v1.52 milestone close on 2026-06-14:
 
 ### v1.52-shipped-with-advisory-tech-debt
 
-- **Status:** Ready to execute
+- **Status:** Ready to plan
 - **Operator sign-off:** Kevin — 2026-06-14, via `/gsd-complete-milestone` audit acknowledgment and ship path.
 - **Why this is acceptable:** v1.52 audit status is `tech_debt`, not `passed`, but it found no requirement, integration, or flow blockers: 15/15 REQs, 3/3 phases, 5/5 integration seams, 5/5 E2E flows. SAFE-16 controller-path zero-diff held through closeout. Remaining items are advisory: normal deploy `eval rsync`, legacy raw watchdog docs, partial 235/237 Nyquist metadata, and Phase 236 summary metadata.
 
