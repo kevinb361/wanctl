@@ -1,0 +1,157 @@
+{
+  "all_loss_cycles": 0,
+  "duration_hours": 6.964155004620552,
+  "duration_seconds": 25070.958016633987,
+  "failed_cycles": 0,
+  "inferred_drop_cycles": 0,
+  "input_path": ".planning/phases/247-fping-shadow-capture-phase-245-evidence-review/evidence/phase247-fping-shadow.ndjson",
+  "per_host_avg_loss_pct": {
+    "208.67.222.222": 0.3392779469334493,
+    "76.76.10.0": 0.34797738147020446,
+    "76.76.2.0": 0.4436711613745107,
+    "8.8.4.4": 0.34797738147020446,
+    "8.8.8.8": 0.4088734232274902,
+    "9.9.9.10": 0.39147455415397997,
+    "9.9.9.11": 0.39147455415397997,
+    "9.9.9.9": 0.4175728577642453
+  },
+  "per_host_rtt_ms": {
+    "208.67.222.222": {
+      "avg": 22.491452805567636,
+      "count": 2299,
+      "max": 88.2,
+      "median": 21.2,
+      "min": 13.7,
+      "p95": 32.1,
+      "p99": 40.7
+    },
+    "76.76.10.0": {
+      "avg": 22.684732492387994,
+      "count": 2299,
+      "max": 105.0,
+      "median": 21.4,
+      "min": 14.4,
+      "p95": 31.5,
+      "p99": 40.5
+    },
+    "76.76.2.0": {
+      "avg": 22.689930404523707,
+      "count": 2299,
+      "max": 135.0,
+      "median": 21.5,
+      "min": 14.3,
+      "p95": 31.3,
+      "p99": 41.3
+    },
+    "8.8.4.4": {
+      "avg": 24.35,
+      "count": 2299,
+      "max": 117.0,
+      "median": 23.1,
+      "min": 16.1,
+      "p95": 33.3,
+      "p99": 41.8
+    },
+    "8.8.8.8": {
+      "avg": 26.71798608090474,
+      "count": 2299,
+      "max": 96.25,
+      "median": 25.5,
+      "min": 18.9,
+      "p95": 35.2,
+      "p99": 45.4
+    },
+    "9.9.9.10": {
+      "avg": 22.400761200521966,
+      "count": 2299,
+      "max": 98.5,
+      "median": 21.1,
+      "min": 13.5,
+      "p95": 31.1,
+      "p99": 39.7
+    },
+    "9.9.9.11": {
+      "avg": 22.561896476729014,
+      "count": 2299,
+      "max": 96.0,
+      "median": 21.3,
+      "min": 14.5,
+      "p95": 31.3,
+      "p99": 42.3
+    },
+    "9.9.9.9": {
+      "avg": 22.65887342322749,
+      "count": 2299,
+      "max": 126.0,
+      "median": 21.3,
+      "min": 13.7,
+      "p95": 31.2,
+      "p99": 42.4
+    }
+  },
+  "phase245_comparison": {
+    "phase245_failure_diagnosis": "sole failing gate was idle-derived CYCLE_P99_ABS_CEILING_MS=10.0; relative fping-vs-icmplib p99 passed",
+    "phase245_fping_cycle_p99_ms": 112.4,
+    "phase245_fping_median_rtt_ms": 33.22,
+    "phase245_icmplib_cycle_p99_ms": 120.7,
+    "phase245_icmplib_median_rtt_ms": 33.58
+  },
+  "probe_cycles": 2299,
+  "probe_elapsed_ms_full_window": {
+    "avg": 897.0350447529628,
+    "count": 2299,
+    "max": 1073.9993280149065,
+    "median": 893.492421018891,
+    "min": 884.9537820206024,
+    "p95": 913.9721959945746,
+    "p99": 946.6492760111578
+  },
+  "probe_stats_final": {
+    "avg_ms": 898.0415904026935,
+    "count": 1200,
+    "max_ms": 1075.8879210043233,
+    "min_ms": 884.9747700151056,
+    "p95_ms": 916.3637980236672,
+    "p99_ms": 970.4353850102052,
+    "probe_count_at_snapshot": 2299,
+    "ts": 1781894679.449984,
+    "type": "probe_stats_final"
+  },
+  "probe_stats_final_records": 1,
+  "probe_stats_records": 22,
+  "records_total": 2323,
+  "rtt_ms_full_window": {
+    "avg": 22.91164636798608,
+    "count": 2299,
+    "max": 101.75,
+    "median": 21.8,
+    "min": 18.049999999999997,
+    "p95": 29.549999999999997,
+    "p99": 38.150000000000006
+  },
+  "run_start": {
+    "cadence_sec": 10.0,
+    "config_path": "/etc/cake-autorate/config.spectrum.sh",
+    "count": 5,
+    "period_ms": 200,
+    "reflectors": [
+      "8.8.8.8",
+      "9.9.9.9",
+      "76.76.2.0",
+      "9.9.9.10",
+      "8.8.4.4",
+      "76.76.10.0",
+      "9.9.9.11",
+      "208.67.222.222"
+    ],
+    "script_version": "unknown",
+    "source_ip": "10.10.110.223",
+    "timeout_grace_sec": 2.0,
+    "ts": 1781869602.2842786,
+    "type": "run_start"
+  },
+  "schema_version": 1,
+  "success_rate_pct": 100.0,
+  "successful_cycles": 2299,
+  "verdict_hint": "shadow data is sufficient for Phase 248 switch-eligibility analysis; Phase 247 does not itself flip production default"
+}

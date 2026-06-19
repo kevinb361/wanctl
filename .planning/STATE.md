@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.54
 milestone_name: fping Profiling + Storage Hygiene
-status: blocked
-stopped_at: Phase 247 Plan 247-04 human-action checkpoint — overnight fping shadow soak not started
-last_updated: "2026-06-19T11:10:00Z"
-last_activity: 2026-06-19 -- Phase 247 Plan 247-04 preflight passed; awaiting overnight soak
+status: ready_to_plan
+stopped_at: Phase 247 complete (4/4) — ready to discuss Phase 248
+last_updated: 2026-06-19T18:46:43.273Z
+last_activity: 2026-06-19 -- Phase 247 complete; partial fping shadow soak stopped cleanly and summarized
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_plans: 4
+  percent: 25
 ---
 
 # Session State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 247 — fping-shadow-capture-phase-245-evidence-review (Plan 247-04 checkpoint)
+**Current focus:** Phase 248 — fping p99 distribution analysis + profiling verdict
 
 ## Current Position
 
-Phase: 247 (fping-shadow-capture-phase-245-evidence-review) — BLOCKED on human-action checkpoint
-Plan: 4 of 4 (247-04 overnight fping shadow soak)
-Status: Awaiting operator start/stop of overnight cake-shaper shadow capture
-Last activity: 2026-06-19 -- Preflight passed; checkpoint instructions written to 247-04-CHECKPOINT.md
+Phase: 248
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-19
 
-Progress: [███████░░░] 75%
+Progress: [██░░░░░░░░] 25%
 
 ## Active Blockers / Concerns
 
 - SAFE-18 applies to all four phases: zero diff in `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion. Verify at every phase boundary.
 - Phase 250 (TIN-02/TIN-03) is conditionally gated on TIN-01 consumer audit result. If any `wanctl_cake_tin_*` consumer is count-over-window style, TIN-02/TIN-03 defer to v1.55 and Phase 250 closes on the audit finding alone.
 - fping profiling is shadow-only: no production default changes, no control loop mutation in any phase.
-- Phase 247 Plan 247-04 preflight passed using live production shape: flat `/opt/wanctl`, `python3`, `/etc/cake-autorate/config.spectrum.sh`, run as `wanctl`; dry-run produced 3 `probe_cycle` records. Start the soak from `.planning/phases/247-fping-shadow-capture-phase-245-evidence-review/247-04-CHECKPOINT.md`, then resume `/gsd:execute-phase 247` after clean stop.
+- Phase 247 complete: partial fping shadow soak ran 6.964h, stopped cleanly with `probe_stats_final`, and produced `.planning/phases/247-fping-shadow-capture-phase-245-evidence-review/evidence/phase247-shadow-summary.json` for Phase 248. No production default flip was made.
 
 ## Deferred Items (carried into v1.54)
 
@@ -78,6 +78,6 @@ None beyond the conditional TIN gate noted above.
 ## Session Continuity
 
 Last session: 2026-06-19T01:33:34.489Z
-Stopped at: context exhaustion at 77% (2026-06-19)
+Stopped at: Phase 247 complete; ready to plan Phase 248
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)

@@ -35,7 +35,7 @@
 
 ### Phases
 
-- [ ] **Phase 247: fping Shadow Capture + Phase 245 Evidence Review** - Run fping in shadow alongside icmplib and re-examine AB-03 threshold methodology
+- [x] **Phase 247: fping Shadow Capture + Phase 245 Evidence Review** - Run fping in shadow alongside icmplib and re-examine AB-03 threshold methodology
 - [ ] **Phase 248: fping p99 Distribution Analysis + Profiling Verdict** - Compare fping vs icmplib distributions and produce the decision artifact
 - [ ] **Phase 249: Autorate Flat-Gauge Fire-on-Change** - SEED-007 Phase A: audit flat gauges, apply fire-on-change to confirmed candidates
 - [ ] **Phase 250: CAKE Tin Consumer Audit + Conditional Implementation** - SEED-007 Phase B (gated): audit tin consumers, implement skip-on-unchanged if safe
@@ -66,7 +66,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 247-04-PLAN.md — Deploy to cake-shaper + overnight soak + evidence collection (PROF-01)
+- [x] 247-04-PLAN.md — Deploy to cake-shaper + overnight soak + evidence collection (PROF-01)
 
 ### Phase 248: fping p99 Distribution Analysis + Profiling Verdict
 
@@ -161,7 +161,7 @@ Full details: `milestones/v1.50-ROADMAP.md` · Audit: `milestones/v1.50-MILESTON
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 247. fping Shadow Capture + Phase 245 Evidence Review | v1.54 | 3/4 | In Progress|  |
+| 247. fping Shadow Capture + Phase 245 Evidence Review | v1.54 | 4/4 | Complete    | 2026-06-19 |
 | 248. fping p99 Distribution Analysis + Profiling Verdict | v1.54 | 0/TBD | Not started | - |
 | 249. Autorate Flat-Gauge Fire-on-Change | v1.54 | 0/TBD | Not started | - |
 | 250. CAKE Tin Consumer Audit + Conditional Implementation | v1.54 | 0/TBD | Not started | - |
