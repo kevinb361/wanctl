@@ -50,7 +50,12 @@
   1. fping produces per-cycle RTT samples alongside the live icmplib backend without influencing any congestion decision or production config
   2. Phase 245 AB-03 threshold methodology is documented with a finding: was the verdict driven by fping latency, threshold calibration, or both?
   3. SAFE-18 passes at phase close: zero diff in protected controller-path files vs v1.53 close
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 247-01-PLAN.md — Phase 245 AB-03 methodology review document (PROF-02)
+- [ ] 247-02-PLAN.md — SAFE-18 boundary verifier script + tests
+- [ ] 247-03-PLAN.md — fping shadow capture script + unit tests (PROF-01)
+- [ ] 247-04-PLAN.md — Deploy to cake-shaper + overnight soak + evidence collection (PROF-01)
 
 ### Phase 248: fping p99 Distribution Analysis + Profiling Verdict
 **Goal**: A statistically comparable p99 RTT distribution for fping vs icmplib over a representative Spectrum production window is computed, and a decision artifact answers whether fping is ready for a future default-flip attempt and what (if anything) must change first
@@ -136,7 +141,7 @@ Full details: `milestones/v1.50-ROADMAP.md` · Audit: `milestones/v1.50-MILESTON
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 247. fping Shadow Capture + Phase 245 Evidence Review | v1.54 | 0/TBD | Not started | - |
+| 247. fping Shadow Capture + Phase 245 Evidence Review | v1.54 | 0/4 | Planning | - |
 | 248. fping p99 Distribution Analysis + Profiling Verdict | v1.54 | 0/TBD | Not started | - |
 | 249. Autorate Flat-Gauge Fire-on-Change | v1.54 | 0/TBD | Not started | - |
 | 250. CAKE Tin Consumer Audit + Conditional Implementation | v1.54 | 0/TBD | Not started | - |
