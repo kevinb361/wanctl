@@ -16,6 +16,7 @@
 ### FLIP — fping Controlled Canary
 
 - [x] **FLIP-02**: Operator-gated production canary of fping as Spectrum's native wanctl RTT backend under armed rollback and explicit sign-off. Executed and rolled back; do not keep fping/native owner yet.
+- [x] **FPING-FRESHNESS-01**: Fix native fping cadence/staleness/fallback behavior before retrying a production canary; Phase 248.1 showed 10s background fping could be treated stale by the 50ms loop, causing repeated TCP fallback and cycle-budget alerts. Phase 248.2 fixed the stale-window behavior and verified it with a bounded canary; startup first-sample fallback remains follow-up.
 
 ### GAUGE — Autorate Flat-Gauge Fire-on-Change (SEED-007 Phase A)
 
@@ -31,15 +32,14 @@
 
 ### SAFE
 
-- [ ] **SAFE-18**: Controller-path zero-diff: fping profiling is shadow-only (no control loop mutation); storage hygiene touches only metric emission. Neither phase mutates `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, or fusion logic.
+- [x] **SAFE-18**: Controller-path zero-diff through shadow profiling and controlled canary planning held through Phase 248.1, then was explicitly superseded by the operator-directed Phase 248.2 fping freshness controller fix. Storage hygiene phases 249/250 must still avoid unrelated controller-path changes and document no additional controller behavior drift.
 
 ## Future Requirements (post-v1.54)
 
 ### fping
 
-- **FLIP-02**: If PROF-04 verdict is positive, operator-gated production flip to fping as default backend under armed rollback and sign-off.
+- **FLIP-02 follow-up**: Permanent fping/native keep remains deferred until startup first-sample fallback behavior and native-vs-external qdisc/rate alignment are resolved or explicitly accepted.
 - **FPING-BENCH-01**: Controlled A/B re-run with refined AB-03 thresholds derived from PROF-02/03 profiling evidence.
-- **FPING-FRESHNESS-01**: Fix native fping cadence/staleness/fallback behavior before retrying a production canary; Phase 248.1 showed 10s background fping can be treated stale by the 50ms loop, causing repeated TCP fallback and cycle-budget alerts.
 
 ### Storage
 
@@ -66,17 +66,18 @@
 | PROF-03 | Phase 248 | Complete |
 | PROF-04 | Phase 248 | Complete |
 | FLIP-02 | Phase 248.1 | Complete (rolled back; negative keep verdict) |
+| FPING-FRESHNESS-01 | Phase 248.2 | Complete (stale-window repair passed; keep deferred) |
 | GAUGE-01 | Phase 249 | Pending |
 | GAUGE-02 | Phase 249 | Pending |
 | GAUGE-03 | Phase 249 | Pending |
 | TIN-01 | Phase 250 | Pending |
 | TIN-02 | Phase 250 | Pending |
 | TIN-03 | Phase 250 | Pending |
-| SAFE-18 | Phase 250 (cross-phase, verified at every boundary) | Pending |
+| SAFE-18 | Phases 247–248.2 | Superseded by operator-approved Phase 248.2 controller fix; storage phases must avoid unrelated controller drift |
 
 **Coverage:**
-- v1.54 requirements: 12 total
-- Mapped to phases: 12
+- v1.54 requirements: 13 total
+- Mapped to phases: 13
 - Unmapped: 0
 
 ---

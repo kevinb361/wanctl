@@ -27,9 +27,9 @@
 
 ## 🚧 v1.54 fping Profiling + Storage Hygiene (In Progress)
 
-**Milestone Goal:** Profile fping cycle p99 behavior to understand the Phase 245 `rollback_trigger` verdict and determine a path to a future production flip; run the operator-gated fping canary if approved; simultaneously reduce per-WAN DB write volume via fire-on-change hygiene.
+**Milestone Goal:** Profile fping cycle p99 behavior to understand the Phase 245 `rollback_trigger` verdict and determine a path to a future production flip; run and repair the operator-gated fping canary path as needed; simultaneously reduce per-WAN DB write volume via fire-on-change hygiene.
 
-**SAFE-18 invariant:** Controller-path zero-diff across all phases — fping profiling is shadow-only (no control loop mutation); storage hygiene touches only metric emission. Neither axis mutates `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, or fusion logic.
+**SAFE-18 status:** The original controller-path zero-diff invariant held through Phase 248.1 but was intentionally superseded for Phase 248.2 after the live native canary exposed a real fping freshness bug. Storage hygiene phases 249/250 must still avoid unrelated controller-path changes.
 
 **Phase gate:** TIN-01 consumer audit (Phase 250) may split the milestone. If any `wanctl_cake_tin_*` consumer is count-over-window style, TIN-02/TIN-03 defer to v1.55; the phase closes on the audit finding alone.
 
@@ -38,6 +38,7 @@
 - [x] **Phase 247: fping Shadow Capture + Phase 245 Evidence Review** - Run fping in shadow alongside icmplib and re-examine AB-03 threshold methodology
 - [x] **Phase 248: fping p99 Distribution Analysis + Profiling Verdict** - Compare fping vs icmplib distributions and produce the decision artifact
 - [x] **Phase 248.1: fping Controlled Canary** - Operator-gated Spectrum canary of native wanctl with `measurement.backend: fping`, explicit rollback to external cake-autorate/icmplib; canary rolled back on stale-RTT/cycle-budget behavior
+- [x] **Phase 248.2: fping Freshness / Staleness Repair** - Fix cadence-aware fping cached-sample staleness semantics; short native canary passed the stale-window gate and rolled back cleanly
 - [ ] **Phase 249: Autorate Flat-Gauge Fire-on-Change** - SEED-007 Phase A: audit flat gauges, apply fire-on-change to confirmed candidates
 - [ ] **Phase 250: CAKE Tin Consumer Audit + Conditional Implementation** - SEED-007 Phase B (gated): audit tin consumers, implement skip-on-unchanged if safe
 
@@ -107,31 +108,49 @@ Plans:
 
 - [x] 248.1-01-PLAN.md — operator-gated fping controlled canary (FLIP-02; rolled back, do not keep fping/native owner yet)
 
+### Phase 248.2: fping Freshness / Staleness Repair
+
+**Goal**: Fix the native fping cadence/staleness mismatch found by Phase 248.1 so the 50ms controller loop does not reject a healthy cached fping sample before the next expected 10s producer update; prove the repair locally and with a bounded live canary under armed rollback.
+**Depends on**: Phase 248.1
+**Requirements**: FPING-FRESHNESS-01
+**Success Criteria** (what must be TRUE):
+
+  1. `WANController.measure_rtt()` uses cadence-aware staleness limits while preserving existing icmplib floors.
+  2. Regression tests prove expected fping cadence gaps are accepted and truly stale fping samples are rejected.
+  3. A short native Spectrum fping canary shows zero `RTT data stale` events and no service restarts, then rolls back to external cake-autorate + `icmplib`.
+
+**Plans**: 1 plan
+Plans:
+
+**Wave 1**
+
+- [x] 248.2-01-PLAN.md — cadence-aware fping cached-sample freshness repair + bounded canary (FPING-FRESHNESS-01)
+
 ### Phase 249: Autorate Flat-Gauge Fire-on-Change
 
 **Goal**: Per-metric write rates on both WANs are audited via `wanctl-history --ingestion-rate`; confirmed flat-emitting gauges have the steering fire-on-change pattern applied one candidate per canary cycle with before/after write-rate measurement; each changed metric has unit-test coverage
-**Depends on**: Phase 248.1 (or Phase 248 if the operator defers the canary)
+**Depends on**: Phase 248.2
 **Requirements**: GAUGE-01, GAUGE-02, GAUGE-03
 **Success Criteria** (what must be TRUE):
 
   1. Audit output identifies which gauges emit at >= 2Hz with near-zero value variance on both WANs
   2. Each confirmed flat-gauge candidate has fire-on-change applied and before/after write rates are recorded
   3. Unit tests for each changed metric follow the `SimpleNamespace`-based pattern from `tests/steering/test_steering_metrics_recording.py::TestSteeringEnabledFireOnChange`
-  4. SAFE-18 passes at phase close: confirmed zero diff in `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion
+  4. No unrelated controller-path changes are introduced by storage hygiene work
 
 **Plans**: TBD
 
 ### Phase 250: CAKE Tin Consumer Audit + Conditional Implementation
 
-**Goal**: All consumers of `wanctl_cake_tin_*` metrics are classified as last-value-style or count-over-window; if all are last-value-style, per-tin skip-on-unchanged cache is implemented and write-rate reduction is measured; if any consumer needs continuous sampling, Phase B defers to v1.55; SAFE-18 is verified at milestone close
+**Goal**: All consumers of `wanctl_cake_tin_*` metrics are classified as last-value-style or count-over-window; if all are last-value-style, per-tin skip-on-unchanged cache is implemented and write-rate reduction is measured; if any consumer needs continuous sampling, Phase B defers to v1.55; storage-hygiene scope remains isolated from unrelated controller behavior
 **Depends on**: Phase 249
-**Requirements**: TIN-01, TIN-02, TIN-03, SAFE-18
+**Requirements**: TIN-01, TIN-02, TIN-03
 **Success Criteria** (what must be TRUE):
 
   1. A consumer audit document classifies every `wanctl_cake_tin_*` consumer across repo, docs, and dashboard queries as last-value-style or count-over-window, with explicit per-consumer disposition
   2. If all consumers are last-value-style: per-tin per-direction skip-on-unchanged cache ships with before/after write-rate measurement and a defined rollback gate (emission rate regression or downstream query failure)
   3. If any consumer is count-over-window: Phase B is explicitly deferred to v1.55 with the blocking consumer identified, and the phase closes on the audit finding alone
-  4. SAFE-18 milestone-close proof passes: zero diff in protected controller-path files vs v1.53 close at HEAD
+  4. Milestone closeout documents the Phase 248.2 SAFE-18 exception and verifies no additional unrelated controller-path changes were introduced by storage hygiene
 
 **Plans**: TBD
 **UI hint**: no
@@ -186,8 +205,10 @@ Full details: `milestones/v1.50-ROADMAP.md` · Audit: `milestones/v1.50-MILESTON
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 247. fping Shadow Capture + Phase 245 Evidence Review | v1.54 | 4/4 | Complete    | 2026-06-19 |
-| 248. fping p99 Distribution Analysis + Profiling Verdict | v1.54 | 0/TBD | Not started | - |
+| 247. fping Shadow Capture + Phase 245 Evidence Review | v1.54 | 4/4 | Complete | 2026-06-19 |
+| 248. fping p99 Distribution Analysis + Profiling Verdict | v1.54 | 1/1 | Complete | 2026-06-19 |
+| 248.1. fping Controlled Canary | v1.54 | 1/1 | Complete | 2026-06-19 |
+| 248.2. fping Freshness / Staleness Repair | v1.54 | 1/1 | Complete | 2026-06-19 |
 | 249. Autorate Flat-Gauge Fire-on-Change | v1.54 | 0/TBD | Not started | - |
 | 250. CAKE Tin Consumer Audit + Conditional Implementation | v1.54 | 0/TBD | Not started | - |
 
@@ -201,7 +222,7 @@ Full details: `milestones/v1.50-ROADMAP.md` · Audit: `milestones/v1.50-MILESTON
 
 ### Deferred (post-v1.54 candidates)
 
-- **FLIP-02** — if PROF-04 (Phase 248) verdict is positive, operator-gated production flip to fping as default backend under armed rollback.
+- **FLIP-02 follow-up** — permanent fping/native keep remains deferred. Phase 248.2 fixed the stale-window blocker, but startup first-sample fallback behavior and native-vs-external qdisc/rate alignment still need resolution before a fair keep/default-flip verdict.
 - **FPING-BENCH-01** — controlled A/B re-run with refined AB-03 thresholds derived from v1.54 PROF-02/03 profiling evidence.
 - **TIN-PHASE-B-DEFER** — CAKE tin skip-on-unchanged deferred from Phase 250 if TIN-01 consumer audit finds a count-over-window consumer; becomes v1.55 scope.
 - **GAUGE-EXT-01** — extend fire-on-change to additional per-metric candidates discovered post-v1.54 soak.

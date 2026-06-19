@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.54
 milestone_name: fping Profiling + Storage Hygiene
 status: ready_to_plan
-stopped_at: Phase 248.1 complete — fping canary rolled back; ready to plan Phase 249 or fping freshness fix
-last_updated: 2026-06-19T20:09:00Z
-last_activity: 2026-06-19 -- Phase 248.1 live canary executed and rolled back after stale fping RTT / cycle-budget behavior
+stopped_at: Phase 248.2 complete — fping stale-window repair passed bounded canary; ready to plan Phase 249 or startup-readiness follow-up
+last_updated: 2026-06-19T19:42:34Z
+last_activity: 2026-06-19 -- Phase 248.2 cadence-aware fping freshness fix implemented, deployed, canaried, and rolled back cleanly
 progress:
-  total_phases: 5
-  completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
-  percent: 60
+  total_phases: 6
+  completed_phases: 4
+  total_plans: 7
+  completed_plans: 7
+  percent: 67
 ---
 
 # Session State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 249 — Autorate Flat-Gauge Fire-on-Change, unless prioritizing fping freshness fix
+**Current focus:** Phase 249 — Autorate Flat-Gauge Fire-on-Change, unless prioritizing fping startup-readiness follow-up
 
 ## Current Position
 
@@ -30,16 +30,17 @@ Plan: Not started
 Status: Ready to plan
 Last activity: 2026-06-19
 
-Progress: [██████░░░░] 60%
+Progress: [███████░░░] 67%
 
 ## Active Blockers / Concerns
 
-- SAFE-18 applies across the milestone: zero diff in `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion. Verify at every phase boundary.
+- SAFE-18 original zero-controller-diff invariant held through Phase 248.1 and was intentionally superseded by the operator-directed Phase 248.2 fping freshness controller fix. Storage hygiene phases 249/250 must avoid unrelated controller-path changes and document no additional controller behavior drift.
 - Phase 250 (TIN-02/TIN-03) is conditionally gated on TIN-01 consumer audit result. If any `wanctl_cake_tin_*` consumer is count-over-window style, TIN-02/TIN-03 defer to v1.55 and Phase 250 closes on the audit finding alone.
-- fping profiling is shadow-only: no production default changes, no control loop mutation in any phase.
+- fping profiling was shadow-only through Phase 248. Phase 248.2 intentionally mutated the controller path to repair the live canary freshness bug; no production default keep was made.
 - Phase 247 complete: partial fping shadow soak ran 6.964h, stopped cleanly with `probe_stats_final`, and produced `.planning/phases/247-fping-shadow-capture-phase-245-evidence-review/evidence/phase247-shadow-summary.json` for Phase 248. No production default flip was made.
 - Phase 248 complete: `.planning/phases/248-fping-p99-distribution-analysis-profiling-verdict/248-FPING-VERDICT.md` says fping is switch-eligible for an operator-gated controlled canary; no production default flip was made.
 - Phase 248.1 complete: live native wanctl + fping canary was operator-approved, executed, and rolled back. The blocker is not the old 10ms p99 gate; it is current native fping cadence/staleness/fallback behavior: 10s background fping can be treated stale by the 50ms loop, causing repeated TCP fallback, cycle overruns, and cycle-budget warning alerts. Production is restored to external cake-autorate + `icmplib` config.
+- Phase 248.2 complete: cadence-aware fping cached-sample staleness limits shipped in `WANController.measure_rtt()`. A bounded native Spectrum fping canary showed `stale_count=0`, `NRestarts=0`, and healthy cycle budget after startup, then rolled back cleanly to external cake-autorate + `icmplib`. Remaining fping follow-up: startup first-sample fallback noise and native-vs-external qdisc/rate alignment before any permanent keep/default-flip verdict.
 
 ## Deferred Items (carried into v1.54)
 
@@ -75,11 +76,11 @@ See `.planning/todos/pending/` — 7+ active todos as listed in Deferred Items.
 
 ### Blockers / Concerns
 
-Phase 248.1 found a fping freshness/cadence blocker before any keep decision. Conditional TIN gate still applies later.
+Phase 248.2 fixed the fping stale-window blocker. Native fping keep remains deferred pending startup-readiness and native operating-point alignment. Conditional TIN gate still applies later.
 
 ## Session Continuity
 
-Last session: 2026-06-19T01:33:34.489Z
-Stopped at: Phase 248.1 complete with rollback; ready to plan Phase 249 or an fping freshness fix phase
+Last session: 2026-06-19T19:42:34Z
+Stopped at: Phase 248.2 complete with rollback; ready to plan Phase 249 or an fping startup-readiness follow-up
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)

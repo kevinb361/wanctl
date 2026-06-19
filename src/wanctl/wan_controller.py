@@ -1189,12 +1189,13 @@ class WANController:
             return None
 
         age = time.monotonic() - snapshot.timestamp
-        if age > 5.0:  # Hard limit per D-04
+        soft_stale_sec, hard_stale_sec = WANController._rtt_staleness_limits(self)
+        if age > hard_stale_sec:  # Hard limit, cadence-aware for slow background producers.
             self.logger.warning(
                 f"{self.wan_name}: RTT data stale ({age:.1f}s), treating as failure"
             )
             return None
-        if age > 0.5:  # Soft warning per D-04
+        if age > soft_stale_sec:  # Soft warning, cadence-aware for slow background producers.
             self.logger.debug(f"{self.wan_name}: RTT data aging ({age:.1f}s)")
 
         snapshot_backend = getattr(snapshot, "backend", "icmplib")
@@ -1270,6 +1271,25 @@ class WANController:
         )
 
         return snapshot.rtt_ms
+
+    def _rtt_staleness_limits(self) -> tuple[float, float]:
+        """Return soft/hard RTT snapshot staleness limits for the active producer.
+
+        D-04's original 0.5s/5s thresholds are still the floor for the normal
+        icmplib background thread. Slower producer backends such as fping publish
+        on their own configured cadence, so treating a healthy cached sample as
+        failed before the next expected producer cycle causes repeated fallback
+        storms in the 50ms controller loop.
+        """
+        cadence_sec = 0.0
+        if self._rtt_thread is not None:
+            cadence_raw = getattr(self._rtt_thread, "cadence_sec", 0.0)
+            if isinstance(cadence_raw, (int, float)):
+                cadence_sec = float(cadence_raw)
+
+        soft_stale_sec = max(0.5, cadence_sec)
+        hard_stale_sec = max(5.0, cadence_sec * 1.5)
+        return soft_stale_sec, hard_stale_sec
 
     def _should_skip_scorer_update(self, cycle_status: RTTCycleStatus) -> bool:
         """Return True only for a strict zero-success RTT cycle.

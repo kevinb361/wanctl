@@ -12,6 +12,7 @@ import logging
 import threading
 import time
 from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -345,6 +346,66 @@ def test_fping_selected_measure_rtt_no_attributeerror(logger: logging.Logger) ->
     assert controller._zero_success_blackout_cycles == 0
     assert controller._last_active_reflector_hosts == ["h1", "h2"]
     assert controller._last_successful_reflector_hosts == ["h1"]
+
+
+def test_fping_measure_rtt_allows_expected_cadence_gap(logger: logging.Logger) -> None:
+    """A cached fping sample inside the producer cadence window remains usable.
+
+    Regression for the Phase 248.1 canary: default fping cadence is 10s while
+    the controller loop runs every 50ms. The old fixed 5s hard-stale cutoff made
+    the loop repeatedly reject healthy cached fping samples before the next
+    expected background burst.
+    """
+    with _patch_fping_present("/usr/bin/fping")[0], _patch_fping_present("/usr/bin/fping")[1]:
+        handle = _build(backend="fping", fping={"cadence_sec": 10.0}, logger=logger)
+    controller = _make_controller(handle)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        controller._rtt_thread = handle.make_thread(
+            lambda: ["h1", "h2"], threading.Event(), pool=pool, cadence_sec=0.25
+        )
+    fping_thread = cast(Any, controller._rtt_thread)._fping_thread
+    fping_thread._cached_result = RttSample(
+        rtt_ms=12.5,
+        per_host_results={"h1": 12.5, "h2": None},
+        timestamp=time.monotonic() - 6.0,
+        measurement_ms=1.0,
+        active_hosts=("h1", "h2"),
+        successful_hosts=("h1",),
+        backend="fping",
+        source_ip="192.0.2.10",
+    )
+    controller._reflector_scorer.record_results = MagicMock()
+
+    assert controller.measure_rtt() == 12.5
+    controller._reflector_scorer.record_results.assert_not_called()
+    assert controller._last_active_reflector_hosts == ["h1", "h2"]
+    assert controller._last_successful_reflector_hosts == ["h1"]
+
+
+def test_fping_measure_rtt_rejects_beyond_cadence_grace(logger: logging.Logger) -> None:
+    """A truly stale fping sample still fails instead of being trusted forever."""
+    with _patch_fping_present("/usr/bin/fping")[0], _patch_fping_present("/usr/bin/fping")[1]:
+        handle = _build(backend="fping", fping={"cadence_sec": 10.0}, logger=logger)
+    controller = _make_controller(handle)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        controller._rtt_thread = handle.make_thread(
+            lambda: ["h1", "h2"], threading.Event(), pool=pool, cadence_sec=0.25
+        )
+    fping_thread = cast(Any, controller._rtt_thread)._fping_thread
+    fping_thread._cached_result = RttSample(
+        rtt_ms=12.5,
+        per_host_results={"h1": 12.5, "h2": None},
+        timestamp=time.monotonic() - 16.0,
+        measurement_ms=1.0,
+        active_hosts=("h1", "h2"),
+        successful_hosts=("h1",),
+        backend="fping",
+        source_ip="192.0.2.10",
+    )
+    controller._reflector_scorer.record_results = MagicMock()
+
+    assert controller.measure_rtt() is None
+    controller._reflector_scorer.record_results.assert_not_called()
 
 
 def test_icmplib_background_snapshot_still_updates_reflector_scorer(logger: logging.Logger) -> None:
