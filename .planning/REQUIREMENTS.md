@@ -79,6 +79,7 @@ Deferred to a later milestone. Tracked but not in this roadmap.
 ### fping Enhancements
 
 - **FPING-JSON-01**: Adopt `fping -J` structured JSON output once the schema is stable and present in the Debian/Ubuntu deploy baseline.
+- **FPING-PROFILE-01**: Non-production profiling/investigation of fping cycle p99 behavior and the live A/B threshold methodology before any future production default flip attempt. This follow-up must not mutate production defaults and must start from the Phase 245 `rollback_trigger / keep-icmplib` evidence.
 
 ### Native Validation
 
@@ -99,6 +100,7 @@ Explicitly excluded. Anti-features from research documented here with reasoning.
 | Controller threshold / algorithm / state-machine changes (EWMA, dwell, deadband, arbitration, fusion) | This milestone changes the measurement *input*, not classification. SAFE-17 fails closed on any such drift. |
 | Native autorate retirement (ROLE-01), Spectrum loaded-latency tail (TAIL-01) | Out of thesis; carried deferred. |
 | Dormant seeds SEED-003/004/005/007 | Tune the dormant native controller or are storage-hygiene; not this thesis. |
+| fping production default retry | Phase 245 produced `rollback_trigger / keep-icmplib`; any future fping work is non-production profiling first (FPING-PROFILE-01), not a v1.53 flip. |
 
 ## Traceability
 

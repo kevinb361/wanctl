@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 ## Current Position
 
 Phase: 246
-Plan: Not started
-Status: Ready to plan
+Plan: 246-01-PLAN.md
+Status: Ready to execute
 Last activity: 2026-06-19
 
 Milestone progress: [███████████████░░░░░] 7/9 phases (78%)
@@ -38,7 +38,7 @@ milestone is 44% done by phase count. Trust completed_phases/total_phases.
 
 ## Active Blockers / Concerns
 
-- Phase 245 live A/B completed with verdict `rollback_trigger` / recommendation `keep-icmplib`; Phase 246 should document stay-on-icmplib or require a new operator-approved basis before any default flip.
+- Phase 245 live A/B completed with verdict `rollback_trigger` / recommendation `keep-icmplib`; user selected future non-production fping profiling, so Phase 246 should document stay-on-icmplib and carry `FPING-PROFILE-01` forward instead of flipping production.
 - PROV-03 is **resolved**: Plan 04 corrected the egress-proof criterion (host egress dev `ens18` + distinct source-bound route keys; `spec-modem`/`att-modem` are downstream cake-autorate `ul_if` labels, not host route devs) and the re-run PASSED for both WANs. Treat PROV-03 as a source-bound router-hop guarantee (correct source IP + distinct route key), not a named-modem-interface claim.
 
 ## Deferred Items (carried into next milestone)

@@ -174,7 +174,8 @@
   1. If and only if the A/B clearly wins, the operator can flip the production default to `fping` under an armed rollback with sign-off recorded.
   2. If the A/B does not clearly win, the milestone records a documented "stay on icmplib" recommendation as a valid passing close (v1.46/v1.47 negative-result precedent); the flip is operator-gated, not automated.
   3. The SAFE-17 narrowed-allowlist source-diff verifier passes at milestone close, proving controller-path changes stayed within the RTT-measurement seam plus the accepted reflector-scorer touch, with no state-machine / threshold / EWMA / dwell / deadband / arbitration / fusion drift.
-**Plans**: TBD
+**Plans**: 1 plan
+  - [ ] 246-01-PLAN.md — No-flip closeout: record stay-on-icmplib, capture future non-production fping profiling follow-up, final read-only production health, SAFE-17 milestone-close evidence (FLIP-01, SAFE-17)
 
 ---
 
