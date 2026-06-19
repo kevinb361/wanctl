@@ -126,6 +126,22 @@ mode:
 #   grace_period_sec: 30        # Ignore WAN signal for first N seconds after startup
 #   wan_override: false         # When true, WAN RED alone can trigger failover (removes weight ceiling)
 
+# Route management (future, safe/off by default)
+# Netwatch remains the interim route owner until the ownership guard and canary
+# phases are complete. Keep this disabled or dry-run only; dry-run logs intended
+# route actions and does not mutate RouterOS routes.
+#
+route_management:
+  enabled: false
+  mode: "off"                  # off | dry_run | active (active is blocked in Phase 252)
+  routes:
+    spectrum:
+      comment: "Spectrum"
+    att:
+      comment: "ATT"
+    att_policy:
+      comment: "Force ATT_OUT to ATT WAN"
+
 # State persistence
 state:
   file: "/var/lib/wanctl/steering_state.json"

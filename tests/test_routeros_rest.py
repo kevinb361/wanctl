@@ -10,6 +10,7 @@ BACK-01, BACK-02: Comprehensive coverage for REST API client including:
 - Connection testing and cleanup
 """
 
+import json
 import logging
 import os
 from unittest.mock import MagicMock, patch
@@ -811,6 +812,211 @@ class TestMangleRule:
         result = rest_client._handle_mangle_print(cmd)
 
         assert result == [{"comment": "ADAPTIVE: Steer latency-sensitive to ATT", ".id": "*313"}]
+
+
+# =============================================================================
+# TestRouteOperations - IP Route Print/Enable/Disable Tests
+# =============================================================================
+
+
+class TestRouteOperations:
+    """Tests for RouterOS /ip route REST command support."""
+
+    def test_route_print_filters_dst_address(self, rest_client, mock_session):
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = [
+            {"dst-address": "0.0.0.0/0", "comment": "Spectrum", ".id": "*1"},
+            {"dst-address": "10.0.0.0/24", "comment": "LAN", ".id": "*2"},
+        ]
+        mock_session.get.return_value = response
+
+        rc, stdout, stderr = rest_client.run_cmd(
+            '/ip/route/print detail where dst-address="0.0.0.0/0"', capture=True
+        )
+
+        assert rc == 0
+        assert stderr == ""
+        assert json.loads(stdout) == [
+            {"dst-address": "0.0.0.0/0", "comment": "Spectrum", ".id": "*1"}
+        ]
+
+    def test_route_print_filters_exact_comment(self, rest_client, mock_session):
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = [
+            {"comment": "Spectrum", ".id": "*1"},
+            {"comment": "ATT", ".id": "*2"},
+        ]
+        mock_session.get.return_value = response
+
+        rc, stdout, _ = rest_client.run_cmd('/ip route print detail where comment="Spectrum"')
+
+        assert rc == 0
+        assert json.loads(stdout) == [{"comment": "Spectrum", ".id": "*1"}]
+
+    def test_route_print_filters_comment_contains(self, rest_client, mock_session):
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = [
+            {"comment": "Spectrum", ".id": "*1"},
+            {"comment": "Force ATT_OUT to ATT WAN", ".id": "*6"},
+        ]
+        mock_session.get.return_value = response
+
+        rc, stdout, _ = rest_client.run_cmd('/ip route print detail where comment~"ATT"')
+
+        assert rc == 0
+        assert json.loads(stdout) == [{"comment": "Force ATT_OUT to ATT WAN", ".id": "*6"}]
+
+    def test_route_print_get_failure_fails_closed(self, rest_client, mock_session):
+        response = MagicMock()
+        response.ok = False
+        response.status_code = 500
+        response.text = "Router error"
+        mock_session.get.return_value = response
+
+        rc, stdout, stderr = rest_client.run_cmd('/ip route print detail where comment="Spectrum"')
+
+        assert rc == 1
+        assert stdout == ""
+        assert stderr == "Command failed"
+
+    def test_route_disable_by_comment_posts_id(self, rest_client, mock_session):
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"comment": "Spectrum", ".id": "*1", "disabled": "false"}]
+        mock_session.get.return_value = get_response
+        post_response = MagicMock()
+        post_response.ok = True
+        mock_session.post.return_value = post_response
+
+        rc, stdout, _ = rest_client.run_cmd('/ip route disable [find comment="Spectrum"]')
+
+        assert rc == 0
+        result = json.loads(stdout)
+        assert result["status"] == "ok"
+        assert result["changed"] is True
+        assert result["route_id"] == "*1"
+        mock_session.post.assert_called_once()
+        assert mock_session.post.call_args[1]["json"] == {".id": "*1"}
+
+    def test_route_enable_by_comment_posts_id(self, rest_client, mock_session):
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"comment": "ATT", ".id": "*2", "disabled": "true"}]
+        mock_session.get.return_value = get_response
+        post_response = MagicMock()
+        post_response.ok = True
+        mock_session.post.return_value = post_response
+
+        rc, stdout, _ = rest_client.run_cmd('/ip route enable [find comment="ATT"]')
+
+        assert rc == 0
+        result = json.loads(stdout)
+        assert result["status"] == "ok"
+        assert result["changed"] is True
+        assert result["route_id"] == "*2"
+        assert mock_session.post.call_args[0][0] == f"{rest_client.base_url}/ip/route/enable"
+        assert mock_session.post.call_args[1]["json"] == {".id": "*2"}
+
+    def test_route_disable_already_disabled_is_noop(self, rest_client, mock_session):
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"comment": "Spectrum", ".id": "*1", "disabled": "true"}]
+        mock_session.get.return_value = get_response
+
+        rc, stdout, _ = rest_client.run_cmd('/ip route disable [find comment="Spectrum"]')
+
+        assert rc == 0
+        result = json.loads(stdout)
+        assert result["changed"] is False
+        assert result["noop"] is True
+        mock_session.post.assert_not_called()
+
+    def test_route_enable_already_enabled_is_noop(self, rest_client, mock_session):
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"comment": "ATT", ".id": "*2", "disabled": "false"}]
+        mock_session.get.return_value = get_response
+
+        rc, stdout, _ = rest_client.run_cmd('/ip route enable [find comment="ATT"]')
+
+        assert rc == 0
+        result = json.loads(stdout)
+        assert result["changed"] is False
+        assert result["noop"] is True
+        mock_session.post.assert_not_called()
+
+    def test_route_action_zero_matches_fails_without_post(self, rest_client, mock_session):
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = []
+        mock_session.get.return_value = get_response
+
+        rc, stdout, stderr = rest_client.run_cmd('/ip route disable [find comment="Spectrum"]')
+
+        assert rc == 1
+        assert stdout == ""
+        assert stderr == "Command failed"
+        mock_session.post.assert_not_called()
+
+    def test_route_action_multiple_matches_fails_without_post(self, rest_client, mock_session):
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [
+            {"comment": "Spectrum", ".id": "*1", "disabled": "false"},
+            {"comment": "Spectrum", ".id": "*2", "disabled": "false"},
+        ]
+        mock_session.get.return_value = get_response
+
+        rc, _, _ = rest_client.run_cmd('/ip route disable [find comment="Spectrum"]')
+
+        assert rc == 1
+        mock_session.post.assert_not_called()
+
+    def test_route_action_get_failure_fails_without_post(self, rest_client, mock_session):
+        get_response = MagicMock()
+        get_response.ok = False
+        get_response.status_code = 500
+        mock_session.get.return_value = get_response
+
+        rc, _, _ = rest_client.run_cmd('/ip route disable [find comment="Spectrum"]')
+
+        assert rc == 1
+        mock_session.post.assert_not_called()
+
+    def test_route_action_post_failure_fails(self, rest_client, mock_session):
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"comment": "Spectrum", ".id": "*1", "disabled": "false"}]
+        mock_session.get.return_value = get_response
+        post_response = MagicMock()
+        post_response.ok = False
+        post_response.status_code = 403
+        post_response.text = "forbidden"
+        mock_session.post.return_value = post_response
+
+        rc, stdout, stderr = rest_client.run_cmd('/ip route disable [find comment="Spectrum"]')
+
+        assert rc == 1
+        assert stdout == ""
+        assert stderr == "Command failed"
+
+    def test_route_disable_direct_id_posts_id(self, rest_client, mock_session):
+        get_response = MagicMock()
+        get_response.ok = True
+        get_response.json.return_value = [{"comment": "Force ATT_OUT to ATT WAN", ".id": "*6", "disabled": "false"}]
+        mock_session.get.return_value = get_response
+        post_response = MagicMock()
+        post_response.ok = True
+        mock_session.post.return_value = post_response
+
+        rc, stdout, _ = rest_client.run_cmd("/ip route disable *6")
+
+        assert rc == 0
+        assert json.loads(stdout)["route_id"] == "*6"
+        assert mock_session.post.call_args[1]["json"] == {".id": "*6"}
 
 
 # =============================================================================

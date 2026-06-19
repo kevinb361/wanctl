@@ -359,6 +359,25 @@ class SteeringConfig(BaseConfig):
             },
         }
 
+    def _load_route_management_config(self) -> None:
+        """Load inert route-management config defaults.
+
+        Phase 252 exposes the config surface and dry-run planning seam only.
+        Active route mutation remains blocked by offline validators and the
+        route manager until guard/canary phases are implemented.
+        """
+        route_management = self.data.get("route_management", {})
+        if not isinstance(route_management, dict):
+            self.route_management_enabled = False
+            self.route_management_mode = "off"
+            self.route_management_routes = {}
+            return
+
+        self.route_management_enabled = route_management.get("enabled", False)
+        self.route_management_mode = route_management.get("mode", "off")
+        routes = route_management.get("routes", {})
+        self.route_management_routes = routes if isinstance(routes, dict) else {}
+
     def _load_wan_state_config(self) -> None:
         """Load WAN-aware steering configuration.
 
@@ -731,6 +750,7 @@ class SteeringConfig(BaseConfig):
         self._load_cake_queues()  # Depends on _load_topology for primary_wan
         self._load_operational_mode()
         self._load_confidence_config()  # Depends on _load_operational_mode for use_confidence_scoring
+        self._load_route_management_config()
         self._load_wan_state_config()  # Depends on confidence for steer_threshold
 
         # Thresholds and bounds

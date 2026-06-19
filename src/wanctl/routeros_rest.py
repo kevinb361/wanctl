@@ -283,6 +283,15 @@ class RouterOSREST:
             return self._handle_mangle_print(cmd, timeout=timeout_val)
         if cmd.startswith("/ip firewall mangle"):
             return self._handle_mangle_rule(cmd, timeout=timeout_val)
+        if cmd.startswith("/ip route print") or cmd.startswith("/ip/route/print"):
+            return self._handle_route_print(cmd, timeout=timeout_val)
+        if (
+            cmd.startswith("/ip route enable")
+            or cmd.startswith("/ip/route/enable")
+            or cmd.startswith("/ip route disable")
+            or cmd.startswith("/ip/route/disable")
+        ):
+            return self._handle_route_rule(cmd, timeout=timeout_val)
         self.logger.warning(f"Unsupported command for REST API: {cmd}")
         return None
 
@@ -571,6 +580,143 @@ class RouterOSREST:
 
         except requests.RequestException as e:
             self.logger.error(f"REST API error: {e}")
+            return None
+
+    def _parse_where_filter(self, cmd: str) -> tuple[str, str, bool] | None:
+        """Extract supported route print where filters.
+
+        Returns (field, value, contains_match). Supports exact ``comment=`` and
+        ``dst-address=`` plus contains-style ``comment~``.
+        """
+        match = re.search(r'where (comment|dst-address)(~|=)"([^"]+)"', cmd)
+        if not match:
+            return None
+        return match.group(1), match.group(3), match.group(2) == "~"
+
+    def _parse_route_action_anchor(self, cmd: str) -> tuple[str, str] | None:
+        """Extract route action anchor as (field, value)."""
+        comment_match = re.search(r'\[find comment="([^"]+)"\]', cmd)
+        if comment_match:
+            return "comment", comment_match.group(1)
+        id_find_match = re.search(r'\[find \.id="?([^"\]]+)"?\]', cmd)
+        if id_find_match:
+            return ".id", id_find_match.group(1)
+        direct_id_match = re.search(r"/(?:ip route|ip/route) (?:enable|disable) (\*\S+)", cmd)
+        if direct_id_match:
+            return ".id", direct_id_match.group(1)
+        return None
+
+    def _handle_route_print(
+        self, cmd: str, timeout: int | None = None
+    ) -> list[dict[str, Any]] | None:
+        """Handle /ip route print commands via REST."""
+        timeout_val = timeout if timeout is not None else self.timeout
+        url = f"{self.base_url}/ip/route"
+        filter_spec = self._parse_where_filter(cmd)
+
+        try:
+            resp = self._request("GET", url, timeout=timeout_val)
+            if not resp.ok:
+                self.logger.error(f"Failed to get routes: {resp.status_code}")
+                return None
+
+            items = resp.json()
+            if filter_spec is None:
+                return items  # type: ignore[no-any-return]
+
+            field, value, contains_match = filter_spec
+            matched = []
+            for item in items:
+                item_value = item.get(field)
+                if not isinstance(item_value, str):
+                    continue
+                if (contains_match and value in item_value) or (
+                    not contains_match and item_value == value
+                ):
+                    matched.append(item)
+            return matched
+
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error getting routes: {e}")
+            return None
+
+    def _find_unique_route(
+        self, field: str, value: str, timeout: int | None = None
+    ) -> dict[str, Any] | None:
+        """Find exactly one route by field/value; fail closed on ambiguity."""
+        routes = self._handle_route_print("/ip route print", timeout=timeout)
+        if routes is None:
+            return None
+        matched = [route for route in routes if route.get(field) == value]
+        if len(matched) != 1:
+            self.logger.error(
+                f"Route lookup for {field}={value!r} matched {len(matched)} routes; refusing mutation"
+            )
+            return None
+        return matched[0]
+
+    def _route_disabled_bool(self, route: dict[str, Any]) -> bool | None:
+        """Parse RouterOS route disabled field conservatively."""
+        disabled = route.get("disabled")
+        if isinstance(disabled, bool):
+            return disabled
+        if isinstance(disabled, str):
+            lowered = disabled.lower()
+            if lowered == "true":
+                return True
+            if lowered == "false":
+                return False
+        return None
+
+    def _handle_route_rule(self, cmd: str, timeout: int | None = None) -> dict | None:
+        """Handle idempotent /ip route enable/disable commands."""
+        timeout_val = timeout if timeout is not None else self.timeout
+        action = "enable" if " enable" in cmd or "/enable" in cmd else "disable"
+        desired_disabled = action == "disable"
+        anchor = self._parse_route_action_anchor(cmd)
+        if anchor is None:
+            self.logger.error(f"Could not parse route anchor from: {cmd}")
+            return None
+
+        field, value = anchor
+        route = self._find_unique_route(field, value, timeout=timeout_val)
+        if route is None:
+            return None
+
+        route_id = route.get(".id")
+        if not isinstance(route_id, str) or not route_id:
+            self.logger.error(f"Route missing .id for {field}={value!r}")
+            return None
+
+        current_disabled = self._route_disabled_bool(route)
+        if current_disabled is desired_disabled:
+            return {
+                "status": "ok",
+                "action": action,
+                "route_id": route_id,
+                "anchor_type": field,
+                "anchor_value": value,
+                "changed": False,
+                "noop": True,
+            }
+
+        url = f"{self.base_url}/ip/route/{action}"
+        try:
+            resp = self._request("POST", url, json={".id": route_id}, timeout=timeout_val)
+            if resp.ok:
+                return {
+                    "status": "ok",
+                    "action": action,
+                    "route_id": route_id,
+                    "anchor_type": field,
+                    "anchor_value": value,
+                    "changed": True,
+                    "noop": False,
+                }
+            self.logger.error(f"Failed to {action} route {route_id}: {resp.status_code}")
+            return None
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error changing route: {e}")
             return None
 
     def _find_resource_id(

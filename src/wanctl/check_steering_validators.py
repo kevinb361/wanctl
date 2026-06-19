@@ -107,6 +107,11 @@ KNOWN_STEERING_PATHS: set[str] = {
     "confidence.penalty_duration_sec",
     "confidence.penalty_threshold_add",
     "confidence.dry_run",
+    # Route management -- inert and off by default in Phase 252
+    "route_management",
+    "route_management.enabled",
+    "route_management.mode",
+    "route_management.routes",
     # WAN state -- imperatively loaded in _load_wan_state_config
     "wan_state",
     "wan_state.enabled",
@@ -201,6 +206,79 @@ def validate_steering_schema_fields(data: dict) -> list[CheckResult]:
     return results
 
 
+def _add_route_management_error(
+    results: list[CheckResult], field: str, message: str
+) -> None:
+    """Append a route-management cross-field error."""
+    results.append(CheckResult("Cross-field Checks", field, Severity.ERROR, message))
+
+
+def _validate_route_management_route(
+    results: list[CheckResult], route_key: str, route: object
+) -> None:
+    """Validate one route_management.routes entry."""
+    field = f"route_management.routes.{route_key}"
+    if not isinstance(route, dict):
+        _add_route_management_error(results, field, f"{field} must be a mapping")
+        return
+
+    comment = route.get("comment")
+    route_id = route.get("id")
+    if not comment and not route_id:
+        _add_route_management_error(results, field, f"{field} requires either comment or id anchor")
+    for anchor_name, anchor_value in {"comment": comment, "id": route_id}.items():
+        if anchor_value is not None and (not isinstance(anchor_value, str) or not anchor_value.strip()):
+            _add_route_management_error(
+                results,
+                f"{field}.{anchor_name}",
+                f"{field}.{anchor_name} must be a non-empty string",
+            )
+
+
+def _validate_route_management(data: dict) -> list[CheckResult]:
+    """Validate inert Phase 252 route-management config."""
+    results: list[CheckResult] = []
+    route_management = data.get("route_management", {})
+    if not route_management:
+        return results
+    if not isinstance(route_management, dict):
+        _add_route_management_error(results, "route_management", "route_management must be a mapping")
+        return results
+
+    enabled = route_management.get("enabled", False)
+    mode_value = route_management.get("mode", "off")
+    routes = route_management.get("routes", {})
+
+    if not isinstance(enabled, bool):
+        _add_route_management_error(
+            results, "route_management.enabled", "route_management.enabled must be a boolean"
+        )
+    if mode_value not in {"off", "dry_run", "active"}:
+        _add_route_management_error(
+            results,
+            "route_management.mode",
+            "route_management.mode must be one of: off, dry_run, active",
+        )
+    if mode_value == "active":
+        _add_route_management_error(
+            results,
+            "route_management.mode",
+            "route_management.mode active is blocked until guard/canary work is complete",
+        )
+    if enabled:
+        if not isinstance(routes, dict) or not routes:
+            _add_route_management_error(
+                results,
+                "route_management.routes",
+                "route_management.enabled requires at least one configured route",
+            )
+        else:
+            for route_key, route in routes.items():
+                _validate_route_management_route(results, str(route_key), route)
+
+    return results
+
+
 def validate_steering_cross_fields(data: dict) -> list[CheckResult]:
     """Validate steering-specific cross-field constraints.
 
@@ -278,6 +356,8 @@ def validate_steering_cross_fields(data: dict) -> list[CheckResult]:
                     )
                 )
 
+    results.extend(_validate_route_management(data))
+
     return results
 
 
@@ -294,6 +374,11 @@ def check_steering_unknown_keys(data: dict) -> list[CheckResult]:
         # Skip deep validation under alerting.rules (dynamic per-alert-type keys)
         if path.startswith("alerting.rules."):
             continue
+        # Skip dynamic route names under route_management.routes, but validate leaves.
+        if path.startswith("route_management.routes."):
+            suffix = path.removeprefix("route_management.routes.")
+            if suffix and ("." not in suffix or suffix.rsplit(".", 1)[-1] in {"comment", "id"}):
+                continue
 
         if path not in KNOWN_STEERING_PATHS:
             # Try fuzzy match

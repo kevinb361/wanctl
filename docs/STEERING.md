@@ -132,6 +132,30 @@ Create a mangle rule on your router that marks traffic for steering:
 
 The steering daemon enables/disables this rule based on congestion state.
 
+### Route Management Dry-Run Surface
+
+Route management is present as an inert future surface for the Netwatch retirement
+work. Netwatch remains the interim route owner until the ownership guard, live
+observation, and operator-gated canary phases are complete.
+
+```yaml
+route_management:
+  enabled: false
+  mode: "off" # off | dry_run | active; active is blocked in Phase 252
+  routes:
+    spectrum:
+      comment: "Spectrum"
+    att:
+      comment: "ATT"
+    att_policy:
+      comment: "Force ATT_OUT to ATT WAN"
+```
+
+Use `mode: "dry_run"` only for observation. Dry-run records the intended route
+action and target anchor, but it does not mutate RouterOS routes. Do not use this
+section to replace Netwatch until the later guard/canary phases explicitly approve
+active ownership.
+
 ## Enabling Steering
 
 ```bash

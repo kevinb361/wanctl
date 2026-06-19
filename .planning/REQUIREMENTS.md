@@ -20,15 +20,15 @@
 
 ### CFG — Safe Configuration Surface
 
-- [ ] **CFG-01**: Add a config-gated wanctl route-management mode with safe/off default.
-- [ ] **CFG-02**: Support dry-run/observe mode before active mutation; dry-run must emit the intended decision/action without changing RouterOS route state.
-- [ ] **CFG-03**: Validate route-management config fail-closed for malformed route IDs/comments, missing WAN mappings, impossible thresholds, and unsafe active-mode combinations.
+- [x] **CFG-01**: Add a config-gated wanctl route-management mode with safe/off default.
+- [x] **CFG-02**: Support dry-run/observe mode before active mutation; dry-run must emit the intended decision/action without changing RouterOS route state.
+- [x] **CFG-03**: Validate route-management config fail-closed for malformed route IDs/comments, missing WAN mappings, impossible thresholds, and unsafe active-mode combinations.
 
 ### API — RouterOS Route Boundary
 
-- [ ] **API-01**: Implement route enable/disable/read operations through the existing RouterOS integration boundary; no ad hoc shell/SSH route mutation in the hot path.
-- [ ] **API-02**: Route operations are idempotent and comment/ID anchored; repeated enable/disable decisions must not churn RouterOS state or logs.
-- [ ] **API-03**: Router API failures fail closed with visible logs/alerts and do not leave wanctl believing a route state changed when it did not.
+- [x] **API-01**: Implement route enable/disable/read operations through the existing RouterOS integration boundary; no ad hoc shell/SSH route mutation in the hot path.
+- [x] **API-02**: Route operations are idempotent and comment/ID anchored; repeated enable/disable decisions must not churn RouterOS state or logs.
+- [x] **API-03**: Router API failures fail closed with visible logs/alerts and do not leave wanctl believing a route state changed when it did not.
 
 ### GUARD — Ownership Guard
 
@@ -97,12 +97,12 @@
 | INV-01 | Phase 251 | Complete |
 | INV-02 | Phase 251 | Complete |
 | INV-03 | Phase 251 | Complete |
-| CFG-01 | Phase 252 | Pending |
-| CFG-02 | Phase 252 | Pending |
-| CFG-03 | Phase 252 | Pending |
-| API-01 | Phase 252 | Pending |
-| API-02 | Phase 252 | Pending |
-| API-03 | Phase 252 | Pending |
+| CFG-01 | Phase 252 | Complete |
+| CFG-02 | Phase 252 | Complete |
+| CFG-03 | Phase 252 | Complete |
+| API-01 | Phase 252 | Complete |
+| API-02 | Phase 252 | Complete |
+| API-03 | Phase 252 | Complete |
 | GUARD-01 | Phase 253 | Pending |
 | GUARD-02 | Phase 253 | Pending |
 | GUARD-03 | Phase 253 | Pending |
@@ -127,4 +127,4 @@
 
 ---
 *Requirements defined: 2026-06-19*
-*Last updated: 2026-06-19 — Phase 251 route ownership decision and read-only inventory complete*
+*Last updated: 2026-06-19 — Phase 252 config-gated route manager and RouterOS API boundary complete*

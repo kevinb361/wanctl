@@ -37,7 +37,7 @@
 ### Phases
 
 - [x] **Phase 251: Route Ownership Decision + Read-Only Inventory** - Decide/record ownership policy, inspect live Netwatch/routes/scripts read-only, and capture Snapshot-A rollback evidence.
-- [ ] **Phase 252: Config-Gated Route Manager + RouterOS API Boundary** - Add safe/off route-management config, dry-run/observe mode, validation, idempotent route read/enable/disable API wrappers, and RouterOS failure handling.
+- [x] **Phase 252: Config-Gated Route Manager + RouterOS API Boundary** - Add safe/off route-management config, dry-run/observe mode, validation, idempotent route read/enable/disable API wrappers, and RouterOS failure handling.
 - [ ] **Phase 253: Ownership Guard + Decision Logic + Observability** - Add Netwatch conflict guard, multi-signal/hysteretic route decision policy, startup reconciliation/circuit breaker, logs/alerts/health/operator output, and focused tests.
 - [ ] **Phase 254: Dry-Run Observation + Operator-Gated Canary + Retirement Decision** - Run dry-run observation, require explicit approval for any one-WAN active canary, prove rollback, and decide keep/rollback/Netwatch retirement.
 
@@ -77,8 +77,8 @@
 
 **Wave 1**
 
-- [ ] 252-01-PLAN.md — route-management config schema/validation + dry-run mode
-- [ ] 252-02-PLAN.md — RouterOS route API wrapper + idempotence/failure tests
+- [x] 252-01-PLAN.md — route-management config schema/validation + dry-run mode
+- [x] 252-02-PLAN.md — RouterOS route API wrapper + idempotence/failure tests
 
 ### Phase 253: Ownership Guard + Decision Logic + Observability
 

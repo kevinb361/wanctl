@@ -51,6 +51,7 @@ from wanctl.check_steering_validators import (
     validate_steering_cross_fields,
     validate_steering_schema_fields,
 )
+from wanctl.steering.daemon import SteeringConfig
 
 # =============================================================================
 # FIXTURES
@@ -764,6 +765,34 @@ class TestSteeringValidation:
         warns = [r for r in results if r.severity == Severity.WARN and "alerting" in r.field]
         assert len(warns) == 0
 
+    def test_route_management_known_paths_not_flagged_steering(self):
+        """Valid route_management paths do not trigger unknown-key warnings."""
+        data = _valid_steering_data()
+        data["route_management"] = {
+            "enabled": True,
+            "mode": "dry_run",
+            "routes": {
+                "spectrum": {"comment": "Spectrum"},
+                "att": {"comment": "ATT"},
+                "att_policy": {"comment": "Force ATT_OUT to ATT WAN"},
+            },
+        }
+
+        results = check_steering_unknown_keys(data)
+        warns = [r for r in results if r.severity == Severity.WARN and "route_management" in r.field]
+        assert len(warns) == 0
+
+    def test_route_management_defaults_off(self, tmp_path):
+        """Missing route_management loads safe disabled/off defaults."""
+        data = _valid_steering_data()
+        config_path = _write_config(tmp_path, data)
+
+        config = SteeringConfig(config_path)
+
+        assert config.route_management_enabled is False
+        assert config.route_management_mode == "off"
+        assert config.route_management_routes == {}
+
 
 # =============================================================================
 # TestSteeringCrossField
@@ -813,6 +842,54 @@ class TestSteeringCrossField:
         results = validate_steering_cross_fields(data)
         warns = [r for r in results if r.severity == Severity.WARN and "history_size" in r.field]
         assert len(warns) == 1
+
+    def test_route_management_dry_run_valid(self):
+        data = _valid_steering_data()
+        data["route_management"] = {
+            "enabled": True,
+            "mode": "dry_run",
+            "routes": {
+                "spectrum": {"comment": "Spectrum"},
+                "att": {"comment": "ATT"},
+                "att_policy": {"comment": "Force ATT_OUT to ATT WAN"},
+            },
+        }
+
+        results = validate_steering_cross_fields(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert not [r for r in errors if "route_management" in r.field]
+
+    def test_route_management_active_fails_closed(self):
+        data = _valid_steering_data()
+        data["route_management"] = {
+            "enabled": True,
+            "mode": "active",
+            "routes": {"spectrum": {"comment": "Spectrum"}},
+        }
+
+        results = validate_steering_cross_fields(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert any("active" in r.message.lower() for r in errors)
+
+    def test_route_management_enabled_requires_routes(self):
+        data = _valid_steering_data()
+        data["route_management"] = {"enabled": True, "mode": "dry_run"}
+
+        results = validate_steering_cross_fields(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert any("routes" in r.field for r in errors)
+
+    def test_route_management_route_requires_anchor(self):
+        data = _valid_steering_data()
+        data["route_management"] = {
+            "enabled": True,
+            "mode": "dry_run",
+            "routes": {"spectrum": {}},
+        }
+
+        results = validate_steering_cross_fields(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert any("comment" in r.message and "id" in r.message for r in errors)
 
 
 # =============================================================================
