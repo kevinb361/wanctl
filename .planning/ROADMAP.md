@@ -2,6 +2,7 @@
 
 ## Milestones
 
+- 🚧 **v1.54 fping Profiling + Storage Hygiene** — Phases 247–250 (in progress)
 - ✅ **v1.53 Pluggable RTT Measurement Backend** — shipped 2026-06-19 (Phases 238–246; 26/26 REQs; `RttBackend` seam behind icmplib default, `fping` implemented/selectable, live A/B verdict `rollback_trigger / keep-icmplib`, production stayed on icmplib, SAFE-17 held) — `milestones/v1.53-ROADMAP.md`
 - 📌 **Pipeline: WAN route ownership / Netwatch retirement** — pending high-priority follow-up: make exactly one component own WAN route mutation before enabling wanctl route failover; Netwatch remains interim owner until wanctl route ownership is designed, tested, canaried, and operator-approved — `.planning/todos/pending/2026-06-18-route-ownership-netwatch-to-wanctl-failover.md`
 - ✅ **v1.52 Silicom Bypass Operationalization** — shipped 2026-06-14 (Phases 235–237; 15/15 REQs; guarded bypass CLI + boot baseline, two-mode watchdog fail-open, HIL harness, standalone deploy ownership, SAFE-16 held — 10th consecutive zero-controller-diff milestone) — `milestones/v1.52-ROADMAP.md`
@@ -24,13 +25,77 @@
 
 ---
 
-## ✅ v1.53 Pluggable RTT Measurement Backend (Shipped 2026-06-19)
+## 🚧 v1.54 fping Profiling + Storage Hygiene (In Progress)
+
+**Milestone Goal:** Profile fping cycle p99 behavior to understand the Phase 245 `rollback_trigger` verdict and determine a path to a future production flip; simultaneously reduce per-WAN DB write volume via fire-on-change hygiene.
+
+**SAFE-18 invariant:** Controller-path zero-diff across all phases — fping profiling is shadow-only (no control loop mutation); storage hygiene touches only metric emission. Neither axis mutates `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, or fusion logic.
+
+**Phase gate:** TIN-01 consumer audit (Phase 250) may split the milestone. If any `wanctl_cake_tin_*` consumer is count-over-window style, TIN-02/TIN-03 defer to v1.55; the phase closes on the audit finding alone.
+
+### Phases
+
+- [ ] **Phase 247: fping Shadow Capture + Phase 245 Evidence Review** - Run fping in shadow alongside icmplib and re-examine AB-03 threshold methodology
+- [ ] **Phase 248: fping p99 Distribution Analysis + Profiling Verdict** - Compare fping vs icmplib distributions and produce the decision artifact
+- [ ] **Phase 249: Autorate Flat-Gauge Fire-on-Change** - SEED-007 Phase A: audit flat gauges, apply fire-on-change to confirmed candidates
+- [ ] **Phase 250: CAKE Tin Consumer Audit + Conditional Implementation** - SEED-007 Phase B (gated): audit tin consumers, implement skip-on-unchanged if safe
+
+## Phase Details
+
+### Phase 247: fping Shadow Capture + Phase 245 Evidence Review
+**Goal**: fping runs concurrently with icmplib on Spectrum in shadow/read-only mode, capturing raw RTT samples and cycle p99 timing, while the Phase 245 AB-03 threshold methodology is re-examined to distinguish latency vs calibration as the root of the `rollback_trigger` verdict
+**Depends on**: Nothing (first v1.54 phase); must not touch control loop or production defaults
+**Requirements**: PROF-01, PROF-02
+**Success Criteria** (what must be TRUE):
+  1. fping produces per-cycle RTT samples alongside the live icmplib backend without influencing any congestion decision or production config
+  2. Phase 245 AB-03 threshold methodology is documented with a finding: was the verdict driven by fping latency, threshold calibration, or both?
+  3. SAFE-18 passes at phase close: zero diff in protected controller-path files vs v1.53 close
+**Plans**: TBD
+
+### Phase 248: fping p99 Distribution Analysis + Profiling Verdict
+**Goal**: A statistically comparable p99 RTT distribution for fping vs icmplib over a representative Spectrum production window is computed, and a decision artifact answers whether fping is ready for a future default-flip attempt and what (if anything) must change first
+**Depends on**: Phase 247
+**Requirements**: PROF-03, PROF-04
+**Success Criteria** (what must be TRUE):
+  1. A p99 RTT distribution comparison table exists, covering a representative Spectrum production window with both backends
+  2. A decision artifact (verdict document) exists stating: ready / not ready / what-must-change-first for a future fping default-flip attempt
+  3. The artifact explicitly traces back to Phase 245 evidence and Phase 247 threshold-methodology finding
+  4. SAFE-18 passes at phase close: zero diff in protected controller-path files
+**Plans**: TBD
+
+### Phase 249: Autorate Flat-Gauge Fire-on-Change
+**Goal**: Per-metric write rates on both WANs are audited via `wanctl-history --ingestion-rate`; confirmed flat-emitting gauges have the steering fire-on-change pattern applied one candidate per canary cycle with before/after write-rate measurement; each changed metric has unit-test coverage
+**Depends on**: Phase 248 (SAFE-18 establishes the no-mutation baseline for the milestone)
+**Requirements**: GAUGE-01, GAUGE-02, GAUGE-03
+**Success Criteria** (what must be TRUE):
+  1. Audit output identifies which gauges emit at >= 2Hz with near-zero value variance on both WANs
+  2. Each confirmed flat-gauge candidate has fire-on-change applied and before/after write rates are recorded
+  3. Unit tests for each changed metric follow the `SimpleNamespace`-based pattern from `tests/steering/test_steering_metrics_recording.py::TestSteeringEnabledFireOnChange`
+  4. SAFE-18 passes at phase close: confirmed zero diff in `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion
+**Plans**: TBD
+
+### Phase 250: CAKE Tin Consumer Audit + Conditional Implementation
+**Goal**: All consumers of `wanctl_cake_tin_*` metrics are classified as last-value-style or count-over-window; if all are last-value-style, per-tin skip-on-unchanged cache is implemented and write-rate reduction is measured; if any consumer needs continuous sampling, Phase B defers to v1.55; SAFE-18 is verified at milestone close
+**Depends on**: Phase 249
+**Requirements**: TIN-01, TIN-02, TIN-03, SAFE-18
+**Success Criteria** (what must be TRUE):
+  1. A consumer audit document classifies every `wanctl_cake_tin_*` consumer across repo, docs, and dashboard queries as last-value-style or count-over-window, with explicit per-consumer disposition
+  2. If all consumers are last-value-style: per-tin per-direction skip-on-unchanged cache ships with before/after write-rate measurement and a defined rollback gate (emission rate regression or downstream query failure)
+  3. If any consumer is count-over-window: Phase B is explicitly deferred to v1.55 with the blocking consumer identified, and the phase closes on the audit finding alone
+  4. SAFE-18 milestone-close proof passes: zero diff in protected controller-path files vs v1.53 close at HEAD
+**Plans**: TBD
+**UI hint**: no
+
+## Phases (Archived Milestones)
+
+<details>
+<summary>✅ v1.53 Pluggable RTT Measurement Backend (Phases 238–246) — SHIPPED 2026-06-19</summary>
 
 Full details: `milestones/v1.53-ROADMAP.md` · Requirements: `milestones/v1.53-REQUIREMENTS.md` · Audit: `milestones/v1.53-MILESTONE-AUDIT.md`
 
 Summary: introduced the `RttBackend` seam, kept `icmplib` byte-identical/default, implemented selectable `fping` with fallback and attribution, ran the live A/B, and closed with `stay-on-icmplib` after the pre-registered safety gate returned `rollback_trigger`. Future fping work is deferred as non-production `FPING-PROFILE-01`.
 
-## Phases (Archived Milestones)
+</details>
 
 <details>
 <summary>✅ v1.52 Silicom Bypass Operationalization (Phases 235–237) — SHIPPED 2026-06-14</summary>
@@ -67,19 +132,33 @@ Full details: `milestones/v1.50-ROADMAP.md` · Audit: `milestones/v1.50-MILESTON
 
 ---
 
+## Progress
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 247. fping Shadow Capture + Phase 245 Evidence Review | v1.54 | 0/TBD | Not started | - |
+| 248. fping p99 Distribution Analysis + Profiling Verdict | v1.54 | 0/TBD | Not started | - |
+| 249. Autorate Flat-Gauge Fire-on-Change | v1.54 | 0/TBD | Not started | - |
+| 250. CAKE Tin Consumer Audit + Conditional Implementation | v1.54 | 0/TBD | Not started | - |
+
+---
+
 ## Backlog
 
 ### Parallel (event-gated)
 
 - **Phase 218 (v1.45 VERIFY watch-list)** — dormant. The flapping peak-counter instrumentation lives in the native wanctl controller, which no longer runs Spectrum/ATT; this watch item stays dormant unless `wanctl@` returns to live duty or the check is reimplemented against bridge/cake-autorate telemetry.
 
-### Deferred (post-v1.53 candidates)
+### Deferred (post-v1.54 candidates)
 
-- **ROLE-01 (native-controller retirement decision)** — time/event-gated; needs ≥14 consecutive stable cake-autorate days PLUS one exercised rollback drill (v1.52 HIL harness enables the drill). `WANCTL_CAKE_AUTORATE_FUTURE.md` "What not to delete yet" governs until then; BOUND-01 guard protects the surface.
-- **TAIL-01 (Spectrum loaded-latency tail)** — NOT exhausted per 2026-06-10 Codex review; valid future evidence/investigation milestone, different shape.
-- **SEED-007 (storage hygiene fire-on-change)** — must be reshaped for bridge writers (state bridges now own metrics-DB writes) and requires a consumer audit before any sparse-write change. Deferred as its own thesis.
+- **FLIP-02** — if PROF-04 (Phase 248) verdict is positive, operator-gated production flip to fping as default backend under armed rollback.
+- **FPING-BENCH-01** — controlled A/B re-run with refined AB-03 thresholds derived from v1.54 PROF-02/03 profiling evidence.
+- **TIN-PHASE-B-DEFER** — CAKE tin skip-on-unchanged deferred from Phase 250 if TIN-01 consumer audit finds a count-over-window consumer; becomes v1.55 scope.
+- **GAUGE-EXT-01** — extend fire-on-change to additional per-metric candidates discovered post-v1.54 soak.
+- **ROLE-01 (native-controller retirement decision)** — time/event-gated; needs >= 14 consecutive stable cake-autorate days PLUS one exercised rollback drill. `WANCTL_CAKE_AUTORATE_FUTURE.md` "What not to delete yet" governs until then; BOUND-01 guard protects the surface.
+- **TAIL-01 (Spectrum loaded-latency tail)** — valid future evidence/investigation milestone, different shape.
 - **SEED-005 (conservative UL tuning sweep)** — deferred not dead; native wanctl remains first-class on RouterOS deployments.
-- **RECLAIM-04** — Spectrum upload reclaim re-attempt with a fundamentally different probe shape. Carried indefinitely after Phase 215 bounded VOID exhaustion; now a cake-autorate config question (`adjust_ul_shaper_rate=1`) under fixed-18M UL.
+- **RECLAIM-04** — Spectrum upload reclaim re-attempt with a fundamentally different probe shape. Carried indefinitely; now a cake-autorate config question (`adjust_ul_shaper_rate=1`) under fixed-18M UL.
 
 ### Deferred from v1.53 (future RTT-backend work)
 

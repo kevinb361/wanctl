@@ -54,27 +54,25 @@
 
 ## Traceability
 
-Populated by roadmapper.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROF-01 | TBD | Pending |
-| PROF-02 | TBD | Pending |
-| PROF-03 | TBD | Pending |
-| PROF-04 | TBD | Pending |
-| GAUGE-01 | TBD | Pending |
-| GAUGE-02 | TBD | Pending |
-| GAUGE-03 | TBD | Pending |
-| TIN-01 | TBD | Pending |
-| TIN-02 | TBD | Pending |
-| TIN-03 | TBD | Pending |
-| SAFE-18 | TBD | Pending |
+| PROF-01 | Phase 247 | Pending |
+| PROF-02 | Phase 247 | Pending |
+| PROF-03 | Phase 248 | Pending |
+| PROF-04 | Phase 248 | Pending |
+| GAUGE-01 | Phase 249 | Pending |
+| GAUGE-02 | Phase 249 | Pending |
+| GAUGE-03 | Phase 249 | Pending |
+| TIN-01 | Phase 250 | Pending |
+| TIN-02 | Phase 250 | Pending |
+| TIN-03 | Phase 250 | Pending |
+| SAFE-18 | Phase 250 (cross-phase, verified at every boundary) | Pending |
 
 **Coverage:**
 - v1.54 requirements: 11 total
-- Mapped to phases: TBD
-- Unmapped: TBD
+- Mapped to phases: 11
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-19*
-*Last updated: 2026-06-19 after initial v1.54 definition*
+*Last updated: 2026-06-18 — traceability table populated by roadmapper*
