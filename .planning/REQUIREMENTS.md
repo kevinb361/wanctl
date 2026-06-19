@@ -22,9 +22,9 @@
 
 ### GAUGE — Autorate Flat-Gauge Fire-on-Change (SEED-007 Phase A)
 
-- [ ] **GAUGE-01**: Audit per-metric write rates on both WANs via `wanctl-history --ingestion-rate`; identify gauges emitting at ≥2Hz with near-zero value variance.
-- [ ] **GAUGE-02**: Apply the steering fire-on-change pattern to each confirmed candidate, one per canary cycle with before/after write-rate measurement.
-- [ ] **GAUGE-03**: Unit tests for each changed metric, using the SimpleNamespace-based pattern from `tests/steering/test_steering_metrics_recording.py::TestSteeringEnabledFireOnChange`.
+- [x] **GAUGE-01**: Audit per-metric write rates on both WANs via `wanctl-history --ingestion-rate`; identify gauges emitting at ≥2Hz with near-zero value variance. Phase 249 found no current stable-window candidates.
+- [x] **GAUGE-02**: Apply the steering fire-on-change pattern to each confirmed candidate, one per canary cycle with before/after write-rate measurement. Complete by empty set: no confirmed candidates.
+- [x] **GAUGE-03**: Unit tests for each changed metric, using the SimpleNamespace-based pattern from `tests/steering/test_steering_metrics_recording.py::TestSteeringEnabledFireOnChange`. Complete by empty set: no changed metrics.
 
 ### TIN — CAKE Tin Skip-on-Unchanged (SEED-007 Phase B, gated on consumer audit)
 
@@ -45,7 +45,7 @@
 
 ### Storage
 
-- **GAUGE-EXT-01**: Extend fire-on-change to additional per-metric candidates discovered post-v1.54 soak.
+- **GAUGE-EXT-01**: Extend fire-on-change to additional per-metric candidates discovered post-v1.54 soak. Phase 249 noted native-controller 3600s-only Spectrum CAKE zero-valued candidates, but they were canary-contaminated and not current stable deployment targets.
 - **TIN-PHASE-B-DEFER**: CAKE tin skip-on-unchanged deferred from v1.54 if consumer audit (TIN-01) finds a count-over-window consumer that needs fixing first.
 
 ## Out of Scope
@@ -71,9 +71,9 @@
 | FPING-FRESHNESS-01 | Phase 248.2 | Complete (stale-window repair passed; keep deferred) |
 | FPING-PARITY-01 | Phase 248.3 | Complete (native config aligned for fair canary) |
 | FPING-STARTUP-01 | Phase 248.4 | Complete (startup first-sample fallback suppressed) |
-| GAUGE-01 | Phase 249 | Pending |
-| GAUGE-02 | Phase 249 | Pending |
-| GAUGE-03 | Phase 249 | Pending |
+| GAUGE-01 | Phase 249 | Complete (live audit; no current stable candidates) |
+| GAUGE-02 | Phase 249 | Complete by empty set |
+| GAUGE-03 | Phase 249 | Complete by empty set |
 | TIN-01 | Phase 250 | Pending |
 | TIN-02 | Phase 250 | Pending |
 | TIN-03 | Phase 250 | Pending |

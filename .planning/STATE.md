@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.54
 milestone_name: fping Profiling + Storage Hygiene
 status: ready_to_plan
-stopped_at: Phase 248.4 complete — fping startup first-sample fallback fixed; ready to plan Phase 249 or operator-gated keep canary
-last_updated: 2026-06-19T20:18:09Z
-last_activity: 2026-06-19 -- Phase 248.4 suppressed native fping startup fallback checks and verified with bounded canary/rollback
+stopped_at: Phase 249 complete — flat-gauge audit found no current stable-window candidates; ready to plan Phase 250
+last_updated: 2026-06-19T20:36:48Z
+last_activity: 2026-06-19 -- Phase 249 audited live ingestion rates and closed as no-op because no current >=2Hz flat gauges were confirmed
 progress:
   total_phases: 8
-  completed_phases: 6
-  total_plans: 9
-  completed_plans: 9
-  percent: 75
+  completed_phases: 7
+  total_plans: 10
+  completed_plans: 10
+  percent: 88
 ---
 
 # Session State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 249 — Autorate Flat-Gauge Fire-on-Change, unless prioritizing an operator-gated fping keep canary
+**Current focus:** Phase 250 — CAKE Tin Consumer Audit + Conditional Implementation
 
 ## Current Position
 
-Phase: 249
+Phase: 250
 Plan: Not started
 Status: Ready to plan
 Last activity: 2026-06-19
 
-Progress: [████████░░] 75%
+Progress: [█████████░] 88%
 
 ## Active Blockers / Concerns
 
@@ -43,6 +43,7 @@ Progress: [████████░░] 75%
 - Phase 248.2 complete: cadence-aware fping cached-sample staleness limits shipped in `WANController.measure_rtt()`. A bounded native Spectrum fping canary showed `stale_count=0`, `NRestarts=0`, and healthy cycle budget after startup, then rolled back cleanly to external cake-autorate + `icmplib`.
 - Phase 248.3 complete: native Spectrum CAKE config now matches the external cake-autorate trial envelope for fair future fping canaries: 550M green floor / 600M ceiling, `rtt 25ms`, download no-ack-filter, upload ack-filter.
 - Phase 248.4 complete: native fping startup now treats the bounded first-sample no-cache window as producer readiness instead of ICMP failure. Live canary showed `wait_count=1`, `no_data_count=0`, `fallback_warn_count=0`, `stale_count=0`, and `NRestarts=0`, then rolled back to external cake-autorate + `icmplib`.
+- Phase 249 complete: live read-only ingestion audit found no current stable-window >=2Hz flat-gauge candidates on Spectrum or ATT. 3600s-only Spectrum CAKE zero rows were canary-contaminated by earlier native controller tests and deferred; no code change was warranted.
 
 ## Deferred Items (carried into v1.54)
 
@@ -78,11 +79,11 @@ See `.planning/todos/pending/` — 7+ active todos as listed in Deferred Items.
 
 ### Blockers / Concerns
 
-Phases 248.2–248.4 fixed the known native fping mechanical blockers: stale-window mismatch, native/external CAKE parity, and startup first-sample fallback noise. Native fping keep remains deferred to an operator-gated keep canary. Conditional TIN gate still applies later.
+Phases 248.2–248.4 fixed the known native fping mechanical blockers: stale-window mismatch, native/external CAKE parity, and startup first-sample fallback noise. Phase 249 found no current flat-gauge write-rate candidates. Native fping keep remains deferred to an operator-gated keep canary. Conditional TIN gate applies next in Phase 250.
 
 ## Session Continuity
 
-Last session: 2026-06-19T20:18:09Z
-Stopped at: Phase 248.4 complete with rollback; ready to plan Phase 249 or an operator-gated fping keep canary
+Last session: 2026-06-19T20:36:48Z
+Stopped at: Phase 249 complete; ready to plan Phase 250 TIN consumer audit or an operator-gated fping keep canary
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)

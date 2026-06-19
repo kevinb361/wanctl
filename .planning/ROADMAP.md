@@ -41,7 +41,7 @@
 - [x] **Phase 248.2: fping Freshness / Staleness Repair** - Fix cadence-aware fping cached-sample staleness semantics; short native canary passed the stale-window gate and rolled back cleanly
 - [x] **Phase 248.3: Native Spectrum CAKE Parity** - Align native Spectrum CAKE config with external cake-autorate envelope for fair future fping canaries
 - [x] **Phase 248.4: fping Startup First-Sample Readiness** - Suppress native fping startup fallback noise while preserving icmplib fallback behavior
-- [ ] **Phase 249: Autorate Flat-Gauge Fire-on-Change** - SEED-007 Phase A: audit flat gauges, apply fire-on-change to confirmed candidates
+- [x] **Phase 249: Autorate Flat-Gauge Fire-on-Change** - SEED-007 Phase A: live audit found no current stable-window >=2Hz flat-gauge candidates; no-op close
 - [ ] **Phase 250: CAKE Tin Consumer Audit + Conditional Implementation** - SEED-007 Phase B (gated): audit tin consumers, implement skip-on-unchanged if safe
 
 ## Phase Details
@@ -167,7 +167,7 @@ Plans:
 
 ### Phase 249: Autorate Flat-Gauge Fire-on-Change
 
-**Goal**: Per-metric write rates on both WANs are audited via `wanctl-history --ingestion-rate`; confirmed flat-emitting gauges have the steering fire-on-change pattern applied one candidate per canary cycle with before/after write-rate measurement; each changed metric has unit-test coverage
+**Goal**: Per-metric write rates on both WANs are audited via `wanctl-history --ingestion-rate`; confirmed flat-emitting gauges have the steering fire-on-change pattern applied one candidate per canary cycle with before/after write-rate measurement; each changed metric has unit-test coverage. Phase 249 closed as an audit-driven no-op because the current stable 60s/300s windows had zero >=2Hz flat-gauge candidates on either WAN.
 **Depends on**: Phase 248.4
 **Requirements**: GAUGE-01, GAUGE-02, GAUGE-03
 **Success Criteria** (what must be TRUE):
@@ -177,7 +177,12 @@ Plans:
   3. Unit tests for each changed metric follow the `SimpleNamespace`-based pattern from `tests/steering/test_steering_metrics_recording.py::TestSteeringEnabledFireOnChange`
   4. No unrelated controller-path changes are introduced by storage hygiene work
 
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+
+**Wave 1**
+
+- [x] 249-01-PLAN.md — live ingestion-rate + variance audit; no current stable candidates, no code change (GAUGE-01..03)
 
 ### Phase 250: CAKE Tin Consumer Audit + Conditional Implementation
 
@@ -250,7 +255,7 @@ Full details: `milestones/v1.50-ROADMAP.md` · Audit: `milestones/v1.50-MILESTON
 | 248.2. fping Freshness / Staleness Repair | v1.54 | 1/1 | Complete | 2026-06-19 |
 | 248.3. Native Spectrum CAKE Parity | v1.54 | 1/1 | Complete | 2026-06-19 |
 | 248.4. fping Startup First-Sample Readiness | v1.54 | 1/1 | Complete | 2026-06-19 |
-| 249. Autorate Flat-Gauge Fire-on-Change | v1.54 | 0/TBD | Not started | - |
+| 249. Autorate Flat-Gauge Fire-on-Change | v1.54 | 1/1 | Complete | 2026-06-19 |
 | 250. CAKE Tin Consumer Audit + Conditional Implementation | v1.54 | 0/TBD | Not started | - |
 
 ---
@@ -266,7 +271,7 @@ Full details: `milestones/v1.50-ROADMAP.md` · Audit: `milestones/v1.50-MILESTON
 - **FLIP-02 follow-up** — permanent fping/native keep remains deferred to an operator-gated keep canary. The known mechanical blockers are closed: Phase 248.2 fixed stale-window behavior, Phase 248.3 aligned native Spectrum CAKE shape, and Phase 248.4 suppressed startup first-sample fallback noise.
 - **FPING-BENCH-01** — controlled A/B re-run with refined AB-03 thresholds derived from v1.54 PROF-02/03 profiling evidence.
 - **TIN-PHASE-B-DEFER** — CAKE tin skip-on-unchanged deferred from Phase 250 if TIN-01 consumer audit finds a count-over-window consumer; becomes v1.55 scope.
-- **GAUGE-EXT-01** — extend fire-on-change to additional per-metric candidates discovered post-v1.54 soak.
+- **GAUGE-EXT-01** — extend fire-on-change to additional per-metric candidates discovered post-v1.54 soak. Phase 249 found no current stable-window candidates; 3600s-only Spectrum CAKE zero-valued rows were canary-contaminated and deferred, not mutated.
 - **ROLE-01 (native-controller retirement decision)** — time/event-gated; needs >= 14 consecutive stable cake-autorate days PLUS one exercised rollback drill. `WANCTL_CAKE_AUTORATE_FUTURE.md` "What not to delete yet" governs until then; BOUND-01 guard protects the surface.
 - **TAIL-01 (Spectrum loaded-latency tail)** — valid future evidence/investigation milestone, different shape.
 - **SEED-005 (conservative UL tuning sweep)** — deferred not dead; native wanctl remains first-class on RouterOS deployments.
