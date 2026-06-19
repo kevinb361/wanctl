@@ -57,8 +57,8 @@
 Plans:
 **Wave 1**
 
-- [ ] 247-01-PLAN.md — Phase 245 AB-03 methodology review document (PROF-02)
-- [ ] 247-02-PLAN.md — SAFE-18 boundary verifier script + tests
+- [x] 247-01-PLAN.md — Phase 245 AB-03 methodology review document (PROF-02)
+- [x] 247-02-PLAN.md — SAFE-18 boundary verifier script + tests
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -161,7 +161,7 @@ Full details: `milestones/v1.50-ROADMAP.md` · Audit: `milestones/v1.50-MILESTON
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 247. fping Shadow Capture + Phase 245 Evidence Review | v1.54 | 0/4 | Planning | - |
+| 247. fping Shadow Capture + Phase 245 Evidence Review | v1.54 | 2/4 | In Progress|  |
 | 248. fping p99 Distribution Analysis + Profiling Verdict | v1.54 | 0/TBD | Not started | - |
 | 249. Autorate Flat-Gauge Fire-on-Change | v1.54 | 0/TBD | Not started | - |
 | 250. CAKE Tin Consumer Audit + Conditional Implementation | v1.54 | 0/TBD | Not started | - |
