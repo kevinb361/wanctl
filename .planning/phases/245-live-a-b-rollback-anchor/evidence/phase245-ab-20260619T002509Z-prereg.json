@@ -1,0 +1,5 @@
+{
+  "prereg_commit_sha": "67faf6d56081443376a3c39712452957f780d2ac",
+  "thresholds_blob_sha": "fa3e95c6b080ed772281a62c63ac7ec05897d4f5",
+  "thresholds_path": "scripts/phase245-thresholds.json"
+}

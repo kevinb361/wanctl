@@ -1,0 +1,71 @@
+{
+  "evaluated_at": "2026-06-19T00:33:51.040150Z",
+  "gates": {
+    "cycle_budget_nonregression": {
+      "value": {
+        "avg_delta_pct": -2.028397565922921,
+        "avg_threshold_pct": 20.0,
+        "fping_p99_ms": 112.4,
+        "p99_ceiling_ms": 10.0,
+        "p99_delta_pct": -6.876553438276717,
+        "p99_threshold_pct": 20.0
+      },
+      "verdict": "fail"
+    },
+    "loss_detection_nonregression": {
+      "value": {
+        "delta_pct": 0.0,
+        "fping_loss_rate_pct": 0.0,
+        "icmplib_loss_rate_pct": 0.0,
+        "threshold_pct": 1.0
+      },
+      "verdict": "pass"
+    },
+    "min_backend_cycle_fraction": {
+      "value": {
+        "fping_fraction": 1.0,
+        "icmplib_fraction": 1.0,
+        "min_fraction": 1.0,
+        "threshold": 0.95
+      },
+      "verdict": "pass"
+    },
+    "rtt_agreement": {
+      "value": {
+        "delta_ms": 0.35999999999999943,
+        "median_fping_ms": 33.22,
+        "median_icmplib_ms": 33.58,
+        "threshold_ms": 3.0
+      },
+      "verdict": "pass"
+    },
+    "steering_decision_stability": {
+      "value": {
+        "delta_pct": 0.0,
+        "fping_enable_pct": 0.0,
+        "icmplib_enable_pct": 0.0,
+        "threshold_pct": 5.0
+      },
+      "verdict": "pass"
+    },
+    "unexpected_restarts": {
+      "value": {
+        "baseline_nrestarts": 0,
+        "max_planned_restarts": null,
+        "max_unexpected_restarts": 0,
+        "planned_restarts": 2,
+        "total_nrestarts": 2,
+        "unexpected_restarts": 0
+      },
+      "verdict": "pass"
+    }
+  },
+  "outcome": "rollback_trigger",
+  "provenance": {
+    "prereg_commit_sha": "67faf6d56081443376a3c39712452957f780d2ac",
+    "thresholds_blob_sha": "fa3e95c6b080ed772281a62c63ac7ec05897d4f5",
+    "thresholds_path": "scripts/phase245-thresholds.json"
+  },
+  "recommendation": "keep-icmplib",
+  "thresholds_path": "scripts/phase245-thresholds.json"
+}

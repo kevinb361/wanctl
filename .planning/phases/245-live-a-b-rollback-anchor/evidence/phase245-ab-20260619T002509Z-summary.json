@@ -1,0 +1,37 @@
+{
+  "backend_samples": {
+    "fping": {
+      "cycle_avg_ms": 48.3,
+      "cycle_p99_ms": 112.4,
+      "loss_rate_pct": 0.0,
+      "median_rtt_ms": 33.22,
+      "steering_decisions": {
+        "disable": 1,
+        "enable": 0
+      },
+      "total_accepted_cycles": 479,
+      "wanctl_backend_cycles": 479
+    },
+    "icmplib": {
+      "cycle_avg_ms": 49.3,
+      "cycle_p99_ms": 120.7,
+      "loss_rate_pct": 0.0,
+      "median_rtt_ms": 33.58,
+      "steering_decisions": {
+        "disable": 1,
+        "enable": 0
+      },
+      "total_accepted_cycles": 479,
+      "wanctl_backend_cycles": 479
+    }
+  },
+  "baseline_nrestarts": 0,
+  "evidence_jsonl": ".planning/phases/245-live-a-b-rollback-anchor/evidence/phase245-ab-20260619T002509Z.jsonl",
+  "planned_restarts": 2,
+  "prereg": {
+    "prereg_commit_sha": "67faf6d56081443376a3c39712452957f780d2ac",
+    "thresholds_blob_sha": "fa3e95c6b080ed772281a62c63ac7ec05897d4f5",
+    "thresholds_path": "scripts/phase245-thresholds.json"
+  },
+  "total_nrestarts": 2
+}

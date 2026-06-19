@@ -1,0 +1,19 @@
+{
+  "att_control_touched": false,
+  "checked_at": "2026-06-19T00:33:38Z",
+  "health": {
+    "backend": "icmplib",
+    "counts": {
+      "autorate_health": 0,
+      "autorate_irtt": 0,
+      "history_fallback": 0,
+      "wanctl_backend": 19
+    },
+    "producer": "wanctl-backend",
+    "source_ip": "10.10.110.223"
+  },
+  "nrestarts_after": "0",
+  "nrestarts_before": "0",
+  "production_ref_short": "flat-rsync-phase245-code",
+  "rollback_type": "config-only icmplib revert under Phase-245 code"
+}

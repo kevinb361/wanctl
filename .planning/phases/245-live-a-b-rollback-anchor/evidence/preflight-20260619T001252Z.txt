@@ -1,0 +1,86 @@
+# Phase 245 corrected flat-file preflight 20260619T001252Z
+## fping --version
+fping: Version 5.1
+
+## steering.service active
+active
+
+## Spectrum health 10.10.110.223:9101
+{
+    "status": "healthy",
+    "version": "cake-autorate-trial",
+    "uptime_seconds": null,
+    "consecutive_failures": 0,
+    "source": "cake-autorate-state-bridge",
+    "wans": [
+        {
+            "name": "spectrum",
+            "measurement": {
+                "available": true,
+                "raw_rtt_ms": 22.60283333286988,
+                "staleness_sec": 0.25207066535949707
+            },
+            "irtt": {
+                "available": false
+            },
+            "download": {
+                "state": "GREEN",
+                "current_rate_mbps": 548.053,
+                "qdisc_bandwidth": "548Mbit"
+            },
+            "upload": {
+                "state": "GREEN",
+                "current_rate_mbps": 18.0,
+                "qdisc_bandwidth": "18Mbit"
+            },
+            "congestion": {
+                "dl_state": "GREEN",
+                "ul_state": "GREEN"
+            },
+            "last_applied": {
+                "dl_rate": 548053000,
+                "ul_rate": 18000000
+            }
+        }
+    ]
+}
+
+## ATT health 10.10.110.227:9101
+{
+    "status": "healthy",
+    "version": "cake-autorate-trial",
+    "uptime_seconds": null,
+    "consecutive_failures": 0,
+    "source": "cake-autorate-state-bridge",
+    "wans": [
+        {
+            "name": "att",
+            "measurement": {
+                "available": true,
+                "raw_rtt_ms": 28.19181289136989,
+                "staleness_sec": 0.7152318954467773
+            },
+            "irtt": {
+                "available": false
+            },
+            "download": {
+                "state": "GREEN",
+                "current_rate_mbps": 95.0,
+                "qdisc_bandwidth": "95Mbit"
+            },
+            "upload": {
+                "state": "GREEN",
+                "current_rate_mbps": 19.0,
+                "qdisc_bandwidth": "19Mbit"
+            },
+            "congestion": {
+                "dl_state": "GREEN",
+                "ul_state": "GREEN"
+            },
+            "last_applied": {
+                "dl_rate": 95000000,
+                "ul_rate": 19000000
+            }
+        }
+    ]
+}

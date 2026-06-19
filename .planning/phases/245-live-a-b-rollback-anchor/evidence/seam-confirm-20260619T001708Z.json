@@ -1,0 +1,38 @@
+{
+  "att_bridge_status": "healthy",
+  "first_rtt_source": {
+    "backend": "icmplib",
+    "counts": {
+      "autorate_health": 0,
+      "autorate_irtt": 0,
+      "history_fallback": 0,
+      "wanctl_backend": 59
+    },
+    "current": "wanctl_backend",
+    "last_measurement_age_sec": 0.092,
+    "last_rtt_ms": 37.76,
+    "last_successful": "wanctl_backend",
+    "producer": "wanctl-backend",
+    "source_ip": null
+  },
+  "passed": true,
+  "producer_ok": true,
+  "second_rtt_source": {
+    "backend": "icmplib",
+    "counts": {
+      "autorate_health": 0,
+      "autorate_irtt": 0,
+      "history_fallback": 0,
+      "wanctl_backend": 79
+    },
+    "current": "wanctl_backend",
+    "last_measurement_age_sec": 0.125,
+    "last_rtt_ms": 22.62,
+    "last_successful": "wanctl_backend",
+    "producer": "wanctl-backend",
+    "source_ip": null
+  },
+  "wanctl_backend_climbed": true,
+  "wanctl_backend_count_first": 59,
+  "wanctl_backend_count_second": 79
+}
