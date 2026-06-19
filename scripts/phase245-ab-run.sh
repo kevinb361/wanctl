@@ -9,7 +9,7 @@ SSH_HOST="cake-shaper"
 WINDOW_SEC="${WINDOW_SEC:-300}"
 WINDOWS="${WINDOWS:-2}"
 EVIDENCE_DIR=".planning/phases/245-live-a-b-rollback-anchor/evidence"
-SPECTRUM_HEALTH_URL="http://10.10.110.223:9101/health"
+STEERING_HEALTH_URL="http://127.0.0.1:9102/health"
 ATT_HEALTH_URL="http://10.10.110.227:9101/health"
 UNIT="steering.service"
 CONFIRM="0"
@@ -49,6 +49,8 @@ record = {
     "source_ip": rtt.get("source_ip"),
     "counts": rtt.get("counts") or {},
     "last_rtt_ms": rtt.get("last_rtt_ms"),
+    "cycle_budget": payload.get("cycle_budget") or {},
+    "steering_enabled": (payload.get("steering") or {}).get("enabled"),
 }
 with open(out_file, "a", encoding="utf-8") as fh:
     fh.write(json.dumps(record, sort_keys=True) + "\n")
@@ -74,6 +76,7 @@ backend = sys.argv[2]
 data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 measurement = data.setdefault("measurement", {})
 measurement["backend"] = backend
+data.setdefault("ping_source_ip", "10.10.110.223")
 path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
 PY
 }
@@ -96,13 +99,16 @@ for row in records:
 def arm(rows):
     values = [float(row["last_rtt_ms"]) for row in rows if isinstance(row.get("last_rtt_ms"), (int, float))]
     counts = rows[-1].get("counts", {}) if rows else {}
+    cycle_times = [((row.get("cycle_budget") or {}).get("cycle_time_ms") or {}) for row in rows]
+    avg_values = [float(cycle.get("avg")) for cycle in cycle_times if isinstance(cycle.get("avg"), (int, float))]
+    p99_values = [float(cycle.get("p99")) for cycle in cycle_times if isinstance(cycle.get("p99"), (int, float))]
     values_sorted = sorted(values)
     median = values_sorted[len(values_sorted)//2] if values_sorted else None
     return {
         "median_rtt_ms": median,
         "loss_rate_pct": 0.0,
-        "cycle_avg_ms": 0.0,
-        "cycle_p99_ms": 0.0,
+        "cycle_avg_ms": sum(avg_values) / len(avg_values) if avg_values else 0.0,
+        "cycle_p99_ms": max(p99_values) if p99_values else 0.0,
         "wanctl_backend_cycles": int(counts.get("wanctl_backend", 0) or 0),
         "total_accepted_cycles": sum(int(counts.get(key, 0) or 0) for key in ("wanctl_backend", "autorate_health", "autorate_irtt", "history_fallback")),
         "steering_decisions": {"enable": 0, "disable": 1},
@@ -145,7 +151,7 @@ baseline_nrestarts="$(nrestarts)"
 planned_restarts=0
 
 echo "Phase 245 A/B preflight: baseline_nrestarts=${baseline_nrestarts}, WINDOW_SEC=${WINDOW_SEC}, WINDOWS=${WINDOWS}"
-json_health "$SPECTRUM_HEALTH_URL" "preflight-spectrum" "$jsonl" >/dev/null || true
+json_health "$STEERING_HEALTH_URL" "preflight-spectrum" "$jsonl" >/dev/null || true
 json_health "$ATT_HEALTH_URL" "control-att" "$jsonl" >/dev/null || true
 
 if [[ "$CONFIRM" != "1" ]]; then
@@ -162,7 +168,7 @@ for ((i=0; i<WINDOWS; i++)); do
   ssh -o BatchMode=yes -o ConnectTimeout=5 "$SSH_HOST" "sudo systemctl restart ${UNIT}"
   planned_restarts=$((planned_restarts + 1))
   sleep "$WINDOW_SEC"
-  json_health "$SPECTRUM_HEALTH_URL" "$backend" "$jsonl"
+  json_health "$STEERING_HEALTH_URL" "$backend" "$jsonl"
   json_health "$ATT_HEALTH_URL" "control-att" "$jsonl" >/dev/null || true
   nrestarts >/dev/null
  done

@@ -4,6 +4,9 @@
 # FHS-compliant paths for systemd deployment
 wan_name: "spectrum"
 
+# Source IP for steering RTT backend probes — routes through Spectrum from cake-shaper
+ping_source_ip: "10.10.110.223"
+
 # Health endpoint — bind to Spectrum IP so ATT can use same port on .227
 health_check:
   host: "10.10.110.223"
@@ -144,6 +147,10 @@ continuous_monitoring:
       - ["208.67.222.222", 443]
     fallback_mode: "graceful_degradation" # "freeze", "use_last_rtt", or "graceful_degradation"
     max_fallback_cycles: 3 # Max cycles before giving up (graceful mode only)
+
+# RTT measurement backend (Phase 245 A/B; default-safe Selection-A)
+measurement:
+  backend: "icmplib"
 
 # State persistence (FHS compliant)
 state_file: "/var/lib/wanctl/spectrum_state.json"
