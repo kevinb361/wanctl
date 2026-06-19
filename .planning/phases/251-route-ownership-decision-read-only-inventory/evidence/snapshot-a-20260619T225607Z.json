@@ -1,0 +1,208 @@
+{
+  "captured_at": "2026-06-19T22:56:07Z",
+  "collection": {
+    "artifact_dir": "/home/kevin/projects/infra-ansible/artifacts/network-readonly/20260619T225607Z-phase251-route-ownership",
+    "command_file": ".planning/phases/251-route-ownership-decision-read-only-inventory/evidence/routeros-readonly-commands-20260619T225607Z.txt",
+    "commands": [
+      "/system/identity/print",
+      "/tool/netwatch/print detail",
+      "/tool/netwatch/print detail where name~\"Monitor-Spectrum|Monitor-ATT\"",
+      "/system/script/print detail",
+      "/system/script/export hide-sensitive",
+      "/ip/route/print detail where dst-address=\"0.0.0.0/0\""
+    ],
+    "raw_artifact_sha256": {
+      "cmd01": "f0c75e09e57262ce259bfdf39fe18a089ad732db10cddd39aa95a43f5959904e",
+      "cmd02": "9a004e9dff8bce0cb7fe6adb795eef8343f7d932a74cc40adb9cfaea697bdc0f",
+      "cmd03": "0982efdddf3b3f41af3edf327431feed2ae273f7f444a5b5bdd0eb882680d08f",
+      "cmd04": "7cfc77ede5c184d5d205a3ebf16ff725db6d04d595f52b1b3762444ff24fe148",
+      "cmd05": "24961b70d8369f28f56ab763a5322fdb67a4383ad0373e8bcb09e37fd43b7263",
+      "cmd06": "3244fc93427f7e28004f9ac9e25fb21c9ab6ca5208edc453bc78a7868f34c871"
+    },
+    "transport": "infra-ansible mikrotik_readonly.yml routeros_readonly_transport=ssh"
+  },
+  "current_owner_conclusion": "Netwatch is active and remains the interim WAN default-route owner. Monitor-Spectrum and Monitor-ATT are enabled and call route-mutating Enable/Disable scripts. wanctl/steering is not the current RouterOS default-route mutator.",
+  "default_routes": [
+    {
+      "active": true,
+      "check_gateway": "ping",
+      "comment": "Spectrum",
+      "disabled": false,
+      "distance": 1,
+      "dst_address": "0.0.0.0/0",
+      "flags": "As",
+      "gateway": "70.123.224.1",
+      "id": "0",
+      "immediate_gateway": "70.123.224.1%ether1-WAN-Spectrum",
+      "routing_table": "main",
+      "scope": 30,
+      "target_scope": 10
+    },
+    {
+      "active": false,
+      "check_gateway": "arp",
+      "comment": "ATT",
+      "disabled": false,
+      "distance": 2,
+      "dst_address": "0.0.0.0/0",
+      "flags": "s",
+      "gateway": "192.168.2.254",
+      "id": "1",
+      "immediate_gateway": "192.168.2.254%ether2-WAN-ATT",
+      "routing_table": "main",
+      "scope": 30,
+      "target_scope": 10
+    },
+    {
+      "active": true,
+      "check_gateway": "ping",
+      "comment": "Force ATT_OUT to ATT WAN",
+      "disabled": false,
+      "distance": 1,
+      "dst_address": "0.0.0.0/0",
+      "flags": "As",
+      "gateway": "99.126.112.1",
+      "id": "6",
+      "immediate_gateway": "99.126.112.1%ether2-WAN-ATT",
+      "routing_table": "to_ATT",
+      "scope": 30,
+      "target_scope": 10
+    },
+    {
+      "active": false,
+      "check_gateway": "ping",
+      "comment": "Backup to Spectrum if ATT fails",
+      "disabled": false,
+      "distance": 2,
+      "dst_address": "0.0.0.0/0",
+      "flags": "s",
+      "gateway": "70.123.224.1",
+      "id": "7",
+      "immediate_gateway": "70.123.224.1%ether1-WAN-Spectrum",
+      "routing_table": "to_ATT",
+      "scope": 30,
+      "target_scope": 10
+    }
+  ],
+  "netwatch_entries": [
+    {
+      "disabled": false,
+      "down_script": "/system/script/run Disable-Spectrum",
+      "found": true,
+      "host": "1.1.1.1",
+      "id": "1",
+      "interval": "10s",
+      "name": "Monitor-Spectrum",
+      "status": "up",
+      "timeout": "3s",
+      "type": "simple",
+      "up_script": "/system/script/run Enable-Spectrum"
+    },
+    {
+      "disabled": false,
+      "down_script": "/system/script/run Disable-ATT",
+      "found": true,
+      "host": "8.8.8.8",
+      "id": "2",
+      "interval": "10s",
+      "name": "Monitor-ATT",
+      "src_address": "99.126.115.47",
+      "status": "up",
+      "timeout": "3s",
+      "type": "simple",
+      "up_script": "/system/script/run Enable-ATT"
+    }
+  ],
+  "redactions": [
+    "Broad /system/script/export hide-sensitive output was collected by read-only wrapper but not embedded because it includes unrelated scripts and sensitive-capability metadata.",
+    "Only route-mutating script names, policies, hashes, and non-secret route-comment actions are embedded.",
+    "No credential, token, private key, or secret values are embedded in this Snapshot-A artifact."
+  ],
+  "rest_coverage_gap": "Phase 251 used the infra-ansible read-only SSH wrapper for evidence. wanctl RouterOSREST.run_cmd currently does not support /tool/netwatch, /system/script, or /ip/route CLI-style operations; Phase 252 must implement required reads/mutations through the existing integration boundary.",
+  "restore_notes": [
+    "Use Snapshot-A as rollback anchor before any Phase 254 canary.",
+    "Restore Netwatch ownership by ensuring Monitor-Spectrum and Monitor-ATT are enabled and still call Enable/Disable Spectrum/ATT scripts.",
+    "Restore script policy to read,write,test and dont-require-permissions=no for the four route-mutating scripts if drifted.",
+    "Restore default-route enabled/disabled state and comments according to default_routes; do not manually toggle live routes without an approved canary/rollback procedure."
+  ],
+  "route_mutating_scripts": [
+    {
+      "dont_require_permissions": false,
+      "found": true,
+      "id": "14",
+      "mutates_route_comments": [
+        "Spectrum"
+      ],
+      "name": "Disable-Spectrum",
+      "owner": "admin",
+      "policy": "read,write,test",
+      "run_count": 0,
+      "source_redacted": "/ip route disable [find comment=\"Spectrum\"]",
+      "source_sha256": "93ebdecb7eb6b78b784de6b093baf493b880342407939b133e6bad62fa68c095"
+    },
+    {
+      "dont_require_permissions": false,
+      "found": true,
+      "id": "15",
+      "mutates_route_comments": [
+        "Spectrum"
+      ],
+      "name": "Enable-Spectrum",
+      "owner": "admin",
+      "policy": "read,write,test",
+      "run_count": 0,
+      "source_redacted": ":delay 5s\n/ip route enable [find comment=\"Spectrum\"]",
+      "source_sha256": "47c46515fb1deb6faec59b5fea57cd6e1438cdeadc410425cca8abd6d9766f90"
+    },
+    {
+      "dont_require_permissions": false,
+      "found": true,
+      "id": "16",
+      "mutates_route_comments": [
+        "ATT",
+        "Force ATT_OUT to ATT WAN"
+      ],
+      "name": "Disable-ATT",
+      "owner": "admin",
+      "policy": "read,write,test",
+      "run_count": 0,
+      "source_redacted": "/ip route disable [find comment=\"ATT\"]\n/ip route disable [find comment=\"Force ATT_OUT to ATT WAN\"]",
+      "source_sha256": "ab9b061e162b13a5d1e302df9e7b8e2ca9b0267e0bcf9fe1cac62d396968e3db"
+    },
+    {
+      "dont_require_permissions": false,
+      "found": true,
+      "id": "17",
+      "mutates_route_comments": [
+        "ATT",
+        "Force ATT_OUT to ATT WAN"
+      ],
+      "name": "Enable-ATT",
+      "owner": "admin",
+      "policy": "read,write,test",
+      "run_count": 0,
+      "source_redacted": ":delay 5s\n/ip route enable [find comment=\"ATT\"]\n/ip route enable [find comment=\"Force ATT_OUT to ATT WAN\"]",
+      "source_sha256": "4e210b98c74040b002bd528c554533e1850c3a1f64c2bb5117e2a8ec60637fab"
+    }
+  ],
+  "router_identity": {
+    "host": "main-router",
+    "name": "KEV_RO_OFFICE"
+  },
+  "script_to_route_mapping": {
+    "Disable-ATT": [
+      "ATT",
+      "Force ATT_OUT to ATT WAN"
+    ],
+    "Disable-Spectrum": [
+      "Spectrum"
+    ],
+    "Enable-ATT": [
+      "ATT",
+      "Force ATT_OUT to ATT WAN"
+    ],
+    "Enable-Spectrum": [
+      "Spectrum"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+# Phase 251 read-only RouterOS inventory commands
+# Generated: 2026-06-19T22:56:07Z
+# These commands passed the Phase 251 whitelist before live execution.
+/system/identity/print
+/tool/netwatch/print detail
+/tool/netwatch/print detail where name~"Monitor-Spectrum|Monitor-ATT"
+/system/script/print detail
+/system/script/export hide-sensitive
+/ip/route/print detail where dst-address="0.0.0.0/0"

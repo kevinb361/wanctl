@@ -8,15 +8,15 @@
 
 ### OWN — Route Ownership Decision
 
-- [ ] **OWN-01**: Document the route ownership decision: Netwatch remains interim owner until wanctl route ownership is implemented, guarded, tested, canaried, and explicitly accepted.
-- [ ] **OWN-02**: Define the authoritative route owner contract for steady state: exactly one component may mutate WAN default routes at a time.
-- [ ] **OWN-03**: Document Netwatch coexistence/retirement policy, including allowed interim state, alert-only option, disable/restore procedure, and incident attribution rules.
+- [x] **OWN-01**: Document the route ownership decision: Netwatch remains interim owner until wanctl route ownership is implemented, guarded, tested, canaried, and explicitly accepted.
+- [x] **OWN-02**: Define the authoritative route owner contract for steady state: exactly one component may mutate WAN default routes at a time.
+- [x] **OWN-03**: Document Netwatch coexistence/retirement policy, including allowed interim state, alert-only option, disable/restore procedure, and incident attribution rules.
 
 ### INV — Live Read-Only Inventory
 
-- [ ] **INV-01**: Capture a read-only live inventory of RouterOS Netwatch entries, route-mutating scripts, target default routes, route comments/IDs, distances, and current enabled/disabled state.
-- [ ] **INV-02**: Produce a Snapshot-A rollback anchor for route ownership: the commands/data needed to restore Netwatch route ownership and current default-route state without guessing.
-- [ ] **INV-03**: Prove no live route mutation occurred during inventory and design phases.
+- [x] **INV-01**: Capture a read-only live inventory of RouterOS Netwatch entries, route-mutating scripts, target default routes, route comments/IDs, distances, and current enabled/disabled state.
+- [x] **INV-02**: Produce a Snapshot-A rollback anchor for route ownership: the commands/data needed to restore Netwatch route ownership and current default-route state without guessing.
+- [x] **INV-03**: Prove no live route mutation occurred during inventory and design phases.
 
 ### CFG — Safe Configuration Surface
 
@@ -62,7 +62,7 @@
 
 ### SAFE
 
-- [ ] **SAFE-19**: No live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production default flip occurs outside an explicitly approved canary phase.
+- [x] **SAFE-19**: No live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production default flip occurs outside an explicitly approved canary phase.
 
 ## Future Requirements (post-v1.55)
 
@@ -91,12 +91,12 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OWN-01 | Phase 251 | Pending |
-| OWN-02 | Phase 251 | Pending |
-| OWN-03 | Phase 251 | Pending |
-| INV-01 | Phase 251 | Pending |
-| INV-02 | Phase 251 | Pending |
-| INV-03 | Phase 251 | Pending |
+| OWN-01 | Phase 251 | Complete |
+| OWN-02 | Phase 251 | Complete |
+| OWN-03 | Phase 251 | Complete |
+| INV-01 | Phase 251 | Complete |
+| INV-02 | Phase 251 | Complete |
+| INV-03 | Phase 251 | Complete |
 | CFG-01 | Phase 252 | Pending |
 | CFG-02 | Phase 252 | Pending |
 | CFG-03 | Phase 252 | Pending |
@@ -118,7 +118,7 @@
 | CANARY-01 | Phase 254 | Pending |
 | CANARY-02 | Phase 254 | Pending |
 | CANARY-03 | Phase 254 | Pending |
-| SAFE-19 | Phases 251-254 | Pending |
+| SAFE-19 | Phases 251-254 | Complete |
 
 **Coverage:**
 - v1.55 requirements: 28 total
@@ -127,4 +127,4 @@
 
 ---
 *Requirements defined: 2026-06-19*
-*Last updated: 2026-06-19 — v1.55 route ownership scope created*
+*Last updated: 2026-06-19 — Phase 251 route ownership decision and read-only inventory complete*
