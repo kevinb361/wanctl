@@ -173,7 +173,7 @@ for ((i=0; i<WINDOWS; i++)); do
   echo "Window $((i+1))/${WINDOWS}: Spectrum backend=${backend}; ATT control untouched"
   set_spectrum_backend "$backend"
   scripts/deploy.sh spectrum "$SSH_HOST"
-  ssh -o BatchMode=yes -o ConnectTimeout=5 "$SSH_HOST" "sudo systemctl restart ${UNIT}"
+  ssh -o BatchMode=yes -o ConnectTimeout=5 "$SSH_HOST" "sudo systemctl reset-failed ${UNIT}; sudo systemctl restart ${UNIT}; systemctl is-active ${UNIT}"
   planned_restarts=$((planned_restarts + 1))
   sleep "$WINDOW_SEC"
   json_health "$STEERING_HEALTH_URL" "$backend" "$jsonl"
