@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.54
 milestone_name: fping Profiling + Storage Hygiene
-status: ready_to_plan
-stopped_at: Phase 249 complete — flat-gauge audit found no current stable-window candidates; ready to plan Phase 250
-last_updated: 2026-06-19T20:36:48Z
-last_activity: 2026-06-19 -- Phase 249 audited live ingestion rates and closed as no-op because no current >=2Hz flat gauges were confirmed
+status: complete
+stopped_at: v1.54 complete — Phase 250 consumer audit deferred CAKE tin skip-on-unchanged to v1.55
+last_updated: 2026-06-19T21:39:50Z
+last_activity: 2026-06-19 -- Phase 250 audited CAKE tin metric consumers and deferred skip-on-unchanged because raw-history/counter-sensitive semantics are not sparse-safe
 progress:
   total_phases: 8
-  completed_phases: 7
-  total_plans: 10
-  completed_plans: 10
-  percent: 88
+  completed_phases: 8
+  total_plans: 11
+  completed_plans: 11
+  percent: 100
 ---
 
 # Session State
@@ -21,21 +21,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 250 — CAKE Tin Consumer Audit + Conditional Implementation
+**Current focus:** v1.54 complete; ready for milestone archive / v1.55 planning
 
 ## Current Position
 
 Phase: 250
-Plan: Not started
-Status: Ready to plan
+Plan: 250-01 complete
+Status: Complete
 Last activity: 2026-06-19
 
-Progress: [█████████░] 88%
+Progress: [██████████] 100%
 
 ## Active Blockers / Concerns
 
 - SAFE-18 original zero-controller-diff invariant held through Phase 248.1 and was intentionally superseded by the operator-directed Phase 248.2 fping freshness controller fix. Storage hygiene phases 249/250 must avoid unrelated controller-path changes and document no additional controller behavior drift.
-- Phase 250 (TIN-02/TIN-03) is conditionally gated on TIN-01 consumer audit result. If any `wanctl_cake_tin_*` consumer is count-over-window style, TIN-02/TIN-03 defer to v1.55 and Phase 250 closes on the audit finding alone.
+- Phase 250 complete: TIN-01 consumer audit found `wanctl-history --tins` raw-history semantics and counter-shaped dropped/ECN metrics; TIN-02/TIN-03 deferred to v1.55 rather than changing emission density.
 - fping profiling was shadow-only through Phase 248. Phase 248.2 intentionally mutated the controller path to repair the live canary freshness bug; no production default keep was made.
 - Phase 247 complete: partial fping shadow soak ran 6.964h, stopped cleanly with `probe_stats_final`, and produced `.planning/phases/247-fping-shadow-capture-phase-245-evidence-review/evidence/phase247-shadow-summary.json` for Phase 248. No production default flip was made.
 - Phase 248 complete: `.planning/phases/248-fping-p99-distribution-analysis-profiling-verdict/248-FPING-VERDICT.md` says fping is switch-eligible for an operator-gated controlled canary; no production default flip was made.
@@ -44,6 +44,7 @@ Progress: [█████████░] 88%
 - Phase 248.3 complete: native Spectrum CAKE config now matches the external cake-autorate trial envelope for fair future fping canaries: 550M green floor / 600M ceiling, `rtt 25ms`, download no-ack-filter, upload ack-filter.
 - Phase 248.4 complete: native fping startup now treats the bounded first-sample no-cache window as producer readiness instead of ICMP failure. Live canary showed `wait_count=1`, `no_data_count=0`, `fallback_warn_count=0`, `stale_count=0`, and `NRestarts=0`, then rolled back to external cake-autorate + `icmplib`.
 - Phase 249 complete: live read-only ingestion audit found no current stable-window >=2Hz flat-gauge candidates on Spectrum or ATT. 3600s-only Spectrum CAKE zero rows were canary-contaminated by earlier native controller tests and deferred; no code change was warranted.
+- Phase 250 complete: `.planning/phases/250-cake-tin-consumer-audit-conditional-implementation/evidence/consumer-audit-20260619T213950Z.md` classifies all discovered tin consumers. No source code changed; relevant tests passed.
 
 ## Deferred Items (carried into v1.54)
 
@@ -79,11 +80,11 @@ See `.planning/todos/pending/` — 7+ active todos as listed in Deferred Items.
 
 ### Blockers / Concerns
 
-Phases 248.2–248.4 fixed the known native fping mechanical blockers: stale-window mismatch, native/external CAKE parity, and startup first-sample fallback noise. Phase 249 found no current flat-gauge write-rate candidates. Native fping keep remains deferred to an operator-gated keep canary. Conditional TIN gate applies next in Phase 250.
+Phases 248.2–248.4 fixed the known native fping mechanical blockers: stale-window mismatch, native/external CAKE parity, and startup first-sample fallback noise. Phase 249 found no current flat-gauge write-rate candidates. Phase 250 closed the CAKE tin gate by deferring skip-on-unchanged to v1.55 because raw-history/counter-shaped semantics are not sparse-safe. Native fping keep remains deferred to an operator-gated keep canary.
 
 ## Session Continuity
 
-Last session: 2026-06-19T20:36:48Z
-Stopped at: Phase 249 complete; ready to plan Phase 250 TIN consumer audit or an operator-gated fping keep canary
+Last session: 2026-06-19T21:39:50Z
+Stopped at: v1.54 complete; ready to archive milestone and plan v1.55
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)

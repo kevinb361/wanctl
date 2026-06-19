@@ -28,9 +28,9 @@
 
 ### TIN — CAKE Tin Skip-on-Unchanged (SEED-007 Phase B, gated on consumer audit)
 
-- [ ] **TIN-01**: Audit all consumers of `wanctl_cake_tin_*` across repo, docs, and dashboard queries; classify each as last-value-style vs count-over-window.
-- [ ] **TIN-02**: If all consumers are last-value-style, implement per-tin per-direction skip-on-unchanged cache and ship; defer to v1.55 if any consumer needs continuous sampling.
-- [ ] **TIN-03**: Before/after write-rate measurement; rollback gate: emission rate regression or downstream consumer query failure.
+- [x] **TIN-01**: Audit all consumers of `wanctl_cake_tin_*` across repo, docs, and dashboard queries; classify each as last-value-style vs count-over-window.
+- [ ] **TIN-02**: If all consumers are last-value-style, implement per-tin per-direction skip-on-unchanged cache and ship; defer to v1.55 if any consumer needs continuous sampling. Deferred by Phase 250 audit: `wanctl-history --tins` is raw-history and dropped/ECN are counter-shaped.
+- [ ] **TIN-03**: Before/after write-rate measurement; rollback gate: emission rate regression or downstream consumer query failure. Deferred with TIN-02 because no implementation shipped.
 
 ### SAFE
 
@@ -46,7 +46,7 @@
 ### Storage
 
 - **GAUGE-EXT-01**: Extend fire-on-change to additional per-metric candidates discovered post-v1.54 soak. Phase 249 noted native-controller 3600s-only Spectrum CAKE zero-valued candidates, but they were canary-contaminated and not current stable deployment targets.
-- **TIN-PHASE-B-DEFER**: CAKE tin skip-on-unchanged deferred from v1.54 if consumer audit (TIN-01) finds a count-over-window consumer that needs fixing first.
+- **TIN-PHASE-B-DEFER**: CAKE tin skip-on-unchanged deferred from v1.54. Phase 250 found raw-history/counter-shaped semantics in `wanctl-history --tins`; v1.55 must either redesign consumers for sparse last-value-before-window semantics or explicitly accept the history-shape change.
 
 ## Out of Scope
 
@@ -74,9 +74,9 @@
 | GAUGE-01 | Phase 249 | Complete (live audit; no current stable candidates) |
 | GAUGE-02 | Phase 249 | Complete by empty set |
 | GAUGE-03 | Phase 249 | Complete by empty set |
-| TIN-01 | Phase 250 | Pending |
-| TIN-02 | Phase 250 | Pending |
-| TIN-03 | Phase 250 | Pending |
+| TIN-01 | Phase 250 | Complete (consumer audit) |
+| TIN-02 | Phase 250 | Deferred to v1.55 (raw-history/counter-sensitive consumer semantics) |
+| TIN-03 | Phase 250 | Deferred with TIN-02 (no implementation shipped) |
 | SAFE-18 | Phases 247–248.2 | Superseded by operator-approved Phase 248.2 controller fix; storage phases must avoid unrelated controller drift |
 
 **Coverage:**
