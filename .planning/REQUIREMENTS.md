@@ -62,7 +62,7 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 ### Default Flip
 
-- [ ] **FLIP-01**: If and only if the A/B clearly wins, the operator can flip the production default to `fping` under an armed rollback with sign-off recorded; otherwise the milestone records a documented "stay on icmplib" recommendation.
+- [x] **FLIP-01**: If and only if the A/B clearly wins, the operator can flip the production default to `fping` under an armed rollback with sign-off recorded; otherwise the milestone records a documented "stay on icmplib" recommendation. _(Satisfied by Phase 246 no-flip closeout: Phase 245 verdict was `rollback_trigger / keep-icmplib`, so v1.53 records `stay-on-icmplib` and carries fping into non-production `FPING-PROFILE-01`.)_
 
 ### Safety Invariant
 
@@ -132,7 +132,7 @@ Populated during roadmap creation. Each requirement maps to exactly one phase.
 | AB-01 | Phase 245 | Complete |
 | AB-02 | Phase 245 | Complete |
 | AB-03 | Phase 245 | Complete |
-| FLIP-01 | Phase 246 | Pending |
+| FLIP-01 | Phase 246 | Complete |
 | SAFE-17 | Phase 246 (cross-phase; verified at every boundary) | Complete |
 
 **Coverage:**

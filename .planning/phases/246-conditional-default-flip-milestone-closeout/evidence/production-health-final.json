@@ -1,0 +1,34 @@
+{
+  "checked_at": "2026-06-19T00:51:21Z",
+  "health_url": "http://127.0.0.1:9102/health",
+  "host": "cake-shaper",
+  "nrestarts": 0,
+  "phase246_action": "read-only health check; no deploy/restart/default flip",
+  "production_mutated": false,
+  "rtt_source": {
+    "backend": "icmplib",
+    "counts": {
+      "autorate_health": 47,
+      "autorate_irtt": 0,
+      "history_fallback": 0,
+      "wanctl_backend": 2089
+    },
+    "current": "wanctl_backend",
+    "last_measurement_age_sec": 0.215,
+    "last_rtt_ms": 24.35,
+    "last_successful": "wanctl_backend",
+    "producer": "wanctl-backend",
+    "source_ip": "10.10.110.223"
+  },
+  "runtime": {
+    "cycle_status": "ok",
+    "memory_status": "ok",
+    "process": "steering",
+    "rss_bytes": 71254016,
+    "status": "ok",
+    "swap_bytes": 0,
+    "swap_status": "ok"
+  },
+  "service": "steering.service",
+  "service_active": "active"
+}

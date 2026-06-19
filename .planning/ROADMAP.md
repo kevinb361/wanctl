@@ -40,7 +40,7 @@
 - [x] **Phase 243: Cycle-Budget Benchmark Gate** — Pre-registered idle+load cycle-budget/CPU benchmark under a real systemd unit; original fixed verdict preserved as `input_error`, amended 243-05 provenance-bearing gate verdict passed. ✅ verified 2026-06-18 (10/10 truths; BENCH-01/02 + SAFE-17; Phase 245 now awaits Phase 244 attribution metadata)
 - [x] **Phase 244: Health-Payload Attribution Metadata** — Additively expose `measurement.backend` / `source_ip` in `/health` (existing contract byte-preserved) so every A/B sample is attributable. ✅ verified 2026-06-18 (metadata consumed by Phase 245 seam/A-B evidence)
 - [x] **Phase 245: Live A/B + Rollback Anchor** — Pre-registered live A/B (icmplib vs fping) on the Phase-238-selected target, one WAN under test, concurrent/interleaved, under a Snapshot-A rollback anchor; verdict computed against pre-committed thresholds. ✅ verified 2026-06-19 (`rollback_trigger` / `keep-icmplib`; Phase 246 should document stay-on-icmplib unless a new operator-approved basis is created)
-- [ ] **Phase 246: Conditional Default Flip + Milestone Closeout** — Operator-gated flip to fping iff the A/B clearly wins (armed rollback + sign-off) or a documented stay-on-icmplib recommendation; SAFE-17 milestone-close accounting.
+- [x] **Phase 246: Conditional Default Flip + Milestone Closeout** — Operator-gated flip to fping iff the A/B clearly wins (armed rollback + sign-off) or a documented stay-on-icmplib recommendation; SAFE-17 milestone-close accounting. ✅ verified 2026-06-19 (`stay-on-icmplib`; no production flip; FPING-PROFILE-01 deferred)
 
 ## Phase Details
 
@@ -175,7 +175,7 @@
   2. If the A/B does not clearly win, the milestone records a documented "stay on icmplib" recommendation as a valid passing close (v1.46/v1.47 negative-result precedent); the flip is operator-gated, not automated.
   3. The SAFE-17 narrowed-allowlist source-diff verifier passes at milestone close, proving controller-path changes stayed within the RTT-measurement seam plus the accepted reflector-scorer touch, with no state-machine / threshold / EWMA / dwell / deadband / arbitration / fusion drift.
 **Plans**: 1 plan
-  - [ ] 246-01-PLAN.md — No-flip closeout: record stay-on-icmplib, capture future non-production fping profiling follow-up, final read-only production health, SAFE-17 milestone-close evidence (FLIP-01, SAFE-17)
+  - [x] 246-01-PLAN.md — No-flip closeout: record stay-on-icmplib, capture future non-production fping profiling follow-up, final read-only production health, SAFE-17 milestone-close evidence (FLIP-01, SAFE-17)
 
 ---
 
@@ -193,7 +193,7 @@
 | 243. Cycle-Budget Benchmark Gate | v1.53 | 5/5 | Complete (amended pass; Phase 245 awaits Phase 244) | 2026-06-18 |
 | 244. Health-Payload Attribution Metadata | v1.53 | 4/4 | Complete    | 2026-06-18 |
 | 245. Live A/B + Rollback Anchor | v1.53 | 4/4 | Complete    | 2026-06-19 |
-| 246. Conditional Default Flip + Milestone Closeout | v1.53 | 0/TBD | Not started | - |
+| 246. Conditional Default Flip + Milestone Closeout | v1.53 | 1/1 | Complete (stay-on-icmplib; no production flip) | 2026-06-19 |
 
 ---
 
