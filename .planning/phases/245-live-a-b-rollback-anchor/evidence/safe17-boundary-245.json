@@ -8,7 +8,7 @@
     "src/wanctl/steering/daemon.py",
     "src/wanctl/steering/health.py"
   ],
-  "checked_at": "2026-06-19T00:34:29Z",
+  "checked_at": "2026-06-19T00:51:21Z",
   "controller_path_diff_count": 2,
   "dirty_tree": {
     "staged": [],
@@ -18,7 +18,7 @@
   },
   "dirty_tree_clean": true,
   "disallowed_paths": [],
-  "head_commit": "67faf6d56081443376a3c39712452957f780d2ac",
+  "head_commit": "c42a1883974a84033871acfd85edd3ba8e41b2bb",
   "measure_rtt_fping_scorer_guard": true,
   "notes": "SAFE-17 v1.53 Phase 245 boundary check: expanded path allowlist, no RTT-seam drift since Phase 239 close, fping_measurement.py and reflector_scorer.py unchanged since Phase 241 close, protected-body with the exact post-gap WANController.measure_rtt fping scorer guard exception, and complete allowed-diff-shape guard anchored at v1.52.",
   "passed": true,
