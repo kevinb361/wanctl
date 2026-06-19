@@ -16,8 +16,9 @@
 ### FLIP — fping Controlled Canary
 
 - [x] **FLIP-02**: Operator-gated production canary of fping as Spectrum's native wanctl RTT backend under armed rollback and explicit sign-off. Executed and rolled back; do not keep fping/native owner yet.
-- [x] **FPING-FRESHNESS-01**: Fix native fping cadence/staleness/fallback behavior before retrying a production canary; Phase 248.1 showed 10s background fping could be treated stale by the 50ms loop, causing repeated TCP fallback and cycle-budget alerts. Phase 248.2 fixed the stale-window behavior and verified it with a bounded canary; startup first-sample fallback remains follow-up.
+- [x] **FPING-FRESHNESS-01**: Fix native fping cadence/staleness/fallback behavior before retrying a production canary; Phase 248.1 showed 10s background fping could be treated stale by the 50ms loop, causing repeated TCP fallback and cycle-budget alerts. Phase 248.2 fixed the stale-window behavior and verified it with a bounded canary.
 - [x] **FPING-PARITY-01**: Align native Spectrum CAKE config with the external cake-autorate production envelope before any further native fping verdict: download 550M green / 600M ceiling, CAKE `rtt 25ms`, download no-ack-filter, upload ack-filter.
+- [x] **FPING-STARTUP-01**: Suppress native fping startup first-sample fallback noise by treating the bounded pre-sample window as producer readiness instead of ICMP failure, while preserving icmplib fallback behavior.
 
 ### GAUGE — Autorate Flat-Gauge Fire-on-Change (SEED-007 Phase A)
 
@@ -39,7 +40,7 @@
 
 ### fping
 
-- **FLIP-02 follow-up**: Permanent fping/native keep remains deferred until startup first-sample fallback behavior and native-vs-external qdisc/rate alignment are resolved or explicitly accepted.
+- **FLIP-02 follow-up**: Permanent fping/native keep remains deferred until an operator-gated keep canary passes with the Phase 248.2 freshness, Phase 248.3 parity, and Phase 248.4 startup-readiness fixes in place.
 - **FPING-BENCH-01**: Controlled A/B re-run with refined AB-03 thresholds derived from PROF-02/03 profiling evidence.
 
 ### Storage
@@ -69,6 +70,7 @@
 | FLIP-02 | Phase 248.1 | Complete (rolled back; negative keep verdict) |
 | FPING-FRESHNESS-01 | Phase 248.2 | Complete (stale-window repair passed; keep deferred) |
 | FPING-PARITY-01 | Phase 248.3 | Complete (native config aligned for fair canary) |
+| FPING-STARTUP-01 | Phase 248.4 | Complete (startup first-sample fallback suppressed) |
 | GAUGE-01 | Phase 249 | Pending |
 | GAUGE-02 | Phase 249 | Pending |
 | GAUGE-03 | Phase 249 | Pending |
@@ -78,8 +80,8 @@
 | SAFE-18 | Phases 247–248.2 | Superseded by operator-approved Phase 248.2 controller fix; storage phases must avoid unrelated controller drift |
 
 **Coverage:**
-- v1.54 requirements: 14 total
-- Mapped to phases: 14
+- v1.54 requirements: 15 total
+- Mapped to phases: 15
 - Unmapped: 0
 
 ---

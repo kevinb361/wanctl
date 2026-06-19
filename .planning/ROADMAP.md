@@ -40,6 +40,7 @@
 - [x] **Phase 248.1: fping Controlled Canary** - Operator-gated Spectrum canary of native wanctl with `measurement.backend: fping`, explicit rollback to external cake-autorate/icmplib; canary rolled back on stale-RTT/cycle-budget behavior
 - [x] **Phase 248.2: fping Freshness / Staleness Repair** - Fix cadence-aware fping cached-sample staleness semantics; short native canary passed the stale-window gate and rolled back cleanly
 - [x] **Phase 248.3: Native Spectrum CAKE Parity** - Align native Spectrum CAKE config with external cake-autorate envelope for fair future fping canaries
+- [x] **Phase 248.4: fping Startup First-Sample Readiness** - Suppress native fping startup fallback noise while preserving icmplib fallback behavior
 - [ ] **Phase 249: Autorate Flat-Gauge Fire-on-Change** - SEED-007 Phase A: audit flat gauges, apply fire-on-change to confirmed candidates
 - [ ] **Phase 250: CAKE Tin Consumer Audit + Conditional Implementation** - SEED-007 Phase B (gated): audit tin consumers, implement skip-on-unchanged if safe
 
@@ -146,10 +147,28 @@ Plans:
 
 - [x] 248.3-01-PLAN.md — native Spectrum CAKE parity config + canary proof (FPING-PARITY-01)
 
+### Phase 248.4: fping Startup First-Sample Readiness
+
+**Goal**: Suppress native fping startup first-sample fallback noise by treating the bounded pre-sample window as producer readiness instead of ICMP failure, while preserving icmplib fallback behavior.
+**Depends on**: Phase 248.3
+**Requirements**: FPING-STARTUP-01
+**Success Criteria** (what must be TRUE):
+
+  1. The controller skips `handle_icmp_failure()` while fping is inside the bounded initial no-sample window.
+  2. The icmplib no-sample path still uses the historical fallback behavior.
+  3. A bounded live native fping canary shows no startup `No RTT data available`, `All ICMP pings failed`, `ICMP unavailable`, or `RTT data stale` warnings and rolls back to external cake-autorate.
+
+**Plans**: 1 plan
+Plans:
+
+**Wave 1**
+
+- [x] 248.4-01-PLAN.md — native fping startup first-sample readiness fix + canary proof (FPING-STARTUP-01)
+
 ### Phase 249: Autorate Flat-Gauge Fire-on-Change
 
 **Goal**: Per-metric write rates on both WANs are audited via `wanctl-history --ingestion-rate`; confirmed flat-emitting gauges have the steering fire-on-change pattern applied one candidate per canary cycle with before/after write-rate measurement; each changed metric has unit-test coverage
-**Depends on**: Phase 248.3
+**Depends on**: Phase 248.4
 **Requirements**: GAUGE-01, GAUGE-02, GAUGE-03
 **Success Criteria** (what must be TRUE):
 
@@ -230,6 +249,7 @@ Full details: `milestones/v1.50-ROADMAP.md` · Audit: `milestones/v1.50-MILESTON
 | 248.1. fping Controlled Canary | v1.54 | 1/1 | Complete | 2026-06-19 |
 | 248.2. fping Freshness / Staleness Repair | v1.54 | 1/1 | Complete | 2026-06-19 |
 | 248.3. Native Spectrum CAKE Parity | v1.54 | 1/1 | Complete | 2026-06-19 |
+| 248.4. fping Startup First-Sample Readiness | v1.54 | 1/1 | Complete | 2026-06-19 |
 | 249. Autorate Flat-Gauge Fire-on-Change | v1.54 | 0/TBD | Not started | - |
 | 250. CAKE Tin Consumer Audit + Conditional Implementation | v1.54 | 0/TBD | Not started | - |
 
@@ -243,7 +263,7 @@ Full details: `milestones/v1.50-ROADMAP.md` · Audit: `milestones/v1.50-MILESTON
 
 ### Deferred (post-v1.54 candidates)
 
-- **FLIP-02 follow-up** — permanent fping/native keep remains deferred. Phase 248.2 fixed the stale-window blocker and Phase 248.3 aligned native Spectrum CAKE shape; startup first-sample fallback behavior still needs resolution before a fair keep/default-flip verdict.
+- **FLIP-02 follow-up** — permanent fping/native keep remains deferred to an operator-gated keep canary. The known mechanical blockers are closed: Phase 248.2 fixed stale-window behavior, Phase 248.3 aligned native Spectrum CAKE shape, and Phase 248.4 suppressed startup first-sample fallback noise.
 - **FPING-BENCH-01** — controlled A/B re-run with refined AB-03 thresholds derived from v1.54 PROF-02/03 profiling evidence.
 - **TIN-PHASE-B-DEFER** — CAKE tin skip-on-unchanged deferred from Phase 250 if TIN-01 consumer audit finds a count-over-window consumer; becomes v1.55 scope.
 - **GAUGE-EXT-01** — extend fire-on-change to additional per-metric candidates discovered post-v1.54 soak.

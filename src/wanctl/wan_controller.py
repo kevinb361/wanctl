@@ -793,6 +793,8 @@ class WANController:
         # Background RTT measurement (Phase 132: PERF-02)
         self._rtt_thread: _BackgroundRttDriver | None = None
         self._rtt_pool: concurrent.futures.ThreadPoolExecutor | None = None
+        self._rtt_thread_started_ts: float | None = None
+        self._initial_rtt_pending_logged: bool = False
 
         # Background CAKE stats thread (offloads 7-20ms netlink I/O from main loop)
         self._cake_stats_thread: BackgroundCakeStatsThread | None = None
@@ -1130,6 +1132,8 @@ class WANController:
                 pool=self._rtt_pool,
                 cadence_sec=self._background_rtt_cadence_sec(),
             )
+        self._rtt_thread_started_ts = time.monotonic()
+        self._initial_rtt_pending_logged = False
         self._rtt_thread.start()
 
     def _background_rtt_cadence_sec(self) -> float:
@@ -1183,9 +1187,17 @@ class WANController:
         if not isinstance(cycle_status, RTTCycleStatus):
             cycle_status = None
         if snapshot is None:
-            self.logger.warning(
-                f"{self.wan_name}: No RTT data available (background thread starting)"
-            )
+            if self._initial_rtt_sample_pending():
+                if not self._initial_rtt_pending_logged:
+                    self.logger.info(
+                        f"{self.wan_name}: Waiting for initial fping RTT sample; "
+                        "freezing startup cycle instead of running fallback checks"
+                    )
+                    self._initial_rtt_pending_logged = True
+            else:
+                self.logger.warning(
+                    f"{self.wan_name}: No RTT data available (background thread starting)"
+                )
             return None
 
         age = time.monotonic() - snapshot.timestamp
@@ -1290,6 +1302,35 @@ class WANController:
         soft_stale_sec = max(0.5, cadence_sec)
         hard_stale_sec = max(5.0, cadence_sec * 1.5)
         return soft_stale_sec, hard_stale_sec
+
+    def _initial_rtt_sample_pending(self) -> bool:
+        """Return True while fping is inside bounded first-sample startup grace.
+
+        The fping backend runs as an independent background producer. During
+        startup, the 50ms control loop can run before the first fping burst has
+        published a cached sample. Treat that short window as producer readiness,
+        not ICMP failure. The icmplib path keeps its historical immediate
+        fallback behavior.
+        """
+        if self._rtt_thread is None:
+            return False
+        backend_status = self._rtt_backend_status
+        backend_active = (
+            getattr(backend_status, "backend_active", "icmplib")
+            if backend_status is not None
+            else "icmplib"
+        )
+        if backend_active != "fping":
+            return False
+        if self._rtt_thread.get_latest() is not None:
+            return False
+        started_ts = self._rtt_thread_started_ts
+        if not isinstance(started_ts, int | float):
+            return False
+        cadence_raw = getattr(self._rtt_thread, "cadence_sec", 0.0)
+        cadence_sec = float(cadence_raw) if isinstance(cadence_raw, int | float) else 0.0
+        grace_sec = max(5.0, cadence_sec * 1.5)
+        return (time.monotonic() - started_ts) <= grace_sec
 
     def _should_skip_scorer_update(self, cycle_status: RTTCycleStatus) -> bool:
         """Return True only for a strict zero-success RTT cycle.
@@ -2682,12 +2723,16 @@ class WANController:
         rtt_early_return: bool | None = None
 
         if measured_rtt is None:
-            should_continue, measured_rtt = self.handle_icmp_failure()
-            if not should_continue:
-                rtt_early_return = False
-            elif measured_rtt is None:
+            if self._initial_rtt_sample_pending():
                 self.save_state()
                 rtt_early_return = True
+            else:
+                should_continue, measured_rtt = self.handle_icmp_failure()
+                if not should_continue:
+                    rtt_early_return = False
+                elif measured_rtt is None:
+                    self.save_state()
+                    rtt_early_return = True
         else:
             if self.icmp_unavailable_cycles > 0:
                 self.logger.info(

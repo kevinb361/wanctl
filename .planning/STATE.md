@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.54
 milestone_name: fping Profiling + Storage Hygiene
 status: ready_to_plan
-stopped_at: Phase 248.3 complete — native Spectrum CAKE parity aligned; ready to plan Phase 249 or startup-readiness follow-up
-last_updated: 2026-06-19T19:56:53Z
-last_activity: 2026-06-19 -- Phase 248.3 aligned native Spectrum CAKE shape to external cake-autorate envelope for fair fping canaries
+stopped_at: Phase 248.4 complete — fping startup first-sample fallback fixed; ready to plan Phase 249 or operator-gated keep canary
+last_updated: 2026-06-19T20:18:09Z
+last_activity: 2026-06-19 -- Phase 248.4 suppressed native fping startup fallback checks and verified with bounded canary/rollback
 progress:
-  total_phases: 7
-  completed_phases: 5
-  total_plans: 8
-  completed_plans: 8
-  percent: 71
+  total_phases: 8
+  completed_phases: 6
+  total_plans: 9
+  completed_plans: 9
+  percent: 75
 ---
 
 # Session State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 249 — Autorate Flat-Gauge Fire-on-Change, unless prioritizing fping startup-readiness follow-up
+**Current focus:** Phase 249 — Autorate Flat-Gauge Fire-on-Change, unless prioritizing an operator-gated fping keep canary
 
 ## Current Position
 
@@ -30,7 +30,7 @@ Plan: Not started
 Status: Ready to plan
 Last activity: 2026-06-19
 
-Progress: [███████░░░] 71%
+Progress: [████████░░] 75%
 
 ## Active Blockers / Concerns
 
@@ -41,7 +41,8 @@ Progress: [███████░░░] 71%
 - Phase 248 complete: `.planning/phases/248-fping-p99-distribution-analysis-profiling-verdict/248-FPING-VERDICT.md` says fping is switch-eligible for an operator-gated controlled canary; no production default flip was made.
 - Phase 248.1 complete: live native wanctl + fping canary was operator-approved, executed, and rolled back. The blocker is not the old 10ms p99 gate; it is current native fping cadence/staleness/fallback behavior: 10s background fping can be treated stale by the 50ms loop, causing repeated TCP fallback, cycle overruns, and cycle-budget warning alerts. Production is restored to external cake-autorate + `icmplib` config.
 - Phase 248.2 complete: cadence-aware fping cached-sample staleness limits shipped in `WANController.measure_rtt()`. A bounded native Spectrum fping canary showed `stale_count=0`, `NRestarts=0`, and healthy cycle budget after startup, then rolled back cleanly to external cake-autorate + `icmplib`.
-- Phase 248.3 complete: native Spectrum CAKE config now matches the external cake-autorate trial envelope for fair future fping canaries: 550M green floor / 600M ceiling, `rtt 25ms`, download no-ack-filter, upload ack-filter. Remaining fping follow-up: startup first-sample fallback noise before any permanent keep/default-flip verdict.
+- Phase 248.3 complete: native Spectrum CAKE config now matches the external cake-autorate trial envelope for fair future fping canaries: 550M green floor / 600M ceiling, `rtt 25ms`, download no-ack-filter, upload ack-filter.
+- Phase 248.4 complete: native fping startup now treats the bounded first-sample no-cache window as producer readiness instead of ICMP failure. Live canary showed `wait_count=1`, `no_data_count=0`, `fallback_warn_count=0`, `stale_count=0`, and `NRestarts=0`, then rolled back to external cake-autorate + `icmplib`.
 
 ## Deferred Items (carried into v1.54)
 
@@ -77,11 +78,11 @@ See `.planning/todos/pending/` — 7+ active todos as listed in Deferred Items.
 
 ### Blockers / Concerns
 
-Phase 248.2 fixed the fping stale-window blocker and Phase 248.3 aligned native operating point. Native fping keep remains deferred pending startup-readiness. Conditional TIN gate still applies later.
+Phases 248.2–248.4 fixed the known native fping mechanical blockers: stale-window mismatch, native/external CAKE parity, and startup first-sample fallback noise. Native fping keep remains deferred to an operator-gated keep canary. Conditional TIN gate still applies later.
 
 ## Session Continuity
 
-Last session: 2026-06-19T19:56:53Z
-Stopped at: Phase 248.3 complete with rollback; ready to plan Phase 249 or an fping startup-readiness follow-up
+Last session: 2026-06-19T20:18:09Z
+Stopped at: Phase 248.4 complete with rollback; ready to plan Phase 249 or an operator-gated fping keep canary
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)

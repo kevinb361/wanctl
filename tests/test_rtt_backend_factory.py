@@ -160,8 +160,29 @@ def _make_controller(handle) -> WANController:
             rtt_measurement=handle.controller_measurement,
             logger=logging.getLogger("test_rtt_backend_factory.controller"),
             rtt_thread_factory=handle,
+            rtt_backend_status=handle,
         )
     return controller
+
+
+class EmptyRttThread:
+    def __init__(self, cadence_sec: float) -> None:
+        self.cadence_sec = cadence_sec
+
+    def get_latest(self):
+        return None
+
+    def get_cycle_status(self):
+        return None
+
+    def get_profile_stats(self):
+        return {}
+
+    def start(self):
+        return None
+
+    def stop(self):
+        return None
 
 
 def test_fallback_is_loud(caplog: pytest.LogCaptureFixture, logger: logging.Logger) -> None:
@@ -380,6 +401,41 @@ def test_fping_measure_rtt_allows_expected_cadence_gap(logger: logging.Logger) -
     controller._reflector_scorer.record_results.assert_not_called()
     assert controller._last_active_reflector_hosts == ["h1", "h2"]
     assert controller._last_successful_reflector_hosts == ["h1"]
+
+
+def test_fping_initial_sample_grace_skips_startup_fallback(logger: logging.Logger) -> None:
+    """Startup waits for fping's first burst instead of running TCP fallback."""
+    with _patch_fping_present("/usr/bin/fping")[0], _patch_fping_present("/usr/bin/fping")[1]:
+        handle = _build(backend="fping", fping={"cadence_sec": 10.0}, logger=logger)
+    controller = _make_controller(handle)
+    controller._rtt_thread = EmptyRttThread(cadence_sec=10.0)
+    controller._rtt_thread_started_ts = time.monotonic()
+    controller.handle_icmp_failure = MagicMock(return_value=(True, 99.0))
+    controller.save_state = MagicMock()
+
+    measured_rtt, early_return = controller._run_rtt_measurement()
+
+    assert measured_rtt is None
+    assert early_return is True
+    controller.handle_icmp_failure.assert_not_called()
+    controller.save_state.assert_called_once()
+
+
+def test_icmplib_initial_none_still_uses_existing_fallback(logger: logging.Logger) -> None:
+    """The startup grace is fping-only; icmplib no-sample keeps old behavior."""
+    handle = _build(logger=logger)
+    controller = _make_controller(handle)
+    controller._rtt_thread = EmptyRttThread(cadence_sec=0.25)
+    controller._rtt_thread_started_ts = time.monotonic()
+    controller.handle_icmp_failure = MagicMock(return_value=(True, 42.0))
+    controller.save_state = MagicMock()
+
+    measured_rtt, early_return = controller._run_rtt_measurement()
+
+    assert measured_rtt == 42.0
+    assert early_return is None
+    controller.handle_icmp_failure.assert_called_once()
+    controller.save_state.assert_not_called()
 
 
 def test_fping_measure_rtt_rejects_beyond_cadence_grace(logger: logging.Logger) -> None:
