@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.54
 milestone_name: fping Profiling + Storage Hygiene
 status: ready_to_plan
-stopped_at: Phase 248.1 planned; waiting on operator approval before live canary mutation
-last_updated: 2026-06-19T19:59:30Z
-last_activity: 2026-06-19 -- Phase 248.1 read-only preflight complete; live canary requires switching Spectrum from external cake-autorate to native wanctl@spectrum
+stopped_at: Phase 248.1 complete — fping canary rolled back; ready to plan Phase 249 or fping freshness fix
+last_updated: 2026-06-19T20:09:00Z
+last_activity: 2026-06-19 -- Phase 248.1 live canary executed and rolled back after stale fping RTT / cycle-budget behavior
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
-  percent: 40
+  completed_plans: 6
+  percent: 60
 ---
 
 # Session State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 248.1 — fping Controlled Canary
+**Current focus:** Phase 249 — Autorate Flat-Gauge Fire-on-Change, unless prioritizing fping freshness fix
 
 ## Current Position
 
-Phase: 248.1
-Plan: 248.1-01
-Status: Waiting on operator approval before production mutation
+Phase: 249
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-19
 
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 60%
 
 ## Active Blockers / Concerns
 
@@ -39,7 +39,7 @@ Progress: [████░░░░░░] 40%
 - fping profiling is shadow-only: no production default changes, no control loop mutation in any phase.
 - Phase 247 complete: partial fping shadow soak ran 6.964h, stopped cleanly with `probe_stats_final`, and produced `.planning/phases/247-fping-shadow-capture-phase-245-evidence-review/evidence/phase247-shadow-summary.json` for Phase 248. No production default flip was made.
 - Phase 248 complete: `.planning/phases/248-fping-p99-distribution-analysis-profiling-verdict/248-FPING-VERDICT.md` says fping is switch-eligible for an operator-gated controlled canary; no production default flip was made.
-- Phase 248.1 preflight complete: Spectrum is currently external cake-autorate-owned (`cake-autorate-spectrum.service` + state bridge active; `wanctl@spectrum.service` inactive; units conflict). A real fping backend canary requires explicit approval to switch ownership to native `wanctl@spectrum.service` for the canary window.
+- Phase 248.1 complete: live native wanctl + fping canary was operator-approved, executed, and rolled back. The blocker is not the old 10ms p99 gate; it is current native fping cadence/staleness/fallback behavior: 10s background fping can be treated stale by the 50ms loop, causing repeated TCP fallback, cycle overruns, and cycle-budget warning alerts. Production is restored to external cake-autorate + `icmplib` config.
 
 ## Deferred Items (carried into v1.54)
 
@@ -75,11 +75,11 @@ See `.planning/todos/pending/` — 7+ active todos as listed in Deferred Items.
 
 ### Blockers / Concerns
 
-Phase 248.1 is blocked on operator approval before any live service/config mutation. Conditional TIN gate still applies later.
+Phase 248.1 found a fping freshness/cadence blocker before any keep decision. Conditional TIN gate still applies later.
 
 ## Session Continuity
 
 Last session: 2026-06-19T01:33:34.489Z
-Stopped at: Phase 248.1 plan/preflight complete; approval required before live canary
+Stopped at: Phase 248.1 complete with rollback; ready to plan Phase 249 or an fping freshness fix phase
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)

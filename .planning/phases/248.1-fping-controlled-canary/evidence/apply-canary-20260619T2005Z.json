@@ -1,0 +1,6 @@
+{
+  "collected_at": "2026-06-19T19:05:24.375009+00:00",
+  "command_exit_code": 7,
+  "host": "cake-shaper",
+  "raw_output": "BACKUP=/etc/wanctl/spectrum.yaml.pre-fping-canary-20260619T190514Z\nbackend=fping\n===stop-external-owner===\n===start-native===\n===services===\ncake-autorate-spectrum.service=inactive\ncake-autorate-spectrum-state-bridge.service=inactive\nsteering.service=active\nwanctl@spectrum.service=active\n===native-status===\nNRestarts=0\nExecMainStatus=0\nActiveState=active\nSubState=running\n===config===\n    max_fallback_cycles: 3 # Max cycles before giving up (graceful mode only)\n\n# RTT measurement backend (Phase 245 A/B; default-safe Selection-A)\nmeasurement:\n  backend: \"fping\"\n\n# State persistence (FHS compliant)\nstate_file: \"/var/lib/wanctl/spectrum_state.json\"\n===health===\ncurl: (7) Failed to connect to 10.10.110.223 port 9101 after 0 ms: Could not connect to server\n"
+}

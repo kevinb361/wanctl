@@ -15,7 +15,7 @@
 
 ### FLIP — fping Controlled Canary
 
-- [ ] **FLIP-02**: Operator-gated production canary of fping as Spectrum's native wanctl RTT backend under armed rollback and explicit sign-off.
+- [x] **FLIP-02**: Operator-gated production canary of fping as Spectrum's native wanctl RTT backend under armed rollback and explicit sign-off. Executed and rolled back; do not keep fping/native owner yet.
 
 ### GAUGE — Autorate Flat-Gauge Fire-on-Change (SEED-007 Phase A)
 
@@ -39,6 +39,7 @@
 
 - **FLIP-02**: If PROF-04 verdict is positive, operator-gated production flip to fping as default backend under armed rollback and sign-off.
 - **FPING-BENCH-01**: Controlled A/B re-run with refined AB-03 thresholds derived from PROF-02/03 profiling evidence.
+- **FPING-FRESHNESS-01**: Fix native fping cadence/staleness/fallback behavior before retrying a production canary; Phase 248.1 showed 10s background fping can be treated stale by the 50ms loop, causing repeated TCP fallback and cycle-budget alerts.
 
 ### Storage
 
@@ -64,7 +65,7 @@
 | PROF-02 | Phase 247 | Complete |
 | PROF-03 | Phase 248 | Complete |
 | PROF-04 | Phase 248 | Complete |
-| FLIP-02 | Phase 248.1 | Pending |
+| FLIP-02 | Phase 248.1 | Complete (rolled back; negative keep verdict) |
 | GAUGE-01 | Phase 249 | Pending |
 | GAUGE-02 | Phase 249 | Pending |
 | GAUGE-03 | Phase 249 | Pending |

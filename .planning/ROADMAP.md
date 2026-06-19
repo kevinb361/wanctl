@@ -37,7 +37,7 @@
 
 - [x] **Phase 247: fping Shadow Capture + Phase 245 Evidence Review** - Run fping in shadow alongside icmplib and re-examine AB-03 threshold methodology
 - [x] **Phase 248: fping p99 Distribution Analysis + Profiling Verdict** - Compare fping vs icmplib distributions and produce the decision artifact
-- [ ] **Phase 248.1: fping Controlled Canary** - Operator-gated Spectrum canary of native wanctl with `measurement.backend: fping`, explicit rollback to external cake-autorate/icmplib
+- [x] **Phase 248.1: fping Controlled Canary** - Operator-gated Spectrum canary of native wanctl with `measurement.backend: fping`, explicit rollback to external cake-autorate/icmplib; canary rolled back on stale-RTT/cycle-budget behavior
 - [ ] **Phase 249: Autorate Flat-Gauge Fire-on-Change** - SEED-007 Phase A: audit flat gauges, apply fire-on-change to confirmed candidates
 - [ ] **Phase 250: CAKE Tin Consumer Audit + Conditional Implementation** - SEED-007 Phase B (gated): audit tin consumers, implement skip-on-unchanged if safe
 
@@ -105,7 +105,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 248.1-01-PLAN.md — operator-gated fping controlled canary (FLIP-02)
+- [x] 248.1-01-PLAN.md — operator-gated fping controlled canary (FLIP-02; rolled back, do not keep fping/native owner yet)
 
 ### Phase 249: Autorate Flat-Gauge Fire-on-Change
 
