@@ -17,6 +17,7 @@
 
 - [x] **FLIP-02**: Operator-gated production canary of fping as Spectrum's native wanctl RTT backend under armed rollback and explicit sign-off. Executed and rolled back; do not keep fping/native owner yet.
 - [x] **FPING-FRESHNESS-01**: Fix native fping cadence/staleness/fallback behavior before retrying a production canary; Phase 248.1 showed 10s background fping could be treated stale by the 50ms loop, causing repeated TCP fallback and cycle-budget alerts. Phase 248.2 fixed the stale-window behavior and verified it with a bounded canary; startup first-sample fallback remains follow-up.
+- [x] **FPING-PARITY-01**: Align native Spectrum CAKE config with the external cake-autorate production envelope before any further native fping verdict: download 550M green / 600M ceiling, CAKE `rtt 25ms`, download no-ack-filter, upload ack-filter.
 
 ### GAUGE — Autorate Flat-Gauge Fire-on-Change (SEED-007 Phase A)
 
@@ -67,6 +68,7 @@
 | PROF-04 | Phase 248 | Complete |
 | FLIP-02 | Phase 248.1 | Complete (rolled back; negative keep verdict) |
 | FPING-FRESHNESS-01 | Phase 248.2 | Complete (stale-window repair passed; keep deferred) |
+| FPING-PARITY-01 | Phase 248.3 | Complete (native config aligned for fair canary) |
 | GAUGE-01 | Phase 249 | Pending |
 | GAUGE-02 | Phase 249 | Pending |
 | GAUGE-03 | Phase 249 | Pending |
@@ -76,8 +78,8 @@
 | SAFE-18 | Phases 247–248.2 | Superseded by operator-approved Phase 248.2 controller fix; storage phases must avoid unrelated controller drift |
 
 **Coverage:**
-- v1.54 requirements: 13 total
-- Mapped to phases: 13
+- v1.54 requirements: 14 total
+- Mapped to phases: 14
 - Unmapped: 0
 
 ---

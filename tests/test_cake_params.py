@@ -16,7 +16,11 @@ Coverage targets:
 - Invalid direction: ValueError
 """
 
+from pathlib import Path
+from typing import Any, cast
+
 import pytest
+import yaml
 
 from wanctl.cake_params import (
     DOWNLOAD_DEFAULTS,
@@ -333,6 +337,10 @@ class TestBuildExpectedReadback:
         expected = build_expected_readback({"rtt": "50ms"})
         assert expected["rtt"] == 50000
 
+    def test_rtt_25ms_to_microseconds(self) -> None:
+        expected = build_expected_readback({"rtt": "25ms"})
+        assert expected["rtt"] == 25000
+
     def test_rtt_1s_to_microseconds(self) -> None:
         expected = build_expected_readback({"rtt": "1s"})
         assert expected["rtt"] == 1_000_000
@@ -396,6 +404,48 @@ class TestBuildCakeParamsInvalidDirection:
     def test_empty_string_raises(self) -> None:
         with pytest.raises(ValueError, match="Invalid direction"):
             build_cake_params("")
+
+
+# =============================================================================
+# REPO CONFIG PARITY
+# =============================================================================
+
+
+class TestSpectrumNativeCakeAutorateParity:
+    """Lock native Spectrum canary params to the external cake-autorate envelope."""
+
+    @staticmethod
+    def _spectrum_config() -> dict[str, Any]:
+        path = Path(__file__).resolve().parents[1] / "configs" / "spectrum.yaml"
+        return cast(dict[str, Any], yaml.safe_load(path.read_text(encoding="utf-8")))
+
+    def test_native_spectrum_download_envelope_matches_external_trial(self) -> None:
+        cfg = self._spectrum_config()
+        download = cfg["continuous_monitoring"]["download"]
+
+        assert download["floor_green_mbps"] == 550
+        assert download["ceiling_mbps"] == 600
+
+    def test_native_spectrum_qdisc_params_match_external_trial_shape(self) -> None:
+        cfg = self._spectrum_config()
+        cake = cfg["cake_params"]
+
+        assert cake["rtt"] == "25ms"
+        assert "ack_filter" not in cake
+
+        download = build_cake_params("download", cake, bandwidth_kbit=550000)
+        upload = build_cake_params("upload", cake, bandwidth_kbit=18000)
+
+        assert download["ack-filter"] is False
+        assert upload["ack-filter"] is True
+        assert download["ingress"] is False
+        assert upload["ingress"] is False
+        assert download["wash"] is True
+        assert upload["wash"] is True
+        assert download["rtt"] == "25ms"
+        assert upload["rtt"] == "25ms"
+        assert download["bandwidth"] == "550000kbit"
+        assert upload["bandwidth"] == "18000kbit"
 
 
 # =============================================================================
