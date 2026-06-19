@@ -193,7 +193,7 @@
 | 243. Cycle-Budget Benchmark Gate | v1.53 | 5/5 | Complete (amended pass; Phase 245 awaits Phase 244) | 2026-06-18 |
 | 244. Health-Payload Attribution Metadata | v1.53 | 4/4 | Complete    | 2026-06-18 |
 | 245. Live A/B + Rollback Anchor | v1.53 | 4/4 | Complete    | 2026-06-19 |
-| 246. Conditional Default Flip + Milestone Closeout | v1.53 | 1/1 | Complete (stay-on-icmplib; no production flip) | 2026-06-19 |
+| 246. Conditional Default Flip + Milestone Closeout | v1.53 | 1/1 | Complete    | 2026-06-19 |
 
 ---
 
