@@ -36,7 +36,7 @@
 ### Phases
 
 - [x] **Phase 247: fping Shadow Capture + Phase 245 Evidence Review** - Run fping in shadow alongside icmplib and re-examine AB-03 threshold methodology
-- [ ] **Phase 248: fping p99 Distribution Analysis + Profiling Verdict** - Compare fping vs icmplib distributions and produce the decision artifact
+- [x] **Phase 248: fping p99 Distribution Analysis + Profiling Verdict** - Compare fping vs icmplib distributions and produce the decision artifact
 - [ ] **Phase 249: Autorate Flat-Gauge Fire-on-Change** - SEED-007 Phase A: audit flat gauges, apply fire-on-change to confirmed candidates
 - [ ] **Phase 250: CAKE Tin Consumer Audit + Conditional Implementation** - SEED-007 Phase B (gated): audit tin consumers, implement skip-on-unchanged if safe
 
@@ -80,7 +80,12 @@ Plans:
   3. The artifact explicitly traces back to Phase 245 evidence and Phase 247 threshold-methodology finding
   4. SAFE-18 passes at phase close: zero diff in protected controller-path files
 
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+
+**Wave 1**
+
+- [x] 248-01-PLAN.md — fping distribution analysis + profiling verdict (PROF-03, PROF-04)
 
 ### Phase 249: Autorate Flat-Gauge Fire-on-Change
 

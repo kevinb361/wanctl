@@ -10,8 +10,8 @@
 
 - [x] **PROF-01**: Run fping backend in shadow/read-only mode alongside icmplib on Spectrum, capturing raw RTT samples and cycle p99 timing without touching the control loop or production defaults.
 - [x] **PROF-02**: Re-examine Phase 245 AB-03 threshold methodology and rollback_trigger verdict to determine whether fping latency or threshold calibration drove the result.
-- [ ] **PROF-03**: Produce a comparable p99 RTT distribution for fping vs icmplib over a representative Spectrum production window.
-- [ ] **PROF-04**: Produce a decision artifact: is fping ready for a future default-flip attempt? If not, what must change?
+- [x] **PROF-03**: Produce a comparable p99 RTT distribution for fping vs icmplib over a representative Spectrum production window.
+- [x] **PROF-04**: Produce a decision artifact: is fping ready for a future default-flip attempt? If not, what must change?
 
 ### GAUGE — Autorate Flat-Gauge Fire-on-Change (SEED-007 Phase A)
 
@@ -58,8 +58,8 @@
 |-------------|-------|--------|
 | PROF-01 | Phase 247 | Complete |
 | PROF-02 | Phase 247 | Complete |
-| PROF-03 | Phase 248 | Pending |
-| PROF-04 | Phase 248 | Pending |
+| PROF-03 | Phase 248 | Complete |
+| PROF-04 | Phase 248 | Complete |
 | GAUGE-01 | Phase 249 | Pending |
 | GAUGE-02 | Phase 249 | Pending |
 | GAUGE-03 | Phase 249 | Pending |
