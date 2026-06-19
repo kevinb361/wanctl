@@ -641,17 +641,17 @@ This phase writes a new script to `scripts/` and produces a documentation artifa
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **What Python path to use on cake-shaper?**
    - What we know: `/opt/wanctl/src` contains `wanctl/` package; prior scripts used `sys.path.insert(0, str(src_path))`
    - What's unclear: Whether a `pip install -e .` venv activation is preferred or explicit sys.path is acceptable for a profiling script
-   - Recommendation: Use `#!/opt/wanctl/.venv/bin/python` shebang if venv is set up, or explicit sys.path at top. Follow the pattern of existing scripts in `scripts/` that run on cake-shaper.
+   - RESOLVED: Use explicit `sys.path.insert(0, str(Path(__file__).parent.parent / "src"))` at top of script, consistent with the pattern in `scripts/capture_fping_fixtures.py`. This avoids assuming a specific venv layout on cake-shaper while still importing the real wanctl package.
 
 2. **Does the existing soak-monitor.sh need to be involved?**
    - What we know: `scripts/soak-monitor.sh` exists; Phase 247 is a standalone shadow capture, not a wanctl controller soak
    - What's unclear: Whether the planner should reference the soak-monitor for health checks alongside the shadow script
-   - Recommendation: Keep them separate. The shadow script is read-only; soak-monitor monitors the live cake-autorate/state-bridge services. Reference soak-monitor only for confirming the live system stays healthy during the shadow soak.
+   - RESOLVED: Keep them separate. The shadow script is read-only; soak-monitor monitors the live cake-autorate/state-bridge services. The plan instructs the operator to optionally check soak-monitor output to confirm live services stay healthy during the 12h window, but the shadow script does not call or depend on soak-monitor.sh.
 
 ---
 

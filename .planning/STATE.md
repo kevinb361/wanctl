@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.54
 milestone_name: fping Profiling + Storage Hygiene
-status: planning
-stopped_at: context exhaustion at 77% (2026-06-19)
-last_updated: "2026-06-19T01:33:34.494Z"
-last_activity: 2026-06-18 — v1.54 roadmap created; Phase 247 is next
+status: executing
+stopped_at: ""
+last_updated: "2026-06-18T00:00:00.000Z"
+last_activity: 2026-06-18 — Phase 247 planned (4 plans, 3 waves)
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
+  total_plans: 4
   completed_plans: 0
   percent: 0
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 Phase: 247 of 4 (Phase 247 — fping Shadow Capture + Phase 245 Evidence Review)
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-18 — v1.54 roadmap created; Phase 247 is next
+Status: Planned — ready to execute
+Last activity: 2026-06-18 — Phase 247 planned (4 plans: 247-01 methodology review, 247-02 SAFE-18 verifier, 247-03 shadow script, 247-04 soak + evidence)
 
 Progress: [░░░░░░░░░░] 0%
 
