@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.54
 milestone_name: fping Profiling + Storage Hygiene
 status: ready_to_plan
-stopped_at: Phase 248 complete — ready to plan Phase 249
-last_updated: 2026-06-19T19:05:00Z
-last_activity: 2026-06-19 -- Phase 248 verdict complete; fping switch-eligible for operator-gated controlled canary
+stopped_at: Phase 248.1 planned; waiting on operator approval before live canary mutation
+last_updated: 2026-06-19T19:59:30Z
+last_activity: 2026-06-19 -- Phase 248.1 read-only preflight complete; live canary requires switching Spectrum from external cake-autorate to native wanctl@spectrum
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 2
-  total_plans: 5
+  total_plans: 6
   completed_plans: 5
-  percent: 50
+  percent: 40
 ---
 
 # Session State
@@ -21,24 +21,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 249 — Autorate Flat-Gauge Fire-on-Change
+**Current focus:** Phase 248.1 — fping Controlled Canary
 
 ## Current Position
 
-Phase: 249
-Plan: Not started
-Status: Ready to plan
+Phase: 248.1
+Plan: 248.1-01
+Status: Waiting on operator approval before production mutation
 Last activity: 2026-06-19
 
-Progress: [█████░░░░░] 50%
+Progress: [████░░░░░░] 40%
 
 ## Active Blockers / Concerns
 
-- SAFE-18 applies to all four phases: zero diff in `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion. Verify at every phase boundary.
+- SAFE-18 applies across the milestone: zero diff in `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion. Verify at every phase boundary.
 - Phase 250 (TIN-02/TIN-03) is conditionally gated on TIN-01 consumer audit result. If any `wanctl_cake_tin_*` consumer is count-over-window style, TIN-02/TIN-03 defer to v1.55 and Phase 250 closes on the audit finding alone.
 - fping profiling is shadow-only: no production default changes, no control loop mutation in any phase.
 - Phase 247 complete: partial fping shadow soak ran 6.964h, stopped cleanly with `probe_stats_final`, and produced `.planning/phases/247-fping-shadow-capture-phase-245-evidence-review/evidence/phase247-shadow-summary.json` for Phase 248. No production default flip was made.
 - Phase 248 complete: `.planning/phases/248-fping-p99-distribution-analysis-profiling-verdict/248-FPING-VERDICT.md` says fping is switch-eligible for an operator-gated controlled canary; no production default flip was made.
+- Phase 248.1 preflight complete: Spectrum is currently external cake-autorate-owned (`cake-autorate-spectrum.service` + state bridge active; `wanctl@spectrum.service` inactive; units conflict). A real fping backend canary requires explicit approval to switch ownership to native `wanctl@spectrum.service` for the canary window.
 
 ## Deferred Items (carried into v1.54)
 
@@ -74,11 +75,11 @@ See `.planning/todos/pending/` — 7+ active todos as listed in Deferred Items.
 
 ### Blockers / Concerns
 
-None beyond the conditional TIN gate noted above.
+Phase 248.1 is blocked on operator approval before any live service/config mutation. Conditional TIN gate still applies later.
 
 ## Session Continuity
 
 Last session: 2026-06-19T01:33:34.489Z
-Stopped at: Phase 248 complete; ready to plan Phase 249
+Stopped at: Phase 248.1 plan/preflight complete; approval required before live canary
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)

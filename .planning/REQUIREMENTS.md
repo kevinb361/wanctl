@@ -13,6 +13,10 @@
 - [x] **PROF-03**: Produce a comparable p99 RTT distribution for fping vs icmplib over a representative Spectrum production window.
 - [x] **PROF-04**: Produce a decision artifact: is fping ready for a future default-flip attempt? If not, what must change?
 
+### FLIP — fping Controlled Canary
+
+- [ ] **FLIP-02**: Operator-gated production canary of fping as Spectrum's native wanctl RTT backend under armed rollback and explicit sign-off.
+
 ### GAUGE — Autorate Flat-Gauge Fire-on-Change (SEED-007 Phase A)
 
 - [ ] **GAUGE-01**: Audit per-metric write rates on both WANs via `wanctl-history --ingestion-rate`; identify gauges emitting at ≥2Hz with near-zero value variance.
@@ -45,7 +49,7 @@
 
 | Feature | Reason |
 |---------|--------|
-| Production fping default flip | Requires PROF-04 positive verdict + new A/B; deferred to post-v1.54 |
+| Blind production fping default flip | Requires canary evidence and operator keep decision; Phase 248.1 is canary-only, not blind default flip |
 | Control-path algorithm changes | SAFE-18 invariant; no controller mutation in this milestone |
 | RouterOS / MikroTik mutations | Not in scope for profiling/hygiene work |
 | Soak monitor or deploy changes | Unrelated axis; deferred |
@@ -60,6 +64,7 @@
 | PROF-02 | Phase 247 | Complete |
 | PROF-03 | Phase 248 | Complete |
 | PROF-04 | Phase 248 | Complete |
+| FLIP-02 | Phase 248.1 | Pending |
 | GAUGE-01 | Phase 249 | Pending |
 | GAUGE-02 | Phase 249 | Pending |
 | GAUGE-03 | Phase 249 | Pending |
@@ -69,8 +74,8 @@
 | SAFE-18 | Phase 250 (cross-phase, verified at every boundary) | Pending |
 
 **Coverage:**
-- v1.54 requirements: 11 total
-- Mapped to phases: 11
+- v1.54 requirements: 12 total
+- Mapped to phases: 12
 - Unmapped: 0
 
 ---

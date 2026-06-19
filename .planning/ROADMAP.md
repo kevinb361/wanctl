@@ -27,7 +27,7 @@
 
 ## 🚧 v1.54 fping Profiling + Storage Hygiene (In Progress)
 
-**Milestone Goal:** Profile fping cycle p99 behavior to understand the Phase 245 `rollback_trigger` verdict and determine a path to a future production flip; simultaneously reduce per-WAN DB write volume via fire-on-change hygiene.
+**Milestone Goal:** Profile fping cycle p99 behavior to understand the Phase 245 `rollback_trigger` verdict and determine a path to a future production flip; run the operator-gated fping canary if approved; simultaneously reduce per-WAN DB write volume via fire-on-change hygiene.
 
 **SAFE-18 invariant:** Controller-path zero-diff across all phases — fping profiling is shadow-only (no control loop mutation); storage hygiene touches only metric emission. Neither axis mutates `wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, or fusion logic.
 
@@ -37,6 +37,7 @@
 
 - [x] **Phase 247: fping Shadow Capture + Phase 245 Evidence Review** - Run fping in shadow alongside icmplib and re-examine AB-03 threshold methodology
 - [x] **Phase 248: fping p99 Distribution Analysis + Profiling Verdict** - Compare fping vs icmplib distributions and produce the decision artifact
+- [ ] **Phase 248.1: fping Controlled Canary** - Operator-gated Spectrum canary of native wanctl with `measurement.backend: fping`, explicit rollback to external cake-autorate/icmplib
 - [ ] **Phase 249: Autorate Flat-Gauge Fire-on-Change** - SEED-007 Phase A: audit flat gauges, apply fire-on-change to confirmed candidates
 - [ ] **Phase 250: CAKE Tin Consumer Audit + Conditional Implementation** - SEED-007 Phase B (gated): audit tin consumers, implement skip-on-unchanged if safe
 
@@ -87,10 +88,29 @@ Plans:
 
 - [x] 248-01-PLAN.md — fping distribution analysis + profiling verdict (PROF-03, PROF-04)
 
+### Phase 248.1: fping Controlled Canary
+
+**Goal**: With explicit operator approval, run a short, reversible Spectrum canary that moves live ownership from external cake-autorate to native `wanctl@spectrum.service` with `measurement.backend: "fping"`; prove rollback to external cake-autorate and `icmplib` before any keep decision.
+**Depends on**: Phase 248
+**Requirements**: FLIP-02
+**Success Criteria** (what must be TRUE):
+
+  1. Read-only preflight proves current live owner, unit conflict, backend config, health endpoint source, and rollback target.
+  2. No live config/service mutation occurs before explicit operator approval.
+  3. If approved, canary observes startup, health, restart count, RTT/loss/drop, qdisc state, and steering state over the approved window.
+  4. Rollback to external cake-autorate plus `measurement.backend: "icmplib"` is executed on failure or explicitly proven if canary is kept.
+
+**Plans**: 1 plan
+Plans:
+
+**Wave 1**
+
+- [ ] 248.1-01-PLAN.md — operator-gated fping controlled canary (FLIP-02)
+
 ### Phase 249: Autorate Flat-Gauge Fire-on-Change
 
 **Goal**: Per-metric write rates on both WANs are audited via `wanctl-history --ingestion-rate`; confirmed flat-emitting gauges have the steering fire-on-change pattern applied one candidate per canary cycle with before/after write-rate measurement; each changed metric has unit-test coverage
-**Depends on**: Phase 248 (SAFE-18 establishes the no-mutation baseline for the milestone)
+**Depends on**: Phase 248.1 (or Phase 248 if the operator defers the canary)
 **Requirements**: GAUGE-01, GAUGE-02, GAUGE-03
 **Success Criteria** (what must be TRUE):
 
