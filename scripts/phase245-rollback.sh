@@ -3,9 +3,10 @@
 #
 # Snapshot-A rollback = restore the Spectrum measurement.backend config to icmplib
 # under the currently-deployed Phase-245 code. This is NOT a code rollback to
-# ffaa8a0e. The ffaa8a0e anchor proves Selection-A was the production-deployed
-# starting point before Plans 01-03; after the Phase-245 deploy, the daemon flip
-# remains deployed and only the backend config reverts to icmplib.
+# ffaa8a0e. Production uses deploy.sh's flat-rsync layout, so Snapshot-A code
+# anchoring is proven before the live A/B by a flat-file hash proof. During
+# rollback the daemon flip remains deployed and only the backend config reverts
+# to icmplib.
 
 set -euo pipefail
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -29,7 +30,7 @@ EOF
 print_plan() {
   cat <<EOF
 Phase 245 Snapshot-A CONFIG-only rollback plan (real mutation requires --confirm):
-  1. Check production-deployed ref on ${SSH_HOST}: git -C /opt/wanctl rev-parse --short HEAD
+  1. Keep Phase-245 deployed code in place (production layout is flat rsync, not a git checkout)
   2. Restore Spectrum measurement.backend to icmplib in configs/spectrum.yaml
   3. Deploy Spectrum only: scripts/deploy.sh spectrum ${SSH_HOST}
   4. Restart steering.service: ssh ${SSH_HOST} 'sudo systemctl restart steering.service'
@@ -42,7 +43,7 @@ EOF
 }
 
 production_ref() {
-  ssh -o BatchMode=yes -o ConnectTimeout=5 "$SSH_HOST" 'git -C /opt/wanctl rev-parse --short HEAD'
+  printf 'flat-rsync-phase245-code'
 }
 
 nrestarts() {
