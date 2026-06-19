@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.53
-milestone_name: Pluggable RTT Measurement Backend
-status: milestone_complete
-stopped_at: Milestone complete (Phase 246 was final phase)
-last_updated: 2026-06-19T00:53:11.155Z
-last_activity: 2026-06-19 -- Phase 246 no-flip closeout complete; v1.53 milestone complete
+milestone: none
+milestone_name: none
+status: milestone_archived
+stopped_at: Milestone v1.53 archived and ready for next milestone
+last_updated: "2026-06-19T01:03:19.518Z"
+last_activity: 2026-06-19 — Milestone v1.53 completed and archived
 progress:
   total_phases: 9
   completed_phases: 9
@@ -25,12 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-14 after v1.52 milestone close)
 
 ## Current Position
 
-Phase: complete
+Phase: none
 Plan: none
-Status: Milestone complete
-Last activity: 2026-06-19
-
-Milestone progress: [████████████████████] 9/9 phases (100%)
+Status: Awaiting next milestone
+Last activity: 2026-06-19 — Milestone v1.53 completed and archived
 
 ## Active Blockers / Concerns
 
@@ -59,7 +57,7 @@ Acknowledged and deferred at v1.52 milestone close on 2026-06-14:
 
 ### v1.52-shipped-with-advisory-tech-debt
 
-- **Status:** Milestone complete
+- **Status:** v1.53 milestone complete
 - **Operator sign-off:** Kevin — 2026-06-14, via `/gsd-complete-milestone` audit acknowledgment and ship path.
 - **Why this is acceptable:** v1.52 audit status is `tech_debt`, not `passed`, but it found no requirement, integration, or flow blockers: 15/15 REQs, 3/3 phases, 5/5 integration seams, 5/5 E2E flows. SAFE-16 controller-path zero-diff held through closeout. Remaining items are advisory: normal deploy `eval rsync`, legacy raw watchdog docs, partial 235/237 Nyquist metadata, and Phase 236 summary metadata.
 
@@ -156,8 +154,7 @@ Archived v1.51 evidence: `.planning/milestones/v1.51-phases/`
 
 ## Operator Next Steps
 
-- Verify Phase 238 Plan 03 outputs, especially the binding `Selection: A` in `238-PROVENANCE-MAP.md` and the final SAFE-17 `passed:true` evidence.
-- Carry the unresolved PROV-03 topology drift forward: do not treat `spec-modem` / `att-modem` fping egress as proven until criterion/topology is reconciled.
+- Start the next milestone with /gsd-new-milestone
 
 ## Decisions (v1.53)
 

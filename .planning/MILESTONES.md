@@ -1,5 +1,46 @@
 # Project Milestones: wanctl
 
+## v1.53 Pluggable RTT Measurement Backend (Shipped: 2026-06-19)
+
+**Phases completed:** 9 phases, 32 plans, 78 tasks
+
+**Key accomplishments:**
+
+- Lightweight SAFE-17 controller-path git-diff assertion vs v1.52 with constrained evidence output and committed passing JSON proof
+- Read-only fping egress proof captured a real non-pass topology result: both WAN route queries resolved on `dev ens18`, not the repo-derived `spec-modem` / `att-modem` uplinks
+- Operator-ratified Selection A for live steering RTT A/B, with provenance evidence preserved and SAFE-17 re-asserted after all Phase 238 artifacts landed
+- Corrected the egress-proof criterion to the live host-route topology, re-ran the read-only proof (both WANs PASS), and refreshed SAFE-17 — closing the only open Phase 238 item.
+- RttBackend Protocol and RttSample value seam with pure IRTT mapping, acyclic imports, and byte-preserving RTTSnapshot coercion
+- RTTMeasurement now structurally implements RttBackend via an import-safe probe() wrapper with zero-success None semantics and hot-path regression proof
+- Fail-closed SAFE-17 verifier with path allowlist, AST protected-body identity, complete allowed-diff-shape proof, and passed boundary evidence
+- Inert `measurement.backend: icmplib|fping` validation for both autorate and steering, with malformed-shape errors and real-config delta proof.
+- Fail-closed Phase 240 SAFE-17 verifier with union allowlist plus a second Phase-239-close RTT-seam no-drift gate.
+- Offline fping RTT backend with source-bound multi-reflector bursts, loss-safe parser, observed-host scorer feed, and cloned cadence thread.
+- Phase 241 SAFE-17 verifier with scorer-byte-identity guard plus additive fping config knob validation and unknown-key registry coverage.
+- Real fping 5.1 captures from cake-shaper now bind the offline parser/scorer tests through metadata-backed CompletedProcess fixtures.
+- SAFE-17 boundary evidence proves Phase 241 controller-path drift stayed inside the approved fping/validator surface with protected bodies byte-identical.
+- RED factory contracts and fail-closed SAFE-17 boundary tooling for the Phase 242 backend factory.
+- RTT backend factory with loud per-WAN fping fallback, resolved fping cadence, and icmplib controller helper compatibility.
+- Factory-wired autorate and steering RTT construction with per-WAN backend fallback attribution in `/health`.
+- Passing SAFE-17 boundary evidence plus live-fping functional proof for the backend factory rollout.
+- Fping background RTT samples keep backend attribution and no longer feed ReflectorScorer, with SAFE-17 evidence refreshed for the exact guarded exception.
+- BENCH-02 cycle-budget thresholds are frozen before data collection, with git-mechanical provenance and a SAFE-17 empty-controller-diff boundary gate.
+- Invocation-scoped cycle-budget rollup plus systemd hygiene NDJSON sampler for BENCH-01 evidence collection.
+- Frozen BENCH-02 verdict evaluator with hard icmplib representativeness aborts and full fail-mode test coverage.
+- Isolation-gated 8-arm production benchmark harness with committed evidence and an input_error BENCH verdict that blocks treating Phase 243 as passed.
+- Amended the benchmark gate semantics with a new provenance-bearing threshold blob so it measures fping regression instead of rejecting Spectrum link jitter, then re-ran the evaluator over existing fixed evidence to produce an `outcome: pass` amended verdict — with no controller-path changes and no new production run.
+- Phase 244 SAFE-17 verifier plus ordered health-payload attribution contract targets for autorate, steering, and bridge health surfaces.
+- Autorate /health measurement now appends producer/backend/source_ip attribution while preserving the existing measurement contract order.
+- Steering /health rtt_source now exposes a seam-gated attribution triple that stays null for all pre-245 autorate/history RTT sources.
+- Both cake-autorate state bridges now emit honest producer/backend/source_ip attribution on healthy and degraded /health measurement paths.
+- Phase 245 rollback/A-B integrity gates: SAFE-17 boundary proof, frozen AB-03 thresholds, and git provenance tooling committed before live data.
+- Steering now consumes its wanctl RttBackend seam first, exposes wanctl-backend attribution in /health, and preserves the full autorate fallback chain on None or exceptions.
+- Phase 245 now has the offline tooling to run an interleaved Spectrum backend A/B, compute the AB-03 verdict, and perform a confirm-gated config-only rollback to icmplib.
+- Phase 245 live production A/B completed on `cake-shaper`; the frozen-threshold verdict is `rollback_trigger` with recommendation `keep-icmplib`. Production was returned to the Snapshot-A config state: Spectrum backend `icmplib`, Phase-245 code deployed.
+- Phase 246 completed the v1.53 default-flip decision by choosing the no-flip branch: `stay-on-icmplib`. No production deploy, restart, RouterOS mutation, or default flip was performed.
+
+---
+
 ## v1.52 Silicom Bypass Operationalization (Shipped: 2026-06-14)
 
 **Phases completed:** 3 phases, 11 plans

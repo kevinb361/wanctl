@@ -8,28 +8,21 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.53 Pluggable RTT Measurement Backend
+## Current Milestone
 
-**Goal:** Introduce a config-selectable RTT measurement backend abstraction with `fping` as the first alternate, validate it against the live steering consumer via A/B, and flip the production default to `fping` only if evidence clearly wins — under a rollback anchor.
+No active milestone. v1.53 is shipped and archived; next milestone not yet selected.
 
-**Target features:**
+## Recently Shipped: v1.53 Pluggable RTT Measurement Backend (shipped 2026-06-19)
 
-- Pluggable RTT backend seam in the shared `rtt_measurement` path; `icmplib` refactored behind it as the default; backend selectable per WAN/config for both steering and autorate.
-- `fping` backend: source-IP binding (`-S`), multi-reflector fanout, robust timestamped-output parsing with loss / partial-line / stall / process-death handling, automatic fallback when `fping` is missing.
-- Cycle-budget + CPU benchmarking (idle and load) proving no 50ms cycle regression; unit tests built from captured `fping` output samples.
-- Controlled cake-shaper A/B (`icmplib` vs `fping`) on the **live steering consumer**, pre-registered accept/reject thresholds, rollback anchor.
-- Conditional production default flip to `fping` if A/B clearly wins; otherwise documented recommendation and safe stay on `icmplib`.
+**Delivered:** A config-selectable RTT backend seam with `icmplib` preserved as byte-identical/default, `fping` implemented as the first alternate with source binding, multi-reflector parsing, fallback, and attribution, plus live A/B evidence on the steering RTT consumer. Full record: `milestones/v1.53-ROADMAP.md`, requirements archive `milestones/v1.53-REQUIREMENTS.md`, audit `milestones/v1.53-MILESTONE-AUDIT.md`.
+
+**Outcome:** Phase 245 live A/B returned `rollback_trigger / keep-icmplib`; Phase 246 closed FLIP-01 through the no-flip branch. Production remains on `icmplib`; future fping work is deferred as non-production `FPING-PROFILE-01`.
 
 **Key context:**
 
-- **First controller-path-touching milestone in 10** — ends the SAFE-07..16 zero-diff streak *by design*. In-scope source surface: `src/wanctl/rtt_measurement.py`, `src/wanctl/autorate_continuous.py`, `src/wanctl/steering/daemon.py`, plus configs.
-- `icmplib` stays default unless A/B proves `fping`; no hard `fping` dependency (fallback-capable).
-- Production runs cake-autorate on both WANs; **steering is the live RTT consumer and the A/B target.** Native autorate inherits the capability via the shared path but is not stood up for validation.
-- Phase numbering continues: v1.52 ended at Phase 237 → v1.53 starts at **Phase 238**.
-- Phase 239 complete (2026-06-15): `RttBackend`/`RttSample` seam landed, `RTTMeasurement.probe()` makes the existing icmplib path structurally conform without consumer rewiring, and SAFE-17 evidence passed for the bounded source diff.
-- Phase 240 complete (2026-06-15): inert `measurement.backend: icmplib|fping` validation is wired into autorate and steering config validators, existing deployment configs validate without migration, and Phase 240 SAFE-17 boundary verification passed with no controller-path drift outside the approved validator surface.
-- Phase 241 complete (2026-06-16): offline `fping` backend, real fping 5.1 fixtures, reflector-loss scorer feed, additive fping validators, and SAFE-17 boundary evidence are verified at the offline/backend boundary. Live factory/operator selection remains deferred to Phase 242 by design.
-- Out of scope: IRTT backend, the dormant UL / D-14 / target-edge-churn seeds (SEED-003/004/005), native autorate retirement (ROLE-01).
+- SAFE-17 replaced the SAFE-07..16 zero-diff streak with a narrowed, explicit controller-path allowlist for the RTT-measurement seam and accepted reflector-scorer touch.
+- The live production topology uses cake-autorate bridges; v1.53 selected and exercised the steering RTT seam path for the A/B, then restored Spectrum to the Snapshot-A config state (`measurement.backend: icmplib`) under Phase-245 code.
+- `fping` remains implemented and selectable but is not the production default in v1.53.
 
 ## Recently Shipped: v1.52 Silicom Bypass Operationalization (shipped 2026-06-14)
 
@@ -214,15 +207,15 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-**v1.53 progress:** Phase 241 is complete and verified; next phase is Phase 242 (backend factory + loud fallback).
+**v1.53:** shipped 2026-06-19; production decision `stay-on-icmplib`; future fping profiling deferred as `FPING-PROFILE-01`.
 
-**Version:** v1.52 shipped 2026-06-14 (audit `tech_debt`; 15/15 REQs, 3/3 phases, 5/5 integration, 5/5 flows). **Production controller state:** both WANs run upstream cake-autorate with wanctl state bridges (`cake-autorate-{spectrum,att}.service` + `-state-bridge.service`, live since 2026-06-08); `wanctl@{spectrum,att}` disabled as the **verified** rollback path (SOAK-02 provable-path, preflight `overall_pass: true` both WANs); steering consumes bridge-written state; native wanctl remains the MikroTik/RouterOS controller and portable default. Spectrum CAKE: member-NIC `diffserv4 wash` 550M base DL autorate / fixed 18M UL. ATT: `diffserv4 nowash` 95M base DL autorate / fixed 19M UL. **Current position:** between milestones — next milestone not yet selected.
+**Version:** v1.53 shipped 2026-06-19 (audit `tech_debt`; 15/15 REQs, 3/3 phases, 5/5 integration, 5/5 flows). **Production controller state:** both WANs run upstream cake-autorate with wanctl state bridges (`cake-autorate-{spectrum,att}.service` + `-state-bridge.service`, live since 2026-06-08); `wanctl@{spectrum,att}` disabled as the **verified** rollback path (SOAK-02 provable-path, preflight `overall_pass: true` both WANs); steering consumes bridge-written state; native wanctl remains the MikroTik/RouterOS controller and portable default. Spectrum CAKE: member-NIC `diffserv4 wash` 550M base DL autorate / fixed 18M UL. ATT: `diffserv4 nowash` 95M base DL autorate / fixed 19M UL. **Current position:** between milestones — next milestone not yet selected.
 **Tests:** Phase 231 verification passed 16/16; SOAK-01 evidence recorded both-WAN `SOAK-01 PASS`, SOAK-02 closed by Kevin accepting the no-mutation provable path, Phase 231 focused tests passed `16 passed`, hot-path slice passed `673 passed`, and SAFE-14 milestone-close controller-path zero-diff passed. Phase 230 verification passed 7/7; soak-monitor ATT coverage tests passed `.venv/bin/pytest tests/test_soak_monitor_att_coverage.py -q` (`5 passed`), `shellcheck -S error scripts/soak-monitor.sh` passed, code review was clean, and SAFE-14 controller-path zero-diff passed. Phase 229 verification passed 14/14; ATT artifact tests passed `.venv/bin/pytest tests/test_att_cake_autorate_artifacts.py -q` (`6 passed`) and ATT + Spectrum parity tests passed (`11 passed`). Phase 227 focused suite passed `.venv/bin/pytest tests/test_phase227_marked_ef.py tests/test_phase227_qdisc_verify.py tests/test_phase227_safe13_boundary.py tests/test_phase227_evidence_completeness.py -q` (`25 passed`) plus evidence completeness `verdict-ready` and SAFE-13 boundary checks. Phase 226 Plan 05 gap closure passed `.venv/bin/pytest tests/phase226/ -q` (`7 passed`) plus retained evidence hash/provenance and SAFE-13 checks. Phase 223 full post-merge regression passed `5320 passed, 10 skipped, 2 deselected`; steering replay package passed `19 passed`, and `replay_harness.py --all` emits all seven fixtures including `clean-restart-degraded`. Phase 221 verification + closeout published `carried_narrower_with_close_with_prejudice_rule` (post-D-10 BGP overlay, authoritative); raw aggregator `defect_located` overlaid. Phase 220 verification passed 5/5 after the repaired wet rehearsal harness reproduced the Phase 214 dallas/Spectrum daytime anchor and the hot-path + Phase 220 regression slice passed `726 passed`. Phase 219 verification passed 5/5 after full regression `5238 passed, 14 skipped, 2 deselected` and production D-27 cycle-budget evidence (`avg_ms=2.857`, `p99_ms=6.4`). Phase 217 verification passed 12/12; Phase 216 verification passed 11/11; Phase 215 verification passed 25/25; Phase 214 UAT passed 8/8; Phase 213 verification passed 15/15; Phase 212 verification passed 16/16.
 **LOC:** ~40,915 Python (src/) — v1.47 source-surface delta was +3,361 / -28 across 15 files (additive observability + matrix tooling; zero controller-path mutation).
-**Milestones:** 53 shipped, shipped-with-deferral, or closed (v1.0–v1.52).
+**Milestones:** 54 shipped, shipped-with-deferral, or closed (v1.0–v1.53).
 **Active milestone:** none. Phase 218 watch is dormant (its instrumentation lives in the native controller, which no longer runs Spectrum/ATT).
 
-**Latest:** v1.52 shipped — `silicom-bypass` CLI + boot baseline, watchdog fail-open two-mode reconciliation, `silicom-test` HIL harness, standalone deploy ownership, and SAFE-16 closeout evidence. Remaining review debt is advisory: normal `deploy_code` eval-rsync hardening, legacy raw-watchdog runbook cleanup, and partial 235/237 Nyquist metadata.
+**Latest:** v1.53 shipped — Pluggable RTT backend seam delivered; fping selectable but not production default after rollback-trigger A/B verdict. Previous: v1.52 shipped — `silicom-bypass` CLI + boot baseline, watchdog fail-open two-mode reconciliation, `silicom-test` HIL harness, standalone deploy ownership, and SAFE-16 closeout evidence. Remaining review debt is advisory: normal `deploy_code` eval-rsync hardening, legacy raw-watchdog runbook cleanup, and partial 235/237 Nyquist metadata.
 **Previous:** v1.51 shipped 2026-06-12 — BOUND-01 cleanup boundary guard live and fail-closed, rollback/digest tooling fixes landed, gated repo hygiene sweep done, planning metadata reconciled (12 orphan slugs indexed, silicom/SEED-006 single-canonical, Phase 230 Nyquist waiver operator-approved), SAFE-15 zero-diff proven at every boundary and fresh at close. UAT 5/5; 234-VERIFICATION re-verified 11/11.
 **Previous:** v1.51 Phase 233 complete — gated repo hygiene sweep removed approved superseded cake-autorate trial artifacts while preserving KEEP docs, annotated active docs for native vs external cake-autorate mode, pinned explicit Spectrum state-bridge identity env, fixed code-review doc warnings, and verified SAFE-15 controller-path zero-diff. Full-suite green was explicitly waived for known historical Phase 220/221 boundary-test noise; Phase 233 dedicated checks and verifier passed 18/18.
 **Previous:** v1.51 Phase 232 complete — BOUND-01 cleanup boundary guard now fails closed for protected-file removal, git-index removal, immutable drift, and directory replacement; `phase231-rollback.sh` confirm-path CR-01 is fixed without live rollback; operator-summary digest permission todo closed by v1.44 T12/TOOL-03 validation evidence; SAFE-15 controller-path zero-diff verified at the phase boundary. Advisory follow-ups remain for broader rollback external-unit post-check coverage and CLI missing-value polish.
