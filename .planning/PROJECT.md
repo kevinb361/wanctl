@@ -8,9 +8,14 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone
+## Current Milestone: v1.54 fping Profiling + Storage Hygiene
 
-No active milestone. v1.53 is shipped and archived; next milestone not yet selected.
+**Goal:** Profile fping cycle p99 behavior to understand the rollback_trigger verdict and determine a path to a future production flip; simultaneously reduce per-WAN DB write volume via fire-on-change hygiene.
+
+**Target features:**
+- **FPING-PROFILE-01** — Non-production fping profiling: instrument cycle p99 timing, investigate why Phase 245 A/B hit rollback_trigger, refine threshold methodology. No production default changes.
+- **SEED-007 Phase A** — Autorate flat-gauge fire-on-change audit: profile per-metric write rates, apply fire-on-change to confirmed flat-emitting gauges, one candidate per canary cycle.
+- **SEED-007 Phase B** — CAKE tin skip-on-unchanged: consumer audit first; ship if all consumers are last-value-style, defer to v1.55 if any need continuous sampling.
 
 ## Recently Shipped: v1.53 Pluggable RTT Measurement Backend (shipped 2026-06-19)
 
@@ -207,6 +212,7 @@ No active milestone. v1.53 is shipped and archived; next milestone not yet selec
 
 ## Current State
 
+**v1.54:** active — fping profiling (FPING-PROFILE-01) + storage hygiene (SEED-007 Phase A flat-gauge fire-on-change, Phase B CAKE tin skip-on-unchanged gated on consumer audit).
 **v1.53:** shipped 2026-06-19; production decision `stay-on-icmplib`; future fping profiling deferred as `FPING-PROFILE-01`.
 
 **Version:** v1.53 shipped 2026-06-19 (audit `tech_debt`; 15/15 REQs, 3/3 phases, 5/5 integration, 5/5 flows). **Production controller state:** both WANs run upstream cake-autorate with wanctl state bridges (`cake-autorate-{spectrum,att}.service` + `-state-bridge.service`, live since 2026-06-08); `wanctl@{spectrum,att}` disabled as the **verified** rollback path (SOAK-02 provable-path, preflight `overall_pass: true` both WANs); steering consumes bridge-written state; native wanctl remains the MikroTik/RouterOS controller and portable default. Spectrum CAKE: member-NIC `diffserv4 wash` 550M base DL autorate / fixed 18M UL. ATT: `diffserv4 nowash` 95M base DL autorate / fixed 19M UL. **Current position:** between milestones — next milestone not yet selected.
