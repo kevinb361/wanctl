@@ -1,5 +1,22 @@
 # Project Milestones: wanctl
 
+## v1.54 fping Profiling + Storage Hygiene (Shipped-with-deferral: 2026-06-19)
+
+**Phases completed:** 8 phases, 11 plans, 0 tasks
+
+**Key accomplishments:**
+
+- fping shadow/profiling work produced a post-v1.53 path forward without flipping production defaults blindly.
+- Operator-gated native Spectrum fping canary was run and rolled back safely; the canary exposed real native fping cadence/startup issues instead of producing a keep verdict.
+- Native fping mechanical blockers were fixed and verified: cadence-aware cached-sample staleness, native Spectrum CAKE parity against the external cake-autorate envelope, and startup first-sample readiness.
+- Autorate flat-gauge storage hygiene was audited live and closed as a no-op because current stable windows had no >=2Hz flat-gauge candidates.
+- CAKE tin skip-on-unchanged was deliberately deferred: `wanctl-history --tins` is raw-history and dropped/ECN are counter-shaped, so sparse emission needs a v1.55 consumer redesign or explicit semantic acceptance.
+- SAFE-18 was preserved honestly: the original no-controller-diff invariant held through Phase 248.1, was superseded only for the operator-directed fping freshness repair, and storage hygiene introduced no unrelated controller behavior drift.
+
+**Known deferred items at close:** 11 open artifacts acknowledged and carried forward (1 debug-index item, 5 listed todos plus audit remainder, 5 seeds). Zero UAT/verification gaps. TIN-02/TIN-03 intentionally deferred to v1.55.
+
+---
+
 ## v1.53 Pluggable RTT Measurement Backend (Shipped: 2026-06-19)
 
 **Phases completed:** 9 phases, 32 plans, 78 tasks

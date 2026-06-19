@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.54
 milestone_name: fping Profiling + Storage Hygiene
-status: complete
-stopped_at: v1.54 complete — Phase 250 consumer audit deferred CAKE tin skip-on-unchanged to v1.55
-last_updated: 2026-06-19T21:39:50Z
-last_activity: 2026-06-19 -- Phase 250 audited CAKE tin metric consumers and deferred skip-on-unchanged because raw-history/counter-sensitive semantics are not sparse-safe
+status: Awaiting next milestone
+stopped_at: v1.54 complete; ready to archive milestone and plan v1.55
+last_updated: "2026-06-19T21:45:43.609Z"
+last_activity: 2026-06-19 — Milestone v1.54 completed and archived
 progress:
   total_phases: 8
   completed_phases: 8
@@ -25,12 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 ## Current Position
 
-Phase: 250
-Plan: 250-01 complete
-Status: Complete
-Last activity: 2026-06-19
-
-Progress: [██████████] 100%
+Phase: Milestone v1.54 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-19 — Milestone v1.54 completed and archived
 
 ## Active Blockers / Concerns
 
@@ -88,3 +86,7 @@ Last session: 2026-06-19T21:39:50Z
 Stopped at: v1.54 complete; ready to archive milestone and plan v1.55
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
