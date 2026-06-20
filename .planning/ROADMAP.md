@@ -58,7 +58,12 @@
   3. The access path is least-privilege and read-only: the credential/method used for inspection cannot perform route mutation, Netwatch changes, or config writes.
   4. No RouterOS route mutation, Netwatch disablement, CAKE/qdisc change, or route-owner flip occurs during diagnosis or repair (SAFE-21).
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 258-01-PLAN.md — Document the two-layer ACCESS-01 root cause (REST netwatch-handler gap + router.key inaccessibility) and the chosen supported path
+- [ ] 258-02-PLAN.md — Add read-only REST `_handle_netwatch_print` handler + generalize the Phase 257 read-only allowlist validator (ACCESS-02/03, SAFE-21)
+- [ ] 258-03-PLAN.md — Operator-run live D4 two-read proof (route + netwatch, both exit 0, parseable), validator-gated (ACCESS-02/03, SAFE-21)
 
 ### Phase 259: Read-Only Netwatch + Route-Ownership Inspection
 
@@ -96,7 +101,7 @@ SAFE-21 is a cross-cutting safety invariant, not a standalone phase. Every phase
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 258. Read-Only RouterOS Access Repair | 0/TBD | Not started | - |
+| 258. Read-Only RouterOS Access Repair | 0/3 | Not started | - |
 | 259. Read-Only Netwatch + Route-Ownership Inspection | 0/TBD | Not started | - |
 | 260. Dry-Run Observation Rerun + Canary Readiness | 0/TBD | Not started | - |
 
