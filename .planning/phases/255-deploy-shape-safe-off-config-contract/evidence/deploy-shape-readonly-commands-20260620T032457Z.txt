@@ -1,0 +1,23 @@
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper hostnamectl --static
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper uname -a
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper uptime
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper systemctl is-active steering.service cake-autorate-spectrum.service cake-autorate-att.service cake-autorate-spectrum-state-bridge.service cake-autorate-att-state-bridge.service
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper systemctl status steering.service --no-pager -l
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper systemctl cat steering.service
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper systemctl show steering.service -p FragmentPath -p ExecStart -p WorkingDirectory -p User -p Group -p Environment -p NRestarts
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper pgrep -af wanctl
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper pgrep -af steering
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper ss -ltnp
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper readlink -f /opt/wanctl
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper stat -c %n__%F__%a__%U:%G__%s__%y /etc/wanctl/steering.yaml /opt/wanctl
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper ls -ld /opt/wanctl /opt/wanctl/.git /etc/wanctl /run/wanctl /var/lib/wanctl
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper git -C /opt/wanctl rev-parse HEAD
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper git -C /opt/wanctl status --short --branch
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper git -C /opt/wanctl log -1 --oneline
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper python3 -V
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper /opt/wanctl/.venv/bin/python -V
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper grep -n route_management /etc/wanctl/steering.yaml
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper grep -n health /etc/wanctl/steering.yaml
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper grep -n port /etc/wanctl/steering.yaml
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper curl -fsS http://127.0.0.1:9102/health
+ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper curl -fsS http://127.0.0.1:9101/health

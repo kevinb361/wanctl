@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.56
 milestone_name: Route Management Surface Deployment
-status: executing
-stopped_at: v1.55 milestone complete; Phase 254 final decision keep-netwatch/no active canary
-last_updated: "2026-06-20T03:23:30.724Z"
+status: ready_to_plan
+stopped_at: Phase 255 complete (1/1) — Phase 256 blocked pending explicit operator-approved rollback-anchor preflight
+last_updated: 2026-06-20T03:29:01.963Z
 last_activity: 2026-06-20 -- Phase 255 planning complete
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 1
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 33
 ---
 
 # Session State
@@ -21,19 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** v1.56 Route Management Surface Deployment
+**Current focus:** Phase 256 — bounded safe/off deployment + health surface proof
 
 ## Current Position
 
-Phase: 255 — Deploy Shape + Safe/Off Config Contract
-Plan: 255-01 — deploy-shape proof + safe/off config contract + rollback plan
-Status: Ready to execute
-Last activity: 2026-06-20 -- Phase 255 planning complete
+Phase: 256
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-20 -- Phase 255 executed read-only; Phase 256 deploy/restart blocked pending rollback anchors
 
 ## Active Blockers / Concerns
 
 - SAFE-20 for v1.56: no live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production route-owner flip. Deploy/restart gates require explicit operator approval and rollback.
 - v1.56 follows v1.55's keep-netwatch result: the next safe step is exposing route-management health/config on cake-shaper in safe/off or dry-run mode, not active canary.
+- Phase 255 found live `cake-shaper` steering is a flat `/opt/wanctl` deployment (no git checkout, no venv), `steering.service` reports version 1.47.0 and no `route_management`, and non-privileged read-only access to `/etc/wanctl/steering.yaml` is denied. Phase 256 deploy/restart is blocked until the operator explicitly approves creating/proving code and config rollback anchors.
 - SAFE-18 original zero-controller-diff invariant held through Phase 248.1 and was intentionally superseded by the operator-directed Phase 248.2 fping freshness controller fix. Storage hygiene phases 249/250 must avoid unrelated controller-path changes and document no additional controller behavior drift.
 - SAFE-19 for v1.55 held: no live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production default flip occurred outside an explicitly approved canary phase.
 - Netwatch remains the interim WAN route owner after v1.55 close; future wanctl route ownership requires safe/off deployment evidence, read-only observation, and a new explicit approval gate.
@@ -107,11 +108,11 @@ v1.55 closed route ownership / Netwatch retirement with final decision `keep-net
 
 ## Session Continuity
 
-Last session: 2026-06-20T03:23:30Z
-Stopped at: Phase 255 planned; ready to execute read-only deploy-shape proof
+Last session: 2026-06-20T03:32:00Z
+Stopped at: Phase 255 complete; Phase 256 blocked pending rollback-anchor preflight approval
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)
 
 ## Operator Next Steps
 
-- Execute Phase 255 with `/gsd-execute-phase 255`; this is read-only deploy-shape proof only. Do not deploy, restart, reload, edit live config, mutate RouterOS/Netwatch, change CAKE/qdisc, or flip route ownership.
+- Next safe step is planning Phase 256 around the blocker: explicit operator-approved privileged read-only backup/inspection of flat `/opt/wanctl` and `/etc/wanctl/steering.yaml` before any deploy/restart. Do not deploy, restart, reload, edit live config, mutate RouterOS/Netwatch, change CAKE/qdisc, or flip route ownership without approval.

@@ -1,0 +1,76 @@
+wan_name: steering
+topology:
+  primary_wan: spectrum
+  primary_wan_config: /etc/wanctl/spectrum.yaml
+  alternate_wan: att
+router:
+  transport: rest
+  host: 10.10.99.1
+  user: admin
+  ssh_key: /etc/wanctl/ssh/router.key
+  password: ${ROUTER_PASSWORD}
+  port: 443
+  verify_ssl: false
+cake_state_sources:
+  primary: /var/lib/wanctl/spectrum_state.json
+mangle_rule:
+  comment: 'ADAPTIVE: Steer latency-sensitive to ATT'
+measurement:
+  interval_seconds: 0.5
+  ping_host: 1.1.1.1
+  ping_count: 3
+timeouts:
+  ping: 0.15
+thresholds:
+  bad_threshold_ms: 25.0
+  recovery_threshold_ms: 12.0
+mode:
+  reset_counters: false
+  enable_yellow_state: true
+  use_confidence_scoring: true
+confidence:
+  steer_threshold: 55
+  recovery_threshold: 20
+  sustain_duration_sec: 2.0
+  recovery_sustain_sec: 3.0
+  hold_down_duration_sec: 30.0
+  flap_detection_enabled: true
+  flap_window_minutes: 5
+  max_toggles: 4
+  penalty_duration_sec: 60.0
+  penalty_threshold_add: 15
+  dry_run: false
+wan_state:
+  enabled: true
+  red_weight: 25
+  staleness_threshold_sec: 5
+  grace_period_sec: 30
+  wan_override: false
+capacity_protection:
+  att_upload_reserve_mbps: 2
+  att_download_reserve_mbps: 10
+state:
+  file: /var/lib/wanctl/steering_state.json
+  history_size: 240
+storage:
+  db_path: /var/lib/wanctl/metrics.db
+  retention:
+    raw_age_seconds: 900
+    aggregate_1m_age_seconds: 86400
+    aggregate_5m_age_seconds: 259200
+logging:
+  main_log: /var/log/wanctl/steering.log
+  debug_log: /var/log/wanctl/steering_debug.log
+lock_file: /run/wanctl/steering.lock
+lock_timeout: 60
+route_management:
+  enabled: true
+  mode: dry_run
+  migration_acknowledged: false
+  routes:
+    spectrum:
+      comment: Spectrum
+    att:
+      comment: ATT
+    att_policy:
+      comment: Force ATT_OUT to ATT WAN

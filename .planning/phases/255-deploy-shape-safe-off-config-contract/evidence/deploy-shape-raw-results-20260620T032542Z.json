@@ -1,0 +1,140 @@
+[
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper hostnamectl --static",
+    "exit_code": 0,
+    "stdout": "cake-shaper\n",
+    "stderr": ""
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper uname -a",
+    "exit_code": 0,
+    "stdout": "Linux cake-shaper 6.12.90+deb13.1-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.12.90-2 (2026-05-27) x86_64 GNU/Linux\n",
+    "stderr": ""
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper uptime",
+    "exit_code": 0,
+    "stdout": " 22:25:43 up 3 days,  7:09,  1 user,  load average: 0.09, 0.10, 0.14\n",
+    "stderr": ""
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper systemctl is-active steering.service cake-autorate-spectrum.service cake-autorate-att.service cake-autorate-spectrum-state-bridge.service cake-autorate-att-state-bridge.service",
+    "exit_code": 0,
+    "stdout": "active\nactive\nactive\nactive\nactive\n",
+    "stderr": ""
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper systemctl status steering.service --no-pager -l",
+    "exit_code": 0,
+    "stdout": "\u25cf steering.service - wanctl Adaptive WAN Steering Daemon\n     Loaded: loaded (/etc/systemd/system/steering.service; enabled; preset: enabled)\n     Active: active (running) since Thu 2026-06-18 19:33:28 CDT; 1 day 2h ago\n Invocation: 86ef7d701834428a805c3cbe31ef955e\n       Docs: https://github.com/kevinb361/wanctl\n   Main PID: 2763525 (python3)\n      Tasks: 2 (limit: 32)\n     Memory: 81.2M (high: 256M, max: 384M, available: 174.7M, peak: 83M)\n        CPU: 36min 29.858s\n     CGroup: /system.slice/steering.service\n             \u2514\u25002763525 /usr/bin/python3 -m wanctl.steering.daemon --config /etc/wanctl/steering.yaml\n\nJun 19 22:22:09 cake-shaper wanctl-steering[2763525]: 2026-06-19 22:22:09,463 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=32.4ms ewma=16.3ms drops=0 q=0 | early warning, no action\nJun 19 22:22:10 cake-shaper wanctl-steering[2763525]: 2026-06-19 22:22:10,461 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=29.7ms ewma=17.1ms drops=0 q=0 | early warning, no action\nJun 19 22:22:30 cake-shaper wanctl-steering[2763525]: 2026-06-19 22:22:30,982 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=41.4ms ewma=17.4ms drops=0 q=0 | early warning, no action\nJun 19 22:24:27 cake-shaper wanctl-steering[2763525]: 2026-06-19 22:24:27,547 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=44.1ms ewma=16.6ms drops=0 q=0 | early warning, no action\nJun 19 22:24:50 cake-shaper wanctl-steering[2763525]: 2026-06-19 22:24:50,556 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=39.0ms ewma=18.9ms drops=0 q=0 | early warning, no action\nJun 19 22:24:51 cake-shaper wanctl-steering[2763525]: 2026-06-19 22:24:51,064 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=46.1ms ewma=27.1ms drops=0 q=0 | early warning, no action\nJun 19 22:24:51 cake-shaper wanctl-steering[2763525]: 2026-06-19 22:24:51,517 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=0.3ms ewma=19.0ms drops=0 q=0 | early warning, no action\nJun 19 22:24:52 cake-shaper wanctl-steering[2763525]: 2026-06-19 22:24:52,062 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=44.4ms ewma=26.6ms drops=0 q=0 | early warning, no action\nJun 19 22:24:52 cake-shaper wanctl-steering[2763525]: 2026-06-19 22:24:52,520 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=1.3ms ewma=19.0ms drops=0 q=0 | early warning, no action\nJun 19 22:24:53 cake-shaper wanctl-steering[2763525]: 2026-06-19 22:24:53,026 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=8.4ms ewma=15.8ms drops=0 q=0 | early warning, no action\n",
+    "stderr": ""
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper systemctl cat steering.service",
+    "exit_code": 0,
+    "stdout": "# /etc/systemd/system/steering.service\n[Unit]\nDescription=wanctl Adaptive WAN Steering Daemon\nDocumentation=https://github.com/kevinb361/wanctl\nAfter=network-online.target\nWants=network-online.target\nStartLimitBurst=5\nStartLimitIntervalSec=300\n\n[Service]\nType=simple\nUser=wanctl\nGroup=wanctl\nWorkingDirectory=/opt/wanctl\nExecStart=/usr/bin/python3 -m wanctl.steering.daemon --config /etc/wanctl/steering.yaml\nRestart=on-failure\nRestartSec=5s\nWatchdogSec=30s\nEnvironment=PYTHONPATH=/opt\nEnvironment=WANCTL_STATE_DIR=/var/lib/wanctl\nEnvironment=WANCTL_LOG_DIR=/var/log/wanctl\nEnvironment=WANCTL_RUN_DIR=/run/wanctl\nEnvironmentFile=-/etc/wanctl/secrets\nStandardOutput=journal\nStandardError=journal\nSyslogIdentifier=wanctl-steering\nAmbientCapabilities=CAP_NET_RAW\nNoNewPrivileges=yes\n\n# Filesystem protection\nProtectSystem=strict\nProtectHome=yes\nPrivateTmp=yes\nPrivateDevices=yes\nReadWritePaths=/var/lib/wanctl /var/log/wanctl /run/wanctl\n\n# Kernel protection\nProtectKernelTunables=yes\nProtectKernelModules=yes\nProtectKernelLogs=yes\nProtectControlGroups=yes\nProtectClock=yes\nLockPersonality=yes\n\n# Capability bounding -- steering only needs CAP_NET_RAW (no tc commands)\nCapabilityBoundingSet=CAP_NET_RAW\n\n# Namespace and address family restrictions\nRestrictNamespaces=yes\nRestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK\nRestrictSUIDSGID=yes\nRestrictRealtime=yes\n\n# System call filtering\nSystemCallArchitectures=native\nSystemCallFilter=~@clock @cpu-emulation @debug @module @mount @obsolete @reboot @swap\n\n# Memory and process\nMemoryDenyWriteExecute=yes\nUMask=0027\n\n# Process visibility\nProtectProc=invisible\nProcSubset=pid\n\n# Device ACL\nDeviceAllow=\n\n# Resource limits (sized from production observation 2026-03-26)\n# Steering cgroup=221MB RSS=57MB, Tasks=2\nMemoryMax=384M\nMemoryHigh=256M\nTasksMax=32\nLimitNOFILE=1024\n\n[Install]\nWantedBy=multi-user.target\n",
+    "stderr": ""
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper systemctl show steering.service -p FragmentPath -p ExecStart -p WorkingDirectory -p User -p Group -p Environment -p NRestarts",
+    "exit_code": 0,
+    "stdout": "NRestarts=0\nExecStart={ path=/usr/bin/python3 ; argv[]=/usr/bin/python3 -m wanctl.steering.daemon --config /etc/wanctl/steering.yaml ; ignore_errors=no ; start_time=[Thu 2026-06-18 19:33:28 CDT] ; stop_time=[n/a] ; pid=2763525 ; code=(null) ; status=0/0 }\nEnvironment=PYTHONPATH=/opt WANCTL_STATE_DIR=/var/lib/wanctl WANCTL_LOG_DIR=/var/log/wanctl WANCTL_RUN_DIR=/run/wanctl\nWorkingDirectory=/opt/wanctl\nUser=wanctl\nGroup=wanctl\nFragmentPath=/etc/systemd/system/steering.service\n",
+    "stderr": ""
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper pgrep -af wanctl",
+    "exit_code": 0,
+    "stdout": "794 /bin/sh /usr/local/sbin/wanctl-bpctl-watchdog-petter\n924 /bin/sh /usr/local/sbin/wanctl-bpctl-watchdog-petter\n2763525 /usr/bin/python3 -m wanctl.steering.daemon --config /etc/wanctl/steering.yaml\n",
+    "stderr": ""
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper pgrep -af steering",
+    "exit_code": 0,
+    "stdout": "2763525 /usr/bin/python3 -m wanctl.steering.daemon --config /etc/wanctl/steering.yaml\n",
+    "stderr": ""
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper ss -ltnp",
+    "exit_code": 0,
+    "stdout": "State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess\nLISTEN 0      5      10.10.110.227:9101      0.0.0.0:*          \nLISTEN 0      5      10.10.110.223:9101      0.0.0.0:*          \nLISTEN 0      128          0.0.0.0:22        0.0.0.0:*          \nLISTEN 0      5          127.0.0.1:9102      0.0.0.0:*          \nLISTEN 0      128             [::]:22           [::]:*          \n",
+    "stderr": ""
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper readlink -f /opt/wanctl",
+    "exit_code": 0,
+    "stdout": "/opt/wanctl\n",
+    "stderr": ""
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper stat -c %n__%F__%a__%U:%G__%s__%y /etc/wanctl/steering.yaml /opt/wanctl",
+    "exit_code": 1,
+    "stdout": "/opt/wanctl__directory__755__root:root__4096__2026-06-19 15:16:40.884155965 -0500\n",
+    "stderr": "stat: cannot statx '/etc/wanctl/steering.yaml': Permission denied\n"
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper ls -ld /opt/wanctl /opt/wanctl/.git /etc/wanctl /run/wanctl /var/lib/wanctl",
+    "exit_code": 2,
+    "stdout": "drwxr-x--- 4 root   wanctl 4096 Jun 19 15:17 /etc/wanctl\ndrwxr-xr-x 9 root   root   4096 Jun 19 15:16 /opt/wanctl\ndrwxr-xr-x 2 wanctl wanctl  140 Jun 19 15:17 /run/wanctl\ndrwxr-x--- 5 wanctl wanctl 4096 Jun 19 22:25 /var/lib/wanctl\n",
+    "stderr": "ls: cannot access '/opt/wanctl/.git': No such file or directory\n"
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper git -C /opt/wanctl rev-parse HEAD",
+    "exit_code": 128,
+    "stdout": "",
+    "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper git -C /opt/wanctl status --short --branch",
+    "exit_code": 128,
+    "stdout": "",
+    "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper git -C /opt/wanctl log -1 --oneline",
+    "exit_code": 128,
+    "stdout": "",
+    "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper python3 -V",
+    "exit_code": 0,
+    "stdout": "Python 3.13.5\n",
+    "stderr": ""
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper /opt/wanctl/.venv/bin/python -V",
+    "exit_code": 127,
+    "stdout": "",
+    "stderr": "bash: line 1: /opt/wanctl/.venv/bin/python: No such file or directory\n"
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper grep -n route_management /etc/wanctl/steering.yaml",
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "grep: /etc/wanctl/steering.yaml: Permission denied\n"
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper grep -n health /etc/wanctl/steering.yaml",
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "grep: /etc/wanctl/steering.yaml: Permission denied\n"
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper grep -n port /etc/wanctl/steering.yaml",
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "grep: /etc/wanctl/steering.yaml: Permission denied\n"
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper curl -fsS http://127.0.0.1:9102/health",
+    "exit_code": 0,
+    "stdout": "{\n  \"status\": \"healthy\",\n  \"uptime_seconds\": 96733.8,\n  \"version\": \"1.47.0\",\n  \"steering\": {\n    \"enabled\": false,\n    \"state\": \"SPECTRUM_GOOD\",\n    \"mode\": \"active\"\n  },\n  \"congestion\": {\n    \"primary\": {\n      \"state\": \"GREEN\",\n      \"state_code\": 0,\n      \"tins\": [\n        {\n          \"tin_name\": \"Bulk\",\n          \"dropped_packets\": 0,\n          \"ecn_marked_packets\": 0,\n          \"avg_delay_us\": 3,\n          \"peak_delay_us\": 10,\n          \"backlog_bytes\": 0,\n          \"sparse_flows\": 8,\n          \"bulk_flows\": 0,\n          \"unresponsive_flows\": 0\n        },\n        {\n          \"tin_name\": \"BestEffort\",\n          \"dropped_packets\": 67755,\n          \"ecn_marked_packets\": 604,\n          \"avg_delay_us\": 32,\n          \"peak_delay_us\": 112,\n          \"backlog_bytes\": 0,\n          \"sparse_flows\": 3,\n          \"bulk_flows\": 0,\n          \"unresponsive_flows\": 0\n        },\n        {\n          \"tin_name\": \"Video\",\n          \"dropped_packets\": 524454,\n          \"ecn_marked_packets\": 14348,\n          \"avg_delay_us\": 41,\n          \"peak_delay_us\": 90,\n          \"backlog_bytes\": 0,\n          \"sparse_flows\": 0,\n          \"bulk_flows\": 0,\n          \"unresponsive_flows\": 0\n        },\n        {\n          \"tin_name\": \"Voice\",\n          \"dropped_packets\": 1,\n          \"ecn_marked_packets\": 0,\n          \"avg_delay_us\": 2,\n          \"peak_delay_us\": 11,\n          \"backlog_bytes\": 0,\n          \"sparse_flows\": 1,\n          \"bulk_flows\": 0,\n          \"unresponsive_flows\": 0\n        }\n      ]\n    }\n  },\n  \"decision\": {\n    \"last_transition_time\": \"2026-06-19T18:01:00.158699+00:00\",\n    \"time_in_state_seconds\": 33883.2\n  },\n  \"counters\": {\n    \"red_count\": 0,\n    \"good_count\": 0,\n    \"cake_read_failures\": 0\n  },\n  \"confidence\": {\n    \"primary\": 0\n  },\n  \"errors\": {\n    \"consecutive_failures\": 0,\n    \"cake_read_failures\": 0\n  },\n  \"thresholds\": {\n    \"green_rtt_ms\": 5.0,\n    \"yellow_rtt_ms\": 15.0,\n    \"red_rtt_ms\": 15.0,\n    \"red_samples_required\": 2,\n    \"green_samples_required\": 15\n  },\n  \"router_connectivity\": {\n    \"is_reachable\": true,\n    \"consecutive_failures\": 0,\n    \"last_failure_type\": null,\n    \"last_failure_time\": null,\n    \"outage_duration_seconds\": null\n  },\n  \"pid\": 2763525,\n  \"cycle_budget\": {\n    \"cycle_time_ms\": {\n      \"avg\": 41.4,\n      \"p95\": 60.2,\n      \"p99\": 81.8\n    },\n    \"utilization_pct\": 8.3,\n    \"overrun_count\": 299,\n    \"status\": \"ok\",\n    \"warning_threshold_pct\": 80.0\n  },\n  \"rtt_source\": {\n    \"current\": \"wanctl_backend\",\n    \"last_successful\": \"wanctl_backend\",\n    \"last_rtt_ms\": 23.34,\n    \"last_measurement_age_sec\": 0.336,\n    \"counts\": {\n      \"wanctl_backend\": 192981,\n      \"autorate_health\": 286,\n      \"autorate_irtt\": 0,\n      \"history_fallback\": 0\n    },\n    \"producer\": \"wanctl-backend\",\n    \"backend\": \"icmplib\",\n    \"source_ip\": \"10.10.110.223\"\n  },\n  \"wan_awareness\": {\n    \"enabled\": true,\n    \"zone\": \"GREEN\",\n    \"effective_zone\": \"GREEN\",\n    \"grace_period_active\": false,\n    \"staleness_age_sec\": 0.7,\n    \"stale\": false,\n    \"confidence_contribution\": 0,\n    \"degrade_timer_remaining\": null\n  },\n  \"storage\": {\n    \"pending_writes\": 0,\n    \"queue\": {\n      \"drained_total\": 0,\n      \"error_total\": 0\n    },\n    \"writes\": {\n      \"success_total\": 193338,\n      \"failure_total\": 0,\n      \"lock_failure_total\": 0,\n      \"volume_total\": 4445283,\n      \"last_duration_ms\": 0.4489370039664209,\n      \"max_duration_ms\": 728.6828809883446\n    },\n    \"checkpoint\": {\n      \"busy\": 0,\n      \"wal_pages\": 0,\n      \"checkpointed_pages\": 0,\n      \"maintenance_lock_skipped_total\": 0\n    },\n    \"files\": {\n      \"db_bytes\": 733679616,\n      \"wal_bytes\": 4255992,\n      \"shm_bytes\": 32768,\n      \"total_bytes\": 737968376,\n      \"db_exists\": true,\n      \"wal_exists\": true,\n      \"shm_exists\": true\n    },\n    \"status\": \"ok\"\n  },\n  \"runtime\": {\n    \"process\": \"steering\",\n    \"rss_bytes\": 90288128,\n    \"swap_bytes\": 0,\n    \"memory_status\": \"ok\",\n    \"swap_status\": \"ok\",\n    \"cycle_status\": \"ok\",\n    \"status\": \"ok\"\n  },\n  \"alerting\": {\n    \"enabled\": false,\n    \"fire_count\": 0,\n    \"active_cooldowns\": []\n  },\n  \"router_reachable\": true,\n  \"disk_space\": {\n    \"path\": \"/var/lib/wanctl\",\n    \"free_bytes\": 12588806144,\n    \"total_bytes\": 30878322688,\n    \"free_pct\": 40.8,\n    \"status\": \"ok\"\n  },\n  \"summary\": {\n    \"service\": \"steering\",\n    \"status\": \"healthy\",\n    \"alerts\": {\n      \"enabled\": false,\n      \"fire_count\": 0,\n      \"active_cooldowns\": 0,\n      \"status\": \"disabled\"\n    },\n    \"rows\": [\n      {\n        \"name\": \"steering\",\n        \"status\": \"ok\",\n        \"state\": \"SPECTRUM_GOOD\",\n        \"congestion_state\": \"GREEN\",\n        \"wan_zone\": \"GREEN\",\n        \"router_reachable\": true,\n        \"storage_status\": \"ok\",\n        \"runtime_status\": \"ok\"\n      }\n    ]\n  }\n}",
+    "stderr": ""
+  },
+  {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=10 cake-shaper curl -fsS http://127.0.0.1:9101/health",
+    "exit_code": 7,
+    "stdout": "",
+    "stderr": "curl: (7) Failed to connect to 127.0.0.1 port 9101 after 0 ms: Could not connect to server\n"
+  }
+]

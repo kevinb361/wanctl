@@ -8,14 +8,14 @@
 
 ### DEPLOY — Production Deployment Shape
 
-- [ ] **DEPLOY-01**: Prove the actual cake-shaper deployment shape before changing it: git checkout vs flat rsync, service unit paths, active steering code version, config path, and rollback anchor.
+- [x] **DEPLOY-01**: Prove the actual cake-shaper deployment shape before changing it: git checkout vs flat rsync, service unit paths, active steering code version, config path, and rollback anchor.
 - [ ] **DEPLOY-02**: Deploy route-management-capable steering code/config to cake-shaper only through an explicit operator-approved bounded deploy/restart plan with a code rollback path.
 - [ ] **DEPLOY-03**: Preserve external cake-autorate bridge operation during any steering deploy/restart; Spectrum/ATT state bridges and shaping services remain healthy or rollback fires.
 
 ### CONFIG — Safe/Off Runtime Configuration
 
-- [ ] **CONFIG-01**: Production route-management config remains safe/off or dry-run only; active route mutation is impossible without a separate explicit approval gate.
-- [ ] **CONFIG-02**: Production config validation proves route IDs/comments, WAN mappings, guard settings, and mode fields are sane before any service restart.
+- [x] **CONFIG-01**: Production route-management config remains safe/off or dry-run only; active route mutation is impossible without a separate explicit approval gate.
+- [x] **CONFIG-02**: Production config validation proves route IDs/comments, WAN mappings, guard settings, and mode fields are sane before any service restart. Phase 255 validated the safe/off target offline and recorded that live `/etc/wanctl/steering.yaml` requires explicit operator-approved privileged backup/read before Phase 256 restart.
 - [ ] **CONFIG-03**: One-command rollback restores the previous steering code/config shape without disabling Netwatch or changing RouterOS route state.
 
 ### HEALTH — Steering Health Surface Proof
@@ -32,7 +32,7 @@
 
 ### SAFE
 
-- [ ] **SAFE-20**: No live RouterOS route mutation, Netwatch disablement, CAKE/qdisc change, controller threshold retuning, or production default route ownership flip occurs during v1.56; any deploy/restart is bounded, approved, observable, and reversible.
+- [x] **SAFE-20**: No live RouterOS route mutation, Netwatch disablement, CAKE/qdisc change, controller threshold retuning, or production default route ownership flip occurs during v1.56; any deploy/restart is bounded, approved, observable, and reversible.
 
 ## Future Requirements
 
@@ -61,11 +61,11 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEPLOY-01 | Phase 255 | Pending |
+| DEPLOY-01 | Phase 255 | Complete |
 | DEPLOY-02 | Phase 256 | Pending |
 | DEPLOY-03 | Phase 256 | Pending |
-| CONFIG-01 | Phase 255 | Pending |
-| CONFIG-02 | Phase 255 | Pending |
+| CONFIG-01 | Phase 255 | Complete |
+| CONFIG-02 | Phase 255 | Complete |
 | CONFIG-03 | Phase 256 | Pending |
 | HEALTH-01 | Phase 256 | Pending |
 | HEALTH-02 | Phase 256 | Pending |
@@ -73,7 +73,7 @@
 | OBSERVE-01 | Phase 257 | Pending |
 | OBSERVE-02 | Phase 257 | Pending |
 | OBSERVE-03 | Phase 257 | Pending |
-| SAFE-20 | Phases 255-257 | Pending |
+| SAFE-20 | Phases 255-257 | Complete |
 
 **Coverage:**
 - v1.56 requirements: 13 total

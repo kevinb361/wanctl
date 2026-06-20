@@ -37,7 +37,7 @@
 
 ### Phases
 
-- [ ] **Phase 255: Deploy Shape + Safe/Off Config Contract** - Prove cake-shaper's live deploy shape, define the exact safe/off config, validate rollback anchors, and freeze the no-mutation gate before any restart.
+- [x] **Phase 255: Deploy Shape + Safe/Off Config Contract** - Prove cake-shaper's live deploy shape, define the exact safe/off config, validate rollback anchors, and freeze the no-mutation gate before any restart.
 - [ ] **Phase 256: Bounded Safe/Off Deployment + Health Surface Proof** - Operator-gated deploy/restart of route-management-capable steering code/config, then prove correct health/operator fields from cake-shaper without route mutation.
 - [ ] **Phase 257: Dry-Run Observation + Canary Readiness Decision** - Run bounded dry-run observation, compare intended decisions to Netwatch/live routes, and produce a readiness/not-ready packet for a future active canary.
 
@@ -55,11 +55,13 @@
   3. Restart/deploy plan names the exact bounded command path, health checks, rollback commands, and stop conditions.
   4. SAFE-20 gate is written in the phase evidence before any live mutation-capable action.
 
+**Phase 255 outcome:** Complete with Phase 256 blocker recorded. Live steering is a flat `/opt/wanctl` deployment, not a git checkout; no venv exists; health reports version `1.47.0` without `route_management`; non-privileged read-only access to `/etc/wanctl/steering.yaml` is denied. Phase 256 must first create/prove code and config rollback anchors under explicit operator approval.
+
 **Plans**:
 
 **Wave 1**
 
-- [ ] 255-01-PLAN.md — deploy-shape proof + safe/off config contract + rollback plan
+- [x] 255-01-PLAN.md — deploy-shape proof + safe/off config contract + rollback plan
 
 ### Phase 256: Bounded Safe/Off Deployment + Health Surface Proof
 

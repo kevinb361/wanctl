@@ -1,0 +1,9 @@
+{
+  "timestamp": "20260620T032457Z",
+  "command_file": ".planning/phases/255-deploy-shape-safe-off-config-contract/evidence/deploy-shape-readonly-commands-20260620T032457Z.txt",
+  "passed": true,
+  "command_count": 23,
+  "errors": [],
+  "live_commands_executed": true,
+  "proof_artifact": ".planning/phases/255-deploy-shape-safe-off-config-contract/evidence/deploy-shape-proof-20260620T032542Z.md"
+}
