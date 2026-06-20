@@ -1,27 +1,89 @@
 ---
 phase: 258
 reviewers: [codex]
-review_cycles: 2
-reviewed_at: 2026-06-20T14:30:00Z
+review_cycles: 3
+reviewed_at: 2026-06-20T15:05:00Z
 plans_reviewed: [258-01-PLAN.md, 258-02-PLAN.md, 258-03-PLAN.md]
 cycle_1_high: 4
 cycle_2_high_open: 1
+cycle_3_high_open: 0
 ---
 
 # Cross-AI Plan Review — Phase 258
 
 > Executed inside Claude Code, so the Claude self-review is skipped for independence.
-> External reviewer: Codex (`codex-cli 0.141.0`, default model).
-> Two cycles recorded below. Cycle 1 raised 4 HIGH concerns; the plans were revised in
-> commit `d0c0af90`; cycle 2 re-reviewed the revised plans. Cycle-2's load-bearing
-> residual HIGH (Plan 03 proof harness runtime/config provenance) was independently
-> verified against `deploy/systemd/steering.service:18` (`PYTHONPATH=/opt`) and
-> `258-03-PLAN.md:246,173` before publishing — confirmed accurate.
+> External reviewer: Codex (`codex-cli`, default model).
+> Three cycles recorded below. Cycle 1 raised 4 HIGH concerns; the plans were revised in
+> commit `d0c0af90`; cycle 2 re-reviewed the revised plans and left 1 open HIGH (HIGH-2,
+> Plan 03 proof-harness runtime/config provenance). Commit `3021dc99` revised Plan 03 to
+> close HIGH-2; cycle 3 re-reviewed the fix. **Cycle 3 is the authoritative current-state
+> section.** Its source facts (`steering.service:18` `PYTHONPATH=/opt`,
+> `daemon.py:153` `SteeringConfig(BaseConfig)`, `config_base.py:392`
+> `BaseConfig.__init__(config_path)`, `router_client.py:63` `get_router_client`) were
+> independently verified against live source before publishing — confirmed accurate.
 
-# Cycle 2 (Re-Review of Revised Plans — current)
+# Cycle 3 (Re-Review of HIGH-2 Fix — CURRENT / authoritative)
+
+> Reviewed against the revised Plan 258-03 at commit `3021dc99`. Focused re-review:
+> does the fix fully close cycle-2's single open HIGH (HIGH-2), and did it introduce any
+> new HIGH? Cycle-1 HIGHs already FULLY RESOLVED in cycle 2 are not re-litigated.
+
+## Codex Cycle-3 Review
+
+### Plan 258-03 (HIGH-2 fix under review)
+
+**HIGH-2 disposition — FULLY RESOLVED.** The revised plan now requires the proof harness
+command to run with `PYTHONPATH=/opt`, matching `steering.service:18`, and requires runtime
+assertions that both `wanctl.__file__` and the imported `routeros_rest` module's `__file__`
+resolve under `/opt/wanctl`, failing closed with `ACCESS02_PROOF_FAIL import-path` + non-zero
+exit if not. It replaces the synthetic config object with
+`SteeringConfig("/etc/wanctl/steering.yaml")` — the same class + loader the daemon uses
+(`daemon.py:153` / `config_base.py:392`) — passing that real config straight to
+`get_router_client`. The evidence task (Task 3) and threat model (T-258-06) must record both
+import-path provenance and real-config provenance, so the gap can no longer be silently
+satisfied by raw curl, a stray package copy, or a mirrored/synthetic config.
+
+**New HIGH concerns introduced by the fix — none.**
+
+**Residual (MEDIUM/LOW, non-blocking):**
+- **LOW/MEDIUM:** The live proof command (Plan line 310) uses
+  `source /etc/wanctl/secrets` before running the harness. If `/etc/wanctl/secrets` is a
+  systemd `KEY=value` file, plain `source` sets shell variables but may not `export` them to
+  the Python child, whereas systemd's `EnvironmentFile` does export. Prefer
+  `set -a; . /etc/wanctl/secrets; set +a` so `ROUTER_PASSWORD` reaches the harness reliably.
+  Operator-execution nuance, not a plan-design defect — does not affect the HIGH disposition.
+- **LOW:** A trailing duplicate closing XML-ish tag in the plan body should be cleaned up if
+  any GSD tooling parses these tags strictly. Cosmetic.
+
+**Risk Assessment: LOW** — Proof is now pinned to the deployed `/opt/wanctl` runtime
+(PYTHONPATH + `__file__` assertions, fail-closed) and the real deployed steering config
+(`SteeringConfig(path)`), proving the supported wanctl inspection path end-to-end. SAFE-21
+posture (GET/print only, no restart, no mutation), validator gating, deployed-code grep, and
+A1-in-Plan-01 are all unchanged from cycle 2.
+
+## Cycle-2 → Cycle-3 HIGH Disposition
+
+- **HIGH-2 (Plan 03, proof-harness runtime/config provenance): FULLY RESOLVED** in cycle 3.
+  Commit `3021dc99` adds `PYTHONPATH=/opt`, runtime `__file__`-under-`/opt/wanctl` assertions
+  with `ACCESS02_PROOF_FAIL import-path` fail-closed, and real `SteeringConfig(path)` config
+  loading. Verified against `steering.service:18`, `daemon.py:153`, `config_base.py:392`,
+  `258-03-PLAN.md:21-23,113-134,205-230,310`.
+- HIGH-1, HIGH-3, HIGH-4 remain FULLY RESOLVED (closed in cycle 2; the fix did not regress them).
+
+## Cycle-3 Overall
+
+- **Open HIGH count: 0.** (HIGH-2 fully resolved; no new HIGH introduced.)
+- **New separate HIGHs: 0.**
+- **Overall risk: LOW.** All four original HIGHs are now fully resolved. Remaining items are
+  LOW/MEDIUM operator-execution and cosmetic notes that do not gate the phase.
+
+---
+
+# Cycle 2 (Re-Review of Revised Plans — superseded by Cycle 3)
 
 > Reviewed against revised plans at commit `d0c0af90`. Disposition of the 4 cycle-1
-> HIGHs and any new HIGHs. **This is the authoritative current-state section.**
+> HIGHs and any new HIGHs. **Superseded by Cycle 3** — at cycle-2 close, HIGH-2 was the
+> single open HIGH; commit `3021dc99` closed it and Cycle 3 re-reviewed the fix.
 
 ## Codex Cycle-2 Review
 
@@ -192,6 +254,10 @@ Recommended default: keep the REST approach, but tighten the phase gate to "rout
 ---
 
 ## Consensus Summary
+
+> **Historical (cycle 1).** All four HIGHs below are FULLY RESOLVED as of Cycle 3
+> (HIGH-1/3/4 in cycle 2, HIGH-2 in cycle 3 via commit `3021dc99`). See the Cycle 3
+> section at the top for current state — **current open HIGH count: 0.**
 
 Single external reviewer (Codex). No cross-reviewer consensus is available, but the
 findings were spot-checked against the codebase. The most actionable items:
