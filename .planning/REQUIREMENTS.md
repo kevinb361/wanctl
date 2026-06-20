@@ -26,9 +26,9 @@
 
 ### OBSERVE — Dry-Run Observation Readiness
 
-- [ ] **OBSERVE-01**: Run a bounded read-only/dry-run observation from cake-shaper proving route-management decisions can be computed and observed without RouterOS route mutation.
-- [ ] **OBSERVE-02**: Compare intended wanctl route decisions against live Netwatch/default-route state and record divergences as evidence, not automatic mutations.
-- [ ] **OBSERVE-03**: Produce a canary-readiness decision packet that says either `ready-for-approval` or `not-ready`, with blockers and rollback evidence.
+- [x] **OBSERVE-01**: Run a bounded read-only/dry-run observation from cake-shaper proving route-management decisions can be computed and observed without RouterOS route mutation.
+- [x] **OBSERVE-02**: Compare intended wanctl route decisions against live Netwatch/default-route state and record divergences as evidence, not automatic mutations.
+- [x] **OBSERVE-03**: Produce a canary-readiness decision packet that says either `ready-for-approval` or `not-ready`, with blockers and rollback evidence.
 
 ### SAFE
 
@@ -70,9 +70,9 @@
 | HEALTH-01 | Phase 256 | Complete |
 | HEALTH-02 | Phase 256 | Complete |
 | HEALTH-03 | Phase 256 | Complete |
-| OBSERVE-01 | Phase 257 | Pending |
-| OBSERVE-02 | Phase 257 | Pending |
-| OBSERVE-03 | Phase 257 | Pending |
+| OBSERVE-01 | Phase 257 | Complete |
+| OBSERVE-02 | Phase 257 | Complete |
+| OBSERVE-03 | Phase 257 | Complete |
 | SAFE-20 | Phases 255-257 | Complete |
 
 **Coverage:**

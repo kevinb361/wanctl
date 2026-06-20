@@ -103,7 +103,7 @@
 
 **Wave 1**
 
-- [ ] 257-01-PLAN.md — dry-run observation + readiness/not-ready decision packet
+- [x] 257-01-PLAN.md — dry-run observation + readiness/not-ready decision packet
 
 ---
 

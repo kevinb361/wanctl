@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.56
 milestone_name: Route Management Surface Deployment
 status: executing
-stopped_at: Phase 257 planned (1 plan) — ready to execute with /gsd:execute-phase 257; execution boundary is read-only/dry-run observation only, no active canary or route mutation
-last_updated: "2026-06-20T04:15:34.155Z"
-last_activity: 2026-06-20 -- Phase 257 planning complete
+stopped_at: Completed 257-01-PLAN.md; readiness verdict not-ready
+last_updated: "2026-06-20T12:35:09.924Z"
+last_activity: 2026-06-20
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 4
-  completed_plans: 3
-  percent: 67
+  completed_plans: 4
+  percent: 100
 ---
 
 # Session State
@@ -26,16 +26,16 @@ See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 ## Current Position
 
 Phase: 257
-Plan: 0 of 1 complete
-Status: Ready to execute /gsd:execute-phase 257
-Last activity: 2026-06-20 -- Phase 257 planning complete
+Plan: 1 of 1 complete
+Status: Plan complete; ready for phase verification/closeout
+Last activity: 2026-06-20
 
 ## Active Blockers / Concerns
 
 - SAFE-20 for v1.56: no live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production route-owner flip. Deploy/restart gates require explicit operator approval and rollback.
 - v1.56 follows v1.55's keep-netwatch result: route-management is now exposed on cake-shaper in safe/off dry-run mode, not active canary.
 - Phase 256 complete: rollback anchors exist under `/var/lib/wanctl/phase256-backups/20260620T033704Z`; route-management-capable code/config was deployed with `route_management.enabled=true`, `mode=dry_run`, and `migration_acknowledged=false`; `steering.service` was restarted once under approval; health now exposes `route_management` with `active_owner=netwatch` and `active_allowed=false`. No RouterOS route mutation, Netwatch disablement, CAKE/qdisc change, route-owner flip, or active route-management canary occurred.
-- Phase 257 blocker/evidence gap: route ownership guard currently fails closed because RouterOS REST does not support `/tool netwatch print detail`; active canary readiness must account for this.
+- Phase 257 complete: bounded 636s dry-run observation from `cake-shaper` produced `Verdict: not-ready`; route-management health stayed dry_run with `active_owner=netwatch`, `active_allowed=false`, `last_intended_action=null`, and `last_applied_action=null`. Supported RouterOS SSH ownership inspection was not proven because `/etc/wanctl/ssh/router.key` was not accessible on `cake-shaper`; Netwatch remains owner and no active canary is approved.
 - SAFE-18 original zero-controller-diff invariant held through Phase 248.1 and was intentionally superseded by the operator-directed Phase 248.2 fping freshness controller fix. Storage hygiene phases 249/250 must avoid unrelated controller-path changes and document no additional controller behavior drift.
 - SAFE-19 for v1.55 held: no live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production default flip occurred outside an explicitly approved canary phase.
 - Netwatch remains the interim WAN route owner after v1.55 close; future wanctl route ownership requires safe/off deployment evidence, read-only observation, and a new explicit approval gate.
@@ -109,11 +109,11 @@ v1.55 closed route ownership / Netwatch retirement with final decision `keep-net
 
 ## Session Continuity
 
-Last session: 2026-06-20T03:59:00.353Z
-Stopped at: Phase 257 planned (1 plan) — ready to execute with /gsd:execute-phase 257
-Resume file: .planning/phases/257-dry-run-observation-canary-readiness-decision/257-01-PLAN.md
+Last session: 2026-06-20T12:35:09.901Z
+Stopped at: Completed 257-01-PLAN.md; readiness verdict not-ready
+Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)
 
 ## Operator Next Steps
 
-- Next safe step is `/gsd:execute-phase 257`. Execution boundary: read-only/dry-run observation from `cake-shaper` only, with deterministic command allowlist validation before live commands. Do not approve or run active route mutation, Netwatch disablement, CAKE/qdisc changes, threshold retuning, or route-owner flip in v1.56.
+- Next safe step is phase verification/closeout for Phase 257. Do not approve or run active route mutation, Netwatch disablement, CAKE/qdisc changes, threshold retuning, or route-owner flip in v1.56; future work should first repair/prove supported read-only RouterOS ownership inspection.
