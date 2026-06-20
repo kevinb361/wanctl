@@ -1,0 +1,42 @@
+# Phase 256 deploy/restart raw transcript 20260620T034124Z
+## Local precheck
+.........                                                                [100%]
+9 passed, 133 deselected in 0.37s
+## Remote pre-state
+SERVICE_ACTIVE=active
+SERVICE_NRESTARTS=0
+HEALTH healthy 1.47.0 False
+BRIDGE_SERVICES=active,active,active,active
+## Deploy code rsync
+sending incremental file list
+deleting scripts/wanctl-operator-summary
+deleting scripts/validate-deployment.sh
+deleting scripts/phase247-fping-shadow.py
+deleting scripts/compact-metrics-dbs.sh
+deleting scripts/analyze_baseline.py
+deleting scripts/
+./
+check_steering_validators.py
+operator_summary.py
+routeros_rest.py
+rtt_measurement.py
+wan_controller.py
+steering/
+steering/daemon.py
+steering/health.py
+steering/route_decision.py
+steering/route_manager.py
+steering/route_ownership_guard.py
+
+sent 63,158 bytes  received 4,203 bytes  134,722.00 bytes/sec
+total size is 1,642,117  speedup is 24.38
+## Patch live steering config route_management dry_run
+## Config shape after patch
+{"enabled": true, "migration_acknowledged": false, "mode": "dry_run", "route_keys": ["att", "att_policy", "spectrum"], "route_management_present": true}
+## Restart steering.service only
+## Post-state
+SERVICE_ACTIVE=active
+SERVICE_NRESTARTS=0
+HEALTH healthy 1.47.0 True
+ROUTE_MANAGEMENT {"active_allowed": false, "active_owner": "netwatch", "blocked_reason": "ownership guard does not allow active route management", "circuit_breaker": {"failure_count": 0, "last_error": null, "open": false}, "enabled": true, "guard": {"active_allowed": false, "blocked_reason": "failed to read RouterOS netwatch: Command failed", "conflict_count": 0, "status": "error"}, "last_applied_action": null, "last_event": null, "last_intended_action": null, "mode": "dry_run", "reconciliation": {"checked_at": 1781926954.778941, "error": null, "route_count": 3, "status": "ok"}, "rollback_ready": true}
+BRIDGE_SERVICES=active,active,active,active

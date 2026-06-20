@@ -38,7 +38,7 @@
 ### Phases
 
 - [x] **Phase 255: Deploy Shape + Safe/Off Config Contract** - Prove cake-shaper's live deploy shape, define the exact safe/off config, validate rollback anchors, and freeze the no-mutation gate before any restart.
-- [ ] **Phase 256: Bounded Safe/Off Deployment + Health Surface Proof** - Operator-gated deploy/restart of route-management-capable steering code/config, then prove correct health/operator fields from cake-shaper without route mutation.
+- [x] **Phase 256: Bounded Safe/Off Deployment + Health Surface Proof** - Operator-gated deploy/restart of route-management-capable steering code/config, then prove correct health/operator fields from cake-shaper without route mutation.
 - [ ] **Phase 257: Dry-Run Observation + Canary Readiness Decision** - Run bounded dry-run observation, compare intended decisions to Netwatch/live routes, and produce a readiness/not-ready packet for a future active canary.
 
 ## Phase Details
@@ -75,15 +75,17 @@
   3. Steering health scraped from cake-shaper exposes route-management owner/mode/guard/last-action fields.
   4. Health/operator output distinguishes bridge health from steering route-management health.
 
+**Phase 256 outcome:** Complete. Route-management-capable steering code/config was deployed to `cake-shaper` in `dry_run` mode after rollback anchors and explicit approval. `127.0.0.1:9102/health` exposes `route_management` with `active_owner=netwatch`, `mode=dry_run`, and `active_allowed=false`; cake-autorate services and state bridges remained active. Guard currently fails closed on REST Netwatch inspection (`/tool netwatch print detail` unsupported), which is evidence for Phase 257 readiness decision.
+
 **Plans**:
 
 **Wave 1**
 
-- [ ] 256-01-PLAN.md — operator-gated safe/off deploy/restart + rollback proof
+- [x] 256-01-PLAN.md — operator-gated safe/off deploy/restart + rollback proof
 
 **Wave 2** *(blocked on Wave 1 health)*
 
-- [ ] 256-02-PLAN.md — route-management health/operator proof + bridge health separation
+- [x] 256-02-PLAN.md — route-management health/operator proof + bridge health separation
 
 ### Phase 257: Dry-Run Observation + Canary Readiness Decision
 

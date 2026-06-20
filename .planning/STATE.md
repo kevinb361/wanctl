@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.56
 milestone_name: Route Management Surface Deployment
 status: ready_to_plan
-stopped_at: Phase 256 rollback-anchor preflight complete — deploy/config edit/restart still gated
-last_updated: 2026-06-20T03:29:01.963Z
-last_activity: 2026-06-20 -- Phase 256 rollback anchors created; deploy/config edit/restart still requires fresh approval
+stopped_at: Phase 256 complete (2/2) — ready to plan Phase 257 dry-run observation/readiness decision
+last_updated: 2026-06-20T03:45:39.812Z
+last_activity: 2026-06-20 -- Phase 256 safe/off dry-run deployment complete; route-management health exposed; active canary still future-gated
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 33
+  completed_phases: 2
+  total_plans: 3
+  completed_plans: 3
+  percent: 67
 ---
 
 # Session State
@@ -21,20 +21,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 256 — bounded safe/off deployment + health surface proof
+**Current focus:** Phase 257 — dry run observation + canary readiness decision
 
 ## Current Position
 
-Phase: 256
-Plan: 256-01 partial — rollback-anchor preflight complete
-Status: Waiting for fresh approval before deploy/config edit/restart
-Last activity: 2026-06-20 -- Phase 256 rollback anchors created; deploy/config edit/restart still requires fresh explicit approval
+Phase: 257
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-20 -- Phase 256 safe/off dry-run deployment complete; Phase 257 remains observation/readiness only
 
 ## Active Blockers / Concerns
 
 - SAFE-20 for v1.56: no live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production route-owner flip. Deploy/restart gates require explicit operator approval and rollback.
-- v1.56 follows v1.55's keep-netwatch result: the next safe step is exposing route-management health/config on cake-shaper in safe/off or dry-run mode, not active canary.
-- Phase 256 rollback-anchor preflight complete: remote backups exist under `/var/lib/wanctl/phase256-backups/20260620T033704Z` for the flat `/opt/wanctl` tree and `/etc/wanctl/steering.yaml`. Live config still has no `route_management` block. No deploy, config edit, restart/reload, RouterOS/Netwatch/CAKE mutation, or route-owner flip occurred. Safe/off deploy/restart still requires fresh explicit approval.
+- v1.56 follows v1.55's keep-netwatch result: route-management is now exposed on cake-shaper in safe/off dry-run mode, not active canary.
+- Phase 256 complete: rollback anchors exist under `/var/lib/wanctl/phase256-backups/20260620T033704Z`; route-management-capable code/config was deployed with `route_management.enabled=true`, `mode=dry_run`, and `migration_acknowledged=false`; `steering.service` was restarted once under approval; health now exposes `route_management` with `active_owner=netwatch` and `active_allowed=false`. No RouterOS route mutation, Netwatch disablement, CAKE/qdisc change, route-owner flip, or active route-management canary occurred.
+- Phase 257 blocker/evidence gap: route ownership guard currently fails closed because RouterOS REST does not support `/tool netwatch print detail`; active canary readiness must account for this.
 - SAFE-18 original zero-controller-diff invariant held through Phase 248.1 and was intentionally superseded by the operator-directed Phase 248.2 fping freshness controller fix. Storage hygiene phases 249/250 must avoid unrelated controller-path changes and document no additional controller behavior drift.
 - SAFE-19 for v1.55 held: no live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production default flip occurred outside an explicitly approved canary phase.
 - Netwatch remains the interim WAN route owner after v1.55 close; future wanctl route ownership requires safe/off deployment evidence, read-only observation, and a new explicit approval gate.
@@ -108,11 +109,11 @@ v1.55 closed route ownership / Netwatch retirement with final decision `keep-net
 
 ## Session Continuity
 
-Last session: 2026-06-20T03:37:04Z
-Stopped at: Phase 256 rollback-anchor preflight complete; deploy/restart still approval-gated
+Last session: 2026-06-20T03:41:24Z
+Stopped at: Phase 256 complete; route-management health exposed in dry-run, Phase 257 ready to plan
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)
 
 ## Operator Next Steps
 
-- Next safe step is asking for fresh explicit approval before the Phase 256 safe/off or dry-run deploy/config edit/restart of `steering.service`. Rollback anchors now exist. Do not deploy, restart, reload, edit live config, mutate RouterOS/Netwatch, change CAKE/qdisc, or flip route ownership without approval.
+- Next safe step is planning Phase 257 dry-run observation/readiness decision. Do not approve or run active route mutation, Netwatch disablement, CAKE/qdisc changes, or route-owner flip in v1.56.

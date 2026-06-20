@@ -9,20 +9,20 @@
 ### DEPLOY — Production Deployment Shape
 
 - [x] **DEPLOY-01**: Prove the actual cake-shaper deployment shape before changing it: git checkout vs flat rsync, service unit paths, active steering code version, config path, and rollback anchor.
-- [ ] **DEPLOY-02**: Deploy route-management-capable steering code/config to cake-shaper only through an explicit operator-approved bounded deploy/restart plan with a code rollback path.
-- [ ] **DEPLOY-03**: Preserve external cake-autorate bridge operation during any steering deploy/restart; Spectrum/ATT state bridges and shaping services remain healthy or rollback fires.
+- [x] **DEPLOY-02**: Deploy route-management-capable steering code/config to cake-shaper only through an explicit operator-approved bounded deploy/restart plan with a code rollback path.
+- [x] **DEPLOY-03**: Preserve external cake-autorate bridge operation during any steering deploy/restart; Spectrum/ATT state bridges and shaping services remain healthy or rollback fires.
 
 ### CONFIG — Safe/Off Runtime Configuration
 
 - [x] **CONFIG-01**: Production route-management config remains safe/off or dry-run only; active route mutation is impossible without a separate explicit approval gate.
 - [x] **CONFIG-02**: Production config validation proves route IDs/comments, WAN mappings, guard settings, and mode fields are sane before any service restart. Phase 255 validated the safe/off target offline and recorded that live `/etc/wanctl/steering.yaml` requires explicit operator-approved privileged backup/read before Phase 256 restart.
-- [ ] **CONFIG-03**: One-command rollback restores the previous steering code/config shape without disabling Netwatch or changing RouterOS route state.
+- [x] **CONFIG-03**: One-command rollback restores the previous steering code/config shape without disabling Netwatch or changing RouterOS route state.
 
 ### HEALTH — Steering Health Surface Proof
 
-- [ ] **HEALTH-01**: The steering health endpoint scraped from the steering host namespace exposes `route_management` owner/mode/guard/last-action fields after deploy.
-- [ ] **HEALTH-02**: Health checks distinguish cake-autorate state bridge health (`:9101`) from steering route-management health (`:9102` on cake-shaper localhost).
-- [ ] **HEALTH-03**: Operator summary/log output exposes route owner mode, guard status, intended action, applied action, and rollback readiness in safe/off or dry-run mode.
+- [x] **HEALTH-01**: The steering health endpoint scraped from the steering host namespace exposes `route_management` owner/mode/guard/last-action fields after deploy.
+- [x] **HEALTH-02**: Health checks distinguish cake-autorate state bridge health (`:9101`) from steering route-management health (`:9102` on cake-shaper localhost).
+- [x] **HEALTH-03**: Operator summary/log output exposes route owner mode, guard status, intended action, applied action, and rollback readiness in safe/off or dry-run mode.
 
 ### OBSERVE — Dry-Run Observation Readiness
 
@@ -62,14 +62,14 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | DEPLOY-01 | Phase 255 | Complete |
-| DEPLOY-02 | Phase 256 | Pending |
-| DEPLOY-03 | Phase 256 | Pending |
+| DEPLOY-02 | Phase 256 | Complete |
+| DEPLOY-03 | Phase 256 | Complete |
 | CONFIG-01 | Phase 255 | Complete |
 | CONFIG-02 | Phase 255 | Complete |
-| CONFIG-03 | Phase 256 | Pending |
-| HEALTH-01 | Phase 256 | Pending |
-| HEALTH-02 | Phase 256 | Pending |
-| HEALTH-03 | Phase 256 | Pending |
+| CONFIG-03 | Phase 256 | Complete |
+| HEALTH-01 | Phase 256 | Complete |
+| HEALTH-02 | Phase 256 | Complete |
+| HEALTH-03 | Phase 256 | Complete |
 | OBSERVE-01 | Phase 257 | Pending |
 | OBSERVE-02 | Phase 257 | Pending |
 | OBSERVE-03 | Phase 257 | Pending |
