@@ -1,17 +1,106 @@
 ---
 phase: 258
 reviewers: [codex]
-reviewed_at: 2026-06-20T14:07:04Z
+review_cycles: 2
+reviewed_at: 2026-06-20T14:30:00Z
 plans_reviewed: [258-01-PLAN.md, 258-02-PLAN.md, 258-03-PLAN.md]
+cycle_1_high: 4
+cycle_2_high_open: 1
 ---
 
 # Cross-AI Plan Review — Phase 258
 
 > Executed inside Claude Code, so the Claude self-review is skipped for independence.
-> One external reviewer invoked: Codex (`codex-cli 0.141.0`, default model).
-> Codex's load-bearing HIGH concern (guard reads `/system script print` after netwatch)
-> was independently verified against `src/wanctl/steering/route_ownership_guard.py`
-> (lines 63-76) before publishing — confirmed accurate.
+> External reviewer: Codex (`codex-cli 0.141.0`, default model).
+> Two cycles recorded below. Cycle 1 raised 4 HIGH concerns; the plans were revised in
+> commit `d0c0af90`; cycle 2 re-reviewed the revised plans. Cycle-2's load-bearing
+> residual HIGH (Plan 03 proof harness runtime/config provenance) was independently
+> verified against `deploy/systemd/steering.service:18` (`PYTHONPATH=/opt`) and
+> `258-03-PLAN.md:246,173` before publishing — confirmed accurate.
+
+# Cycle 2 (Re-Review of Revised Plans — current)
+
+> Reviewed against revised plans at commit `d0c0af90`. Disposition of the 4 cycle-1
+> HIGHs and any new HIGHs. **This is the authoritative current-state section.**
+
+## Codex Cycle-2 Review
+
+### Plan 258-01
+
+**Summary** — Now documents the two-layer root cause and moves A1 into a blocking preflight before Plan 02. No longer treats the SSH-key failure as the only blocker; explicitly stops/replans if REST netwatch is absent.
+
+**Strengths**
+- Names both daemon-path gaps: `/tool netwatch print` and `/system script print`.
+- Explains why netwatch-only leaves `RouteOwnershipGuard.inspect()` failing.
+- Separates manual `router.key` evidence failure from daemon REST failure.
+- A1 is a hard gate (`A1-failed = STOP`), not an inline SSH improvisation.
+- Credential facts split into known-evidence vs operator-pending.
+
+**Concerns**
+- **MEDIUM:** A1 only probes `/rest/tool/netwatch`; Plan 02 and the guard also require `/rest/system/script`. D4 catches script failure later, but the preflight could fail earlier and cheaper.
+- **LOW:** A1 records only an OK/fail marker; capturing HTTP status + parse result would reduce later ambiguity.
+
+**Risk Assessment: LOW** — Read-only doc + GET preflight with fail-closed sequencing.
+
+### Plan 258-02
+
+**Summary** — Directly addresses the daemon REST gap: requires BOTH netwatch and script GET handlers, adds tests, proves the guard clears over mocked REST, and carries the validator forward with a safer anchored-prefix predicate.
+
+**Strengths**
+- `_handle_script_print` is REQUIRED, not optional.
+- GET-only success/fail-closed tests specified for both new handlers.
+- Guard-over-mocked-REST integration test proves both reads are load-bearing.
+- Validator rejects mutation, shell metacharacters, unknown objects, and substring bypasses.
+- Existing route dispatch explicitly protected from regression.
+
+**Concerns**
+- **LOW:** Tests should explicitly cover slash-form dispatch (`/tool/netwatch/print`, `/system/script/print`), not only space-form.
+- **LOW:** `/system script print detail` can expose script source; downstream redaction should stay mandatory.
+
+**Risk Assessment: LOW** — Narrow, test-backed, read-only by construction.
+
+### Plan 258-03
+
+**Summary** — Materially improved: validator-gated command file, a Python proof harness using `get_router_client`, deployed-code confirmation, and a three-read live proof. One HIGH remains: the plan does not quite prove the same deployed runtime/config path as `steering.service`.
+
+**Strengths**
+- Raw curl demoted to A1 only; D4 uses a Python harness through `get_router_client` + `run_cmd`.
+- Full JSON parse required; no truncation.
+- Proof includes route + netwatch + script; deployed-handler grep gates the live proof.
+- ACCESS-03 residual accurately scoped as procedural, not RouterOS RBAC.
+
+**Concerns**
+- **HIGH:** The live proof command runs `cd /opt/wanctl && python3 /tmp/phase258-readonly-proof.py ...`, but `steering.service` runs with `Environment=PYTHONPATH=/opt` (`deploy/systemd/steering.service:18`). A `/tmp` harness without `PYTHONPATH=/opt` may import `wanctl` from a different path than the deployed daemon, or fail to import. The harness also "builds a minimal config object" mirroring `/etc/wanctl/steering.yaml` instead of loading it, so "same config/env as steering" is only partially proven.
+- **MEDIUM:** The deploy command is full `./scripts/deploy.sh spectrum cake-shaper --with-steering`, which pushes config + steering config + systemd units + daemon-reload, not just code rsync as the plan implies.
+- **LOW:** Proof runs as an operator shell, not clearly as the `wanctl` service user; fine for transport proof but does not prove service-user runtime equivalence unless recorded.
+
+**Suggestions**
+- Run proof with `PYTHONPATH=/opt`; have the harness assert `wanctl.__file__` / `routeros_rest.__file__` resolve under `/opt/wanctl`.
+- Load the actual deployed `/etc/wanctl/steering.yaml`, or record field-by-field parsed values before building the config object.
+- Replace full deploy with code-only rsync, or add before/after checksums for `/etc/wanctl/*.yaml` + systemd units.
+
+**Risk Assessment: HIGH** — Proof is close, but the runtime/config provenance gap can still produce evidence that doesn't prove the supported steering path end-to-end.
+
+## Prior HIGH Disposition (Cycle 1 → Cycle 2)
+
+- **HIGH-1 (Plan 02, `/system script print` required): FULLY RESOLVED** — Plan 02 makes `/system script print` required, adds handler/tests, and includes a guard-over-REST integration proof.
+- **HIGH-2 (Plan 03, proof through `get_router_client` not curl): PARTIALLY RESOLVED** — Raw curl is fixed and the harness goes through `get_router_client`, but Plan 03 still does not fully prove the *same deployed runtime/config path*: the harness uses a synthetic config object and the shown proof command omits `PYTHONPATH=/opt`. Verified against `steering.service:18` and `258-03-PLAN.md:173,246`.
+- **HIGH-3 (Plan 03, deploy patched code to cake-shaper): FULLY RESOLVED** — Operator deploy step + deployed-code grep + proof sequencing added. The residual import-path issue is folded into HIGH-2, not counted separately.
+- **HIGH-4 (Plan 03, SSH fallback under-specified): FULLY RESOLVED** — A1 is now a blocking Plan 01 gate; A1 failure stops and replans SSH as a separate phase, with no inline SSH fork.
+
+## Cycle-2 Overall
+
+- **Open HIGH count: 1** (HIGH-2 partially resolved — counts as open).
+- **New separate HIGHs: 0.**
+- **Overall risk: HIGH** until Plan 03 pins the proof harness to the deployed `/opt/wanctl` runtime (`PYTHONPATH=/opt`, assert `__file__` under `/opt/wanctl`) and loads the actual deployed steering config instead of a synthetic one.
+
+**Recommended remediation (single, surgical):** In Plan 03, change the proof command to set `PYTHONPATH=/opt` and have the harness (a) assert `wanctl.__file__`/`routeros_rest.__file__` resolve under `/opt/wanctl`, and (b) load (or field-by-field record) the real `/etc/wanctl/steering.yaml` rather than building a synthetic config. This closes the last open HIGH without changing the phase's safety posture.
+
+---
+
+# Cycle 1 (Original Review of Initial Plans — historical)
+
+> Retained for audit. All 4 cycle-1 HIGHs are dispositioned in the Cycle-2 section above.
 
 ## Codex Review
 
