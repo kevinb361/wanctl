@@ -2,7 +2,7 @@
 
 ## Status
 
-A1-blocked-pending-operator
+A1-confirmed
 
 ## What A1 checks
 
@@ -61,6 +61,15 @@ rm -f "$tmpn" "$tmps"'
 - A1-failed: netwatch endpoint returns 404 or other endpoint absence after valid auth. STOP — REST netwatch endpoint absent; write a separate SSH fallback phase per D1; do not improvise SSH inside Plan 03.
 - A1-blocked: auth/config/permission issue prevents the GET from reaching RouterOS with valid credentials. Resolve the operator environment first; do not treat this as endpoint absence.
 
+## Operator-confirmed result
+
+After explicit operator approval, the privileged read-only probe was rerun through `sudo bash -s` on `cake-shaper` so `/etc/wanctl/secrets` could be sourced without printing the secret value. The RouterOS REST GETs returned parseable JSON counts:
+
+```text
+A1-NETWATCH-OK entries=3
+A1-SCRIPT-OK entries=20
+```
+
 ## Current decision
 
-STOP before Wave 2. Waiting for operator A1 result.
+A1-confirmed. Proceed to Plan 02 with the REST netwatch + script handler implementation. The SSH fallback fork is not used.
