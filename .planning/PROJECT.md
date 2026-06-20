@@ -27,13 +27,19 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-v1.56 is shipped and archived. Production `cake-shaper` now exposes the route-management surface in dry-run mode, but Netwatch remains the active/interim route owner. The next route-management milestone should repair/prove supported read-only RouterOS ownership inspection from `cake-shaper` before asking for any active route mutation canary.
+v1.57 is the active milestone (planning). Production `cake-shaper` exposes the route-management surface in dry-run mode, but Netwatch remains the active/interim route owner. v1.56 ended `not-ready` because supported read-only RouterOS ownership inspection could not be proven from `cake-shaper` (the validated SSH key path `/etc/wanctl/ssh/router.key` was inaccessible there). v1.57 repairs that gap and reruns the blocked dry-run observation.
 
-## Next Milestone Goals
+## Current Milestone: v1.57 Supported read-only RouterOS ownership inspection
 
-- Start from fresh requirements with `/gsd:new-milestone`.
-- Likely candidate: supported read-only RouterOS ownership inspection + rerun dry-run observation, preserving SAFE-20-style no-mutation gates until a separate explicit active-canary approval.
-- Keep active route mutation, Netwatch retirement, CAKE/qdisc changes, and threshold retuning out of scope unless the new milestone explicitly gates and approves them.
+**Goal:** Repair and prove a supported read-only RouterOS ownership-inspection path from `cake-shaper`, then rerun the v1.56 dry-run observation it blocked — validating intended wanctl route decisions against live Netwatch/default-route state, with no route ownership change.
+
+**Target features:**
+- **Validated SSH path repair** — Restore/prove access to the RouterOS inspection credential (`/etc/wanctl/ssh/router.key`) on `cake-shaper`, or establish a supported equivalent read-only path, so RouterOS Netwatch/default-route state can actually be read.
+- **Read-only RouterOS ownership inspection** — Prove wanctl can read live Netwatch and default-route ownership from `cake-shaper` over the validated path, with attribution distinct from bridge/state health.
+- **Dry-run observation rerun** — Re-execute the bounded dry-run that v1.56 could not complete: compare intended wanctl route decisions against live Netwatch/default-route state, no mutation.
+- **Readiness packet** — End with an explicit `ready-for-approval` or `not-ready` verdict for a future active-route canary; do not start an implicit canary.
+
+**Safety boundary (SAFE-21, inheriting SAFE-20 intent):** No live RouterOS route mutation, no Netwatch disablement, no CAKE/qdisc change, no controller threshold retuning, and no production route-owner flip during this milestone. Any active-route canary remains a separate, explicit operator gate with rollback.
 
 ## Recently Shipped: v1.55 Route Ownership / Netwatch Retirement (shipped 2026-06-20)
 
@@ -1110,4 +1116,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-20 — v1.56 complete: route-management surface deployed/exposed in safe/off dry-run mode on `cake-shaper`; final readiness verdict `not-ready` because supported live RouterOS ownership inspection is not proven. Netwatch remains owner and SAFE-20 held._
+_Last updated: 2026-06-20 — v1.57 started: repair/prove supported read-only RouterOS ownership inspection from `cake-shaper` (the v1.56 `not-ready` blocker), then rerun the blocked dry-run observation. SAFE-21 holds SAFE-20-style no-mutation gates; active canary stays a separate operator gate._
