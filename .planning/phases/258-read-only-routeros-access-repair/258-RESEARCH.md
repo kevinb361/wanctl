@@ -279,7 +279,12 @@ READ_ONLY_ROUTEROS_OBJECTS = (
 | A3 | `ROUTER_PASSWORD` in `/etc/wanctl/secrets` is readable by whatever user runs the inspection proof. Route reads succeeding in 257 implies the *daemon* user can read it; an operator-run `! <cmd>` may run as a different user/env. | D3, Pitfall | If the proof runs as a user without the secret in env, it fails spuriously and gets misdiagnosed as a router problem. Run proof with the same env as `steering.service` (e.g., via the unit's EnvironmentFile or `sudo -u <svc-user>`). [ASSUMED] |
 | A4 | A non-empty netwatch result is expected (Netwatch is the interim route owner). | Pitfall 2, Code Examples | If netwatch is actually empty, an `[]` could be wrongly treated as failure or success. Confirm at least one enabled netwatch entry exists. [ASSUMED — consistent with milestone narrative] |
 
-## Open Questions
+## Open Questions (RESOLVED-IN-EXECUTION)
+
+> **Disposition (added during plan verification, Phase 258):** All three questions are structurally handled by the plans rather than answered at plan-time.
+> - **Q1 (A1):** RESOLVED at Plan 258-03 Checkpoint A — a blocking `! <command>` operator gate verifies `/rest/tool/netwatch` live before the proof; on 404 the plan forks to Pattern 2 (SSH `router.key` repair) and records the fork.
+> - **Q2 (system/script scope):** RESOLVED — Plan 258-02 treats the `system/script` handler as optional forward-compat for Phase 259; 258's scope stays "prove route+netwatch."
+> - **Q3 (proof user/env):** RESOLVED — Plan 258-03 Checkpoint B runs the proof under `steering.service`'s environment so `ROUTER_PASSWORD` resolves identically.
 
 1. **Does RouterOS at 10.10.99.1 expose `/rest/tool/netwatch` (and `/rest/system/script`)?** (Resolves A1; decides Pattern 1 vs Pattern 2.)
    - What we know: REST mirrors CLI menus on RouterOS 7.x; `/rest/ip/route` works here.

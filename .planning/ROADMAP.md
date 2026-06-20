@@ -61,8 +61,13 @@
 **Plans**: 3 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 258-01-PLAN.md — Document the two-layer ACCESS-01 root cause (REST netwatch-handler gap + router.key inaccessibility) and the chosen supported path
 - [ ] 258-02-PLAN.md — Add read-only REST `_handle_netwatch_print` handler + generalize the Phase 257 read-only allowlist validator (ACCESS-02/03, SAFE-21)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 258-03-PLAN.md — Operator-run live D4 two-read proof (route + netwatch, both exit 0, parseable), validator-gated (ACCESS-02/03, SAFE-21)
 
 ### Phase 259: Read-Only Netwatch + Route-Ownership Inspection
