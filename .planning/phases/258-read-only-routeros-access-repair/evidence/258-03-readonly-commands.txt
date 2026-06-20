@@ -1,0 +1,3 @@
+COMMAND: /ip route print
+COMMAND: /tool netwatch print
+COMMAND: /system script print
