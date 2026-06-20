@@ -36,6 +36,7 @@ def test_validate_command_accepts_read_only_routeros_objects(command: str) -> No
         ("/tool netwatch print; id", "shell metacharacter"),
         ("/system resource print", "recognized read-only RouterOS object"),
         ('/log print where message~"/ip route print"', "recognized read-only RouterOS object"),
+        ("/ip route printfoo", "recognized read-only RouterOS object"),
     ],
 )
 def test_validate_command_rejects_unsafe_or_unknown_commands(

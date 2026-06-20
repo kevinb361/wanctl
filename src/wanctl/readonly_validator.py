@@ -67,6 +67,14 @@ def _normalized_command(command: str) -> str:
     return re.sub(r"\s+", " ", command.strip())
 
 
+def _starts_with_read_object(command: str, read_object: str) -> bool:
+    if not command.startswith(read_object):
+        return False
+    if len(command) == len(read_object):
+        return True
+    return command[len(read_object)] in {" ", "/"}
+
+
 def validate_command(command: str) -> None:
     for token in FORBIDDEN_SUBSTRINGS:
         if token in command:
@@ -84,7 +92,7 @@ def validate_command(command: str) -> None:
 
     normalized_lower = normalized.lower()
     if not any(
-        normalized_lower.startswith(read_object)
+        _starts_with_read_object(normalized_lower, read_object)
         for read_object in READ_ONLY_ROUTEROS_OBJECTS
     ):
         raise ValueError(

@@ -76,5 +76,5 @@ Implemented the daemon-path repair: `RouterOSREST` now supports GET-only `/tool 
 
 - Both RouterOSREST handlers are GET-only and fail closed.
 - The guard path is proven through mocked REST for netwatch + script.
-- The validator uses anchored `startswith` after normalization, not substring matching.
+- The validator uses anchored prefix matching after normalization with an explicit prefix boundary, not substring matching.
 - Existing route-print behavior remains covered and unregressed by the focused test suite.
