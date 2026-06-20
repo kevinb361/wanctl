@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.57
 milestone_name: Supported read-only RouterOS ownership inspection
-status: checkpoint
-stopped_at: Phase 258 Plan 01 A1 preflight blocked pending operator read-only REST endpoint check
+status: executing
+stopped_at: Phase 258 Wave 3 ready
 last_updated: "2026-06-20T18:34:20.177Z"
 last_activity: 2026-06-20 -- Phase 258 execution started
 progress:
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-20 after v1.56 milestone close)
 ## Current Position
 
 Phase: 258 (read-only-routeros-access-repair) — EXECUTING
-Plan: 1 of 3 — A1 preflight checkpoint
-Status: Blocked pending operator A1 result before Plan 02
-Last activity: 2026-06-20 -- Phase 258 Plan 01 root-cause doc written; A1 blocked by nonprivileged secrets/config read
+Plan: 3 of 3 — live proof harness and evidence
+Status: Plan 01 and Plan 02 complete; ready for Plan 03 live proof
+Last activity: 2026-06-20 -- Phase 258 Plan 02 REST handlers and validator complete; A1 confirmed
 
 ## Roadmap Summary (v1.57)
 

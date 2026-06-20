@@ -63,11 +63,11 @@
 Plans:
 **Wave 1**
 
-- [ ] 258-01-PLAN.md — Document the two-layer ACCESS-01 root cause (REST netwatch+script handler gap + router.key inaccessibility), split credential facts, and resolve the A1 BLOCKING preflight (does live RouterOS expose /rest/tool/netwatch?) — A1-fail STOPS the phase for a separate SSH fallback (ACCESS-01, SAFE-21)
+- [x] 258-01-PLAN.md — Document the two-layer ACCESS-01 root cause (REST netwatch+script handler gap + router.key inaccessibility), split credential facts, and resolve the A1 BLOCKING preflight (does live RouterOS expose /rest/tool/netwatch?) — A1-fail STOPS the phase for a separate SSH fallback (ACCESS-01, SAFE-21)
 
 **Wave 2** *(blocked on 258-01 A1 gate)*
 
-- [ ] 258-02-PLAN.md — Add read-only REST `_handle_netwatch_print` AND REQUIRED `_handle_script_print` handlers + guard-over-mocked-REST integration test + generalized anchored-prefix read-only validator (ACCESS-02/03, SAFE-21)
+- [x] 258-02-PLAN.md — Add read-only REST `_handle_netwatch_print` AND REQUIRED `_handle_script_print` handlers + guard-over-mocked-REST integration test + generalized anchored-prefix read-only validator (ACCESS-02/03, SAFE-21)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -109,7 +109,7 @@ SAFE-21 is a cross-cutting safety invariant, not a standalone phase. Every phase
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 258. Read-Only RouterOS Access Repair | 0/3 | Not started | - |
+| 258. Read-Only RouterOS Access Repair | 2/3 | In Progress|  |
 | 259. Read-Only Netwatch + Route-Ownership Inspection | 0/TBD | Not started | - |
 | 260. Dry-Run Observation Rerun + Canary Readiness | 0/TBD | Not started | - |
 
