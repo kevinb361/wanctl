@@ -281,10 +281,10 @@ READ_ONLY_ROUTEROS_OBJECTS = (
 
 ## Open Questions (RESOLVED-IN-EXECUTION)
 
-> **Disposition (added during plan verification, Phase 258):** All three questions are structurally handled by the plans rather than answered at plan-time.
-> - **Q1 (A1):** RESOLVED at Plan 258-03 Checkpoint A — a blocking `! <command>` operator gate verifies `/rest/tool/netwatch` live before the proof; on 404 the plan forks to Pattern 2 (SSH `router.key` repair) and records the fork.
-> - **Q2 (system/script scope):** RESOLVED — Plan 258-02 treats the `system/script` handler as optional forward-compat for Phase 259; 258's scope stays "prove route+netwatch."
-> - **Q3 (proof user/env):** RESOLVED — Plan 258-03 Checkpoint B runs the proof under `steering.service`'s environment so `ROUTER_PASSWORD` resolves identically.
+> **Disposition (updated during `--reviews` replan, Phase 258):** All three questions are structurally handled by the plans rather than answered at plan-time.
+> - **Q1 (A1):** RESOLVED at Plan 258-01 — the A1 probe is a BLOCKING preflight checkpoint (Wave 1, `autonomous: false`) that verifies `/rest/tool/netwatch` live BEFORE Plan 02 implementation. On absence the phase STOPS and a separate SSH fallback phase is written (per D1); there is no inline SSH fork inside Plan 03. (Review HIGH-4.)
+> - **Q2 (system/script scope):** RESOLVED — Plan 258-02 makes the `/system/script` REST handler REQUIRED (not optional), because `RouteOwnershipGuard.inspect()` reads NETWATCH_PRINT then SCRIPT_PRINT; the proof and D4 now cover route + netwatch + script. (Review HIGH-1.)
+> - **Q3 (proof user/env):** RESOLVED — Plan 258-03 runs the proof via a Python harness through `get_router_client` under `steering.service`'s environment so `ROUTER_PASSWORD` resolves identically; the patched code is deployed to `/opt/wanctl` on `cake-shaper` and confirmed by grep before the proof runs. (Review HIGH-2, HIGH-3.)
 
 1. **Does RouterOS at 10.10.99.1 expose `/rest/tool/netwatch` (and `/rest/system/script`)?** (Resolves A1; decides Pattern 1 vs Pattern 2.)
    - What we know: REST mirrors CLI menus on RouterOS 7.x; `/rest/ip/route` works here.

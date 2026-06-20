@@ -63,12 +63,15 @@
 Plans:
 **Wave 1**
 
-- [ ] 258-01-PLAN.md — Document the two-layer ACCESS-01 root cause (REST netwatch-handler gap + router.key inaccessibility) and the chosen supported path
-- [ ] 258-02-PLAN.md — Add read-only REST `_handle_netwatch_print` handler + generalize the Phase 257 read-only allowlist validator (ACCESS-02/03, SAFE-21)
+- [ ] 258-01-PLAN.md — Document the two-layer ACCESS-01 root cause (REST netwatch+script handler gap + router.key inaccessibility), split credential facts, and resolve the A1 BLOCKING preflight (does live RouterOS expose /rest/tool/netwatch?) — A1-fail STOPS the phase for a separate SSH fallback (ACCESS-01, SAFE-21)
 
-**Wave 2** *(blocked on Wave 1 completion)*
+**Wave 2** *(blocked on 258-01 A1 gate)*
 
-- [ ] 258-03-PLAN.md — Operator-run live D4 two-read proof (route + netwatch, both exit 0, parseable), validator-gated (ACCESS-02/03, SAFE-21)
+- [ ] 258-02-PLAN.md — Add read-only REST `_handle_netwatch_print` AND REQUIRED `_handle_script_print` handlers + guard-over-mocked-REST integration test + generalized anchored-prefix read-only validator (ACCESS-02/03, SAFE-21)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 258-03-PLAN.md — Operator deploys patched code to /opt/wanctl (confirmed), then runs a `get_router_client` proof harness for the live D4 three-read proof (route + netwatch + script, each exit 0, full JSON parsed), validator-gated (ACCESS-02/03, SAFE-21)
 
 ### Phase 259: Read-Only Netwatch + Route-Ownership Inspection
 
