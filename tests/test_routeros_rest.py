@@ -815,6 +815,116 @@ class TestMangleRule:
 
 
 # =============================================================================
+# TestNetwatchOperations - Tool Netwatch Print Tests
+# =============================================================================
+
+
+class TestNetwatchOperations:
+    """Tests for RouterOS /tool netwatch REST read support."""
+
+    def test_netwatch_print_returns_json(self, rest_client, mock_session):
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = [
+            {"host": "1.1.1.1", "status": "up", ".id": "*1"},
+            {"host": "8.8.8.8", "status": "down", ".id": "*2"},
+        ]
+        mock_session.get.return_value = response
+
+        rc, stdout, stderr = rest_client.run_cmd("/tool netwatch print detail")
+
+        assert rc == 0
+        assert stderr == ""
+        assert json.loads(stdout) == [
+            {"host": "1.1.1.1", "status": "up", ".id": "*1"},
+            {"host": "8.8.8.8", "status": "down", ".id": "*2"},
+        ]
+
+    def test_netwatch_print_get_failure_fails_closed(self, rest_client, mock_session):
+        response = MagicMock()
+        response.ok = False
+        response.status_code = 500
+        response.text = "Router error"
+        mock_session.get.return_value = response
+
+        rc, stdout, stderr = rest_client.run_cmd("/tool netwatch print detail")
+
+        assert rc == 1
+        assert stdout == ""
+        assert stderr == "Command failed"
+
+    def test_netwatch_print_uses_get_not_mutation(self, rest_client, mock_session):
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = [{"host": "1.1.1.1", ".id": "*1"}]
+        mock_session.get.return_value = response
+
+        rc, _, _ = rest_client.run_cmd("/tool netwatch print detail")
+
+        assert rc == 0
+        mock_session.get.assert_called_once_with(
+            f"{rest_client.base_url}/tool/netwatch", timeout=rest_client.timeout
+        )
+        mock_session.post.assert_not_called()
+        mock_session.patch.assert_not_called()
+        mock_session.put.assert_not_called()
+
+
+# =============================================================================
+# TestScriptOperations - System Script Print Tests
+# =============================================================================
+
+
+class TestScriptOperations:
+    """Tests for RouterOS /system script REST read support."""
+
+    def test_script_print_returns_json(self, rest_client, mock_session):
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = [
+            {"name": "Notify", "source": ":log warning wan down", ".id": "*1"}
+        ]
+        mock_session.get.return_value = response
+
+        rc, stdout, stderr = rest_client.run_cmd("/system script print detail")
+
+        assert rc == 0
+        assert stderr == ""
+        assert json.loads(stdout) == [
+            {"name": "Notify", "source": ":log warning wan down", ".id": "*1"}
+        ]
+
+    def test_script_print_get_failure_fails_closed(self, rest_client, mock_session):
+        response = MagicMock()
+        response.ok = False
+        response.status_code = 500
+        response.text = "Router error"
+        mock_session.get.return_value = response
+
+        rc, stdout, stderr = rest_client.run_cmd("/system script print detail")
+
+        assert rc == 1
+        assert stdout == ""
+        assert stderr == "Command failed"
+
+    def test_script_print_uses_get_not_mutation(self, rest_client, mock_session):
+        response = MagicMock()
+        response.ok = True
+        response.json.return_value = [{"name": "Notify", ".id": "*1"}]
+        mock_session.get.return_value = response
+
+        rc, _, _ = rest_client.run_cmd("/system script print detail")
+
+        assert rc == 0
+        mock_session.get.assert_called_once_with(
+            f"{rest_client.base_url}/system/script", timeout=rest_client.timeout
+        )
+        mock_session.post.assert_not_called()
+        mock_session.patch.assert_not_called()
+        mock_session.put.assert_not_called()
+
+
+# =============================================================================
 # TestRouteOperations - IP Route Print/Enable/Disable Tests
 # =============================================================================
 

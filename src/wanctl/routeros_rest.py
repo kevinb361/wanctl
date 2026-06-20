@@ -285,6 +285,14 @@ class RouterOSREST:
             return self._handle_mangle_rule(cmd, timeout=timeout_val)
         if cmd.startswith("/ip route print") or cmd.startswith("/ip/route/print"):
             return self._handle_route_print(cmd, timeout=timeout_val)
+        if cmd.startswith("/tool netwatch print") or cmd.startswith(
+            "/tool/netwatch/print"
+        ):
+            return self._handle_netwatch_print(cmd, timeout=timeout_val)
+        if cmd.startswith("/system script print") or cmd.startswith(
+            "/system/script/print"
+        ):
+            return self._handle_script_print(cmd, timeout=timeout_val)
         if (
             cmd.startswith("/ip route enable")
             or cmd.startswith("/ip/route/enable")
@@ -638,6 +646,74 @@ class RouterOSREST:
 
         except requests.RequestException as e:
             self.logger.error(f"REST API error getting routes: {e}")
+            return None
+
+    def _handle_netwatch_print(
+        self, cmd: str, timeout: int | None = None
+    ) -> list[dict[str, Any]] | None:
+        """Handle /tool netwatch print commands via REST (read-only GET)."""
+        timeout_val = timeout if timeout is not None else self.timeout
+        url = f"{self.base_url}/tool/netwatch"
+        filter_spec = self._parse_where_filter(cmd)
+
+        try:
+            resp = self._request("GET", url, timeout=timeout_val)
+            if not resp.ok:
+                self.logger.error(f"Failed to get netwatch: {resp.status_code}")
+                return None
+
+            items = resp.json()
+            if filter_spec is None:
+                return items  # type: ignore[no-any-return]
+
+            field, value, contains_match = filter_spec
+            matched = []
+            for item in items:
+                item_value = item.get(field)
+                if not isinstance(item_value, str):
+                    continue
+                if (contains_match and value in item_value) or (
+                    not contains_match and item_value == value
+                ):
+                    matched.append(item)
+            return matched
+
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error getting netwatch: {e}")
+            return None
+
+    def _handle_script_print(
+        self, cmd: str, timeout: int | None = None
+    ) -> list[dict[str, Any]] | None:
+        """Handle /system script print commands via REST (read-only GET)."""
+        timeout_val = timeout if timeout is not None else self.timeout
+        url = f"{self.base_url}/system/script"
+        filter_spec = self._parse_where_filter(cmd)
+
+        try:
+            resp = self._request("GET", url, timeout=timeout_val)
+            if not resp.ok:
+                self.logger.error(f"Failed to get scripts: {resp.status_code}")
+                return None
+
+            items = resp.json()
+            if filter_spec is None:
+                return items  # type: ignore[no-any-return]
+
+            field, value, contains_match = filter_spec
+            matched = []
+            for item in items:
+                item_value = item.get(field)
+                if not isinstance(item_value, str):
+                    continue
+                if (contains_match and value in item_value) or (
+                    not contains_match and item_value == value
+                ):
+                    matched.append(item)
+            return matched
+
+        except requests.RequestException as e:
+            self.logger.error(f"REST API error getting scripts: {e}")
             return None
 
     def _find_unique_route(
