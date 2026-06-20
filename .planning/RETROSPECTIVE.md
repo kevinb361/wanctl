@@ -2,6 +2,48 @@
 
 _A living document updated after each milestone. Lessons feed forward into future planning._
 
+## Milestone: v1.55 — Route Ownership / Netwatch Retirement
+
+**Shipped:** 2026-06-20
+**Phases:** 4 | **Plans:** 8
+
+### What Was Built
+
+- Route ownership policy: Netwatch remains interim owner until wanctl route ownership is proven, canaried, and explicitly accepted.
+- Read-only RouterOS ownership inventory plus Snapshot-A rollback anchor for Netwatch/scripts/default routes.
+- Safe/off route-management config/API surface, dry-run mode, guard, decision policy, reconciliation, circuit breaker, and observability in repo code/tests.
+- Phase 254 live read-only observation and final `keep-netwatch` decision; no active canary was run.
+
+### What Worked
+
+- The operator-gated canary design did its job: evidence gaps stopped mutation instead of being hand-waved.
+- Separating cake-autorate bridge health from steering route-management health prevented a false-positive canary approval.
+- Snapshot-A and `COMMAND:` transcript discipline kept live RouterOS inspection auditable and no-mutation proof focused on issued commands.
+
+### What Was Inefficient
+
+- Phase 254 initially queried `127.0.0.1:9102` from the dev host rather than `cake-shaper`; the endpoint is localhost-bound on the steering host. Docs now call that out.
+- GSD milestone audit expected `VERIFICATION.md` files while the milestone used `VALIDATION.md` plus execution evidence. The audit needed direct file cross-checking and traceability reconciliation.
+- Traceability rows for Phase 253 stayed `Pending` after phase completion despite checked requirement boxes, requiring manual cleanup at archive time.
+
+### Patterns Established
+
+- For external cake-autorate deployments, treat `:9101` bridge health as WAN congestion/rate evidence only; route ownership approval requires steering health from the steering host.
+- `keep-netwatch` is a successful Phase 254 outcome when route-management deployment/canary evidence is incomplete.
+- Live route ownership milestones need explicit code/config/route-owner rollback layers, not a single overloaded "rollback" word.
+
+### Key Lessons
+
+1. Do not let healthy cake-shaper/cake-autorate state bridge health substitute for steering route-management health.
+2. localhost-bound service health must be scraped from the host namespace that owns the service.
+3. A declined canary with preserved ownership is a valid shipped safety outcome when the production deploy shape lags repo code.
+
+### Cost Observations
+
+- Notable: archive helper still needs post-helper cleanup. It created archives but left ROADMAP/STATE/PROJECT/MILESTONES/current REQUIREMENTS requiring manual verification and edits.
+
+---
+
 ## Milestone: v1.10 — Architectural Review Fixes
 
 **Shipped:** 2026-03-09
