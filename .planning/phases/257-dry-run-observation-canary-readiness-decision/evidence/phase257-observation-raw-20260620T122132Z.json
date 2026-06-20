@@ -1,0 +1,122 @@
+{
+  "obs_ts": "20260620T122132Z",
+  "cmd_ts": "20260620T120700Z",
+  "cmd_file": "/home/kevin/projects/wanctl/.planning/phases/257-dry-run-observation-canary-readiness-decision/evidence/phase257-readonly-commands-20260620T120700Z.txt",
+  "validator": "/home/kevin/projects/wanctl/.planning/phases/257-dry-run-observation-canary-readiness-decision/evidence/phase257-readonly-validator-20260620T120700Z.py",
+  "validator_stdout": "READONLY_COMMANDS_VALIDATED\n",
+  "validator_stderr": "",
+  "selftest_stdout": "READONLY_COMMANDS_NEGATIVE_SELF_TEST_PASSED\n",
+  "selftest_stderr": "",
+  "before": [
+    {
+      "label": "Steering Route-Management Health Before \u2014 127.0.0.1:9102/health",
+      "command": "ssh cake-shaper 'curl -fsS http://127.0.0.1:9102/health'",
+      "started": "2026-06-20T12:21:56Z",
+      "ended": "2026-06-20T12:21:57Z",
+      "returncode": 0,
+      "stdout": "{\n  \"status\": \"healthy\",\n  \"uptime_seconds\": 31162.7,\n  \"version\": \"1.47.0\",\n  \"steering\": {\n    \"enabled\": false,\n    \"state\": \"SPECTRUM_GOOD\",\n    \"mode\": \"active\"\n  },\n  \"congestion\": {\n    \"primary\": {\n      \"state\": \"GREEN\",\n      \"state_code\": 0,\n      \"tins\": [\n        {\n          \"tin_name\": \"Bulk\",\n          \"dropped_packets\": 0,\n          \"ecn_marked_packets\": 0,\n          \"avg_delay_us\": 4,\n          \"peak_delay_us\": 14,\n          \"backlog_bytes\": 0,\n          \"sparse_flows\": 7,\n          \"bulk_flows\": 0,\n          \"unresponsive_flows\": 0\n        },\n        {\n          \"tin_name\": \"BestEffort\",\n          \"dropped_packets\": 67759,\n          \"ecn_marked_packets\": 604,\n          \"avg_delay_us\": 20,\n          \"peak_delay_us\": 126,\n          \"backlog_bytes\": 0,\n          \"sparse_flows\": 1,\n          \"bulk_flows\": 1,\n          \"unresponsive_flows\": 0\n        },\n        {\n          \"tin_name\": \"Video\",\n          \"dropped_packets\": 524520,\n          \"ecn_marked_packets\": 14348,\n          \"avg_delay_us\": 130,\n          \"peak_delay_us\": 280,\n          \"backlog_bytes\": 0,\n          \"sparse_flows\": 1,\n          \"bulk_flows\": 0,\n          \"unresponsive_flows\": 0\n        },\n        {\n          \"tin_name\": \"Voice\",\n          \"dropped_packets\": 1,\n          \"ecn_marked_packets\": 0,\n          \"avg_delay_us\": 2,\n          \"peak_delay_us\": 6,\n          \"backlog_bytes\": 0,\n          \"sparse_flows\": 1,\n          \"bulk_flows\": 0,\n          \"unresponsive_flows\": 0\n        }\n      ]\n    }\n  },\n  \"decision\": {\n    \"last_transition_time\": null,\n    \"time_in_state_seconds\": 31162.7\n  },\n  \"counters\": {\n    \"red_count\": 0,\n    \"good_count\": 0,\n    \"cake_read_failures\": 0\n  },\n  \"confidence\": {\n    \"primary\": 0\n  },\n  \"errors\": {\n    \"consecutive_failures\": 0,\n    \"cake_read_failures\": 0\n  },\n  \"thresholds\": {\n    \"green_rtt_ms\": 5.0,\n    \"yellow_rtt_ms\": 15.0,\n    \"red_rtt_ms\": 15.0,\n    \"red_samples_required\": 2,\n    \"green_samples_required\": 15\n  },\n  \"router_connectivity\": {\n    \"is_reachable\": true,\n    \"consecutive_failures\": 0,\n    \"last_failure_type\": null,\n    \"last_failure_time\": null,\n    \"outage_duration_seconds\": null\n  },\n  \"pid\": 3949257,\n  \"cycle_budget\": {\n    \"cycle_time_ms\": {\n      \"avg\": 38.5,\n      \"p95\": 49.5,\n      \"p99\": 61.1\n    },\n    \"utilization_pct\": 7.7,\n    \"overrun_count\": 36,\n    \"status\": \"ok\",\n    \"warning_threshold_pct\": 80.0\n  },\n  \"rtt_source\": {\n    \"current\": \"wanctl_backend\",\n    \"last_successful\": \"wanctl_backend\",\n    \"last_rtt_ms\": 24.05,\n    \"last_measurement_age_sec\": 0.349,\n    \"counts\": {\n      \"wanctl_backend\": 62235,\n      \"autorate_health\": 32,\n      \"autorate_irtt\": 0,\n      \"history_fallback\": 0\n    },\n    \"producer\": \"wanctl-backend\",\n    \"backend\": \"icmplib\",\n    \"source_ip\": \"10.10.110.223\"\n  },\n  \"wan_awareness\": {\n    \"enabled\": true,\n    \"zone\": \"GREEN\",\n    \"effective_zone\": \"GREEN\",\n    \"grace_period_active\": false,\n    \"staleness_age_sec\": 0.5,\n    \"stale\": false,\n    \"confidence_contribution\": 0,\n    \"degrade_timer_remaining\": null\n  },\n  \"route_management\": {\n    \"enabled\": true,\n    \"mode\": \"dry_run\",\n    \"active_owner\": \"netwatch\",\n    \"active_allowed\": false,\n    \"blocked_reason\": \"ownership guard does not allow active route management\",\n    \"guard\": {\n      \"status\": \"error\",\n      \"active_allowed\": false,\n      \"conflict_count\": 0,\n      \"blocked_reason\": \"failed to read RouterOS netwatch: Command failed\"\n    },\n    \"reconciliation\": {\n      \"status\": \"ok\",\n      \"error\": null,\n      \"route_count\": 3,\n      \"checked_at\": 1781926954.778941\n    },\n    \"circuit_breaker\": {\n      \"open\": false,\n      \"failure_count\": 0,\n      \"last_error\": null\n    },\n    \"last_intended_action\": null,\n    \"last_applied_action\": null,\n    \"rollback_ready\": true,\n    \"last_event\": null\n  },\n  \"storage\": {\n    \"pending_writes\": 0,\n    \"queue\": {\n      \"drained_total\": 0,\n      \"error_total\": 0\n    },\n    \"writes\": {\n      \"success_total\": 62268,\n      \"failure_total\": 0,\n      \"lock_failure_total\": 0,\n      \"volume_total\": 1432143,\n      \"last_duration_ms\": 0.5270360270515084,\n      \"max_duration_ms\": 963.1537040113471\n    },\n    \"checkpoint\": {\n      \"busy\": 0,\n      \"wal_pages\": 0,\n      \"checkpointed_pages\": 0,\n      \"maintenance_lock_skipped_total\": 0\n    },\n    \"files\": {\n      \"db_bytes\": 732389376,\n      \"wal_bytes\": 4243632,\n      \"shm_bytes\": 32768,\n      \"total_bytes\": 736665776,\n      \"db_exists\": true,\n      \"wal_exists\": true,\n      \"shm_exists\": true\n    },\n    \"status\": \"ok\"\n  },\n  \"runtime\": {\n    \"process\": \"steering\",\n    \"rss_bytes\": 85970944,\n    \"swap_bytes\": 0,\n    \"memory_status\": \"ok\",\n    \"swap_status\": \"ok\",\n    \"cycle_status\": \"ok\",\n    \"status\": \"ok\"\n  },\n  \"alerting\": {\n    \"enabled\": false,\n    \"fire_count\": 0,\n    \"active_cooldowns\": []\n  },\n  \"router_reachable\": true,\n  \"disk_space\": {\n    \"path\": \"/var/lib/wanctl\",\n    \"free_bytes\": 12567453696,\n    \"total_bytes\": 30878322688,\n    \"free_pct\": 40.7,\n    \"status\": \"ok\"\n  },\n  \"summary\": {\n    \"service\": \"steering\",\n    \"status\": \"healthy\",\n    \"alerts\": {\n      \"enabled\": false,\n      \"fire_count\": 0,\n      \"active_cooldowns\": 0,\n      \"status\": \"disabled\"\n    },\n    \"rows\": [\n      {\n        \"name\": \"steering\",\n        \"status\": \"ok\",\n        \"state\": \"SPECTRUM_GOOD\",\n        \"congestion_state\": \"GREEN\",\n        \"wan_zone\": \"GREEN\",\n        \"router_reachable\": true,\n        \"storage_status\": \"ok\",\n        \"runtime_status\": \"ok\",\n        \"route_owner\": \"netwatch\",\n        \"route_guard_status\": \"error\",\n        \"route_circuit_open\": false,\n        \"route_mode\": \"dry_run\",\n        \"route_active_allowed\": false\n      }\n    ]\n  }\n}",
+      "stderr": ""
+    },
+    {
+      "label": "steering.service active state",
+      "command": "ssh cake-shaper 'systemctl is-active steering.service'",
+      "started": "2026-06-20T12:21:57Z",
+      "ended": "2026-06-20T12:21:57Z",
+      "returncode": 0,
+      "stdout": "active\n",
+      "stderr": ""
+    },
+    {
+      "label": "steering.service restart/start metadata",
+      "command": "ssh cake-shaper 'systemctl show steering.service --property=NRestarts,ExecMainStartTimestamp,ExecStart,WorkingDirectory --no-pager'",
+      "started": "2026-06-20T12:21:57Z",
+      "ended": "2026-06-20T12:21:57Z",
+      "returncode": 0,
+      "stdout": "NRestarts=0\nExecMainStartTimestamp=Fri 2026-06-19 22:42:33 CDT\nExecStart={ path=/usr/bin/python3 ; argv[]=/usr/bin/python3 -m wanctl.steering.daemon --config /etc/wanctl/steering.yaml ; ignore_errors=no ; start_time=[Fri 2026-06-19 22:42:33 CDT] ; stop_time=[n/a] ; pid=3949257 ; code=(null) ; status=0/0 }\nWorkingDirectory=/opt/wanctl\n",
+      "stderr": ""
+    },
+    {
+      "label": "Bridge Health Separation \u2014 Spectrum 10.10.110.223:9101",
+      "command": "ssh cake-shaper 'curl -fsS http://10.10.110.223:9101/health'",
+      "started": "2026-06-20T12:21:57Z",
+      "ended": "2026-06-20T12:21:57Z",
+      "returncode": 0,
+      "stdout": "{\"status\":\"healthy\",\"version\":\"cake-autorate-trial\",\"uptime_seconds\":null,\"consecutive_failures\":0,\"source\":\"cake-autorate-state-bridge\",\"wans\":[{\"name\":\"spectrum\",\"measurement\":{\"available\":true,\"raw_rtt_ms\":25.6,\"staleness_sec\":0.603703498840332},\"irtt\":{\"available\":false},\"download\":{\"state\":\"GREEN\",\"current_rate_mbps\":550.0,\"qdisc_bandwidth\":\"550Mbit\"},\"upload\":{\"state\":\"GREEN\",\"current_rate_mbps\":18.0,\"qdisc_bandwidth\":\"18Mbit\"},\"congestion\":{\"dl_state\":\"GREEN\",\"ul_state\":\"GREEN\"},\"last_applied\":{\"dl_rate\":550000000,\"ul_rate\":18000000}}]}",
+      "stderr": ""
+    },
+    {
+      "label": "Bridge Health Separation \u2014 ATT 10.10.110.227:9101",
+      "command": "ssh cake-shaper 'curl -fsS http://10.10.110.227:9101/health'",
+      "started": "2026-06-20T12:21:57Z",
+      "ended": "2026-06-20T12:21:57Z",
+      "returncode": 0,
+      "stdout": "{\"status\":\"healthy\",\"version\":\"cake-autorate-trial\",\"uptime_seconds\":null,\"consecutive_failures\":0,\"source\":\"cake-autorate-state-bridge\",\"wans\":[{\"name\":\"att\",\"measurement\":{\"available\":true,\"raw_rtt_ms\":28.19181289136989,\"staleness_sec\":0.6236093044281006},\"irtt\":{\"available\":false},\"download\":{\"state\":\"GREEN\",\"current_rate_mbps\":95.0,\"qdisc_bandwidth\":\"95Mbit\"},\"upload\":{\"state\":\"GREEN\",\"current_rate_mbps\":19.0,\"qdisc_bandwidth\":\"19Mbit\"},\"congestion\":{\"dl_state\":\"GREEN\",\"ul_state\":\"GREEN\"},\"last_applied\":{\"dl_rate\":95000000,\"ul_rate\":19000000}}]}",
+      "stderr": ""
+    },
+    {
+      "label": "RouterOS identity read-only inventory",
+      "command": "ssh cake-shaper 'sudo -n ssh -i /etc/wanctl/ssh/router.key -o BatchMode=yes -o StrictHostKeyChecking=yes admin@10.10.99.1 \"/system identity print\"'",
+      "started": "2026-06-20T12:21:57Z",
+      "ended": "2026-06-20T12:21:57Z",
+      "returncode": 255,
+      "stdout": "",
+      "stderr": "Warning: Identity file /etc/wanctl/ssh/router.key not accessible: No such file or directory.\nadmin@10.10.99.1: Permission denied (publickey,password).\n"
+    },
+    {
+      "label": "RouterOS Netwatch read-only inventory",
+      "command": "ssh cake-shaper 'sudo -n ssh -i /etc/wanctl/ssh/router.key -o BatchMode=yes -o StrictHostKeyChecking=yes admin@10.10.99.1 \"/tool netwatch print detail\"'",
+      "started": "2026-06-20T12:21:57Z",
+      "ended": "2026-06-20T12:21:57Z",
+      "returncode": 255,
+      "stdout": "",
+      "stderr": "Warning: Identity file /etc/wanctl/ssh/router.key not accessible: No such file or directory.\nadmin@10.10.99.1: Permission denied (publickey,password).\n"
+    },
+    {
+      "label": "RouterOS script read-only inventory",
+      "command": "ssh cake-shaper 'sudo -n ssh -i /etc/wanctl/ssh/router.key -o BatchMode=yes -o StrictHostKeyChecking=yes admin@10.10.99.1 \"/system script print detail\"'",
+      "started": "2026-06-20T12:21:57Z",
+      "ended": "2026-06-20T12:21:58Z",
+      "returncode": 255,
+      "stdout": "",
+      "stderr": "Warning: Identity file /etc/wanctl/ssh/router.key not accessible: No such file or directory.\nadmin@10.10.99.1: Permission denied (publickey,password).\n"
+    },
+    {
+      "label": "RouterOS default-route read-only inventory",
+      "command": "ssh cake-shaper 'sudo -n ssh -i /etc/wanctl/ssh/router.key -o BatchMode=yes -o StrictHostKeyChecking=yes admin@10.10.99.1 \"/ip route print detail\"'",
+      "started": "2026-06-20T12:21:58Z",
+      "ended": "2026-06-20T12:21:58Z",
+      "returncode": 255,
+      "stdout": "",
+      "stderr": "Warning: Identity file /etc/wanctl/ssh/router.key not accessible: No such file or directory.\nadmin@10.10.99.1: Permission denied (publickey,password).\n"
+    }
+  ],
+  "after": [
+    {
+      "label": "Steering Route-Management Health After \u2014 127.0.0.1:9102/health",
+      "command": "ssh cake-shaper 'curl -fsS http://127.0.0.1:9102/health'",
+      "started": "2026-06-20T12:32:33Z",
+      "ended": "2026-06-20T12:32:33Z",
+      "returncode": 0,
+      "stdout": "{\n  \"status\": \"healthy\",\n  \"uptime_seconds\": 31798.9,\n  \"version\": \"1.47.0\",\n  \"steering\": {\n    \"enabled\": false,\n    \"state\": \"SPECTRUM_GOOD\",\n    \"mode\": \"active\"\n  },\n  \"congestion\": {\n    \"primary\": {\n      \"state\": \"GREEN\",\n      \"state_code\": 0,\n      \"tins\": [\n        {\n          \"tin_name\": \"Bulk\",\n          \"dropped_packets\": 0,\n          \"ecn_marked_packets\": 0,\n          \"avg_delay_us\": 4,\n          \"peak_delay_us\": 13,\n          \"backlog_bytes\": 0,\n          \"sparse_flows\": 6,\n          \"bulk_flows\": 0,\n          \"unresponsive_flows\": 0\n        },\n        {\n          \"tin_name\": \"BestEffort\",\n          \"dropped_packets\": 67759,\n          \"ecn_marked_packets\": 604,\n          \"avg_delay_us\": 27,\n          \"peak_delay_us\": 267,\n          \"backlog_bytes\": 0,\n          \"sparse_flows\": 3,\n          \"bulk_flows\": 1,\n          \"unresponsive_flows\": 0\n        },\n        {\n          \"tin_name\": \"Video\",\n          \"dropped_packets\": 524520,\n          \"ecn_marked_packets\": 14348,\n          \"avg_delay_us\": 126,\n          \"peak_delay_us\": 234,\n          \"backlog_bytes\": 0,\n          \"sparse_flows\": 1,\n          \"bulk_flows\": 0,\n          \"unresponsive_flows\": 0\n        },\n        {\n          \"tin_name\": \"Voice\",\n          \"dropped_packets\": 1,\n          \"ecn_marked_packets\": 0,\n          \"avg_delay_us\": 2,\n          \"peak_delay_us\": 9,\n          \"backlog_bytes\": 0,\n          \"sparse_flows\": 1,\n          \"bulk_flows\": 0,\n          \"unresponsive_flows\": 0\n        }\n      ]\n    }\n  },\n  \"decision\": {\n    \"last_transition_time\": null,\n    \"time_in_state_seconds\": 31798.9\n  },\n  \"counters\": {\n    \"red_count\": 0,\n    \"good_count\": 0,\n    \"cake_read_failures\": 0\n  },\n  \"confidence\": {\n    \"primary\": 0\n  },\n  \"errors\": {\n    \"consecutive_failures\": 0,\n    \"cake_read_failures\": 0\n  },\n  \"thresholds\": {\n    \"green_rtt_ms\": 5.0,\n    \"yellow_rtt_ms\": 15.0,\n    \"red_rtt_ms\": 15.0,\n    \"red_samples_required\": 2,\n    \"green_samples_required\": 15\n  },\n  \"router_connectivity\": {\n    \"is_reachable\": true,\n    \"consecutive_failures\": 0,\n    \"last_failure_type\": null,\n    \"last_failure_time\": null,\n    \"outage_duration_seconds\": null\n  },\n  \"pid\": 3949257,\n  \"cycle_budget\": {\n    \"cycle_time_ms\": {\n      \"avg\": 37.1,\n      \"p95\": 47.1,\n      \"p99\": 58.9\n    },\n    \"utilization_pct\": 7.4,\n    \"overrun_count\": 36,\n    \"status\": \"ok\",\n    \"warning_threshold_pct\": 80.0\n  },\n  \"rtt_source\": {\n    \"current\": \"wanctl_backend\",\n    \"last_successful\": \"wanctl_backend\",\n    \"last_rtt_ms\": 24.04,\n    \"last_measurement_age_sec\": 0.465,\n    \"counts\": {\n      \"wanctl_backend\": 63506,\n      \"autorate_health\": 32,\n      \"autorate_irtt\": 0,\n      \"history_fallback\": 0\n    },\n    \"producer\": \"wanctl-backend\",\n    \"backend\": \"icmplib\",\n    \"source_ip\": \"10.10.110.223\"\n  },\n  \"wan_awareness\": {\n    \"enabled\": true,\n    \"zone\": \"GREEN\",\n    \"effective_zone\": \"GREEN\",\n    \"grace_period_active\": false,\n    \"staleness_age_sec\": 0.1,\n    \"stale\": false,\n    \"confidence_contribution\": 0,\n    \"degrade_timer_remaining\": null\n  },\n  \"route_management\": {\n    \"enabled\": true,\n    \"mode\": \"dry_run\",\n    \"active_owner\": \"netwatch\",\n    \"active_allowed\": false,\n    \"blocked_reason\": \"ownership guard does not allow active route management\",\n    \"guard\": {\n      \"status\": \"error\",\n      \"active_allowed\": false,\n      \"conflict_count\": 0,\n      \"blocked_reason\": \"failed to read RouterOS netwatch: Command failed\"\n    },\n    \"reconciliation\": {\n      \"status\": \"ok\",\n      \"error\": null,\n      \"route_count\": 3,\n      \"checked_at\": 1781926954.778941\n    },\n    \"circuit_breaker\": {\n      \"open\": false,\n      \"failure_count\": 0,\n      \"last_error\": null\n    },\n    \"last_intended_action\": null,\n    \"last_applied_action\": null,\n    \"rollback_ready\": true,\n    \"last_event\": null\n  },\n  \"storage\": {\n    \"pending_writes\": 0,\n    \"queue\": {\n      \"drained_total\": 0,\n      \"error_total\": 0\n    },\n    \"writes\": {\n      \"success_total\": 63539,\n      \"failure_total\": 0,\n      \"lock_failure_total\": 0,\n      \"volume_total\": 1461376,\n      \"last_duration_ms\": 0.5421849782578647,\n      \"max_duration_ms\": 963.1537040113471\n    },\n    \"checkpoint\": {\n      \"busy\": 0,\n      \"wal_pages\": 0,\n      \"checkpointed_pages\": 0,\n      \"maintenance_lock_skipped_total\": 0\n    },\n    \"files\": {\n      \"db_bytes\": 732352512,\n      \"wal_bytes\": 4251872,\n      \"shm_bytes\": 32768,\n      \"total_bytes\": 736637152,\n      \"db_exists\": true,\n      \"wal_exists\": true,\n      \"shm_exists\": true\n    },\n    \"status\": \"ok\"\n  },\n  \"runtime\": {\n    \"process\": \"steering\",\n    \"rss_bytes\": 86036480,\n    \"swap_bytes\": 0,\n    \"memory_status\": \"ok\",\n    \"swap_status\": \"ok\",\n    \"cycle_status\": \"ok\",\n    \"status\": \"ok\"\n  },\n  \"alerting\": {\n    \"enabled\": false,\n    \"fire_count\": 0,\n    \"active_cooldowns\": []\n  },\n  \"router_reachable\": true,\n  \"disk_space\": {\n    \"path\": \"/var/lib/wanctl\",\n    \"free_bytes\": 12566732800,\n    \"total_bytes\": 30878322688,\n    \"free_pct\": 40.7,\n    \"status\": \"ok\"\n  },\n  \"summary\": {\n    \"service\": \"steering\",\n    \"status\": \"healthy\",\n    \"alerts\": {\n      \"enabled\": false,\n      \"fire_count\": 0,\n      \"active_cooldowns\": 0,\n      \"status\": \"disabled\"\n    },\n    \"rows\": [\n      {\n        \"name\": \"steering\",\n        \"status\": \"ok\",\n        \"state\": \"SPECTRUM_GOOD\",\n        \"congestion_state\": \"GREEN\",\n        \"wan_zone\": \"GREEN\",\n        \"router_reachable\": true,\n        \"storage_status\": \"ok\",\n        \"runtime_status\": \"ok\",\n        \"route_owner\": \"netwatch\",\n        \"route_guard_status\": \"error\",\n        \"route_circuit_open\": false,\n        \"route_mode\": \"dry_run\",\n        \"route_active_allowed\": false\n      }\n    ]\n  }\n}",
+      "stderr": ""
+    },
+    {
+      "label": "steering.service journal for bounded observation window",
+      "command": "ssh cake-shaper 'journalctl -u steering.service --since \"-15 minutes\" --no-pager'",
+      "started": "2026-06-20T12:32:33Z",
+      "ended": "2026-06-20T12:32:33Z",
+      "returncode": 0,
+      "stdout": "Jun 20 07:18:42 cake-shaper wanctl-steering[3949257]: 2026-06-20 07:18:42,944 [steering] [WARNING] Ping to 1.1.1.1 failed (no response)\nJun 20 07:18:55 cake-shaper wanctl-steering[3949257]: 2026-06-20 07:18:55,993 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=6.6ms ewma=3.2ms drops=0 q=19 | early warning, no action\nJun 20 07:21:25 cake-shaper wanctl-steering[3949257]: 2026-06-20 07:21:25,071 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=1.7ms ewma=2.7ms drops=0 q=12 | early warning, no action\nJun 20 07:25:26 cake-shaper wanctl-steering[3949257]: 2026-06-20 07:25:26,735 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=29.6ms ewma=10.6ms drops=0 q=15 | early warning, no action\nJun 20 07:27:45 cake-shaper wanctl-steering[3949257]: 2026-06-20 07:27:45,546 [steering] [INFO] Periodic maintenance: deleted=41377, downsampled=0, vacuumed=True\nJun 20 07:29:25 cake-shaper wanctl-steering[3949257]: 2026-06-20 07:29:25,143 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=52.2ms ewma=17.4ms drops=0 q=0 | early warning, no action\nJun 20 07:29:25 cake-shaper wanctl-steering[3949257]: 2026-06-20 07:29:25,620 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=27.9ms ewma=20.5ms drops=0 q=0 | early warning, no action\nJun 20 07:29:26 cake-shaper wanctl-steering[3949257]: 2026-06-20 07:29:26,099 [steering] [INFO] [SPECTRUM_GOOD] [YELLOW] delta=7.8ms ewma=16.7ms drops=0 q=0 | early warning, no action\n",
+      "stderr": ""
+    },
+    {
+      "label": "steering.service restart/start metadata after window",
+      "command": "ssh cake-shaper 'systemctl show steering.service --property=NRestarts,ExecMainStartTimestamp,ExecStart,WorkingDirectory --no-pager'",
+      "started": "2026-06-20T12:32:33Z",
+      "ended": "2026-06-20T12:32:33Z",
+      "returncode": 0,
+      "stdout": "NRestarts=0\nExecMainStartTimestamp=Fri 2026-06-19 22:42:33 CDT\nExecStart={ path=/usr/bin/python3 ; argv[]=/usr/bin/python3 -m wanctl.steering.daemon --config /etc/wanctl/steering.yaml ; ignore_errors=no ; start_time=[Fri 2026-06-19 22:42:33 CDT] ; stop_time=[n/a] ; pid=3949257 ; code=(null) ; status=0/0 }\nWorkingDirectory=/opt/wanctl\n",
+      "stderr": ""
+    }
+  ]
+}
