@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.57
 milestone_name: Supported read-only RouterOS ownership inspection
-status: executing
-stopped_at: Phase 258 context gathered
-last_updated: "2026-06-20T14:22:06.307Z"
-last_activity: 2026-06-20 -- Phase 258 planning complete
+status: checkpoint
+stopped_at: Phase 258 Plan 01 A1 preflight blocked pending operator read-only REST endpoint check
+last_updated: "2026-06-20T18:34:20.177Z"
+last_activity: 2026-06-20 -- Phase 258 execution started
 progress:
   total_phases: 3
   completed_phases: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-20 after v1.56 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** v1.57 — repair/prove supported read-only RouterOS ownership inspection from `cake-shaper`, then rerun the v1.56-blocked dry-run observation. Active route-management canary stays out of scope until v1.57 returns `ready-for-approval`.
+**Current focus:** Phase 258 — read-only-routeros-access-repair
 
 ## Current Position
 
-Phase: Not started (roadmap drafted: Phases 258–260)
-Plan: —
-Status: Ready to execute
-Last activity: 2026-06-20 -- Phase 258 planning complete
+Phase: 258 (read-only-routeros-access-repair) — EXECUTING
+Plan: 1 of 3 — A1 preflight checkpoint
+Status: Blocked pending operator A1 result before Plan 02
+Last activity: 2026-06-20 -- Phase 258 Plan 01 root-cause doc written; A1 blocked by nonprivileged secrets/config read
 
 ## Roadmap Summary (v1.57)
 
