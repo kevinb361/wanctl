@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.55
 milestone_name: Route Ownership / Netwatch Retirement
-status: ready_to_plan
-stopped_at: Phase 252 complete (2/2) — ready to discuss Phase 253
-last_updated: 2026-06-19T23:48:13.331Z
-last_activity: 2026-06-19 -- Phase 252 execution complete
+status: executing
+stopped_at: Phase 253 planned (3/3); ready to execute ownership guard + decision logic + observability
+last_updated: "2026-06-20T00:14:47.988Z"
+last_activity: 2026-06-20 -- Phase 253 planning complete
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 3
+  total_plans: 6
   completed_plans: 3
   percent: 50
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 Phase: 253
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-19 -- Phase 252 execution complete
+Status: Ready to execute
+Last activity: 2026-06-20 -- Phase 253 planning complete
 
 ## Active Blockers / Concerns
 
@@ -36,6 +36,7 @@ Last activity: 2026-06-19 -- Phase 252 execution complete
 - SAFE-19 for v1.55: no live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production default flip outside an explicitly approved canary phase.
 - Netwatch remains the interim WAN route owner at v1.55 open; wanctl route ownership must start safe/off with dry-run/observe mode and a visible ownership guard.
 - Phase 252 complete: route-management config/dry-run surface and RouterOS route REST boundary shipped safe/off with mock-only tests; active route ownership remains blocked for Phase 253/254 guard/canary work.
+- Phase 253 planned: three mock-only plans cover Netwatch ownership guard, migration acknowledgement fail-closed validation, multi-signal/hysteretic route decision logic, startup reconciliation/circuit breaker, and route ownership observability. Active live route mutation remains blocked unless future execution satisfies guard/reconciliation/circuit gates; Phase 254 still owns live dry-run observation and any operator-approved canary.
 - Phase 250 complete: TIN-01 consumer audit found `wanctl-history --tins` raw-history semantics and counter-shaped dropped/ECN metrics; TIN-02/TIN-03 deferred to future sparse-history work rather than changing emission density.
 - fping profiling was shadow-only through Phase 248. Phase 248.2 intentionally mutated the controller path to repair the live canary freshness bug; no production default keep was made.
 - Phase 247 complete: partial fping shadow soak ran 6.964h, stopped cleanly with `probe_stats_final`, and produced `.planning/phases/247-fping-shadow-capture-phase-245-evidence-review/evidence/phase247-shadow-summary.json` for Phase 248. No production default flip was made.
@@ -85,11 +86,11 @@ v1.55 focuses on route ownership / Netwatch retirement. Phases 248.2–248.4 fix
 
 ## Session Continuity
 
-Last session: 2026-06-19T23:48:13Z
-Stopped at: Phase 252 complete; ready to plan Phase 253 ownership guard + decision logic + observability
+Last session: 2026-06-20T00:14:47Z
+Stopped at: Phase 253 planned; ready to execute ownership guard + decision logic + observability
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)
 
 ## Operator Next Steps
 
-- Start Phase 253 planning with `/gsd-plan-phase 253`; active route mutation must remain blocked until ownership guard and canary gates are explicitly satisfied.
+- Execute Phase 253 with `/gsd-execute-phase 253`; keep execution mock-only and do not perform live RouterOS route mutation, Netwatch disablement, production config mutation, systemd changes, CAKE/qdisc changes, or production default flips.
