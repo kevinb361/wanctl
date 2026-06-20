@@ -32,27 +32,27 @@
 
 ### GUARD — Ownership Guard
 
-- [ ] **GUARD-01**: Detect route-mutating Netwatch entries/scripts before active wanctl route mutation.
-- [ ] **GUARD-02**: Refuse active wanctl route mutation while route-mutating Netwatch entries are enabled unless an explicit migration flag is present and documented.
-- [ ] **GUARD-03**: Expose ownership/guard status in logs and health/operator output so the active owner is visible during incidents.
+- [x] **GUARD-01**: Detect route-mutating Netwatch entries/scripts before active wanctl route mutation.
+- [x] **GUARD-02**: Refuse active wanctl route mutation while route-mutating Netwatch entries are enabled unless an explicit migration flag is present and documented.
+- [x] **GUARD-03**: Expose ownership/guard status in logs and health/operator output so the active owner is visible during incidents.
 
 ### HEALTH — Failover Decision Logic
 
-- [ ] **HEALTH-01**: Route failover/failback decisions use multi-signal WAN health and consecutive-failure/recovery thresholds; no single-target one-sample replacement for Netwatch.
-- [ ] **HEALTH-02**: Hysteresis prevents route flapping during transient RTT/loss/health noise.
-- [ ] **HEALTH-03**: Startup reconciliation reads current route state and prior decision state before making any active mutation.
+- [x] **HEALTH-01**: Route failover/failback decisions use multi-signal WAN health and consecutive-failure/recovery thresholds; no single-target one-sample replacement for Netwatch.
+- [x] **HEALTH-02**: Hysteresis prevents route flapping during transient RTT/loss/health noise.
+- [x] **HEALTH-03**: Startup reconciliation reads current route state and prior decision state before making any active mutation.
 
 ### CB — Circuit Breaker and Rollback
 
-- [ ] **CB-01**: If wanctl loses RouterOS API access, crashes, or restarts, routes must not remain in a surprising disabled state without an alert and rollback path.
+- [x] **CB-01**: If wanctl loses RouterOS API access, crashes, or restarts, routes must not remain in a surprising disabled state without an alert and rollback path.
 - [ ] **CB-02**: A clear rollback procedure disables wanctl route mutation and restores/re-enables Netwatch route ownership.
-- [ ] **CB-03**: Tests cover ownership guard, threshold behavior, RouterOS API failure, idempotent route operations, dry-run behavior, and startup reconciliation.
+- [x] **CB-03**: Tests cover ownership guard, threshold behavior, RouterOS API failure, idempotent route operations, dry-run behavior, and startup reconciliation.
 
 ### OBS — Observability and Operator Feedback
 
-- [ ] **OBS-01**: Route disable/enable decisions emit structured logs and alerts containing the evidence that caused the decision.
+- [x] **OBS-01**: Route disable/enable decisions emit structured logs and alerts containing the evidence that caused the decision.
 - [ ] **OBS-02**: Dry-run and active modes both expose enough operator evidence to compare intended decisions against live Netwatch behavior.
-- [ ] **OBS-03**: Health/operator summary surfaces route-owner mode, guard status, last intended action, last applied action, and rollback readiness.
+- [x] **OBS-03**: Health/operator summary surfaces route-owner mode, guard status, last intended action, last applied action, and rollback readiness.
 
 ### CANARY — Operator-Gated Live Validation
 

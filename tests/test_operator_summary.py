@@ -63,6 +63,10 @@ def test_format_operator_summary_renders_autorate_and_steering():
                     "storage_status": "ok",
                     "runtime_status": "ok",
                     "router_reachable": True,
+                    "route_owner": "netwatch",
+                    "route_guard_status": "conflict",
+                    "route_circuit_open": False,
+                    "route_mode": "dry_run",
                 }
             ],
         }
@@ -75,6 +79,9 @@ def test_format_operator_summary_renders_autorate_and_steering():
     assert "steering" in table
     assert "DL GREEN/UL GREEN" in table
     assert "SPECTRUM_GOOD / GREEN" in table
+    assert "route_owner=netwatch" in table
+    assert "guard=conflict" in table
+    assert "circuit=closed" in table
 
 
 def test_main_json_output(tmp_path: Path, monkeypatch, capsys):

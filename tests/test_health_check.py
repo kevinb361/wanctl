@@ -26,6 +26,7 @@ from wanctl.irtt_measurement import IRTTResult
 from wanctl.perf_profiler import OperationProfiler
 from wanctl.queue_controller import QueueController
 from wanctl.signal_processing import SignalResult
+from wanctl.steering.health import SteeringHealthHandler
 from wanctl.storage.writer import MetricsWriter
 
 
@@ -5603,3 +5604,81 @@ class TestMeasurementContract:
         assert measurement["staleness_sec"] == 0.251
         assert measurement["active_reflector_hosts"] == ["1.1.1.1", "9.9.9.9"]
         assert measurement["successful_reflector_hosts"] == ["1.1.1.1"]
+
+
+class TestSteeringRouteManagementHealth:
+    """Route ownership observability for steering health."""
+
+    def test_build_route_management_section_exposes_guard_circuit_and_actions(self):
+        handler = object.__new__(SteeringHealthHandler)
+        health_data = {
+            "route_management": {
+                "enabled": True,
+                "mode": "active",
+                "active_owner": "netwatch",
+                "active_allowed": False,
+                "blocked_reason": "ownership guard does not allow active route management",
+                "guard": {
+                    "status": "conflict",
+                    "active_allowed": False,
+                    "conflict_count": 2,
+                    "blocked_reason": "2 route-mutating Netwatch/script conflict(s)",
+                },
+                "reconciliation": {
+                    "status": "ok",
+                    "error": None,
+                    "route_count": 3,
+                    "checked_at": 123.0,
+                },
+                "circuit_breaker": {
+                    "open": True,
+                    "failure_count": 1,
+                    "last_error": "apply failed",
+                },
+                "last_intended_action": {"action": "disable", "route_key": "spectrum"},
+                "last_applied_action": None,
+                "rollback_ready": True,
+            }
+        }
+
+        route_management = handler._build_route_management_section(health_data)
+
+        assert route_management["enabled"] is True
+        assert route_management["mode"] == "active"
+        assert route_management["active_owner"] == "netwatch"
+        assert route_management["active_allowed"] is False
+        assert route_management["guard"]["status"] == "conflict"
+        assert route_management["guard"]["conflict_count"] == 2
+        assert route_management["reconciliation"]["status"] == "ok"
+        assert route_management["circuit_breaker"]["open"] is True
+        assert route_management["last_intended_action"]["route_key"] == "spectrum"
+        assert route_management["last_applied_action"] is None
+        assert route_management["rollback_ready"] is True
+
+    def test_steering_summary_row_includes_route_owner_guard_and_circuit(self):
+        handler = object.__new__(SteeringHealthHandler)
+        health = {
+            "status": "healthy",
+            "steering": {"state": "SPECTRUM_GOOD"},
+            "congestion": {"primary": {"state": "GREEN"}},
+            "wan_awareness": {"zone": "GREEN"},
+            "storage": {"status": "ok"},
+            "runtime": {"status": "ok"},
+            "router_connectivity": {"is_reachable": True},
+            "route_management": {
+                "active_owner": "netwatch",
+                "mode": "dry_run",
+                "active_allowed": False,
+                "guard": {"status": "conflict"},
+                "circuit_breaker": {"open": False},
+            },
+        }
+
+        summary = handler._build_summary_section(health)
+        row = summary["rows"][0]
+
+        assert row["route_owner"] == "netwatch"
+        assert row["route_guard_status"] == "conflict"
+        assert row["route_circuit_open"] is False
+        assert row["route_mode"] == "dry_run"
+        assert row["route_active_allowed"] is False

@@ -156,6 +156,38 @@ action and target anchor, but it does not mutate RouterOS routes. Do not use thi
 section to replace Netwatch until the later guard/canary phases explicitly approve
 active ownership.
 
+#### Ownership guard and health inspection
+
+Active route management is protected by an ownership guard. The guard inspects
+RouterOS Netwatch/script state through the existing router client boundary and
+blocks active wanctl route mutation when route-mutating Netwatch/scripts still
+own WAN default routes. Netwatch remains the interim route owner until Phase 254
+live observation and any operator-approved canary prove rollback-safe migration.
+
+The dangerous acknowledgement key is intentionally explicit and should remain
+commented/false until a canary plan says otherwise:
+
+```yaml
+route_management:
+  enabled: false
+  mode: "off"
+  # migration_acknowledged: false  # future operator-gated migration/canary only
+```
+
+Inspect route ownership state from the steering health endpoint or compact
+operator summary:
+
+```bash
+curl -s http://127.0.0.1:9102/health | jq '.route_management'
+wanctl-operator-summary http://127.0.0.1:9102/health
+```
+
+The health payload reports `active_owner`, `active_allowed`, `guard.status`,
+`reconciliation.status`, `circuit_breaker.open`, `last_intended_action`,
+`last_applied_action`, and `rollback_ready`. A blocked active config should be
+treated as a safety success, not a daemon failure, until Phase 254 explicitly
+starts live dry-run observation or a bounded one-WAN canary.
+
 ## Enabling Steering
 
 ```bash

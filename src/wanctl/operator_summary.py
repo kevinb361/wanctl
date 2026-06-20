@@ -71,7 +71,15 @@ def _build_table_rows(source: str, payload: dict[str, Any]) -> list[list[str]]:
         else:
             queue = f"{row.get('state', 'UNKNOWN')} / {row.get('congestion_state', 'UNKNOWN')}"
             zone = row.get('wan_zone')
-            notes = f"router={'ok' if row.get('router_reachable') else 'down'} zone={zone}"
+            route_owner = row.get("route_owner", "unknown")
+            route_guard = row.get("route_guard_status", "unknown")
+            route_circuit = "open" if row.get("route_circuit_open") else "closed"
+            route_mode = row.get("route_mode", "off")
+            notes = (
+                f"router={'ok' if row.get('router_reachable') else 'down'} "
+                f"zone={zone} route_owner={route_owner} guard={route_guard} "
+                f"circuit={route_circuit} route_mode={route_mode}"
+            )
         rows.append(
             [
                 service,

@@ -92,6 +92,9 @@ from .health import (
     start_steering_health_server,
     update_steering_health_status,
 )
+from .route_decision import RouteDecisionPolicy, RouteDecisionState
+from .route_manager import RouteManager
+from .route_ownership_guard import RouteOwnershipGuard
 from .steering_confidence import (
     ConfidenceController,
     ConfidenceSignals,
@@ -370,11 +373,15 @@ class SteeringConfig(BaseConfig):
         if not isinstance(route_management, dict):
             self.route_management_enabled = False
             self.route_management_mode = "off"
+            self.route_management_migration_acknowledged = False
             self.route_management_routes = {}
             return
 
         self.route_management_enabled = route_management.get("enabled", False)
         self.route_management_mode = route_management.get("mode", "off")
+        self.route_management_migration_acknowledged = bool(
+            route_management.get("migration_acknowledged", False)
+        )
         routes = route_management.get("routes", {})
         self.route_management_routes = routes if isinstance(routes, dict) else {}
 
@@ -1175,10 +1182,41 @@ class SteeringDaemon:
         self._init_steering_profiling(config)
         self._init_wan_awareness()
         self._init_rtt_source_observability()
+        self._init_route_management()
 
         # STEER-01: Track which legacy state names have already been warned about
         # to avoid log flooding at 20Hz cycle rate (log-once per name per lifetime)
         self._legacy_state_warned: set[str] = set()
+
+    def _init_route_management(self) -> None:
+        """Initialize guarded route-management helpers without changing defaults."""
+        self.route_ownership_guard: RouteOwnershipGuard | None = None
+        self.route_ownership_guard_result: Any | None = None
+        self.route_decision_policy = RouteDecisionPolicy(
+            degrade_samples_required=self.config.red_samples_required,
+            recover_samples_required=self.config.green_samples_required,
+            primary_route_key=self.config.primary_wan,
+            alternate_route_key=self.config.alternate_wan,
+            min_drops_red=self.config.min_drops_red,
+            min_queue_red=self.config.min_queue_red,
+        )
+        self.route_decision_state = RouteDecisionState(current_preference="primary")
+        self.route_manager = RouteManager(
+            enabled=bool(self.config.route_management_enabled),
+            mode=str(self.config.route_management_mode),
+            routes=self.config.route_management_routes,
+            router_client=self.router.client,
+            ownership_guard_result=None,
+        )
+
+        if not self.config.route_management_enabled or self.config.route_management_mode == "off":
+            return
+
+        self.route_ownership_guard = RouteOwnershipGuard(self.router.client)
+        self.route_ownership_guard_result = self.route_ownership_guard.inspect()
+        self.route_manager.ownership_guard_result = self.route_ownership_guard_result
+        if self.config.route_management_mode in {"dry_run", "active"}:
+            self.route_manager.reconcile_startup()
 
     def _init_rtt_source_observability(self) -> None:
         """Track which RTT source steering is currently using."""
@@ -1482,6 +1520,7 @@ class SteeringDaemon:
                 "source_ip": rtt_source_ip,
             },
             "wan_awareness": wan_awareness,
+            "route_management": self.route_manager.status_snapshot(),
             "runtime": {
                 "process": "steering",
                 "rss_bytes": rss_bytes,

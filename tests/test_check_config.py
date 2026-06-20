@@ -782,6 +782,20 @@ class TestSteeringValidation:
         warns = [r for r in results if r.severity == Severity.WARN and "route_management" in r.field]
         assert len(warns) == 0
 
+    def test_route_management_migration_acknowledgement_path_not_flagged_steering(self):
+        """The explicit active-mode acknowledgement key is a known path."""
+        data = _valid_steering_data()
+        data["route_management"] = {
+            "enabled": False,
+            "mode": "off",
+            "migration_acknowledged": False,
+            "routes": {},
+        }
+
+        results = check_steering_unknown_keys(data)
+        warns = [r for r in results if r.severity == Severity.WARN and "route_management" in r.field]
+        assert len(warns) == 0
+
     def test_route_management_defaults_off(self, tmp_path):
         """Missing route_management loads safe disabled/off defaults."""
         data = _valid_steering_data()
@@ -791,6 +805,7 @@ class TestSteeringValidation:
 
         assert config.route_management_enabled is False
         assert config.route_management_mode == "off"
+        assert config.route_management_migration_acknowledged is False
         assert config.route_management_routes == {}
 
 
@@ -859,7 +874,7 @@ class TestSteeringCrossField:
         errors = [r for r in results if r.severity == Severity.ERROR]
         assert not [r for r in errors if "route_management" in r.field]
 
-    def test_route_management_active_fails_closed(self):
+    def test_route_management_active_fails_without_migration_acknowledgement(self):
         data = _valid_steering_data()
         data["route_management"] = {
             "enabled": True,
@@ -869,7 +884,33 @@ class TestSteeringCrossField:
 
         results = validate_steering_cross_fields(data)
         errors = [r for r in results if r.severity == Severity.ERROR]
-        assert any("active" in r.message.lower() for r in errors)
+        assert any("migration" in r.message.lower() or "ownership" in r.message.lower() for r in errors)
+
+    def test_route_management_active_with_acknowledgement_without_routes_still_fails(self):
+        data = _valid_steering_data()
+        data["route_management"] = {
+            "enabled": True,
+            "mode": "active",
+            "migration_acknowledged": True,
+            "routes": {},
+        }
+
+        results = validate_steering_cross_fields(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert any("routes" in r.field for r in errors)
+        assert not any("migration" in r.message.lower() for r in errors)
+
+    def test_route_management_acknowledgement_with_disabled_off_does_not_enable_active(self):
+        data = _valid_steering_data()
+        data["route_management"] = {
+            "enabled": False,
+            "mode": "off",
+            "migration_acknowledged": True,
+        }
+
+        results = validate_steering_cross_fields(data)
+        errors = [r for r in results if r.severity == Severity.ERROR]
+        assert not [r for r in errors if "route_management" in r.field]
 
     def test_route_management_enabled_requires_routes(self):
         data = _valid_steering_data()

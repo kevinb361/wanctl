@@ -129,11 +129,14 @@ mode:
 # Route management (future, safe/off by default)
 # Netwatch remains the interim route owner until the ownership guard and canary
 # phases are complete. Keep this disabled or dry-run only; dry-run logs intended
-# route actions and does not mutate RouterOS routes.
+# route actions and does not mutate RouterOS routes. Active mode requires an
+# explicit future migration acknowledgement plus clean guard/reconciliation/circuit
+# status; Phase 254 owns live observation/canary approval.
 #
 route_management:
   enabled: false
-  mode: "off"                  # off | dry_run | active (active is blocked in Phase 252)
+  mode: "off"                  # off | dry_run | active (guarded; not a default)
+  # migration_acknowledged: false  # Future operator-gated migration/canary only
   routes:
     spectrum:
       comment: "Spectrum"

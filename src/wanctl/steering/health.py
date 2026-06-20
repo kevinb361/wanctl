@@ -192,6 +192,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
 
         health["rtt_source"] = self._build_rtt_source_section(health_data)
         health["wan_awareness"] = self._build_wan_awareness_section(health_data)
+        health["route_management"] = self._build_route_management_section(health_data)
         health["storage"] = self._build_storage_section(health_data)
         health["runtime"] = self._build_runtime_section(health_data, health.get("cycle_budget"))
         self._add_alerting_section(health)
@@ -349,6 +350,45 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             wan_awareness["zone"] = wa["zone"]
         return wan_awareness
 
+    def _build_route_management_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
+        """Build route ownership / management observability section."""
+        raw = health_data.get("route_management")
+        route_management: dict[str, Any] = raw if isinstance(raw, dict) else {}
+        guard_raw = route_management.get("guard")
+        guard = guard_raw if isinstance(guard_raw, dict) else {}
+        reconciliation_raw = route_management.get("reconciliation")
+        reconciliation = reconciliation_raw if isinstance(reconciliation_raw, dict) else {}
+        circuit_raw = route_management.get("circuit_breaker")
+        circuit = circuit_raw if isinstance(circuit_raw, dict) else {}
+        return {
+            "enabled": bool(route_management.get("enabled", False)),
+            "mode": str(route_management.get("mode", "off")),
+            "active_owner": str(route_management.get("active_owner", "unknown")),
+            "active_allowed": bool(route_management.get("active_allowed", False)),
+            "blocked_reason": route_management.get("blocked_reason"),
+            "guard": {
+                "status": str(guard.get("status", "unknown")),
+                "active_allowed": bool(guard.get("active_allowed", False)),
+                "conflict_count": int(guard.get("conflict_count", 0) or 0),
+                "blocked_reason": guard.get("blocked_reason"),
+            },
+            "reconciliation": {
+                "status": str(reconciliation.get("status", "unknown")),
+                "error": reconciliation.get("error"),
+                "route_count": int(reconciliation.get("route_count", 0) or 0),
+                "checked_at": reconciliation.get("checked_at"),
+            },
+            "circuit_breaker": {
+                "open": bool(circuit.get("open", False)),
+                "failure_count": int(circuit.get("failure_count", 0) or 0),
+                "last_error": circuit.get("last_error"),
+            },
+            "last_intended_action": route_management.get("last_intended_action"),
+            "last_applied_action": route_management.get("last_applied_action"),
+            "rollback_ready": bool(route_management.get("rollback_ready", False)),
+            "last_event": route_management.get("last_event"),
+        }
+
     def _build_rtt_source_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
         """Build RTT source observability section for steering."""
         source = health_data.get("rtt_source", {})
@@ -422,6 +462,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         storage = health.get("storage", {})
         runtime = health.get("runtime", {})
         router = health.get("router_connectivity", {})
+        route_management = health.get("route_management", {})
         router_reachable = bool(router.get("is_reachable", health.get("router_reachable", False)))
         storage_status = str(storage.get("status", "unknown"))
         runtime_status = str(runtime.get("status", "unknown"))
@@ -442,6 +483,13 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             "router_reachable": router_reachable,
             "storage_status": storage_status,
             "runtime_status": runtime_status,
+            "route_owner": route_management.get("active_owner", "unknown"),
+            "route_guard_status": (route_management.get("guard") or {}).get("status", "unknown"),
+            "route_circuit_open": (route_management.get("circuit_breaker") or {}).get(
+                "open", False
+            ),
+            "route_mode": route_management.get("mode", "off"),
+            "route_active_allowed": route_management.get("active_allowed", False),
         }
         return {
             "service": "steering",

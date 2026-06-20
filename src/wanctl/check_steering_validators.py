@@ -111,6 +111,7 @@ KNOWN_STEERING_PATHS: set[str] = {
     "route_management",
     "route_management.enabled",
     "route_management.mode",
+    "route_management.migration_acknowledged",
     "route_management.routes",
     # WAN state -- imperatively loaded in _load_wan_state_config
     "wan_state",
@@ -248,6 +249,7 @@ def _validate_route_management(data: dict) -> list[CheckResult]:
     enabled = route_management.get("enabled", False)
     mode_value = route_management.get("mode", "off")
     routes = route_management.get("routes", {})
+    migration_acknowledged = route_management.get("migration_acknowledged", False)
 
     if not isinstance(enabled, bool):
         _add_route_management_error(
@@ -259,11 +261,17 @@ def _validate_route_management(data: dict) -> list[CheckResult]:
             "route_management.mode",
             "route_management.mode must be one of: off, dry_run, active",
         )
-    if mode_value == "active":
+    if not isinstance(migration_acknowledged, bool):
+        _add_route_management_error(
+            results,
+            "route_management.migration_acknowledged",
+            "route_management.migration_acknowledged must be a boolean",
+        )
+    if mode_value == "active" and not migration_acknowledged:
         _add_route_management_error(
             results,
             "route_management.mode",
-            "route_management.mode active is blocked until guard/canary work is complete",
+            "route_management.mode active requires explicit migration/ownership acknowledgement",
         )
     if enabled:
         if not isinstance(routes, dict) or not routes:

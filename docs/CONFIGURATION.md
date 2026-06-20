@@ -13,8 +13,9 @@ Start from one of the checked-in examples under `configs/examples/`, then copy t
 
 For steering route-management keys, see `docs/STEERING.md`. The `route_management`
 section is safe/off by default; `dry_run` observes intended route actions without
-mutating RouterOS routes, and active route ownership remains blocked until the
-later guard/canary phases.
+mutating RouterOS routes, and active route ownership is guarded by an explicit
+`migration_acknowledged` key plus runtime ownership/reconciliation/circuit checks.
+Live observation and any active canary remain Phase 254/operator-gated work.
 
 The schema block below is representative of the core autorate configuration surface, not an exhaustive dump of every optional section. Current examples also show fields such as `schema_version`, `router.port`, and `router.verify_ssl`, plus optional sections like `irtt`, `reflector_quality`, `owd_asymmetry`, `fusion`, `tuning`, `alerting`, and `storage`.
 
