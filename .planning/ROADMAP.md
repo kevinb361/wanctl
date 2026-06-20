@@ -2,7 +2,7 @@
 
 ## Milestones
 
-- 🚧 **v1.56 Route Management Surface Deployment** — Phases 255–257 (active; safe/off deploy and steering health proof only; no route ownership mutation)
+- ✅ **v1.56 Route Management Surface Deployment** — completed 2026-06-20 (Phases 255–257; safe/off deploy and steering health proof only; final readiness packet `not-ready`; no route ownership mutation)
 - ✅ **v1.55 Route Ownership / Netwatch Retirement** — shipped 2026-06-20 (Phases 251–254; 28/28 REQs; Netwatch remains interim route owner after read-only observation declined active canary; route-management deploy/canary carried forward) — `milestones/v1.55-ROADMAP.md`
 - ✅ **v1.54 fping Profiling + Storage Hygiene** — shipped-with-deferral 2026-06-19 (Phases 247–250; fping profiling/canary repairs complete, flat-gauge audit no-op, CAKE tin skip-on-unchanged deferred by consumer audit) — `milestones/v1.54-ROADMAP.md`
 - ✅ **v1.53 Pluggable RTT Measurement Backend** — shipped 2026-06-19 (Phases 238–246; 26/26 REQs; `RttBackend` seam behind icmplib default, `fping` implemented/selectable, live A/B verdict `rollback_trigger / keep-icmplib`, production stayed on icmplib, SAFE-17 held) — `milestones/v1.53-ROADMAP.md`
@@ -27,7 +27,7 @@
 
 ---
 
-## 🚧 v1.56 Route Management Surface Deployment (Active)
+## ✅ v1.56 Route Management Surface Deployment (Complete)
 
 **Milestone Goal:** Deploy and expose the v1.55 route-management surface on cake-shaper in safe/off/dry-run mode, prove steering health/operator visibility from the real host namespace, and produce a canary-readiness packet without changing live route ownership.
 
@@ -39,7 +39,7 @@
 
 - [x] **Phase 255: Deploy Shape + Safe/Off Config Contract** - Prove cake-shaper's live deploy shape, define the exact safe/off config, validate rollback anchors, and freeze the no-mutation gate before any restart.
 - [x] **Phase 256: Bounded Safe/Off Deployment + Health Surface Proof** - Operator-gated deploy/restart of route-management-capable steering code/config, then prove correct health/operator fields from cake-shaper without route mutation.
-- [ ] **Phase 257: Dry-Run Observation + Canary Readiness Decision** - Run bounded dry-run observation, compare intended decisions to Netwatch/live routes, and produce a readiness/not-ready packet for a future active canary.
+- [x] **Phase 257: Dry-Run Observation + Canary Readiness Decision** - Run bounded dry-run observation, compare intended decisions to Netwatch/live routes, and produce a readiness/not-ready packet for a future active canary.
 
 ## Phase Details
 
@@ -104,6 +104,8 @@
 **Wave 1**
 
 - [x] 257-01-PLAN.md — dry-run observation + readiness/not-ready decision packet
+
+**Phase 257 outcome:** Complete. A bounded 636s read-only/dry-run observation from `cake-shaper` proved the route-management health surface remained healthy, dry-run-only, and owned by Netwatch (`active_allowed=false`, `last_intended_action=null`, `last_applied_action=null`). The readiness packet verdict is `not-ready` because supported live RouterOS Netwatch/default-route inspection was not proven via the validated SSH path (`/etc/wanctl/ssh/router.key` inaccessible on `cake-shaper`). SAFE-20 held: no route mutation, Netwatch disablement, CAKE/qdisc change, threshold retuning, service restart/reload, route-owner flip, or active canary occurred.
 
 ---
 
