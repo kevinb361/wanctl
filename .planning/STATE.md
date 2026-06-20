@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.55
 milestone_name: Route Ownership / Netwatch Retirement
 status: executing
-stopped_at: Phase 253 complete; ready to plan Phase 254 dry-run observation + operator-gated canary
-last_updated: "2026-06-20T00:45:00Z"
-last_activity: 2026-06-20 -- Phase 253 complete
+stopped_at: Phase 254 planned (2/2); ready to execute dry-run observation with explicit canary approval gate
+last_updated: "2026-06-20T00:59:54.799Z"
+last_activity: 2026-06-20 -- Phase 254 planning complete
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 6
+  total_plans: 8
   completed_plans: 6
   percent: 75
 ---
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 ## Current Position
 
 Phase: 254
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-20 -- Phase 253 complete
+Plan: 2/2 planned
+Status: Ready to execute
+Last activity: 2026-06-20 -- Phase 254 planning complete
 
 ## Active Blockers / Concerns
 
@@ -87,10 +87,10 @@ v1.55 focuses on route ownership / Netwatch retirement. Phases 248.2–248.4 fix
 ## Session Continuity
 
 Last session: 2026-06-20T00:14:47Z
-Stopped at: Phase 253 complete; ready to plan Phase 254 dry-run observation + operator-gated canary
+Stopped at: Phase 254 planned; ready to execute dry-run observation with explicit canary approval gate
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)
 
 ## Operator Next Steps
 
-- Plan Phase 254 with `/gsd-plan-phase 254`; live dry-run observation and any active one-WAN canary remain operator-gated. Do not perform live RouterOS route mutation, Netwatch disablement, production config mutation, systemd changes, CAKE/qdisc changes, or production default flips without explicit Phase 254 approval gates.
+- Execute Phase 254 with `/gsd-execute-phase 254`. Wave 1 is read-only dry-run observation with deterministic command allowlist validation before any live command. Wave 2 is non-autonomous and must stop for explicit operator approval before any active one-WAN route mutation, Netwatch disablement, production config mutation, systemd change, CAKE/qdisc change, or production default flip.
