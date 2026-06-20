@@ -54,13 +54,13 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| ACCESS-01 | _TBD by roadmap_ | pending |
-| ACCESS-02 | _TBD by roadmap_ | pending |
-| ACCESS-03 | _TBD by roadmap_ | pending |
-| INSPECT-01 | _TBD by roadmap_ | pending |
-| INSPECT-02 | _TBD by roadmap_ | pending |
-| INSPECT-03 | _TBD by roadmap_ | pending |
-| OBSERVE-01 | _TBD by roadmap_ | pending |
-| OBSERVE-02 | _TBD by roadmap_ | pending |
-| OBSERVE-03 | _TBD by roadmap_ | pending |
-| SAFE-21 | _all phases_ | pending |
+| ACCESS-01 | Phase 258 | pending |
+| ACCESS-02 | Phase 258 | pending |
+| ACCESS-03 | Phase 258 | pending |
+| INSPECT-01 | Phase 259 | pending |
+| INSPECT-02 | Phase 259 | pending |
+| INSPECT-03 | Phase 259 | pending |
+| OBSERVE-01 | Phase 260 | pending |
+| OBSERVE-02 | Phase 260 | pending |
+| OBSERVE-03 | Phase 260 | pending |
+| SAFE-21 | all phases (258, 259, 260) | pending |
