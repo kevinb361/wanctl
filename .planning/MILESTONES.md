@@ -1,5 +1,24 @@
 # Project Milestones: wanctl
 
+## v1.55 Route Ownership / Netwatch Retirement (Shipped: 2026-06-20)
+
+**Phases completed:** 4 phases, 8 plans, 0 tasks
+
+**Key accomplishments:**
+
+- Documented WAN route ownership policy: Netwatch remains interim owner until wanctl route ownership is proven, canaried, and explicitly accepted.
+- Captured read-only RouterOS Netwatch/script/default-route inventory plus Snapshot-A rollback evidence without live route mutation.
+- Added safe/off route-management config, dry-run semantics, validation, RouterOS route API wrappers, idempotence, and fail-closed error handling.
+- Added Netwatch ownership guard, multi-signal/hysteretic route decision policy, startup reconciliation, circuit breaker semantics, and health/operator observability in repo code/tests.
+- Executed Phase 254 read-only observation and operator gate; declined active canary because deployed cake-shaper steering lacked `route_management` health/config surface.
+- Final decision: `keep-netwatch`; SAFE-19 held with no route, Netwatch, production config, systemd, CAKE/qdisc, or default ownership mutation.
+
+**Audit:** `passed` — 28/28 REQs satisfied, 4/4 phases complete, 4/4 integration/flows complete (`milestones/v1.55-MILESTONE-AUDIT.md`). Advisory debt: deploy/expose route-management health/config surface on cake-shaper before any future active canary.
+
+**Known deferred items at close:** 11 open pre-existing artifacts acknowledged and carried forward (1 debug-index item, 5 listed todos plus audit remainder, 5 seeds). Zero UAT/verification/context-question blockers.
+
+---
+
 ## v1.54 fping Profiling + Storage Hygiene (Shipped-with-deferral: 2026-06-19)
 
 **Phases completed:** 8 phases, 11 plans, 0 tasks

@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.55
 milestone_name: Route Ownership / Netwatch Retirement
-status: milestone_complete
-stopped_at: Milestone complete (Phase 254 was final phase)
-last_updated: 2026-06-20T01:16:22.418Z
-last_activity: 2026-06-20 -- Phase 254 executed; final decision keep-netwatch/no active canary
+status: Awaiting next milestone
+stopped_at: v1.55 milestone complete; Phase 254 final decision keep-netwatch/no active canary
+last_updated: "2026-06-20T01:28:36.746Z"
+last_activity: 2026-06-20 — Milestone v1.55 completed and archived
 progress:
   total_phases: 4
   completed_phases: 4
@@ -21,20 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Milestone complete
+**Current focus:** Awaiting next milestone
 
 ## Current Position
 
-Phase: 254
-Plan: 2/2 executed
-Status: Milestone complete
-Last activity: 2026-06-20 -- Phase 254 executed; final decision keep-netwatch/no active canary
+Phase: Milestone v1.55 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-20 — Milestone v1.55 completed and archived
 
 ## Active Blockers / Concerns
 
 - SAFE-18 original zero-controller-diff invariant held through Phase 248.1 and was intentionally superseded by the operator-directed Phase 248.2 fping freshness controller fix. Storage hygiene phases 249/250 must avoid unrelated controller-path changes and document no additional controller behavior drift.
-- SAFE-19 for v1.55: no live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production default flip outside an explicitly approved canary phase.
-- Netwatch remains the interim WAN route owner at v1.55 open; wanctl route ownership must start safe/off with dry-run/observe mode and a visible ownership guard.
+- SAFE-19 for v1.55 held: no live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production default flip occurred outside an explicitly approved canary phase.
+- Netwatch remains the interim WAN route owner after v1.55 close; future wanctl route ownership requires safe/off deployment evidence, read-only observation, and a new explicit approval gate.
 - Phase 252 complete: route-management config/dry-run surface and RouterOS route REST boundary shipped safe/off with mock-only tests; active route ownership remains blocked for Phase 253/254 guard/canary work.
 - Phase 253 complete: mock-only guard, route decision, reconciliation/circuit, health/operator observability, and docs shipped. Active live route mutation remains blocked by config/guard/reconciliation/circuit gates. Phase 254 live observation found deployed steering on cake-shaper healthy but without the route_management health/config surface; no canary was approved.
 - Phase 250 complete: TIN-01 consumer audit found `wanctl-history --tins` raw-history semantics and counter-shaped dropped/ECN metrics; TIN-02/TIN-03 deferred to future sparse-history work rather than changing emission density.
@@ -68,6 +68,25 @@ Acknowledged and deferred at v1.53 milestone close 2026-06-19:
 | seeds | SEED-006-v145-silicom-bypass-tooling-and-harness | shipped in v1.52; dormant metadata |
 | seeds | SEED-007-v145-storage-hygiene-fire-on-change | active in v1.54 (GAUGE-01..03, TIN-01..03) |
 
+## Deferred Items (acknowledged at v1.55 close)
+
+Acknowledged and deferred at v1.55 milestone close 2026-06-20:
+
+| Category | Item | Status |
+|----------|------|--------|
+| debug_sessions | knowledge-base | open/pre-existing |
+| todos | 2026-04-17-ingestion-rate-tool.md | pending/pre-existing |
+| todos | 2026-04-17-investigate-steering-degraded-on-clean-restart.md | pending/pre-existing |
+| todos | 2026-04-17-monitor-flapping-peak-count-on-next-docsis-event.md | pending/pre-existing |
+| todos | 2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md | pending/pre-existing |
+| todos | 2026-06-03-retest-spectrum-diffserv4-wash-after-local-qos-changes.md | pending/pre-existing |
+| todos | audit remainder | 2 additional pending todos reported by audit-open |
+| seeds | SEED-003-v143-d14-watchdog-recalibration | dormant |
+| seeds | SEED-004-v143-target-edge-churn-instrumentation | dormant |
+| seeds | SEED-005-v143-conservative-ul-tuning-sweep | dormant |
+| seeds | SEED-006-v145-silicom-bypass-tooling-and-harness | dormant |
+| seeds | SEED-007-v145-storage-hygiene-fire-on-change | active/pre-existing |
+
 ## Accumulated Context
 
 ### Roadmap Evolution
@@ -82,7 +101,7 @@ See `.planning/todos/pending/` — 7+ active todos as listed in Deferred Items.
 
 ### Blockers / Concerns
 
-v1.55 focuses on route ownership / Netwatch retirement. Phases 248.2–248.4 fixed the known native fping mechanical blockers; native fping keep remains deferred to an operator-gated keep canary. Phase 250 closed the CAKE tin gate by deferring skip-on-unchanged to future sparse-history work because raw-history/counter-shaped semantics are not sparse-safe.
+v1.55 closed route ownership / Netwatch retirement with final decision `keep-netwatch`. The route-management code path is present in repo code, but production cake-shaper still needs a safe/off deployment exposing `route_management` health/config before any future active canary. Phases 248.2–248.4 fixed the known native fping mechanical blockers; native fping keep remains deferred to an operator-gated keep canary. Phase 250 closed the CAKE tin gate by deferring skip-on-unchanged to future sparse-history work because raw-history/counter-shaped semantics are not sparse-safe.
 
 ## Session Continuity
 
@@ -93,4 +112,4 @@ Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1
 
 ## Operator Next Steps
 
-- v1.55 is complete. Netwatch remains the interim WAN route owner. Before any future active route-management canary, deploy/expose the route_management health/config surface on cake-shaper, re-run read-only observation from `ssh cake-shaper 'curl -fsS http://127.0.0.1:9102/health'`, and record a new explicit approval gate.
+- Start the next milestone with /gsd-new-milestone

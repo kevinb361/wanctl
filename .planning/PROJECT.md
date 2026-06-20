@@ -8,17 +8,17 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current Milestone: v1.55 Route Ownership / Netwatch Retirement
+## Current State: awaiting next milestone
 
-**Goal:** Make WAN route mutation have exactly one owner by designing, guarding, testing, and operator-gating a wanctl route-management path while keeping Netwatch as the interim owner until the migration is proven.
+v1.55 Route Ownership / Netwatch Retirement shipped 2026-06-20. wanctl now has a guarded, safe/off route-management implementation path in repo code, Snapshot-A rollback evidence for Netwatch ownership, and a Phase 254 live read-only decision record. Production route ownership remains with Netwatch: the active canary was declined because deployed cake-shaper steering is healthy but still lacks the `route_management` health/config surface needed for safe approval.
 
-**Target features:**
-- **Route ownership decision** — Document Netwatch interim ownership vs wanctl authoritative ownership, with explicit coexistence and retirement policy.
-- **Live read-only inventory** — Capture RouterOS Netwatch entries, route-mutating scripts, target default routes, current route state, and a Snapshot-A rollback anchor before any mutation.
-- **Config-gated route manager** — Add safe/off-by-default route-management config with dry-run/observe mode before active mutation.
-- **Ownership guard** — Refuse active wanctl route mutation while route-mutating Netwatch entries are enabled unless an explicit migration flag is present.
-- **Multi-signal failover logic** — Require consecutive-failure/recovery thresholds, hysteresis, startup reconciliation, and circuit-breaker semantics; do not replace Netwatch with a brittle one-sample/single-target test.
-- **Operator-gated canary** — Only after dry-run proof and rollback readiness, canary one WAN with explicit approval; Netwatch is retired or converted only after acceptance.
+**Next likely milestone:** deploy/expose route-management health/config on cake-shaper in safe/off or dry-run mode, re-run read-only observation from the steering host, and only then consider a new explicitly approved one-WAN active canary.
+
+## Recently Shipped: v1.55 Route Ownership / Netwatch Retirement (shipped 2026-06-20)
+
+**Delivered:** Route ownership policy, read-only RouterOS ownership inventory, Snapshot-A rollback anchor, guarded route-management code path, route decision/circuit-breaker observability, and a live Phase 254 keep-netwatch decision. Full record: `milestones/v1.55-ROADMAP.md`, requirements archive `milestones/v1.55-REQUIREMENTS.md`, audit `milestones/v1.55-MILESTONE-AUDIT.md`.
+
+**Outcome:** `keep-netwatch`. No active route mutation canary was run. SAFE-19 held with no route, Netwatch, production config, systemd, CAKE/qdisc, or default ownership mutation.
 
 ## Recently Shipped: v1.54 fping Profiling + Storage Hygiene (shipped-with-deferral 2026-06-19)
 
