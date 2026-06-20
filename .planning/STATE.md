@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.56
 milestone_name: Route Management Surface Deployment
 status: ready_to_plan
-stopped_at: Phase 255 complete (1/1) — Phase 256 blocked pending explicit operator-approved rollback-anchor preflight
+stopped_at: Phase 256 rollback-anchor preflight complete — deploy/config edit/restart still gated
 last_updated: 2026-06-20T03:29:01.963Z
-last_activity: 2026-06-20 -- Phase 255 planning complete
+last_activity: 2026-06-20 -- Phase 256 rollback anchors created; deploy/config edit/restart still requires fresh approval
 progress:
   total_phases: 3
   completed_phases: 1
@@ -26,15 +26,15 @@ See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 ## Current Position
 
 Phase: 256
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-20 -- Phase 255 executed read-only; Phase 256 deploy/restart blocked pending rollback anchors
+Plan: 256-01 partial — rollback-anchor preflight complete
+Status: Waiting for fresh approval before deploy/config edit/restart
+Last activity: 2026-06-20 -- Phase 256 rollback anchors created; deploy/config edit/restart still requires fresh explicit approval
 
 ## Active Blockers / Concerns
 
 - SAFE-20 for v1.56: no live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production route-owner flip. Deploy/restart gates require explicit operator approval and rollback.
 - v1.56 follows v1.55's keep-netwatch result: the next safe step is exposing route-management health/config on cake-shaper in safe/off or dry-run mode, not active canary.
-- Phase 255 found live `cake-shaper` steering is a flat `/opt/wanctl` deployment (no git checkout, no venv), `steering.service` reports version 1.47.0 and no `route_management`, and non-privileged read-only access to `/etc/wanctl/steering.yaml` is denied. Phase 256 deploy/restart is blocked until the operator explicitly approves creating/proving code and config rollback anchors.
+- Phase 256 rollback-anchor preflight complete: remote backups exist under `/var/lib/wanctl/phase256-backups/20260620T033704Z` for the flat `/opt/wanctl` tree and `/etc/wanctl/steering.yaml`. Live config still has no `route_management` block. No deploy, config edit, restart/reload, RouterOS/Netwatch/CAKE mutation, or route-owner flip occurred. Safe/off deploy/restart still requires fresh explicit approval.
 - SAFE-18 original zero-controller-diff invariant held through Phase 248.1 and was intentionally superseded by the operator-directed Phase 248.2 fping freshness controller fix. Storage hygiene phases 249/250 must avoid unrelated controller-path changes and document no additional controller behavior drift.
 - SAFE-19 for v1.55 held: no live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production default flip occurred outside an explicitly approved canary phase.
 - Netwatch remains the interim WAN route owner after v1.55 close; future wanctl route ownership requires safe/off deployment evidence, read-only observation, and a new explicit approval gate.
@@ -108,11 +108,11 @@ v1.55 closed route ownership / Netwatch retirement with final decision `keep-net
 
 ## Session Continuity
 
-Last session: 2026-06-20T03:32:00Z
-Stopped at: Phase 255 complete; Phase 256 blocked pending rollback-anchor preflight approval
+Last session: 2026-06-20T03:37:04Z
+Stopped at: Phase 256 rollback-anchor preflight complete; deploy/restart still approval-gated
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)
 
 ## Operator Next Steps
 
-- Next safe step is planning Phase 256 around the blocker: explicit operator-approved privileged read-only backup/inspection of flat `/opt/wanctl` and `/etc/wanctl/steering.yaml` before any deploy/restart. Do not deploy, restart, reload, edit live config, mutate RouterOS/Netwatch, change CAKE/qdisc, or flip route ownership without approval.
+- Next safe step is asking for fresh explicit approval before the Phase 256 safe/off or dry-run deploy/config edit/restart of `steering.service`. Rollback anchors now exist. Do not deploy, restart, reload, edit live config, mutate RouterOS/Netwatch, change CAKE/qdisc, or flip route ownership without approval.
