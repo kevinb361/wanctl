@@ -175,11 +175,15 @@ route_management:
 ```
 
 Inspect route ownership state from the steering health endpoint or compact
-operator summary:
+operator summary. In the external cake-autorate deployment, the cake-shaper
+state bridge health endpoints on port `9101` report WAN congestion/rate state;
+they are not a substitute for the steering route-management health surface. The
+steering health endpoint is local to the steering host, so inspect it from that
+host when it is bound to localhost:
 
 ```bash
-curl -s http://127.0.0.1:9102/health | jq '.route_management'
-wanctl-operator-summary http://127.0.0.1:9102/health
+ssh cake-shaper 'curl -s http://127.0.0.1:9102/health | jq .route_management'
+ssh cake-shaper 'wanctl-operator-summary http://127.0.0.1:9102/health'
 ```
 
 The health payload reports `active_owner`, `active_allowed`, `guard.status`,
@@ -187,6 +191,14 @@ The health payload reports `active_owner`, `active_allowed`, `guard.status`,
 `last_applied_action`, and `rollback_ready`. A blocked active config should be
 treated as a safety success, not a daemon failure, until Phase 254 explicitly
 starts live dry-run observation or a bounded one-WAN canary.
+
+Phase 254 evidence is the gate before any live route ownership change. Operators
+should review the phase-local dry-run observation artifact and
+`pre-canary-approval-packet.md` before considering active mutation. If the
+steering health endpoint cannot expose `route_management`, if operator summary
+cannot show route owner/guard/circuit/mode, or if live Netwatch/route state cannot
+be reconciled against Snapshot-A rollback evidence, keep Netwatch as the interim
+route owner and do not start an active canary.
 
 ## Enabling Steering
 

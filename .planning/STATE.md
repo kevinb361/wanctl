@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.55
 milestone_name: Route Ownership / Netwatch Retirement
-status: executing
-stopped_at: Phase 254 planned (2/2); ready to execute dry-run observation with explicit canary approval gate
-last_updated: "2026-06-20T00:59:54.799Z"
-last_activity: 2026-06-20 -- Phase 254 planning complete
+status: milestone_complete
+stopped_at: Milestone complete (Phase 254 was final phase)
+last_updated: 2026-06-20T01:16:22.418Z
+last_activity: 2026-06-20 -- Phase 254 executed; final decision keep-netwatch/no active canary
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 8
-  completed_plans: 6
-  percent: 75
+  completed_plans: 8
+  percent: 100
 ---
 
 # Session State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Phase 254 — dry-run observation + operator-gated canary
+**Current focus:** Milestone complete
 
 ## Current Position
 
 Phase: 254
-Plan: 2/2 planned
-Status: Ready to execute
-Last activity: 2026-06-20 -- Phase 254 planning complete
+Plan: 2/2 executed
+Status: Milestone complete
+Last activity: 2026-06-20 -- Phase 254 executed; final decision keep-netwatch/no active canary
 
 ## Active Blockers / Concerns
 
@@ -36,7 +36,7 @@ Last activity: 2026-06-20 -- Phase 254 planning complete
 - SAFE-19 for v1.55: no live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production default flip outside an explicitly approved canary phase.
 - Netwatch remains the interim WAN route owner at v1.55 open; wanctl route ownership must start safe/off with dry-run/observe mode and a visible ownership guard.
 - Phase 252 complete: route-management config/dry-run surface and RouterOS route REST boundary shipped safe/off with mock-only tests; active route ownership remains blocked for Phase 253/254 guard/canary work.
-- Phase 253 complete: mock-only guard, route decision, reconciliation/circuit, health/operator observability, and docs shipped. Active live route mutation remains blocked by config/guard/reconciliation/circuit gates; Phase 254 still owns live dry-run observation, rollback proof, and any operator-approved canary.
+- Phase 253 complete: mock-only guard, route decision, reconciliation/circuit, health/operator observability, and docs shipped. Active live route mutation remains blocked by config/guard/reconciliation/circuit gates. Phase 254 live observation found deployed steering on cake-shaper healthy but without the route_management health/config surface; no canary was approved.
 - Phase 250 complete: TIN-01 consumer audit found `wanctl-history --tins` raw-history semantics and counter-shaped dropped/ECN metrics; TIN-02/TIN-03 deferred to future sparse-history work rather than changing emission density.
 - fping profiling was shadow-only through Phase 248. Phase 248.2 intentionally mutated the controller path to repair the live canary freshness bug; no production default keep was made.
 - Phase 247 complete: partial fping shadow soak ran 6.964h, stopped cleanly with `probe_stats_final`, and produced `.planning/phases/247-fping-shadow-capture-phase-245-evidence-review/evidence/phase247-shadow-summary.json` for Phase 248. No production default flip was made.
@@ -87,10 +87,10 @@ v1.55 focuses on route ownership / Netwatch retirement. Phases 248.2–248.4 fix
 ## Session Continuity
 
 Last session: 2026-06-20T00:14:47Z
-Stopped at: Phase 254 planned; ready to execute dry-run observation with explicit canary approval gate
+Stopped at: v1.55 milestone complete; Phase 254 final decision keep-netwatch/no active canary
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)
 
 ## Operator Next Steps
 
-- Execute Phase 254 with `/gsd-execute-phase 254`. Wave 1 is read-only dry-run observation with deterministic command allowlist validation before any live command. Wave 2 is non-autonomous and must stop for explicit operator approval before any active one-WAN route mutation, Netwatch disablement, production config mutation, systemd change, CAKE/qdisc change, or production default flip.
+- v1.55 is complete. Netwatch remains the interim WAN route owner. Before any future active route-management canary, deploy/expose the route_management health/config surface on cake-shaper, re-run read-only observation from `ssh cake-shaper 'curl -fsS http://127.0.0.1:9102/health'`, and record a new explicit approval gate.

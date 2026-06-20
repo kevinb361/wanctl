@@ -45,20 +45,20 @@
 ### CB — Circuit Breaker and Rollback
 
 - [x] **CB-01**: If wanctl loses RouterOS API access, crashes, or restarts, routes must not remain in a surprising disabled state without an alert and rollback path.
-- [ ] **CB-02**: A clear rollback procedure disables wanctl route mutation and restores/re-enables Netwatch route ownership.
+- [x] **CB-02**: A clear rollback procedure disables wanctl route mutation and restores/re-enables Netwatch route ownership.
 - [x] **CB-03**: Tests cover ownership guard, threshold behavior, RouterOS API failure, idempotent route operations, dry-run behavior, and startup reconciliation.
 
 ### OBS — Observability and Operator Feedback
 
 - [x] **OBS-01**: Route disable/enable decisions emit structured logs and alerts containing the evidence that caused the decision.
-- [ ] **OBS-02**: Dry-run and active modes both expose enough operator evidence to compare intended decisions against live Netwatch behavior.
+- [x] **OBS-02**: Dry-run and active modes both expose enough operator evidence to compare intended decisions against live Netwatch behavior.
 - [x] **OBS-03**: Health/operator summary surfaces route-owner mode, guard status, last intended action, last applied action, and rollback readiness.
 
 ### CANARY — Operator-Gated Live Validation
 
-- [ ] **CANARY-01**: Before any live route mutation, run a dry-run observation window proving decisions are sane against current Netwatch/live state.
-- [ ] **CANARY-02**: Any active one-WAN canary requires explicit operator approval, Snapshot-A rollback proof, and bounded observation.
-- [ ] **CANARY-03**: Netwatch route mutation is disabled/retired only after wanctl route ownership is proven and accepted; otherwise Netwatch remains the route owner.
+- [x] **CANARY-01**: Before any live route mutation, run a dry-run observation window proving decisions are sane against current Netwatch/live state.
+- [x] **CANARY-02**: Any active one-WAN canary requires explicit operator approval, Snapshot-A rollback proof, and bounded observation.
+- [x] **CANARY-03**: Netwatch route mutation is disabled/retired only after wanctl route ownership is proven and accepted; otherwise Netwatch remains the route owner.
 
 ### SAFE
 
@@ -110,14 +110,14 @@
 | HEALTH-02 | Phase 253 | Pending |
 | HEALTH-03 | Phase 253 | Pending |
 | CB-01 | Phase 253 | Pending |
-| CB-02 | Phase 254 | Pending |
+| CB-02 | Phase 254 | Complete |
 | CB-03 | Phase 253 | Pending |
 | OBS-01 | Phase 253 | Pending |
-| OBS-02 | Phase 254 | Pending |
+| OBS-02 | Phase 254 | Complete |
 | OBS-03 | Phase 253 | Pending |
-| CANARY-01 | Phase 254 | Pending |
-| CANARY-02 | Phase 254 | Pending |
-| CANARY-03 | Phase 254 | Pending |
+| CANARY-01 | Phase 254 | Complete |
+| CANARY-02 | Phase 254 | Complete |
+| CANARY-03 | Phase 254 | Complete |
 | SAFE-19 | Phases 251-254 | Complete |
 
 **Coverage:**

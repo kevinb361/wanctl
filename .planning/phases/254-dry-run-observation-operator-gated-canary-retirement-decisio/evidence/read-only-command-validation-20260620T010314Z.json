@@ -1,0 +1,43 @@
+{
+  "command_count": 7,
+  "command_file": ".planning/phases/254-dry-run-observation-operator-gated-canary-retirement-decisio/evidence/read-only-commands-20260620T010314Z.txt",
+  "created_at": "20260620T010314Z",
+  "errors": [],
+  "live_commands_executed_before_validation": false,
+  "parsed_commands": [
+    {
+      "command": "/system/identity/print",
+      "host": "main-router",
+      "type": "routeros"
+    },
+    {
+      "command": "/tool/netwatch/print detail",
+      "host": "main-router",
+      "type": "routeros"
+    },
+    {
+      "command": "/system/script/print detail",
+      "host": "main-router",
+      "type": "routeros"
+    },
+    {
+      "command": "/system/script/export hide-sensitive",
+      "host": "main-router",
+      "type": "routeros"
+    },
+    {
+      "command": "/ip/route/print detail where dst-address=\"0.0.0.0/0\"",
+      "host": "main-router",
+      "type": "routeros"
+    },
+    {
+      "command": "curl -fsS http://127.0.0.1:9102/health",
+      "type": "local"
+    },
+    {
+      "command": ".venv/bin/python -m wanctl.operator_summary http://127.0.0.1:9102/health",
+      "type": "local"
+    }
+  ],
+  "passed": true
+}

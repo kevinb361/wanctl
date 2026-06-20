@@ -1,0 +1,9 @@
+# Phase 254 read-only observation command file
+# Format: ROUTEROS main-router <RouterOS read-only command> OR LOCAL <local read-only command>
+ROUTEROS main-router /system/identity/print
+ROUTEROS main-router /tool/netwatch/print detail
+ROUTEROS main-router /system/script/print detail
+ROUTEROS main-router /system/script/export hide-sensitive
+ROUTEROS main-router /ip/route/print detail where dst-address="0.0.0.0/0"
+LOCAL curl -fsS http://127.0.0.1:9102/health
+LOCAL .venv/bin/python -m wanctl.operator_summary http://127.0.0.1:9102/health
