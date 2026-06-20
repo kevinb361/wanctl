@@ -8,11 +8,18 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
-## Current State: awaiting next milestone
+## Current Milestone: v1.56 Route Management Surface Deployment
 
-v1.55 Route Ownership / Netwatch Retirement shipped 2026-06-20. wanctl now has a guarded, safe/off route-management implementation path in repo code, Snapshot-A rollback evidence for Netwatch ownership, and a Phase 254 live read-only decision record. Production route ownership remains with Netwatch: the active canary was declined because deployed cake-shaper steering is healthy but still lacks the `route_management` health/config surface needed for safe approval.
+**Goal:** Deploy and expose the v1.55 route-management surface on cake-shaper in safe/off or dry-run mode so operators can see route ownership state from the real steering host, without changing route ownership or disabling Netwatch.
 
-**Next likely milestone:** deploy/expose route-management health/config on cake-shaper in safe/off or dry-run mode, re-run read-only observation from the steering host, and only then consider a new explicitly approved one-WAN active canary.
+**Target features:**
+- **Production deploy-shape proof** — Confirm cake-shaper's actual steering code/config/service layout and rollback anchor before any change.
+- **Safe/off route-management deployment** — Deploy route-management-capable code/config only through an approved bounded restart plan; active mutation remains impossible.
+- **Steering health attribution** — Scrape the steering host namespace and prove `route_management` fields appear on the correct health surface, distinct from bridge health.
+- **Dry-run observation** — Compare intended wanctl route decisions against live Netwatch/default-route state without mutation.
+- **Canary-readiness packet** — End with `ready-for-approval` or `not-ready`, not an implicit active canary.
+
+**Safety boundary:** SAFE-20 forbids live RouterOS route mutation, Netwatch disablement, CAKE/qdisc change, controller threshold retuning, or production route-owner flip during this milestone. Any deploy/restart is a separate explicit operator gate with rollback.
 
 ## Recently Shipped: v1.55 Route Ownership / Netwatch Retirement (shipped 2026-06-20)
 

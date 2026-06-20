@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.55
-milestone_name: Route Ownership / Netwatch Retirement
-status: Awaiting next milestone
-stopped_at: v1.55 milestone complete; Phase 254 final decision keep-netwatch/no active canary
-last_updated: "2026-06-20T01:28:36.746Z"
-last_activity: 2026-06-20 — Milestone v1.55 completed and archived
+milestone: v1.56
+milestone_name: Route Management Surface Deployment
+status: planning
+last_updated: "2026-06-20T01:33:36.739Z"
+last_activity: 2026-06-20
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_phases: 3
+  completed_phases: 0
+  total_plans: 4
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
@@ -21,17 +20,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Awaiting next milestone
+**Current focus:** v1.56 Route Management Surface Deployment
 
 ## Current Position
 
-Phase: Milestone v1.55 complete
+Phase: Not started (roadmap ready)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-20 — Milestone v1.55 completed and archived
+Status: Roadmap ready
+Last activity: 2026-06-20 — Milestone v1.56 requirements and roadmap created
 
 ## Active Blockers / Concerns
 
+- SAFE-20 for v1.56: no live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production route-owner flip. Deploy/restart gates require explicit operator approval and rollback.
+- v1.56 follows v1.55's keep-netwatch result: the next safe step is exposing route-management health/config on cake-shaper in safe/off or dry-run mode, not active canary.
 - SAFE-18 original zero-controller-diff invariant held through Phase 248.1 and was intentionally superseded by the operator-directed Phase 248.2 fping freshness controller fix. Storage hygiene phases 249/250 must avoid unrelated controller-path changes and document no additional controller behavior drift.
 - SAFE-19 for v1.55 held: no live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production default flip occurred outside an explicitly approved canary phase.
 - Netwatch remains the interim WAN route owner after v1.55 close; future wanctl route ownership requires safe/off deployment evidence, read-only observation, and a new explicit approval gate.

@@ -2,6 +2,7 @@
 
 ## Milestones
 
+- 🚧 **v1.56 Route Management Surface Deployment** — Phases 255–257 (active; safe/off deploy and steering health proof only; no route ownership mutation)
 - ✅ **v1.55 Route Ownership / Netwatch Retirement** — shipped 2026-06-20 (Phases 251–254; 28/28 REQs; Netwatch remains interim route owner after read-only observation declined active canary; route-management deploy/canary carried forward) — `milestones/v1.55-ROADMAP.md`
 - ✅ **v1.54 fping Profiling + Storage Hygiene** — shipped-with-deferral 2026-06-19 (Phases 247–250; fping profiling/canary repairs complete, flat-gauge audit no-op, CAKE tin skip-on-unchanged deferred by consumer audit) — `milestones/v1.54-ROADMAP.md`
 - ✅ **v1.53 Pluggable RTT Measurement Backend** — shipped 2026-06-19 (Phases 238–246; 26/26 REQs; `RttBackend` seam behind icmplib default, `fping` implemented/selectable, live A/B verdict `rollback_trigger / keep-icmplib`, production stayed on icmplib, SAFE-17 held) — `milestones/v1.53-ROADMAP.md`
@@ -23,6 +24,82 @@
 - 📁 **v1.0 — v1.38** — see `MILESTONES.md` for the full historical index
 
 > **Production controller state (2026-06-10):** Both WANs run upstream cake-autorate with wanctl state bridges (`cake-autorate-{spectrum,att}.service` + `-state-bridge.service`, live since 2026-06-08); `wanctl@{spectrum,att}` disabled as the **verified** rollback path (v1.50 SOAK-02 provable path, both-WAN preflight `overall_pass: true`). Steering consumes bridge-written state. Native wanctl remains the MikroTik/RouterOS controller and the portable default. Repo is the drift-proof source of truth for both WANs' artifact sets (`deploy.sh --with-{spectrum,att}-cake-autorate`). Spectrum CAKE: member-NIC `diffserv4 wash` 550M base DL autorate / fixed 18M UL. ATT: `diffserv4 nowash` 95M base DL autorate / fixed 19M UL.
+
+---
+
+## 🚧 v1.56 Route Management Surface Deployment (Active)
+
+**Milestone Goal:** Deploy and expose the v1.55 route-management surface on cake-shaper in safe/off/dry-run mode, prove steering health/operator visibility from the real host namespace, and produce a canary-readiness packet without changing live route ownership.
+
+**SAFE-20 status:** No live RouterOS route mutation, Netwatch disablement, controller threshold retuning, CAKE qdisc change, or production default route ownership flip may occur during v1.56. Any code/config deploy or service restart requires an explicit bounded operator gate and rollback path.
+
+**Route owner policy:** Netwatch remains active/interim route owner for all of v1.56. wanctl route management may be deployed only as safe/off or dry-run observability; active route mutation is deferred to a future separately approved canary milestone.
+
+### Phases
+
+- [ ] **Phase 255: Deploy Shape + Safe/Off Config Contract** - Prove cake-shaper's live deploy shape, define the exact safe/off config, validate rollback anchors, and freeze the no-mutation gate before any restart.
+- [ ] **Phase 256: Bounded Safe/Off Deployment + Health Surface Proof** - Operator-gated deploy/restart of route-management-capable steering code/config, then prove correct health/operator fields from cake-shaper without route mutation.
+- [ ] **Phase 257: Dry-Run Observation + Canary Readiness Decision** - Run bounded dry-run observation, compare intended decisions to Netwatch/live routes, and produce a readiness/not-ready packet for a future active canary.
+
+## Phase Details
+
+### Phase 255: Deploy Shape + Safe/Off Config Contract
+
+**Goal**: Before any production change, prove how cake-shaper steering is deployed today, define the exact safe/off route-management config, validate config shape locally/offline, and produce an explicit rollback/restart plan.
+**Depends on**: v1.55 closeout
+**Requirements**: DEPLOY-01, CONFIG-01, CONFIG-02, SAFE-20
+**Success Criteria** (what must be TRUE):
+
+  1. Live deployment layout is known: code source, service unit, config path, health endpoint binding, and rollback anchor.
+  2. Route-management production config is safe/off or dry-run only and validates without enabling mutation.
+  3. Restart/deploy plan names the exact bounded command path, health checks, rollback commands, and stop conditions.
+  4. SAFE-20 gate is written in the phase evidence before any live mutation-capable action.
+
+**Plans**:
+
+**Wave 1**
+
+- [ ] 255-01-PLAN.md — deploy-shape proof + safe/off config contract + rollback plan
+
+### Phase 256: Bounded Safe/Off Deployment + Health Surface Proof
+
+**Goal**: With explicit operator approval, deploy/restart the steering surface in safe/off or dry-run mode, then prove the correct route-management health/operator fields from cake-shaper while external cake-autorate bridge services stay healthy.
+**Depends on**: Phase 255
+**Requirements**: DEPLOY-02, DEPLOY-03, CONFIG-03, HEALTH-01, HEALTH-02, HEALTH-03, SAFE-20
+**Success Criteria** (what must be TRUE):
+
+  1. Operator-approved deploy/restart is bounded, logged, reversible, and affects only the steering route-management surface.
+  2. Spectrum/ATT cake-autorate services and state bridges remain healthy or rollback is executed.
+  3. Steering health scraped from cake-shaper exposes route-management owner/mode/guard/last-action fields.
+  4. Health/operator output distinguishes bridge health from steering route-management health.
+
+**Plans**:
+
+**Wave 1**
+
+- [ ] 256-01-PLAN.md — operator-gated safe/off deploy/restart + rollback proof
+
+**Wave 2** *(blocked on Wave 1 health)*
+
+- [ ] 256-02-PLAN.md — route-management health/operator proof + bridge health separation
+
+### Phase 257: Dry-Run Observation + Canary Readiness Decision
+
+**Goal**: Run safe/off or dry-run route-management observation from cake-shaper, compare intended decisions to live Netwatch/default-route state, and close the milestone with a readiness decision for a future active canary.
+**Depends on**: Phase 256
+**Requirements**: OBSERVE-01, OBSERVE-02, OBSERVE-03, SAFE-20
+**Success Criteria** (what must be TRUE):
+
+  1. Dry-run observation runs from the production steering host without RouterOS route mutation.
+  2. Intended wanctl route decisions and current Netwatch/default-route state are compared with evidence.
+  3. Final packet says `ready-for-approval` or `not-ready`, with blockers and rollback evidence.
+  4. No active canary, Netwatch retirement, route mutation, CAKE/qdisc change, or route-owner flip occurs in v1.56.
+
+**Plans**:
+
+**Wave 1**
+
+- [ ] 257-01-PLAN.md — dry-run observation + readiness/not-ready decision packet
 
 ---
 
@@ -54,7 +131,7 @@ Summary: fping profiling/canary repair path completed without a production defau
 
 - **Phase 218 (v1.45 VERIFY watch-list)** — dormant. The flapping peak-counter instrumentation lives in the native wanctl controller, which no longer runs Spectrum/ATT; this watch item stays dormant unless `wanctl@` returns to live duty or the check is reimplemented against bridge/cake-autorate telemetry.
 
-### Deferred (post-v1.54 candidates)
+### Deferred previous candidates
 
 - **FLIP-02 follow-up** — permanent fping/native keep remains deferred to an operator-gated keep canary. The known mechanical blockers are closed: Phase 248.2 fixed stale-window behavior, Phase 248.3 aligned native Spectrum CAKE shape, and Phase 248.4 suppressed startup first-sample fallback noise.
 - **FPING-BENCH-01** — controlled A/B re-run with refined AB-03 thresholds derived from v1.54 PROF-02/03 profiling evidence.
@@ -65,7 +142,7 @@ Summary: fping profiling/canary repair path completed without a production defau
 - **SEED-005 (conservative UL tuning sweep)** — deferred not dead; native wanctl remains first-class on RouterOS deployments.
 - **RECLAIM-04** — Spectrum upload reclaim re-attempt with a fundamentally different probe shape. Carried indefinitely; now a cake-autorate config question (`adjust_ul_shaper_rate=1`) under fixed-18M UL.
 
-### Deferred from v1.53 (future RTT-backend work)
+### Deferred future RTT-backend work
 
 - **IRTT-MIG-01** — migrate the existing IRTT path to a first-class `IrttBackend` behind the seam (v1.53 only shapes the Protocol to absorb it via SEAM-04).
 - **FPING-JSON-01** — adopt `fping -J` structured JSON once the schema stabilizes and lands in the Debian/Ubuntu deploy baseline (5.1 ships alpha-only `-J`; parse stable text in v1.53).
