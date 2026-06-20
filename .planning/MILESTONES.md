@@ -1,5 +1,23 @@
 # Project Milestones: wanctl
 
+## v1.56 Route Management Surface Deployment (Shipped: 2026-06-20)
+
+**Phases completed:** 3 phases, 4 plans, 4 tasks
+
+**Key accomplishments:**
+
+- Proved the live `cake-shaper` steering deployment shape before mutation: flat `/opt/wanctl`, system Python service, localhost steering health, and separate bridge health endpoints.
+- Created rollback anchors and deployed route-management-capable steering code/config in dry-run mode under explicit approval, without changing RouterOS routes, Netwatch, CAKE/qdisc, thresholds, or route ownership.
+- Exposed route-management operator health on `127.0.0.1:9102/health` with owner/mode/guard/last-action/rollback fields while keeping bridge/state health separate.
+- Ran a bounded 636s dry-run observation from `cake-shaper`; final packet correctly returned `Verdict: not-ready` because supported RouterOS ownership inspection was not proven.
+- Preserved SAFE-20 end-to-end: Netwatch remains owner and no active canary was requested or granted.
+
+**Audit:** `passed` — 13/13 REQs satisfied, 3/3 phases complete, 4/4 integration/flows complete (`milestones/v1.56-MILESTONE-AUDIT.md`). Advisory debt: repair/prove supported read-only RouterOS ownership inspection before any future active route-management canary.
+
+**Known deferred items at close:** 11 open pre-existing artifacts acknowledged and carried forward (1 debug-index item, 5 listed todos plus audit remainder, 5 seeds). Zero UAT/verification/context-question blockers.
+
+---
+
 ## v1.55 Route Ownership / Netwatch Retirement (Shipped: 2026-06-20)
 
 **Phases completed:** 4 phases, 8 plans, 0 tasks

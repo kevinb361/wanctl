@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.56
 milestone_name: Route Management Surface Deployment
-status: milestone_complete
+status: Awaiting next milestone
 stopped_at: Milestone complete (Phase 257 was final phase)
-last_updated: 2026-06-20T12:38:52.780Z
-last_activity: 2026-06-20
+last_updated: "2026-06-20T13:02:47.246Z"
+last_activity: 2026-06-20 — Milestone v1.56 completed and archived
 progress:
   total_phases: 3
   completed_phases: 3
@@ -18,17 +18,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
+See: .planning/PROJECT.md (updated 2026-06-20 after v1.56 milestone close)
 
 **Core value:** Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
-**Current focus:** Milestone complete
+**Current focus:** Planning next milestone; active route-management canary remains blocked until supported read-only RouterOS ownership inspection is repaired/proven.
 
 ## Current Position
 
-Phase: 257
-Plan: 1 of 1 complete
-Status: Milestone complete
-Last activity: 2026-06-20
+Phase: Milestone v1.56 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-20 — Milestone v1.56 completed and archived
 
 ## Active Blockers / Concerns
 
@@ -91,6 +91,25 @@ Acknowledged and deferred at v1.55 milestone close 2026-06-20:
 | seeds | SEED-006-v145-silicom-bypass-tooling-and-harness | dormant |
 | seeds | SEED-007-v145-storage-hygiene-fire-on-change | active/pre-existing |
 
+## Deferred Items (acknowledged at v1.56 close)
+
+Acknowledged and deferred at v1.56 milestone close 2026-06-20:
+
+| Category | Item | Status |
+|----------|------|--------|
+| debug_sessions | knowledge-base | open/pre-existing |
+| todos | 2026-04-17-ingestion-rate-tool.md | pending/pre-existing |
+| todos | 2026-04-17-investigate-steering-degraded-on-clean-restart.md | pending/pre-existing |
+| todos | 2026-04-17-monitor-flapping-peak-count-on-next-docsis-event.md | pending/pre-existing |
+| todos | 2026-04-24-resolve-att-cake-primary-canary-after-phase-196.md | pending/pre-existing |
+| todos | 2026-06-03-retest-spectrum-diffserv4-wash-after-local-qos-changes.md | pending/pre-existing |
+| todos | audit remainder | 2 additional pending todos reported by audit-open |
+| seeds | SEED-003-v143-d14-watchdog-recalibration | dormant |
+| seeds | SEED-004-v143-target-edge-churn-instrumentation | dormant |
+| seeds | SEED-005-v143-conservative-ul-tuning-sweep | dormant |
+| seeds | SEED-006-v145-silicom-bypass-tooling-and-harness | dormant |
+| seeds | SEED-007-v145-storage-hygiene-fire-on-change | active/pre-existing |
+
 ## Accumulated Context
 
 ### Roadmap Evolution
@@ -105,7 +124,7 @@ See `.planning/todos/pending/` — 7+ active todos as listed in Deferred Items.
 
 ### Blockers / Concerns
 
-v1.55 closed route ownership / Netwatch retirement with final decision `keep-netwatch`. The route-management code path is present in repo code, but production cake-shaper still needs a safe/off deployment exposing `route_management` health/config before any future active canary. Phases 248.2–248.4 fixed the known native fping mechanical blockers; native fping keep remains deferred to an operator-gated keep canary. Phase 250 closed the CAKE tin gate by deferring skip-on-unchanged to future sparse-history work because raw-history/counter-shaped semantics are not sparse-safe.
+v1.56 deployed the route-management surface to production `cake-shaper` in dry-run mode and proved the steering health/operator surface. Active route-management canary is still blocked by unsupported/missing read-only RouterOS ownership inspection from `cake-shaper`; Netwatch remains owner. Future route-management work should first repair/prove that supported inspection path, then rerun bounded dry-run observation before requesting any explicit active canary approval. Phases 248.2–248.4 fixed known native fping mechanical blockers; native fping keep remains deferred to an operator-gated keep canary. Phase 250 closed the CAKE tin gate by deferring skip-on-unchanged to future sparse-history work because raw-history/counter-shaped semantics are not sparse-safe.
 
 ## Session Continuity
 
@@ -116,4 +135,4 @@ Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1
 
 ## Operator Next Steps
 
-- Next safe step is `/gsd:complete-milestone` for v1.56 archival/closeout. Future route-management work should first repair/prove supported read-only RouterOS ownership inspection; do not approve or run active route mutation, Netwatch disablement, CAKE/qdisc changes, threshold retuning, or route-owner flip from this milestone.
+- Start the next milestone with /gsd-new-milestone

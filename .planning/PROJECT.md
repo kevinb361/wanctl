@@ -23,6 +23,18 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 **Outcome:** Safe/off route-management code/config was deployed and exposed on `cake-shaper` with health/operator fields, then Phase 257 ran a 636s read-only/dry-run observation. Final readiness packet verdict: `not-ready` because supported live RouterOS Netwatch/default-route inspection was not proven via the validated SSH path (`/etc/wanctl/ssh/router.key` inaccessible on `cake-shaper`). Netwatch remains owner; no active canary approval was requested or granted. SAFE-20 held.
 
+**Full record:** `milestones/v1.56-ROADMAP.md`, requirements archive `milestones/v1.56-REQUIREMENTS.md`, audit `milestones/v1.56-MILESTONE-AUDIT.md`.
+
+## Current State
+
+v1.56 is shipped and archived. Production `cake-shaper` now exposes the route-management surface in dry-run mode, but Netwatch remains the active/interim route owner. The next route-management milestone should repair/prove supported read-only RouterOS ownership inspection from `cake-shaper` before asking for any active route mutation canary.
+
+## Next Milestone Goals
+
+- Start from fresh requirements with `/gsd:new-milestone`.
+- Likely candidate: supported read-only RouterOS ownership inspection + rerun dry-run observation, preserving SAFE-20-style no-mutation gates until a separate explicit active-canary approval.
+- Keep active route mutation, Netwatch retirement, CAKE/qdisc changes, and threshold retuning out of scope unless the new milestone explicitly gates and approves them.
+
 ## Recently Shipped: v1.55 Route Ownership / Netwatch Retirement (shipped 2026-06-20)
 
 **Delivered:** Route ownership policy, read-only RouterOS ownership inventory, Snapshot-A rollback anchor, guarded route-management code path, route decision/circuit-breaker observability, and a live Phase 254 keep-netwatch decision. Full record: `milestones/v1.55-ROADMAP.md`, requirements archive `milestones/v1.55-REQUIREMENTS.md`, audit `milestones/v1.55-MILESTONE-AUDIT.md`.

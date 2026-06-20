@@ -2,6 +2,47 @@
 
 _A living document updated after each milestone. Lessons feed forward into future planning._
 
+## Milestone: v1.56 — Route Management Surface Deployment
+
+**Shipped:** 2026-06-20
+**Phases:** 3 | **Plans:** 4
+
+### What Was Built
+
+- Production `cake-shaper` deploy-shape proof: flat `/opt/wanctl`, system Python steering service, local steering health endpoint, and separate bridge/state health endpoints.
+- Approved safe/off route-management deployment with rollback anchors and `route_management.mode: dry_run`.
+- Route-management health/operator fields exposed on steering health: owner, mode, guard, last intended/applied action, circuit/reconciliation, and rollback readiness.
+- Bounded 636s dry-run observation and readiness packet with `Verdict: not-ready` because supported RouterOS ownership inspection was not proven.
+
+### What Worked
+
+- The milestone slice stayed honest: deploy/expose/observe only, with no route mutation or implicit active canary creep.
+- Endpoint separation prevented bridge health from being mistaken for route-management acceptance.
+- The not-ready packet preserved safety while still shipping useful production observability.
+
+### What Was Inefficient
+
+- The archive helper again needed cleanup: ROADMAP collapse, richer MILESTONES entry, STATE deferred items/current focus, archive headers, and current REQUIREMENTS removal.
+- The milestone audit required manual artifact-shape handling because early phases used VALIDATION/SUMMARY/evidence rather than VERIFICATION.md.
+
+### Patterns Established
+
+- Route-management readiness requires both steering health and a supported read-only RouterOS ownership inventory path; one without the other is not enough for active canary approval.
+- A `not-ready` decision packet is a valid shipped outcome when the milestone definition requires a readiness decision, not approval.
+- SAFE-20-style no-mutation proof should remain the default shape for future route ownership work.
+
+### Key Lessons
+
+1. Do not accept active route-management canary readiness until the live RouterOS ownership inspection path works from `cake-shaper`.
+2. Keep Netwatch as owner by default; flipping ownership is a separate explicitly approved milestone gate.
+3. Archive-helper output is scaffolding, not truth — inspect and clean every current and archive closeout surface before tagging.
+
+### Cost Observations
+
+- Notable: milestone closeout required a manual audit because `.planning/v1.56-MILESTONE-AUDIT.md` was missing; the audit passed once checked against actual v1.56 artifacts.
+
+---
+
 ## Milestone: v1.55 — Route Ownership / Netwatch Retirement
 
 **Shipped:** 2026-06-20
