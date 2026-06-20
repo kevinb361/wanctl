@@ -2,13 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.56
 milestone_name: Route Management Surface Deployment
-status: planning
-last_updated: "2026-06-20T01:33:36.739Z"
-last_activity: 2026-06-20
+status: executing
+stopped_at: v1.55 milestone complete; Phase 254 final decision keep-netwatch/no active canary
+last_updated: "2026-06-20T03:23:30.724Z"
+last_activity: 2026-06-20 -- Phase 255 planning complete
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 4
+  total_plans: 1
   completed_plans: 0
   percent: 0
 ---
@@ -24,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-19 after v1.53 milestone close)
 
 ## Current Position
 
-Phase: Not started (roadmap ready)
-Plan: —
-Status: Roadmap ready
-Last activity: 2026-06-20 — Milestone v1.56 requirements and roadmap created
+Phase: 255 — Deploy Shape + Safe/Off Config Contract
+Plan: 255-01 — deploy-shape proof + safe/off config contract + rollback plan
+Status: Ready to execute
+Last activity: 2026-06-20 -- Phase 255 planning complete
 
 ## Active Blockers / Concerns
 
@@ -106,11 +107,11 @@ v1.55 closed route ownership / Netwatch retirement with final decision `keep-net
 
 ## Session Continuity
 
-Last session: 2026-06-20T00:14:47Z
-Stopped at: v1.55 milestone complete; Phase 254 final decision keep-netwatch/no active canary
+Last session: 2026-06-20T03:23:30Z
+Stopped at: Phase 255 planned; ready to execute read-only deploy-shape proof
 Resume file: None
 Archived v1.53 evidence: `.planning/milestones/v1.53-phases/` (see milestones/v1.53-ROADMAP.md)
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Execute Phase 255 with `/gsd-execute-phase 255`; this is read-only deploy-shape proof only. Do not deploy, restart, reload, edit live config, mutate RouterOS/Netwatch, change CAKE/qdisc, or flip route ownership.
