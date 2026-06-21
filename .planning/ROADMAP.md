@@ -85,7 +85,10 @@ Plans:
   3. Ownership-inspection output/health is distinguishable from cake-autorate bridge health (`:9101`) and steering route-management health (`:9102`), with no payload-shape regression to existing health contracts.
   4. Inspection is read-only end-to-end; no RouterOS route mutation, Netwatch change, CAKE/qdisc change, or route-owner flip occurs (SAFE-21).
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+- [ ] 259-01-PLAN.md — RouteOwnershipInspector: read-only Netwatch counts + observed_owner attribution + default-route projection (INSPECT-01, INSPECT-02, SAFE-21)
+- [ ] 259-02-PLAN.md — Wire ownership_inspection into :9102/health + daemon thread lifecycle + live INSPECT_PROOF_PASS harness (INSPECT-03, SAFE-21)
 
 ### Phase 260: Dry-Run Observation Rerun + Canary Readiness
 
