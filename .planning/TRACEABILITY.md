@@ -7,7 +7,7 @@ Milestone v1.57 is **in progress**: ACCESS + SAFE complete and proven via Phase 
 |--------|--------|----------|-------|
 | ACCESS-01 | PROVEN | `258-VERIFICATION.md` (frontmatter `ACCESS-01: passed`); `evidence/258-01-root-cause.md` (two-layer root cause: REST handler gap + nested-SSH `router.key` rc 255); `evidence/258-01-a1-preflight.md` (`A1-NETWATCH-OK entries=3`, `A1-SCRIPT-OK entries=20`) | Root cause documented and operator-confirmed live. |
 | ACCESS-02 | PROVEN | `evidence/258-03-access02-proof.md` — live `ACCESS02_PROOF_PASS route=17 netwatch=3 script=20` through deployed `/opt/wanctl` + real `/etc/wanctl/steering.yaml` + `get_router_client`; tests `tests/test_phase258_readonly_proof.py`, `tests/test_routeros_rest.py` (in 134-pass suite); src `src/wanctl/routeros_rest.py` GET-only `_handle_netwatch_print`/`_handle_script_print` | Supported read-only REST path proven by live command, not curl/bespoke client. |
-| ACCESS-03 | PROVEN (explicit residual) | `src/wanctl/readonly_validator.py` + `tests/test_readonly_validator.py`; `--self-test` → `READONLY_COMMANDS_NEGATIVE_SELF_TEST_PASSED`; rejects mutating verbs, shell metachars, unknown objects, embedded-substring + prefix-boundary bypasses | Read-only is **procedural** (GET-only handlers + validator), not RouterOS RBAC: reused steering credential can write at the RBAC layer. Residual accepted by decision D2 and documented in `evidence/258-03-access02-proof.md`. **No `decisions/*.md` waiver file** — accepted in plan/verification, not a formal decision record. |
+| ACCESS-03 | PROVEN (explicit residual) | `src/wanctl/readonly_validator.py` + `tests/test_readonly_validator.py`; `--self-test` → `READONLY_COMMANDS_NEGATIVE_SELF_TEST_PASSED`; rejects mutating verbs, shell metachars, unknown objects, embedded-substring + prefix-boundary bypasses | Read-only is **procedural** (GET-only handlers + validator), not RouterOS RBAC: reused steering credential can write at the RBAC layer. Residual accepted by decision D2, documented in `evidence/258-03-access02-proof.md`, and now formally signed in `.planning/decisions/0231-access03-procedural-readonly-residual.md`. |
 | INSPECT-01 | OPEN | — | Phase 259 (planned, ready to execute), not yet done. |
 | INSPECT-02 | OPEN | — | Phase 259, pending. |
 | INSPECT-03 | OPEN | — | Phase 259, pending — health-attribution / no payload-shape regression not yet verifiable. |
@@ -30,5 +30,6 @@ invariant. Regenerate with `/saga-verify` as Phases 259–260 land their INSPECT
 Read-only is enforced procedurally (GET-only transport handlers + `readonly_validator`), **not** by a least-privilege
 RouterOS account. The credential reused for inspection retains write capability at RouterOS RBAC. This residual is
 real and explicit — a future hardening could move inspection to a dedicated read-only RouterOS user to make ACCESS-03
-RBAC-enforced rather than convention-enforced. There is no signed `decisions/*.md` waiver for it; the acceptance lives
-in the Phase 258 plan/verification artifacts only.
+RBAC-enforced rather than convention-enforced. The residual is now formally accepted in
+`.planning/decisions/0231-access03-procedural-readonly-residual.md` (operator-signed 2026-06-24, with an Override
+Path to a dedicated read-only RouterOS user).
