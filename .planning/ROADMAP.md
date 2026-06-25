@@ -115,7 +115,7 @@ Plans:
 
 **Wave 3** *(operator-run live sample on cake-shaper; blocked on 260-01/02)*
 
-- [ ] 260-03-PLAN.md — Operator runs the live bounded observation on cake-shaper, captures the four-artifact evidence bundle, finalizes the canary-readiness packet superseding the Phase 257 not-ready packet (OBSERVE-01/02/03, SAFE-21)
+- [x] 260-03-PLAN.md — Operator runs the live bounded observation on cake-shaper, captures the four-artifact evidence bundle, finalizes the canary-readiness packet superseding the Phase 257 not-ready packet (OBSERVE-01/02/03, SAFE-21)
 
 ### Milestone-wide boundary: SAFE-21
 
@@ -127,7 +127,7 @@ SAFE-21 is a cross-cutting safety invariant, not a standalone phase. Every phase
 |-------|----------------|--------|-----------|
 | 258. Read-Only RouterOS Access Repair | 3/3 | Complete | 2026-06-20 |
 | 259. Read-Only Netwatch + Route-Ownership Inspection | 2/2 | Complete   | 2026-06-25 |
-| 260. Dry-Run Observation Rerun + Canary Readiness | 2/3 | In Progress|  |
+| 260. Dry-Run Observation Rerun + Canary Readiness | 3/3 | Complete   | 2026-06-25 |
 
 ---
 
