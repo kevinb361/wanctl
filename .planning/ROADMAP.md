@@ -40,7 +40,7 @@
 
 ### Phases
 
-- [ ] **Phase 258: Read-Only RouterOS Access Repair** - Diagnose the inaccessible `router.key` root cause on `cake-shaper`, repair or establish a supported least-privilege read-only access path, and prove it with a live read-only RouterOS command. This is the unblocking gate for the rest of the milestone.
+- [x] **Phase 258: Read-Only RouterOS Access Repair** - Diagnose the inaccessible `router.key` root cause on `cake-shaper`, repair or establish a supported least-privilege read-only access path, and prove it with a live read-only RouterOS command. This is the unblocking gate for the rest of the milestone.
 - [ ] **Phase 259: Read-Only Netwatch + Route-Ownership Inspection** - Read live Netwatch and default-route ownership from `cake-shaper` over the validated path and attribute the current owner, surfaced distinctly from bridge (`:9101`) and steering (`:9102`) health with no payload-shape regression.
 - [ ] **Phase 260: Dry-Run Observation Rerun + Canary Readiness** - Rerun the bounded dry-run observation v1.56 blocked, compare intended wanctl route decisions against live Netwatch/default-route state, and produce the explicit `ready-for-approval` | `not-ready` canary-readiness packet.
 
@@ -71,7 +71,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 258-03-PLAN.md — Operator deploys patched code to /opt/wanctl (confirmed), then runs a `get_router_client` proof harness for the live D4 three-read proof (route + netwatch + script, each exit 0, full JSON parsed), validator-gated (ACCESS-02/03, SAFE-21)
+- [x] 258-03-PLAN.md — Operator deploys patched code to /opt/wanctl (confirmed), then runs a `get_router_client` proof harness for the live D4 three-read proof (route + netwatch + script, each exit 0, full JSON parsed), validator-gated (ACCESS-02/03, SAFE-21)
 
 ### Phase 259: Read-Only Netwatch + Route-Ownership Inspection
 
@@ -112,7 +112,7 @@ SAFE-21 is a cross-cutting safety invariant, not a standalone phase. Every phase
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 258. Read-Only RouterOS Access Repair | 2/3 | In Progress|  |
+| 258. Read-Only RouterOS Access Repair | 3/3 | Complete | 2026-06-20 |
 | 259. Read-Only Netwatch + Route-Ownership Inspection | 0/TBD | Not started | - |
 | 260. Dry-Run Observation Rerun + Canary Readiness | 0/TBD | Not started | - |
 
