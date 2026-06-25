@@ -185,3 +185,20 @@ def test_crosscheck_disagreement_records_divergence() -> None:
         d["class"] == "cross-check" and d.get("field") == "total_route_count"
         for d in divergences
     )
+
+
+def test_sample_health_rejects_non_local_url_before_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    called = False
+
+    def fake_urlopen(*_args: object, **_kwargs: object) -> object:
+        nonlocal called
+        called = True
+        raise AssertionError("urlopen must not be reached for non-local health URLs")
+
+    monkeypatch.setattr(obs.urllib.request, "urlopen", fake_urlopen)
+
+    sample = obs.sample_health("https://example.test/health")
+
+    assert called is False
+    assert sample["ownership_inspection"]["inspector_status"] == "error"
+    assert "health URL must be local HTTP" in str(sample["error"])

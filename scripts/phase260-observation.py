@@ -8,6 +8,7 @@ import logging
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
@@ -40,6 +41,7 @@ STATIC_READ_COMMANDS = (
     "/system script print detail",
     ROUTE_PRINT,
 )
+LOCAL_HEALTH_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
 class RouterClientLike(Protocol):
@@ -96,6 +98,12 @@ def _json_list(out: str, label: str) -> list[dict[str, Any]]:
     return parsed
 
 
+def _validate_local_health_url(url: str) -> None:
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme != "http" or parsed.hostname not in LOCAL_HEALTH_HOSTS:
+        raise ValueError(f"health URL must be local HTTP: {url}")
+
+
 def _project_default_route(route: dict[str, Any]) -> dict[str, Any]:
     return {
         "gateway": route.get("gateway"),
@@ -111,6 +119,7 @@ def sample_health(url: str = DEFAULT_HEALTH_URL) -> dict[str, Any]:
     HTTP and JSON errors are converted to a bad-sample sentinel so callers fail closed.
     """
     try:
+        _validate_local_health_url(url)
         with urllib.request.urlopen(url, timeout=5) as response:
             payload = json.loads(response.read().decode())
         if not isinstance(payload, dict):
@@ -127,7 +136,7 @@ def sample_health(url: str = DEFAULT_HEALTH_URL) -> dict[str, Any]:
             "route_management": route_management,
             "error": None,
         }
-    except (OSError, TimeoutError, ValueError, json.JSONDecodeError, urllib.error.URLError) as exc:
+    except (OSError, TimeoutError, TypeError, ValueError, json.JSONDecodeError, urllib.error.URLError) as exc:
         return {
             "sampled_at": _utc_iso(),
             "ownership_inspection": {
