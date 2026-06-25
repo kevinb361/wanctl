@@ -27,9 +27,9 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 ## Current State
 
-v1.57 is the active milestone (planning). Production `cake-shaper` exposes the route-management surface in dry-run mode, but Netwatch remains the active/interim route owner. v1.56 ended `not-ready` because supported read-only RouterOS ownership inspection could not be proven from `cake-shaper` (the validated SSH key path `/etc/wanctl/ssh/router.key` was inaccessible there). v1.57 repairs that gap and reruns the blocked dry-run observation.
+v1.57 is complete. Production `cake-shaper` exposes the route-management surface in dry-run mode, and Netwatch remains the active/interim route owner. v1.57 repaired the v1.56 read-only RouterOS ownership-inspection gap by proving a supported REST read-only path and live `ownership_inspection`, then reran the blocked dry-run observation. The Phase 260 readiness packet verdict is `not-ready` because the live cross-check found a Netwatch route-mutating count divergence; no active canary approval was requested or granted.
 
-## Current Milestone: v1.57 Supported read-only RouterOS ownership inspection
+## Completed Milestone: v1.57 Supported read-only RouterOS ownership inspection
 
 **Goal:** Repair and prove a supported read-only RouterOS ownership-inspection path from `cake-shaper`, then rerun the v1.56 dry-run observation it blocked — validating intended wanctl route decisions against live Netwatch/default-route state, with no route ownership change.
 
@@ -40,6 +40,8 @@ v1.57 is the active milestone (planning). Production `cake-shaper` exposes the r
 - **Readiness packet** — End with an explicit `ready-for-approval` or `not-ready` verdict for a future active-route canary; do not start an implicit canary.
 
 **Safety boundary (SAFE-21, inheriting SAFE-20 intent):** No live RouterOS route mutation, no Netwatch disablement, no CAKE/qdisc change, no controller threshold retuning, and no production route-owner flip during this milestone. Any active-route canary remains a separate, explicit operator gate with rollback.
+
+**Outcome:** Phases 258-260 completed. Phase 258 proved REST read-only RouterOS inventory from `cake-shaper`; Phase 259 exposed live `ownership_inspection` in steering health; Phase 260 ran an operator-gated 636-second dry-run observation and emitted a 257-shaped readiness packet. Final verdict: `not-ready` due to `netwatch.route_mutating_active_count` cross-check divergence (`ownership_inspection=4`, direct RouterOS cross-check `0`). SAFE-21 held: no RouterOS route mutation, Netwatch mutation, CAKE/qdisc change, service restart/reload, config edit, or route-owner flip occurred.
 
 ## Recently Shipped: v1.55 Route Ownership / Netwatch Retirement (shipped 2026-06-20)
 

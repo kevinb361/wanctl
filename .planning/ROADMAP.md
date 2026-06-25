@@ -127,7 +127,7 @@ SAFE-21 is a cross-cutting safety invariant, not a standalone phase. Every phase
 |-------|----------------|--------|-----------|
 | 258. Read-Only RouterOS Access Repair | 3/3 | Complete | 2026-06-20 |
 | 259. Read-Only Netwatch + Route-Ownership Inspection | 2/2 | Complete   | 2026-06-25 |
-| 260. Dry-Run Observation Rerun + Canary Readiness | 3/3 | Complete   | 2026-06-25 |
+| 260. Dry-Run Observation Rerun + Canary Readiness | 3/3 | Complete    | 2026-06-25 |
 
 ---
 
