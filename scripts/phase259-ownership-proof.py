@@ -8,14 +8,20 @@ import sys
 from pathlib import Path
 from typing import Protocol
 
-import wanctl
-from wanctl.readonly_validator import iter_commands, validate_command
-from wanctl.router_client import get_router_client
-from wanctl.steering.daemon import SteeringConfig
-from wanctl.steering.route_manager import RouteManager
-from wanctl.steering.route_ownership_inspector import ROUTE_PRINT, RouteOwnershipInspector
-
 DEPLOYED_ROOT = Path("/opt/wanctl").resolve()
+if DEPLOYED_ROOT.exists():
+    sys.path.insert(0, str(DEPLOYED_ROOT.parent))
+
+import wanctl  # noqa: E402
+from wanctl.readonly_validator import iter_commands, validate_command  # noqa: E402
+from wanctl.router_client import get_router_client  # noqa: E402
+from wanctl.steering.daemon import SteeringConfig  # noqa: E402
+from wanctl.steering.route_manager import RouteManager  # noqa: E402
+from wanctl.steering.route_ownership_inspector import (  # noqa: E402
+    ROUTE_PRINT,
+    RouteOwnershipInspector,
+)
+
 DEFAULT_CONFIG = Path("/etc/wanctl/steering.yaml")
 STATIC_READ_COMMANDS = (
     "/tool netwatch print detail",
