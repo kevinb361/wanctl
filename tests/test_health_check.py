@@ -5609,6 +5609,98 @@ class TestMeasurementContract:
 class TestSteeringRouteManagementHealth:
     """Route ownership observability for steering health."""
 
+    def test_health_includes_ownership_inspection_section(self):
+        handler = object.__new__(SteeringHealthHandler)
+        health_data = {
+            "ownership_inspection": {
+                "observed_owner": "netwatch",
+                "configured_owner": "netwatch",
+                "match": True,
+                "inspector_status": "ok",
+                "inspector_error": None,
+                "last_inspected_at": "2026-06-25T00:00:00+00:00",
+                "netwatch": {
+                    "entries_count": 3,
+                    "route_mutating_active_count": 2,
+                },
+                "routes": {
+                    "total_route_count": 17,
+                    "default_routes": [
+                        {
+                            "gateway": "redacted-a",
+                            "disabled": False,
+                            "distance": 1,
+                            "comment": "Spectrum",
+                        }
+                    ],
+                },
+            }
+        }
+
+        ownership = handler._build_ownership_inspection_section(health_data)
+
+        assert ownership == health_data["ownership_inspection"]
+
+    def test_route_management_shape_unchanged_with_ownership_inspection(self):
+        handler = object.__new__(SteeringHealthHandler)
+        health_data = {
+            "route_management": {
+                "enabled": True,
+                "mode": "dry_run",
+                "active_owner": "netwatch",
+                "active_allowed": False,
+                "blocked_reason": "ownership guard does not allow active route management",
+                "guard": {
+                    "status": "conflict",
+                    "active_allowed": False,
+                    "conflict_count": 2,
+                    "blocked_reason": "2 route-mutating Netwatch/script conflict(s)",
+                },
+                "reconciliation": {
+                    "status": "ok",
+                    "error": None,
+                    "route_count": 3,
+                    "checked_at": 123.0,
+                },
+                "circuit_breaker": {
+                    "open": False,
+                    "failure_count": 0,
+                    "last_error": None,
+                },
+                "last_intended_action": {"action": "noop", "route_key": "spectrum"},
+                "last_applied_action": None,
+                "rollback_ready": True,
+                "last_event": {"event": "dry_run"},
+            },
+            "ownership_inspection": {
+                "observed_owner": "netwatch",
+                "configured_owner": "netwatch",
+                "match": True,
+                "inspector_status": "ok",
+                "inspector_error": None,
+                "last_inspected_at": "2026-06-25T00:00:00+00:00",
+                "netwatch": {"entries_count": 3, "route_mutating_active_count": 2},
+                "routes": {"total_route_count": 17, "default_routes": []},
+            },
+        }
+
+        route_management = handler._build_route_management_section(health_data)
+
+        assert set(route_management) == {
+            "enabled",
+            "mode",
+            "active_owner",
+            "active_allowed",
+            "blocked_reason",
+            "guard",
+            "reconciliation",
+            "circuit_breaker",
+            "last_intended_action",
+            "last_applied_action",
+            "rollback_ready",
+            "last_event",
+        }
+
     def test_build_route_management_section_exposes_guard_circuit_and_actions(self):
         handler = object.__new__(SteeringHealthHandler)
         health_data = {
