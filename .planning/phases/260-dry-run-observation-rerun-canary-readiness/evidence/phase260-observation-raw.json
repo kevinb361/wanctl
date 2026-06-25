@@ -1,0 +1,1465 @@
+{
+  "cross_check": {
+    "errors": [],
+    "issued_commands": [
+      "/tool netwatch print detail",
+      "/system script print detail",
+      "/ip route print"
+    ],
+    "netwatch": {
+      "entries": [
+        {
+          ".id": "*1",
+          "disabled": "true",
+          "down-script": "system script run HostDown",
+          "host": "70.123.241.22",
+          "http-codes": "",
+          "interval": "10s",
+          "status": "unknown",
+          "test-script": "",
+          "timeout": "1s",
+          "type": "icmp",
+          "up-script": "system script run HostUp"
+        },
+        {
+          ".id": "*4",
+          "done-tests": "539069",
+          "down-script": "/system/script/run Disable-Spectrum",
+          "failed-tests": "381",
+          "host": "1.1.1.1",
+          "interval": "10s",
+          "name": "Monitor-Spectrum",
+          "since": "2026-06-25 00:49:32",
+          "status": "up",
+          "timeout": "3s",
+          "type": "simple",
+          "up-script": "/system/script/run Enable-Spectrum"
+        },
+        {
+          ".id": "*5",
+          "done-tests": "539069",
+          "down-script": "/system/script/run Disable-ATT",
+          "failed-tests": "456",
+          "host": "8.8.8.8",
+          "interval": "10s",
+          "name": "Monitor-ATT",
+          "since": "2026-06-17 14:42:13",
+          "src-address": "99.126.115.47",
+          "status": "up",
+          "timeout": "3s",
+          "type": "simple",
+          "up-script": "/system/script/run Enable-ATT"
+        }
+      ],
+      "entries_count": 3,
+      "route_mutating_active_count": 0
+    },
+    "routes": {
+      "default_routes": [
+        {
+          "comment": "ATT",
+          "disabled": false,
+          "distance": 2,
+          "gateway": "192.168.2.254"
+        },
+        {
+          "comment": "Spectrum",
+          "disabled": false,
+          "distance": 1,
+          "gateway": "70.123.224.1"
+        },
+        {
+          "comment": "Force ATT_OUT to ATT WAN",
+          "disabled": false,
+          "distance": 1,
+          "gateway": "99.126.112.1"
+        },
+        {
+          "comment": "Backup to Spectrum if ATT fails",
+          "disabled": false,
+          "distance": 2,
+          "gateway": "70.123.224.1"
+        }
+      ],
+      "entries": [
+        {
+          ".id": "*8000002D",
+          "check-gateway": "arp",
+          "comment": "ATT",
+          "disabled": "false",
+          "distance": "2",
+          "dst-address": "0.0.0.0/0",
+          "dynamic": "false",
+          "gateway": "192.168.2.254",
+          "immediate-gw": "192.168.2.254%ether2-WAN-ATT",
+          "inactive": "false",
+          "pref-src": "0.0.0.0",
+          "routing-table": "main",
+          "scope": "30",
+          "static": "true",
+          "target-scope": "10"
+        },
+        {
+          ".id": "*8000002C",
+          "active": "true",
+          "check-gateway": "ping",
+          "comment": "Spectrum",
+          "disabled": "false",
+          "distance": "1",
+          "dst-address": "0.0.0.0/0",
+          "dynamic": "false",
+          "gateway": "70.123.224.1",
+          "immediate-gw": "70.123.224.1%ether1-WAN-Spectrum",
+          "inactive": "false",
+          "pref-src": "0.0.0.0",
+          "routing-table": "main",
+          "scope": "30",
+          "static": "true",
+          "target-scope": "10"
+        },
+        {
+          ".id": "*2018C040",
+          "active": "true",
+          "connect": "true",
+          "distance": "0",
+          "dst-address": "10.10.99.0/24",
+          "dynamic": "true",
+          "gateway": "vlan99-mgmt",
+          "immediate-gw": "vlan99-mgmt",
+          "inactive": "false",
+          "local-address": "10.10.99.1%vlan99-mgmt",
+          "routing-table": "main",
+          "scope": "10",
+          "target-scope": "5"
+        },
+        {
+          ".id": "*2018C030",
+          "active": "true",
+          "connect": "true",
+          "distance": "0",
+          "dst-address": "10.10.110.0/24",
+          "dynamic": "true",
+          "gateway": "vlan110-trusted",
+          "immediate-gw": "vlan110-trusted",
+          "inactive": "false",
+          "local-address": "10.10.110.1%vlan110-trusted",
+          "routing-table": "main",
+          "scope": "10",
+          "target-scope": "5"
+        },
+        {
+          ".id": "*2018C020",
+          "active": "true",
+          "connect": "true",
+          "distance": "0",
+          "dst-address": "10.10.120.0/24",
+          "dynamic": "true",
+          "gateway": "vlan120-IOT",
+          "immediate-gw": "vlan120-IOT",
+          "inactive": "false",
+          "local-address": "10.10.120.1%vlan120-IOT",
+          "routing-table": "main",
+          "scope": "10",
+          "target-scope": "5"
+        },
+        {
+          ".id": "*2018C010",
+          "active": "true",
+          "connect": "true",
+          "distance": "0",
+          "dst-address": "10.10.130.0/24",
+          "dynamic": "true",
+          "gateway": "vlan130-camera",
+          "immediate-gw": "vlan130-camera",
+          "inactive": "false",
+          "local-address": "10.10.130.1%vlan130-camera",
+          "routing-table": "main",
+          "scope": "10",
+          "target-scope": "5"
+        },
+        {
+          ".id": "*8000002E",
+          "active": "true",
+          "disabled": "false",
+          "distance": "1",
+          "dst-address": "10.252.255.0/24",
+          "dynamic": "false",
+          "gateway": "10.255.255.3",
+          "immediate-gw": "10.255.255.3%wireguard1",
+          "inactive": "false",
+          "pref-src": "0.0.0.0",
+          "routing-table": "main",
+          "scope": "30",
+          "static": "true",
+          "target-scope": "10"
+        },
+        {
+          ".id": "*2018C050",
+          "active": "true",
+          "connect": "true",
+          "distance": "0",
+          "dst-address": "10.255.255.0/24",
+          "dynamic": "true",
+          "gateway": "wireguard1",
+          "immediate-gw": "wireguard1",
+          "inactive": "false",
+          "local-address": "10.255.255.1%wireguard1",
+          "routing-table": "main",
+          "scope": "10",
+          "target-scope": "5"
+        },
+        {
+          ".id": "*2018C0D0",
+          "active": "true",
+          "connect": "true",
+          "distance": "0",
+          "dst-address": "70.123.224.0/19",
+          "dynamic": "true",
+          "gateway": "ether1-WAN-Spectrum",
+          "immediate-gw": "ether1-WAN-Spectrum",
+          "inactive": "false",
+          "local-address": "70.123.224.169%ether1-WAN-Spectrum",
+          "routing-table": "main",
+          "scope": "10",
+          "target-scope": "5"
+        },
+        {
+          ".id": "*2018C0F0",
+          "active": "true",
+          "connect": "true",
+          "distance": "0",
+          "dst-address": "99.126.112.0/22",
+          "dynamic": "true",
+          "gateway": "ether2-WAN-ATT",
+          "immediate-gw": "ether2-WAN-ATT",
+          "inactive": "false",
+          "local-address": "99.126.115.47%ether2-WAN-ATT",
+          "routing-table": "main",
+          "scope": "10",
+          "target-scope": "5"
+        },
+        {
+          ".id": "*80000033",
+          "active": "true",
+          "comment": "Route to ATT public gateway for check-gateway",
+          "distance": "1",
+          "dst-address": "99.126.112.1/32",
+          "dynamic": "false",
+          "gateway": "192.168.2.254",
+          "immediate-gw": "192.168.2.254%ether2-WAN-ATT",
+          "inactive": "false",
+          "routing-table": "main",
+          "scope": "30",
+          "static": "true",
+          "target-scope": "10"
+        },
+        {
+          ".id": "*2018C110",
+          "active": "true",
+          "connect": "true",
+          "distance": "0",
+          "dst-address": "172.27.27.0/24",
+          "dynamic": "true",
+          "gateway": "myZeroTier",
+          "immediate-gw": "myZeroTier",
+          "inactive": "false",
+          "local-address": "172.27.27.18%myZeroTier",
+          "routing-table": "main",
+          "scope": "10",
+          "target-scope": "5"
+        },
+        {
+          ".id": "*2018C060",
+          "active": "true",
+          "connect": "true",
+          "distance": "0",
+          "dst-address": "192.168.2.0/24",
+          "dynamic": "true",
+          "gateway": "ether2-WAN-ATT",
+          "immediate-gw": "ether2-WAN-ATT",
+          "inactive": "false",
+          "local-address": "192.168.2.100%ether2-WAN-ATT",
+          "routing-table": "main",
+          "scope": "10",
+          "target-scope": "5"
+        },
+        {
+          ".id": "*80000031",
+          "active": "true",
+          "comment": "Route to AT&T gateway via WAN-ATT",
+          "distance": "1",
+          "dst-address": "192.168.2.254/32",
+          "dynamic": "false",
+          "ecmp": "true",
+          "gateway": "192.168.2.1",
+          "immediate-gw": "192.168.2.1%ether2-WAN-ATT",
+          "inactive": "false",
+          "routing-table": "main",
+          "scope": "30",
+          "static": "true",
+          "target-scope": "10"
+        },
+        {
+          ".id": "*80000034",
+          "active": "true",
+          "comment": "ATT gateway management",
+          "distance": "1",
+          "dst-address": "192.168.2.254/32",
+          "dynamic": "false",
+          "ecmp": "true",
+          "gateway": "ether2-WAN-ATT",
+          "immediate-gw": "ether2-WAN-ATT",
+          "inactive": "false",
+          "routing-table": "main",
+          "scope": "30",
+          "static": "true",
+          "target-scope": "10"
+        },
+        {
+          ".id": "*8000002B",
+          "active": "true",
+          "check-gateway": "ping",
+          "comment": "Force ATT_OUT to ATT WAN",
+          "disabled": "false",
+          "distance": "1",
+          "dst-address": "0.0.0.0/0",
+          "dynamic": "false",
+          "gateway": "99.126.112.1",
+          "immediate-gw": "99.126.112.1%ether2-WAN-ATT",
+          "inactive": "false",
+          "pref-src": "",
+          "routing-table": "to_ATT",
+          "scope": "30",
+          "static": "true",
+          "target-scope": "10"
+        },
+        {
+          ".id": "*80000032",
+          "check-gateway": "ping",
+          "comment": "Backup to Spectrum if ATT fails",
+          "distance": "2",
+          "dst-address": "0.0.0.0/0",
+          "dynamic": "false",
+          "gateway": "70.123.224.1",
+          "immediate-gw": "70.123.224.1%ether1-WAN-Spectrum",
+          "inactive": "false",
+          "routing-table": "to_ATT",
+          "scope": "30",
+          "static": "true",
+          "target-scope": "10"
+        }
+      ],
+      "total_route_count": 17
+    },
+    "scripts": {
+      "entries": [
+        {
+          ".id": "*1",
+          ".nextid": "*2",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "last-started": "2026-06-25 03:00:00",
+          "name": "BackupAndUpdate",
+          "owner": "admin",
+          "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+          "run-count": "66",
+          "source": ":local ident [/system identity get name]\n:local date [/system clock get date]\n:local time [/system clock get time]\n:local stamp ($date . \"-\" . [:pick $time 0 2] . [:pick $time 3 5] . [:pick $time 6 8])\n:local backupName ($ident . \"-backup-\" . $stamp)\n\n:log info (\"BackupAndUpdate: starting backup \" . $backupName)\n\n:do {\n    /system backup save dont-encrypt=yes name=$backupName\n    :log info (\"BackupAndUpdate: system backup saved \" . $backupName . \".backup\")\n} on-error={\n    :log error \"BackupAndUpdate: system backup failed\"\n    :error \"BackupAndUpdate system backup failed\"\n}\n\n:delay 2s\n\n:do {\n    /export compact hide-sensitive file=$backupName\n    :log info (\"BackupAndUpdate: config export saved \" . $backupName . \".rsc\")\n} on-error={\n    :log error \"BackupAndUpdate: config export failed\"\n    :error \"BackupAndUpdate config export failed\"\n}\n\n:log info (\"BackupAndUpdate: completed \" . $backupName)\n"
+        },
+        {
+          ".id": "*2",
+          ".nextid": "*3",
+          "dont-require-permissions": "true",
+          "invalid": "false",
+          "name": "HostDown",
+          "owner": "admin",
+          "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+          "run-count": "0",
+          "source": "/tool e-mail send \\\r\nto=\"kevin.blalock@gmail.com\" \\\r\nsubject=\"HOST DOWN\" \\\r\nbody=\"HOST DOWN\""
+        },
+        {
+          ".id": "*3",
+          ".nextid": "*5",
+          "dont-require-permissions": "true",
+          "invalid": "false",
+          "last-started": "2022-12-21 23:08:39",
+          "name": "HostUp",
+          "owner": "admin",
+          "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+          "run-count": "4",
+          "source": "/tool e-mail send \\\r\nto=\"kevin.blalock@gmail.com\" \\\r\nsubject=\"HOST UP\" \\\r\nbody=\"HOST UP\""
+        },
+        {
+          ".id": "*5",
+          ".nextid": "*6",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "name": "wan-latency-test",
+          "owner": "admin",
+          "policy": "read,write,test",
+          "run-count": "0",
+          "source": ":put \"=== Spectrum WAN to 1.1.1.1 ===\"\n/tool flood-ping 1.1.1.1 count=50 src-address=70.123.224.1\n:put \"\"\n:put \"=== ATT WAN to 1.1.1.1 ===\"\n/tool flood-ping 1.1.1.1 count=50 src-address=99.126.112.1\n:put \"\"\n:put \"=== Spectrum WAN to 8.8.8.8 ===\"\n/tool flood-ping 8.8.8.8 count=50 src-address=70.123.224.1\n:put \"\"\n:put \"=== ATT WAN to 8.8.8.8 ===\"\n/tool flood-ping 8.8.8.8 count=50 src-address=99.126.112.1"
+        },
+        {
+          ".id": "*6",
+          ".nextid": "*7",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "name": "fetch_att_modem",
+          "owner": "admin",
+          "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+          "run-count": "0",
+          "source": "\n:local result [/tool fetch url=\"http://192.168.2.254\" mode=http as-value output=user]\n:put ($result->\"data\")\n"
+        },
+        {
+          ".id": "*7",
+          ".nextid": "*9",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "name": "test_att_tcp",
+          "owner": "admin",
+          "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+          "run-count": "0",
+          "source": "\n:log info \"Testing ATT connectivity with TCP\"\n:local result [/tool fetch url=\"http://1.1.1.1\" mode=http src-address=99.126.115.47 as-value output=user]\n:put ($result->\"status\")\n:put ($result->\"data\")\n"
+        },
+        {
+          ".id": "*9",
+          ".nextid": "*A",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "name": "test_spectrum_latency",
+          "owner": "admin",
+          "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+          "run-count": "0",
+          "source": "\n:log info \"Testing Spectrum WAN latency\"\n:local count 0\n:local sum 0\n:local min 999999\n:local max 0\n:local loss 0\n\n:for i from=1 to=50 do={\n    :local result [/ping 1.1.1.1 count=1 interface=ether1-WAN-Spectrum as-value]\n    :if (($result->\"received\") > 0) do={\n        :local time ($result->\"avg-rtt\")\n        :set sum ($sum + $time)\n        :set count ($count + 1)\n        :if ($time < $min) do={ :set min $time }\n        :if ($time > $max) do={ :set max $time }\n    } else={\n        :set loss ($loss + 1)\n    }\n}\n\n:if ($count > 0) do={\n    :local avg ($sum / $count)\n    :put (\"Spectrum Results:\")\n    :put (\"  Packets: sent=50 received=$count loss=$loss\")\n    :put (\"  Latency: min=$min avg=$avg max=$max\")\n} else={\n    :put \"Spectrum: All packets lost\"\n}\n"
+        },
+        {
+          ".id": "*A",
+          ".nextid": "*25",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "name": "test_att_latency",
+          "owner": "admin",
+          "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+          "run-count": "0",
+          "source": "\n:log info \"Testing ATT WAN latency\"\n:local count 0\n:local sum 0\n:local min 999999\n:local max 0\n:local loss 0\n\n:for i from=1 to=50 do={\n    :local result [/ping 1.1.1.1 count=1 interface=ether2-WAN-ATT as-value]\n    :if (($result->\"received\") > 0) do={\n        :local time ($result->\"avg-rtt\")\n        :set sum ($sum + $time)\n        :set count ($count + 1)\n        :if ($time < $min) do={ :set min $time }\n        :if ($time > $max) do={ :set max $time }\n    } else={\n        :set loss ($loss + 1)\n    }\n}\n\n:if ($count > 0) do={\n    :local avg ($sum / $count)\n    :put (\"ATT Results:\")\n    :put (\"  Packets: sent=50 received=$count loss=$loss\")\n    :put (\"  Latency: min=$min avg=$avg max=$max\")\n} else={\n    :put \"ATT: All packets lost\"\n}\n"
+        },
+        {
+          ".id": "*25",
+          ".nextid": "*28",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "name": "temp_export_1765055007",
+          "owner": "admin",
+          "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+          "run-count": "0",
+          "source": "/export verbose file=backup_1765055007"
+        },
+        {
+          ".id": "*28",
+          ".nextid": "*31",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "name": "qos-dashboard",
+          "owner": "admin",
+          "policy": "read,policy,test",
+          "run-count": "0",
+          "source": "\n:log info \"[QOS] ===== QoS Dashboard =====\";\n\n# 1) Show summary of queue load\n:put \"\n[QUEUE TREE] Current rates:\";\n/queue tree print stats without-paging;\n\n# 2) Show GAMES stats\n:put \"\n[MANGLE] GAMES rules (packets/bytes):\";\n/ip firewall mangle print stats where comment~\"GAMES\";\n\n# 3) Show HIGH/RTC stats\n:put \"\n[MANGLE] HIGH / RTC rules (packets/bytes):\";\n/ip firewall mangle print stats where comment~\"HIGH\";\n\n# 4) Show class usage by DSCP mapping\n:put \"\n[MANGLE] DSCP class mapping stats:\";\n/ip firewall mangle print stats where comment~\"DSCP:\";\n\n# 5) Active GAMES connections\n:put \"\n[CONNTRACK] Active GAMES connections:\";\n/ip firewall connection print where connection-mark=GAMES;\n\n# 6) Active HIGH connections (work VPN, RTC, etc.)\n:put \"\n[CONNTRACK] Active QOS_HIGH connections:\";\n/ip firewall connection print where connection-mark=QOS_HIGH;\n\n:put \"\n[QOS] ===== End QoS Dashboard =====\";\n"
+        },
+        {
+          ".id": "*31",
+          ".nextid": "*32",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "name": "qos-dashboard-2",
+          "owner": "admin",
+          "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+          "run-count": "0",
+          "source": "\n:put \"[QOS] ===== QoS / Games Dashboard =====\";\n\n:put \"\n[QUEUE TREE] Current rates:\";\n/queue tree print stats without-paging;\n\n:put \"\n[MANGLE] GAMES rules (bytes/packets):\";\n/ip firewall mangle print stats where comment~\"GAMES\";\n\n:put \"\n[ADDR-LIST] auto-games (short-term auto-learned):\";\n/ip firewall address-list print where list=\"auto-games\";\n\n:put \"\n[ADDR-LIST] auto-games-promoted (long-term memory):\";\n/ip firewall address-list print where list=\"auto-games-promoted\";\n\n:put \"\n[ADDR-LIST] blizzard-games (if used):\";\n/ip firewall address-list print where list=\"blizzard-games\";\n\n:put \"\n[ADDR-LIST] steam-games (if used):\";\n/ip firewall address-list print where list=\"steam-games\";\n\n:put \"\n[MANGLE] DSCP class mapping stats:\";\n/ip firewall mangle print stats where comment~\"DSCP:\";\n\n:put \"\n[CONNTRACK] Active GAMES connections:\";\n/ip firewall connection print where connection-mark=GAMES;\n\n:put \"\n[CONNTRACK] Active QOS_HIGH connections (DNS/DoT/WiFi calling/etc.):\";\n/ip firewall connection print where connection-mark=QOS_HIGH;\n\n:put \"\n[QOS] ===== End QoS / Games Dashboard =====\";\n"
+        },
+        {
+          ".id": "*32",
+          ".nextid": "*33",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "last-started": "2026-06-25 08:23:26",
+          "name": "blizzard-update",
+          "owner": "admin",
+          "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+          "run-count": "253",
+          "source": "# Refresh blizzard-games address list for Diablo / Blizzard titles\n\n:local targetList \"blizzard-games\"\n:local old [/ip firewall address-list find list=$targetList]\n:if ([:len $old] > 0) do={\n    /ip firewall address-list remove $old\n}\n\n# Dynamic domains (single IPs, refreshed every run). Some hostnames may not resolve at every run.\n:foreach d in={\"us.actual.battle.net\";\"prod.actual.battle.net\";\"gameplay.blizzard.com\";\"instance-server.blizzard.com\"} do={\n    :do {\n        :local resolved [:resolve $d]\n        :if ([:len $resolved] > 0) do={\n            :local existing [/ip firewall address-list find list=$targetList address=$resolved]\n            :if ([:len $existing] = 0) do={\n                /ip firewall address-list add list=$targetList address=$resolved timeout=12h comment=(\"dyn-\" . $d)\n            }\n        }\n    } on-error={}\n}\n\n# Static fallback subnets (Cloudflare + GCP hosting Blizzard infra)\n:foreach net in={\"162.159.128.0/19\";\"162.159.136.0/22\";\"162.159.192.0/19\";\"34.125.0.0/16\";\"34.133.0.0/16\"} do={\n    :do {\n        :local existing [/ip firewall address-list find list=$targetList address=$net]\n        :if ([:len $existing] = 0) do={\n            /ip firewall address-list add list=$targetList address=$net timeout=30d comment=\"blizzard-range\"\n        }\n    } on-error={}\n}\n:log info \"blizzard-update: completed\""
+        },
+        {
+          ".id": "*33",
+          ".nextid": "*38",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "last-started": "2026-06-25 08:23:26",
+          "name": "steam-update",
+          "owner": "admin",
+          "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+          "run-count": "253",
+          "source": "# Refresh steam-games address list for Steam / Valve game traffic\n\n:local targetList \"steam-games\"\n:local old [/ip firewall address-list find list=$targetList]\n:if ([:len $old] > 0) do={\n    /ip firewall address-list remove $old\n}\n\n# Dynamic Steam core domains. Some parent domains may not resolve directly at every run.\n:foreach d in={\"steamserver.net\";\"steamcontent.com\";\"steam-chat.com\";\"steamconnection.com\"} do={\n    :do {\n        :local resolved [:resolve $d]\n        :if ([:len $resolved] > 0) do={\n            :local existing [/ip firewall address-list find list=$targetList address=$resolved]\n            :if ([:len $existing] = 0) do={\n                /ip firewall address-list add list=$targetList address=$resolved timeout=12h comment=(\"dyn-\" . $d)\n            }\n        }\n    } on-error={}\n}\n\n# Copy existing Valve Network ranges into steam-games for QoS\n:foreach r in=[/ip firewall address-list find list=\"Valve Network\"] do={\n    :do {\n        :local addr [/ip firewall address-list get $r address]\n        :local existing [/ip firewall address-list find list=$targetList address=$addr]\n        :if ([:len $existing] = 0) do={\n            /ip firewall address-list add list=$targetList address=$addr timeout=30d comment=\"valve-range\"\n        }\n    } on-error={}\n}\n:log info \"steam-update: completed\""
+        },
+        {
+          ".id": "*38",
+          ".nextid": "*3B",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "name": "script1",
+          "owner": "admin",
+          "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+          "run-count": "0",
+          "source": ":foreach i in=[1,2,3] do={\n    :if ($i = 2) do={\n        :continue\n    }\n    :put (\"i=\" . $i)\n}\n"
+        },
+        {
+          ".id": "*3B",
+          ".nextid": "*3C",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "last-started": "2026-06-25 00:49:30",
+          "name": "Disable-Spectrum",
+          "owner": "admin",
+          "policy": "read,write,test",
+          "run-count": "7",
+          "source": "\n/ip route disable [find comment=\"Spectrum\"]\n"
+        },
+        {
+          ".id": "*3C",
+          ".nextid": "*3D",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "last-started": "2026-06-25 00:49:32",
+          "name": "Enable-Spectrum",
+          "owner": "admin",
+          "policy": "read,write,test",
+          "run-count": "7",
+          "source": "\n:delay 5s\n/ip route enable [find comment=\"Spectrum\"]\n"
+        },
+        {
+          ".id": "*3D",
+          ".nextid": "*3E",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "name": "Disable-ATT",
+          "owner": "admin",
+          "policy": "read,write,test",
+          "run-count": "0",
+          "source": "\n/ip route disable [find comment=\"ATT\"]\n/ip route disable [find comment=\"Force ATT_OUT to ATT WAN\"]\n"
+        },
+        {
+          ".id": "*3E",
+          ".nextid": "*59",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "name": "Enable-ATT",
+          "owner": "admin",
+          "policy": "read,write,test",
+          "run-count": "0",
+          "source": "\n:delay 5s\n/ip route enable [find comment=\"ATT\"]\n/ip route enable [find comment=\"Force ATT_OUT to ATT WAN\"]\n"
+        },
+        {
+          ".id": "*59",
+          ".nextid": "*5B",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "last-started": "2026-06-25 12:57:56",
+          "name": "game-qos-engine",
+          "owner": "ai-operator",
+          "policy": "read,write,test",
+          "run-count": "359684",
+          "source": ":local gamerList   \"GAMER-DEVICES\"\n:local learnList   \"auto-games\"\n:local promoteList \"auto-games-promoted\"\n\n:local learnTTL    \"30m\"\n:local promoteTTL  \"4w\"\n\n:local minPackets  400\n:local minBytes    1000000\n\n# Use print as-value snapshots instead of volatile item ids. Connection/address-list\n# items can disappear between find and get, which causes intermittent \"no such item\".\n# Guard snapshot acquisition too: RouterOS connection rows can churn during print as-value.\n:local gamers\n:local conns\n:do {\n    :set gamers [/ip firewall address-list print as-value where list=$gamerList]\n    :set conns [/ip firewall connection print as-value where protocol=udp]\n} on-error={\n    :return\n}\n\n# Guard per-row connection parsing so one incomplete/churned row does not abort the run.\n\n:foreach g in=$gamers do={\n    :do {\n        :local gamerIP [:tostr ($g->\"address\")]\n        :if ([:len $gamerIP] > 0) do={\n            :foreach c in=$conns do={\n                :do {\n                    :local srcFull [:tostr ($c->\"src-address\")]\n                    :if ([:find $srcFull ($gamerIP . \":\")] = 0) do={\n                        :local dstFull [:tostr ($c->\"dst-address\")]\n                        :local colonPos [:find $dstFull \":\"]\n                        :local dst $dstFull\n                        :if ($colonPos != nil) do={\n                            :set dst [:pick $dstFull 0 $colonPos]\n                        }\n\n                        :local dptText [:tostr ($c->\"dst-port\")]\n                        :if ([:pick [:tostr $dst] 0 3] != \"10.\") do={\n                            :if (([:len $dptText] > 0) && ([:find $dptText \"-\"] = nil)) do={\n                                :local dptNum [:tonum $dptText]\n                                :if ($dptNum >= 1024) do={\n                                    :local p [:tonum [:tostr ($c->\"orig-packets\")]]\n                                    :local b [:tonum [:tostr ($c->\"orig-bytes\")]]\n\n                                    :if (($p >= $minPackets) && ($b >= $minBytes)) do={\n                                        :do {\n                                            :local existingLearn [/ip firewall address-list find list=$learnList address=$dst]\n                                            :if ([:len $existingLearn] = 0) do={\n                                                /ip firewall address-list add list=$learnList address=$dst timeout=$learnTTL comment=\"auto-game-detect\"\n                                            }\n                                        } on-error={}\n\n                                        :local udpHits 0\n                                        :foreach c2 in=$conns do={\n                                            :do {\n                                                :local dst2Full [:tostr ($c2->\"dst-address\")]\n                                                :local dst2Colon [:find $dst2Full \":\"]\n                                                :local dst2 $dst2Full\n                                                :if ($dst2Colon != nil) do={\n                                                    :set dst2 [:pick $dst2Full 0 $dst2Colon]\n                                                }\n                                                :if ($dst2 = $dst) do={\n                                                    :set udpHits ($udpHits + 1)\n                                                }\n                                            } on-error={}\n                                        }\n\n                                        :if ($udpHits >= 2) do={\n                                            :do {\n                                                :local existingPromote [/ip firewall address-list find list=$promoteList address=$dst]\n                                                :if ([:len $existingPromote] = 0) do={\n                                                    /ip firewall address-list add list=$promoteList address=$dst timeout=$promoteTTL comment=\"promoted-game-server\"\n                                                }\n                                            } on-error={}\n                                        }\n                                    }\n                                }\n                            }\n                        }\n                    }\n                } on-error={}\n            }\n        }\n    } on-error={}\n}\n"
+        },
+        {
+          ".id": "*5B",
+          "dont-require-permissions": "false",
+          "invalid": "false",
+          "name": "test-valid",
+          "owner": "admin",
+          "policy": "ftp,reboot,read,write,policy,test,password,sniff,sensitive,romon",
+          "run-count": "0",
+          "source": ":log info \"test\""
+        }
+      ],
+      "entries_count": 20
+    }
+  },
+  "divergences": [
+    {
+      "class": "cross-check",
+      "direct_routeros": 0,
+      "field": "netwatch.route_mutating_active_count",
+      "ownership_inspection": 4
+    }
+  ],
+  "generated_at": "2026-06-25T17:57:56.253641+00:00",
+  "health_url": "http://127.0.0.1:9102/health",
+  "interval_sec": 60,
+  "mutation_token_hits": [],
+  "samples": [
+    {
+      "error": null,
+      "gate_blocker": null,
+      "gate_ok": true,
+      "ownership_inspection": {
+        "configured_owner": "netwatch",
+        "inspector_error": null,
+        "inspector_status": "ok",
+        "last_inspected_at": "2026-06-25T17:46:38.269552+00:00",
+        "match": true,
+        "netwatch": {
+          "entries_count": 3,
+          "route_mutating_active_count": 4
+        },
+        "observed_owner": "netwatch",
+        "routes": {
+          "default_routes": [
+            {
+              "comment": "ATT",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "192.168.2.254"
+            },
+            {
+              "comment": "Spectrum",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "70.123.224.1"
+            },
+            {
+              "comment": "Force ATT_OUT to ATT WAN",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "99.126.112.1"
+            },
+            {
+              "comment": "Backup to Spectrum if ATT fails",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "70.123.224.1"
+            }
+          ],
+          "total_route_count": 17
+        }
+      },
+      "route_management": {
+        "active_allowed": false,
+        "active_owner": "netwatch",
+        "blocked_reason": "ownership guard does not allow active route management",
+        "circuit_breaker": {
+          "failure_count": 0,
+          "last_error": null,
+          "open": false
+        },
+        "enabled": true,
+        "guard": {
+          "active_allowed": false,
+          "blocked_reason": "4 route-mutating Netwatch/script conflict(s)",
+          "conflict_count": 4,
+          "status": "conflict"
+        },
+        "last_applied_action": null,
+        "last_event": null,
+        "last_intended_action": null,
+        "mode": "dry_run",
+        "reconciliation": {
+          "checked_at": 1782351707.0526807,
+          "error": null,
+          "route_count": 3,
+          "status": "ok"
+        },
+        "rollback_ready": true
+      },
+      "sampled_at": "2026-06-25T17:46:56.124108+00:00"
+    },
+    {
+      "error": null,
+      "gate_blocker": null,
+      "gate_ok": true,
+      "ownership_inspection": {
+        "configured_owner": "netwatch",
+        "inspector_error": null,
+        "inspector_status": "ok",
+        "last_inspected_at": "2026-06-25T17:47:38.357833+00:00",
+        "match": true,
+        "netwatch": {
+          "entries_count": 3,
+          "route_mutating_active_count": 4
+        },
+        "observed_owner": "netwatch",
+        "routes": {
+          "default_routes": [
+            {
+              "comment": "ATT",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "192.168.2.254"
+            },
+            {
+              "comment": "Spectrum",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "70.123.224.1"
+            },
+            {
+              "comment": "Force ATT_OUT to ATT WAN",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "99.126.112.1"
+            },
+            {
+              "comment": "Backup to Spectrum if ATT fails",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "70.123.224.1"
+            }
+          ],
+          "total_route_count": 17
+        }
+      },
+      "route_management": {
+        "active_allowed": false,
+        "active_owner": "netwatch",
+        "blocked_reason": "ownership guard does not allow active route management",
+        "circuit_breaker": {
+          "failure_count": 0,
+          "last_error": null,
+          "open": false
+        },
+        "enabled": true,
+        "guard": {
+          "active_allowed": false,
+          "blocked_reason": "4 route-mutating Netwatch/script conflict(s)",
+          "conflict_count": 4,
+          "status": "conflict"
+        },
+        "last_applied_action": null,
+        "last_event": null,
+        "last_intended_action": null,
+        "mode": "dry_run",
+        "reconciliation": {
+          "checked_at": 1782351707.0526807,
+          "error": null,
+          "route_count": 3,
+          "status": "ok"
+        },
+        "rollback_ready": true
+      },
+      "sampled_at": "2026-06-25T17:47:56.127211+00:00"
+    },
+    {
+      "error": null,
+      "gate_blocker": null,
+      "gate_ok": true,
+      "ownership_inspection": {
+        "configured_owner": "netwatch",
+        "inspector_error": null,
+        "inspector_status": "ok",
+        "last_inspected_at": "2026-06-25T17:48:38.445351+00:00",
+        "match": true,
+        "netwatch": {
+          "entries_count": 3,
+          "route_mutating_active_count": 4
+        },
+        "observed_owner": "netwatch",
+        "routes": {
+          "default_routes": [
+            {
+              "comment": "ATT",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "192.168.2.254"
+            },
+            {
+              "comment": "Spectrum",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "70.123.224.1"
+            },
+            {
+              "comment": "Force ATT_OUT to ATT WAN",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "99.126.112.1"
+            },
+            {
+              "comment": "Backup to Spectrum if ATT fails",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "70.123.224.1"
+            }
+          ],
+          "total_route_count": 17
+        }
+      },
+      "route_management": {
+        "active_allowed": false,
+        "active_owner": "netwatch",
+        "blocked_reason": "ownership guard does not allow active route management",
+        "circuit_breaker": {
+          "failure_count": 0,
+          "last_error": null,
+          "open": false
+        },
+        "enabled": true,
+        "guard": {
+          "active_allowed": false,
+          "blocked_reason": "4 route-mutating Netwatch/script conflict(s)",
+          "conflict_count": 4,
+          "status": "conflict"
+        },
+        "last_applied_action": null,
+        "last_event": null,
+        "last_intended_action": null,
+        "mode": "dry_run",
+        "reconciliation": {
+          "checked_at": 1782351707.0526807,
+          "error": null,
+          "route_count": 3,
+          "status": "ok"
+        },
+        "rollback_ready": true
+      },
+      "sampled_at": "2026-06-25T17:48:56.130073+00:00"
+    },
+    {
+      "error": null,
+      "gate_blocker": null,
+      "gate_ok": true,
+      "ownership_inspection": {
+        "configured_owner": "netwatch",
+        "inspector_error": null,
+        "inspector_status": "ok",
+        "last_inspected_at": "2026-06-25T17:49:38.533619+00:00",
+        "match": true,
+        "netwatch": {
+          "entries_count": 3,
+          "route_mutating_active_count": 4
+        },
+        "observed_owner": "netwatch",
+        "routes": {
+          "default_routes": [
+            {
+              "comment": "ATT",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "192.168.2.254"
+            },
+            {
+              "comment": "Spectrum",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "70.123.224.1"
+            },
+            {
+              "comment": "Force ATT_OUT to ATT WAN",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "99.126.112.1"
+            },
+            {
+              "comment": "Backup to Spectrum if ATT fails",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "70.123.224.1"
+            }
+          ],
+          "total_route_count": 17
+        }
+      },
+      "route_management": {
+        "active_allowed": false,
+        "active_owner": "netwatch",
+        "blocked_reason": "ownership guard does not allow active route management",
+        "circuit_breaker": {
+          "failure_count": 0,
+          "last_error": null,
+          "open": false
+        },
+        "enabled": true,
+        "guard": {
+          "active_allowed": false,
+          "blocked_reason": "4 route-mutating Netwatch/script conflict(s)",
+          "conflict_count": 4,
+          "status": "conflict"
+        },
+        "last_applied_action": null,
+        "last_event": null,
+        "last_intended_action": null,
+        "mode": "dry_run",
+        "reconciliation": {
+          "checked_at": 1782351707.0526807,
+          "error": null,
+          "route_count": 3,
+          "status": "ok"
+        },
+        "rollback_ready": true
+      },
+      "sampled_at": "2026-06-25T17:49:56.132718+00:00"
+    },
+    {
+      "error": null,
+      "gate_blocker": null,
+      "gate_ok": true,
+      "ownership_inspection": {
+        "configured_owner": "netwatch",
+        "inspector_error": null,
+        "inspector_status": "ok",
+        "last_inspected_at": "2026-06-25T17:50:38.623842+00:00",
+        "match": true,
+        "netwatch": {
+          "entries_count": 3,
+          "route_mutating_active_count": 4
+        },
+        "observed_owner": "netwatch",
+        "routes": {
+          "default_routes": [
+            {
+              "comment": "ATT",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "192.168.2.254"
+            },
+            {
+              "comment": "Spectrum",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "70.123.224.1"
+            },
+            {
+              "comment": "Force ATT_OUT to ATT WAN",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "99.126.112.1"
+            },
+            {
+              "comment": "Backup to Spectrum if ATT fails",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "70.123.224.1"
+            }
+          ],
+          "total_route_count": 17
+        }
+      },
+      "route_management": {
+        "active_allowed": false,
+        "active_owner": "netwatch",
+        "blocked_reason": "ownership guard does not allow active route management",
+        "circuit_breaker": {
+          "failure_count": 0,
+          "last_error": null,
+          "open": false
+        },
+        "enabled": true,
+        "guard": {
+          "active_allowed": false,
+          "blocked_reason": "4 route-mutating Netwatch/script conflict(s)",
+          "conflict_count": 4,
+          "status": "conflict"
+        },
+        "last_applied_action": null,
+        "last_event": null,
+        "last_intended_action": null,
+        "mode": "dry_run",
+        "reconciliation": {
+          "checked_at": 1782351707.0526807,
+          "error": null,
+          "route_count": 3,
+          "status": "ok"
+        },
+        "rollback_ready": true
+      },
+      "sampled_at": "2026-06-25T17:50:56.135385+00:00"
+    },
+    {
+      "error": null,
+      "gate_blocker": null,
+      "gate_ok": true,
+      "ownership_inspection": {
+        "configured_owner": "netwatch",
+        "inspector_error": null,
+        "inspector_status": "ok",
+        "last_inspected_at": "2026-06-25T17:51:38.725934+00:00",
+        "match": true,
+        "netwatch": {
+          "entries_count": 3,
+          "route_mutating_active_count": 4
+        },
+        "observed_owner": "netwatch",
+        "routes": {
+          "default_routes": [
+            {
+              "comment": "ATT",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "192.168.2.254"
+            },
+            {
+              "comment": "Spectrum",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "70.123.224.1"
+            },
+            {
+              "comment": "Force ATT_OUT to ATT WAN",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "99.126.112.1"
+            },
+            {
+              "comment": "Backup to Spectrum if ATT fails",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "70.123.224.1"
+            }
+          ],
+          "total_route_count": 17
+        }
+      },
+      "route_management": {
+        "active_allowed": false,
+        "active_owner": "netwatch",
+        "blocked_reason": "ownership guard does not allow active route management",
+        "circuit_breaker": {
+          "failure_count": 0,
+          "last_error": null,
+          "open": false
+        },
+        "enabled": true,
+        "guard": {
+          "active_allowed": false,
+          "blocked_reason": "4 route-mutating Netwatch/script conflict(s)",
+          "conflict_count": 4,
+          "status": "conflict"
+        },
+        "last_applied_action": null,
+        "last_event": null,
+        "last_intended_action": null,
+        "mode": "dry_run",
+        "reconciliation": {
+          "checked_at": 1782351707.0526807,
+          "error": null,
+          "route_count": 3,
+          "status": "ok"
+        },
+        "rollback_ready": true
+      },
+      "sampled_at": "2026-06-25T17:51:56.138184+00:00"
+    },
+    {
+      "error": null,
+      "gate_blocker": null,
+      "gate_ok": true,
+      "ownership_inspection": {
+        "configured_owner": "netwatch",
+        "inspector_error": null,
+        "inspector_status": "ok",
+        "last_inspected_at": "2026-06-25T17:52:38.835695+00:00",
+        "match": true,
+        "netwatch": {
+          "entries_count": 3,
+          "route_mutating_active_count": 4
+        },
+        "observed_owner": "netwatch",
+        "routes": {
+          "default_routes": [
+            {
+              "comment": "ATT",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "192.168.2.254"
+            },
+            {
+              "comment": "Spectrum",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "70.123.224.1"
+            },
+            {
+              "comment": "Force ATT_OUT to ATT WAN",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "99.126.112.1"
+            },
+            {
+              "comment": "Backup to Spectrum if ATT fails",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "70.123.224.1"
+            }
+          ],
+          "total_route_count": 17
+        }
+      },
+      "route_management": {
+        "active_allowed": false,
+        "active_owner": "netwatch",
+        "blocked_reason": "ownership guard does not allow active route management",
+        "circuit_breaker": {
+          "failure_count": 0,
+          "last_error": null,
+          "open": false
+        },
+        "enabled": true,
+        "guard": {
+          "active_allowed": false,
+          "blocked_reason": "4 route-mutating Netwatch/script conflict(s)",
+          "conflict_count": 4,
+          "status": "conflict"
+        },
+        "last_applied_action": null,
+        "last_event": null,
+        "last_intended_action": null,
+        "mode": "dry_run",
+        "reconciliation": {
+          "checked_at": 1782351707.0526807,
+          "error": null,
+          "route_count": 3,
+          "status": "ok"
+        },
+        "rollback_ready": true
+      },
+      "sampled_at": "2026-06-25T17:52:56.140749+00:00"
+    },
+    {
+      "error": null,
+      "gate_blocker": null,
+      "gate_ok": true,
+      "ownership_inspection": {
+        "configured_owner": "netwatch",
+        "inspector_error": null,
+        "inspector_status": "ok",
+        "last_inspected_at": "2026-06-25T17:53:38.922544+00:00",
+        "match": true,
+        "netwatch": {
+          "entries_count": 3,
+          "route_mutating_active_count": 4
+        },
+        "observed_owner": "netwatch",
+        "routes": {
+          "default_routes": [
+            {
+              "comment": "ATT",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "192.168.2.254"
+            },
+            {
+              "comment": "Spectrum",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "70.123.224.1"
+            },
+            {
+              "comment": "Force ATT_OUT to ATT WAN",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "99.126.112.1"
+            },
+            {
+              "comment": "Backup to Spectrum if ATT fails",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "70.123.224.1"
+            }
+          ],
+          "total_route_count": 17
+        }
+      },
+      "route_management": {
+        "active_allowed": false,
+        "active_owner": "netwatch",
+        "blocked_reason": "ownership guard does not allow active route management",
+        "circuit_breaker": {
+          "failure_count": 0,
+          "last_error": null,
+          "open": false
+        },
+        "enabled": true,
+        "guard": {
+          "active_allowed": false,
+          "blocked_reason": "4 route-mutating Netwatch/script conflict(s)",
+          "conflict_count": 4,
+          "status": "conflict"
+        },
+        "last_applied_action": null,
+        "last_event": null,
+        "last_intended_action": null,
+        "mode": "dry_run",
+        "reconciliation": {
+          "checked_at": 1782351707.0526807,
+          "error": null,
+          "route_count": 3,
+          "status": "ok"
+        },
+        "rollback_ready": true
+      },
+      "sampled_at": "2026-06-25T17:53:56.143497+00:00"
+    },
+    {
+      "error": null,
+      "gate_blocker": null,
+      "gate_ok": true,
+      "ownership_inspection": {
+        "configured_owner": "netwatch",
+        "inspector_error": null,
+        "inspector_status": "ok",
+        "last_inspected_at": "2026-06-25T17:54:39.263446+00:00",
+        "match": true,
+        "netwatch": {
+          "entries_count": 3,
+          "route_mutating_active_count": 4
+        },
+        "observed_owner": "netwatch",
+        "routes": {
+          "default_routes": [
+            {
+              "comment": "ATT",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "192.168.2.254"
+            },
+            {
+              "comment": "Spectrum",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "70.123.224.1"
+            },
+            {
+              "comment": "Force ATT_OUT to ATT WAN",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "99.126.112.1"
+            },
+            {
+              "comment": "Backup to Spectrum if ATT fails",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "70.123.224.1"
+            }
+          ],
+          "total_route_count": 17
+        }
+      },
+      "route_management": {
+        "active_allowed": false,
+        "active_owner": "netwatch",
+        "blocked_reason": "ownership guard does not allow active route management",
+        "circuit_breaker": {
+          "failure_count": 0,
+          "last_error": null,
+          "open": false
+        },
+        "enabled": true,
+        "guard": {
+          "active_allowed": false,
+          "blocked_reason": "4 route-mutating Netwatch/script conflict(s)",
+          "conflict_count": 4,
+          "status": "conflict"
+        },
+        "last_applied_action": null,
+        "last_event": null,
+        "last_intended_action": null,
+        "mode": "dry_run",
+        "reconciliation": {
+          "checked_at": 1782351707.0526807,
+          "error": null,
+          "route_count": 3,
+          "status": "ok"
+        },
+        "rollback_ready": true
+      },
+      "sampled_at": "2026-06-25T17:54:56.146321+00:00"
+    },
+    {
+      "error": null,
+      "gate_blocker": null,
+      "gate_ok": true,
+      "ownership_inspection": {
+        "configured_owner": "netwatch",
+        "inspector_error": null,
+        "inspector_status": "ok",
+        "last_inspected_at": "2026-06-25T17:55:39.356789+00:00",
+        "match": true,
+        "netwatch": {
+          "entries_count": 3,
+          "route_mutating_active_count": 4
+        },
+        "observed_owner": "netwatch",
+        "routes": {
+          "default_routes": [
+            {
+              "comment": "ATT",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "192.168.2.254"
+            },
+            {
+              "comment": "Spectrum",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "70.123.224.1"
+            },
+            {
+              "comment": "Force ATT_OUT to ATT WAN",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "99.126.112.1"
+            },
+            {
+              "comment": "Backup to Spectrum if ATT fails",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "70.123.224.1"
+            }
+          ],
+          "total_route_count": 17
+        }
+      },
+      "route_management": {
+        "active_allowed": false,
+        "active_owner": "netwatch",
+        "blocked_reason": "ownership guard does not allow active route management",
+        "circuit_breaker": {
+          "failure_count": 0,
+          "last_error": null,
+          "open": false
+        },
+        "enabled": true,
+        "guard": {
+          "active_allowed": false,
+          "blocked_reason": "4 route-mutating Netwatch/script conflict(s)",
+          "conflict_count": 4,
+          "status": "conflict"
+        },
+        "last_applied_action": null,
+        "last_event": null,
+        "last_intended_action": null,
+        "mode": "dry_run",
+        "reconciliation": {
+          "checked_at": 1782351707.0526807,
+          "error": null,
+          "route_count": 3,
+          "status": "ok"
+        },
+        "rollback_ready": true
+      },
+      "sampled_at": "2026-06-25T17:55:56.149188+00:00"
+    },
+    {
+      "error": null,
+      "gate_blocker": null,
+      "gate_ok": true,
+      "ownership_inspection": {
+        "configured_owner": "netwatch",
+        "inspector_error": null,
+        "inspector_status": "ok",
+        "last_inspected_at": "2026-06-25T17:56:39.445186+00:00",
+        "match": true,
+        "netwatch": {
+          "entries_count": 3,
+          "route_mutating_active_count": 4
+        },
+        "observed_owner": "netwatch",
+        "routes": {
+          "default_routes": [
+            {
+              "comment": "ATT",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "192.168.2.254"
+            },
+            {
+              "comment": "Spectrum",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "70.123.224.1"
+            },
+            {
+              "comment": "Force ATT_OUT to ATT WAN",
+              "disabled": false,
+              "distance": 1,
+              "gateway": "99.126.112.1"
+            },
+            {
+              "comment": "Backup to Spectrum if ATT fails",
+              "disabled": false,
+              "distance": 2,
+              "gateway": "70.123.224.1"
+            }
+          ],
+          "total_route_count": 17
+        }
+      },
+      "route_management": {
+        "active_allowed": false,
+        "active_owner": "netwatch",
+        "blocked_reason": "ownership guard does not allow active route management",
+        "circuit_breaker": {
+          "failure_count": 0,
+          "last_error": null,
+          "open": false
+        },
+        "enabled": true,
+        "guard": {
+          "active_allowed": false,
+          "blocked_reason": "4 route-mutating Netwatch/script conflict(s)",
+          "conflict_count": 4,
+          "status": "conflict"
+        },
+        "last_applied_action": null,
+        "last_event": null,
+        "last_intended_action": null,
+        "mode": "dry_run",
+        "reconciliation": {
+          "checked_at": 1782351707.0526807,
+          "error": null,
+          "route_count": 3,
+          "status": "ok"
+        },
+        "rollback_ready": true
+      },
+      "sampled_at": "2026-06-25T17:56:56.152167+00:00"
+    }
+  ],
+  "standing_intent_table": [
+    {
+      "active_owner": "netwatch",
+      "intent_anchor": "ATT",
+      "intent_distance": null,
+      "live_comment": "ATT",
+      "live_disabled": false,
+      "live_distance": 2,
+      "live_gateway": "192.168.2.254",
+      "match": true,
+      "mode": "dry_run",
+      "route_key": "att"
+    },
+    {
+      "active_owner": "netwatch",
+      "intent_anchor": "Force ATT_OUT to ATT WAN",
+      "intent_distance": null,
+      "live_comment": "Force ATT_OUT to ATT WAN",
+      "live_disabled": false,
+      "live_distance": 1,
+      "live_gateway": "99.126.112.1",
+      "match": true,
+      "mode": "dry_run",
+      "route_key": "att_policy"
+    },
+    {
+      "active_owner": "netwatch",
+      "intent_anchor": "Spectrum",
+      "intent_distance": null,
+      "live_comment": "Spectrum",
+      "live_disabled": false,
+      "live_distance": 1,
+      "live_gateway": "70.123.224.1",
+      "match": true,
+      "mode": "dry_run",
+      "route_key": "spectrum"
+    }
+  ],
+  "verdict": "not-ready",
+  "window_sec": 636
+}
