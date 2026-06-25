@@ -107,7 +107,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 260-01-PLAN.md — Reusable read-only observation harness (multi-sample window, validate-before-run gate, D-04 cross-check, D-05 standing-intent table, D-07 divergence union, 257-shaped packet renderer) + validated command file (OBSERVE-01/02/03, SAFE-21)
+- [x] 260-01-PLAN.md — Reusable read-only observation harness (multi-sample window, validate-before-run gate, D-04 cross-check, D-05 standing-intent table, D-07 divergence union, 257-shaped packet renderer) + validated command file (OBSERVE-01/02/03, SAFE-21)
 
 **Wave 2** *(blocked on 260-01)*
 
@@ -127,7 +127,7 @@ SAFE-21 is a cross-cutting safety invariant, not a standalone phase. Every phase
 |-------|----------------|--------|-----------|
 | 258. Read-Only RouterOS Access Repair | 3/3 | Complete | 2026-06-20 |
 | 259. Read-Only Netwatch + Route-Ownership Inspection | 2/2 | Complete   | 2026-06-25 |
-| 260. Dry-Run Observation Rerun + Canary Readiness | 0/3 | Planned | - |
+| 260. Dry-Run Observation Rerun + Canary Readiness | 1/3 | In Progress|  |
 
 ---
 

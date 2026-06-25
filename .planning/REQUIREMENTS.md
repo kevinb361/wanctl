@@ -26,9 +26,9 @@
 
 ### OBSERVE — Dry-run observation rerun + readiness
 
-- [ ] **OBSERVE-01**: Rerun the bounded read-only/dry-run observation v1.56 blocked, now with live RouterOS inspection succeeding — compute intended wanctl route decisions without RouterOS route mutation.
-- [ ] **OBSERVE-02**: Compare intended wanctl route decisions against live Netwatch/default-route state and record divergences as evidence, not automatic mutations.
-- [ ] **OBSERVE-03**: Produce a canary-readiness decision packet with an explicit `ready-for-approval` or `not-ready` verdict, including blockers, evidence, and rollback readiness.
+- [x] **OBSERVE-01**: Rerun the bounded read-only/dry-run observation v1.56 blocked, now with live RouterOS inspection succeeding — compute intended wanctl route decisions without RouterOS route mutation.
+- [x] **OBSERVE-02**: Compare intended wanctl route decisions against live Netwatch/default-route state and record divergences as evidence, not automatic mutations.
+- [x] **OBSERVE-03**: Produce a canary-readiness decision packet with an explicit `ready-for-approval` or `not-ready` verdict, including blockers, evidence, and rollback readiness.
 
 ### SAFE
 
@@ -60,7 +60,7 @@
 | INSPECT-01 | Phase 259 | Complete |
 | INSPECT-02 | Phase 259 | Complete |
 | INSPECT-03 | Phase 259 | Complete |
-| OBSERVE-01 | Phase 260 | pending |
-| OBSERVE-02 | Phase 260 | pending |
-| OBSERVE-03 | Phase 260 | pending |
+| OBSERVE-01 | Phase 260 | Complete |
+| OBSERVE-02 | Phase 260 | Complete |
+| OBSERVE-03 | Phase 260 | Complete |
 | SAFE-21 | all phases (258, 259, 260) | Complete |
