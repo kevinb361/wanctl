@@ -95,6 +95,7 @@ from .health import (
 from .route_decision import RouteDecisionPolicy, RouteDecisionState
 from .route_manager import RouteManager
 from .route_ownership_guard import RouteOwnershipGuard
+from .route_ownership_inspector import RouteOwnershipInspector
 from .steering_confidence import (
     ConfidenceController,
     ConfidenceSignals,
@@ -1183,6 +1184,13 @@ class SteeringDaemon:
         self._init_wan_awareness()
         self._init_rtt_source_observability()
         self._init_route_management()
+        self.ownership_inspector = RouteOwnershipInspector(
+            router_client=self.router.client,
+            route_manager=self.route_manager,
+            interval_sec=60.0,
+            logger=self.logger,
+        )
+        self.ownership_inspector.start()
 
         # STEER-01: Track which legacy state names have already been warned about
         # to avoid log flooding at 20Hz cycle rate (log-once per name per lifetime)
@@ -1521,6 +1529,7 @@ class SteeringDaemon:
             },
             "wan_awareness": wan_awareness,
             "route_management": self.route_manager.status_snapshot(),
+            "ownership_inspection": self.ownership_inspector.snapshot(),
             "runtime": {
                 "process": "steering",
                 "rss_bytes": rss_bytes,
@@ -2822,7 +2831,18 @@ def _cleanup_steering_daemon(
             now=time.monotonic(),
         )
 
-    # 2. Close router connection
+    # 2. Stop ownership inspector before closing router connection
+    t0 = time.monotonic()
+    try:
+        daemon.ownership_inspector.stop()
+        logger.debug("Ownership inspector stopped")
+    except Exception as e:
+        logger.warning(f"Error stopping ownership inspector: {e}")
+    check_cleanup_deadline(
+        "ownership_inspector", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
+    )
+
+    # 3. Close router connection
     t0 = time.monotonic()
     try:
         daemon.router.client.close()
@@ -2833,7 +2853,7 @@ def _cleanup_steering_daemon(
         "router_close", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
     )
 
-    # 3. Close MetricsWriter (SQLite connection)
+    # 4. Close MetricsWriter (SQLite connection)
     t0 = time.monotonic()
     try:
         mw = MetricsWriter.get_instance()
@@ -2846,7 +2866,7 @@ def _cleanup_steering_daemon(
         "metrics_writer", t0, deadline, SHUTDOWN_TIMEOUT_SECONDS, logger, now=time.monotonic()
     )
 
-    # 4. Release lock file
+    # 5. Release lock file
     if config.lock_file.exists():
         config.lock_file.unlink()
         logger.debug(f"Lock released: {config.lock_file}")
