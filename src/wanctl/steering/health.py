@@ -193,6 +193,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         health["rtt_source"] = self._build_rtt_source_section(health_data)
         health["wan_awareness"] = self._build_wan_awareness_section(health_data)
         health["route_management"] = self._build_route_management_section(health_data)
+        health["ownership_inspection"] = self._build_ownership_inspection_section(health_data)
         health["storage"] = self._build_storage_section(health_data)
         health["runtime"] = self._build_runtime_section(health_data, health.get("cycle_budget"))
         self._add_alerting_section(health)
@@ -387,6 +388,33 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             "last_applied_action": route_management.get("last_applied_action"),
             "rollback_ready": bool(route_management.get("rollback_ready", False)),
             "last_event": route_management.get("last_event"),
+        }
+
+    def _build_ownership_inspection_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
+        """Build read-only RouterOS route ownership inspection section."""
+        raw = health_data.get("ownership_inspection")
+        ownership: dict[str, Any] = raw if isinstance(raw, dict) else {}
+        netwatch_raw = ownership.get("netwatch")
+        netwatch = netwatch_raw if isinstance(netwatch_raw, dict) else {}
+        routes_raw = ownership.get("routes")
+        routes = routes_raw if isinstance(routes_raw, dict) else {}
+        return {
+            "observed_owner": str(ownership.get("observed_owner", "unknown")),
+            "configured_owner": str(ownership.get("configured_owner", "unknown")),
+            "match": bool(ownership.get("match", False)),
+            "inspector_status": str(ownership.get("inspector_status", "unknown")),
+            "inspector_error": ownership.get("inspector_error"),
+            "last_inspected_at": ownership.get("last_inspected_at"),
+            "netwatch": {
+                "entries_count": int(netwatch.get("entries_count", 0) or 0),
+                "route_mutating_active_count": int(
+                    netwatch.get("route_mutating_active_count", 0) or 0
+                ),
+            },
+            "routes": {
+                "total_route_count": int(routes.get("total_route_count", 0) or 0),
+                "default_routes": list(routes.get("default_routes", []) or []),
+            },
         }
 
     def _build_rtt_source_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
