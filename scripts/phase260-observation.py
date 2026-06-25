@@ -114,11 +114,11 @@ def sample_health(url: str = DEFAULT_HEALTH_URL) -> dict[str, Any]:
         with urllib.request.urlopen(url, timeout=5) as response:
             payload = json.loads(response.read().decode())
         if not isinstance(payload, dict):
-            raise ValueError("health payload is not an object")
+            raise TypeError("health payload is not an object")
         ownership = payload.get("ownership_inspection")
         route_management = payload.get("route_management")
         if not isinstance(ownership, dict):
-            raise ValueError("missing ownership_inspection object")
+            raise TypeError("missing ownership_inspection object")
         if not isinstance(route_management, dict):
             route_management = {}
         return {
