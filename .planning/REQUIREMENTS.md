@@ -14,15 +14,15 @@
 
 ### ACCESS — Validated read-only RouterOS access from cake-shaper
 
-- [ ] **ACCESS-01**: Diagnose root cause of the inaccessible RouterOS inspection credential (`/etc/wanctl/ssh/router.key`) on `cake-shaper` — presence, path, ownership, permissions, and the service user that must read it — and document the root cause.
-- [ ] **ACCESS-02**: Repair or establish a *supported* read-only RouterOS access path from `cake-shaper`, proven by a live read-only RouterOS command (restored key with correct owner/perms, or a supported equivalent path).
-- [ ] **ACCESS-03**: The access path is least-privilege and read-only — the credential/method used for inspection cannot perform route mutation, Netwatch changes, or config writes (any write capability is explicitly out-of-band and separately gated).
+- [x] **ACCESS-01**: Diagnose root cause of the inaccessible RouterOS inspection credential (`/etc/wanctl/ssh/router.key`) on `cake-shaper` — presence, path, ownership, permissions, and the service user that must read it — and document the root cause.
+- [x] **ACCESS-02**: Repair or establish a *supported* read-only RouterOS access path from `cake-shaper`, proven by a live read-only RouterOS command (restored key with correct owner/perms, or a supported equivalent path).
+- [x] **ACCESS-03**: The access path is least-privilege and read-only — the credential/method used for inspection cannot perform route mutation, Netwatch changes, or config writes (any write capability is explicitly out-of-band and separately gated).
 
 ### INSPECT — Read-only RouterOS ownership inspection
 
-- [ ] **INSPECT-01**: wanctl reads live RouterOS Netwatch state from `cake-shaper` over the validated path and surfaces it as ownership-inspection evidence.
-- [ ] **INSPECT-02**: wanctl reads live default-route / route-ownership state from `cake-shaper` and attributes the current owner (Netwatch vs wanctl vs none).
-- [ ] **INSPECT-03**: Ownership-inspection output/health is attributed distinctly from cake-autorate bridge health (`:9101`) and steering route-management health (`:9102`), with no payload-shape regression to existing health contracts.
+- [x] **INSPECT-01**: wanctl reads live RouterOS Netwatch state from `cake-shaper` over the validated path and surfaces it as ownership-inspection evidence.
+- [x] **INSPECT-02**: wanctl reads live default-route / route-ownership state from `cake-shaper` and attributes the current owner (Netwatch vs wanctl vs none).
+- [x] **INSPECT-03**: Ownership-inspection output/health is attributed distinctly from cake-autorate bridge health (`:9101`) and steering route-management health (`:9102`), with no payload-shape regression to existing health contracts.
 
 ### OBSERVE — Dry-run observation rerun + readiness
 
@@ -32,7 +32,7 @@
 
 ### SAFE
 
-- [ ] **SAFE-21**: No live RouterOS route mutation, Netwatch disablement, CAKE/qdisc change, controller threshold retuning, or production default route-owner flip occurs during v1.57; any active-route canary remains a separate, explicit, reversible operator gate. (Inherits SAFE-20 intent.)
+- [x] **SAFE-21**: No live RouterOS route mutation, Netwatch disablement, CAKE/qdisc change, controller threshold retuning, or production default route-owner flip occurs during v1.57; any active-route canary remains a separate, explicit, reversible operator gate. (Inherits SAFE-20 intent.)
 
 ---
 
@@ -54,13 +54,13 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| ACCESS-01 | Phase 258 | pending |
-| ACCESS-02 | Phase 258 | pending |
-| ACCESS-03 | Phase 258 | pending |
-| INSPECT-01 | Phase 259 | pending |
-| INSPECT-02 | Phase 259 | pending |
-| INSPECT-03 | Phase 259 | pending |
+| ACCESS-01 | Phase 258 | Complete |
+| ACCESS-02 | Phase 258 | Complete |
+| ACCESS-03 | Phase 258 | Complete |
+| INSPECT-01 | Phase 259 | Complete |
+| INSPECT-02 | Phase 259 | Complete |
+| INSPECT-03 | Phase 259 | Complete |
 | OBSERVE-01 | Phase 260 | pending |
 | OBSERVE-02 | Phase 260 | pending |
 | OBSERVE-03 | Phase 260 | pending |
-| SAFE-21 | all phases (258, 259, 260) | pending |
+| SAFE-21 | all phases (258, 259, 260) | Complete |

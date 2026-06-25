@@ -88,7 +88,7 @@ Plans:
 **Plans**: 2 plans
 
 - [x] 259-01-PLAN.md — RouteOwnershipInspector: read-only Netwatch counts + observed_owner attribution + default-route projection (INSPECT-01, INSPECT-02, SAFE-21)
-- [ ] 259-02-PLAN.md — Wire ownership_inspection into :9102/health + daemon thread lifecycle + live INSPECT_PROOF_PASS harness (INSPECT-03, SAFE-21)
+- [x] 259-02-PLAN.md — Wire ownership_inspection into :9102/health + daemon thread lifecycle + live INSPECT_PROOF_PASS harness (INSPECT-03, SAFE-21)
 
 ### Phase 260: Dry-Run Observation Rerun + Canary Readiness
 
@@ -113,7 +113,7 @@ SAFE-21 is a cross-cutting safety invariant, not a standalone phase. Every phase
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 258. Read-Only RouterOS Access Repair | 3/3 | Complete | 2026-06-20 |
-| 259. Read-Only Netwatch + Route-Ownership Inspection | 1/2 | In Progress|  |
+| 259. Read-Only Netwatch + Route-Ownership Inspection | 2/2 | Complete   | 2026-06-25 |
 | 260. Dry-Run Observation Rerun + Canary Readiness | 0/TBD | Not started | - |
 
 ---
