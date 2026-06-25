@@ -126,6 +126,9 @@ max-complexity = 15  # Phase 145: all functions refactored below C901 threshold 
 "scripts/phase258-readonly-proof.py" = [
     "N999",    # Phase 258 plan requires a hyphenated standalone proof harness name
 ]
+"scripts/phase259-ownership-proof.py" = [
+    "N999",    # Phase 259 plan requires a hyphenated standalone proof harness name
+]
 "tests/*" = [
     "SIM102",  # collapsible-if in tests -- readability over compactness
     "N802",    # function name should be lowercase -- test names may include class/constant names
