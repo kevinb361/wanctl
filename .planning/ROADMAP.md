@@ -111,7 +111,7 @@ Plans:
 
 **Wave 2** *(blocked on 260-01)*
 
-- [ ] 260-02-PLAN.md — Offline test slice: mutation rejection before any live run_cmd, fail-closed on inspector error/match=false, happy-path ready-for-approval, mid-window blip forces not-ready (D-02), cross-check divergence (D-04/D-07) (OBSERVE-01/02/03, SAFE-21)
+- [x] 260-02-PLAN.md — Offline test slice: mutation rejection before any live run_cmd, fail-closed on inspector error/match=false, happy-path ready-for-approval, mid-window blip forces not-ready (D-02), cross-check divergence (D-04/D-07) (OBSERVE-01/02/03, SAFE-21)
 
 **Wave 3** *(operator-run live sample on cake-shaper; blocked on 260-01/02)*
 
@@ -127,7 +127,7 @@ SAFE-21 is a cross-cutting safety invariant, not a standalone phase. Every phase
 |-------|----------------|--------|-----------|
 | 258. Read-Only RouterOS Access Repair | 3/3 | Complete | 2026-06-20 |
 | 259. Read-Only Netwatch + Route-Ownership Inspection | 2/2 | Complete   | 2026-06-25 |
-| 260. Dry-Run Observation Rerun + Canary Readiness | 1/3 | In Progress|  |
+| 260. Dry-Run Observation Rerun + Canary Readiness | 2/3 | In Progress|  |
 
 ---
 
