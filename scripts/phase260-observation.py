@@ -28,6 +28,9 @@ from wanctl.readonly_validator import (  # noqa: E402
 from wanctl.router_client import get_router_client  # noqa: E402
 from wanctl.steering.daemon import SteeringConfig  # noqa: E402
 from wanctl.steering.route_manager import RouteManager  # noqa: E402
+from wanctl.steering.route_ownership_guard import (  # noqa: E402
+    detect_netwatch_route_conflicts,
+)
 from wanctl.steering.route_ownership_inspector import (  # noqa: E402
     ROUTE_PRINT,
     RouteOwnershipInspector,
@@ -93,7 +96,9 @@ def _json_list(out: str, label: str) -> list[dict[str, Any]]:
         raise RuntimeError(f"failed to parse RouterOS {label}: {exc}") from exc
     if isinstance(parsed, dict):
         parsed = [parsed]
-    if not isinstance(parsed, list) or not all(isinstance(item, dict) for item in parsed):
+    if not isinstance(parsed, list) or not all(
+        isinstance(item, dict) for item in parsed
+    ):
         raise RuntimeError(f"unexpected RouterOS {label} output shape")
     return parsed
 
@@ -136,7 +141,14 @@ def sample_health(url: str = DEFAULT_HEALTH_URL) -> dict[str, Any]:
             "route_management": route_management,
             "error": None,
         }
-    except (OSError, TimeoutError, TypeError, ValueError, json.JSONDecodeError, urllib.error.URLError) as exc:
+    except (
+        OSError,
+        TimeoutError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+        urllib.error.URLError,
+    ) as exc:
         return {
             "sampled_at": _utc_iso(),
             "ownership_inspection": {
@@ -162,20 +174,36 @@ def gate_sample(
     """Fail-closed D-01/D-02 gate for one sampled health payload."""
     status = ownership_inspection.get("inspector_status")
     if status != "ok":
-        return False, f"inspector_status={status!r} error={ownership_inspection.get('inspector_error')!r}"
+        return (
+            False,
+            f"inspector_status={status!r} error={ownership_inspection.get('inspector_error')!r}",
+        )
     if ownership_inspection.get("match") is not True:
-        return False, f"ownership match is not true: {ownership_inspection.get('match')!r}"
+        return (
+            False,
+            f"ownership match is not true: {ownership_inspection.get('match')!r}",
+        )
     last_inspected_at = ownership_inspection.get("last_inspected_at")
     if not isinstance(last_inspected_at, str) or not last_inspected_at:
         return False, "last_inspected_at is missing"
-    if prev_last_inspected_at is not None and last_inspected_at <= prev_last_inspected_at:
-        return False, f"last_inspected_at did not advance: {last_inspected_at} <= {prev_last_inspected_at}"
+    if (
+        prev_last_inspected_at is not None
+        and last_inspected_at <= prev_last_inspected_at
+    ):
+        return (
+            False,
+            f"last_inspected_at did not advance: {last_inspected_at} <= {prev_last_inspected_at}",
+        )
 
     guard = route_management.get("guard") if isinstance(route_management, dict) else {}
     if not isinstance(guard, dict):
         guard = {}
     guard_status = str(guard.get("status", "unknown"))
-    breaker = route_management.get("circuit_breaker") if isinstance(route_management, dict) else {}
+    breaker = (
+        route_management.get("circuit_breaker")
+        if isinstance(route_management, dict)
+        else {}
+    )
     if not isinstance(breaker, dict):
         breaker = {}
     if _boolish(breaker.get("open", False)):
@@ -212,8 +240,17 @@ def cross_check(client: RouterClientLike) -> dict[str, Any]:
 
     routes = raw.get("routes", [])
     netwatch = raw.get("netwatch", [])
-    default_routes = [_project_default_route(route) for route in routes if route.get("dst-address") == "0.0.0.0/0"]
-    route_mutating_active = [entry for entry in netwatch if _netwatch_mutates_route(entry)]
+    default_routes = [
+        _project_default_route(route)
+        for route in routes
+        if route.get("dst-address") == "0.0.0.0/0"
+    ]
+    # Reuse the live guard's detector so this D-04 cross-check and the daemon's
+    # ownership_inspection compute route_mutating_active_count identically — a
+    # divergence then means the two live reads disagreed, not the two algorithms.
+    route_mutating_active = detect_netwatch_route_conflicts(
+        netwatch, raw.get("scripts", [])
+    )
     return {
         "issued_commands": issued,
         "errors": errors,
@@ -222,21 +259,16 @@ def cross_check(client: RouterClientLike) -> dict[str, Any]:
             "route_mutating_active_count": len(route_mutating_active),
             "entries": netwatch,
         },
-        "scripts": {"entries_count": len(raw.get("scripts", [])), "entries": raw.get("scripts", [])},
+        "scripts": {
+            "entries_count": len(raw.get("scripts", [])),
+            "entries": raw.get("scripts", []),
+        },
         "routes": {
             "total_route_count": len(routes),
             "default_routes": default_routes,
             "entries": routes,
         },
     }
-
-
-def _netwatch_mutates_route(entry: dict[str, Any]) -> bool:
-    if _boolish(entry.get("disabled", False)):
-        return False
-    combined = " ".join(str(entry.get(key, "")) for key in ("up-script", "down-script", "test-script"))
-    lowered = f" {combined.lower()} "
-    return any(token in lowered for token in ("/ip route", "/ip/route", " ip route "))
 
 
 def _normalize_routes(routes: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -250,7 +282,11 @@ def _normalize_routes(routes: list[dict[str, Any]]) -> list[dict[str, Any]]:
             }
             for route in routes
         ],
-        key=lambda r: (str(r.get("comment")), str(r.get("gateway")), str(r.get("distance"))),
+        key=lambda r: (
+            str(r.get("comment")),
+            str(r.get("gateway")),
+            str(r.get("distance")),
+        ),
     )
 
 
@@ -259,7 +295,9 @@ def standing_intent_table(
 ) -> list[dict[str, Any]]:
     """Render D-05 standing intent vs live default-route rows without applying actions."""
     snapshot = route_manager.status_snapshot()
-    reconciliation = snapshot.get("reconciliation") if isinstance(snapshot, dict) else {}
+    reconciliation = (
+        snapshot.get("reconciliation") if isinstance(snapshot, dict) else {}
+    )
     route_count = None
     if isinstance(reconciliation, dict):
         route_count = reconciliation.get("route_count")
@@ -276,7 +314,11 @@ def standing_intent_table(
             route
             for route in live_routes
             if anchor_value
-            and (route.get("comment") == anchor_value or route.get(".id") == anchor_value or route.get("id") == anchor_value)
+            and (
+                route.get("comment") == anchor_value
+                or route.get(".id") == anchor_value
+                or route.get("id") == anchor_value
+            )
         ]
         live = matches[0] if matches else None
         rows.append(
@@ -290,7 +332,8 @@ def standing_intent_table(
                 "live_disabled": live.get("disabled") if live else None,
                 "live_distance": live.get("distance") if live else None,
                 "live_comment": live.get("comment") if live else None,
-                "match": bool(live) and (config.get("distance") in (None, live.get("distance"))),
+                "match": bool(live)
+                and (config.get("distance") in (None, live.get("distance"))),
             }
         )
     if not rows:
@@ -355,13 +398,19 @@ def assemble_divergences(
             divergences.append({"class": "intent-vs-live", "observed": row})
 
     if cross_check_result.get("errors"):
-        divergences.append({"class": "cross-check", "observed": cross_check_result.get("errors")})
+        divergences.append(
+            {"class": "cross-check", "observed": cross_check_result.get("errors")}
+        )
 
     final_ownership = samples[-1].get("ownership_inspection", {}) if samples else {}
     cc_routes = cross_check_result.get("routes", {})
     cc_netwatch = cross_check_result.get("netwatch", {})
-    ownership_routes = final_ownership.get("routes", {}) if isinstance(final_ownership, dict) else {}
-    ownership_netwatch = final_ownership.get("netwatch", {}) if isinstance(final_ownership, dict) else {}
+    ownership_routes = (
+        final_ownership.get("routes", {}) if isinstance(final_ownership, dict) else {}
+    )
+    ownership_netwatch = (
+        final_ownership.get("netwatch", {}) if isinstance(final_ownership, dict) else {}
+    )
     comparisons = [
         (
             "total_route_count",
@@ -432,7 +481,9 @@ def run_observation(
         route_management = sample.get("route_management", {})
         prev = None
         if samples:
-            previous = samples[-1].get("ownership_inspection", {}).get("last_inspected_at")
+            previous = (
+                samples[-1].get("ownership_inspection", {}).get("last_inspected_at")
+            )
             prev = previous if isinstance(previous, str) else None
         ok, blocker = gate_sample(ownership, route_management, prev)
         sample["gate_ok"] = ok
@@ -443,7 +494,9 @@ def run_observation(
         time.sleep(max(1, interval_sec))
 
     cross = cross_check(client)
-    table = standing_intent_table(route_manager, samples[-1].get("ownership_inspection", {}) if samples else {})
+    table = standing_intent_table(
+        route_manager, samples[-1].get("ownership_inspection", {}) if samples else {}
+    )
     divergences = assemble_divergences(samples, cross, table)
     mutation_hits = scan_mutation_tokens(cross.get("issued_commands", []))
     verdict = compute_verdict(divergences, mutation_hits)
@@ -461,7 +514,9 @@ def run_observation(
     }
 
 
-def render_packet(result: dict[str, Any], evidence_dir: Path, command_file: Path) -> dict[str, Path]:
+def render_packet(
+    result: dict[str, Any], evidence_dir: Path, command_file: Path
+) -> dict[str, Path]:
     """Write 257-shaped readiness packet, raw JSON, and transcript artifacts."""
     evidence_dir.mkdir(parents=True, exist_ok=True)
     packet = evidence_dir / "phase260-readiness-packet.md"
@@ -496,7 +551,12 @@ def render_packet(result: dict[str, Any], evidence_dir: Path, command_file: Path
     )
     packet.write_text(body)
     timestamped_packet.write_text(body)
-    return {"packet": packet, "raw": raw, "transcript": transcript, "timestamped_packet": timestamped_packet}
+    return {
+        "packet": packet,
+        "raw": raw,
+        "transcript": transcript,
+        "timestamped_packet": timestamped_packet,
+    }
 
 
 def _render_transcript(result: dict[str, Any], command_file: Path) -> str:
@@ -520,7 +580,19 @@ def _render_transcript(result: dict[str, Any], command_file: Path) -> str:
     ]
     for command in commands:
         lines.append(f"- `{command}`")
-    lines.extend(["", "## Verdict", "", "```text", _verdict_block(str(result.get("verdict")), list(result.get("mutation_token_hits", []))), "```", ""])
+    lines.extend(
+        [
+            "",
+            "## Verdict",
+            "",
+            "```text",
+            _verdict_block(
+                str(result.get("verdict")), list(result.get("mutation_token_hits", []))
+            ),
+            "```",
+            "",
+        ]
+    )
     return "\n".join(lines)
 
 
@@ -631,10 +703,18 @@ def _criteria_rows(
     guard = route_management.get("guard") if isinstance(route_management, dict) else {}
     if not isinstance(guard, dict):
         guard = {}
-    reconciliation = route_management.get("reconciliation") if isinstance(route_management, dict) else {}
+    reconciliation = (
+        route_management.get("reconciliation")
+        if isinstance(route_management, dict)
+        else {}
+    )
     if not isinstance(reconciliation, dict):
         reconciliation = {}
-    breaker = route_management.get("circuit_breaker") if isinstance(route_management, dict) else {}
+    breaker = (
+        route_management.get("circuit_breaker")
+        if isinstance(route_management, dict)
+        else {}
+    )
     if not isinstance(breaker, dict):
         breaker = {}
     cross_routes = cross.get("routes", {}) if isinstance(cross, dict) else {}
@@ -643,7 +723,12 @@ def _criteria_rows(
         (
             "ownership inspector authoritative",
             f"`inspector_status={latest.get('inspector_status')}`, `match={latest.get('match')}`",
-            "pass" if latest.get("inspector_status") == "ok" and latest.get("match") is True else "fail",
+            (
+                "pass"
+                if latest.get("inspector_status") == "ok"
+                and latest.get("match") is True
+                else "fail"
+            ),
             "Replaces Phase 257 guard-status failure with D-01 ownership_inspection gate.",
         ),
         (
@@ -661,13 +746,21 @@ def _criteria_rows(
         (
             "no intended mutation",
             f"`last_intended_action={route_management.get('last_intended_action')}`",
-            "pass" if route_management.get("last_intended_action") in (None, "null") else "fail",
+            (
+                "pass"
+                if route_management.get("last_intended_action") in (None, "null")
+                else "fail"
+            ),
             "No route action was intended during observation.",
         ),
         (
             "no applied mutation",
             f"`last_applied_action={route_management.get('last_applied_action')}`",
-            "pass" if route_management.get("last_applied_action") in (None, "null") else "fail",
+            (
+                "pass"
+                if route_management.get("last_applied_action") in (None, "null")
+                else "fail"
+            ),
             "No route action was applied during observation.",
         ),
         (
@@ -686,7 +779,11 @@ def _criteria_rows(
             "SAFE-21 no-mutation proof",
             f"`MUTATION_TOKEN_HITS: {'[]' if not mutation_hits else json.dumps(mutation_hits)}`",
             "pass" if not mutation_hits else "fail",
-            "No forbidden mutation class occurred." if not mutation_hits else "Forces not-ready.",
+            (
+                "No forbidden mutation class occurred."
+                if not mutation_hits
+                else "Forces not-ready."
+            ),
         ),
     ]
     rendered = []
@@ -704,7 +801,20 @@ def _intent_table_rows(table: list[dict[str, Any]]) -> str:
     for row in table:
         rows.append(
             "| {route_key} | {active_owner} | {intent_anchor} | {intent_distance} | {live_gateway} | {live_disabled} | {live_distance} | {live_comment} | {match} |".format(
-                **{k: row.get(k) for k in ("route_key", "active_owner", "intent_anchor", "intent_distance", "live_gateway", "live_disabled", "live_distance", "live_comment", "match")}
+                **{
+                    k: row.get(k)
+                    for k in (
+                        "route_key",
+                        "active_owner",
+                        "intent_anchor",
+                        "intent_distance",
+                        "live_gateway",
+                        "live_disabled",
+                        "live_distance",
+                        "live_comment",
+                        "match",
+                    )
+                }
             )
         )
     return "\n".join(rows)
@@ -717,7 +827,9 @@ def _blockers_section(verdict: str, divergences: list[dict[str, Any]]) -> str:
         return "No structured divergences were recorded, but the verdict remained not-ready; inspect raw observation data before proceeding."
     lines = []
     for index, divergence in enumerate(divergences, 1):
-        lines.append(f"{index}. `{divergence.get('class')}` divergence: `{json.dumps(divergence, sort_keys=True)}`")
+        lines.append(
+            f"{index}. `{divergence.get('class')}` divergence: `{json.dumps(divergence, sort_keys=True)}`"
+        )
     lines.append("")
     lines.append("No active canary approval is requested here.")
     return "\n".join(lines)
@@ -725,12 +837,14 @@ def _blockers_section(verdict: str, divergences: list[dict[str, Any]]) -> str:
 
 def _assert_deployed_imports() -> None:
     wanctl_path = Path(wanctl.__file__ or "").resolve()
-    inspector_path = Path(sys.modules[RouteOwnershipInspector.__module__].__file__ or "").resolve()
+    inspector_path = Path(
+        sys.modules[RouteOwnershipInspector.__module__].__file__ or ""
+    ).resolve()
     print(f"wanctl.__file__={wanctl_path}")
     print(f"route_ownership_inspector.__file__={inspector_path}")
-    if not wanctl_path.is_relative_to(DEPLOYED_ROOT) or not inspector_path.is_relative_to(
+    if not wanctl_path.is_relative_to(
         DEPLOYED_ROOT
-    ):
+    ) or not inspector_path.is_relative_to(DEPLOYED_ROOT):
         print(
             "OBSERVE_FAIL import-path "
             f"wanctl={wanctl_path} route_ownership_inspector={inspector_path}",
@@ -739,7 +853,9 @@ def _assert_deployed_imports() -> None:
         raise SystemExit(1)
 
 
-def _route_manager_from_config(config: SteeringConfig, client: RouterClientLike) -> RouteManager:
+def _route_manager_from_config(
+    config: SteeringConfig, client: RouterClientLike
+) -> RouteManager:
     manager = RouteManager(
         enabled=bool(config.route_management_enabled),
         mode=str(config.route_management_mode),

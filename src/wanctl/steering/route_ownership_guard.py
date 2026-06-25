@@ -75,39 +75,7 @@ class RouteOwnershipGuard:
         if isinstance(script_result, RouteOwnershipGuardResult):
             return script_result
 
-        scripts = self._script_lookup(script_result)
-        conflicts: list[RouteOwnershipConflict] = []
-        for entry in netwatch_result:
-            if not isinstance(entry, dict) or self._is_disabled(entry):
-                continue
-            name = self._entry_name(entry)
-            referenced_scripts = self._referenced_scripts(entry)
-            for script_name in referenced_scripts:
-                source = scripts.get(script_name, "")
-                if _contains_route_mutation(source):
-                    conflicts.append(
-                        RouteOwnershipConflict(
-                            source="netwatch",
-                            name=name,
-                            script=script_name,
-                            reason="enabled Netwatch entry references route-mutating script",
-                        )
-                    )
-            # Some exports include inline test/up/down script source directly.
-            inline_source = "\n".join(
-                str(entry.get(key, ""))
-                for key in ("up-script", "down-script", "test-script", "script")
-            )
-            if _contains_route_mutation(inline_source):
-                conflicts.append(
-                    RouteOwnershipConflict(
-                        source="netwatch",
-                        name=name,
-                        script=None,
-                        reason="enabled Netwatch entry contains inline route mutation",
-                    )
-                )
-
+        conflicts = detect_netwatch_route_conflicts(netwatch_result, script_result)
         if conflicts:
             return RouteOwnershipGuardResult(
                 status="conflict",
@@ -115,7 +83,9 @@ class RouteOwnershipGuard:
                 owner="netwatch",
                 conflicts=tuple(conflicts),
             )
-        return RouteOwnershipGuardResult(status="ok", active_allowed=True, owner="wanctl")
+        return RouteOwnershipGuardResult(
+            status="ok", active_allowed=True, owner="wanctl"
+        )
 
     def _read_json_list(
         self, cmd: str, label: str
@@ -139,7 +109,9 @@ class RouteOwnershipGuard:
             )
         if isinstance(parsed, dict):
             parsed = [parsed]
-        if not isinstance(parsed, list) or not all(isinstance(item, dict) for item in parsed):
+        if not isinstance(parsed, list) or not all(
+            isinstance(item, dict) for item in parsed
+        ):
             return RouteOwnershipGuardResult(
                 status="error",
                 active_allowed=False,
@@ -148,32 +120,81 @@ class RouteOwnershipGuard:
             )
         return parsed
 
-    def _script_lookup(self, scripts: list[dict[str, Any]]) -> dict[str, str]:
-        lookup: dict[str, str] = {}
-        for script in scripts:
-            name = script.get("name") or script.get(".id")
-            if isinstance(name, str) and name:
-                lookup[name] = str(script.get("source", ""))
-        return lookup
 
-    def _is_disabled(self, entry: dict[str, Any]) -> bool:
-        disabled = entry.get("disabled", False)
-        return disabled is True or str(disabled).lower() == "true"
+def detect_netwatch_route_conflicts(
+    netwatch_entries: list[dict[str, Any]],
+    scripts: list[dict[str, Any]],
+) -> list[RouteOwnershipConflict]:
+    """Return route-mutating Netwatch conflicts. Pure (no I/O).
 
-    def _entry_name(self, entry: dict[str, Any]) -> str:
-        for key in ("name", "comment", "host", ".id"):
-            value = entry.get(key)
-            if isinstance(value, str) and value:
-                return value
-        return "unknown"
+    Single source of truth shared by the live ``RouteOwnershipGuard.inspect()``
+    path and the Phase 260 D-04 independent cross-check, so the two cannot drift
+    to different definitions of ``route_mutating_active_count``. One enabled
+    Netwatch entry yields one conflict per referenced route-mutating script plus
+    one for inline route mutation.
+    """
+    lookup = _script_lookup(scripts)
+    conflicts: list[RouteOwnershipConflict] = []
+    for entry in netwatch_entries:
+        if not isinstance(entry, dict) or _is_disabled(entry):
+            continue
+        name = _entry_name(entry)
+        for script_name in _referenced_scripts(entry):
+            if _contains_route_mutation(lookup.get(script_name, "")):
+                conflicts.append(
+                    RouteOwnershipConflict(
+                        source="netwatch",
+                        name=name,
+                        script=script_name,
+                        reason="enabled Netwatch entry references route-mutating script",
+                    )
+                )
+        # Some exports include inline test/up/down script source directly.
+        inline_source = "\n".join(
+            str(entry.get(key, ""))
+            for key in ("up-script", "down-script", "test-script", "script")
+        )
+        if _contains_route_mutation(inline_source):
+            conflicts.append(
+                RouteOwnershipConflict(
+                    source="netwatch",
+                    name=name,
+                    script=None,
+                    reason="enabled Netwatch entry contains inline route mutation",
+                )
+            )
+    return conflicts
 
-    def _referenced_scripts(self, entry: dict[str, Any]) -> tuple[str, ...]:
-        refs: list[str] = []
-        for key in ("up-script", "down-script", "test-script", "script"):
-            value = entry.get(key)
-            if isinstance(value, str) and value:
-                refs.extend(_extract_script_names(value))
-        return tuple(dict.fromkeys(refs))
+
+def _script_lookup(scripts: list[dict[str, Any]]) -> dict[str, str]:
+    lookup: dict[str, str] = {}
+    for script in scripts:
+        name = script.get("name") or script.get(".id")
+        if isinstance(name, str) and name:
+            lookup[name] = str(script.get("source", ""))
+    return lookup
+
+
+def _is_disabled(entry: dict[str, Any]) -> bool:
+    disabled = entry.get("disabled", False)
+    return disabled is True or str(disabled).lower() == "true"
+
+
+def _entry_name(entry: dict[str, Any]) -> str:
+    for key in ("name", "comment", "host", ".id"):
+        value = entry.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return "unknown"
+
+
+def _referenced_scripts(entry: dict[str, Any]) -> tuple[str, ...]:
+    refs: list[str] = []
+    for key in ("up-script", "down-script", "test-script", "script"):
+        value = entry.get(key)
+        if isinstance(value, str) and value:
+            refs.extend(_extract_script_names(value))
+    return tuple(dict.fromkeys(refs))
 
 
 def _extract_script_names(source: str) -> list[str]:
@@ -183,8 +204,15 @@ def _extract_script_names(source: str) -> list[str]:
         r"/system\s+script\s+run\s+([^\s;]+)",
         r"/system/script/run\s+([^\s;]+)",
     ):
-        names.extend(match.group(1).strip('"') for match in re.finditer(pattern, source, re.I))
-    if source and not source.startswith("/") and "\n" not in source and ";" not in source:
+        names.extend(
+            match.group(1).strip('"') for match in re.finditer(pattern, source, re.I)
+        )
+    if (
+        source
+        and not source.startswith("/")
+        and "\n" not in source
+        and ";" not in source
+    ):
         names.append(source.strip('"'))
     return [name for name in names if name]
 
