@@ -372,14 +372,21 @@ Verdict semantics [VERIFIED: phase260-observation.py:444-447, 870-908]: `compute
 | A4 | Re-injecting/preserving the host `route_management` dry-run block is SAFE-22-clean (it is dry-run, not active) | Pitfall 1 | Low — `mode: dry_run` mutates no routes (route_manager dry_run path is record-only). Adopting it into repo (option 3) is a behavior-preserving config edit, not a controller-path source diff. |
 | A5 | Disposition of `/opt/wanctl/scripts/phase259-ownership-proof.py` (sweep vs whitelist) is a planner choice, not a SAFE-22 concern | Pitfall 3 / Runtime State Inventory | Low — it is a read-only evidence script; removing or keeping it has no controller/route effect. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should the `route_management` dry-run block be committed to repo `configs/steering.yaml` (Pitfall 1, option 3)?**
+> Both questions were resolved at plan time and are baked into the Phase 261 plans (committed
+> `98157a6f`). Q1 → **option 1** (host-only backup+restore of the `route_management` block;
+> NO repo source edit) to keep Phase 261 strictly reconcile-only and SAFE-22-clean — the
+> permanent repo-adopt (option 3) is deferred to a later phase. Q2 → audit the
+> **deploy.sh-installed subset** of `/opt/wanctl/scripts` per-file vs repo sources, and
+> separately enumerate/dispose extras.
+
+1. **RESOLVED (option 1): Should the `route_management` dry-run block be committed to repo `configs/steering.yaml` (Pitfall 1, option 3)?**
    - What we know: Live config has it; repo does not; deploy clobbers it. Option 3 ends the drift permanently and makes `repo==prod` true for the config too.
    - What's unclear: Whether the team wants the dry-run block as a committed default (it would ship the route-management surface "on in dry_run" to any future deploy target) vs. keeping it host-specific.
    - Recommendation: Prefer option 3 IF the milestone intends cake-shaper to carry route-management going forward (it does — Phases 262-264). Make it an explicit reviewed plan task with `make ci`. Otherwise use option 1 (backup+restore) to keep the phase strictly reconcile-only. Surface this to the operator at plan/discuss time.
 
-2. **Does D-01's `/opt/wanctl/scripts` audit compare to a repo dir, or to the deploy.sh-installed set?**
+2. **RESOLVED (deploy.sh-installed subset): Does D-01's `/opt/wanctl/scripts` audit compare to a repo dir, or to the deploy.sh-installed set?**
    - What we know: There is no 1:1 repo↔prod `scripts/` mirror; deploy.sh installs a curated subset.
    - What's unclear: Exact intended audit set for the scripts portion.
    - Recommendation: Audit only the deploy.sh-installed subset (analyze_baseline.py, validate-deployment.sh, wanctl-history, wanctl-operator-summary, compact-metrics-dbs.sh) per-file vs their repo sources, and separately enumerate/dispose extras. Confirm with planner.
