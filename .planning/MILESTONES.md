@@ -1,5 +1,23 @@
 # Project Milestones: wanctl
 
+## v1.57 Supported read-only RouterOS ownership inspection (Shipped: 2026-06-26)
+
+**Phases completed:** 3 phases (258–260), 8 plans
+
+**Key accomplishments:**
+
+- Repaired the v1.56 read-only RouterOS access blocker: added a supported GET-only REST inspection path (`_handle_netwatch_print`/`_handle_script_print` + `readonly_validator` allowlist), replacing the inaccessible nested-SSH `router.key`; live `ACCESS02_PROOF_PASS route=17 netwatch=3 script=20`.
+- Read live Netwatch + default-route ownership over the validated path and attributed Netwatch as owner, surfaced distinctly from `:9101` bridge and `:9102` steering health with no payload-shape regression (`INSPECT_PROOF_PASS observed_owner=netwatch route_mutating_active=4`).
+- Reran the v1.56-blocked bounded 636s dry-run observation from `cake-shaper` and emitted a 257-shaped canary-readiness packet.
+- Caught and fixed a D-07 cross-check detector mismatch post-close (commit `7a96aa8f`): the harness cross-check missed `/system script run` indirection the live guard resolves; unified both on one `detect_netwatch_route_conflicts()`, verified live (cross-check 0→4, divergence cleared) — final verdict `ready-for-approval`.
+- Preserved SAFE-21 end-to-end: read-only inspection / dry-run observation only, Netwatch remains owner, no route mutation, owner flip, or active canary.
+
+**Audit:** `passed` — 10/10 REQs satisfied, 3/3 phases complete, 4/4 integration/flows complete (`milestones/v1.57-MILESTONE-AUDIT.md`). Tech debt: ACCESS-03 procedural-read-only residual (credential can write at RBAC); reconcile `/opt/wanctl` on cake-shaper via full `deploy.sh` before any mutating canary (one file ahead from the behavior-preserving D-07 fix).
+
+**Known deferred items at close:** pre-existing todos/seeds carried forward per v1.56 close; `SEED-008` planted for v1.58 (active route-management canary). Zero UAT/verification/context-question blockers.
+
+---
+
 ## v1.56 Route Management Surface Deployment (Shipped: 2026-06-20)
 
 **Phases completed:** 3 phases, 4 plans, 4 tasks

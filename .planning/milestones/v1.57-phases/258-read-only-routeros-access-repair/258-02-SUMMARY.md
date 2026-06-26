@@ -56,15 +56,13 @@ Implemented the daemon-path repair: `RouterOSREST` now supports GET-only `/tool 
 ## Verification
 
 - `.venv/bin/pytest -o addopts='' tests/test_routeros_rest.py tests/test_readonly_validator.py tests/test_route_ownership_guard_rest_integration.py -q`
-  - `114 passed in 0.82s`
+  - `115 passed in 0.73s`
 - `.venv/bin/ruff check src/wanctl/routeros_rest.py src/wanctl/readonly_validator.py tests/test_routeros_rest.py tests/test_readonly_validator.py tests/test_route_ownership_guard_rest_integration.py`
   - `All checks passed!`
 - `.venv/bin/mypy src/wanctl/routeros_rest.py src/wanctl/readonly_validator.py`
   - `Success: no issues found in 2 source files`
 - `.venv/bin/python -m wanctl.readonly_validator --self-test`
   - `READONLY_COMMANDS_NEGATIVE_SELF_TEST_PASSED`
-- `.venv/bin/pytest -o addopts='' tests/test_route_ownership_guard.py tests/test_route_manager.py -q`
-  - `17 passed in 0.38s`
 - `git diff --check`
   - clean after preserving existing mixed line endings in `tests/test_routeros_rest.py`.
 
