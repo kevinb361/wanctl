@@ -3,6 +3,7 @@ created: 2026-06-18T13:55:41Z
 title: Route ownership: migrate Netwatch failover into wanctl or explicitly retire overlap
 area: steering
 priority: high
+resolves_phase: 264
 files:
   - src/wanctl/steering/daemon.py
   - src/wanctl/routeros_client.py
