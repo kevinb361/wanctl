@@ -2,12 +2,12 @@
 
 ## Milestones
 
+- 🚧 **v1.58 Active Route-Management Canary** — in progress (Phases 261–264; first *mutating* milestone in the route-ownership line — wanctl takes single-route default-ownership from Netwatch under an explicit reversible operator gate with automatic abort-to-Netwatch; SAFE-22)
 - ✅ **v1.57 Supported read-only RouterOS ownership inspection** — shipped 2026-06-26 (Phases 258–260; 10/10 REQs, audit passed; supported GET-only REST read-only inspection path proven, live Netwatch/default-route ownership attributed, dry-run observation reran to `ready-for-approval` after D-07 cross-check fix; Netwatch remains owner; SAFE-21 held) — `milestones/v1.57-ROADMAP.md`
 - ✅ **v1.56 Route Management Surface Deployment** — shipped 2026-06-20 (Phases 255–257; 13/13 REQs; safe/off deploy and steering health proof only; final readiness packet `not-ready`; no route ownership mutation) — `milestones/v1.56-ROADMAP.md`
 - ✅ **v1.55 Route Ownership / Netwatch Retirement** — shipped 2026-06-20 (Phases 251–254; 28/28 REQs; Netwatch remains interim route owner after read-only observation declined active canary; route-management deploy/canary carried forward) — `milestones/v1.55-ROADMAP.md`
 - ✅ **v1.54 fping Profiling + Storage Hygiene** — shipped-with-deferral 2026-06-19 (Phases 247–250; fping profiling/canary repairs complete, flat-gauge audit no-op, CAKE tin skip-on-unchanged deferred by consumer audit) — `milestones/v1.54-ROADMAP.md`
 - ✅ **v1.53 Pluggable RTT Measurement Backend** — shipped 2026-06-19 (Phases 238–246; 26/26 REQs; `RttBackend` seam behind icmplib default, `fping` implemented/selectable, live A/B verdict `rollback_trigger / keep-icmplib`, production stayed on icmplib, SAFE-17 held) — `milestones/v1.53-ROADMAP.md`
-- 📌 **Pipeline: WAN route ownership / Netwatch retirement** — pending high-priority follow-up: make exactly one component own WAN route mutation before enabling wanctl route failover; Netwatch remains interim owner until wanctl route ownership is designed, tested, canaried, and operator-approved — `.planning/todos/pending/2026-06-18-route-ownership-netwatch-to-wanctl-failover.md`
 - ✅ **v1.52 Silicom Bypass Operationalization** — shipped 2026-06-14 (Phases 235–237; 15/15 REQs; guarded bypass CLI + boot baseline, two-mode watchdog fail-open, HIL harness, standalone deploy ownership, SAFE-16 held — 10th consecutive zero-controller-diff milestone) — `milestones/v1.52-ROADMAP.md`
 - ✅ **v1.51 Post-Migration Consolidation** — shipped 2026-06-12 (Phases 232–234; 10/10 REQs; BOUND-01 cleanup guard fail-closed, gated repo sweep, planning-metadata reconciliation, SAFE-15 held — 9th consecutive zero-controller-diff milestone) — `milestones/v1.51-ROADMAP.md`
 - ✅ **v1.50 cake-autorate Migration Hardening** — shipped 2026-06-10 (Phases 229–231; 10/10 REQs, audit passed; ATT deploy/test/monitor parity, both-WAN migration-held PASS, rollback provable, SAFE-14 held) — `milestones/v1.50-ROADMAP.md`
@@ -25,6 +25,104 @@
 - 📁 **v1.0 — v1.38** — see `MILESTONES.md` for the full historical index
 
 > **Production controller state (2026-06-10):** Both WANs run upstream cake-autorate with wanctl state bridges (`cake-autorate-{spectrum,att}.service` + `-state-bridge.service`, live since 2026-06-08); `wanctl@{spectrum,att}` disabled as the **verified** rollback path (v1.50 SOAK-02 provable path, both-WAN preflight `overall_pass: true`). Steering consumes bridge-written state. Native wanctl remains the MikroTik/RouterOS controller and the portable default. Repo is the drift-proof source of truth for both WANs' artifact sets (`deploy.sh --with-{spectrum,att}-cake-autorate`). Spectrum CAKE: member-NIC `diffserv4 wash` 550M base DL autorate / fixed 18M UL. ATT: `diffserv4 nowash` 95M base DL autorate / fixed 19M UL.
+>
+> **Route ownership (2026-06-26):** Netwatch is the current/interim active default-route owner. v1.55–v1.57 built the read-only/dry-run safety scaffolding (guarded safe/off route-management surface, supported REST ownership inspection, dry-run observation, `ready-for-approval` packet). v1.58 performs the first *mutating* step under SAFE-22: a single-route owner flip from Netwatch to wanctl with Netwatch disabled-but-retained.
+
+---
+
+## 🚧 v1.58 Active Route-Management Canary (Phases 261–264) — IN PROGRESS
+
+**Milestone Goal:** Flip wanctl into the active default-route owner role for a single canary route, demoting Netwatch to disabled-but-retained, under an explicit reversible operator gate with automatic abort-to-Netwatch. First *mutating* milestone in the v1.55→v1.57 route-ownership line (`SEED-008`).
+
+**Conservative slicing (mutating milestone):** read/observe and reversible-scaffolding phases come before the live mutating flip. RECON (clean known-state baseline) → ABORT scaffolding (rollback drill proven) → APPROVE (human-in-the-loop gate + soak verification) → OWNFLIP + FLIPOBS (the gated live flip, observability-wrapped). Each mutating phase carries an explicit, exercised rollback path.
+
+**Hard ordering dependencies (must hold):**
+- RECON (full `deploy.sh`, repo==prod, rollback anchor) **precedes** any mutating phase.
+- ABORT-01 (rollback drill exercised + proven) **precedes** the live OWNFLIP flip — never flip live without a proven revert path.
+- APPROVE (operator approval gate + soak verification) is consumed **immediately before** the live flip. `ready-for-approval` is a verdict, NOT approval.
+- FLIPOBS observability assertions **wrap** the flip.
+
+**Entry-gates (verified at execution, not roadmap time):** ≥14 consecutive stable cake-autorate days + explicit recorded operator approval before the flip phase runs. These are encoded as Phase 263/264 preconditions, not verified at planning.
+
+### SAFE-22 — Milestone-wide cross-cutting safety invariant (checked at every phase boundary and at milestone close, NOT a standalone phase)
+
+First invariant in this line that *permits* a production mutation, scoped tightly.
+
+**Permitted (and only these):**
+- The gated single-route default-route owner flip (Netwatch → wanctl) on exactly one canary route.
+- The automatic abort / revert-to-Netwatch mutation on that same canary route.
+- The pre-flip `deploy.sh` reconciliation of `/opt/wanctl` on `cake-shaper`.
+
+**Forbidden:** CAKE/qdisc change; controller threshold retuning; Netwatch *deletion* (disable-but-retain only); any ownership flip beyond the one canary route (no second route, no whole-WAN, no both-WAN); any controller-path source diff (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, RTT backends, `alert_engine.py`, fusion).
+
+## Phases
+
+**Phase Numbering:**
+- Integer phases (261, 262, …): Planned milestone work (continues from v1.57 last phase 260)
+- Decimal phases (e.g., 262.1): Urgent insertions (marked INSERTED)
+
+- [ ] **Phase 261: Pre-Flip Deploy Reconciliation** — full `deploy.sh` to `cake-shaper` (repo==prod, resolves `route_ownership_guard.py` drift) + rollback anchor + clean post-deploy dry-run proof; no ownership change.
+- [ ] **Phase 262: Abort Scaffolding + Rollback Drill** — wire automatic abort-to-Netwatch, exercise and prove the flip→revert rollback drill BEFORE any live flip, retain a manual one-command rollback.
+- [ ] **Phase 263: Operator Approval + Soak Gate** — present the `ready-for-approval` packet + entry-gate status as an explicit decision artifact, machine-verify the ≥14-day soak gate, capture auditable explicit operator approval; gate the flip.
+- [ ] **Phase 264: Live Single-Route Owner Flip + Observability** — perform the gated single-route Netwatch→wanctl flip (Netwatch disabled-but-retained), assert clean `:9102` owner/mode/guard transitions and that Netwatch is cleanly demoted, prove no `:9101`/`:9102` payload-shape regression, observe auto-abort/revert.
+
+## Phase Details
+
+### Phase 261: Pre-Flip Deploy Reconciliation
+**Goal**: `/opt/wanctl` on `cake-shaper` is brought to repo-equal known state via a full, reversible `deploy.sh`, with the route-management surface coming up clean in the existing dry-run/safe mode — establishing the clean baseline every later mutating phase depends on, without changing any ownership behavior.
+**Depends on**: Nothing (first phase of v1.58); builds on v1.57 close state
+**Requirements**: RECON-01, RECON-02, RECON-03
+**Success Criteria** (what must be TRUE):
+  1. Operator can run a full `deploy.sh` to `cake-shaper` and a pre/post sha256 audit proves `/opt/wanctl` == repo (the `route_ownership_guard.py` drift from the v1.57 D-07 fix is resolved).
+  2. A pre-deploy `/opt/wanctl` snapshot rollback anchor is captured, and restoring it is a proven, exercised revert path (the deploy itself is reversible).
+  3. Post-deploy, the route-management surface and `127.0.0.1:9102` health come up clean in the existing dry-run/safe state (`mode=dry_run`, `active_owner=netwatch`) — no ownership behavior changed, SAFE-22 holds.
+**Plans**: TBD
+
+### Phase 262: Abort Scaffolding + Rollback Drill
+**Goal**: The automatic abort path (circuit-breaker/guard auto-revert to Netwatch) is wired and the flip→revert rollback is exercised and proven on the canary route BEFORE any live ownership flip, with a manual one-command rollback retained independent of the automatic path — so the live flip in Phase 264 never runs without a proven revert.
+**Depends on**: Phase 261 (clean repo==prod baseline + rollback anchor)
+**Requirements**: ABORT-01, ABORT-02, ABORT-04
+**Success Criteria** (what must be TRUE):
+  1. A rollback drill (flip → revert to Netwatch) is exercised and proven on the canary route, and the revert restores the exact pre-flip ownership state — proven before any live canary flip.
+  2. The circuit-breaker/guard automatically reverts the canary route to Netwatch ownership on the defined trip conditions (link down / route flap / Netwatch contention), demonstrated under the drill.
+  3. The operator retains a manual one-command rollback to Netwatch ownership that works independently of the automatic abort path.
+  4. SAFE-22 holds: scaffolding/drill touches only the one canary route, Netwatch is disabled-but-retained (never deleted), and no controller-path source diff is introduced.
+**Plans**: TBD
+**UI hint**: no
+
+### Phase 263: Operator Approval + Soak Gate
+**Goal**: The human-in-the-loop gate consumed immediately before the live flip is real and auditable — the Phase 260 `ready-for-approval` packet plus entry-gate status is presented as an explicit decision artifact, the ≥14-consecutive-stable-cake-autorate-days soak gate is machine-verified and recorded, and no flip can proceed without a recorded explicit operator approval.
+**Depends on**: Phase 262 (proven rollback drill — never gate-approve a flip whose revert is unproven)
+**Requirements**: APPROVE-01, APPROVE-02, APPROVE-03
+**Success Criteria** (what must be TRUE):
+  1. The milestone presents the Phase 260 `ready-for-approval` packet and the current entry-gate status to the operator as an explicit decision artifact before any flip.
+  2. The ≥14-consecutive-stable-cake-autorate-days soak gate is machine-verified at execution time and the result recorded; a failing gate blocks the flip.
+  3. No ownership flip executes without a recorded explicit operator approval captured auditably (who/when); `ready-for-approval` is treated as a verdict, NOT as approval (per D-10/SAFE-21).
+**Plans**: TBD
+
+### Phase 264: Live Single-Route Owner Flip + Observability
+**Goal**: Under the recorded approval and verified soak gate, wanctl takes the default-ownership of exactly one canary route from Netwatch (Netwatch disabled-but-retained), the `:9102` route-management health surface asserts the owner/mode/guard transition is clean and Netwatch is cleanly demoted (not contending), auto-abort/revert is observable, and no `:9101`/`:9102` payload shape regresses.
+**Depends on**: Phase 263 (recorded approval + verified soak gate); Phase 262 (proven rollback path)
+**Requirements**: OWNFLIP-01, OWNFLIP-02, OWNFLIP-03, OWNFLIP-04, FLIPOBS-01, FLIPOBS-02, FLIPOBS-03, ABORT-03
+**Success Criteria** (what must be TRUE):
+  1. Operator flips a single canary route's default-ownership from Netwatch to wanctl via the guarded, gated command, and after the flip wanctl is the sole active owner with no dual-ownership route flap (OWNFLIP-01/03).
+  2. Netwatch is demoted disabled-but-retained (config preserved, not deleted) and a one-command re-enable restores prior ownership; the flip is bounded to exactly one canary route — no other route/WAN ownership changes (OWNFLIP-02/04).
+  3. The `:9102` route-management health surface asserts owner/mode/guard fields transition cleanly netwatch→wanctl (and back on revert) and distinctly shows Netwatch-demoted vs wanctl-active-owner with no ambiguity (FLIPOBS-01/02).
+  4. Auto-abort trips and the resulting revert are observable/recorded — the operator can see what tripped and that revert completed — and there is no payload-shape regression on `:9101` (bridge) or `:9102` (steering) health (ABORT-03, FLIPOBS-03).
+  5. Rollback path exercised: the proven manual + automatic revert-to-Netwatch from Phase 262 remains armed and is demonstrated to restore pre-flip ownership; SAFE-22 holds at the flip boundary (exactly one route, Netwatch retained, no controller-path diff).
+**Plans**: TBD
+
+## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 261 → 262 → 263 → 264
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 261. Pre-Flip Deploy Reconciliation | v1.58 | 0/TBD | Not started | - |
+| 262. Abort Scaffolding + Rollback Drill | v1.58 | 0/TBD | Not started | - |
+| 263. Operator Approval + Soak Gate | v1.58 | 0/TBD | Not started | - |
+| 264. Live Single-Route Owner Flip + Observability | v1.58 | 0/TBD | Not started | - |
 
 ---
 
@@ -78,6 +176,11 @@ Summary: fping profiling/canary repair path completed without a production defau
 
 - **Phase 218 (v1.45 VERIFY watch-list)** — dormant. The flapping peak-counter instrumentation lives in the native wanctl controller, which no longer runs Spectrum/ATT; this watch item stays dormant unless `wanctl@` returns to live duty or the check is reimplemented against bridge/cake-autorate telemetry.
 
+### v1.58 follow-on (deferred — widen only after single-route is proven)
+
+- **Widen-the-canary** — multi-route, then single-WAN, then both-WAN ownership once the single-route flip is proven durably stable. Out of scope for v1.58.
+- **Netwatch full retirement** — remove (not just disable) Netwatch once wanctl ownership is durably trusted (ROLE/RETIRE line). Stays deferred.
+
 ### Deferred previous candidates
 
 - **FLIP-02 follow-up** — permanent fping/native keep remains deferred to an operator-gated keep canary. The known mechanical blockers are closed: Phase 248.2 fixed stale-window behavior, Phase 248.3 aligned native Spectrum CAKE shape, and Phase 248.4 suppressed startup first-sample fallback noise.
@@ -94,3 +197,5 @@ Summary: fping profiling/canary repair path completed without a production defau
 - **IRTT-MIG-01** — migrate the existing IRTT path to a first-class `IrttBackend` behind the seam (v1.53 only shapes the Protocol to absorb it via SEAM-04).
 - **FPING-JSON-01** — adopt `fping -J` structured JSON once the schema stabilizes and lands in the Debian/Ubuntu deploy baseline (5.1 ships alpha-only `-J`; parse stable text in v1.53).
 - **NATIVE-AB-01** — stand up native autorate to validate fping on the native control path (currently dormant; inherits the seam passively).
+</content>
+</invoke>

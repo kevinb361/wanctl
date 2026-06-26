@@ -85,8 +85,25 @@ SAFE-22 is a milestone-wide cross-cutting invariant checked at every phase bound
 
 ## Traceability
 
-_(Filled by roadmap — each REQ mapped to exactly one phase.)_
+_Each REQ mapped to exactly one phase (roadmap 2026-06-26). 17/17 mapped, 0 orphans, 0 duplicates._
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| _pending roadmap_ | | |
+| RECON-01 | Phase 261 | Pending |
+| RECON-02 | Phase 261 | Pending |
+| RECON-03 | Phase 261 | Pending |
+| ABORT-01 | Phase 262 | Pending |
+| ABORT-02 | Phase 262 | Pending |
+| ABORT-04 | Phase 262 | Pending |
+| APPROVE-01 | Phase 263 | Pending |
+| APPROVE-02 | Phase 263 | Pending |
+| APPROVE-03 | Phase 263 | Pending |
+| OWNFLIP-01 | Phase 264 | Pending |
+| OWNFLIP-02 | Phase 264 | Pending |
+| OWNFLIP-03 | Phase 264 | Pending |
+| OWNFLIP-04 | Phase 264 | Pending |
+| FLIPOBS-01 | Phase 264 | Pending |
+| FLIPOBS-02 | Phase 264 | Pending |
+| FLIPOBS-03 | Phase 264 | Pending |
+| ABORT-03 | Phase 264 | Pending |
+| SAFE-22 | All phases (cross-cutting invariant, checked at every phase boundary + milestone close) | Pending |
