@@ -3,9 +3,9 @@ phase: 261
 reviewers: [codex]
 reviewed_at: 2026-06-26T00:00:00Z
 plans_reviewed: [261-01-PLAN.md, 261-02-PLAN.md, 261-03-PLAN.md]
-cycles: 2
-current_cycle: 2
-current_high: 1
+cycles: 3
+current_cycle: 3
+current_high: 0
 ---
 
 # Cross-AI Plan Review — Phase 261
@@ -14,8 +14,116 @@ Cross-AI peer review of the Phase 261 (Pre-Flip Deploy Reconciliation) plans.
 Invoked reviewer: **Codex** (`codex exec`, default model). Claude self-review skipped for
 independence (this workflow runs inside Claude Code). Gemini not available on the host.
 
-This file holds **two review cycles**. Cycle 2 (below) re-reviews the plans after they were
-revised to resolve the three cycle-1 HIGH concerns; the cycle-1 record is preserved beneath it.
+This file holds **three review cycles**. Cycle 3 (below) is the FINAL cycle: it re-reviews the
+plans after they were revised to close the single remaining HIGH (HIGH-3, rollback anchor write-set
+coverage) and fold the three cycle-2 MEDIUMs. Cycle 2 (re-review of the first revision) and cycle 1
+(initial review) are preserved beneath it.
+
+---
+
+# Cycle 3 — Final re-review: HIGH-3 closure + cycle-2 MEDIUM fold (2026-06-26)
+
+The plans were revised a second time: Plan 01 Task 3 gained a fail-closed write-set classification
+gate (`PHASE261_FULL_WRITESET_ROLLBACK_COVERED` on full classification, else
+`PHASE261_FULL_WRITESET_ROLLBACK_INCOMPLETE` + STOP-the-phase on ANY unclassified path), and the
+three cycle-2 MEDIUMs were folded into Plan 02. Codex was asked to (1) judge whether HIGH-3 is NOW
+genuinely resolved, (2) confirm HIGH-1/HIGH-2 carry no regression from the Plan 02 edits, (3) check
+the three MEDIUM folds, and (4) surface any new HIGHs.
+
+## Codex Review (cycle 3)
+
+**Summary**
+
+Executable now. The revised plans convert the remaining rollback-scope issue into an actual stop
+gate with explicit verdict tokens, acceptance checks, and task sequencing. Codex sees **no
+unresolved HIGH** after cycle 3.
+
+**HIGH-3 — rollback anchor write-set coverage — FULLY RESOLVED**
+
+Plan 01 Task 3 step 5 is now the load-bearing gate: it requires full deploy.sh write-set
+enumeration, exact-one-bucket classification, and emits `PHASE261_FULL_WRITESET_ROLLBACK_COVERED`
+only when complete. Any zero-bucket or multi-bucket path emits
+`PHASE261_FULL_WRITESET_ROLLBACK_INCOMPLETE` and STOPs before Plan 02. The Task 3 acceptance criteria
+and the automated verify both require `COVERED` present and `_INCOMPLETE` absent. The taxonomy is
+sound for this deploy surface (backed-up / sha-baselined / reproducible-from-repo / install-if-absent
+/ documented-non-issue), and the authoritative write-set list is explicit in the Plan 01 `<interfaces>`
+context, which Task 3 step 5 cross-checks the programmatic enumeration against. This is a real
+fail-closed gate, not prose.
+
+**HIGH-1 — steering restart/clobber timing — FULLY RESOLVED (no regression)**
+
+Intact via `PHASE261_DEPLOY_NO_INTERNAL_STEERING_RESTART` (Plan 01 Task 2 step 2b static witness)
+plus the dynamic deploy-bracket steering monotonic check (Plan 02 Task 1 step 2, steering monotonic
+unchanged across the two deploy.sh invocations -> STOP if it moved). The Plan 02 step-6 wording now
+correctly requires steering to be STRICTLY GREATER THAN the post-deploy pre-restart value after the
+operator's explicit restart.
+
+**HIGH-2 — shaper non-restart — FULLY RESOLVED (no regression)**
+
+Intact via `PHASE261_SHAPER_UNITS_NOT_RESTARTED` (Plan 02 Task 1 step 6): both
+`cake-autorate-{spectrum,att}.service` monotonic values must be byte-identical pre/post, else
+`PHASE261_SHAPER_UNITS_RESTARTED` FAILs the phase. The shaper units are explicitly excluded from the
+restart sequence (only `-state-bridge` + steering restart).
+
+**Cycle-2 MEDIUM fold check**
+
+- (a) **Folded** — Plan 02 Task 1 step 6 now states steering's post-restart monotonic must be
+  STRICTLY GREATER THAN the step-2 post-deploy pre-restart value (the self-contradictory "match"
+  wording is gone).
+- (b) **Folded** — Plan 02 Task 1 step 4 captures a SECOND `steering-restart-boundary epoch`
+  immediately before restarting `steering.service`; step 5 passes it to `--min-inspected-after` for
+  the final boundary mode==dry_run smoke gate (proves the inspection is newer than the steering
+  restart specifically).
+- (c) **Folded** — Plan 02 Task 2 (and T-261-17) explicitly handle the stale
+  `/opt/wanctl/scripts/phase259-ownership-proof.py` sweep: it is recorded as captured by the Plan 01
+  `/opt/wanctl` tarball anchor (a restore brings it back, so the `rm` is reversible and auditable),
+  then swept.
+
+**New Concerns (cycle 3)**
+
+- **LOW** — Plan 01 Task 3 step 5 permits enumeration "programmatically / from a recorded
+  enumeration." Acceptance criteria are strong enough, but execution discipline matters: the recorded
+  enumeration should be pasted verbatim with the script-derived command output (not hand-summarized).
+- **LOW** — `sha-baselined` helper scripts are described as "trivially restorable from repo";
+  acceptable here, but the evidence should name the exact repo source path for each helper to avoid
+  future ambiguity.
+
+**Risk Assessment (cycle 3):** LOW. The remaining risk is execution/operator error, not plan design.
+The production-adjacent work is still bounded to reconcile + specific restarts, with machine-checked
+rollback coverage, dry-run preservation, freshness gates, monotonic non-restart proof, and a
+Wave-2 SAFE-22 recheck.
+
+Codex self-reported: `REVIEWER_HIGH_COUNT: 0`.
+
+## Cycle 3 Consensus Summary
+
+Single external reviewer (Codex), so "consensus" reflects Codex only. Outcome of the second revision:
+
+- **HIGH-3 FULLY RESOLVED.** The rollback-coverage concern is now ENFORCED, not broadened-in-prose:
+  Plan 01 Task 3 step 5 enumerates the full deploy.sh write-set, classifies every path into exactly
+  one of five buckets, and is gated by a fail-closed verdict token
+  (`PHASE261_FULL_WRITESET_ROLLBACK_COVERED` / `..._INCOMPLETE` + STOP). The Task 3 acceptance
+  criteria and automated verify grep for `COVERED` present AND `_INCOMPLETE` absent — the gate is real.
+- **HIGH-1 and HIGH-2 carry no regression** from the Plan 02 MEDIUM edits; their machine-checked
+  monotonic gates and the static no-internal-restart witness remain intact.
+- **All three cycle-2 MEDIUMs folded** (steering-monotonic wording corrected, second pre-steering-
+  restart freshness epoch added, stale-script sweep made anchor-covered).
+- **No new HIGHs.** Two new LOWs are evidence-discipline notes for execution, not plan-design defects.
+
+### Cycle-2 → Cycle-3 movement
+- HIGH-1: FULLY RESOLVED → **FULLY RESOLVED** (no regression)
+- HIGH-2: FULLY RESOLVED → **FULLY RESOLVED** (no regression)
+- HIGH-3: PARTIALLY RESOLVED (counted) → **FULLY RESOLVED** (write-set coverage now a fail-closed gate)
+
+**Unresolved HIGH count after cycle 3: 0.** The plans are clear to execute. The two LOWs are
+execution-time evidence-discipline reminders (paste the verbatim enumeration; name exact repo source
+paths for sha-baselined helpers), not blockers.
+
+To feed this back into planning:
+
+```
+/gsd:plan-phase 261 --reviews
+```
 
 ---
 
