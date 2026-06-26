@@ -8,6 +8,23 @@ wanctl is an adaptive CAKE bandwidth controller for MikroTik RouterOS that conti
 
 Sub-second congestion detection with 50ms control loops, achieved through systematic performance optimization and code quality improvements while maintaining production reliability.
 
+## Current Milestone: v1.58 Active Route-Management Canary (Netwatch → wanctl ownership)
+
+**Goal:** Flip wanctl into the active default-route owner role for a single canary route, demoting Netwatch to disabled-but-retained, under an explicit reversible operator gate with automatic abort-to-Netwatch — the first *mutating* step in the v1.55→v1.57 route-ownership line (`SEED-008`).
+
+**Target features:**
+- **Pre-flip deploy reconciliation** — full `deploy.sh` on `cake-shaper` so repo==prod (resolves the `route_ownership_guard.py` drift from the v1.57 D-07 fix) → clean known-state baseline before any mutation.
+- **Explicit operator approval gate** — consume the Phase 260 `ready-for-approval` packet as a human-in-the-loop precondition (`ready-for-approval` is a verdict, NOT approval — per D-10/SAFE-21); the milestone adds the approval step.
+- **Single-route ownership flip** — wanctl takes one route's default-ownership; smallest blast radius; Netwatch disabled-but-retained for fast one-command revert.
+- **Automatic abort wiring** — circuit-breaker/guard auto-reverts to Netwatch on trip conditions (link down / route flap / Netwatch contention); pre-flighted rollback *drill* exercised before the live flip (inherits ROLE-01's "one exercised rollback drill" gate).
+- **Live flip observability** — `:9102` route-management health asserts clean owner/mode/guard transition and that Netwatch is cleanly demoted (not fighting wanctl for the route).
+
+**Safety boundary (SAFE-22, narrower than SAFE-21):** Permits exactly the gated single-route owner flip plus the auto-revert mutation. Still forbids: CAKE/qdisc change, controller threshold retuning, Netwatch *deletion* (disable only), and any flip beyond the one canary route. Controller path (`wan_controller.py`, `queue_controller.py`, `cake_signal.py`, backends, `alert_engine.py`, fusion) stays zero-diff.
+
+**Entry-gates (verified at execution, not planning):** ≥14 consecutive stable cake-autorate days + explicit operator approval before the flip phase runs.
+
+**Phase numbering:** continues from v1.57 (ended Phase 260) → v1.58 starts at **Phase 261**.
+
 ## Recently Shipped: v1.56 Route Management Surface Deployment (completed 2026-06-20)
 
 **Goal:** Deploy and expose the v1.55 route-management surface on cake-shaper in safe/off or dry-run mode so operators can see route ownership state from the real steering host, without changing route ownership or disabling Netwatch.
@@ -29,7 +46,7 @@ Sub-second congestion detection with 50ms control loops, achieved through system
 
 v1.57 is complete and archived (`milestones/v1.57-ROADMAP.md`, audit passed). Production `cake-shaper` exposes the route-management surface in dry-run mode, and Netwatch remains the active/interim route owner. v1.57 repaired the v1.56 read-only RouterOS ownership-inspection gap by proving a supported REST read-only path and live `ownership_inspection`, then reran the blocked dry-run observation. The Phase 260 readiness packet verdict is **`ready-for-approval`** (after the post-close D-07 cross-check detector fix, commit `7a96aa8f`, verified live on cake-shaper 2026-06-26); no active canary approval was requested or granted — that remains a separate, explicit, reversible operator gate.
 
-**Next milestone (v1.58, not yet scoped):** active route-management canary — wanctl takes the default-route owner role from Netwatch under an explicit reversible operator gate (`SEED-008`). Reconcile `/opt/wanctl` on cake-shaper via a full `deploy.sh` before any mutating canary; one file (`route_ownership_guard.py`) is currently ahead from the behavior-preserving D-07 fix.
+**Current milestone (v1.58, scoped 2026-06-26):** active route-management canary — wanctl takes the default-route owner role from Netwatch for a single canary route under an explicit reversible operator gate with automatic abort-to-Netwatch (`SEED-008`). See `## Current Milestone: v1.58` above for the scoped feature set and the SAFE-22 boundary. Decisions locked at scoping: single-route-first flip, Netwatch disabled-but-retained, full `deploy.sh` reconciliation before any mutation, automatic abort wired, soak+approval as execution-time entry-gates.
 
 ## Completed Milestone: v1.57 Supported read-only RouterOS ownership inspection
 
@@ -1120,4 +1137,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-06-20 — v1.57 started: repair/prove supported read-only RouterOS ownership inspection from `cake-shaper` (the v1.56 `not-ready` blocker), then rerun the blocked dry-run observation. SAFE-21 holds SAFE-20-style no-mutation gates; active canary stays a separate operator gate._
+_Last updated: 2026-06-26 — v1.58 started: active route-management canary (`SEED-008`) — wanctl takes the default-route owner role from Netwatch for a single canary route under an explicit reversible operator gate with automatic abort-to-Netwatch. First mutating milestone in the route-ownership line. SAFE-22 narrows SAFE-21 to permit exactly the gated single-route flip + auto-revert; controller path stays zero-diff. Soak+approval are execution-time entry-gates._

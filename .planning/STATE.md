@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.57
-milestone_name: Supported read-only RouterOS ownership inspection
-status: milestone_archived
-stopped_at: v1.57 archived (audit passed, verdict ready-for-approval); next is v1.58 active route-management canary (SEED-008), not yet scoped
-last_updated: 2026-06-26
+milestone: v1.58
+milestone_name: Active Route-Management Canary
+status: planning
+last_updated: "2026-06-26T14:29:18.938Z"
 last_activity: 2026-06-26
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Session State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-20 after v1.56 milestone close)
 
 ## Current Position
 
-Phase: — (between milestones)
-Plan: Not started
-Status: v1.57 archived — audit passed, Phase 260 verdict `ready-for-approval` after D-07 fix (commit `7a96aa8f`) verified live on cake-shaper. Netwatch remains route owner; no canary started. Next: `/gsd-new-milestone` for v1.58.
-Last activity: 2026-06-26
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-26 — Milestone v1.58 started
 
 ## Roadmap Summary (v1.57)
 
