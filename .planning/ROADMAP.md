@@ -76,7 +76,10 @@ First invariant in this line that *permits* a production mutation, scoped tightl
   1. Operator can run a full `deploy.sh` to `cake-shaper` and a pre/post sha256 audit proves `/opt/wanctl` == repo (the `route_ownership_guard.py` drift from the v1.57 D-07 fix is resolved).
   2. A pre-deploy `/opt/wanctl` snapshot rollback anchor is captured, and restoring it is a proven, exercised revert path (the deploy itself is reversible).
   3. Post-deploy, the route-management surface and `127.0.0.1:9102` health come up clean in the existing dry-run/safe state (`mode=dry_run`, `active_owner=netwatch`) — no ownership behavior changed, SAFE-22 holds.
-**Plans**: TBD
+**Plans**: 3 plans (3 waves)
+- [ ] 261-01-PLAN.md — Proof tooling (sha256 audit + :9102 smoke scripts) + pre-deploy rollback anchor & non-disruptive scratch-dir restore drill (RECON-02)
+- [ ] 261-02-PLAN.md — Full reversible `deploy.sh` reconcile (steering.yaml dry-run block preserved, steering-last `:9102`-gated restart) + per-file sha256 audit proving repo==prod (RECON-01)
+- [ ] 261-03-PLAN.md — `:9102` smoke-assertion gate (mode=dry_run explicit) + confirmatory Phase 260 harness rerun (`ready-for-approval`) on the reconciled tree (RECON-03)
 
 ### Phase 262: Abort Scaffolding + Rollback Drill
 **Goal**: The automatic abort path (circuit-breaker/guard auto-revert to Netwatch) is wired and the flip→revert rollback is exercised and proven on the canary route BEFORE any live ownership flip, with a manual one-command rollback retained independent of the automatic path — so the live flip in Phase 264 never runs without a proven revert.
@@ -119,7 +122,7 @@ Phases execute in numeric order: 261 → 262 → 263 → 264
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 261. Pre-Flip Deploy Reconciliation | v1.58 | 0/TBD | Not started | - |
+| 261. Pre-Flip Deploy Reconciliation | v1.58 | 0/3 | Planned | - |
 | 262. Abort Scaffolding + Rollback Drill | v1.58 | 0/TBD | Not started | - |
 | 263. Operator Approval + Soak Gate | v1.58 | 0/TBD | Not started | - |
 | 264. Live Single-Route Owner Flip + Observability | v1.58 | 0/TBD | Not started | - |
