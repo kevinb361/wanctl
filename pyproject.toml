@@ -132,6 +132,12 @@ max-complexity = 15  # Phase 145: all functions refactored below C901 threshold 
 "scripts/phase260-observation.py" = [
     "N999",    # Phase 260 plan requires a hyphenated standalone observation harness name
 ]
+"scripts/phase261-sha256-audit.py" = [
+    "N999",    # Phase 261 plan requires a hyphenated standalone audit script name
+]
+"scripts/phase261-smoke-assertion.py" = [
+    "N999",    # Phase 261 plan requires a hyphenated standalone smoke script name
+]
 "tests/*" = [
     "SIM102",  # collapsible-if in tests -- readability over compactness
     "N802",    # function name should be lowercase -- test names may include class/constant names
