@@ -1,0 +1,83 @@
+# Phase 261 — Host Probe (Pre-Deploy Baseline)
+
+**Timestamp:** 2026-06-28T22:56 UTC
+**Host:** cake-shaper (referenced by name only — no IP/credential)
+
+## Tooling Availability
+
+| Tool | Path |
+|------|------|
+| tar | /usr/bin/tar |
+| mktemp | /usr/bin/mktemp |
+| xargs | /usr/bin/xargs |
+| sha256sum | /usr/bin/sha256sum |
+| curl | /usr/bin/curl |
+| python3 | /usr/bin/python3 |
+
+All required tools present.
+
+## Pre-Deploy :9102/health Baseline
+
+Status: `healthy`
+Version: `1.47.0`
+Uptime: 335696 seconds
+
+**route_management:**
+- enabled: true
+- mode: dry_run
+- active_owner: netwatch
+- active_allowed: false
+- blocked_reason: "ownership guard does not allow active route management"
+- guard.status: conflict (4 route-mutating Netwatch/script conflict(s))
+- reconciliation.status: ok, route_count: 3
+- circuit_breaker.open: false
+- rollback_ready: true
+
+**ownership_inspection:**
+- observed_owner: netwatch
+- configured_owner: netwatch
+- match: true
+- inspector_status: ok
+- last_inspected_at: 2026-06-28T22:56:18.780974+00:00
+
+## Live /opt/wanctl File Count
+
+Non-pyc files (excluding __pycache__ and scripts/ helper dir): **113**
+
+## /opt/wanctl/scripts/ Inventory
+
+```
+total 20
+drwxr-xr-x  3 root root 4096 Jun 24 20:40 .
+drwxr-xr-x 10 root root 4096 Jun 24 20:40 ..
+-rwxr-xr-x  1 root root 4828 Jun 24 20:40 phase259-ownership-proof.py    <-- stale, read-only, anchor-covered
+drwxr-xr-x  2 root root 4096 Jun 24 20:40 __pycache__
+```
+
+Note: `phase259-ownership-proof.py` is a stale evidence script not in the deploy-managed set. It lives UNDER /opt/wanctl so the pre-deploy tarball anchor captures it.
+
+## .phase259-backup-* Directories
+
+```
+total 16
+drwxr-xr-x  4 root root 4096 Jun 24 20:40 .
+drwxr-xr-x 10 root root 4096 Jun 24 20:40 ..
+drwxr-xr-x  2 root root 4096 Jun 24 20:40 scripts
+drwxr-xr-x  2 root root 4096 Jun 24 20:40 steering
+```
+
+One `.phase259-backup-*` directory exists — the target of the rsync --delete sweep.
+
+## PRE-DEPLOY ActiveEnterTimestampMonotonic baseline
+
+Captured immediately before any deploy activity. These are the load-bearing pre-values for Plan 02's no-restart gate.
+
+| Unit | ActiveEnterTimestampMonotonic |
+|------|------|
+| cake-autorate-spectrum.service | 259295876567 |
+| cake-autorate-att.service | 84347000490 |
+| steering.service | 710735873594 |
+
+These monotonic values must be compared post-deploy (Plan 02, Step 6):
+- BOTH shaper units must be BYTE-IDENTICAL pre vs post (never restarted)
+- steering.service must advance exactly once (the operator's explicit restart only)

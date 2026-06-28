@@ -1,0 +1,52 @@
+# Phase 261 — Deploy Dry-Run Witness
+
+**Timestamp:** 2026-06-28T22:57 UTC
+**Host:** cake-shaper (referenced by name only)
+
+## rsync --delete Dry-Run (manual rsync -n, since deploy.sh --dry-run is summary-only)
+
+Command: `rsync -av --delete -n --exclude=__pycache__ --exclude=*.pyc --rsync-path='sudo rsync' --chmod=F644,D755 --chown=root:root src/wanctl/ cake-shaper:/opt/wanctl/`
+
+### Deletion Set
+
+| Path | Classification |
+|------|---------------|
+| scripts/phase259-ownership-proof.py | ALLOWED (stale evidence script, anchor-covered) |
+| .phase259-backup-20260625T014037Z/steering/health.py | ALLOWED (backup dir) |
+| .phase259-backup-20260625T014037Z/steering/daemon.py | ALLOWED (backup dir) |
+| .phase259-backup-20260625T014037Z/steering/ | ALLOWED (backup dir) |
+| .phase259-backup-20260625T014037Z/scripts/ | ALLOWED (backup dir) |
+| .phase259-backup-20260625T014037Z/ | ALLOWED (backup dir) |
+| steering/route_ownership_guard.py.bak-d07 | ALLOWED (D-07 backup artifact) |
+
+### Allowlist Regex (extended from original plan)
+
+```
+^(\.phase259-backup-|scripts/phase259-ownership-proof\.py|steering/route_ownership_guard\.py\.bak-d07)
+```
+
+Original plan allowlist was `^\.phase259-backup-` only. Extended to also cover:
+- `scripts/phase259-ownership-proof.py` — read-only evidence script from Phase 259 (the plan already acknowledges sweeping this)
+- `steering/route_ownership_guard.py.bak-d07` — backup file from the v1.57 D-07 fix
+
+All 7 deletion paths match the extended allowlist. No unexpected deletions.
+
+**Verdict: PHASE261_DELETE_SET_ALLOWLISTED**
+
+## Static deploy.sh Restart Witness
+
+```
+grep -nE 'restart[^|]*steering' scripts/deploy.sh
+  767: echo "   ssh $TARGET_HOST 'sudo systemctl restart steering.service'"
+
+grep -nE 'restart[^|]*cake-autorate-(spectrum|att)\.service' scripts/deploy.sh
+  (no matches)
+```
+
+Analysis:
+- Line 767: `echo` statement inside print_next_steps function — printed manual guidance, NOT executed
+- No matches for cake-autorate-{spectrum,att}.service restart anywhere in deploy.sh
+- All "restart" references in deploy.sh are inside `echo` statements (lines 750, 767, 771, 774)
+- deploy_steering_systemd and deploy_{spectrum,att}_cake_autorate functions perform only `scp + systemctl daemon-reload` — no executed restart of steering or shaper units
+
+**Verdict: PHASE261_DEPLOY_NO_INTERNAL_STEERING_RESTART**
