@@ -386,6 +386,45 @@ class SteeringConfig(BaseConfig):
         routes = route_management.get("routes", {})
         self.route_management_routes = routes if isinstance(routes, dict) else {}
 
+    def _reload_route_management_config(self) -> None:
+        """Re-read route_management config from YAML on SIGUSR1."""
+        import yaml
+
+        try:
+            with open(self.config.config_file_path) as f:
+                fresh_data = yaml.safe_load(f)
+        except Exception as e:
+            self.logger.error(f"[ROUTE_MANAGEMENT] Config reload failed: {e}")
+            return
+
+        fresh_rm = fresh_data.get("route_management", {})
+        if not isinstance(fresh_rm, dict):
+            self.logger.warning("[ROUTE_MANAGEMENT] Config reload: no route_management section")
+            return
+
+        new_mode = fresh_rm.get("mode", "off")
+        old_mode = self.config.route_management_mode
+
+        if new_mode == old_mode:
+            return
+
+        # Update config
+        self.config.route_management_enabled = fresh_rm.get("enabled", False)
+        self.config.route_management_mode = new_mode
+        self.config.route_management_migration_acknowledged = bool(
+            fresh_rm.get("migration_acknowledged", False)
+        )
+        routes = fresh_rm.get("routes", {})
+        self.config.route_management_routes = routes if isinstance(routes, dict) else {}
+
+        # Update route_manager mode
+        if self.route_manager:
+            self.route_manager.mode = new_mode
+
+        self.logger.warning(
+            f"[ROUTE_MANAGEMENT] Config reload: mode={old_mode}->{new_mode}"
+        )
+
     def _load_wan_state_config(self) -> None:
         """Load WAN-aware steering configuration.
 
@@ -2619,10 +2658,11 @@ def run_daemon_loop(
 
         # Check for config reload signal (SIGUSR1)
         if is_reload_requested():
-            logger.info("SIGUSR1 received, reloading config (dry_run + wan_state + webhook_url)")
+            logger.info("SIGUSR1 received, reloading config (dry_run + wan_state + webhook_url + route_management)")
             daemon._reload_dry_run_config()
             daemon._reload_wan_state_config()
             daemon._reload_webhook_url_config()
+            daemon._reload_route_management_config()
             daemon._handle_mode_change()
             reset_reload_state()
 
