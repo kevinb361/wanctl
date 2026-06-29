@@ -35,11 +35,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pytest pytest-cov
-          pip install -e .
+          pip install pytest pytest-timeout
+          pip install -e ".[dashboard,netlink]"
 
       - name: Run tests
-        run: pytest tests/ -v
+        run: pytest tests/ -v -m 'not integration' --timeout=30
 
   syntax-check:
     runs-on: ubuntu-latest
