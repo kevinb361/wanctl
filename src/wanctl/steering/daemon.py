@@ -421,9 +421,7 @@ class SteeringConfig(BaseConfig):
         if self.route_manager:
             self.route_manager.mode = new_mode
 
-        self.logger.warning(
-            f"[ROUTE_MANAGEMENT] Config reload: mode={old_mode}->{new_mode}"
-        )
+        self.logger.warning(f"[ROUTE_MANAGEMENT] Config reload: mode={old_mode}->{new_mode}")
 
     def _load_wan_state_config(self) -> None:
         """Load WAN-aware steering configuration.
@@ -1323,7 +1321,7 @@ class SteeringDaemon:
                     self.route_manager.abort_to_netwatch("netwatch_contention")
                     return
 
-    def _handle_mode_change(self) -> None:
+    def _handle_mode_change(self, *, old_mode: str | None = None) -> None:
         """Handle mode change from active to dry_run (manual rollback).
 
         Called when steering config is reloaded and mode transitions from
@@ -1335,9 +1333,11 @@ class SteeringDaemon:
         if not self.route_manager or not self.route_manager.enabled:
             return
 
-        # Check if mode was previously active (last_event shows active mode)
-        if self.route_manager.mode == "active":
-            self.logger.info("MANUAL ROLLBACK: mode changed to dry_run — reverting to Netwatch")
+        # Check if mode was previously active
+        if old_mode == "active":
+            self.logger.info(
+                "MANUAL ROLLBACK: mode changed active->dry_run — reverting to Netwatch"
+            )
             self.route_manager.abort_to_netwatch("manual_rollback")
 
     def _init_cake_reader(self, config: SteeringConfig) -> None:
@@ -2658,12 +2658,15 @@ def run_daemon_loop(
 
         # Check for config reload signal (SIGUSR1)
         if is_reload_requested():
-            logger.info("SIGUSR1 received, reloading config (dry_run + wan_state + webhook_url + route_management)")
+            logger.info(
+                "SIGUSR1 received, reloading config (dry_run + wan_state + webhook_url + route_management)"
+            )
             daemon._reload_dry_run_config()
             daemon._reload_wan_state_config()
             daemon._reload_webhook_url_config()
+            old_mode = daemon.route_manager.mode if daemon.route_manager else None
             daemon._reload_route_management_config()
-            daemon._handle_mode_change()
+            daemon._handle_mode_change(old_mode=old_mode)
             reset_reload_state()
 
         # Notify systemd watchdog ONLY if healthy
