@@ -1254,6 +1254,10 @@ class SteeringDaemon:
         if self.config.route_management_mode != "active":
             return
 
+        # Also skip if route_manager already reverted (idempotency)
+        if self.route_manager.mode != "active":
+            return
+
         # Check: circuit breaker open
         if self.route_manager.circuit_breaker.open:
             self.logger.warning("ABORT: circuit breaker open — reverting to Netwatch ownership")
