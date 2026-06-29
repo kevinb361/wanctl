@@ -85,4 +85,23 @@ so congestion anomalies could skip the abort path entirely.
 ## Netwatch REST API Note
 Fresh REST connections to `/tool/netwatch` time out on this router. The daemon's
 persistent session works fine. Netwatch entry disable/re-enable requires the
-daemon's own `run_cmd` method or direct SSH access.
+daemon's own `run_cmd` method or direct SSH with password access.
+
+## Final Live Flip (2026-06-29 ~10:57 UTC)
+After disabling all 3 Netwatch entries via SSH (REST API times out for fresh
+connections), guard cleared and flip to active succeeded:
+
+| Metric | Value |
+|--------|-------|
+| mode | active |
+| active_owner | wanctl |
+| observed_owner | none |
+| configured_owner | netwatch |
+| active_allowed | True |
+| guard | None (clean) |
+| circuit_breaker | closed |
+| last_abort | None (no aborts after flip) |
+| ABORT journal entries (post-flip) | 0 |
+| routes | All 4 enabled |
+| steering PID | 1318060 (unchanged since deploy) |
+| steering uptime | ~26 min (no restarts) |
