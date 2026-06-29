@@ -4,7 +4,15 @@ import asyncio
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
-import httpx
+try:
+    import httpx  # noqa: F401
+except ImportError:
+    httpx = None  # type: ignore[assignment]
+
+import pytest
+
+if httpx is None:
+    pytest.skip("httpx not installed", allow_module_level=True)
 
 from wanctl.dashboard.poller import EndpointPoller
 
