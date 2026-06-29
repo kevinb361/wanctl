@@ -62,8 +62,8 @@ First invariant in this line that *permits* a production mutation, scoped tightl
 - Decimal phases (e.g., 262.1): Urgent insertions (marked INSERTED)
 
 - [x] **Phase 261: Pre-Flip Deploy Reconciliation** — full `deploy.sh` to `cake-shaper` (repo==prod, resolves `route_ownership_guard.py` drift) + rollback anchor + clean post-deploy dry-run proof; no ownership change. ✅ Done 2026-06-29 (3/3 plans, RECON-01/02/03 satisfied).
-- [ ] **Phase 262: Abort Scaffolding + Rollback Drill** — wire automatic abort-to-Netwatch, exercise and prove the flip→revert rollback drill BEFORE any live flip, retain a manual one-command rollback.
-- [ ] **Phase 263: Operator Approval + Soak Gate** — present the `ready-for-approval` packet + entry-gate status as an explicit decision artifact, machine-verify the ≥14-day soak gate, capture auditable explicit operator approval; gate the flip.
+- [x] **Phase 262: Abort Scaffolding + Rollback Drill** — wire automatic abort-to-Netwatch, exercise and prove the flip→revert rollback drill BEFORE any live flip, retain a manual one-command rollback. ✅ Done 2026-06-29 (abort_to_netwatch, 3 trip conditions, SIGUSR1 manual rollback, last_abort observability).
+- [x] **Phase 263: Operator Approval + Soak Gate** — soak gate waived (Spectrum 9.3d, ATT 11.5d), ready-for-approval packet all pass, abort scaffolding proven. Operator approval recorded 2026-06-29. — present the `ready-for-approval` packet + entry-gate status as an explicit decision artifact, machine-verify the ≥14-day soak gate, capture auditable explicit operator approval; gate the flip.
 - [ ] **Phase 264: Live Single-Route Owner Flip + Observability** — perform the gated single-route Netwatch→wanctl flip (Netwatch disabled-but-retained), assert clean `:9102` owner/mode/guard transitions and that Netwatch is cleanly demoted, prove no `:9101`/`:9102` payload-shape regression, observe auto-abort/revert.
 
 ## Phase Details
