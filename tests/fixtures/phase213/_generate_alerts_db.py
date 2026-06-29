@@ -8,7 +8,6 @@ from pathlib import Path
 
 from wanctl.storage.schema import create_tables
 
-
 FIXTURE_DB = Path("tests/fixtures/phase213/alerts-test.db")
 
 

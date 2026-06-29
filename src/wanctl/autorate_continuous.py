@@ -34,8 +34,10 @@ from wanctl.metrics import (
 )
 from wanctl.router_client import clear_router_password
 from wanctl.routeros_interface import RouterOS
-from wanctl.rtt_measurement import RTTMeasurement  # noqa: F401 -- re-exported for test compatibility
 from wanctl.rtt_backend_factory import RttBackendHandle, build_rtt_backend
+from wanctl.rtt_measurement import (
+    RTTMeasurement,  # noqa: F401 -- re-exported for test compatibility
+)
 from wanctl.signal_utils import (
     SHUTDOWN_TIMEOUT_SECONDS,
     get_shutdown_event,

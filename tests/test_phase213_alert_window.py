@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = REPO_ROOT / "scripts/phase213-alert-window.sh"
 DB = REPO_ROOT / "tests/fixtures/phase213/alerts-test.db"

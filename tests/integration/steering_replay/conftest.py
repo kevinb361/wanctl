@@ -15,10 +15,9 @@ from unittest.mock import patch
 import pytest
 import yaml
 
+from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement
 from wanctl.steering.cake_stats import CakeStats
 from wanctl.steering.daemon import (
-    RTTAggregationStrategy,
-    RTTMeasurement,
     SteeringConfig,
     SteeringDaemon,
     SteeringStateManager,
@@ -96,7 +95,7 @@ def _seal_urlopen(monkeypatch: pytest.MonkeyPatch):
         raise RuntimeError("steering_replay harness: no HTTP calls allowed")
 
     monkeypatch.setattr(urllib.request, "urlopen", denied)
-    yield calls
+    return calls
 
 
 @pytest.fixture(autouse=True)
@@ -109,7 +108,7 @@ def _seal_socket(monkeypatch: pytest.MonkeyPatch):
 
     monkeypatch.setattr(socket.socket, "connect", denied)
     monkeypatch.setattr(socket.socket, "connect_ex", denied)
-    yield calls
+    return calls
 
 
 def _under_production_root(path: Path) -> bool:

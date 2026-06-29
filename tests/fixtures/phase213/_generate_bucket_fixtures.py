@@ -7,7 +7,6 @@ import csv
 import json
 from pathlib import Path
 
-
 ROOT = Path("tests/fixtures/phase213")
 
 

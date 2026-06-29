@@ -24,9 +24,9 @@ import pytest
 
 from wanctl.backends.linux_cake import LinuxCakeBackend
 from wanctl.backends.netlink_cake import (
-    NetlinkCakeBackend,
     _DIFFSERV_NAME_TO_INT,
     _VALIDATE_KEY_TO_TCA,
+    NetlinkCakeBackend,
 )
 
 # =============================================================================

@@ -10,7 +10,6 @@ import yaml
 
 from .replay_harness import run_fixture
 
-
 ROOT = Path(__file__).resolve().parents[3]
 FIXTURE = ROOT / "tests/integration/steering_replay/fixtures/clean-restart-degraded.yaml"
 EVIDENCE_DIR = ROOT / ".planning/phases/223-staging-proof-clean-restart-reproduction/evidence"

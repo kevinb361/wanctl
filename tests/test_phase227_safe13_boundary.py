@@ -6,7 +6,6 @@ import json
 import subprocess
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BOUNDARY_SCRIPT = REPO_ROOT / "scripts" / "phase225-safe13-boundary-check.sh"
 
@@ -28,8 +27,7 @@ def test_wan_controller_state_is_explicitly_protected(tmp_path: Path) -> None:
         cwd=REPO_ROOT,
         check=True,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
 
     record = json.loads(out_path.read_text(encoding="utf-8"))

@@ -7,7 +7,6 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "phase227-evidence-completeness.py"
 THRESHOLDS = REPO_ROOT / "scripts" / "phase226-thresholds.json"
@@ -110,7 +109,7 @@ def run_checker(tmp_path: Path, summary: dict[str, Any], *, baseline: dict[str, 
         cmd.extend(["--baseline-summary", str(baseline_path)])
     if run_tree is not None:
         cmd.extend(["--run-tree", str(run_tree)])
-    return subprocess.run(cmd, cwd=REPO_ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    return subprocess.run(cmd, cwd=REPO_ROOT, text=True, capture_output=True, check=False)
 
 
 def test_complete_summary_and_three_run_tree_are_verdict_ready(tmp_path: Path) -> None:

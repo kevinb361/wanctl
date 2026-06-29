@@ -1,8 +1,8 @@
 """Tests for RTTMeasurement class in rtt_measurement module."""
 
 import dataclasses
-import subprocess
 import statistics
+import subprocess
 import sys
 import threading
 import time

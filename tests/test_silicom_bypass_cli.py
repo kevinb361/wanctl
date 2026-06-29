@@ -6,7 +6,6 @@ import subprocess
 import textwrap
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CLI = REPO_ROOT / "scripts" / "silicom-bypass"
 DEPLOY = REPO_ROOT / "scripts" / "deploy.sh"

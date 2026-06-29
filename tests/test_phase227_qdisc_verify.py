@@ -4,7 +4,6 @@ import json
 import subprocess
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "phase227-qdisc-verify.sh"
 
@@ -39,8 +38,7 @@ def _run_with_inputs(tmp_path: Path, router_text: str, modem_text: str, expected
         ],
         cwd=ROOT,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         check=False,
     )
 
@@ -50,8 +48,7 @@ def test_dry_run_reports_expected_mode_without_ssh() -> None:
         [str(SCRIPT), "--expected-mode", "diffserv4", "--dry-run"],
         cwd=ROOT,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         check=False,
     )
 
@@ -111,8 +108,7 @@ def test_simulated_ssh_failure_fails_closed(tmp_path: Path) -> None:
         [str(SCRIPT), "--expected-mode", "diffserv4", "--simulate-ssh-failed", "--out", str(out)],
         cwd=ROOT,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         check=False,
     )
 
@@ -128,8 +124,7 @@ def test_unsafe_interface_name_refuses_before_ssh() -> None:
         [str(SCRIPT), "--expected-mode", "diffserv4", "--router-iface", "spec-router';id", "--simulate-ssh-failed"],
         cwd=ROOT,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         check=False,
     )
 

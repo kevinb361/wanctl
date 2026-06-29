@@ -30,7 +30,7 @@ class RttBackend(Protocol):
     returned ``RttSample`` always carries a real, non-``None`` ``rtt_ms``.
     """
 
-    def probe(self, hosts: list[str]) -> "RttSample | None": ...
+    def probe(self, hosts: list[str]) -> RttSample | None: ...
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -53,7 +53,7 @@ class RttSample:
     source_ip: str | None = None
     per_host_loss: dict[str, float | None] = dataclasses.field(default_factory=dict)
 
-    def to_snapshot(self) -> "RTTSnapshot":
+    def to_snapshot(self) -> RTTSnapshot:
         """Return a legacy ``RTTSnapshot`` containing only subset fields."""
         from wanctl.rtt_measurement import RTTSnapshot
 
@@ -67,7 +67,7 @@ class RttSample:
         )
 
 
-def sample_from_irtt_result(result: "IRTTResult") -> "RttSample":
+def sample_from_irtt_result(result: IRTTResult) -> RttSample:
     """Map an IRTT result into an ``RttSample`` without I/O or side effects.
 
     ``rtt_median_ms`` becomes the sample RTT, ``server`` becomes the source
@@ -94,6 +94,6 @@ def sample_from_irtt_result(result: "IRTTResult") -> "RttSample":
 class IrttRttBackend:
     """Unwired IRTT backend adapter placeholder for deferred migration."""
 
-    def probe(self, hosts: list[str]) -> "RttSample | None":
+    def probe(self, hosts: list[str]) -> RttSample | None:
         """Defer live IRTT probing until IRTT-MIG-01."""
         raise NotImplementedError("IRTT-MIG-01")

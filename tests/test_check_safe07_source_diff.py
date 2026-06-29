@@ -7,7 +7,6 @@ import shutil
 import subprocess
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "check-safe07-source-diff.sh"
 
@@ -60,7 +59,7 @@ def _run_script(
 
 def _init_repo_with_att_baseline(tmp_path: Path) -> str:
     """Return the SHA of a synthetic repo with configs/att.yaml committed."""
-    ref = _init_repo_with_baseline(tmp_path)
+    _ = _init_repo_with_baseline(tmp_path)
     (tmp_path / "configs").mkdir(exist_ok=True)
     (tmp_path / "configs" / "att.yaml").write_text("wan: att\n", encoding="utf-8")
     (tmp_path / "configs" / "examples").mkdir(parents=True, exist_ok=True)

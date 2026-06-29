@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-
 GATE_SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "phase201-predeploy-gate.sh"
 DEPLOY_SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "deploy.sh"
 

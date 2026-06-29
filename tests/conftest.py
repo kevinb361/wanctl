@@ -1,8 +1,8 @@
 """Pytest configuration and shared fixtures."""
 
+import json
 import sys
 import tempfile
-import json
 from pathlib import Path
 from unittest.mock import MagicMock
 

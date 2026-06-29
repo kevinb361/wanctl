@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ORCHESTRATOR = REPO_ROOT / "scripts/phase213-baseline-capture.sh"
 EXPECTED = json.loads((REPO_ROOT / "tests/fixtures/phase213/manifest-expected-keys.json").read_text())

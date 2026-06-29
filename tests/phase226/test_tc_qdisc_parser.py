@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = Path(__file__).parent / "fixtures"
 MODULE_PATH = ROOT / "scripts" / "phase226-baseline-summary.py"

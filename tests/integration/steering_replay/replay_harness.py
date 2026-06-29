@@ -35,10 +35,9 @@ except ImportError:  # direct script invocation
     from fake_live_rtt_source import FixtureBaselineLoader  # type: ignore[no-redef]
     from fake_router_transport import FakeRouterTransport  # type: ignore[no-redef]
 
-from wanctl.steering.cake_stats import CakeStats
-from wanctl.steering.daemon import (
-    RTTAggregationStrategy,
-    RTTMeasurement,
+from wanctl.rtt_measurement import RTTAggregationStrategy, RTTMeasurement  # noqa: E402
+from wanctl.steering.cake_stats import CakeStats  # noqa: E402
+from wanctl.steering.daemon import (  # noqa: E402
     SteeringDaemon,
     SteeringStateManager,
     create_steering_state_schema,

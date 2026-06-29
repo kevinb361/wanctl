@@ -6,7 +6,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 CAPTURE_SCRIPT = ROOT / "scripts" / "phase226-baseline-capture.sh"
 SUMMARY_PATH = ROOT / "scripts" / "phase226-baseline-summary.py"
@@ -23,8 +22,7 @@ def _dry_run(*args: str) -> str:
         [str(CAPTURE_SCRIPT), "--output-dir", "/tmp/phase227-dry", "--dry-run", *args],
         cwd=ROOT,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         check=True,
     )
     return result.stdout
@@ -109,8 +107,7 @@ def test_marked_ef_refuses_ref_port_collision() -> None:
         ],
         cwd=ROOT,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         check=False,
     )
 
@@ -130,8 +127,7 @@ def test_capture_refuses_unsafe_interface_name_before_ssh() -> None:
         ],
         cwd=ROOT,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         check=False,
     )
 
