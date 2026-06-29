@@ -1205,6 +1205,9 @@ class SteeringDaemon:
         # to avoid log flooding at 20Hz cycle rate (log-once per name per lifetime)
         self._legacy_state_warned: set[str] = set()
 
+        # Guard refresh tracking (set dynamically in _run_periodic_tasks)
+        self._last_guard_refresh: float = 0.0
+
     def _init_route_management(self) -> None:
         """Initialize guarded route-management helpers without changing defaults."""
         self.route_ownership_guard: RouteOwnershipGuard | None = None

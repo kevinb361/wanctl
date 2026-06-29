@@ -151,8 +151,8 @@ class NetlinkCakeBackend(LinuxCakeBackend):
         if self._ipr is not None:
             try:
                 self._ipr.close()
-            except Exception:
-                pass
+            except Exception as e:
+                self.logger.debug("Failed to close IPRoute during reset: %s", e)
             self._ipr = None
 
     # =========================================================================
@@ -623,8 +623,8 @@ class NetlinkCakeBackend(LinuxCakeBackend):
         if self._ipr is not None:
             try:
                 self._ipr.close()
-            except Exception:
-                pass
+            except Exception as e:
+                self.logger.debug("Failed to close IPRoute: %s", e)
             self._ipr = None
 
     @classmethod

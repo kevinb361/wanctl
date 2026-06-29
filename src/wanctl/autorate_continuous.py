@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from wanctl.autorate_config import Config
+from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
 from wanctl.config_base import ConfigValidationError, get_storage_config
 from wanctl.config_validation_utils import validate_retention_tuner_compat
 from wanctl.daemon_utils import check_cleanup_deadline
@@ -127,10 +128,8 @@ def _create_wan_components(config: "Config", logger: logging.Logger) -> tuple[An
         )
         raise SystemExit(1)
 
-    router = None  # type: ignore
+    router: LinuxCakeAdapter | RouterOS
     if config.router_transport in linux_cake_transports:
-        from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
-
         router = LinuxCakeAdapter.from_config(config, logger)
     else:
         router = RouterOS(config, logger)

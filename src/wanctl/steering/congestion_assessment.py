@@ -40,11 +40,20 @@ class StateThresholds:
 
     def __post_init__(self) -> None:
         """Validate thresholds"""
-        assert self.green_rtt < self.yellow_rtt, "green_rtt must be < yellow_rtt"
-        assert self.yellow_rtt <= self.red_rtt, "yellow_rtt must be <= red_rtt"
-        assert self.min_drops_red > 0, "min_drops_red must be positive"
-        assert self.red_samples_required >= 1, "red_samples_required must be >= 1"
-        assert self.green_samples_required >= 1, "green_samples_required must be >= 1"
+        if self.green_rtt >= self.yellow_rtt:
+            raise ValueError(
+                f"green_rtt ({self.green_rtt}) must be < yellow_rtt ({self.yellow_rtt})"
+            )
+        if self.yellow_rtt > self.red_rtt:
+            raise ValueError(
+                f"yellow_rtt ({self.yellow_rtt}) must be <= red_rtt ({self.red_rtt})"
+            )
+        if self.min_drops_red <= 0:
+            raise ValueError("min_drops_red must be positive")
+        if self.red_samples_required < 1:
+            raise ValueError("red_samples_required must be >= 1")
+        if self.green_samples_required < 1:
+            raise ValueError("green_samples_required must be >= 1")
 
 
 def assess_congestion_state(

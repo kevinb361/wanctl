@@ -177,7 +177,7 @@ directory = "coverage-report"
 show_contexts = true
 
 [tool.pytest.ini_options]
-addopts = "--cov-config=pyproject.toml --timeout=30 -m 'not integration'"
+addopts = "--timeout=30 -m 'not integration'"
 timeout_method = "thread"
 
 [tool.bandit]
