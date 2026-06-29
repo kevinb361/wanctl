@@ -179,9 +179,7 @@ class RouterOSREST:
             logger=logger,
         )
 
-    @retry_with_backoff(
-        max_attempts=2, initial_delay=0.05, backoff_factor=1.0, max_delay=0.1
-    )
+    @retry_with_backoff(max_attempts=2, initial_delay=0.05, backoff_factor=1.0, max_delay=0.1)
     def run_cmd(
         self, cmd: str, capture: bool = False, timeout: int | None = None
     ) -> tuple[int, str, str]:
@@ -285,13 +283,11 @@ class RouterOSREST:
             return self._handle_mangle_rule(cmd, timeout=timeout_val)
         if cmd.startswith("/ip route print") or cmd.startswith("/ip/route/print"):
             return self._handle_route_print(cmd, timeout=timeout_val)
-        if cmd.startswith("/tool netwatch print") or cmd.startswith(
-            "/tool/netwatch/print"
-        ):
+        if cmd.startswith("/tool netwatch set") or cmd.startswith("/tool/netwatch/set"):
+            return self._handle_netwatch_set(cmd, timeout=timeout_val)
+        if cmd.startswith("/tool netwatch print") or cmd.startswith("/tool/netwatch/print"):
             return self._handle_netwatch_print(cmd, timeout=timeout_val)
-        if cmd.startswith("/system script print") or cmd.startswith(
-            "/system/script/print"
-        ):
+        if cmd.startswith("/system script print") or cmd.startswith("/system/script/print"):
             return self._handle_script_print(cmd, timeout=timeout_val)
         if (
             cmd.startswith("/ip route enable")
@@ -358,9 +354,7 @@ class RouterOSREST:
 
         return params
 
-    def _handle_queue_tree_set(
-        self, cmd: str, timeout: int | None = None
-    ) -> dict | None:
+    def _handle_queue_tree_set(self, cmd: str, timeout: int | None = None) -> dict | None:
         """Handle /queue tree set command.
 
         Example: /queue tree set [find name="WAN-Download"] queue=cake-down max-limit=500000000
@@ -411,9 +405,7 @@ class RouterOSREST:
             self.logger.error(f"REST API error updating queue: {e}")
             return None
 
-    def _handle_queue_reset_counters(
-        self, cmd: str, timeout: int | None = None
-    ) -> dict | None:
+    def _handle_queue_reset_counters(self, cmd: str, timeout: int | None = None) -> dict | None:
         """Handle /queue tree reset-counters command.
 
         Example: /queue tree reset-counters [find name="WAN-Download"]
@@ -451,9 +443,7 @@ class RouterOSREST:
 
         try:
             # RouterOS REST API expects .id parameter for the target
-            resp = self._request(
-                "POST", url, json={".id": queue_id}, timeout=timeout_val
-            )
+            resp = self._request("POST", url, json={".id": queue_id}, timeout=timeout_val)
 
             if resp.ok:
                 self.logger.debug(f"Reset counters for queue {queue_name}")
@@ -467,9 +457,7 @@ class RouterOSREST:
             self.logger.error(f"REST API error resetting counters: {e}")
             return None
 
-    def _handle_queue_tree_print(
-        self, cmd: str, timeout: int | None = None
-    ) -> dict | None:
+    def _handle_queue_tree_print(self, cmd: str, timeout: int | None = None) -> dict | None:
         """Handle /queue tree print command.
 
         Args:
@@ -539,9 +527,7 @@ class RouterOSREST:
         url = f"{self.base_url}/ip/firewall/mangle/{rule_id}"
 
         try:
-            resp = self._request(
-                "PATCH", url, json={"disabled": disabled}, timeout=timeout_val
-            )
+            resp = self._request("PATCH", url, json={"disabled": disabled}, timeout=timeout_val)
 
             if resp.ok:
                 self.logger.debug(f"Mangle rule '{comment}' disabled={disabled}")
@@ -681,6 +667,74 @@ class RouterOSREST:
         except requests.RequestException as e:
             self.logger.error(f"REST API error getting netwatch: {e}")
             return None
+
+    def _handle_netwatch_set(self, cmd: str, timeout: int | None = None) -> dict[str, Any] | None:
+        """Handle /tool netwatch set commands via REST (PATCH)."""
+        timeout_val = timeout if timeout is not None else self.timeout
+        base_url = f"{self.base_url}/tool/netwatch"
+
+        parts = (
+            cmd.replace("/tool netwatch set ", "")
+            .replace("/tool/netwatch/set ", "")
+            .strip()
+            .split()
+        )
+        if not parts:
+            return {"status": "ok"}
+
+        filter_spec = None
+        kv_pairs: dict[str, str] = {}
+        in_filter = False
+        filter_text = ""
+
+        for part in parts:
+            if part.startswith("["):
+                in_filter = True
+                filter_text = part
+                continue
+            if in_filter:
+                filter_text += " " + part
+                if part.endswith("]"):
+                    in_filter = False
+                    filter_spec = filter_text.strip("[]")
+                continue
+            if "=" in part and not in_filter:
+                k, v = part.split("=", 1)
+                kv_pairs[k] = v
+
+        try:
+            resp = self._request("GET", base_url, timeout=timeout_val)
+            if not resp.ok:
+                self.logger.error(f"Failed to get netwatch entries: {resp.status_code}")
+                return None
+            entries = resp.json()
+        except Exception as e:
+            self.logger.error(f"Failed to get netwatch entries: {e}")
+            return None
+
+        if filter_spec:
+            filter_parts = filter_spec.split()
+            if len(filter_parts) >= 2 and filter_parts[0] == "find":
+                fk = filter_parts[1].split("=")[0]
+                fv = filter_parts[1].split("=")[1] if "=" in filter_parts[1] else ""
+                entries = [e for e in entries if str(e.get(fk, "")) == fv]
+
+        updated = 0
+        for entry in entries:
+            entry_id = entry.get(".id")
+            if not entry_id:
+                continue
+            patch_url = f"{base_url}/{entry_id}"
+            try:
+                resp = self._request("PATCH", patch_url, json=kv_pairs, timeout=timeout_val)
+                if resp.ok:
+                    updated += 1
+                else:
+                    self.logger.warning(f"Failed to update netwatch {entry_id}: {resp.status_code}")
+            except Exception as e:
+                self.logger.error(f"Failed to update netwatch {entry_id}: {e}")
+
+        return {"status": "ok", "updated": updated}
 
     def _handle_script_print(
         self, cmd: str, timeout: int | None = None
@@ -824,17 +878,13 @@ class RouterOSREST:
 
         # Check cache first
         if use_cache and filter_value in cache:
-            self.logger.debug(
-                f"Resource ID cache hit: {filter_value} -> {cache[filter_value]}"
-            )
+            self.logger.debug(f"Resource ID cache hit: {filter_value} -> {cache[filter_value]}")
             return cache[filter_value]
 
         url = f"{self.base_url}/{endpoint}"
 
         try:
-            resp = self._request(
-                "GET", url, params={filter_key: filter_value}, timeout=timeout_val
-            )
+            resp = self._request("GET", url, params={filter_key: filter_value}, timeout=timeout_val)
 
             if resp.ok and resp.json():
                 items = resp.json()
@@ -843,9 +893,7 @@ class RouterOSREST:
                     # Cache the result
                     if resource_id and use_cache:
                         cache[filter_value] = resource_id
-                        self.logger.debug(
-                            f"Resource ID cached: {filter_value} -> {resource_id}"
-                        )
+                        self.logger.debug(f"Resource ID cached: {filter_value} -> {resource_id}")
                     return resource_id  # type: ignore[no-any-return]
 
             # RouterOS REST filtering is not fully reliable for some literal
@@ -967,9 +1015,7 @@ class RouterOSREST:
         url = f"{self.base_url}/queue/tree"
 
         try:
-            resp = self._request(
-                "GET", url, params={"name": queue_name}, timeout=self.timeout
-            )
+            resp = self._request("GET", url, params={"name": queue_name}, timeout=self.timeout)
 
             if resp.ok and resp.json():
                 items = resp.json()
@@ -999,9 +1045,7 @@ class RouterOSREST:
         url = f"{self.base_url}/queue/type"
 
         try:
-            resp = self._request(
-                "GET", url, params={"name": type_name}, timeout=self.timeout
-            )
+            resp = self._request("GET", url, params={"name": type_name}, timeout=self.timeout)
 
             if resp.ok and resp.json():
                 items = resp.json()
@@ -1034,9 +1078,7 @@ class RouterOSREST:
         # Find the queue type ID via GET /queue/type?name=...
         url = f"{self.base_url}/queue/type"
         try:
-            resp = self._request(
-                "GET", url, params={"name": type_name}, timeout=self.timeout
-            )
+            resp = self._request("GET", url, params={"name": type_name}, timeout=self.timeout)
             if not resp.ok or not resp.json():
                 self.logger.error(f"Queue type not found: {type_name}")
                 return False
