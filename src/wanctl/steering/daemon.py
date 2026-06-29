@@ -1311,10 +1311,7 @@ class SteeringDaemon:
         new_mode = fresh_rm.get("mode", "off")
         old_mode = self.config.route_management_mode
 
-        if new_mode == old_mode:
-            return
-
-        # Update config
+        # Update config always — routes can change even when mode stays the same
         self.config.route_management_enabled = fresh_rm.get("enabled", False)
         self.config.route_management_mode = new_mode
         self.config.route_management_migration_acknowledged = bool(
@@ -1326,8 +1323,24 @@ class SteeringDaemon:
         # Update route_manager mode
         if self.route_manager:
             self.route_manager.mode = new_mode
+            # Update route_manager routes — always, even if mode unchanged
+            old_route_keys = set(self.route_manager.routes.keys())
+            new_route_keys = set(routes.keys())
+            self.route_manager.routes = routes
 
-        self.logger.warning(f"[ROUTE_MANAGEMENT] Config reload: mode={old_mode}->{new_mode}")
+            # If route list changed, re-reconcile
+            if old_route_keys != new_route_keys:
+                self.logger.info(
+                    f"[ROUTE_MANAGEMENT] Routes changed: "
+                    f"added={new_route_keys - old_route_keys}, "
+                    f"removed={old_route_keys - new_route_keys}"
+                )
+                self.route_manager.reconcile_startup()
+
+        if new_mode != old_mode:
+            self.logger.warning(f"[ROUTE_MANAGEMENT] Config reload: mode={old_mode}->{new_mode}")
+        else:
+            self.logger.info("[ROUTE_MANAGEMENT] Config reload: routes updated, mode unchanged")
 
         # Re-inspect guard — Netwatch state may have changed
         self._refresh_guard()
