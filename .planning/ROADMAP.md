@@ -30,7 +30,7 @@
 
 ---
 
-## 🚧 v1.58 Active Route-Management Canary (Phases 261–264) — IN PROGRESS
+## ✅ v1.58 Active Route-Management Canary (Phases 261–264) — SHIPPED 2026-06-29
 
 **Milestone Goal:** Flip wanctl into the active default-route owner role for a single canary route, demoting Netwatch to disabled-but-retained, under an explicit reversible operator gate with automatic abort-to-Netwatch. First *mutating* milestone in the v1.55→v1.57 route-ownership line (`SEED-008`).
 
@@ -64,7 +64,7 @@ First invariant in this line that *permits* a production mutation, scoped tightl
 - [x] **Phase 261: Pre-Flip Deploy Reconciliation** — full `deploy.sh` to `cake-shaper` (repo==prod, resolves `route_ownership_guard.py` drift) + rollback anchor + clean post-deploy dry-run proof; no ownership change. ✅ Done 2026-06-29 (3/3 plans, RECON-01/02/03 satisfied).
 - [x] **Phase 262: Abort Scaffolding + Rollback Drill** — wire automatic abort-to-Netwatch, exercise and prove the flip→revert rollback drill BEFORE any live flip, retain a manual one-command rollback. ✅ Done 2026-06-29 (abort_to_netwatch, 3 trip conditions, SIGUSR1 manual rollback, last_abort observability).
 - [x] **Phase 263: Operator Approval + Soak Gate** — soak gate waived (Spectrum 9.3d, ATT 11.5d), ready-for-approval packet all pass, abort scaffolding proven. Operator approval recorded 2026-06-29. — present the `ready-for-approval` packet + entry-gate status as an explicit decision artifact, machine-verify the ≥14-day soak gate, capture auditable explicit operator approval; gate the flip.
-- [ ] **Phase 264: Live Single-Route Owner Flip + Observability** — perform the gated single-route Netwatch→wanctl flip (Netwatch disabled-but-retained), assert clean `:9102` owner/mode/guard transitions and that Netwatch is cleanly demoted, prove no `:9101`/`:9102` payload-shape regression, observe auto-abort/revert.
+- [x] **Phase 264: Live Single-Route Owner Flip + Observability** — ✅ Done 2026-06-29. Live flip to active mode on cake-shaper: wanctl owns route management (active_owner=wanctl), Netwatch disabled, guard clean, zero abort spam. Abort path proven during flip (Netwatch contention → single ABORT → clean revert to dry_run). 5 bugs fixed during execution (inspector attr, abort spam, config mode sync, guard refresh, anomaly gate ordering).
 
 ## Phase Details
 
@@ -125,9 +125,9 @@ Phases execute in numeric order: 261 → 262 → 263 → 264
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 261. Pre-Flip Deploy Reconciliation | v1.58 | 3/3 | Executed | 2026-06-29 |
-| 262. Abort Scaffolding + Rollback Drill | v1.58 | 0/3 | Planned | - |
-| 263. Operator Approval + Soak Gate | v1.58 | 0/TBD | Not started | - |
-| 264. Live Single-Route Owner Flip + Observability | v1.58 | 0/TBD | Not started | - |
+| 262. Abort Scaffolding + Rollback Drill | v1.58 | 3/3 | Executed | 2026-06-29 |
+| 263. Operator Approval + Soak Gate | v1.58 | 1/1 | Executed | 2026-06-29 |
+| 264. Live Single-Route Owner Flip + Observability | v1.58 | 1/1 | Executed | 2026-06-29 |
 
 ---
 
