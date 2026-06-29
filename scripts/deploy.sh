@@ -45,6 +45,11 @@ ANALYSIS_SCRIPTS=(
     "scripts/analyze_baseline.py"
 )
 
+# Ops scripts (rollback, audit, operational tools)
+OPS_SCRIPTS=(
+    "scripts/phase262-rollback.sh"
+)
+
 # Documentation files (optional, for reference)
 DOCS_FILES=(
     "docs/PROFILING.md"
@@ -309,6 +314,25 @@ deploy_analysis_scripts() {
     done
 
     print_success "Analysis scripts deployed"
+}
+
+deploy_ops_scripts() {
+    print_step "Deploying ops scripts..."
+
+    cd "$PROJECT_ROOT"
+
+    for file in "${OPS_SCRIPTS[@]}"; do
+        if [[ -f "$file" ]]; then
+            local basename=$(basename "$file")
+            scp "$file" "$TARGET_HOST:/tmp/$basename"
+            ssh "$TARGET_HOST" "sudo mv /tmp/$basename /opt/wanctl/scripts/$basename && sudo chown root:root /opt/wanctl/scripts/$basename && sudo chmod 755 /opt/wanctl/scripts/$basename"
+            echo "  -> wanctl/scripts/$basename"
+        else
+            print_warning "File not found: $file"
+        fi
+    done
+
+    print_success "Ops scripts deployed"
 }
 
 deploy_docs() {
@@ -990,6 +1014,7 @@ deploy_code
 deploy_config "$WAN_NAME"
 deploy_profiling_scripts
 deploy_analysis_scripts
+deploy_ops_scripts
 deploy_docs
 deploy_nic_tuning_script
 deploy_sysctl_tuning
