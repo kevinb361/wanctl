@@ -1276,7 +1276,7 @@ class SteeringDaemon:
             if isinstance(last, dict):
                 observed = last.get("observed_owner")
                 configured = last.get("configured_owner")
-                if configured == "wanctl" and observed == "netwatch":
+                if configured in ("wanctl", "unknown") and observed == "netwatch":
                     self.logger.warning(
                         "ABORT: Netwatch contention detected — observed_owner reverted to netwatch "
                         "(configured=wanctl, observed=netwatch)"
