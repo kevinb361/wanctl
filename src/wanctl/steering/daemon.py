@@ -2313,6 +2313,12 @@ class SteeringDaemon:
             self._record_profiling(cake_timer.elapsed_ms, rtt_timer.elapsed_ms, 0.0, cycle_start)
             return False
 
+        # === Route Abort Check (subsystem 4) ===
+        # Check trip conditions BEFORE anomaly gate so abort always fires
+        # even when congestion anomalies are present.
+        if self.config.route_management_enabled and self.config.route_management_mode == "active":
+            self._check_route_abort()
+
         # === State Management (subsystem 3) ===
         anomaly_detected = False
         with PerfTimer("steering_state_management", self.logger) as state_timer:
@@ -2325,12 +2331,6 @@ class SteeringDaemon:
         )
         if anomaly_detected:
             return True  # STEER-02: cycle-skip (not failure) -- anomalies are transient
-
-        # === Route Abort Check (subsystem 4) ===
-        # Only check trip conditions when route management is active
-        if self.config.route_management_enabled and self.config.route_management_mode == "active":
-            self.logger.debug("Route abort check: checking trip conditions")
-            self._check_route_abort()
 
         return True
 
