@@ -387,6 +387,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             "last_intended_action": route_management.get("last_intended_action"),
             "last_applied_action": route_management.get("last_applied_action"),
             "rollback_ready": bool(route_management.get("rollback_ready", False)),
+            "last_abort": route_management.get("last_abort"),
             "last_event": route_management.get("last_event"),
         }
 
