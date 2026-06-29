@@ -1271,11 +1271,11 @@ class SteeringDaemon:
         # Check: Netwatch contention — observed_owner reverted to netwatch while
         # wanctl is the configured owner (someone externally re-enabled netwatch routes)
         inspector = getattr(self, "route_ownership_inspector", None)
-        if inspector and hasattr(inspector, "last_result"):
-            last = inspector.last_result
-            if isinstance(last, dict):
-                observed = last.get("observed_owner")
-                configured = last.get("configured_owner")
+        if inspector and hasattr(inspector, "snapshot"):
+            snap = inspector.snapshot()
+            if isinstance(snap, dict):
+                observed = snap.get("observed_owner")
+                configured = snap.get("configured_owner")
                 if configured in ("wanctl", "unknown") and observed == "netwatch":
                     self.logger.warning(
                         "ABORT: Netwatch contention detected — observed_owner reverted to netwatch "
