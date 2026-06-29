@@ -3,31 +3,30 @@ gsd_state_version: 1.0
 milestone: v1.58
 milestone_name: Active Route-Management Canary
 status: executing
-stopped_at: Phase 261 complete, Phase 262 next
-last_updated: "2026-06-29T02:20:00Z"
-last_activity: 2026-06-29 -- Phase 261 complete (RECON-01..04 satisfied)
-progress:
-  total_phases: 4
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 25
----
+stopped_at: Phase 262 planned (wave 1/3 pending)
 
-# Session State
+## Workflow
+workflow_auto_chain: false
+current_phase: 262
+current_plan: 262-01
+current_wave: 1/3
+plans_completed: 0/3
+last_action: plan 262 created
 
-## Current Position
+## Phase Progress
+| Phase | Plans | Status |
+|-------|-------|--------|
+| 261 | 3/3 | Executed |
+| 262 | 0/3 | Planned (next) |
+| 263 | 0/TBD | Not started |
+| 264 | 0/TBD | Not started |
 
-Phase: 261 COMPLETE, Phase 262 NEXT (Abort Scaffolding + Rollback Drill)
-Status: Phase 261 done — 3/3 plans complete
-Last activity: 2026-06-29 -- Phase 261 completed
+## Key State
+- Phase 261 complete: deploy reconciled, repo==prod proven, rollback anchor captured
+- Phase 262: abort scaffolding needs to be coded (wave 1), then deployed + drilled (wave 2)
+- steering.yaml mode=dry_run, active_owner=netwatch (unchanged)
+- Rollback anchor at /var/lib/wanctl/phase261-backups/20260628T225946Z/
 
-## Phase 261 Results
+## SAFE-22
+Active — no controller-path diff, no CAKE change, single canary route only
 
-All 3 plans complete, all RECON requirements satisfied:
-- RECON-01: deploy.sh reconcile complete, repo==prod proven (110 files sha256 audit)
-- RECON-02: Rollback anchor captured, scratch-restore drill passed, full write-set coverage gate passed
-- RECON-03: No-restart gate passed (3 units monotonic byte-identical pre/post deploy)
-- RECON-04: Post-restart smoke gate 5/5, confirmatory harness consistent
-
-Production state: steering healthy, route_mode=dry_run, active_owner=netwatch, inspector=ok
