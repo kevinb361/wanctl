@@ -1341,7 +1341,7 @@ class SteeringDaemon:
             self.logger.info(
                 "MANUAL ROLLBACK: mode changed active->dry_run — reverting to Netwatch"
             )
-            self.route_manager.abort_to_netwatch("manual_rollback")
+            self.route_manager.abort_to_netwatch("manual_rollback", mode_before="active")
 
     def _init_cake_reader(self, config: SteeringConfig) -> None:
         """Initialize CAKE congestion detection components."""

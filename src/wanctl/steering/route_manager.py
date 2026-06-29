@@ -189,7 +189,9 @@ class RouteManager:
         """Explicitly reset route apply circuit breaker."""
         self.circuit_breaker = RouteCircuitBreaker()
 
-    def abort_to_netwatch(self, trip_condition: str) -> RouteActionResult:
+    def abort_to_netwatch(
+        self, trip_condition: str, *, mode_before: str | None = None
+    ) -> RouteActionResult:
         """Abort active route management and revert to Netwatch ownership.
 
         On a trip condition, this method:
@@ -208,7 +210,7 @@ class RouteManager:
         trip_evidence: dict[str, object] = {
             "event": "abort_to_netwatch",
             "trip_condition": trip_condition,
-            "mode_before": self.mode,
+            "mode_before": mode_before or self.mode,
         }
 
         # Step 1: Re-enable each configured route via RouterOS
