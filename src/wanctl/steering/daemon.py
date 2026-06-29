@@ -1268,17 +1268,21 @@ class SteeringDaemon:
             self.route_manager.abort_to_netwatch("router_unreachable")
             return
 
-        # Check: Netwatch contention (guard conflicts detected while in active mode)
-        if self.route_ownership_guard_result is not None:
-            guard_status = getattr(self.route_ownership_guard_result, "status", "unknown")
-            guard_conflicts = getattr(self.route_ownership_guard_result, "conflicts", ()) or ()
-            if guard_status == "conflict" and len(guard_conflicts) > 0:
-                self.logger.warning(
-                    f"ABORT: Netwatch contention detected ({len(guard_conflicts)} conflicts) "
-                    f"— reverting to Netwatch ownership"
-                )
-                self.route_manager.abort_to_netwatch("netwatch_contention")
-                return
+        # Check: Netwatch contention — observed_owner reverted to netwatch while
+        # wanctl is the configured owner (someone externally re-enabled netwatch routes)
+        inspector = getattr(self, "route_ownership_inspector", None)
+        if inspector and hasattr(inspector, "last_result"):
+            last = inspector.last_result
+            if isinstance(last, dict):
+                observed = last.get("observed_owner")
+                configured = last.get("configured_owner")
+                if configured == "wanctl" and observed == "netwatch":
+                    self.logger.warning(
+                        "ABORT: Netwatch contention detected — observed_owner reverted to netwatch "
+                        "(configured=wanctl, observed=netwatch)"
+                    )
+                    self.route_manager.abort_to_netwatch("netwatch_contention")
+                    return
 
     def _handle_mode_change(self) -> None:
         """Handle mode change from active to dry_run (manual rollback).
