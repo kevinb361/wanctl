@@ -193,6 +193,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         health["rtt_source"] = self._build_rtt_source_section(health_data)
         health["wan_awareness"] = self._build_wan_awareness_section(health_data)
         health["route_management"] = self._build_route_management_section(health_data)
+        health["failover"] = self._build_failover_section(health_data)
         health["ownership_inspection"] = self._build_ownership_inspection_section(health_data)
         health["storage"] = self._build_storage_section(health_data)
         health["runtime"] = self._build_runtime_section(health_data, health.get("cycle_budget"))
@@ -389,6 +390,21 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             "rollback_ready": bool(route_management.get("rollback_ready", False)),
             "last_abort": route_management.get("last_abort"),
             "last_event": route_management.get("last_event"),
+        }
+
+    def _build_failover_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
+        """Build failover bridge observability section."""
+        raw = health_data.get("failover")
+        fo: dict[str, Any] = raw if isinstance(raw, dict) else {}
+        last_decision_raw = fo.get("last_decision")
+        last_decision: dict[str, Any] | None = (
+            last_decision_raw if isinstance(last_decision_raw, dict) else None
+        )
+        return {
+            "enabled": bool(fo.get("enabled", False)),
+            "red_count": int(fo.get("red_count", 0) or 0),
+            "green_count": int(fo.get("green_count", 0) or 0),
+            "last_decision": last_decision,
         }
 
     def _build_ownership_inspection_section(self, health_data: dict[str, Any]) -> dict[str, Any]:

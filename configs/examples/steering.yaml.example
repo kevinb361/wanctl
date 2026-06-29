@@ -146,6 +146,11 @@ route_management:
       comment: "Force ATT_OUT to ATT WAN"
     backup:
       comment: "Backup to Spectrum if ATT fails"
+  failover:
+    enabled: false            # Disabled by default — opt-in per WAN
+    wan: "spectrum"           # Which route key to act on
+    red_cycles: 3             # Consecutive RED cycles before failover (~1.5s)
+    green_cycles: 5           # Consecutive GREEN cycles before recovery (~2.5s)
 
 # State persistence
 state:

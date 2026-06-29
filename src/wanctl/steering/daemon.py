@@ -87,13 +87,14 @@ from .congestion_assessment import (
     assess_congestion_state,
     ewma_update,
 )
+from .failover_bridge import FailoverBridge, FailoverDecision
 from .health import (
     SteeringHealthServer,
     start_steering_health_server,
     update_steering_health_status,
 )
 from .route_decision import RouteDecisionPolicy, RouteDecisionState
-from .route_manager import RouteManager
+from .route_manager import RouteAction, RouteManager
 from .route_ownership_guard import RouteOwnershipGuard
 from .route_ownership_inspector import RouteOwnershipInspector
 from .steering_confidence import (
@@ -385,6 +386,15 @@ class SteeringConfig(BaseConfig):
         )
         routes = route_management.get("routes", {})
         self.route_management_routes = routes if isinstance(routes, dict) else {}
+
+        # Failover bridge config (optional, disabled by default)
+        failover = route_management.get("failover", {})
+        if not isinstance(failover, dict):
+            failover = {}
+        self.failover_enabled = bool(failover.get("enabled", False))
+        self.failover_wan = failover.get("wan", self.primary_wan)
+        self.failover_red_cycles = int(failover.get("red_cycles", 3))
+        self.failover_green_cycles = int(failover.get("green_cycles", 5))
 
     def _load_wan_state_config(self) -> None:
         """Load WAN-aware steering configuration.
@@ -1217,6 +1227,14 @@ class SteeringDaemon:
             ownership_guard_result=None,
         )
 
+        # Failover bridge: hysteresis-gated congestion → route action
+        self.failover_bridge = FailoverBridge(
+            red_cycles=self.config.failover_red_cycles,
+            green_cycles=self.config.failover_green_cycles,
+        )
+        self.failover_bridge.armed = self.config.failover_enabled
+        self._last_failover_decision: FailoverDecision | None = None
+
         if not self.config.route_management_enabled or self.config.route_management_mode == "off":
             return
 
@@ -1320,6 +1338,33 @@ class SteeringDaemon:
         routes = fresh_rm.get("routes", {})
         self.config.route_management_routes = routes if isinstance(routes, dict) else {}
 
+        # Failover bridge config
+        failover = fresh_rm.get("failover", {})
+        if not isinstance(failover, dict):
+            failover = {}
+        new_failover_enabled = bool(failover.get("enabled", False))
+        new_red_cycles = int(failover.get("red_cycles", 3))
+        new_green_cycles = int(failover.get("green_cycles", 5))
+
+        # Re-initialize bridge if config changed
+        if (
+            new_failover_enabled != self.config.failover_enabled
+            or new_red_cycles != self.config.failover_red_cycles
+            or new_green_cycles != self.config.failover_green_cycles
+        ):
+            self.config.failover_enabled = new_failover_enabled
+            self.config.failover_red_cycles = new_red_cycles
+            self.config.failover_green_cycles = new_green_cycles
+            self.failover_bridge = FailoverBridge(
+                red_cycles=new_red_cycles,
+                green_cycles=new_green_cycles,
+            )
+            self.failover_bridge.armed = new_failover_enabled
+            self.logger.info(
+                f"[ROUTE_MANAGEMENT] Failover bridge reinitialized: "
+                f"enabled={new_failover_enabled}, red={new_red_cycles}, green={new_green_cycles}"
+            )
+
         # Update route_manager mode
         if self.route_manager:
             self.route_manager.mode = new_mode
@@ -1354,6 +1399,30 @@ class SteeringDaemon:
                 f"[ROUTE_MANAGEMENT] Guard refresh: status={self.route_ownership_guard_result.status}, "
                 f"conflicts={len(self.route_ownership_guard_result.conflicts)}"
             )
+
+    def _process_failover_bridge(self) -> None:
+        """Feed congestion state into the failover bridge and act on decisions."""
+        if not self.failover_bridge.armed:
+            return
+
+        congestion_state = self.state_mgr.state.get("congestion_state", "GREEN")
+        decision = self.failover_bridge.update(congestion_state)
+        if decision is None:
+            return
+
+        self._last_failover_decision = decision
+        route_key = self.config.failover_wan  # which route key to act on (e.g. "spectrum")
+
+        # Map bridge action ("disable"/"enable") to RouteAction
+        action: RouteAction = decision.action  # type: ignore[assignment]
+        result = self.route_manager.plan_or_apply(action, route_key)
+
+        self.logger.info(
+            f"[FAILOVER] {action.upper()} {route_key}: "
+            f"state={decision.congestion_state}, cycles={decision.consecutive_cycles}, "
+            f"result={'ok' if result.success else 'blocked'}, "
+            f"error={result.error or 'none'}"
+        )
 
     def _handle_mode_change(self, *, old_mode: str | None = None) -> None:
         """Handle mode change from active to dry_run (manual rollback).
@@ -1662,6 +1731,21 @@ class SteeringDaemon:
             },
             "wan_awareness": wan_awareness,
             "route_management": self.route_manager.status_snapshot(),
+            "failover": {
+                "enabled": self.failover_bridge.armed,
+                "red_count": self.failover_bridge.red_count,
+                "green_count": self.failover_bridge.green_count,
+                "last_decision": (
+                    {
+                        "action": self._last_failover_decision.action,
+                        "congestion_state": self._last_failover_decision.congestion_state,
+                        "consecutive_cycles": self._last_failover_decision.consecutive_cycles,
+                        "timestamp": self._last_failover_decision.timestamp,
+                    }
+                    if self._last_failover_decision
+                    else None
+                ),
+            },
             "ownership_inspection": self.ownership_inspector.snapshot(),
             "runtime": {
                 "process": "steering",
@@ -2358,6 +2442,11 @@ class SteeringDaemon:
         )
         if anomaly_detected:
             return True  # STEER-02: cycle-skip (not failure) -- anomalies are transient
+
+        # === Failover Bridge (subsystem 5) ===
+        # After congestion assessment, feed bridge and act on decisions.
+        # Only runs when failover is enabled and route management is active.
+        self._process_failover_bridge()
 
         return True
 
