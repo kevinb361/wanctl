@@ -5698,6 +5698,7 @@ class TestSteeringRouteManagementHealth:
             "last_intended_action",
             "last_applied_action",
             "rollback_ready",
+            "last_abort",
             "last_event",
         }
 
