@@ -1324,6 +1324,19 @@ class SteeringDaemon:
 
         self.logger.warning(f"[ROUTE_MANAGEMENT] Config reload: mode={old_mode}->{new_mode}")
 
+        # Re-inspect guard — Netwatch state may have changed
+        self._refresh_guard()
+
+    def _refresh_guard(self) -> None:
+        """Re-inspect the route ownership guard and update route_manager."""
+        if self.route_ownership_guard and self.route_manager:
+            self.route_ownership_guard_result = self.route_ownership_guard.inspect()
+            self.route_manager.ownership_guard_result = self.route_ownership_guard_result
+            self.logger.info(
+                f"[ROUTE_MANAGEMENT] Guard refresh: status={self.route_ownership_guard_result.status}, "
+                f"conflicts={len(self.route_ownership_guard_result.conflicts)}"
+            )
+
     def _handle_mode_change(self, *, old_mode: str | None = None) -> None:
         """Handle mode change from active to dry_run (manual rollback).
 
@@ -2644,6 +2657,16 @@ def run_daemon_loop(
 
         # Update health server with current failure state (INTG-03)
         update_steering_health_status(consecutive_failures)
+
+        # Periodic guard refresh — re-inspect route ownership guard every 60s
+        # so route_manager sees current Netwatch state (not just startup snapshot).
+        # Runs inline; guard inspect is fast (2 REST GETs, no mutation).
+        _guard_refresh_interval = 60.0
+        _now = time.monotonic()
+        _last_guard_refresh = getattr(daemon, "_last_guard_refresh", 0)
+        if _now - _last_guard_refresh >= _guard_refresh_interval:
+            daemon._refresh_guard()
+            daemon._last_guard_refresh = _now
 
         # Periodic maintenance: cleanup + downsample + vacuum on configured cadence.
         # Without this, retention only runs at restart — pages allocated between
