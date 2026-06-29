@@ -754,11 +754,11 @@ class TestWANControllerAsymmetryAttributes:
 
     def test_has_asymmetry_analyzer_attribute(self) -> None:
         """WANController initialization creates _asymmetry_analyzer."""
-        _mock_config = self._make_config()
+        _ = self._make_config()
         with patch("wanctl.routeros_interface.get_router_client_with_failover"):
             from wanctl.wan_controller import WANController
 
-            _controller = WANController.__new__(WANController)
+            _ = WANController.__new__(WANController)
             # Check the attribute exists in the class (may be in __init__ or extracted helper)
             import inspect
 

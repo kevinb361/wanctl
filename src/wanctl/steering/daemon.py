@@ -52,7 +52,6 @@ from ..metrics import (
     record_storage_maintenance_lock_skip,
 )
 from ..perf_profiler import (
-    PROFILE_REPORT_INTERVAL,  # noqa: F401 -- re-exported for test compatibility
     OperationProfiler,
     PerfTimer,
     record_cycle_profiling,

@@ -14,7 +14,7 @@ import time
 import traceback
 from collections.abc import Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from wanctl.autorate_config import Config
 from wanctl.config_base import ConfigValidationError, get_storage_config
@@ -35,9 +35,6 @@ from wanctl.metrics import (
 from wanctl.router_client import clear_router_password
 from wanctl.routeros_interface import RouterOS
 from wanctl.rtt_backend_factory import RttBackendHandle, build_rtt_backend
-from wanctl.rtt_measurement import (
-    RTTMeasurement,  # noqa: F401 -- re-exported for test compatibility
-)
 from wanctl.signal_utils import (
     SHUTDOWN_TIMEOUT_SECONDS,
     get_shutdown_event,
@@ -61,9 +58,6 @@ from wanctl.wan_controller import (
     _apply_tuning_to_controller,
     _mark_tuning_executed,
 )
-
-if TYPE_CHECKING:
-    from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
 
 # =============================================================================
 # CONSTANTS
@@ -133,7 +127,7 @@ def _create_wan_components(config: "Config", logger: logging.Logger) -> tuple[An
         )
         raise SystemExit(1)
 
-    router: "LinuxCakeAdapter | RouterOS"  # noqa: UP037
+    router = None  # type: ignore
     if config.router_transport in linux_cake_transports:
         from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
 

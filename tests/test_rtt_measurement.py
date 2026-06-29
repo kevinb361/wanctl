@@ -852,7 +852,7 @@ class TestBackgroundRTTThread:
             pool=mock_pool,
         )
 
-        _original_wait = shutdown_event.wait  # noqa: F841
+        _ = shutdown_event.wait  # noqa: F841
 
         def wait_then_stop(timeout=None):
             """Allow one iteration then signal shutdown."""

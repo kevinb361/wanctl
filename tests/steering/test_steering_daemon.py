@@ -5000,7 +5000,7 @@ class TestSteeringProfilingInstrumentation:
 
     def test_profiling_report_emitted_when_enabled(self, daemon, mock_logger):
         """Profiling report should be logged every PROFILE_REPORT_INTERVAL cycles."""
-        from wanctl.steering.daemon import PROFILE_REPORT_INTERVAL
+        from wanctl.perf_profiler import PROFILE_REPORT_INTERVAL
 
         daemon._profiling_enabled = True
         for _ in range(PROFILE_REPORT_INTERVAL):

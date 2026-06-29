@@ -673,7 +673,7 @@ class TestNeedsRateLimiting:
 class TestRouterOSRateLimiting:
     """Tests for needs_rate_limiting and rate_limit_params on RouterOS wrapper."""
 
-    def _make_routeros(self, rate_limiter_config: dict) -> "RouterOS":  # noqa: F821
+    def _make_routeros(self, rate_limiter_config: dict):  # noqa: F821
         """Create RouterOS instance with mocked config."""
         from wanctl.routeros_interface import RouterOS
 
