@@ -272,3 +272,122 @@ def test_status_snapshot_exposes_health_fields():
     assert snapshot["reconciliation"]["status"] == "ok"
     assert snapshot["circuit_breaker"]["open"] is False
     assert snapshot["rollback_ready"] is True
+
+
+def test_abort_to_netwatch_sets_mode_to_dry_run_and_resets_circuit():
+    router = FakeRouter()
+    manager = RouteManager(
+        enabled=True,
+        mode="active",
+        routes=ROUTES,
+        router_client=router,
+        ownership_guard_result=GuardAllowed(),
+    )
+    manager.reconcile_startup()
+
+    # Simulate open circuit breaker
+    from wanctl.steering.route_manager import RouteCircuitBreaker
+
+    manager.circuit_breaker = RouteCircuitBreaker(open=True, failure_count=5, last_error="test")
+
+    result = manager.abort_to_netwatch("circuit_breaker_open")
+
+    assert result.action == "abort"
+    assert result.success is True
+    assert result.mutated is True
+    assert manager.mode == "dry_run"
+    assert manager.circuit_breaker.open is False
+    assert manager.circuit_breaker.failure_count == 0
+
+
+def test_abort_to_netwatch_re_enables_all_routes():
+    router = FakeRouter()
+    manager = RouteManager(
+        enabled=True,
+        mode="active",
+        routes=ROUTES,
+        router_client=router,
+        ownership_guard_result=GuardAllowed(),
+    )
+    manager.reconcile_startup()
+
+    result = manager.abort_to_netwatch("manual_rollback")
+
+    assert result.success is True
+    # All three routes should have been enabled
+    enables = [cmd for cmd in router.mutation_commands if " enable " in cmd]
+    assert len(enables) == 3
+
+
+def test_abort_to_netwatch_partial_failure_on_router_error():
+    router = FakeRouter(mutation_rc=1)
+    manager = RouteManager(
+        enabled=True,
+        mode="active",
+        routes=ROUTES,
+        router_client=router,
+        ownership_guard_result=GuardAllowed(),
+    )
+    manager.reconcile_startup()
+
+    result = manager.abort_to_netwatch("router_unreachable")
+
+    assert result.success is False
+    assert result.mutated is False
+    assert result.error is not None
+    assert "partial abort" in result.error.lower()
+    assert manager.mode == "dry_run"
+    assert manager.circuit_breaker.open is False
+
+
+def test_abort_to_netwatch_without_router_client_still_reverts_locally():
+    manager = RouteManager(
+        enabled=True,
+        mode="active",
+        routes=ROUTES,
+        router_client=None,
+        ownership_guard_result=GuardAllowed(),
+    )
+
+    result = manager.abort_to_netwatch("router_unreachable")
+
+    assert result.success is False
+    assert manager.mode == "dry_run"
+    assert manager.circuit_breaker.open is False
+
+
+def test_abort_to_netwatch_records_last_abort_in_snapshot():
+    router = FakeRouter()
+    manager = RouteManager(
+        enabled=True,
+        mode="active",
+        routes=ROUTES,
+        router_client=router,
+        ownership_guard_result=GuardAllowed(),
+    )
+    manager.reconcile_startup()
+
+    manager.abort_to_netwatch("netwatch_contention")
+    snapshot = manager.status_snapshot()
+
+    assert snapshot["last_abort"] is not None
+    last_abort = snapshot["last_abort"]  # type: ignore[reportIndexIssue]
+    assert last_abort["trip_condition"] == "netwatch_contention"  # type: ignore[operator]
+    assert last_abort["mode_before"] == "active"  # type: ignore[operator]
+    assert last_abort["mode_after"] == "dry_run"  # type: ignore[operator]
+
+
+def test_status_snapshot_without_abort_has_no_last_abort():
+    router = FakeRouter()
+    manager = RouteManager(
+        enabled=True,
+        mode="dry_run",
+        routes=ROUTES,
+        router_client=router,
+        ownership_guard_result=GuardAllowed(),
+    )
+    manager.reconcile_startup()
+
+    snapshot = manager.status_snapshot()
+
+    assert snapshot["last_abort"] is None

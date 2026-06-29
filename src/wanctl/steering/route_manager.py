@@ -136,7 +136,9 @@ class RouteManager:
     def reconcile_startup(self) -> RouteReconciliationStatus:
         """Read current route state for all configured targets before active apply."""
         if not self.enabled or self.mode == "off":
-            self.reconciliation = RouteReconciliationStatus(status="ok", routes={}, checked_at=time.time())
+            self.reconciliation = RouteReconciliationStatus(
+                status="ok", routes={}, checked_at=time.time()
+            )
             return self.reconciliation
         if self.router_client is None:
             return self._set_reconciliation_failed("router client unavailable")
@@ -186,6 +188,78 @@ class RouteManager:
     def reset_circuit(self) -> None:
         """Explicitly reset route apply circuit breaker."""
         self.circuit_breaker = RouteCircuitBreaker()
+
+    def abort_to_netwatch(self, trip_condition: str) -> RouteActionResult:
+        """Abort active route management and revert to Netwatch ownership.
+
+        On a trip condition, this method:
+        1. Re-enables all configured routes (restoring Netwatch ownership)
+        2. Sets mode to "dry_run" (keeps observing)
+        3. Resets circuit breaker
+        4. Records the abort for health visibility
+
+        Args:
+            trip_condition: Reason for abort (e.g., "circuit_breaker_open",
+                "router_unreachable", "netwatch_contention", "manual_rollback")
+
+        Returns:
+            RouteActionResult describing the abort outcome.
+        """
+        trip_evidence: dict[str, object] = {
+            "event": "abort_to_netwatch",
+            "trip_condition": trip_condition,
+            "mode_before": self.mode,
+        }
+
+        # Step 1: Re-enable each configured route via RouterOS
+        if self.router_client is not None:
+            route_results: dict[str, bool] = {}
+            for route_key in self.routes:
+                target = self._get_target(route_key)
+                if target is None or target.anchor_type is None:
+                    route_results[route_key] = False
+                    continue
+
+                command = self._mutation_command("enable", target)
+                rc, out, err = self.router_client.run_cmd(command, timeout=10)
+                if rc == 0:
+                    route_results[route_key] = True
+                else:
+                    error = err or out or "route enable failed"
+                    route_results[route_key] = False
+                    trip_evidence[f"route_{route_key}_error"] = error
+
+            trip_evidence["route_revert_results"] = route_results
+            all_reverted = all(route_results.values())
+        else:
+            # Router unavailable — still revert state locally
+            trip_evidence["route_revert_results"] = {}
+            trip_evidence["note"] = "router_client unavailable, local revert only"
+            all_reverted = False
+
+        # Step 2: Set mode to dry_run
+        self.mode = "dry_run"
+        trip_evidence["mode_after"] = self.mode
+
+        # Step 3: Reset circuit breaker
+        self.circuit_breaker = RouteCircuitBreaker()
+
+        # Step 4: Record abort
+        result = RouteActionResult(
+            action="abort",
+            route_key="all",
+            anchor_type=None,
+            anchor_value=None,
+            dry_run=False,
+            mutated=all_reverted,
+            success=all_reverted,
+            error=None if all_reverted else "partial abort — some routes failed to revert",
+            evidence=trip_evidence,
+        )
+        self._record_intent(result)
+        self.last_applied_action = self._record_from_result(result)
+
+        return result
 
     def plan_or_apply(self, action: RouteAction, route_key: str) -> RouteActionResult:
         """Plan or guarded-apply a route action."""
@@ -284,7 +358,22 @@ class RouteManager:
         guard_reason = getattr(self.ownership_guard_result, "blocked_reason", None) or getattr(
             self.ownership_guard_result, "error", None
         )
-        active_allowed = self._guard_allows_active() and self.reconciliation.ok and not self.circuit_breaker.open
+        active_allowed = (
+            self._guard_allows_active() and self.reconciliation.ok and not self.circuit_breaker.open
+        )
+
+        # Extract last abort event if available
+        last_abort: dict[str, object] | None = None
+        if self.last_event is not None and self.last_event.get("event") == "abort_to_netwatch":
+            last_abort = {
+                "trip_condition": self.last_event.get("trip_condition"),
+                "mode_before": self.last_event.get("mode_before"),
+                "mode_after": self.last_event.get("mode_after"),
+                "timestamp": self.last_intended_action.timestamp
+                if self.last_intended_action
+                else None,
+            }
+
         return {
             "enabled": self.enabled,
             "mode": self.mode,
@@ -311,6 +400,7 @@ class RouteManager:
             "last_intended_action": _record_to_dict(self.last_intended_action),
             "last_applied_action": _record_to_dict(self.last_applied_action),
             "rollback_ready": self.reconciliation.ok and self.router_client is not None,
+            "last_abort": last_abort,
             "last_event": self.last_event,
         }
 

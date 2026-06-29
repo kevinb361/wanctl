@@ -1240,6 +1240,62 @@ class SteeringDaemon:
             "probe_exception_count": 0,
         }
         self._last_probe_exception_log_ts = 0.0
+        self._last_route_abort_log_ts = 0.0
+
+    def _check_route_abort(self) -> None:
+        """Check trip conditions and trigger abort-to-Netwatch if any fires.
+
+        Trip conditions (any one triggers auto-revert):
+        1. Circuit breaker open — route apply failure threshold hit
+        2. Router unreachable — router_connectivity.is_reachable flips false
+        3. Netwatch contention — ownership guard detects active Netwatch conflicts
+
+        Only fires once per trip condition (idempotent — abort sets mode to dry_run,
+        so subsequent cycles skip this check).
+        """
+        if not self.config.route_management_enabled:
+            return
+
+        # Check: circuit breaker open
+        if self.route_manager.circuit_breaker.open:
+            self.logger.warning("ABORT: circuit breaker open — reverting to Netwatch ownership")
+            self.route_manager.abort_to_netwatch("circuit_breaker_open")
+            return
+
+        # Check: router unreachable
+        if not self.router_connectivity.is_reachable:
+            self.logger.warning("ABORT: router unreachable — reverting to Netwatch ownership")
+            self.route_manager.abort_to_netwatch("router_unreachable")
+            return
+
+        # Check: Netwatch contention (guard conflicts detected while in active mode)
+        if self.route_ownership_guard_result is not None:
+            guard_status = getattr(self.route_ownership_guard_result, "status", "unknown")
+            guard_conflicts = getattr(self.route_ownership_guard_result, "conflicts", ()) or ()
+            if guard_status == "conflict" and len(guard_conflicts) > 0:
+                self.logger.warning(
+                    f"ABORT: Netwatch contention detected ({len(guard_conflicts)} conflicts) "
+                    f"— reverting to Netwatch ownership"
+                )
+                self.route_manager.abort_to_netwatch("netwatch_contention")
+                return
+
+    def _handle_mode_change(self) -> None:
+        """Handle mode change from active to dry_run (manual rollback).
+
+        Called when steering config is reloaded and mode transitions from
+        'active' to 'dry_run'. Triggers the same revert sequence as auto-abort.
+        """
+        if self.config.route_management_mode != "dry_run":
+            return
+
+        if not self.route_manager or not self.route_manager.enabled:
+            return
+
+        # Check if mode was previously active (last_event shows active mode)
+        if self.route_manager.mode == "active":
+            self.logger.info("MANUAL ROLLBACK: mode changed to dry_run — reverting to Netwatch")
+            self.route_manager.abort_to_netwatch("manual_rollback")
 
     def _init_cake_reader(self, config: SteeringConfig) -> None:
         """Initialize CAKE congestion detection components."""
@@ -2219,6 +2275,12 @@ class SteeringDaemon:
         )
         if anomaly_detected:
             return True  # STEER-02: cycle-skip (not failure) -- anomalies are transient
+
+        # === Route Abort Check (subsystem 4) ===
+        # Only check trip conditions when route management is active
+        if self.config.route_management_enabled and self.config.route_management_mode == "active":
+            self._check_route_abort()
+
         return True
 
     def _run_steering_state_subsystem(
@@ -2557,6 +2619,7 @@ def run_daemon_loop(
             daemon._reload_dry_run_config()
             daemon._reload_wan_state_config()
             daemon._reload_webhook_url_config()
+            daemon._handle_mode_change()
             reset_reload_state()
 
         # Notify systemd watchdog ONLY if healthy
