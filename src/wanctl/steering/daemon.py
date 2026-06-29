@@ -1243,16 +1243,7 @@ class SteeringDaemon:
         self._last_route_abort_log_ts = 0.0
 
     def _check_route_abort(self) -> None:
-        """Check trip conditions and trigger abort-to-Netwatch if any fires.
-
-        Trip conditions (any one triggers auto-revert):
-        1. Circuit breaker open — route apply failure threshold hit
-        2. Router unreachable — router_connectivity.is_reachable flips false
-        3. Netwatch contention — ownership guard detects active Netwatch conflicts
-
-        Only fires once per trip condition (idempotent — abort sets mode to dry_run,
-        so subsequent cycles skip this check).
-        """
+        """Check trip conditions and trigger abort-to-Netwatch if any fires."""
         if not self.config.route_management_enabled:
             return
 
@@ -1279,7 +1270,7 @@ class SteeringDaemon:
                 if configured in ("wanctl", "unknown") and observed == "netwatch":
                     self.logger.warning(
                         "ABORT: Netwatch contention detected — observed_owner reverted to netwatch "
-                        "(configured=wanctl, observed=netwatch)"
+                        f"(configured={configured}, observed={observed})"
                     )
                     self.route_manager.abort_to_netwatch("netwatch_contention")
                     return
@@ -2338,6 +2329,7 @@ class SteeringDaemon:
         # === Route Abort Check (subsystem 4) ===
         # Only check trip conditions when route management is active
         if self.config.route_management_enabled and self.config.route_management_mode == "active":
+            self.logger.debug("Route abort check: checking trip conditions")
             self._check_route_abort()
 
         return True
