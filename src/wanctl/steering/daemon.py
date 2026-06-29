@@ -1243,8 +1243,15 @@ class SteeringDaemon:
         self._last_route_abort_log_ts = 0.0
 
     def _check_route_abort(self) -> None:
-        """Check trip conditions and trigger abort-to-Netwatch if any fires."""
+        """Check trip conditions and trigger abort-to-Netwatch if any fires.
+
+        Only fires once per trip condition — after aborting, the mode is set to
+        dry_run so subsequent cycles skip this check via the mode gate below.
+        """
         if not self.config.route_management_enabled:
+            return
+
+        if self.config.route_management_mode != "active":
             return
 
         # Check: circuit breaker open
@@ -1261,7 +1268,7 @@ class SteeringDaemon:
 
         # Check: Netwatch contention — observed_owner reverted to netwatch while
         # wanctl is the configured owner (someone externally re-enabled netwatch routes)
-        inspector = getattr(self, "route_ownership_inspector", None)
+        inspector = getattr(self, "ownership_inspector", None)
         if inspector and hasattr(inspector, "snapshot"):
             snap = inspector.snapshot()
             if isinstance(snap, dict):
