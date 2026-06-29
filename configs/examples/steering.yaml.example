@@ -144,6 +144,8 @@ route_management:
       comment: "ATT"
     att_policy:
       comment: "Force ATT_OUT to ATT WAN"
+    backup:
+      comment: "Backup to Spectrum if ATT fails"
 
 # State persistence
 state:
