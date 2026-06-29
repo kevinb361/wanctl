@@ -61,7 +61,7 @@ First invariant in this line that *permits* a production mutation, scoped tightl
 - Integer phases (261, 262, …): Planned milestone work (continues from v1.57 last phase 260)
 - Decimal phases (e.g., 262.1): Urgent insertions (marked INSERTED)
 
-- [ ] **Phase 261: Pre-Flip Deploy Reconciliation** — full `deploy.sh` to `cake-shaper` (repo==prod, resolves `route_ownership_guard.py` drift) + rollback anchor + clean post-deploy dry-run proof; no ownership change.
+- [x] **Phase 261: Pre-Flip Deploy Reconciliation** — full `deploy.sh` to `cake-shaper` (repo==prod, resolves `route_ownership_guard.py` drift) + rollback anchor + clean post-deploy dry-run proof; no ownership change. ✅ Done 2026-06-29 (3/3 plans, RECON-01/02/03 satisfied).
 - [ ] **Phase 262: Abort Scaffolding + Rollback Drill** — wire automatic abort-to-Netwatch, exercise and prove the flip→revert rollback drill BEFORE any live flip, retain a manual one-command rollback.
 - [ ] **Phase 263: Operator Approval + Soak Gate** — present the `ready-for-approval` packet + entry-gate status as an explicit decision artifact, machine-verify the ≥14-day soak gate, capture auditable explicit operator approval; gate the flip.
 - [ ] **Phase 264: Live Single-Route Owner Flip + Observability** — perform the gated single-route Netwatch→wanctl flip (Netwatch disabled-but-retained), assert clean `:9102` owner/mode/guard transitions and that Netwatch is cleanly demoted, prove no `:9101`/`:9102` payload-shape regression, observe auto-abort/revert.
@@ -90,8 +90,10 @@ First invariant in this line that *permits* a production mutation, scoped tightl
   2. The circuit-breaker/guard automatically reverts the canary route to Netwatch ownership on the defined trip conditions (link down / route flap / Netwatch contention), demonstrated under the drill.
   3. The operator retains a manual one-command rollback to Netwatch ownership that works independently of the automatic abort path.
   4. SAFE-22 holds: scaffolding/drill touches only the one canary route, Netwatch is disabled-but-retained (never deleted), and no controller-path source diff is introduced.
-**Plans**: TBD
-**UI hint**: no
+**Plans**: 3 plans (3 waves)
+- [ ] 262-01-PLAN.md — Abort scaffolding code: auto-revert method in RouteManager, trip condition checks in daemon cycle, manual rollback script (ABORT-02/04)
+- [ ] 262-02-PLAN.md — Deploy abort scaffolding + staged flip→revert rollback drill on canary route (ABORT-01)
+- [ ] 262-03-PLAN.md — Evidence review: abort observability on :9102, verification, phase close (ABORT-03)
 
 ### Phase 263: Operator Approval + Soak Gate
 **Goal**: The human-in-the-loop gate consumed immediately before the live flip is real and auditable — the Phase 260 `ready-for-approval` packet plus entry-gate status is presented as an explicit decision artifact, the ≥14-consecutive-stable-cake-autorate-days soak gate is machine-verified and recorded, and no flip can proceed without a recorded explicit operator approval.
@@ -122,8 +124,8 @@ Phases execute in numeric order: 261 → 262 → 263 → 264
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 261. Pre-Flip Deploy Reconciliation | v1.58 | 0/3 | Planned | - |
-| 262. Abort Scaffolding + Rollback Drill | v1.58 | 0/TBD | Not started | - |
+| 261. Pre-Flip Deploy Reconciliation | v1.58 | 3/3 | Executed | 2026-06-29 |
+| 262. Abort Scaffolding + Rollback Drill | v1.58 | 0/3 | Planned | - |
 | 263. Operator Approval + Soak Gate | v1.58 | 0/TBD | Not started | - |
 | 264. Live Single-Route Owner Flip + Observability | v1.58 | 0/TBD | Not started | - |
 
