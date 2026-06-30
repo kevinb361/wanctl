@@ -118,7 +118,8 @@ ARBITRATION_REASON_RTT_PRIMARY_NORMAL = "rtt_primary_operating_normally"
 ARBITRATION_REASON_HEALER_BYPASS = "healer_bypass"
 ARBITRATION_REASON_QUEUE_DURING_REFRACTORY = "queue_during_refractory"
 ARBITRATION_REASON_RTT_FALLBACK_DURING_REFRACTORY = "rtt_fallback_during_refractory"
-RTT_CONFIDENCE_NULL_SENTINEL = math.nan
+# RTT_CONFIDENCE_NULL_SENTINEL removed (dead code - was math.nan, never used)
+# See docs/CODE_REVIEW_2026-06-29.md finding A10
 
 
 # =============================================================================
@@ -1491,18 +1492,8 @@ class WANController:
                     exc_info=True,
                 )
 
-    def update_ewma(self, measured_rtt: float) -> None:
-        """
-        Update both EWMAs (fast load, slow baseline).
-
-        Fast EWMA (load_rtt): Responsive to current conditions, always updates.
-        Slow EWMA (baseline_rtt): Only updates when line is idle (delta < threshold).
-        """
-        # Fast EWMA for load_rtt (responsive to current conditions)
-        self.load_rtt = (1 - self.alpha_load) * self.load_rtt + self.alpha_load * measured_rtt
-
-        # Slow EWMA for baseline_rtt (conditional update via protected logic)
-        self._update_baseline_if_idle(measured_rtt)
+    # update_ewma() removed (dead code - never called).
+    # _update_baseline_if_idle() is still called from _process_rtt_signal().
 
     def _update_baseline_if_idle(self, icmp_rtt: float) -> None:
         """
@@ -4782,7 +4773,13 @@ class WANController:
                 self.download.green_streak = dl.get("green_streak", 0)
                 self.download.soft_red_streak = dl.get("soft_red_streak", 0)
                 self.download.red_streak = dl.get("red_streak", 0)
-                self.download.current_rate = dl.get("current_rate", self.download.ceiling_bps)
+                restored_dl_rate = dl.get("current_rate", self.download.ceiling_bps)
+                # Clamp restored rate to current config bounds — config may
+                # have changed floors/ceilings since the last save.
+                self.download.current_rate = max(
+                    self.download.floor_red_bps,
+                    min(restored_dl_rate, self.download.ceiling_bps),
+                )
 
             # Restore upload controller state
             if "upload" in state:
@@ -4790,7 +4787,12 @@ class WANController:
                 self.upload.green_streak = ul.get("green_streak", 0)
                 self.upload.soft_red_streak = ul.get("soft_red_streak", 0)
                 self.upload.red_streak = ul.get("red_streak", 0)
-                self.upload.current_rate = ul.get("current_rate", self.upload.ceiling_bps)
+                restored_ul_rate = ul.get("current_rate", self.upload.ceiling_bps)
+                # Clamp restored rate to current config bounds.
+                self.upload.current_rate = max(
+                    self.upload.floor_red_bps,
+                    min(restored_ul_rate, self.upload.ceiling_bps),
+                )
 
             # Restore EWMA state
             if "ewma" in state:
@@ -4811,7 +4813,7 @@ class WANController:
         """
         return STATE_ENCODING.get(state, 0)
 
-    @handle_errors(error_msg="{self.wan_name}: Could not save state: {exception}")
+    @handle_errors(error_msg="{self.wan_name}: Could not save state: {exception}", log_level=logging.ERROR)
     def save_state(self, force: bool = False) -> None:
         """Save hysteresis state to disk for persistence across restarts.
 

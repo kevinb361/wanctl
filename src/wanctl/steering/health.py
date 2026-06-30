@@ -109,7 +109,11 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         """Handle GET requests."""
         if self.path == "/health" or self.path == "/":
-            health = self._get_health_status()
+            try:
+                health = self._get_health_status()
+            except Exception:
+                health = {"status": "degraded", "error": "health check failed", "version": __version__}
+                logging.getLogger(__name__).warning("Health endpoint failed", exc_info=True)
             status_code = 200 if health["status"] == "healthy" else 503
 
             self.send_response(status_code)

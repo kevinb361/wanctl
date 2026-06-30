@@ -429,9 +429,9 @@ class TestCleanupPerGranularity:
         assert cursor.fetchone()[0] == 20
 
     def test_retention_config_deletes_old_1h_data_using_5m_threshold(self, test_db):
-        """1h data uses aggregate_5m_age_seconds as its cutoff (final tier)."""
-        # Insert 1h data 10 days old (should be deleted)
-        _insert_granularity_metrics(test_db, 10, seconds_old=864000, granularity="1h")
+        """1h data uses aggregate_1h_age_seconds (default 2x 5m threshold)."""
+        # Insert 1h data 20 days old (should be deleted even with 2x 5m threshold)
+        _insert_granularity_metrics(test_db, 10, seconds_old=1728000, granularity="1h")
         # Insert 1h data 3 days old (should be preserved)
         _insert_granularity_metrics(test_db, 10, seconds_old=259200, granularity="1h")
 
@@ -470,7 +470,7 @@ class TestCleanupPerGranularity:
         _insert_granularity_metrics(test_db, 10, seconds_old=7200, granularity="raw")    # 2h > 1h threshold
         _insert_granularity_metrics(test_db, 10, seconds_old=172800, granularity="1m")   # 2d > 1d threshold
         _insert_granularity_metrics(test_db, 10, seconds_old=864000, granularity="5m")   # 10d > 7d threshold
-        _insert_granularity_metrics(test_db, 10, seconds_old=864000, granularity="1h")   # 10d > 7d threshold
+        _insert_granularity_metrics(test_db, 10, seconds_old=1728000, granularity="1h")   # 20d > 14d threshold
 
         # Recent data for each tier (should be preserved)
         _insert_granularity_metrics(test_db, 5, seconds_old=1800, granularity="raw")     # 30m < 1h

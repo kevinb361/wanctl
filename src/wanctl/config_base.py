@@ -221,6 +221,12 @@ def get_storage_config(data: dict) -> StorageConfig:
 
     logger = logging.getLogger(__name__)
     storage = data.get("storage", {})
+    # Guard against non-dict storage values (e.g., a plain string or None
+    # from a malformed YAML).  Skip the check if data itself is not a real
+    # dict (e.g., MagicMock in tests) to avoid breaking test compatibility.
+    if isinstance(data, dict) and not isinstance(storage, dict):
+        logger.warning("storage config is not a dict, using defaults")
+        storage = {}
 
     # Translate deprecated retention_days to new retention section
     translated = deprecate_param(

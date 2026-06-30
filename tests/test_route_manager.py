@@ -53,6 +53,16 @@ class FakeRouter:
         if " enable " in cmd or " disable " in cmd:
             if self.mutation_rc != 0:
                 return (self.mutation_rc, "", "apply failed")
+            # Update route state to match the action so subsequent print
+            # calls (verification step in abort_to_netwatch) reflect the change.
+            if " enable " in cmd:
+                for rows in self.routes.values():
+                    for row in rows:
+                        row["disabled"] = "false"
+            else:
+                for rows in self.routes.values():
+                    for row in rows:
+                        row["disabled"] = "true"
             return (0, "ok", "")
         return (1, "", "unexpected")
 

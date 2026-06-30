@@ -43,4 +43,13 @@ def mock_steering_config():
     config.alerting_config = None
     # Cycle interval for utilization calculation
     config.measurement_interval = 0.05
+    # Failover bridge (SAFE-01)
+    config.failover_red_cycles = 3
+    config.failover_green_cycles = 5
+    config.failover_enabled = False
+    # Route management (SAFE-04)
+    config.route_management_enabled = False
+    config.route_management_mode = "off"
+    config.route_management_routes = {}
+    config.route_management_migration_acknowledged = False
     return config
