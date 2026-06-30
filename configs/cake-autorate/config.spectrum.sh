@@ -16,7 +16,7 @@ reflector_ping_interval_s=0.2
 
 # Conservative Spectrum DOCSIS production trial envelope.
 adjust_dl_shaper_rate=1
-adjust_ul_shaper_rate=0
+adjust_ul_shaper_rate=1
 min_dl_shaper_rate_kbps=500000
 base_dl_shaper_rate_kbps=550000
 max_dl_shaper_rate_kbps=600000
