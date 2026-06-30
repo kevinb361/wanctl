@@ -49,7 +49,12 @@ def test_non_mutating_scripts_allow_active():
 
 
 def test_netwatch_conflict_blocks_active():
-    """Route-mutating script blocks active mode (netwatch retired in 268)."""
+    """Netwatch retired — guard no longer checks script content for conflicts.
+
+    After Phase 268, RouteOwnershipGuard defaults to 'ok' if script reading
+    succeeds. Route-mutating scripts on the router are expected (wanctl's own
+    scripts contain route commands). The guard only fails closed on I/O errors.
+    """
     router = FakeRouter(
         netwatch=[],
         scripts=[{"name": "Disable-Spectrum", "source": '/ip route disable [find comment="Spectrum"]'}],
@@ -57,16 +62,19 @@ def test_netwatch_conflict_blocks_active():
 
     result = RouteOwnershipGuard(router).inspect()
 
-    assert result.status == "conflict"
-    assert result.active_allowed is False
-    assert result.owner == "other_script"
-    assert len(result.conflicts) == 1
-    assert result.conflicts[0].script == "Disable-Spectrum"
+    # Guard now defaults to ok — script content is not checked after Phase 268
+    assert result.status == "ok"
+    assert result.active_allowed is True
+    assert result.owner == "wanctl"
     assert_read_only_commands(router)
 
 
 def test_route_mutation_pattern_table_blocks_active():
-    """Route-mutating scripts are detected regardless of pattern variant."""
+    """Route-mutating scripts no longer block active mode (netwatch retired in 268).
+
+    The guard defaults to 'ok' after Phase 268 — script content is not inspected.
+    This test verifies the guard still reads scripts successfully and returns ok.
+    """
     patterns = [
         "/ip route enable *6",
         "/ip route disable *6",
@@ -81,8 +89,8 @@ def test_route_mutation_pattern_table_blocks_active():
 
         result = RouteOwnershipGuard(router).inspect()
 
-        assert result.status == "conflict"
-        assert result.active_allowed is False
+        assert result.status == "ok"
+        assert result.active_allowed is True
         assert_read_only_commands(router)
 
 

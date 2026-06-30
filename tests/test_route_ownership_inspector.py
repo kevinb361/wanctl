@@ -92,14 +92,18 @@ def test_netwatch_entries_count_and_route_mutating_count() -> None:
 
 
 def test_observed_owner_netwatch_on_conflict() -> None:
-    """Route-mutating scripts yield 'other_script' observed owner (netwatch retired in 268)."""
+    """Route-mutating scripts no longer cause conflict (guard defaults to ok after 268).
+
+    The inspector should report 'wanctl' as observed owner when in active mode
+    and the guard returns ok — even if scripts contain route commands.
+    """
     _, scripts = _conflict_fixture()
     router = FakeRouter(netwatch=[], scripts=scripts, routes=[])
 
-    inspector = _inspector(router)
+    inspector = _inspector(router, FakeRouteManager(active_owner="wanctl", mode="active"))
     inspector.refresh()
 
-    assert inspector.snapshot()["observed_owner"] == "other_script"
+    assert inspector.snapshot()["observed_owner"] == "wanctl"
 
 
 def test_observed_owner_none_in_dry_run() -> None:
@@ -174,16 +178,16 @@ def test_default_route_filter_and_fields() -> None:
 
 
 def test_match_true_when_observed_equals_configured() -> None:
-    """Match is True when observed owner equals configured owner (other_script after 268)."""
+    """Match is True when observed owner equals configured owner."""
     _, scripts = _conflict_fixture()
     router = FakeRouter(netwatch=[], scripts=scripts, routes=[])
 
-    inspector = _inspector(router, FakeRouteManager(active_owner="other_script", mode="dry_run"))
+    inspector = _inspector(router, FakeRouteManager(active_owner="wanctl", mode="active"))
     inspector.refresh()
 
     snapshot = inspector.snapshot()
-    assert snapshot["observed_owner"] == "other_script"
-    assert snapshot["configured_owner"] == "other_script"
+    assert snapshot["observed_owner"] == "wanctl"
+    assert snapshot["configured_owner"] == "wanctl"
     assert snapshot["match"] is True
 
 

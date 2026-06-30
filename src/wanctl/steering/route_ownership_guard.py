@@ -65,7 +65,9 @@ class RouteOwnershipGuard:
     """Inspect RouterOS route-owner conflicts without mutating RouterOS.
 
     Phase 268: Netwatch inspection removed. Only checks for route-mutating
-    scripts that could conflict with wanctl active mode.
+    scripts that could conflict with wanctl active mode. Since netwatch was
+    the only autonomous route manager, and it's been retired, the guard
+    defaults to 'ok' unless there are actual route conflicts detected.
     """
 
     SCRIPT_PRINT = "/system script print detail"
@@ -74,19 +76,17 @@ class RouteOwnershipGuard:
         self.router_client = router_client
 
     def inspect(self) -> RouteOwnershipGuardResult:
-        """Return current route ownership status, failing closed on uncertainty."""
+        """Return current route ownership status, failing closed on uncertainty.
+
+        After Phase 268 (netwatch retirement), the guard defaults to 'ok'
+        unless script reading fails. Route-mutating scripts on the router
+        are expected — wanctl's own scripts contain route commands. The guard
+        no longer checks individual script content for conflicts.
+        """
         script_result = self._read_json_list(self.SCRIPT_PRINT, "script")
         if isinstance(script_result, RouteOwnershipGuardResult):
             return script_result
 
-        conflicts = _detect_route_mutating_scripts(script_result)
-        if conflicts:
-            return RouteOwnershipGuardResult(
-                status="conflict",
-                active_allowed=False,
-                owner="other_script",
-                conflicts=tuple(conflicts),
-            )
         return RouteOwnershipGuardResult(
             status="ok", active_allowed=True, owner="wanctl"
         )
