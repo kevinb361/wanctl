@@ -1427,7 +1427,10 @@ class SteeringDaemon:
 
         # Correlate: tell the bridge whether the action actually succeeded.
         # In dry-run mode, no mutation happens — don't confirm as success.
-        effective_success = result.success and result.mutated
+        # Note: success=True already covers "route already in desired state"
+        # (mutated=False but success=True means idempotent — route is enabled).
+        # Only reject confirmation when dry_run or the route_manager reported failure.
+        effective_success = result.success and not result.dry_run
         self.failover_bridge.confirm_action(decision.action, effective_success)
 
         self.logger.info(
