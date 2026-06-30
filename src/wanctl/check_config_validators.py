@@ -27,7 +27,7 @@ from wanctl.config_validation_utils import validate_bandwidth_order, validate_th
 # This must cover ALL paths in production configs (spectrum.yaml, att.yaml)
 # to avoid false-positive "unknown key" warnings.
 _DOCSIS_SETPOINT_PATH = "continuous_monitoring.upload.setpoint_mbps"
-MEASUREMENT_BACKENDS: tuple[str, ...] = ("icmplib", "fping")
+MEASUREMENT_BACKENDS: tuple[str, ...] = ("icmplib", "fping", "irtt")
 
 KNOWN_AUTORATE_PATHS: set[str] = {
     # From BASE_SCHEMA

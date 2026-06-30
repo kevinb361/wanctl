@@ -4,8 +4,6 @@ import dataclasses
 import subprocess
 import sys
 
-import pytest
-
 from tests.helpers import make_host_result
 from wanctl.irtt_measurement import IRTTResult
 from wanctl.rtt_backend import (
@@ -101,11 +99,48 @@ def test_sample_from_irtt_result_mapping():
     assert sample.per_host_loss["198.51.100.30"] == 4.5
 
 
-def test_irtt_backend_unwired():
-    """The live IRTT adapter stays deferred behind IRTT-MIG-01."""
+def test_irtt_backend_wired():
+    """IrttRttBackend wraps IRTTMeasurement and returns RttSample."""
+    from unittest.mock import MagicMock, patch
 
-    with pytest.raises(NotImplementedError, match="IRTT-MIG-01"):
-        IrttRttBackend().probe(["198.51.100.30"])
+    mock_measurement = MagicMock()
+    mock_result = MagicMock()
+    mock_result.rtt_median_ms = 42.5
+    mock_result.server = "198.51.100.30"
+    mock_result.timestamp = 100.0
+    mock_result.success = True
+    mock_result.send_loss = 2.0
+    mock_result.receive_loss = 4.5
+
+    mock_measurement.measure.return_value = mock_result
+
+    with patch.object(IrttRttBackend, "__init__", lambda self, config, logger: setattr(self, "_measurement", mock_measurement) or setattr(self, "_logger", logger)):
+        backend = IrttRttBackend.__new__(IrttRttBackend)
+        backend._measurement = mock_measurement
+        backend._logger = MagicMock()
+
+        sample = backend.probe(["ignored-host"])
+
+        assert sample is not None
+        assert sample.rtt_ms == 42.5
+        assert sample.backend == "irtt"
+        assert sample.source_ip == "198.51.100.30"
+        assert sample.per_host_loss["198.51.100.30"] == 4.5
+        mock_measurement.measure.assert_called_once()
+
+
+def test_irtt_backend_returns_none_on_failure():
+    """IrttRttBackend.probe returns None when IRTTMeasurement.measure fails."""
+    from unittest.mock import MagicMock
+
+    mock_measurement = MagicMock()
+    mock_measurement.measure.return_value = None
+
+    backend = IrttRttBackend.__new__(IrttRttBackend)
+    backend._measurement = mock_measurement
+    backend._logger = MagicMock()
+
+    assert backend.probe(["any-host"]) is None
 
 
 def test_imports_acyclic_both_orders():

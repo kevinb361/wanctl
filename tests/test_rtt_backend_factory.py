@@ -47,13 +47,16 @@ class FactoryConfig:
             return 1
         return 0
 
-    def __init__(self, *, backend: str | None = None, fping: dict[str, object] | None = None) -> None:
+    def __init__(self, *, backend: str | None = None, fping: dict[str, object] | None = None, irtt: dict[str, object] | None = None) -> None:
         measurement: dict[str, object] = {}
         if backend is not None:
             measurement["backend"] = backend
         if fping is not None:
             measurement["fping"] = fping
-        self.data = {"measurement": measurement} if measurement else {}
+        data: dict[str, object] = {"measurement": measurement} if measurement else {}
+        if irtt is not None:
+            data["irtt"] = irtt
+        self.data = data
 
         self.timeout_ping = 1
         self.ping_source_ip = "192.0.2.10"
@@ -130,11 +133,12 @@ def _build(
     *,
     backend: str | None = None,
     fping: dict[str, object] | None = None,
+    irtt: dict[str, object] | None = None,
     wan_key: str = "spectrum",
     logger: logging.Logger | None = None,
 ):
     return build_rtt_backend(
-        FactoryConfig(backend=backend, fping=fping),
+        FactoryConfig(backend=backend, fping=fping, irtt=irtt),
         "192.0.2.10",
         logger or logging.getLogger("test_rtt_backend_factory"),
         wan_key=wan_key,
@@ -516,3 +520,110 @@ def test_fping_timeout_ge_cadence_falls_back(caplog: pytest.LogCaptureFixture, l
     assert handle.fell_back is True
     assert handle.backend_active == "icmplib"
     assert any("fping" in record.message and record.levelno >= logging.WARNING for record in caplog.records)
+
+
+def test_irtt_backend_selected(logger: logging.Logger) -> None:
+    """Factory selects IrttRttBackend when measurement.backend=irtt and irtt is configured."""
+    from wanctl.rtt_backend import IrttRttBackend
+
+    irtt_cfg = {
+        "enabled": True,
+        "server": "198.51.100.50",
+        "port": 2112,
+        "duration_sec": 1.0,
+        "interval_ms": 100,
+        "cadence_sec": 10.0,
+    }
+    handle = _build(backend="irtt", irtt=irtt_cfg, logger=logger)
+
+    assert isinstance(handle.backend, IrttRttBackend)
+    assert handle.backend_active == "irtt"
+    assert handle.fell_back is False
+    assert handle.irtt_cadence_sec == 10.0
+    assert handle.irtt_config == irtt_cfg
+
+
+def test_irtt_backend_fallback_when_disabled(logger: logging.Logger, caplog: pytest.LogCaptureFixture) -> None:
+    """Factory falls back to icmplib when irtt backend requested but not enabled."""
+    from wanctl.rtt_measurement import RTTMeasurement
+
+    with caplog.at_level(logging.WARNING):
+        handle = _build(backend="irtt", irtt={"enabled": False, "server": None}, logger=logger)
+
+    assert isinstance(handle.backend, RTTMeasurement)
+    assert handle.backend_active == "icmplib"
+    assert handle.fell_back is False  # not a fping fallback
+    assert any("irtt" in r.message and "not configured" in r.message for r in caplog.records)
+
+
+def test_irtt_backend_fallback_when_no_server(logger: logging.Logger, caplog: pytest.LogCaptureFixture) -> None:
+    """Factory falls back to icmplib when irtt backend requested but no server configured."""
+    from wanctl.rtt_measurement import RTTMeasurement
+
+    with caplog.at_level(logging.WARNING):
+        handle = _build(backend="irtt", irtt={"enabled": True, "server": None}, logger=logger)
+
+    assert isinstance(handle.backend, RTTMeasurement)
+    assert handle.backend_active == "icmplib"
+
+
+def test_irtt_driver_thread_converts_result(caplog: pytest.LogCaptureFixture) -> None:
+    """_IrttDriverThread converts IRTTResult to RttSample via sample_from_irtt_result."""
+    from wanctl.irtt_measurement import IRTTResult
+    from wanctl.rtt_backend_factory import _IrttDriverThread
+
+    result = IRTTResult(
+        rtt_mean_ms=35.0,
+        rtt_median_ms=33.5,
+        ipdv_mean_ms=2.0,
+        send_loss=1.0,
+        receive_loss=3.0,
+        packets_sent=10,
+        packets_received=8,
+        server="198.51.100.50",
+        port=2112,
+        timestamp=100.0,
+        success=True,
+    )
+
+    mock_thread = MagicMock()
+    mock_thread.cadence_sec = 10.0
+    mock_thread.get_latest.return_value = result
+    mock_thread.get_profile_stats.return_value = {}
+
+    driver = _IrttDriverThread(mock_thread)
+
+    assert driver.cadence_sec == 10.0
+    sample = driver.get_latest()
+    assert sample is not None
+    assert sample.rtt_ms == 33.5
+    assert sample.backend == "irtt"
+    assert sample.source_ip == "198.51.100.50"
+    assert sample.per_host_loss["198.51.100.50"] == 3.0
+
+    # When no result yet
+    mock_thread.get_latest.return_value = None
+    assert driver.get_latest() is None
+
+
+def test_irtt_make_thread_creates_driver(logger: logging.Logger) -> None:
+    """RttBackendHandle.make_thread creates _IrttDriverThread for irtt backend."""
+    from wanctl.rtt_backend_factory import _IrttDriverThread
+
+    irtt_cfg = {
+        "enabled": True,
+        "server": "198.51.100.50",
+        "port": 2112,
+        "duration_sec": 1.0,
+        "interval_ms": 100,
+        "cadence_sec": 10.0,
+    }
+    handle = _build(backend="irtt", irtt=irtt_cfg, logger=logger)
+    thread = handle.make_thread(
+        lambda: ["ignored"],
+        threading.Event(),
+        cadence_sec=0.25,
+    )
+
+    assert isinstance(thread, _IrttDriverThread)
+    assert thread.cadence_sec == 10.0  # uses IRTT cadence, not controller cadence

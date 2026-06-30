@@ -12,6 +12,8 @@ import dataclasses
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    import logging
+
     from wanctl.irtt_measurement import IRTTResult
     from wanctl.rtt_measurement import RTTSnapshot
 
@@ -92,8 +94,32 @@ def sample_from_irtt_result(result: IRTTResult) -> RttSample:
 
 
 class IrttRttBackend:
-    """Unwired IRTT backend adapter placeholder for deferred migration."""
+    """IRTT backend adapter — wraps IRTTMeasurement behind the RttBackend seam.
+
+    IRTT probes a single UDP server, so the *hosts* list is ignored: the
+    configured server from the IRTT config is always used.  This is by design —
+    IRTT is a single-target protocol, unlike icmp/fping which fan out across
+    reflector lists.
+    """
+
+    def __init__(
+        self,
+        config: dict,
+        logger: logging.Logger,
+    ) -> None:
+        from wanctl.irtt_measurement import IRTTMeasurement
+
+        self._measurement = IRTTMeasurement(config, logger)
+        self._logger = logger
 
     def probe(self, hosts: list[str]) -> RttSample | None:
-        """Defer live IRTT probing until IRTT-MIG-01."""
-        raise NotImplementedError("IRTT-MIG-01")
+        """Run one IRTT burst and return an RttSample.
+
+        The *hosts* parameter is accepted for RttBackend protocol conformance
+        but ignored — IRTT uses its configured server.
+        """
+        result = self._measurement.measure()
+        if result is None:
+            return None
+
+        return sample_from_irtt_result(result)
