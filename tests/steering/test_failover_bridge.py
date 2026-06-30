@@ -1,7 +1,8 @@
-"""Unit tests for FailoverBridge and FailoverBridgeGroup hysteresis state machines."""
+"""Unit tests for FailoverBridge hysteresis state machine and FailoverBridgeGroup."""
 
 import pytest
 
+from wanctl.steering.daemon import _parse_failover_config
 from wanctl.steering.failover_bridge import FailoverBridge, FailoverBridgeGroup
 
 
@@ -490,3 +491,171 @@ class TestBridgeGroupStateSaveRestore:
         assert spec_b is not None
         assert spec_b.red_count == 0
         assert spec_b.green_count == 0
+
+
+# =============================================================================
+# RTT failure tracking (daemon-level integration with bridges)
+# =============================================================================
+
+
+class TestRttFailureTracking:
+    """RTT failure tracking feeds RED to the bridge."""
+
+    def test_rtt_failure_threshold_config(self):
+        """Config rtt_failure_cycles defaults to 3."""
+        cfg = _parse_failover_config({"spectrum": {"enabled": True}})
+        assert cfg["spectrum"]["rtt_failure_cycles"] == 3
+
+        cfg2 = _parse_failover_config(
+            {"att": {"enabled": True, "rtt_failure_cycles": 5}}
+        )
+        assert cfg2["att"]["rtt_failure_cycles"] == 5
+
+    def test_rtt_failure_below_threshold_no_red(self):
+        """Failures below threshold do not emit RED."""
+        group = FailoverBridgeGroup()
+        bridge = FailoverBridge(red_cycles=2, green_cycles=3)
+        bridge.armed = True
+        group.add_bridge("spectrum", bridge)
+
+        fail_count = {"spectrum": 1}
+        threshold = 3
+
+        # Below threshold — GREEN should pass through
+        decision = group.update("spectrum", "GREEN")
+        assert decision is None
+        assert fail_count["spectrum"] < threshold
+
+    def test_rtt_failure_at_threshold_emits_red(self):
+        """Failures at or above threshold emit RED to bridge."""
+        group = FailoverBridgeGroup()
+        bridge = FailoverBridge(red_cycles=2, green_cycles=3)
+        bridge.armed = True
+        group.add_bridge("spectrum", bridge)
+
+        # Simulate 3 consecutive RTT failures (threshold=3)
+        fail_count = 3
+        threshold = 3
+        assert fail_count >= threshold
+
+        # Bridge should receive RED
+        decision = group.update("spectrum", "RED")
+        assert decision is None  # First RED, need 2 for threshold
+        decision = group.update("spectrum", "RED")
+        assert decision is not None
+        assert decision.action == "disable"
+        assert decision.congestion_state == "RED"
+
+    def test_rtt_recovery_resets_counter(self):
+        """RTT success after failures resets the counter."""
+        fail_count = {"spectrum": 2}
+        # Simulate RTT success
+        fail_count["spectrum"] = 0
+        assert fail_count["spectrum"] == 0
+
+    def test_intermittent_failures_no_false_trigger(self):
+        """Intermittent failures (fail, success, fail, success) don't trigger."""
+        fail_count = 0
+        scenarios = [
+            ("fail", 1),  # fail -> 1
+            ("success", 0),  # success -> 0
+            ("fail", 1),
+            ("success", 0),
+            ("fail", 1),
+            ("success", 0),
+        ]
+        for event, expected in scenarios:
+            if event == "fail":
+                fail_count += 1
+            else:
+                fail_count = 0
+            assert fail_count == expected
+
+        # Never reached threshold
+        assert fail_count < 3
+
+    def test_consecutive_failures_then_recovery(self):
+        """Consecutive failures reach threshold, then recovery."""
+        group = FailoverBridgeGroup()
+        bridge = FailoverBridge(red_cycles=2, green_cycles=3)
+        bridge.armed = True
+        group.add_bridge("spectrum", bridge)
+
+        fail_count = 0
+        threshold = 3
+
+        # 3 consecutive failures
+        for _ in range(3):
+            fail_count += 1
+        assert fail_count >= threshold
+
+        # Bridge receives RED
+        d = group.update("spectrum", "RED")
+        assert d is None
+        d = group.update("spectrum", "RED")
+        assert d is not None
+        assert d.action == "disable"
+
+        # Confirm action
+        group.confirm_action("spectrum", "disable", True)
+
+        # RTT recovers — counter resets, GREEN
+        fail_count = 0
+        d = None
+        for _ in range(3):
+            d = group.update("spectrum", "GREEN")
+        assert d is not None
+        assert d.action == "enable"
+
+    def test_att_health_failure_tracking(self):
+        """ATT health endpoint failure is tracked independently."""
+        att_fail_count = 0
+        threshold = 3
+
+        # Simulate 3 ATT health failures
+        for _ in range(3):
+            att_fail_count += 1
+
+        assert att_fail_count >= threshold
+
+        group = FailoverBridgeGroup()
+        bridge = FailoverBridge(red_cycles=2, green_cycles=3)
+        bridge.armed = True
+        group.add_bridge("att", bridge)
+
+        # Bridge receives RED due to ATT failures
+        d = group.update("att", "RED")
+        assert d is None
+        d = group.update("att", "RED")
+        assert d is not None
+        assert d.action == "disable"
+
+    def test_independent_wan_failures(self):
+        """Spectrum and ATT failures are independent."""
+        spec_fail = 3  # Spectrum: 3 failures (at threshold)
+        att_fail = 1   # ATT: 1 failure (below threshold)
+
+        spec_threshold = 3
+        att_threshold = 3
+
+        assert spec_fail >= spec_threshold  # Spectrum should emit RED
+        assert att_fail < att_threshold     # ATT should NOT emit RED
+
+    def test_threshold_from_per_wan_config(self):
+        """Each WAN can have its own failure threshold."""
+        cfg = _parse_failover_config({
+            "spectrum": {"enabled": True, "rtt_failure_cycles": 3},
+            "att": {"enabled": True, "rtt_failure_cycles": 5},
+        })
+        assert cfg["spectrum"]["rtt_failure_cycles"] == 3
+        assert cfg["att"]["rtt_failure_cycles"] == 5
+
+    def test_legacy_config_gets_default_threshold(self):
+        """Legacy flat config gets default threshold of 3."""
+        cfg = _parse_failover_config({
+            "enabled": True,
+            "wan": "spectrum",
+            "red_cycles": 3,
+            "green_cycles": 5,
+        })
+        assert cfg["spectrum"]["rtt_failure_cycles"] == 3

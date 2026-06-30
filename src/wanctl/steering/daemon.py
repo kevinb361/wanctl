@@ -170,6 +170,7 @@ def _parse_failover_config(failover: Any) -> dict[str, dict[str, Any]]:
                 "enabled": bool(cfg.get("enabled", False)),
                 "red_cycles": int(cfg.get("red_cycles", 3)),
                 "green_cycles": int(cfg.get("green_cycles", 5)),
+                "rtt_failure_cycles": int(cfg.get("rtt_failure_cycles", 3)),
             }
     elif failover.get("enabled") is not None or "wan" in failover:
         wan = failover.get("wan", "spectrum")
@@ -177,6 +178,7 @@ def _parse_failover_config(failover: Any) -> dict[str, dict[str, Any]]:
             "enabled": bool(failover.get("enabled", False)),
             "red_cycles": int(failover.get("red_cycles", 3)),
             "green_cycles": int(failover.get("green_cycles", 5)),
+            "rtt_failure_cycles": int(failover.get("rtt_failure_cycles", 3)),
         }
     return result
 
@@ -1307,6 +1309,10 @@ class SteeringDaemon:
         # ATT health endpoint for congestion assessment (cake-autorate state bridge)
         self._att_health_url = "http://10.10.110.227:9101/health"
 
+        # Per-WAN RTT failure tracking: consecutive failures before emitting RED.
+        # Keyed by WAN name. Reset to 0 on successful RTT measurement.
+        self._rtt_fail_count: dict[str, int] = {wn: 0 for wn in self.failover_group.wan_names()}
+
         if not self.config.route_management_enabled or self.config.route_management_mode == "off":
             return
 
@@ -1430,6 +1436,9 @@ class SteeringDaemon:
             self.failover_group = new_group
             self.config.failover_config = new_failover_config
 
+            # Rebuild RTT fail count dict for new bridge set
+            self._rtt_fail_count = {wn: 0 for wn in new_failover_config}
+
             if new_failover_config:
                 first = list(new_failover_config.values())[0]
                 self.config.failover_enabled = first["enabled"]
@@ -1498,14 +1507,35 @@ class SteeringDaemon:
         # Spectrum bridge uses the normal congestion assessment
         spectrum_state = self.state_mgr.state.get("congestion_state", "GREEN")
 
-        # ATT bridge uses its own cake-autorate state bridge
-        att_state = self._get_att_congestion_state()
+        # ATT bridge uses its own cake-autorate state bridge, with RTT failure tracking
+        att_state, att_failed = self._get_att_congestion_state_with_fail()
 
         for wan_name, bridge in self.failover_group._bridges.items():
             if not bridge.armed:
                 continue
 
-            congestion_state = spectrum_state if wan_name == "spectrum" else att_state
+            # Start with the normal congestion state for this WAN
+            if wan_name == "spectrum":
+                congestion_state = spectrum_state
+            else:
+                congestion_state = att_state
+
+            # RTT failure override: if consecutive failures >= threshold, emit RED.
+            # This handles complete WAN outages where RTT measurement fails entirely.
+            fail_count = self._rtt_fail_count.get(wan_name, 0)
+            fail_threshold = self._get_rtt_failure_threshold(wan_name)
+
+            if fail_count >= fail_threshold:
+                congestion_state = "RED"
+                self.logger.info(
+                    f"[FAILOVER] RTT failure for {wan_name}: "
+                    f"{fail_count} consecutive failures (threshold={fail_threshold}) — "
+                    f"emitting RED to bridge"
+                )
+            elif fail_count > 0 and congestion_state != "RED":
+                # RTT recovered after failures — reset counter
+                self._rtt_fail_count[wan_name] = 0
+
             decision = bridge.update(congestion_state)
             if decision is None:
                 continue
@@ -1525,6 +1555,38 @@ class SteeringDaemon:
                 f"result={'ok' if result.success else 'blocked'}, "
                 f"error={result.error or 'none'}"
             )
+
+    def _get_rtt_failure_threshold(self, wan_name: str) -> int:
+        """Get the RTT failure threshold for a WAN from config."""
+        cfg = self.config.failover_config.get(wan_name, {})
+        return int(cfg.get("rtt_failure_cycles", 3))
+
+    def _get_att_congestion_state_with_fail(self) -> tuple[str, bool]:
+        """Fetch ATT congestion state from cake-autorate health endpoint.
+
+        Returns (congestion_state, failed) where failed=True if the health
+        endpoint was unreachable.
+        """
+        try:
+            import urllib.request
+
+            with urllib.request.urlopen(
+                self._att_health_url, timeout=2
+            ) as resp:
+                data = json.loads(resp.read())
+                dl_state = (
+                    data.get("congestion", {})
+                    .get("dl_state", "GREEN")
+                )
+                if dl_state == "RED":
+                    return "RED", False
+                if dl_state == "YELLOW":
+                    return "YELLOW", False
+                return "GREEN", False
+        except Exception:
+            # ATT health endpoint unreachable — track as failure
+            self._rtt_fail_count["att"] = self._rtt_fail_count.get("att", 0) + 1
+            return "GREEN", True
 
     def _get_att_congestion_state(self) -> str:
         """Fetch ATT congestion state from cake-autorate health endpoint.
@@ -1557,6 +1619,9 @@ class SteeringDaemon:
 
         # Per-WAN bridge snapshots
         result.update(self.failover_group.snapshot())
+
+        # RTT failure counts per-WAN
+        result["rtt_fail_count"] = dict(self._rtt_fail_count)
 
         # Last decision
         if self._last_failover_decision:
@@ -2550,12 +2615,24 @@ class SteeringDaemon:
         with PerfTimer("steering_rtt_measurement", self.logger) as rtt_timer:
             current_rtt = self._measure_current_rtt_with_retry()
 
+        # Track RTT failures per-WAN for failover bridge.
+        # RTT measurement targets the primary WAN (Spectrum).
+        primary_wan = self.config.primary_wan
         if current_rtt is None:
+            self._rtt_fail_count[primary_wan] = self._rtt_fail_count.get(primary_wan, 0) + 1
             self.logger.warning(
                 "Ping failed after retries and no fallback available, skipping cycle"
             )
             self._record_profiling(cake_timer.elapsed_ms, rtt_timer.elapsed_ms, 0.0, cycle_start)
+            # Still run failover bridge — RTT failure may trigger failover.
+            # Route abort check first though.
+            if self.config.route_management_enabled and self.config.route_management_mode == "active":
+                self._check_route_abort()
+            self._process_failover_bridge()
             return False
+
+        # RTT success — reset primary WAN failure counter
+        self._rtt_fail_count[primary_wan] = 0
 
         # === Route Abort Check (subsystem 4) ===
         # Check trip conditions BEFORE anomaly gate so abort always fires
