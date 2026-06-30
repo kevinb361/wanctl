@@ -2,7 +2,8 @@
 
 ## Milestones
 
-- 🚧 **v1.58 Active Route-Management Canary** — in progress (Phases 261–264; first *mutating* milestone in the route-ownership line — wanctl takes single-route default-ownership from Netwatch under an explicit reversible operator gate with automatic abort-to-Netwatch; SAFE-22)
+- 🚧 **v1.59 Widen-the-Canary** — in progress (Phases 265–269; multi-route, bidirectional failover, netwatch retirement, gateway route expansion; wanctl owns 6 routes across both WANs with per-WAN failover bridges; SAFE-23)
+- ✅ **v1.58 Active Route-Management Canary** — shipped 2026-06-29 (Phases 261–264; first *mutating* milestone in the route-ownership line — wanctl takes single-route default-ownership from Netwatch under an explicit reversible operator gate with automatic abort-to-Netwatch; SAFE-22)
 - ✅ **v1.57 Supported read-only RouterOS ownership inspection** — shipped 2026-06-26 (Phases 258–260; 10/10 REQs, audit passed; supported GET-only REST read-only inspection path proven, live Netwatch/default-route ownership attributed, dry-run observation reran to `ready-for-approval` after D-07 cross-check fix; Netwatch remains owner; SAFE-21 held) — `milestones/v1.57-ROADMAP.md`
 - ✅ **v1.56 Route Management Surface Deployment** — shipped 2026-06-20 (Phases 255–257; 13/13 REQs; safe/off deploy and steering health proof only; final readiness packet `not-ready`; no route ownership mutation) — `milestones/v1.56-ROADMAP.md`
 - ✅ **v1.55 Route Ownership / Netwatch Retirement** — shipped 2026-06-20 (Phases 251–254; 28/28 REQs; Netwatch remains interim route owner after read-only observation declined active canary; route-management deploy/canary carried forward) — `milestones/v1.55-ROADMAP.md`
@@ -26,9 +27,32 @@
 
 > **Production controller state (2026-06-10):** Both WANs run upstream cake-autorate with wanctl state bridges (`cake-autorate-{spectrum,att}.service` + `-state-bridge.service`, live since 2026-06-08); `wanctl@{spectrum,att}` disabled as the **verified** rollback path (v1.50 SOAK-02 provable path, both-WAN preflight `overall_pass: true`). Steering consumes bridge-written state. Native wanctl remains the MikroTik/RouterOS controller and the portable default. Repo is the drift-proof source of truth for both WANs' artifact sets (`deploy.sh --with-{spectrum,att}-cake-autorate`). Spectrum CAKE: member-NIC `diffserv4 wash` 550M base DL autorate / fixed 18M UL. ATT: `diffserv4 nowash` 95M base DL autorate / fixed 19M UL.
 >
-> **Route ownership (2026-06-26):** Netwatch is the current/interim active default-route owner. v1.55–v1.57 built the read-only/dry-run safety scaffolding (guarded safe/off route-management surface, supported REST ownership inspection, dry-run observation, `ready-for-approval` packet). v1.58 performs the first *mutating* step under SAFE-22: a single-route owner flip from Netwatch to wanctl with Netwatch disabled-but-retained.
+> **Route ownership (2026-06-30):** wanctl is the active default-route owner for 6 routes across both WANs (4 default routes + 2 ATT gateway host routes). Netwatch entries removed (Phase 268). Per-WAN failover bridges armed with hysteresis. RTT failure tracking active. Guard defaults to ok. `migration_acknowledged: true`.
 
 ---
+
+## 🚧 v1.59 Widen-the-Canary (Phases 265–269) — IN PROGRESS
+
+**Milestone Goal:** Expand wanctl from single-route canary to full both-WAN route ownership: multi-route (4 default routes), bidirectional failover (per-WAN failover bridges with hysteresis), netwatch retirement (RouterOS entries removed), and gateway route expansion (6 routes total).
+
+**SAFE-23 — Expanded mutation scope:**
+- **Permitted:** Route enable/disable for all configured routes (default + gateway), netwatch entry removal, per-WAN failover bridge mutations, migration_acknowledged flag.
+- **Forbidden:** CAKE/qdisc change; controller threshold retuning; non-WAN route mutation; any controller-path source diff outside steering/route management.
+
+**Phases:**
+- [x] **Phase 265: Backup Route Addition** — Add backup route to Spectrum if ATT fails; verify reconciliation at 3 routes. ✅ Done 2026-06-29.
+- [x] **Phase 266: Spectrum Failover Bridge** — Implement FailoverBridge class with hysteresis; RED→disable, GREEN→enable via cake-autorate congestion state. ✅ Done 2026-06-30.
+- [x] **Phase 267: Bidirectional Failover** — FailoverBridgeGroup (per-WAN bridges), ATT congestion source from cake-autorate state bridge, health endpoint per-WAN status. ✅ Done 2026-06-30.
+- [x] **Phase 268: Netwatch Retirement** — RTT failure→RED tracking, netwatch entry removal via REST DELETE, guard defaults to ok (no netwatch inspection), inspector/health cleanup. ✅ Done 2026-06-30.
+- [x] **Phase 269: Gateway Route Expansion** — Add ATT gateway host routes (99.126.112.1/32, 192.168.2.254/32) to active management; migration_acknowledged: true. ✅ Done 2026-06-30.
+
+**Current state (2026-06-30):**
+- 6 routes managed (4 default + 2 gateway)
+- Both WAN failover bridges armed, green counters incrementing
+- Netwatch entries removed from RouterOS (0 entries)
+- Guard: ok, 0 conflicts
+- RTT failure tracking: spectrum=0, att=0
+- No errors in logs
 
 ## ✅ v1.58 Active Route-Management Canary (Phases 261–264) — SHIPPED 2026-06-29
 
@@ -181,10 +205,12 @@ Summary: fping profiling/canary repair path completed without a production defau
 
 - **Phase 218 (v1.45 VERIFY watch-list)** — dormant. The flapping peak-counter instrumentation lives in the native wanctl controller, which no longer runs Spectrum/ATT; this watch item stays dormant unless `wanctl@` returns to live duty or the check is reimplemented against bridge/cake-autorate telemetry.
 
-### v1.58 follow-on (deferred — widen only after single-route is proven)
+### v1.58 follow-on (completed in v1.59)
 
-- **Widen-the-canary** — multi-route, then single-WAN, then both-WAN ownership once the single-route flip is proven durably stable. Out of scope for v1.58.
-- **Netwatch full retirement** — remove (not just disable) Netwatch once wanctl ownership is durably trusted (ROLE/RETIRE line). Stays deferred.
+- **Widen-the-canary** — ✅ Completed in v1.59 (Phases 265–269). Multi-route (4 default), single-WAN, then both-WAN ownership achieved. 6 routes total (4 default + 2 gateway). Per-WAN failover bridges with hysteresis. Netwatch retired.
+- **Netwatch full retirement** — ✅ Completed in Phase 268. RouterOS netwatch entries removed (0 remaining). Guard defaults to ok. Inspector/health no longer report netwatch.
+
+### Deferred v1.59 follow-on
 
 ### Deferred previous candidates
 
