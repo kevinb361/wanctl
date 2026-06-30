@@ -397,13 +397,27 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         }
 
     def _build_failover_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
-        """Build failover bridge observability section."""
+        """Build failover bridge observability section.
+
+        Supports both legacy flat format and new per-WAN group format.
+        If per-WAN keys (spectrum/att) are detected, returns the raw
+        per-WAN data plus last_decision.
+        """
         raw = health_data.get("failover")
         fo: dict[str, Any] = raw if isinstance(raw, dict) else {}
         last_decision_raw = fo.get("last_decision")
         last_decision: dict[str, Any] | None = (
             last_decision_raw if isinstance(last_decision_raw, dict) else None
         )
+
+        # Detect per-WAN group format vs legacy flat format
+        if any(k in fo for k in ("spectrum", "att")):
+            # Per-WAN group format — pass through as-is with last_decision
+            result = dict(fo)
+            result["last_decision"] = last_decision
+            return result
+
+        # Legacy flat format — backward compat
         return {
             "enabled": bool(fo.get("enabled", False)),
             "red_count": int(fo.get("red_count", 0) or 0),
