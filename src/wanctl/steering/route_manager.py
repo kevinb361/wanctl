@@ -192,20 +192,18 @@ class RouteManager:
     def abort_to_netwatch(
         self, trip_condition: str, *, mode_before: str | None = None
     ) -> RouteActionResult:
-        """Abort active route management and revert to Netwatch ownership.
+        """Abort active route management and revert to dry_run mode.
 
-        On a trip condition, this method:
-        1. Re-enables all configured routes (restoring Netwatch ownership)
-        2. Sets mode to "dry_run" (keeps observing)
-        3. Resets circuit breaker
-        4. Records the abort for health visibility
+        Legacy name (abort_to_netwatch) kept for backward compat with existing
+        event logging. Netwatch was retired in Phase 268 — abort now reverts
+        to dry_run (no automated route changes).
 
         Args:
             trip_condition: Reason for abort (e.g., "circuit_breaker_open",
-                "router_unreachable", "netwatch_contention", "manual_rollback")
+                "router_unreachable", "manual_rollback")
 
         Returns:
-            RouteActionResult describing the abort outcome.
+            RouteActionResult describing the abort.
         """
         trip_evidence: dict[str, object] = {
             "event": "abort_to_netwatch",
@@ -520,7 +518,7 @@ class RouteManager:
             return "wanctl"
         if self.mode == "active":
             return "unknown"
-        return "netwatch"
+        return "none"
 
     def _print_command(self, target: RouteTarget) -> str:
         if target.comment:

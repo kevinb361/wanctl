@@ -1,8 +1,12 @@
-"""Route ownership guard for future active route management.
+"""Route ownership guard for active route management.
 
-The guard is read-only: it inspects RouterOS Netwatch and script state through the
-existing router client command boundary and reports whether wanctl may safely take
-active route ownership. Any read/parse failure fails closed.
+The guard is read-only: it inspects RouterOS script state through the
+existing router client command boundary and reports whether wanctl may safely
+take active route ownership. Any read/parse failure fails closed.
+
+Netwatch inspection was removed in Phase 268 — netwatch entries no longer
+exist on production routers. The guard now only checks for route-mutating
+scripts that could conflict with wanctl.
 """
 
 from __future__ import annotations
@@ -32,7 +36,7 @@ _ROUTE_MUTATION_RE = re.compile(
 
 @dataclass(frozen=True)
 class RouteOwnershipConflict:
-    """One route-mutating Netwatch/script conflict."""
+    """One route-mutating script conflict."""
 
     source: str
     name: str
@@ -53,14 +57,17 @@ class RouteOwnershipGuardResult:
     @property
     def blocked_reason(self) -> str | None:
         if self.status == "conflict":
-            return f"{len(self.conflicts)} route-mutating Netwatch/script conflict(s)"
+            return f"{len(self.conflicts)} route-mutating script conflict(s)"
         return self.error
 
 
 class RouteOwnershipGuard:
-    """Inspect RouterOS route-owner conflicts without mutating RouterOS."""
+    """Inspect RouterOS route-owner conflicts without mutating RouterOS.
 
-    NETWATCH_PRINT = "/tool netwatch print detail"
+    Phase 268: Netwatch inspection removed. Only checks for route-mutating
+    scripts that could conflict with wanctl active mode.
+    """
+
     SCRIPT_PRINT = "/system script print detail"
 
     def __init__(self, router_client: RouteOwnershipClient) -> None:
@@ -68,19 +75,16 @@ class RouteOwnershipGuard:
 
     def inspect(self) -> RouteOwnershipGuardResult:
         """Return current route ownership status, failing closed on uncertainty."""
-        netwatch_result = self._read_json_list(self.NETWATCH_PRINT, "netwatch")
-        if isinstance(netwatch_result, RouteOwnershipGuardResult):
-            return netwatch_result
         script_result = self._read_json_list(self.SCRIPT_PRINT, "script")
         if isinstance(script_result, RouteOwnershipGuardResult):
             return script_result
 
-        conflicts = detect_netwatch_route_conflicts(netwatch_result, script_result)
+        conflicts = _detect_route_mutating_scripts(script_result)
         if conflicts:
             return RouteOwnershipGuardResult(
                 status="conflict",
                 active_allowed=False,
-                owner="netwatch",
+                owner="other_script",
                 conflicts=tuple(conflicts),
             )
         return RouteOwnershipGuardResult(
@@ -121,17 +125,45 @@ class RouteOwnershipGuard:
         return parsed
 
 
+def _detect_route_mutating_scripts(
+    scripts: list[dict[str, Any]],
+) -> list[RouteOwnershipConflict]:
+    """Return conflicts for any script containing route mutation logic.
+
+    Pure function (no I/O). Checks each script's source for route enable/disable
+    commands that would conflict with wanctl active mode.
+    """
+    conflicts: list[RouteOwnershipConflict] = []
+    for script in scripts:
+        name = script.get("name") or script.get(".id") or "unknown"
+        source = str(script.get("source", ""))
+        if _contains_route_mutation(source):
+            conflicts.append(
+                RouteOwnershipConflict(
+                    source="script",
+                    name=name,
+                    script=name,
+                    reason="script contains route-mutating commands",
+                )
+            )
+    return conflicts
+
+
+# ---------------------------------------------------------------------------
+# Backward compat: legacy netwatch detection functions kept for existing
+# test fixtures and Phase 260 D-04 cross-check. No longer called by the
+# live guard after Phase 268.
+# ---------------------------------------------------------------------------
+
+
 def detect_netwatch_route_conflicts(
     netwatch_entries: list[dict[str, Any]],
     scripts: list[dict[str, Any]],
 ) -> list[RouteOwnershipConflict]:
     """Return route-mutating Netwatch conflicts. Pure (no I/O).
 
-    Single source of truth shared by the live ``RouteOwnershipGuard.inspect()``
-    path and the Phase 260 D-04 independent cross-check, so the two cannot drift
-    to different definitions of ``route_mutating_active_count``. One enabled
-    Netwatch entry yields one conflict per referenced route-mutating script plus
-    one for inline route mutation.
+    DEPRECATED after Phase 268: netwatch entries are removed from production.
+    Kept for backward compat with existing test fixtures and historical audits.
     """
     lookup = _script_lookup(scripts)
     conflicts: list[RouteOwnershipConflict] = []

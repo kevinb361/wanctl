@@ -1356,14 +1356,14 @@ class SteeringDaemon:
 
         # Check: circuit breaker open
         if self.route_manager.circuit_breaker.open:
-            self.logger.warning("ABORT: circuit breaker open — reverting to Netwatch ownership")
+            self.logger.warning("ABORT: circuit breaker open — reverting to dry_run mode")
             self.route_manager.abort_to_netwatch("circuit_breaker_open")
             self.config.route_management_mode = "dry_run"
             return
 
         # Check: router unreachable
         if not self.router_connectivity.is_reachable:
-            self.logger.warning("ABORT: router unreachable — reverting to Netwatch ownership")
+            self.logger.warning("ABORT: router unreachable — reverting to dry_run mode")
             self.route_manager.abort_to_netwatch("router_unreachable")
             self.config.route_management_mode = "dry_run"
             return

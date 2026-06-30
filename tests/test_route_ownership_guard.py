@@ -34,8 +34,9 @@ def assert_read_only_commands(router: FakeRouter) -> None:
 
 
 def test_non_mutating_scripts_allow_active():
+    """Non-mutating scripts do not block active mode."""
     router = FakeRouter(
-        netwatch=[{"name": "Monitor-Spectrum", "disabled": "false", "down-script": "Notify"}],
+        netwatch=[],
         scripts=[{"name": "Notify", "source": ":log warning wan down"}],
     )
 
@@ -48,8 +49,9 @@ def test_non_mutating_scripts_allow_active():
 
 
 def test_netwatch_conflict_blocks_active():
+    """Route-mutating script blocks active mode (netwatch retired in 268)."""
     router = FakeRouter(
-        netwatch=[{"name": "Monitor-Spectrum", "disabled": "false", "down-script": "Disable-Spectrum"}],
+        netwatch=[],
         scripts=[{"name": "Disable-Spectrum", "source": '/ip route disable [find comment="Spectrum"]'}],
     )
 
@@ -57,13 +59,14 @@ def test_netwatch_conflict_blocks_active():
 
     assert result.status == "conflict"
     assert result.active_allowed is False
-    assert result.owner == "netwatch"
+    assert result.owner == "other_script"
     assert len(result.conflicts) == 1
     assert result.conflicts[0].script == "Disable-Spectrum"
     assert_read_only_commands(router)
 
 
 def test_route_mutation_pattern_table_blocks_active():
+    """Route-mutating scripts are detected regardless of pattern variant."""
     patterns = [
         "/ip route enable *6",
         "/ip route disable *6",
@@ -72,7 +75,7 @@ def test_route_mutation_pattern_table_blocks_active():
     ]
     for idx, source in enumerate(patterns):
         router = FakeRouter(
-            netwatch=[{"name": f"Monitor-{idx}", "disabled": False, "down-script": f"Script-{idx}"}],
+            netwatch=[],
             scripts=[{"name": f"Script-{idx}", "source": source}],
         )
 
@@ -84,7 +87,7 @@ def test_route_mutation_pattern_table_blocks_active():
 
 
 def test_router_read_failure_fails_closed():
-    router = FakeRouter(netwatch=[], scripts=[], fail="netwatch")
+    router = FakeRouter(netwatch=[], scripts=[], fail="script")
 
     result = RouteOwnershipGuard(router).inspect()
 

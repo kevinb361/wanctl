@@ -429,8 +429,6 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         """Build read-only RouterOS route ownership inspection section."""
         raw = health_data.get("ownership_inspection")
         ownership: dict[str, Any] = raw if isinstance(raw, dict) else {}
-        netwatch_raw = ownership.get("netwatch")
-        netwatch = netwatch_raw if isinstance(netwatch_raw, dict) else {}
         routes_raw = ownership.get("routes")
         routes = routes_raw if isinstance(routes_raw, dict) else {}
         return {
@@ -440,15 +438,9 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             "inspector_status": str(ownership.get("inspector_status", "unknown")),
             "inspector_error": ownership.get("inspector_error"),
             "last_inspected_at": ownership.get("last_inspected_at"),
-            "netwatch": {
-                "entries_count": int(netwatch.get("entries_count", 0) or 0),
-                "route_mutating_active_count": int(
-                    netwatch.get("route_mutating_active_count", 0) or 0
-                ),
-            },
             "routes": {
                 "total_route_count": int(routes.get("total_route_count", 0) or 0),
-                "default_routes": list(routes.get("default_routes", []) or []),
+                "default_routes": routes.get("default_routes", []),
             },
         }
 

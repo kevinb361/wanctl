@@ -77,25 +77,29 @@ def _conflict_fixture() -> tuple[list[dict[str, object]], list[dict[str, object]
 
 
 def test_netwatch_entries_count_and_route_mutating_count() -> None:
-    netwatch, scripts = _conflict_fixture()
-    router = FakeRouter(netwatch=netwatch, scripts=scripts, routes=[])
+    """Route-mutating script conflict count is tracked (netwatch section removed in 268)."""
+    _, scripts = _conflict_fixture()
+    router = FakeRouter(netwatch=[], scripts=scripts, routes=[])
 
     inspector = _inspector(router)
     inspector.refresh()
     snapshot = inspector.snapshot()
 
-    assert snapshot["netwatch"]["entries_count"] == 3
-    assert snapshot["netwatch"]["route_mutating_active_count"] == 2
+    # netwatch key no longer present after Phase 268
+    assert "netwatch" not in snapshot
+    # But routes section still works
+    assert "routes" in snapshot
 
 
 def test_observed_owner_netwatch_on_conflict() -> None:
-    netwatch, scripts = _conflict_fixture()
-    router = FakeRouter(netwatch=netwatch, scripts=scripts, routes=[])
+    """Route-mutating scripts yield 'other_script' observed owner (netwatch retired in 268)."""
+    _, scripts = _conflict_fixture()
+    router = FakeRouter(netwatch=[], scripts=scripts, routes=[])
 
     inspector = _inspector(router)
     inspector.refresh()
 
-    assert inspector.snapshot()["observed_owner"] == "netwatch"
+    assert inspector.snapshot()["observed_owner"] == "other_script"
 
 
 def test_observed_owner_none_in_dry_run() -> None:
@@ -170,20 +174,22 @@ def test_default_route_filter_and_fields() -> None:
 
 
 def test_match_true_when_observed_equals_configured() -> None:
-    netwatch, scripts = _conflict_fixture()
-    router = FakeRouter(netwatch=netwatch, scripts=scripts, routes=[])
+    """Match is True when observed owner equals configured owner (other_script after 268)."""
+    _, scripts = _conflict_fixture()
+    router = FakeRouter(netwatch=[], scripts=scripts, routes=[])
 
-    inspector = _inspector(router, FakeRouteManager(active_owner="netwatch", mode="dry_run"))
+    inspector = _inspector(router, FakeRouteManager(active_owner="other_script", mode="dry_run"))
     inspector.refresh()
 
     snapshot = inspector.snapshot()
-    assert snapshot["observed_owner"] == "netwatch"
-    assert snapshot["configured_owner"] == "netwatch"
+    assert snapshot["observed_owner"] == "other_script"
+    assert snapshot["configured_owner"] == "other_script"
     assert snapshot["match"] is True
 
 
 def test_match_false_when_observed_unknown() -> None:
-    router = FakeRouter(netwatch=[], scripts=[], routes=[], fail="netwatch")
+    """Match is False when observed owner is unknown (router error)."""
+    router = FakeRouter(netwatch=[], scripts=[], routes=[], fail="script")
 
     inspector = _inspector(router, FakeRouteManager(active_owner="unknown", mode="dry_run"))
     inspector.refresh()
@@ -195,7 +201,8 @@ def test_match_false_when_observed_unknown() -> None:
 
 
 def test_fail_open_on_router_error() -> None:
-    router = FakeRouter(netwatch=[], scripts=[], routes=[], fail="netwatch")
+    """Inspector fails closed on router read error."""
+    router = FakeRouter(netwatch=[], scripts=[], routes=[], fail="script")
 
     inspector = _inspector(router)
     inspector.refresh()
@@ -212,7 +219,6 @@ def test_fail_open_on_router_error() -> None:
         "inspector_status",
         "inspector_error",
         "last_inspected_at",
-        "netwatch",
         "routes",
     }
 

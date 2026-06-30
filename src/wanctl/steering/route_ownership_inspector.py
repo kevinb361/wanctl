@@ -90,9 +90,6 @@ class RouteOwnershipInspector:
             route_mode = str(route_manager_snapshot.get("mode", "off"))
 
             guard_result = self._guard.inspect()
-            netwatch_entries = self._read_json_list(
-                RouteOwnershipGuard.NETWATCH_PRINT, "netwatch"
-            )
             route_entries = self._read_json_list(ROUTE_PRINT, "route")
 
             observed_owner = _observed_owner(guard_result, route_mode)
@@ -106,16 +103,6 @@ class RouteOwnershipInspector:
                 inspector_error=guard_result.error,
                 match=match,
                 last_inspected_at=_utc_now_iso(),
-                netwatch={
-                    "entries_count": len(netwatch_entries),
-                    "route_mutating_active_count": len(
-                        [
-                            conflict
-                            for conflict in guard_result.conflicts
-                            if conflict.source == "netwatch"
-                        ]
-                    ),
-                },
                 routes={
                     "total_route_count": len(route_entries),
                     "default_routes": default_routes,
@@ -162,7 +149,6 @@ class RouteOwnershipInspector:
         inspector_error: str | None,
         match: bool,
         last_inspected_at: str | None,
-        netwatch: dict[str, int] | None = None,
         routes: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return {
@@ -172,8 +158,6 @@ class RouteOwnershipInspector:
             "inspector_status": inspector_status,
             "inspector_error": inspector_error,
             "last_inspected_at": last_inspected_at,
-            "netwatch": netwatch
-            or {"entries_count": 0, "route_mutating_active_count": 0},
             "routes": routes or {"total_route_count": 0, "default_routes": []},
         }
 
@@ -182,7 +166,7 @@ def _observed_owner(guard_result: RouteOwnershipGuardResult, route_mode: str) ->
     if guard_result.status == "error":
         return "unknown"
     if guard_result.status == "conflict":
-        return "netwatch"
+        return "other_script"
     if route_mode == "active" and guard_result.active_allowed:
         return "wanctl"
     return "none"
