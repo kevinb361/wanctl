@@ -1392,6 +1392,20 @@ class SteeringDaemon:
 
         if new_mode != old_mode:
             self.logger.warning(f"[ROUTE_MANAGEMENT] Config reload: mode={old_mode}->{new_mode}")
+
+            # If transitioning from off to active/dry_run, create the guard
+            # (it was skipped during initial startup when mode was off).
+            if old_mode == "off" and new_mode in {"dry_run", "active"}:
+                if self.route_ownership_guard is None and self.router.client is not None:
+                    self.route_ownership_guard = RouteOwnershipGuard(self.router.client)
+                    self.route_ownership_guard_result = self.route_ownership_guard.inspect()
+                    self.route_manager.ownership_guard_result = self.route_ownership_guard_result
+                    self.logger.info(
+                        f"[ROUTE_MANAGEMENT] Guard created on reload: "
+                        f"status={self.route_ownership_guard_result.status}"
+                    )
+                # Reconcile on transition to active/dry_run
+                self.route_manager.reconcile_startup()
         else:
             self.logger.info("[ROUTE_MANAGEMENT] Config reload: routes updated, mode unchanged")
 
