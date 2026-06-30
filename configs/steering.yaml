@@ -125,7 +125,7 @@ lock_timeout: 60  # 1 minute
 route_management:
   enabled: true
   mode: active
-  migration_acknowledged: false
+  migration_acknowledged: true
   routes:
     spectrum:
       comment: Spectrum
@@ -135,6 +135,10 @@ route_management:
       comment: Force ATT_OUT to ATT WAN
     backup:
       comment: Backup to Spectrum if ATT fails
+    att_gateway:
+      comment: Route to ATT public gateway for check-gateway
+    att_mgmt_gateway:
+      comment: Route to AT&T gateway via WAN-ATT
   failover:
     spectrum:
       enabled: true
