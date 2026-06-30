@@ -6,12 +6,16 @@ CongestionState values each cycle and emits at most one route action
 
 SOFT_RED is treated as congestion (increments red count). YELLOW resets
 counters — intermediate state means no decision.
+
+FailoverBridgeGroup manages multiple FailoverBridge instances keyed by WAN
+name, providing a per-WAN hysteresis state machine for multi-WAN deployments.
 """
 
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -165,3 +169,105 @@ class FailoverBridge:
         self._green_count = 0
         self._armed = False
         self._disabled = False
+
+    def snapshot(self) -> dict[str, Any]:
+        """Return bridge status for health endpoint."""
+        return {
+            "armed": self._armed,
+            "red_count": self._red_count,
+            "green_count": self._green_count,
+            "disabled": self._disabled,
+            "red_cycles_threshold": self.red_cycles_threshold,
+            "green_cycles_threshold": self.green_cycles_threshold,
+        }
+
+
+class FailoverBridgeGroup:
+    """Manages a dict of FailoverBridge instances keyed by WAN name.
+
+    Provides backward compatibility with the legacy single-bridge config
+    format: if the old flat dict is detected, it wraps into a group with
+    a single entry.
+
+    Each bridge operates independently with its own hysteresis counters
+    and congestion state source.
+    """
+
+    def __init__(self, bridges: dict[str, FailoverBridge] | None = None) -> None:
+        self._bridges: dict[str, FailoverBridge] = bridges or {}
+
+    def add_bridge(self, wan_name: str, bridge: FailoverBridge) -> None:
+        """Add or replace a bridge for a WAN."""
+        self._bridges[wan_name] = bridge
+
+    def get_bridge(self, wan_name: str) -> FailoverBridge | None:
+        """Get the bridge for a WAN, or None if not configured."""
+        return self._bridges.get(wan_name)
+
+    def update(self, wan_name: str, congestion_state: str) -> FailoverDecision | None:
+        """Feed congestion state to a specific bridge and return its decision."""
+        bridge = self._bridges.get(wan_name)
+        if bridge is None:
+            return None
+        return bridge.update(congestion_state)
+
+    def get_decisions(self) -> list[tuple[str, FailoverDecision]]:
+        """Get pending decisions from all bridges.
+
+        Returns a list of (wan_name, decision) tuples. Bridges are iterated
+        in insertion order. This method exists for API symmetry — callers
+        should capture the return value from update() directly.
+        """
+        return []
+
+    def confirm_action(self, wan_name: str, action: str, success: bool) -> None:
+        """Confirm a failover action result to the appropriate bridge."""
+        bridge = self._bridges.get(wan_name)
+        if bridge is not None:
+            bridge.confirm_action(action, success)
+
+    def snapshot(self) -> dict[str, dict[str, Any]]:
+        """Return per-WAN bridge status for health endpoint."""
+        result: dict[str, dict[str, Any]] = {}
+        for wan_name, bridge in self._bridges.items():
+            result[wan_name] = bridge.snapshot()
+        return result
+
+    def is_empty(self) -> bool:
+        """Return True if no bridges are configured."""
+        return len(self._bridges) == 0
+
+    def armed_count(self) -> int:
+        """Return the number of armed (enabled) bridges."""
+        return sum(1 for b in self._bridges.values() if b.armed)
+
+    def wan_names(self) -> list[str]:
+        """Return list of WAN names with configured bridges."""
+        return list(self._bridges.keys())
+
+    def save_state(self) -> dict[str, dict[str, int | bool]]:
+        """Save internal state for restoration across reloads.
+
+        Returns a dict mapping wan_name -> {_red_count, _green_count, _disabled}.
+        """
+        state: dict[str, dict[str, int | bool]] = {}
+        for wan_name, bridge in self._bridges.items():
+            state[wan_name] = {
+                "_red_count": bridge._red_count,
+                "_green_count": bridge._green_count,
+                "_disabled": bridge._disabled,
+            }
+        return state
+
+    def restore_state(self, state: dict[str, dict[str, int | bool]]) -> None:
+        """Restore internal state from a previous save.
+
+        Only restores state for bridges that exist. New bridges start fresh.
+        """
+        for wan_name, bridge in self._bridges.items():
+            s = state.get(wan_name)
+            if s is None:
+                continue
+            bridge._red_count = int(s.get("_red_count", 0))
+            bridge._green_count = int(s.get("_green_count", 0))
+            bridge._disabled = bool(s.get("_disabled", False))

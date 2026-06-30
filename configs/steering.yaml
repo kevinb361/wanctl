@@ -119,7 +119,7 @@ logging:
 lock_file: "/run/wanctl/steering.lock"
 lock_timeout: 60  # 1 minute
 
-# Route management (Phase 264: active ownership, Phase 266: failover bridge)
+# Route management (Phase 264: active ownership, Phase 266: failover bridge, Phase 267: ATT failover)
 # wanctl owns default route management on cake-shaper.
 # Rollback: set mode: dry_run and send SIGUSR1 to the steering daemon PID.
 route_management:
@@ -136,7 +136,11 @@ route_management:
     backup:
       comment: Backup to Spectrum if ATT fails
   failover:
-    enabled: true
-    wan: spectrum
-    red_cycles: 3
-    green_cycles: 5
+    spectrum:
+      enabled: true
+      red_cycles: 3
+      green_cycles: 5
+    att:
+      enabled: true
+      red_cycles: 4
+      green_cycles: 6

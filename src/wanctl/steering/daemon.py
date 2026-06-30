@@ -86,7 +86,7 @@ from .congestion_assessment import (
     assess_congestion_state,
     ewma_update,
 )
-from .failover_bridge import FailoverBridge, FailoverDecision
+from .failover_bridge import FailoverBridge, FailoverBridgeGroup, FailoverDecision
 from .health import (
     SteeringHealthServer,
     start_steering_health_server,
@@ -144,6 +144,48 @@ BASELINE_CHANGE_THRESHOLD = 5.0  # Log warning if baseline changes more than thi
 MAX_SANE_RTT_DELTA_MS = 500.0
 
 # PROFILE_REPORT_INTERVAL imported from perf_profiler (shared with autorate)
+
+
+# =============================================================================
+# Failover config parsing (module-level — used by both SteeringConfig and
+# SteeringDaemon. Kept as functions so tests that patch SteeringDaemon don't
+# break config loading.)
+# =============================================================================
+
+
+def _parse_failover_config(failover: Any) -> dict[str, dict[str, Any]]:
+    """Parse route_management.failover into a per-WAN config dict.
+
+    Supports both new per-WAN format and legacy flat format.
+    """
+    if not isinstance(failover, dict):
+        return {}
+
+    result: dict[str, dict[str, Any]] = {}
+    if any(k in failover for k in ("spectrum", "att")):
+        for wan_name, cfg in failover.items():
+            if not isinstance(cfg, dict):
+                continue
+            result[wan_name] = {
+                "enabled": bool(cfg.get("enabled", False)),
+                "red_cycles": int(cfg.get("red_cycles", 3)),
+                "green_cycles": int(cfg.get("green_cycles", 5)),
+            }
+    elif failover.get("enabled") is not None or "wan" in failover:
+        wan = failover.get("wan", "spectrum")
+        result[wan] = {
+            "enabled": bool(failover.get("enabled", False)),
+            "red_cycles": int(failover.get("red_cycles", 3)),
+            "green_cycles": int(failover.get("green_cycles", 5)),
+        }
+    return result
+
+
+def _failover_config_changed(
+    old: dict[str, dict[str, Any]], new: dict[str, dict[str, Any]]
+) -> bool:
+    """Return True if old and new failover configs differ."""
+    return old != new
 
 
 # =============================================================================
@@ -386,14 +428,34 @@ class SteeringConfig(BaseConfig):
         routes = route_management.get("routes", {})
         self.route_management_routes = routes if isinstance(routes, dict) else {}
 
-        # Failover bridge config (optional, disabled by default)
+        # Failover bridge config (optional, disabled by default).
+        # Supports two formats:
+        #   New (per-WAN dict):
+        #     failover:
+        #       spectrum: {enabled: true, red_cycles: 3, green_cycles: 5}
+        #       att: {enabled: true, red_cycles: 4, green_cycles: 6}
+        #   Legacy (flat dict — backward compat):
+        #     failover: {enabled: true, wan: spectrum, red_cycles: 3, green_cycles: 5}
         failover = route_management.get("failover", {})
         if not isinstance(failover, dict):
             failover = {}
-        self.failover_enabled = bool(failover.get("enabled", False))
-        self.failover_wan = failover.get("wan", self.primary_wan)
-        self.failover_red_cycles = int(failover.get("red_cycles", 3))
-        self.failover_green_cycles = int(failover.get("green_cycles", 5))
+
+        # Parse into per-WAN config (shared with _reload_route_management_config)
+        self.failover_config = _parse_failover_config(failover)
+
+        # Keep legacy flat attributes for backward compat with existing code
+        # that checks self.failover_enabled etc. during reload.
+        if self.failover_config:
+            first = list(self.failover_config.values())[0]
+            self.failover_enabled = first["enabled"]
+            self.failover_wan = self.primary_wan
+            self.failover_red_cycles = first["red_cycles"]
+            self.failover_green_cycles = first["green_cycles"]
+        else:
+            self.failover_enabled = False
+            self.failover_wan = self.primary_wan
+            self.failover_red_cycles = int(failover.get("red_cycles", 3))
+            self.failover_green_cycles = int(failover.get("green_cycles", 5))
 
     def _load_wan_state_config(self) -> None:
         """Load WAN-aware steering configuration.
@@ -1229,13 +1291,21 @@ class SteeringDaemon:
             ownership_guard_result=None,
         )
 
-        # Failover bridge: hysteresis-gated congestion → route action
-        self.failover_bridge = FailoverBridge(
-            red_cycles=self.config.failover_red_cycles,
-            green_cycles=self.config.failover_green_cycles,
-        )
-        self.failover_bridge.armed = self.config.failover_enabled
+        # Failover bridge group: hysteresis-gated congestion -> route action
+        # One bridge per WAN that has failover configured.
+        self.failover_group = FailoverBridgeGroup()
         self._last_failover_decision: FailoverDecision | None = None
+
+        for wan_name, cfg in self.config.failover_config.items():
+            bridge = FailoverBridge(
+                red_cycles=cfg["red_cycles"],
+                green_cycles=cfg["green_cycles"],
+            )
+            bridge.armed = cfg["enabled"]
+            self.failover_group.add_bridge(wan_name, bridge)
+
+        # ATT health endpoint for congestion assessment (cake-autorate state bridge)
+        self._att_health_url = "http://10.10.110.227:9101/health"
 
         if not self.config.route_management_enabled or self.config.route_management_mode == "off":
             return
@@ -1340,37 +1410,35 @@ class SteeringDaemon:
         routes = fresh_rm.get("routes", {})
         self.config.route_management_routes = routes if isinstance(routes, dict) else {}
 
-        # Failover bridge config
-        failover = fresh_rm.get("failover", {})
-        if not isinstance(failover, dict):
-            failover = {}
-        new_failover_enabled = bool(failover.get("enabled", False))
-        new_red_cycles = int(failover.get("red_cycles", 3))
-        new_green_cycles = int(failover.get("green_cycles", 5))
+        # Failover bridge group config — rebuild group on any change
+        new_failover_config = _parse_failover_config(fresh_rm.get("failover", {}))
 
-        # Re-initialize bridge if config changed
-        if (
-            new_failover_enabled != self.config.failover_enabled
-            or new_red_cycles != self.config.failover_red_cycles
-            or new_green_cycles != self.config.failover_green_cycles
-        ):
-            old_red_count = self.failover_bridge.red_count
-            old_green_count = self.failover_bridge.green_count
-            old_disabled = getattr(self.failover_bridge, "_disabled", False)
-            self.config.failover_enabled = new_failover_enabled
-            self.config.failover_red_cycles = new_red_cycles
-            self.config.failover_green_cycles = new_green_cycles
-            self.failover_bridge = FailoverBridge(
-                red_cycles=new_red_cycles,
-                green_cycles=new_green_cycles,
-            )
-            self.failover_bridge._red_count = old_red_count
-            self.failover_bridge._green_count = old_green_count
-            self.failover_bridge._disabled = old_disabled
-            self.failover_bridge.armed = new_failover_enabled
+        # Rebuild group if config changed
+        if _failover_config_changed(self.config.failover_config, new_failover_config):
+            saved_state = self.failover_group.save_state()
+
+            new_group = FailoverBridgeGroup()
+            for wn, cfg in new_failover_config.items():
+                bridge = FailoverBridge(
+                    red_cycles=cfg["red_cycles"],
+                    green_cycles=cfg["green_cycles"],
+                )
+                bridge.armed = cfg["enabled"]
+                new_group.add_bridge(wn, bridge)
+
+            new_group.restore_state(saved_state)
+            self.failover_group = new_group
+            self.config.failover_config = new_failover_config
+
+            if new_failover_config:
+                first = list(new_failover_config.values())[0]
+                self.config.failover_enabled = first["enabled"]
+                self.config.failover_red_cycles = first["red_cycles"]
+                self.config.failover_green_cycles = first["green_cycles"]
+
             self.logger.info(
-                f"[ROUTE_MANAGEMENT] Failover bridge reinitialized: "
-                f"enabled={new_failover_enabled}, red={new_red_cycles}, green={new_green_cycles}"
+                f"[ROUTE_MANAGEMENT] Failover group rebuilt: "
+                f"bridges={list(new_failover_config.keys())}"
             )
 
         # Update route_manager mode
@@ -1423,36 +1491,85 @@ class SteeringDaemon:
             )
 
     def _process_failover_bridge(self) -> None:
-        """Feed congestion state into the failover bridge and act on decisions."""
-        if not self.failover_bridge.armed:
+        """Feed congestion state into all failover bridges and act on decisions."""
+        if self.failover_group.is_empty():
             return
 
-        congestion_state = self.state_mgr.state.get("congestion_state", "GREEN")
-        decision = self.failover_bridge.update(congestion_state)
-        if decision is None:
-            return
+        # Spectrum bridge uses the normal congestion assessment
+        spectrum_state = self.state_mgr.state.get("congestion_state", "GREEN")
 
-        self._last_failover_decision = decision
-        route_key = self.config.failover_wan  # which route key to act on (e.g. "spectrum")
+        # ATT bridge uses its own cake-autorate state bridge
+        att_state = self._get_att_congestion_state()
 
-        # Map bridge action ("disable"/"enable") to RouteAction
-        action: RouteAction = decision.action  # type: ignore[assignment]
-        result = self.route_manager.plan_or_apply(action, route_key)
+        for wan_name, bridge in self.failover_group._bridges.items():
+            if not bridge.armed:
+                continue
 
-        # Correlate: tell the bridge whether the action actually succeeded.
-        # In dry-run mode, no mutation happens — don't confirm as success.
-        # Note: success=True already covers "route already in desired state"
-        # (mutated=False but success=True means idempotent — route is enabled).
-        # Only reject confirmation when dry_run or the route_manager reported failure.
-        effective_success = result.success and not result.dry_run
-        self.failover_bridge.confirm_action(decision.action, effective_success)
+            congestion_state = spectrum_state if wan_name == "spectrum" else att_state
+            decision = bridge.update(congestion_state)
+            if decision is None:
+                continue
 
-        self.logger.info(
-            f"[FAILOVER] {action.upper()} {route_key}: "
-            f"state={decision.congestion_state}, cycles={decision.consecutive_cycles}, "
-            f"result={'ok' if result.success else 'blocked'}, "
-            f"error={result.error or 'none'}"
-        )
+            self._last_failover_decision = decision
+            route_key = wan_name
+
+            action: RouteAction = decision.action  # type: ignore[assignment]
+            result = self.route_manager.plan_or_apply(action, route_key)
+
+            effective_success = result.success and not result.dry_run
+            self.failover_group.confirm_action(wan_name, decision.action, effective_success)
+
+            self.logger.info(
+                f"[FAILOVER] {wan_name.upper()} {action.upper()}: "
+                f"state={decision.congestion_state}, cycles={decision.consecutive_cycles}, "
+                f"result={'ok' if result.success else 'blocked'}, "
+                f"error={result.error or 'none'}"
+            )
+
+    def _get_att_congestion_state(self) -> str:
+        """Fetch ATT congestion state from cake-autorate health endpoint.
+
+        Returns "RED" if ATT download is in RED congestion, "GREEN" if GREEN,
+        or "YELLOW" for anything else. Defaults to GREEN if unreachable.
+        """
+        try:
+            import urllib.request
+
+            with urllib.request.urlopen(
+                self._att_health_url, timeout=2
+            ) as resp:
+                data = json.loads(resp.read())
+                dl_state = (
+                    data.get("congestion", {})
+                    .get("dl_state", "GREEN")
+                )
+                if dl_state == "RED":
+                    return "RED"
+                if dl_state == "YELLOW":
+                    return "YELLOW"
+                return "GREEN"
+        except Exception:
+            return "GREEN"
+
+    def _build_failover_health(self) -> dict[str, Any]:
+        """Build per-WAN failover health section for the health endpoint."""
+        result: dict[str, Any] = {}
+
+        # Per-WAN bridge snapshots
+        result.update(self.failover_group.snapshot())
+
+        # Last decision
+        if self._last_failover_decision:
+            result["last_decision"] = {
+                "action": self._last_failover_decision.action,
+                "congestion_state": self._last_failover_decision.congestion_state,
+                "consecutive_cycles": self._last_failover_decision.consecutive_cycles,
+                "timestamp": self._last_failover_decision.timestamp,
+            }
+        else:
+            result["last_decision"] = None
+
+        return result
 
     def _handle_mode_change(self, *, old_mode: str | None = None) -> None:
         """Handle mode change from active to dry_run (manual rollback).
@@ -1761,21 +1878,7 @@ class SteeringDaemon:
             },
             "wan_awareness": wan_awareness,
             "route_management": self.route_manager.status_snapshot(),
-            "failover": {
-                "enabled": self.failover_bridge.armed,
-                "red_count": self.failover_bridge.red_count,
-                "green_count": self.failover_bridge.green_count,
-                "last_decision": (
-                    {
-                        "action": self._last_failover_decision.action,
-                        "congestion_state": self._last_failover_decision.congestion_state,
-                        "consecutive_cycles": self._last_failover_decision.consecutive_cycles,
-                        "timestamp": self._last_failover_decision.timestamp,
-                    }
-                    if self._last_failover_decision
-                    else None
-                ),
-            },
+            "failover": self._build_failover_health(),
             "ownership_inspection": self.ownership_inspector.snapshot(),
             "runtime": {
                 "process": "steering",
