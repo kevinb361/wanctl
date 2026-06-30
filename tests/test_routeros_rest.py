@@ -868,6 +868,48 @@ class TestNetwatchOperations:
         mock_session.post.assert_not_called()
         mock_session.patch.assert_not_called()
         mock_session.put.assert_not_called()
+        mock_session.delete.assert_not_called()
+
+    def test_netwatch_remove_single_entry(self, rest_client, mock_session):
+        response = MagicMock()
+        response.ok = True
+        mock_session.delete.return_value = response
+
+        rc, stdout, stderr = rest_client.run_cmd("/tool netwatch remove numbers=*1")
+
+        assert rc == 0
+        assert stderr == ""
+        result = json.loads(stdout)
+        assert result["removed"] == 1
+        mock_session.delete.assert_called_once_with(
+            f"{rest_client.base_url}/tool/netwatch/*1", timeout=rest_client.timeout
+        )
+
+    def test_netwatch_remove_multiple_entries(self, rest_client, mock_session):
+        response = MagicMock()
+        response.ok = True
+        mock_session.delete.return_value = response
+
+        rc, stdout, stderr = rest_client.run_cmd("/tool netwatch remove numbers=*1,*4,*5")
+
+        assert rc == 0
+        result = json.loads(stdout)
+        assert result["removed"] == 3
+        assert mock_session.delete.call_count == 3
+
+    def test_netwatch_remove_partial_failure(self, rest_client, mock_session):
+        responses = [
+            MagicMock(ok=True),
+            MagicMock(ok=False, status_code=404),
+            MagicMock(ok=True),
+        ]
+        mock_session.delete.side_effect = responses
+
+        rc, stdout, stderr = rest_client.run_cmd("/tool netwatch remove numbers=*1,*4,*5")
+
+        assert rc == 0
+        result = json.loads(stdout)
+        assert result["removed"] == 2  # *1 and *5 succeeded, *4 failed
 
 
 # =============================================================================

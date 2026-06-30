@@ -289,6 +289,8 @@ class RouterOSREST:
             return self._handle_route_print(cmd, timeout=timeout_val)
         if cmd.startswith("/tool netwatch set") or cmd.startswith("/tool/netwatch/set"):
             return self._handle_netwatch_set(cmd, timeout=timeout_val)
+        if cmd.startswith("/tool netwatch remove") or cmd.startswith("/tool/netwatch/remove"):
+            return self._handle_netwatch_remove(cmd, timeout=timeout_val)
         if cmd.startswith("/tool netwatch print") or cmd.startswith("/tool/netwatch/print"):
             return self._handle_netwatch_print(cmd, timeout=timeout_val)
         if cmd.startswith("/system script print") or cmd.startswith("/system/script/print"):
@@ -738,6 +740,42 @@ class RouterOSREST:
                 self.logger.error(f"Failed to update netwatch {entry_id}: {e}")
 
         return {"status": "ok", "updated": updated}
+
+    def _handle_netwatch_remove(
+        self, cmd: str, timeout: int | None = None
+    ) -> dict[str, Any] | None:
+        """Handle /tool netwatch remove commands via REST (DELETE).
+
+        Supports:
+        - /tool netwatch remove numbers=*1
+        - /tool netwatch remove numbers=*1,*4,*5
+        """
+        timeout_val = timeout if timeout is not None else self.timeout
+        base_url = f"{self.base_url}/tool/netwatch"
+
+        # Extract numbers=*X,*Y,...
+        m = re.search(r"numbers=(.+)", cmd)
+        if not m:
+            self.logger.warning(f"netwatch remove: no numbers= spec in: {cmd}")
+            return None
+
+        entry_ids = [eid.strip() for eid in m.group(1).split(",")]
+        removed = 0
+        for entry_id in entry_ids:
+            delete_url = f"{base_url}/{entry_id}"
+            try:
+                resp = self._request("DELETE", delete_url, timeout=timeout_val)
+                if resp.ok:
+                    removed += 1
+                    self.logger.info(f"Removed netwatch entry {entry_id}")
+                else:
+                    self.logger.warning(
+                        f"Failed to remove netwatch {entry_id}: {resp.status_code}"
+                    )
+            except Exception as e:
+                self.logger.error(f"Failed to remove netwatch {entry_id}: {e}")
+
+        return {"status": "ok", "removed": removed}
 
     def _handle_script_print(
         self, cmd: str, timeout: int | None = None
