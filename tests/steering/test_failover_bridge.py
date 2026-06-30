@@ -68,6 +68,15 @@ class TestGreenRecovery:
 
     def test_green_threshold_crossed(self, bridge):
         bridge.armed = True
+        # First fire a disable so the bridge knows it's in a disabled state
+        for _ in range(2):
+            assert bridge.update("RED") is None
+        failover = bridge.update("RED")
+        assert failover is not None
+        assert failover.action == "disable"
+        bridge.confirm_action("disable", True)
+
+        # Now GREEN threshold should fire enable
         for _ in range(4):
             assert bridge.update("GREEN") is None
         decision = bridge.update("GREEN")
@@ -99,6 +108,13 @@ class TestGreenRecovery:
 
     def test_green_resets_after_firing(self, bridge):
         bridge.armed = True
+        # First fire a disable
+        for _ in range(2):
+            assert bridge.update("RED") is None
+        failover = bridge.update("RED")
+        assert failover is not None
+        bridge.confirm_action("disable", True)
+        # Now fire green
         for _ in range(4):
             bridge.update("GREEN")
         decision = bridge.update("GREEN")
@@ -172,6 +188,8 @@ class TestRoundTrip:
         failover = bridge.update("RED")
         assert failover is not None
         assert failover.action == "disable"
+        # Confirm the disable was applied
+        bridge.confirm_action("disable", True)
 
         # Recovery on GREEN
         for _ in range(4):
@@ -189,6 +207,8 @@ class TestRoundTrip:
         failover = bridge.update("RED")
         assert failover is not None
         assert failover.action == "disable"
+        # Confirm the disable was applied
+        bridge.confirm_action("disable", True)
 
         # GREEN starts counting, then YELLOW interrupts
         bridge.update("GREEN")

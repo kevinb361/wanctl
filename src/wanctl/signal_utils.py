@@ -50,7 +50,7 @@ _shutdown_event = threading.Event()
 _reload_event = threading.Event()
 
 
-def _signal_handler(signum: int, frame: types.FrameType | None) -> None:
+def _signal_handler(_signum: int, _frame: types.FrameType | None) -> None:
     """Signal handler for SIGTERM and SIGINT.
 
     Sets the shutdown event to allow the main loop to exit gracefully.
@@ -66,7 +66,7 @@ def _signal_handler(signum: int, frame: types.FrameType | None) -> None:
     _shutdown_event.set()
 
 
-def _reload_signal_handler(signum: int, frame: types.FrameType | None) -> None:
+def _reload_signal_handler(_signum: int, _frame: types.FrameType | None) -> None:
     """Signal handler for SIGUSR1 (config reload).
 
     Sets the reload event to trigger config re-read in the daemon loop.

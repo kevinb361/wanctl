@@ -27,6 +27,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -232,7 +233,26 @@ class RouterOSSSH:
             # nosec B601 - cmd is RouterOS API command from internal code, not user input
             stdin, stdout, stderr = self._client.exec_command(cmd, timeout=timeout_val)
 
-            # Wait for command to complete and get exit status
+            # Wait for command to complete and get exit status with timeout.
+            # Without a timeout, recv_exit_status blocks indefinitely if
+            # RouterOS hangs (reboot, heavy load) — freezing the steering loop.
+            exit_timeout = timeout_val + 5
+            poll_interval = 0.1
+            elapsed = 0.0
+            while not stdout.channel.exit_status_ready():
+                if elapsed >= exit_timeout:
+                    # Close the channel to free resources and avoid leaking
+                    # the connection until the next reconnect cycle.
+                    try:
+                        stdout.channel.close()
+                    except Exception:
+                        pass
+                    self._client = None
+                    raise TimeoutError(
+                        f"recv_exit_status timed out after {exit_timeout}s for command: {cmd}"
+                    )
+                time.sleep(poll_interval)
+                elapsed += poll_interval
             exit_status = stdout.channel.recv_exit_status()
 
             if capture:

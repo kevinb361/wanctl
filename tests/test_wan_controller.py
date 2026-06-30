@@ -1246,8 +1246,10 @@ class TestUpdateBaselineIfIdle:
             controller.load_rtt = 50.0  # High load RTT
             measured_rtt = 55.0  # Even higher measurement
 
-            # Update EWMA (full method to test integration)
-            controller.update_ewma(measured_rtt)
+            # update_ewma() was removed (dead code).  Replicate its logic here:
+            # fast EWMA for load_rtt, then conditional baseline update.
+            controller.load_rtt = (1 - controller.alpha_load) * controller.load_rtt + controller.alpha_load * measured_rtt
+            controller._update_baseline_if_idle(measured_rtt)
 
         # Baseline should NOT have drifted significantly toward load
         # With delta > threshold, baseline freezes at original value

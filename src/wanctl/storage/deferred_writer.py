@@ -80,11 +80,13 @@ class DeferredIOWorker:
         shutdown_event: threading.Event,
         logger: logging.Logger,
         process_role: str = "autorate",
+        max_queue_size: int = 10000,
     ) -> None:
         self._writer = writer
         self._shutdown_event = shutdown_event
         self._logger = logger
         self._queue: queue.SimpleQueue[Any] = queue.SimpleQueue()
+        self._max_queue_size = max_queue_size
         self._thread: threading.Thread | None = None
         self._pending_count: int = 0
         self._process_role = process_role
@@ -121,6 +123,13 @@ class DeferredIOWorker:
         metrics: list[tuple[int, str, str, float, dict[str, Any] | None, str]],
     ) -> None:
         """Enqueue a batch of metrics for background write."""
+        if self._queue.qsize() >= self._max_queue_size:
+            self._logger.warning(
+                "Deferred I/O queue full (%d >= %d), dropping batch of %d metrics",
+                self._queue.qsize(), self._max_queue_size, len(metrics),
+            )
+            record_storage_queue_error(self._process_role, len(metrics))
+            return
         self._queue.put(_BatchWrite(metrics=tuple(metrics)))
         self._update_pending_count(1)
 
@@ -135,6 +144,13 @@ class DeferredIOWorker:
         granularity: str = "raw",
     ) -> None:
         """Enqueue a single metric write."""
+        if self._queue.qsize() >= self._max_queue_size:
+            self._logger.warning(
+                "Deferred I/O queue full (%d >= %d), dropping metric %s",
+                self._queue.qsize(), self._max_queue_size, metric_name,
+            )
+            record_storage_queue_error(self._process_role, 1)
+            return
         self._queue.put(
             _SingleWrite(
                 timestamp=timestamp,
@@ -157,6 +173,13 @@ class DeferredIOWorker:
         details_json: str,
     ) -> None:
         """Enqueue an alert write."""
+        if self._queue.qsize() >= self._max_queue_size:
+            self._logger.warning(
+                "Deferred I/O queue full (%d >= %d), dropping alert %s",
+                self._queue.qsize(), self._max_queue_size, alert_type,
+            )
+            record_storage_queue_error(self._process_role, 1)
+            return
         self._queue.put(
             _AlertWrite(
                 timestamp=timestamp,
@@ -179,6 +202,13 @@ class DeferredIOWorker:
         details_json: str,
     ) -> None:
         """Enqueue a reflector event write."""
+        if self._queue.qsize() >= self._max_queue_size:
+            self._logger.warning(
+                "Deferred I/O queue full (%d >= %d), dropping reflector event %s",
+                self._queue.qsize(), self._max_queue_size, event_type,
+            )
+            record_storage_queue_error(self._process_role, 1)
+            return
         self._queue.put(
             _ReflectorEventWrite(
                 timestamp=timestamp,
@@ -272,8 +302,10 @@ class DeferredIOWorker:
                     details_json=item.details_json,
                 )
             record_storage_queue_drain(self._process_role, volume)
-        except Exception:
+        except Exception as exc:
             record_storage_queue_error(self._process_role, volume)
-            self._logger.debug("Deferred write failed", exc_info=True)
+            self._logger.warning(
+                "Deferred write failed (%s): %s", type(exc).__name__, exc
+            )
         finally:
             self._update_pending_count(-1)

@@ -233,6 +233,34 @@ class RouteManager:
 
             trip_evidence["route_revert_results"] = route_results
             all_reverted = all(route_results.values())
+
+            # Step 1b: Verify routes are actually enabled on the router.
+            # A command can succeed (rc=0) but the route may still be disabled
+            # due to race conditions or RouterOS quirks.
+            verified_ok: dict[str, bool] = {}
+            for route_key in self.routes:
+                target = self._get_target(route_key)
+                if target is None or target.anchor_type is None:
+                    verified_ok[route_key] = False
+                    continue
+
+                verify_cmd = self._print_command(target)
+                rc, out, err = self.router_client.run_cmd(verify_cmd, timeout=10)
+                out_lower = (out or "").lower()
+                # RouterOS prints "disabled" on the route line when it's disabled.
+                # In JSON output (from test mocks), check for "disabled": "true".
+                route_disabled = False
+                if '"disabled": "true"' in out_lower or "'disabled': 'true'" in out_lower or "\ndisabled\n" in out_lower or " disabled " in out_lower or out_lower.startswith("disabled") or "\ndisabled:" in out_lower:
+                    route_disabled = True
+                if rc == 0 and not route_disabled:
+                    verified_ok[route_key] = True
+                else:
+                    verified_ok[route_key] = False
+                    trip_evidence[f"route_{route_key}_verify_error"] = err or out or "verify failed"
+
+            trip_evidence["route_verify_results"] = verified_ok
+            # Route is truly reverted only if both the enable and the verify succeeded.
+            all_reverted = all(route_results.values()) and all(verified_ok.values())
         else:
             # Router unavailable — still revert state locally
             trip_evidence["route_revert_results"] = {}

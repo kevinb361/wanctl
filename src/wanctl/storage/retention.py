@@ -141,7 +141,7 @@ def _cleanup_per_granularity(
         "raw": now - retention_config["raw_age_seconds"],
         "1m": now - retention_config["aggregate_1m_age_seconds"],
         "5m": now - retention_config["aggregate_5m_age_seconds"],
-        "1h": now - retention_config["aggregate_5m_age_seconds"],
+        "1h": now - retention_config.get("aggregate_1h_age_seconds", retention_config["aggregate_5m_age_seconds"] * 2),
     }
 
     for granularity, cutoff in tier_cutoffs.items():

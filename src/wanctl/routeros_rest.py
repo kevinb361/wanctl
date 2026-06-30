@@ -136,6 +136,10 @@ class RouterOSREST:
         Returns:
             requests.Response from the session
         """
+        # Default timeout prevents indefinite blocking when the caller forgets
+        # to pass one. self.timeout is set in __init__ (default 15s).
+        kwargs.setdefault("timeout", self.timeout)
+
         if self._suppress_ssl_warnings:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=InsecureRequestWarning)
@@ -715,8 +719,7 @@ class RouterOSREST:
         if filter_spec:
             filter_parts = filter_spec.split()
             if len(filter_parts) >= 2 and filter_parts[0] == "find":
-                fk = filter_parts[1].split("=")[0]
-                fv = filter_parts[1].split("=")[1] if "=" in filter_parts[1] else ""
+                fk, fv = filter_parts[1].split("=", 1) if "=" in filter_parts[1] else (filter_parts[1], "")
                 entries = [e for e in entries if str(e.get(fk, "")) == fv]
 
         updated = 0

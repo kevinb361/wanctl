@@ -159,83 +159,95 @@ def downsample_to_granularity(
     """
     rows_created = 0
 
-    # Find distinct metric/wan combinations to process
-    cursor = conn.execute(
-        """
-        SELECT DISTINCT metric_name, wan_name
-        FROM metrics
-        WHERE granularity = ?
-          AND timestamp < ?
-        """,
-        (from_granularity, cutoff),
-    )
-    combinations = cursor.fetchall()
+    txn_started = False
+    try:
+        conn.execute("BEGIN")
+        txn_started = True
 
-    for metric_name, wan_name in combinations:
-        # Find time range of data to downsample
+        # Find distinct metric/wan combinations to process
         cursor = conn.execute(
             """
-            SELECT MIN(timestamp), MAX(timestamp)
+            SELECT DISTINCT metric_name, wan_name
             FROM metrics
-            WHERE metric_name = ?
-              AND wan_name = ?
-              AND granularity = ?
+            WHERE granularity = ?
               AND timestamp < ?
             """,
-            (metric_name, wan_name, from_granularity, cutoff),
+            (from_granularity, cutoff),
         )
-        time_range = cursor.fetchone()
-        if not time_range or time_range[0] is None:
-            continue
+        combinations = cursor.fetchall()
 
-        min_ts, max_ts = time_range
+        for metric_name, wan_name in combinations:
+            # Find time range of data to downsample
+            cursor = conn.execute(
+                """
+                SELECT MIN(timestamp), MAX(timestamp)
+                FROM metrics
+                WHERE metric_name = ?
+                  AND wan_name = ?
+                  AND granularity = ?
+                  AND timestamp < ?
+                """,
+                (metric_name, wan_name, from_granularity, cutoff),
+            )
+            time_range = cursor.fetchone()
+            if not time_range or time_range[0] is None:
+                continue
 
-        # Align bucket start to bucket boundary
-        bucket_start = (min_ts // bucket_seconds) * bucket_seconds
+            min_ts, max_ts = time_range
 
-        # Process each bucket
-        while bucket_start <= max_ts:
-            # Only process buckets that are fully before cutoff
-            if bucket_start + bucket_seconds <= cutoff:
-                agg_value = _aggregate_bucket(
-                    conn,
-                    metric_name,
-                    wan_name,
-                    bucket_start,
-                    from_granularity,
-                    to_granularity,
-                    bucket_seconds,
-                )
+            # Align bucket start to bucket boundary
+            bucket_start = (min_ts // bucket_seconds) * bucket_seconds
 
-                if agg_value is not None:
-                    # Insert aggregated row
-                    conn.execute(
-                        """
-                        INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
-                        VALUES (?, ?, ?, ?, NULL, ?)
-                        """,
-                        (bucket_start, wan_name, metric_name, agg_value, to_granularity),
+            # Process each bucket
+            while bucket_start <= max_ts:
+                # Only process buckets that are fully before cutoff
+                if bucket_start + bucket_seconds <= cutoff:
+                    agg_value = _aggregate_bucket(
+                        conn,
+                        metric_name,
+                        wan_name,
+                        bucket_start,
+                        from_granularity,
+                        to_granularity,
+                        bucket_seconds,
                     )
-                    rows_created += 1
 
-            bucket_start += bucket_seconds
+                    if agg_value is not None:
+                        # Insert aggregated row
+                        conn.execute(
+                            """
+                            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+                            VALUES (?, ?, ?, ?, NULL, ?)
+                            """,
+                            (bucket_start, wan_name, metric_name, agg_value, to_granularity),
+                        )
+                        rows_created += 1
 
-        # Delete original data that was aggregated
-        conn.execute(
-            """
-            DELETE FROM metrics
-            WHERE metric_name = ?
-              AND wan_name = ?
-              AND granularity = ?
-              AND timestamp < ?
-            """,
-            (metric_name, wan_name, from_granularity, cutoff),
-        )
+                bucket_start += bucket_seconds
 
-        if watchdog_fn is not None:
-            watchdog_fn()
+            # Delete original data that was aggregated
+            conn.execute(
+                """
+                DELETE FROM metrics
+                WHERE metric_name = ?
+                  AND wan_name = ?
+                  AND granularity = ?
+                  AND timestamp < ?
+                """,
+                (metric_name, wan_name, from_granularity, cutoff),
+            )
 
-    conn.commit()
+            if watchdog_fn is not None:
+                watchdog_fn()
+
+        conn.commit()
+    except Exception:
+        if txn_started:
+            try:
+                conn.execute("ROLLBACK")
+            except Exception:
+                pass  # rollback failed — original exception is more important
+        raise
 
     if rows_created > 0:
         logger.info(

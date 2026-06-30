@@ -1205,6 +1205,9 @@ class SteeringDaemon:
         # to avoid log flooding at 20Hz cycle rate (log-once per name per lifetime)
         self._legacy_state_warned: set[str] = set()
 
+        # Guard refresh tracking (set dynamically in _run_periodic_tasks)
+        self._last_guard_refresh: float = 0.0
+
     def _init_route_management(self) -> None:
         """Initialize guarded route-management helpers without changing defaults."""
         self.route_ownership_guard: RouteOwnershipGuard | None = None
@@ -1351,6 +1354,9 @@ class SteeringDaemon:
             or new_red_cycles != self.config.failover_red_cycles
             or new_green_cycles != self.config.failover_green_cycles
         ):
+            old_red_count = self.failover_bridge.red_count
+            old_green_count = self.failover_bridge.green_count
+            old_disabled = getattr(self.failover_bridge, "_disabled", False)
             self.config.failover_enabled = new_failover_enabled
             self.config.failover_red_cycles = new_red_cycles
             self.config.failover_green_cycles = new_green_cycles
@@ -1358,6 +1364,9 @@ class SteeringDaemon:
                 red_cycles=new_red_cycles,
                 green_cycles=new_green_cycles,
             )
+            self.failover_bridge._red_count = old_red_count
+            self.failover_bridge._green_count = old_green_count
+            self.failover_bridge._disabled = old_disabled
             self.failover_bridge.armed = new_failover_enabled
             self.logger.info(
                 f"[ROUTE_MANAGEMENT] Failover bridge reinitialized: "
@@ -1415,6 +1424,11 @@ class SteeringDaemon:
         # Map bridge action ("disable"/"enable") to RouteAction
         action: RouteAction = decision.action  # type: ignore[assignment]
         result = self.route_manager.plan_or_apply(action, route_key)
+
+        # Correlate: tell the bridge whether the action actually succeeded.
+        # In dry-run mode, no mutation happens — don't confirm as success.
+        effective_success = result.success and result.mutated
+        self.failover_bridge.confirm_action(decision.action, effective_success)
 
         self.logger.info(
             f"[FAILOVER] {action.upper()} {route_key}: "
@@ -2142,8 +2156,8 @@ class SteeringDaemon:
 
         return measure_with_retry(  # type: ignore[no-any-return]
             self.measure_current_rtt,
-            max_retries=max_retries,
-            retry_delay=0.5,
+            max_retries=2,  # Reduced from 3 to fit within 500ms cycle budget
+            retry_delay=0.15,  # 150ms instead of 500ms — total worst case ~300ms
             fallback_func=fallback_to_history,
             logger=self.logger,
             operation_name="autorate health RTT",
@@ -2722,6 +2736,7 @@ def run_daemon_loop(
     consecutive_failures = 0
     max_consecutive_failures = 3
     watchdog_enabled = True
+    last_notify_degraded_ts = 0.0
 
     logger.info(f"Starting daemon mode with {config.measurement_interval}s cycle interval")
     if is_systemd_available():
@@ -2760,7 +2775,9 @@ def run_daemon_loop(
                     f"Sustained failure: {consecutive_failures} consecutive failed cycles. "
                     f"Stopping watchdog - systemd will terminate us."
                 )
-                notify_degraded("consecutive failures exceeded threshold")
+                if time.monotonic() - last_notify_degraded_ts > 60.0:
+                    notify_degraded("consecutive failures exceeded threshold")
+                    last_notify_degraded_ts = time.monotonic()
 
         # Update health server with current failure state (INTG-03)
         update_steering_health_status(consecutive_failures)
@@ -2770,7 +2787,9 @@ def run_daemon_loop(
         # Runs inline; guard inspect is fast (2 REST GETs, no mutation).
         _guard_refresh_interval = 60.0
         _now = time.monotonic()
-        _last_guard_refresh = getattr(daemon, "_last_guard_refresh", 0)
+        _last_guard_refresh = getattr(daemon, "_last_guard_refresh", None)
+        if _last_guard_refresh is None or not isinstance(_last_guard_refresh, (int, float)):
+            _last_guard_refresh = 0.0
         if _now - _last_guard_refresh >= _guard_refresh_interval:
             daemon._refresh_guard()
             daemon._last_guard_refresh = _now
