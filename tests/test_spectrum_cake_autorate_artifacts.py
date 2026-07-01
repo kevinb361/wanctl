@@ -58,7 +58,7 @@ def test_spectrum_cake_autorate_artifacts_are_repo_owned() -> None:
 
     qdisc = QDISC_INIT.read_text(encoding="utf-8")
     assert "dev spec-router root cake bandwidth 550000Kbit" in qdisc
-    assert "dev spec-modem root cake bandwidth 18000Kbit" in qdisc
+    assert "dev spec-modem root cake bandwidth 30000Kbit" in qdisc
     assert "diffserv4" in qdisc
     assert "overhead 18 mpu 64" in qdisc
 
@@ -67,6 +67,8 @@ def test_spectrum_cake_autorate_artifacts_are_repo_owned() -> None:
     assert "ul_if=spec-modem" in config
     assert "adjust_dl_shaper_rate=1" in config
     assert "adjust_ul_shaper_rate=1" in config
+    assert "base_ul_shaper_rate_kbps=30000" in config
+    assert "max_ul_shaper_rate_kbps=30000" in config
     assert "pinger_method=fping" in config
     assert 'ping_extra_args="-S 10.10.110.223"' in config
 
