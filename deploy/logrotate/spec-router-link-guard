@@ -1,0 +1,9 @@
+/var/log/wanctl/spec-router-link-guard.events {
+    daily
+    rotate 30
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0644 root root
+}

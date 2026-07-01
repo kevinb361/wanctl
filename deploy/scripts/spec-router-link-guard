@@ -10,19 +10,24 @@ LAST_BOUNCE_FILE="$STATE_DIR/last-bounce"
 MIN_DOWN_COUNT=${MIN_DOWN_COUNT:-2}
 MIN_BOUNCE_INTERVAL_SECONDS=${MIN_BOUNCE_INTERVAL_SECONDS:-300}
 LOGGER_TAG=${LOGGER_TAG:-spec-router-link-guard}
+EVENT_LOG=${EVENT_LOG:-/var/log/wanctl/spec-router-link-guard.events}
+SYS_CLASS_NET=${SYS_CLASS_NET:-/sys/class/net}
 
 log() {
+  ts=$(date -Is)
   logger -t "$LOGGER_TAG" -- "$*"
+  mkdir -p "$(dirname "$EVENT_LOG")"
+  printf '%s %s\n' "$ts" "$*" >> "$EVENT_LOG"
   printf '%s\n' "$*"
 }
 
 carrier() {
   iface=$1
-  if [ ! -r "/sys/class/net/$iface/carrier" ]; then
+  if [ ! -r "$SYS_CLASS_NET/$iface/carrier" ]; then
     echo missing
     return 0
   fi
-  cat "/sys/class/net/$iface/carrier" 2>/dev/null || echo missing
+  cat "$SYS_CLASS_NET/$iface/carrier" 2>/dev/null || echo missing
 }
 
 set_count() {
