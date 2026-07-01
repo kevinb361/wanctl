@@ -1,0 +1,112 @@
+#!/bin/sh
+set -eu
+
+MODE=${1:-check}
+MODEM_IF=${MODEM_IF:-spec-modem}
+ROUTER_IF=${ROUTER_IF:-spec-router}
+STATE_DIR=${STATE_DIR:-/var/lib/wanctl/spec-router-link-guard}
+DOWN_COUNT_FILE="$STATE_DIR/down-count"
+LAST_BOUNCE_FILE="$STATE_DIR/last-bounce"
+MIN_DOWN_COUNT=${MIN_DOWN_COUNT:-2}
+MIN_BOUNCE_INTERVAL_SECONDS=${MIN_BOUNCE_INTERVAL_SECONDS:-300}
+LOGGER_TAG=${LOGGER_TAG:-spec-router-link-guard}
+
+log() {
+  logger -t "$LOGGER_TAG" -- "$*"
+  printf '%s\n' "$*"
+}
+
+carrier() {
+  iface=$1
+  if [ ! -r "/sys/class/net/$iface/carrier" ]; then
+    echo missing
+    return 0
+  fi
+  cat "/sys/class/net/$iface/carrier" 2>/dev/null || echo missing
+}
+
+set_count() {
+  mkdir -p "$STATE_DIR"
+  printf '%s\n' "$1" > "$DOWN_COUNT_FILE"
+}
+
+get_count() {
+  if [ -r "$DOWN_COUNT_FILE" ]; then
+    cat "$DOWN_COUNT_FILE" 2>/dev/null || echo 0
+  else
+    echo 0
+  fi
+}
+
+now_epoch() {
+  date +%s
+}
+
+last_bounce() {
+  if [ -r "$LAST_BOUNCE_FILE" ]; then
+    cat "$LAST_BOUNCE_FILE" 2>/dev/null || echo 0
+  else
+    echo 0
+  fi
+}
+
+bounce_router() {
+  mkdir -p "$STATE_DIR"
+  if [ "$MODE" = "dry-run" ]; then
+    log "dry-run: would bounce $ROUTER_IF because $MODEM_IF carrier=1 and $ROUTER_IF carrier=0 for $MIN_DOWN_COUNT checks"
+    return 0
+  fi
+  log "bouncing $ROUTER_IF: $MODEM_IF carrier=1 but $ROUTER_IF carrier=0 for $MIN_DOWN_COUNT checks"
+  /usr/sbin/ip link set dev "$ROUTER_IF" down
+  sleep 2
+  /usr/sbin/ip link set dev "$ROUTER_IF" up
+  now_epoch > "$LAST_BOUNCE_FILE"
+  sleep 5
+  r_after=$(carrier "$ROUTER_IF")
+  m_after=$(carrier "$MODEM_IF")
+  if [ "$r_after" = 1 ]; then
+    log "recovered: $ROUTER_IF carrier=1 after bounce; $MODEM_IF carrier=$m_after"
+    set_count 0
+    exit 0
+  fi
+  log "still down after bounce: $ROUTER_IF carrier=$r_after; $MODEM_IF carrier=$m_after"
+  exit 2
+}
+
+m=$(carrier "$MODEM_IF")
+r=$(carrier "$ROUTER_IF")
+
+case "$m:$r" in
+  1:1)
+    set_count 0
+    exit 0
+    ;;
+  0:*|missing:*)
+    # Modem side is down/missing; do not bounce router side. This is a real upstream/link event.
+    set_count 0
+    exit 0
+    ;;
+  1:0)
+    count=$(get_count)
+    case "$count" in ''|*[!0-9]*) count=0;; esac
+    count=$((count + 1))
+    set_count "$count"
+    if [ "$count" -lt "$MIN_DOWN_COUNT" ]; then
+      log "observed asymmetric carrier $count/$MIN_DOWN_COUNT: $MODEM_IF=1 $ROUTER_IF=0; waiting before repair"
+      exit 0
+    fi
+    now=$(now_epoch)
+    last=$(last_bounce)
+    case "$last" in ''|*[!0-9]*) last=0;; esac
+    age=$((now - last))
+    if [ "$age" -lt "$MIN_BOUNCE_INTERVAL_SECONDS" ]; then
+      log "rate-limited: $MODEM_IF=1 $ROUTER_IF=0 count=$count, last bounce ${age}s ago (<${MIN_BOUNCE_INTERVAL_SECONDS}s)"
+      exit 1
+    fi
+    bounce_router
+    ;;
+  *)
+    log "unexpected carrier state: $MODEM_IF=$m $ROUTER_IF=$r"
+    exit 1
+    ;;
+esac

@@ -1,0 +1,13 @@
+[Unit]
+Description=Repair stuck Spectrum router-side carrier after bypass/link flap
+Documentation=man:ip(8)
+After=network-online.target bpctl-silicom.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=MODEM_IF=spec-modem
+Environment=ROUTER_IF=spec-router
+Environment=MIN_DOWN_COUNT=2
+Environment=MIN_BOUNCE_INTERVAL_SECONDS=300
+ExecStart=/usr/local/sbin/spec-router-link-guard
