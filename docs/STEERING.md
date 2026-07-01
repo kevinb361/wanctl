@@ -303,7 +303,12 @@ Without hysteresis, steering would rapidly toggle during marginal conditions. Th
 
 Confidence scoring replaces the binary RED-triggers-steer model with a multi-signal weighted scoring system (0-100 scale). Signals include RTT delta, CAKE drops, queue depth, and WAN-aware zone data. Each signal contributes a weighted score, and steering activates only when the combined confidence exceeds the configured threshold.
 
-**Current mode:** LIVE (`dry_run: false`) -- confidence decisions actively route traffic.
+**Current mode:** DRY-RUN (`dry_run: true`) -- confidence decisions log only; they do not toggle the ATT mangle steering rule.
+
+This is separate from `route_management.mode: dry_run`. Both must be dry-run for a fully observational posture:
+
+- `confidence.dry_run: true` prevents adaptive mangle/policy steering to ATT.
+- `route_management.mode: dry_run` prevents default-route mutation.
 
 ### How Confidence Scoring Works
 

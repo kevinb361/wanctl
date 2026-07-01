@@ -72,7 +72,7 @@ confidence:
   penalty_threshold_add: 15
   # Rollback: set dry_run: true and send SIGUSR1 to the steering daemon PID
   # See docs/STEERING.md for full rollback procedure
-  dry_run: false  # LIVE MODE - confidence scoring drives routing decisions
+  dry_run: true   # DRY RUN - confidence decisions log only; no mangle steering
 
 # WAN-aware steering
 # Feeds autorate's end-to-end RTT congestion zone into steering confidence scoring.
@@ -124,7 +124,7 @@ lock_timeout: 60  # 1 minute
 # Rollback: set mode: dry_run and send SIGUSR1 to the steering daemon PID.
 route_management:
   enabled: true
-  mode: active
+  mode: dry_run
   migration_acknowledged: true
   routes:
     spectrum:
