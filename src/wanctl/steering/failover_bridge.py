@@ -36,6 +36,16 @@ class FailoverBridge:
 
     Tracks whether the last "disable" action was confirmed successful so
     that "enable" is only emitted when there is something to re-enable.
+
+    New behavior (2026-06-30):
+    - When `yellow_contributes_to_recovery=True`, YELLOW increments the
+      recovery counter instead of resetting. This fixes the failback trap
+      where Spectrum hovers in YELLOW and can never fail back.
+    - SOFT_RED is treated as congestion (increments red count) but does
+      NOT emit a disable decision. Only full RED triggers route disable,
+      because SOFT_RED means RTT-only congestion — the kind of "degraded"
+      state that should NOT move the default route.
+    - See .planning/decisions/0232-route-policy-degraded-vs-hard-outage.md
     """
 
     def __init__(
@@ -43,6 +53,7 @@ class FailoverBridge:
         *,
         red_cycles: int = 3,
         green_cycles: int = 5,
+        yellow_contributes_to_recovery: bool = False,
     ) -> None:
         if red_cycles < 1:
             raise ValueError("red_cycles must be >= 1")
@@ -51,6 +62,7 @@ class FailoverBridge:
 
         self.red_cycles_threshold = red_cycles
         self.green_cycles_threshold = green_cycles
+        self.yellow_contributes_to_recovery = yellow_contributes_to_recovery
         self._red_count: int = 0
         self._green_count: int = 0
         self._armed: bool = False
@@ -96,19 +108,41 @@ class FailoverBridge:
         # the red counter so sustained soft congestion doesn't reset
         # failover hysteresis progress.
         if congestion_state in ("RED", "SOFT_RED"):
-            return self._on_red()
+            return self._on_congestion(congestion_state)
         if congestion_state == "GREEN":
             return self._on_green()
-        # YELLOW (or anything else) resets both counters
+
+        # YELLOW handling:
+        # - If yellow_contributes_to_recovery is True, YELLOW counts toward
+        #   recovery (green_count) instead of resetting. This fixes the
+        #   failback trap where Spectrum hovers in YELLOW and can never
+        #   fail back to being the default route.
+        # - If False (legacy), YELLOW resets both counters.
+        if self.yellow_contributes_to_recovery:
+            if self._disabled:
+                return self._on_yellow_recovery()
+            # Not disabled: yellow during normal operation resets red count
+            # but doesn't block eventual recovery
+            self._red_count = 0
+            return None
+
+        # Legacy: YELLOW resets both counters
         self._red_count = 0
         self._green_count = 0
         return None
 
-    def _on_red(self) -> FailoverDecision | None:
+    def _on_congestion(self, congestion_state: str) -> FailoverDecision | None:
+        """Handle RED or SOFT_RED congestion state.
+
+        Only full RED emits a disable decision. SOFT_RED increments the
+        red counter (tracking sustained congestion) but does NOT trigger
+        route disable — SOFT_RED means RTT-only congestion, which is the
+        "degraded" state that should not move the default route.
+        """
         self._red_count += 1
         self._green_count = 0
 
-        if self._red_count >= self.red_cycles_threshold:
+        if self._red_count >= self.red_cycles_threshold and congestion_state == "RED":
             decision = FailoverDecision(
                 action="disable",
                 congestion_state="RED",
@@ -119,6 +153,31 @@ class FailoverBridge:
             # Note: _disabled is set to True only after the caller confirms
             # the disable action actually succeeded (see confirm_action).
             return decision
+        return None
+
+    def _on_yellow_recovery(self) -> FailoverDecision | None:
+        """Handle YELLOW when yellow_contributes_to_recovery is True and route is disabled.
+
+        YELLOW counts toward recovery (green_count), allowing failback
+        even when the WAN hovers between YELLOW and GREEN.
+        """
+        self._green_count += 1
+        self._red_count = 0
+
+        if self._green_count >= self.green_cycles_threshold:
+            # Only emit "enable" if a prior "disable" actually succeeded.
+            if self._disabled:
+                decision = FailoverDecision(
+                    action="enable",
+                    congestion_state="YELLOW",
+                    consecutive_cycles=self._green_count,
+                    timestamp=time.time(),
+                )
+                self._green_count = 0
+                # Note: do NOT clear _disabled here — confirm_action("enable", True)
+                # will clear it only if the route_manager reports success.
+                return decision
+            self._green_count = 0
         return None
 
     def confirm_action(self, action: str, success: bool) -> None:
@@ -179,6 +238,7 @@ class FailoverBridge:
             "disabled": self._disabled,
             "red_cycles_threshold": self.red_cycles_threshold,
             "green_cycles_threshold": self.green_cycles_threshold,
+            "yellow_contributes_to_recovery": self.yellow_contributes_to_recovery,
         }
 
 

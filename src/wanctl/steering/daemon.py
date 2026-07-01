@@ -171,6 +171,9 @@ def _parse_failover_config(failover: Any) -> dict[str, dict[str, Any]]:
                 "red_cycles": int(cfg.get("red_cycles", 3)),
                 "green_cycles": int(cfg.get("green_cycles", 5)),
                 "rtt_failure_cycles": int(cfg.get("rtt_failure_cycles", 3)),
+                "yellow_contributes_to_recovery": bool(
+                    cfg.get("yellow_contributes_to_recovery", True)
+                ),
             }
     elif failover.get("enabled") is not None or "wan" in failover:
         wan = failover.get("wan", "spectrum")
@@ -179,6 +182,7 @@ def _parse_failover_config(failover: Any) -> dict[str, dict[str, Any]]:
             "red_cycles": int(failover.get("red_cycles", 3)),
             "green_cycles": int(failover.get("green_cycles", 5)),
             "rtt_failure_cycles": int(failover.get("rtt_failure_cycles", 3)),
+            "yellow_contributes_to_recovery": True,
         }
     return result
 
@@ -1302,6 +1306,9 @@ class SteeringDaemon:
             bridge = FailoverBridge(
                 red_cycles=cfg["red_cycles"],
                 green_cycles=cfg["green_cycles"],
+                yellow_contributes_to_recovery=cfg.get(
+                    "yellow_contributes_to_recovery", True
+                ),
             )
             bridge.armed = cfg["enabled"]
             self.failover_group.add_bridge(wan_name, bridge)
@@ -1428,6 +1435,9 @@ class SteeringDaemon:
                 bridge = FailoverBridge(
                     red_cycles=cfg["red_cycles"],
                     green_cycles=cfg["green_cycles"],
+                    yellow_contributes_to_recovery=cfg.get(
+                        "yellow_contributes_to_recovery", True
+                    ),
                 )
                 bridge.armed = cfg["enabled"]
                 new_group.add_bridge(wn, bridge)

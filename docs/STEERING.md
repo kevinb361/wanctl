@@ -132,6 +132,33 @@ Create a mangle rule on your router that marks traffic for steering:
 
 The steering daemon enables/disables this rule based on congestion state.
 
+**Important:** The mangle rule only steers NEW latency-sensitive connections.
+Bulk traffic (downloads, video, background updates) stays on the primary WAN
+regardless of the mangle rule state. This is the intended design — ATT is a
+protection/latency path, not a bulk path.
+
+### Route Management — Current Posture (2026-06-30)
+
+Active route management is **disabled** (`mode: dry_run`) after field evidence
+showed that "degraded" Spectrum state caused wanctl to disable the Spectrum
+default route, pushing whole-house traffic onto the slower ATT link.
+
+**Do not set `mode: active`** until the route policy is redesigned to distinguish
+between degraded congestion and hard outage. See
+`.planning/decisions/0232-route-policy-degraded-vs-hard-outage.md`.
+
+Current config posture:
+- `route_management.mode: dry_run`
+- `route_management.failover.spectrum.enabled: false`
+- `route_management.failover.att.enabled: false`
+- Spectrum default route: active (distance 1)
+- ATT default route: enabled (distance 2)
+
+Failback bug: the current failover bridge requires sustained GREEN for recovery
+but resets counters on YELLOW. When Spectrum hovers in YELLOW (which is common
+under congestion), failback never completes and the system remains stuck on ATT.
+The fix requires recovery based on sustained non-RED rather than perfect GREEN.
+
 ### Route Management Dry-Run Surface
 
 Route management is present as an inert future surface for the Netwatch retirement

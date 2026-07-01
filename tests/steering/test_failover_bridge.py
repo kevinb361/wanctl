@@ -659,3 +659,145 @@ class TestRttFailureTracking:
             "green_cycles": 5,
         })
         assert cfg["spectrum"]["rtt_failure_cycles"] == 3
+        # Legacy config defaults yellow_contributes_to_recovery to True
+        assert cfg["spectrum"]["yellow_contributes_to_recovery"] is True
+
+
+# =============================================================================
+# New behavior: SOFT_RED does NOT trigger disable (degraded vs hard outage)
+# =============================================================================
+
+
+class TestSoftRedDoesNotDisable:
+    """SOFT_RED increments red count but does NOT emit disable decision.
+
+    SOFT_RED means RTT-only congestion — the 'degraded' state that should NOT
+    move the default route. Only full RED (with drops) should disable.
+    """
+
+    def test_soft_red_does_not_fire_disable(self):
+        bridge = FailoverBridge(red_cycles=2, green_cycles=3)
+        bridge.armed = True
+
+        # SOFT_RED twice should NOT fire — even though count >= threshold
+        d1 = bridge.update("SOFT_RED")
+        assert d1 is None
+        d2 = bridge.update("SOFT_RED")
+        assert d2 is None
+        # red_count should be at 0 (reset after first attempt) or 2 but not fired
+        # Actually: red_count increments each cycle, so after 2 SOFT_REDs: count=2
+        # but SOFT_RED never fires, so count=2
+
+    def test_soft_red_then_red_fires(self):
+        """SOFT_RED accumulates, then RED at threshold fires."""
+        bridge = FailoverBridge(red_cycles=2, green_cycles=3)
+        bridge.armed = True
+
+        # 1 SOFT_RED
+        assert bridge.update("SOFT_RED") is None
+        assert bridge.red_count == 1
+
+        # 1 RED at threshold
+        d = bridge.update("RED")
+        assert d is not None
+        assert d.action == "disable"
+        assert d.consecutive_cycles == 2
+
+    def test_soft_red_resets_red_on_green(self):
+        """GREEN resets red_count accumulated by SOFT_RED."""
+        bridge = FailoverBridge(red_cycles=3, green_cycles=3)
+        bridge.armed = True
+
+        bridge.update("SOFT_RED")
+        bridge.update("SOFT_RED")
+        assert bridge.red_count == 2
+        bridge.update("GREEN")
+        assert bridge.red_count == 0
+
+
+# =============================================================================
+# New behavior: YELLOW contributes to recovery
+# =============================================================================
+
+
+class TestYellowContributesToRecovery:
+    """When yellow_contributes_to_recovery=True, YELLOW counts toward recovery."""
+
+    def test_yellow_accumulates_recovery(self):
+        bridge = FailoverBridge(
+            red_cycles=2, green_cycles=3, yellow_contributes_to_recovery=True
+        )
+        bridge.armed = True
+
+        # Disable first
+        bridge.update("RED")
+        d = bridge.update("RED")
+        assert d is not None
+        assert d.action == "disable"
+        bridge.confirm_action("disable", True)
+
+        # GREEN then YELLOW then GREEN — should accumulate to threshold=3
+        bridge.update("GREEN")   # green_count=1, no decision
+        bridge.update("YELLOW")  # green_count=2, no decision
+        d = bridge.update("GREEN")   # green_count=3, threshold met -> fires
+        assert d is not None
+        assert d.action == "enable"
+        assert d.consecutive_cycles == 3
+
+    def test_yellow_recovery_pure_yellow(self):
+        """Recovery can happen entirely on YELLOW (no GREEN needed)."""
+        bridge = FailoverBridge(
+            red_cycles=1, green_cycles=3, yellow_contributes_to_recovery=True
+        )
+        bridge.armed = True
+
+        # Disable immediately
+        d = bridge.update("RED")
+        assert d is not None
+        assert d.action == "disable"
+        bridge.confirm_action("disable", True)
+
+        # 3 YELLOWs should recover
+        assert bridge.update("YELLOW") is None  # green_count=1
+        assert bridge.update("YELLOW") is None  # green_count=2
+        d = bridge.update("YELLOW")              # green_count=3 -> fires
+        assert d is not None
+        assert d.action == "enable"
+
+    def test_legacy_yellow_still_resets(self):
+        """When yellow_contributes_to_recovery=False (default), YELLOW resets."""
+        bridge = FailoverBridge(
+            red_cycles=1, green_cycles=3, yellow_contributes_to_recovery=False
+        )
+        bridge.armed = True
+
+        d = bridge.update("RED")
+        assert d is not None
+        assert d.action == "disable"
+        bridge.confirm_action("disable", True)
+
+        # GREEN accumulates, YELLOW resets
+        bridge.update("GREEN")  # green_count=1
+        bridge.update("YELLOW") # green_count=0 (legacy: resets)
+        assert bridge.green_count == 0
+
+    def test_snapshot_includes_new_field(self):
+        snap = FailoverBridge(red_cycles=3, green_cycles=5, yellow_contributes_to_recovery=True).snapshot()
+        assert snap["yellow_contributes_to_recovery"] is True
+
+        snap2 = FailoverBridge(red_cycles=3, green_cycles=5).snapshot()
+        assert snap2["yellow_contributes_to_recovery"] is False
+
+    def test_failover_config_defaults_yellow_recovery_true(self):
+        cfg = _parse_failover_config({
+            "spectrum": {"enabled": True},
+            "att": {"enabled": True},
+        })
+        assert cfg["spectrum"]["yellow_contributes_to_recovery"] is True
+        assert cfg["att"]["yellow_contributes_to_recovery"] is True
+
+    def test_failover_config_can_disable_yellow_recovery(self):
+        cfg = _parse_failover_config({
+            "spectrum": {"enabled": True, "yellow_contributes_to_recovery": False},
+        })
+        assert cfg["spectrum"]["yellow_contributes_to_recovery"] is False
