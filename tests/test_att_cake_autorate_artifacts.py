@@ -70,6 +70,8 @@ def test_att_cake_autorate_artifacts_are_repo_owned() -> None:
     assert "Environment=WANCTL_EXTERNAL_METRICS_DB=/var/lib/wanctl/metrics-att.db" in bridge_service
     assert "Environment=WANCTL_EXTERNAL_BASELINE_RTT=28.42043789020452" in bridge_service
     assert "Environment=CAKE_AUTORATE_BRIDGE_HEALTH_HOST=10.10.110.227" in bridge_service
+    assert "Environment=WANCTL_EXTERNAL_PING_SOURCE_IP=10.10.110.227" in bridge_service
+    assert "Environment=WANCTL_EXTERNAL_PING_HOSTS=1.1.1.1,8.8.8.8,151.101.1.57" in bridge_service
     assert "ExecStart=/usr/local/sbin/cake-autorate-att-state-bridge" in bridge_service
 
     qdisc = QDISC_INIT.read_text(encoding="utf-8")

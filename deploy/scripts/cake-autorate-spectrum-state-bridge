@@ -5,6 +5,7 @@ import json
 import os
 import re
 import sqlite3
+import statistics
 import subprocess
 import tempfile
 import threading
@@ -29,6 +30,21 @@ POLL_INTERVAL = float(os.environ.get("CAKE_AUTORATE_BRIDGE_POLL_INTERVAL", "1"))
 HEALTH_HOST = os.environ.get("CAKE_AUTORATE_BRIDGE_HEALTH_HOST", "127.0.0.1")
 HEALTH_PORT = int(os.environ.get("CAKE_AUTORATE_BRIDGE_HEALTH_PORT", "9101"))
 MAX_STATE_AGE_SECONDS = float(os.environ.get("CAKE_AUTORATE_BRIDGE_MAX_STATE_AGE", "15"))
+RTT_ENABLED = os.environ.get("WANCTL_EXTERNAL_RTT_ENABLED", "1") not in {
+    "0",
+    "false",
+    "False",
+    "no",
+}
+PING_SOURCE_IP = os.environ.get("WANCTL_EXTERNAL_PING_SOURCE_IP", "")
+PING_HOSTS = [
+    host.strip()
+    for host in os.environ.get("WANCTL_EXTERNAL_PING_HOSTS", "").split(",")
+    if host.strip()
+]
+PING_TIMEOUT_MS = int(float(os.environ.get("WANCTL_EXTERNAL_PING_TIMEOUT_MS", "500")))
+BASELINE_ALPHA = float(os.environ.get("WANCTL_EXTERNAL_BASELINE_ALPHA", "0.02"))
+BASELINE_UPWARD_GUARD_MS = float(os.environ.get("WANCTL_EXTERNAL_BASELINE_UPWARD_GUARD_MS", "5.0"))
 
 LINE_RE = re.compile(r"^(SUMMARY|LOAD); ")
 BANDWIDTH_RE = re.compile(r"\bbandwidth\s+([0-9.]+)(Kbit|Mbit|Gbit)\b")
@@ -102,6 +118,78 @@ def old_rtt() -> tuple[float, float]:
         return baseline, load
     except (OSError, TypeError, ValueError, json.JSONDecodeError):
         return DEFAULT_BASELINE_RTT, DEFAULT_BASELINE_RTT
+
+
+def parse_fping_rtts(output: str) -> list[float]:
+    """Extract RTT samples from fping stdout/stderr."""
+    samples: list[float] = []
+    for line in output.splitlines():
+        if ":" not in line:
+            continue
+        _, rhs = line.split(":", 1)
+        detailed_match = re.search(r",\s*([0-9.]+)\s+ms\b", rhs)
+        if detailed_match:
+            samples.append(float(detailed_match.group(1)))
+            continue
+        for token in re.split(r"\s+", rhs.strip()):
+            if token in {"-", ""}:
+                continue
+            try:
+                samples.append(float(token.strip(",")))
+                break
+            except ValueError:
+                continue
+    return samples
+
+
+def measure_rtt_ms() -> float | None:
+    """Measure median RTT using fping bound to the configured WAN source IP.
+
+    cake-autorate logs OWD deltas but not absolute RTT. The external state
+    bridge must measure RTT itself so the wanctl-compatible state file does
+    not carry a stale load_rtt forever.
+    """
+    if not RTT_ENABLED or not PING_SOURCE_IP or not PING_HOSTS:
+        return None
+    try:
+        result = subprocess.run(
+            [
+                "fping",
+                "-C1",
+                f"-t{PING_TIMEOUT_MS}",
+                "-S",
+                PING_SOURCE_IP,
+                *PING_HOSTS,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=max(1.0, (PING_TIMEOUT_MS / 1000.0) * len(PING_HOSTS) + 0.5),
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    samples = parse_fping_rtts(f"{result.stdout}\n{result.stderr}")
+    if not samples:
+        return None
+    return float(statistics.median(samples))
+
+
+def update_rtt(dl_state: str, ul_state: str) -> tuple[float, float, str | None]:
+    baseline, previous_load = old_rtt()
+    measured = measure_rtt_ms()
+    if measured is None:
+        return baseline, previous_load, None
+
+    load = measured
+    if dl_state == "GREEN" and ul_state == "GREEN" and measured <= baseline + BASELINE_UPWARD_GUARD_MS:
+        alpha = max(0.0, min(1.0, BASELINE_ALPHA))
+        baseline = (baseline * (1.0 - alpha)) + (measured * alpha)
+    elif measured < baseline:
+        # Let the baseline recover downward quickly; upward drift is guarded.
+        alpha = max(0.05, min(1.0, BASELINE_ALPHA))
+        baseline = (baseline * (1.0 - alpha)) + (measured * alpha)
+
+    return baseline, load, "fping"
 
 
 def write_state(state: dict) -> None:
@@ -191,9 +279,9 @@ def status_to_state(status: str) -> str:
 def build_state(parsed: tuple[int, int, str, str], green_streak: int) -> tuple[dict, int]:
     parsed_dl_rate_bps, parsed_ul_rate_bps, dl_status, ul_status = parsed
     dl_rate_bps, ul_rate_bps = actual_qdisc_rates(parsed_dl_rate_bps, parsed_ul_rate_bps)
-    baseline, load = old_rtt()
     dl_state = status_to_state(dl_status)
     ul_state = status_to_state(ul_status)
+    baseline, load, rtt_backend = update_rtt(dl_state, ul_state)
     next_green_streak = green_streak + 1 if dl_state == "GREEN" and ul_state == "GREEN" else 0
     return (
         {
@@ -210,6 +298,11 @@ def build_state(parsed: tuple[int, int, str, str], green_streak: int) -> tuple[d
                 "current_rate": ul_rate_bps,
             },
             "ewma": {"baseline_rtt": baseline, "load_rtt": load},
+            "measurement": {
+                "backend": rtt_backend,
+                "source_ip": PING_SOURCE_IP or None,
+                "hosts": PING_HOSTS,
+            },
             "last_applied": {"dl_rate": dl_rate_bps, "ul_rate": ul_rate_bps},
             "timestamp": datetime.now().isoformat(),
             "congestion": {"dl_state": dl_state, "ul_state": ul_state},
@@ -254,6 +347,7 @@ def health_payload() -> dict:
         }
 
     ewma = state.get("ewma") if isinstance(state.get("ewma"), dict) else {}
+    measurement = state.get("measurement") if isinstance(state.get("measurement"), dict) else {}
     raw_rtt = ewma.get("load_rtt")
     available = isinstance(raw_rtt, (int, float)) and age <= MAX_STATE_AGE_SECONDS
     last_applied = state.get("last_applied", {}) if isinstance(state.get("last_applied"), dict) else {}
@@ -262,6 +356,8 @@ def health_payload() -> dict:
     ul_rate = last_applied.get("ul_rate")
     dl_state = congestion.get("dl_state", "?")
     ul_state = congestion.get("ul_state", "?")
+    backend = measurement.get("backend")
+    source_ip = measurement.get("source_ip")
     return {
         "status": "healthy" if available else "degraded",
         "version": "cake-autorate-trial",
@@ -276,8 +372,8 @@ def health_payload() -> dict:
                     "raw_rtt_ms": float(raw_rtt) if isinstance(raw_rtt, (int, float)) else None,
                     "staleness_sec": age,
                     "producer": "cake-autorate-bridge",
-                    "backend": None,
-                    "source_ip": None,
+                    "backend": backend if isinstance(backend, str) else None,
+                    "source_ip": source_ip if isinstance(source_ip, str) else None,
                 },
                 "irtt": {"available": False},
                 "download": {

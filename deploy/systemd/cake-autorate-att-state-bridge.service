@@ -12,6 +12,8 @@ Environment=CAKE_AUTORATE_BRIDGE_LOG=/var/log/cake-autorate/cake-autorate.att.lo
 Environment=WANCTL_EXTERNAL_STATE_PATH=/var/lib/wanctl/att_state.json
 Environment=WANCTL_EXTERNAL_METRICS_DB=/var/lib/wanctl/metrics-att.db
 Environment=WANCTL_EXTERNAL_BASELINE_RTT=28.42043789020452
+Environment=WANCTL_EXTERNAL_PING_SOURCE_IP=10.10.110.227
+Environment=WANCTL_EXTERNAL_PING_HOSTS=1.1.1.1,8.8.8.8,151.101.1.57
 Environment=CAKE_AUTORATE_BRIDGE_HEALTH_HOST=10.10.110.227
 Environment=CAKE_AUTORATE_BRIDGE_HEALTH_PORT=9101
 ExecStart=/usr/local/sbin/cake-autorate-att-state-bridge

@@ -52,6 +52,8 @@ def test_spectrum_cake_autorate_artifacts_are_repo_owned() -> None:
     bridge_service = BRIDGE_SERVICE.read_text(encoding="utf-8")
     assert "Wants=cake-autorate-spectrum.service" in bridge_service
     assert "Environment=CAKE_AUTORATE_BRIDGE_HEALTH_HOST=10.10.110.223" in bridge_service
+    assert "Environment=WANCTL_EXTERNAL_PING_SOURCE_IP=10.10.110.223" in bridge_service
+    assert "Environment=WANCTL_EXTERNAL_PING_HOSTS=1.1.1.1,9.9.9.9,208.67.222.222" in bridge_service
     assert "ExecStart=/usr/local/sbin/cake-autorate-spectrum-state-bridge" in bridge_service
 
     qdisc = QDISC_INIT.read_text(encoding="utf-8")
@@ -64,7 +66,7 @@ def test_spectrum_cake_autorate_artifacts_are_repo_owned() -> None:
     assert "dl_if=spec-router" in config
     assert "ul_if=spec-modem" in config
     assert "adjust_dl_shaper_rate=1" in config
-    assert "adjust_ul_shaper_rate=0" in config
+    assert "adjust_ul_shaper_rate=1" in config
     assert "pinger_method=fping" in config
     assert 'ping_extra_args="-S 10.10.110.223"' in config
 
@@ -291,3 +293,55 @@ def test_state_bridge_serves_degraded_health_endpoint_without_state(tmp_path: Pa
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.wait(timeout=5)
+
+
+def test_state_bridge_measures_rtt_with_fping(tmp_path: Path) -> None:
+    log_path = tmp_path / "cake-autorate.spectrum.log"
+    state_path = tmp_path / "spectrum_state.json"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fping = fake_bin / "fping"
+    fping.write_text(
+        "#!/bin/sh\n"
+        "echo '1.1.1.1 : [0], 64 bytes, 20.0 ms (20.0 avg, 0% loss)'\n"
+        "echo '9.9.9.9 : [0], 64 bytes, 25.0 ms (25.0 avg, 0% loss)'\n"
+        "echo '208.67.222.222 : [0], 64 bytes, 30.0 ms (30.0 avg, 0% loss)'\n"
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    fping.chmod(0o755)
+    log_path.write_text(
+        "SUMMARY; 0; 0; 0; 0; 0; 0; 0; 0; dl_idle; ul_idle; 550000; 18000\n",
+        encoding="utf-8",
+    )
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "CAKE_AUTORATE_BRIDGE_LOG": str(log_path),
+            "WANCTL_EXTERNAL_STATE_PATH": str(state_path),
+            "CAKE_AUTORATE_BRIDGE_ONESHOT": "1",
+            "WANCTL_STATE_CHOWN": "0",
+            "WANCTL_EXTERNAL_METRICS_ENABLED": "0",
+            "WANCTL_EXTERNAL_BASELINE_RTT": "22.0",
+            "WANCTL_EXTERNAL_PING_SOURCE_IP": "10.10.110.223",
+            "WANCTL_EXTERNAL_PING_HOSTS": "1.1.1.1,9.9.9.9,208.67.222.222",
+            "PATH": f"{fake_bin}:{env.get('PATH', '')}",
+        }
+    )
+    result = subprocess.run(
+        [sys.executable, str(STATE_BRIDGE)],
+        cwd=str(REPO_ROOT),
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["ewma"]["load_rtt"] == 25.0
+    assert 22.0 < state["ewma"]["baseline_rtt"] < 25.0
+    assert state["measurement"]["backend"] == "fping"
+    assert state["measurement"]["source_ip"] == "10.10.110.223"
+    assert state["measurement"]["hosts"] == ["1.1.1.1", "9.9.9.9", "208.67.222.222"]

@@ -87,7 +87,12 @@ ssh <target_host> 'sudo systemctl restart cake-autorate-<wan>.service cake-autor
 
 The state bridge publishes the same `/health` payload and state JSON used by the
 native controller path, so `steering.service`, `scripts/soak-monitor.sh`, and
-operator summaries continue to read wanctl-compatible artifacts.
+operator summaries continue to read wanctl-compatible artifacts. In external
+cake-autorate mode, cake-autorate logs OWD deltas but not absolute RTT, so the
+state bridge must measure RTT itself. Configure `WANCTL_EXTERNAL_PING_SOURCE_IP`
+and `WANCTL_EXTERNAL_PING_HOSTS` on each `cake-autorate-<wan>-state-bridge.service`
+so `/health.wans[].measurement.raw_rtt_ms`, state `ewma.load_rtt`, and metrics
+reflect live path RTT rather than stale state-file carry-forward values.
 
 5. If steering is enabled, restart or inspect `steering.service`:
 
