@@ -69,7 +69,7 @@ class FakeClient:
 
 class FakeRouteManager:
     def status_snapshot(self) -> dict[str, object]:
-        return {"active_owner": "netwatch", "mode": "dry_run"}
+        return {"active_owner": "wanctl", "mode": "dry_run"}
 
 
 def test_run_proof_happy_path_emits_inspect_proof_pass() -> None:
@@ -79,11 +79,11 @@ def test_run_proof_happy_path_emits_inspect_proof_pass() -> None:
 
     assert rc == 0
     assert "INSPECT_PROOF_PASS" in verdict
-    assert "observed_owner=netwatch" in verdict
-    assert "configured_owner=netwatch" in verdict
-    assert "match=True" in verdict
-    assert "netwatch_entries=3" in verdict
-    assert "route_mutating_active=2" in verdict
+    assert "observed_owner=none" in verdict
+    assert "configured_owner=wanctl" in verdict
+    assert "match=False" in verdict
+    assert "netwatch_entries=0" in verdict
+    assert "route_mutating_active=0" in verdict
     assert "total_routes=2" in verdict
     assert "default_routes=1" in verdict
 
@@ -98,7 +98,7 @@ def test_run_proof_rejects_mutating_command_before_run_cmd() -> None:
 
 
 def test_run_proof_fail_on_inspector_error() -> None:
-    client = FakeClient(fail="netwatch")
+    client = FakeClient(fail="script")
 
     rc, verdict = proof.run_proof(client, FakeRouteManager())
 

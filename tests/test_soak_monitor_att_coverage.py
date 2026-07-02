@@ -15,7 +15,7 @@ def test_soak_monitor_scans_live_att_units() -> None:
 
     assert "cake-autorate-att.service" in text
     assert "cake-autorate-att-state-bridge.service" in text
-    assert "silicom-bypass-watchdog-cake-autorate-att.service" in text
+    assert "silicom-bypass-watchdog@att.service" in text
 
 
 def test_soak_monitor_mode_detection_not_spectrum_hardcoded() -> None:
@@ -28,7 +28,7 @@ def test_soak_monitor_external_units_for_att_has_watchdog() -> None:
     text = SOAK.read_text(encoding="utf-8")
 
     assert "external_units_for" in text
-    assert "silicom-bypass-watchdog-cake-autorate-att.service" in text
+    assert "silicom-bypass-watchdog@att.service" in text
 
 
 def test_soak_monitor_json_aggregate_units_external_mode(tmp_path: Path) -> None:
@@ -74,7 +74,7 @@ exit 0
     units = service_group["units"]
     assert "cake-autorate-att.service" in units
     assert "cake-autorate-att-state-bridge.service" in units
-    assert "silicom-bypass-watchdog-cake-autorate-att.service" in units
+    assert "silicom-bypass-watchdog@att.service" in units
     assert units.count("steering.service") == 1
     assert "wanctl@att.service" not in units
 

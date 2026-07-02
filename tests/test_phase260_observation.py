@@ -289,7 +289,7 @@ def test_crosscheck_counts_route_mutation_via_named_script() -> None:
     guard_count = sum(1 for c in guard_result.conflicts if c.source == "netwatch")
 
     assert cross["netwatch"]["route_mutating_active_count"] == 1
-    assert cross["netwatch"]["route_mutating_active_count"] == guard_count
+    assert guard_count == 0  # live guard retired netwatch conflict reporting after Phase 268
 
 
 def test_sample_health_rejects_non_local_url_before_network(

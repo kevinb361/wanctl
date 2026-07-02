@@ -63,7 +63,12 @@ def run_proof(client: RouterClientLike, route_manager: RouteManagerLike) -> tupl
     if snap["inspector_status"] == "error":
         return 1, f"INSPECT_PROOF_FAIL inspector_error={snap['inspector_error']}"
 
-    netwatch = snap["netwatch"]
+    # Netwatch was retired after Phase 268; older inspectors emitted a
+    # netwatch section, current inspectors may not. Keep the historical proof
+    # harness lossless when present and safe when absent.
+    netwatch = snap.get("netwatch")
+    if not isinstance(netwatch, dict):
+        netwatch = {"entries_count": 0, "route_mutating_active_count": 0}
     routes = snap["routes"]
     return (
         0,

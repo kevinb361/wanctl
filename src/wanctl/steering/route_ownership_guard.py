@@ -103,6 +103,13 @@ class RouteOwnershipGuard:
                 owner="unknown",
                 error=f"failed to read RouterOS {label}: malformed command result: {exc}",
             )
+        except Exception as exc:
+            return RouteOwnershipGuardResult(
+                status="error",
+                active_allowed=False,
+                owner="unknown",
+                error=f"failed to read RouterOS {label}: {exc}",
+            )
         if rc != 0:
             return RouteOwnershipGuardResult(
                 status="error",
