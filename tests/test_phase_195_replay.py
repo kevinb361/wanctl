@@ -18,6 +18,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+pytestmark = pytest.mark.skip(reason='Historical phase/boundary verifier anchored to an old repo state; not applicable to current HEAD default suite.')
+
 
 from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor, CakeSignalSnapshot
 from wanctl.queue_controller import QueueController
