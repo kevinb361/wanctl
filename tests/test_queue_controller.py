@@ -1087,7 +1087,8 @@ class TestBaselineFreezeInvariant:
 
         # Simulate 100 cycles under load (high RTT = 75ms, delta = 50ms)
         for _ in range(100):
-            controller.update_ewma(75.0)  # High RTT - should freeze baseline
+            controller.load_rtt = (1 - controller.alpha_load) * controller.load_rtt + controller.alpha_load * 75.0
+            controller._update_baseline_if_idle(75.0)  # High RTT - should freeze baseline
 
         # Baseline should NOT have drifted significantly
         # With proper freeze, baseline stays at 25.0
@@ -1166,7 +1167,8 @@ class TestBaselineFreezeInvariant:
         # Simulate idle conditions with slightly different RTT (26ms)
         # This keeps delta < 3ms, allowing baseline to update
         for _ in range(10):
-            controller.update_ewma(26.0)
+            controller.load_rtt = (1 - controller.alpha_load) * controller.load_rtt + controller.alpha_load * 26.0
+            controller._update_baseline_if_idle(26.0)
 
         # Baseline should have moved toward 26.0
         assert controller.baseline_rtt > original_baseline

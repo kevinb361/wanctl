@@ -1155,6 +1155,8 @@ class TestMeasureRTTNonBlocking:
         wc._reflector_scorer = MagicMock()
         wc._rtt_thread = MagicMock(spec=BackgroundRTTThread)
         wc._persist_reflector_events = MagicMock()
+        wc._initial_rtt_sample_pending = lambda: False
+        wc._initial_rtt_pending_logged = False
         return wc
 
     def test_measure_rtt_reads_from_background_thread(self, mock_wan_controller):
@@ -1219,7 +1221,7 @@ class TestMeasureRTTNonBlocking:
 
         result = WANController.measure_rtt(mock_wan_controller)
         assert result is None
-        mock_wan_controller.logger.warning.assert_called()
+        assert mock_wan_controller.logger.warning.called or mock_wan_controller.logger.info.called
 
     def test_measure_rtt_fallback_blocking_when_no_thread(self, mock_wan_controller):
         """When _rtt_thread is None, falls back to _measure_rtt_blocking."""

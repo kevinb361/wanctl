@@ -1252,13 +1252,16 @@ class TestContinuousAutoRateInitLogging:
 
         with (
             patch("wanctl.autorate_continuous.RouterOS") as MockRouterOS,
-            patch("wanctl.autorate_continuous.RTTMeasurement"),
+            patch("wanctl.autorate_continuous.build_rtt_backend") as MockRTTBackend,
             patch("wanctl.autorate_continuous.WANController") as MockWANController,
             patch("wanctl.autorate_continuous.setup_logging") as mock_setup_logging,
         ):
             mock_logger = MagicMock()
             mock_setup_logging.return_value = mock_logger
             MockRouterOS.return_value = MagicMock()
+            mock_rtt_handle = MagicMock()
+            mock_rtt_handle.controller_measurement = MagicMock()
+            MockRTTBackend.return_value = mock_rtt_handle
             MockWANController.return_value = MagicMock()
 
             from wanctl.autorate_continuous import ContinuousAutoRate
@@ -1300,14 +1303,16 @@ class TestContinuousAutoRateInitLogging:
 
         with (
             patch("wanctl.autorate_continuous.RouterOS") as MockRouterOS,
-            patch("wanctl.autorate_continuous.RTTMeasurement") as MockRTT,
+            patch("wanctl.autorate_continuous.build_rtt_backend") as MockRTT,
             patch("wanctl.autorate_continuous.WANController") as MockWANController,
             patch("wanctl.autorate_continuous.setup_logging") as mock_setup_logging,
         ):
             mock_logger = MagicMock()
             mock_setup_logging.return_value = mock_logger
             MockRouterOS.return_value = MagicMock()
-            MockRTT.return_value = MagicMock()
+            mock_rtt_handle = MagicMock()
+            mock_rtt_handle.controller_measurement = MagicMock()
+            MockRTT.return_value = mock_rtt_handle
             mock_wan_ctrl = MagicMock()
             MockWANController.return_value = mock_wan_ctrl
 
@@ -1334,11 +1339,14 @@ class TestContinuousAutoRateInitLogging:
 
         with (
             patch("wanctl.autorate_continuous.RouterOS"),
-            patch("wanctl.autorate_continuous.RTTMeasurement"),
+            patch("wanctl.autorate_continuous.build_rtt_backend") as MockRTTBackend,
             patch("wanctl.autorate_continuous.WANController"),
             patch("wanctl.autorate_continuous.setup_logging") as mock_setup_logging,
         ):
             mock_setup_logging.return_value = MagicMock()
+            mock_rtt_handle = MagicMock()
+            mock_rtt_handle.controller_measurement = MagicMock()
+            MockRTTBackend.return_value = mock_rtt_handle
 
             from wanctl.autorate_continuous import ContinuousAutoRate
 

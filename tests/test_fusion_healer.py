@@ -1002,7 +1002,7 @@ def _make_baseline_controller(**overrides):
     """Create a lightweight mock WANController with real baseline/EWMA methods.
 
     Uses MagicMock(spec=WANController) with real methods bound for
-    _update_baseline_if_idle and update_ewma. Sets explicit float attributes
+    _update_baseline_if_idle. Sets explicit float attributes
     to avoid MagicMock truthy trap.
     """
     controller = MagicMock(spec=WANController)
@@ -1024,8 +1024,6 @@ def _make_baseline_controller(**overrides):
     controller._update_baseline_if_idle = WANController._update_baseline_if_idle.__get__(
         controller, WANController
     )
-    controller.update_ewma = WANController.update_ewma.__get__(controller, WANController)
-
     return controller
 
 
@@ -1226,8 +1224,11 @@ class TestFusionDisabledIdentical:
         for i in range(50):
             filtered_rtt = 20.0 + (i * 15.0 / 49.0)
 
-            # Controller A: old path (update_ewma does both)
-            controller_a.update_ewma(filtered_rtt)
+            # Controller A: no-fusion split path (equivalent to removed update_ewma)
+            controller_a.load_rtt = (
+                1 - controller_a.alpha_load
+            ) * controller_a.load_rtt + controller_a.alpha_load * filtered_rtt
+            controller_a._update_baseline_if_idle(filtered_rtt)
 
             # Controller B: new split path (fusion disabled, fused == filtered)
             fused_rtt = filtered_rtt  # No fusion
