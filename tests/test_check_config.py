@@ -1286,8 +1286,8 @@ class TestMeasurementBackendValidation:
     def _warnings(self, results):
         return [r for r in results if r.severity == Severity.WARN]
 
-    def test_backend_enum_constant_excludes_irtt(self):
-        assert MEASUREMENT_BACKENDS == ("icmplib", "fping")
+    def test_backend_enum_constant_includes_irtt(self):
+        assert MEASUREMENT_BACKENDS == ("icmplib", "fping", "irtt")
 
     def test_absent_measurement_is_silent(self):
         assert validate_measurement_backend({}) == []
@@ -1318,10 +1318,16 @@ class TestMeasurementBackendValidation:
             results = validate_measurement_backend({"measurement": {"backend": backend}})
             assert len(self._errors(results)) == 1
 
-    def test_unknown_backend_and_irtt_error(self):
-        for backend in ("bogus", "irtt"):
+    def test_unknown_backend_errors(self):
+        for backend in ("bogus",):
             results = validate_measurement_backend({"measurement": {"backend": backend}})
             assert len(self._errors(results)) == 1
+
+    def test_valid_irtt_passes_without_warning_or_error(self):
+        results = validate_measurement_backend({"measurement": {"backend": "irtt"}})
+        assert len(self._errors(results)) == 0
+        assert len(self._warnings(results)) == 0
+        assert any(r.severity == Severity.PASS for r in results)
 
     def test_fping_absent_warns_without_error(self):
         with patch("wanctl.check_config_validators.shutil.which", return_value=None):

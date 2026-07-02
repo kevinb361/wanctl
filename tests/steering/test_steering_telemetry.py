@@ -61,6 +61,7 @@ def daemon(mock_steering_config, mock_state_mgr):
             baseline_loader=MagicMock(),
             logger=mock_logger,
         )
+    mock_logger.reset_mock()
     return d
 
 

@@ -22,6 +22,15 @@ from wanctl.steering.health import (
 )
 
 
+def _install_min_health_deps(daemon: SteeringDaemon) -> None:
+    """Populate attrs required by get_health_data() on __new__ test doubles."""
+    daemon.route_manager = MagicMock()
+    daemon.route_manager.status_snapshot.return_value = {}
+    daemon.ownership_inspector = MagicMock()
+    daemon.ownership_inspector.snapshot.return_value = {}
+    daemon._build_failover_health = lambda: {}  # type: ignore[method-assign]
+
+
 def _make_health_data(
     *,
     wan_enabled: bool = False,
@@ -1374,6 +1383,7 @@ class TestWanAwarenessHealth:
             }
             daemon._rtt_source_ip = "10.10.110.224"
             daemon._rtt_backend_active = "fping"
+            _install_min_health_deps(daemon)
 
             section = daemon.get_health_data()["rtt_source"]
 
@@ -1404,6 +1414,7 @@ class TestWanAwarenessHealth:
             }
             daemon._rtt_source_ip = "10.10.110.223"
             daemon._rtt_backend_active = backend
+            _install_min_health_deps(daemon)
 
             section = daemon.get_health_data()["rtt_source"]
 
@@ -1437,6 +1448,7 @@ class TestWanAwarenessHealth:
         }
         daemon._rtt_source_ip = "10.10.110.224"
         daemon._rtt_backend_active = "fping"
+        _install_min_health_deps(daemon)
 
         section = daemon.get_health_data()["rtt_source"]
 

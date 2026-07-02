@@ -113,6 +113,7 @@ KNOWN_STEERING_PATHS: set[str] = {
     "route_management.mode",
     "route_management.migration_acknowledged",
     "route_management.routes",
+    "route_management.failover",
     # WAN state -- imperatively loaded in _load_wan_state_config
     "wan_state",
     "wan_state.enabled",
@@ -386,6 +387,11 @@ def check_steering_unknown_keys(data: dict) -> list[CheckResult]:
         if path.startswith("route_management.routes."):
             suffix = path.removeprefix("route_management.routes.")
             if suffix and ("." not in suffix or suffix.rsplit(".", 1)[-1] in {"comment", "id"}):
+                continue
+        # Skip dynamic WAN names under route_management.failover, but validate known leaves.
+        if path.startswith("route_management.failover."):
+            suffix = path.removeprefix("route_management.failover.")
+            if suffix and ("." not in suffix or suffix.rsplit(".", 1)[-1] in {"enabled", "red_cycles", "green_cycles"}):
                 continue
 
         if path not in KNOWN_STEERING_PATHS:

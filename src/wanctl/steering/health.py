@@ -431,7 +431,7 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         ownership: dict[str, Any] = raw if isinstance(raw, dict) else {}
         routes_raw = ownership.get("routes")
         routes = routes_raw if isinstance(routes_raw, dict) else {}
-        return {
+        section = {
             "observed_owner": str(ownership.get("observed_owner", "unknown")),
             "configured_owner": str(ownership.get("configured_owner", "unknown")),
             "match": bool(ownership.get("match", False)),
@@ -443,6 +443,12 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
                 "default_routes": routes.get("default_routes", []),
             },
         }
+        # Backward-compatible passthrough for historical/phase evidence payloads.
+        # Live Phase 268+ inspection no longer emits netwatch, but preserving the
+        # field when present keeps older health fixtures lossless.
+        if isinstance(ownership.get("netwatch"), dict):
+            section["netwatch"] = ownership["netwatch"]
+        return section
 
     def _build_rtt_source_section(self, health_data: dict[str, Any]) -> dict[str, Any]:
         """Build RTT source observability section for steering."""
