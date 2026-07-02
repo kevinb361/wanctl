@@ -168,6 +168,10 @@ def daemon_factory(
             timeout_ping=config.timeout_ping,
             aggregation_strategy=RTTAggregationStrategy.MEDIAN,
         )
+        # Replay fixtures feed deterministic RTT through FixtureBaselineLoader.
+        # Do not let the live ICMP backend attempt sockets/CAP_NET_RAW inside
+        # the offline I/O seal.
+        rtt_measurement.probe = lambda _hosts: None  # type: ignore[method-assign]
         with patch("wanctl.steering.daemon.CakeStatsReader"):
             daemon = SteeringDaemon(
                 config=config,
@@ -177,6 +181,11 @@ def daemon_factory(
                 baseline_loader=baseline_loader,
                 logger=logger,
             )
+        # Keep replay fully offline: ATT/primary health HTTP is represented by
+        # fixture files and safe defaults, not by urlopen attempts.
+        daemon._load_target_wan_health = lambda: None  # type: ignore[method-assign]
+        daemon._get_att_congestion_state = lambda: "GREEN"  # type: ignore[method-assign]
+        daemon._get_att_congestion_state_with_fail = lambda: ("GREEN", False)  # type: ignore[method-assign]
         daemon.cake_reader = fake_cake_reader
         assert daemon.router is fake_router
         assert daemon.cake_reader is fake_cake_reader

@@ -94,7 +94,15 @@ class RouteOwnershipGuard:
     def _read_json_list(
         self, cmd: str, label: str
     ) -> list[dict[str, Any]] | RouteOwnershipGuardResult:
-        rc, out, err = self.router_client.run_cmd(cmd, capture=True, timeout=5)
+        try:
+            rc, out, err = self.router_client.run_cmd(cmd, capture=True, timeout=5)
+        except (TypeError, ValueError) as exc:
+            return RouteOwnershipGuardResult(
+                status="error",
+                active_allowed=False,
+                owner="unknown",
+                error=f"failed to read RouterOS {label}: malformed command result: {exc}",
+            )
         if rc != 0:
             return RouteOwnershipGuardResult(
                 status="error",

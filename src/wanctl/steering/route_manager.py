@@ -149,7 +149,12 @@ class RouteManager:
             if target is None or target.anchor_type is None or target.anchor_value is None:
                 return self._set_reconciliation_failed(f"route {route_key} has no anchor")
             command = self._print_command(target)
-            rc, out, err = self.router_client.run_cmd(command, capture=True, timeout=5)
+            try:
+                rc, out, err = self.router_client.run_cmd(command, capture=True, timeout=5)
+            except (TypeError, ValueError) as exc:
+                return self._set_reconciliation_failed(
+                    f"failed to read route {route_key}: malformed command result: {exc}"
+                )
             if rc != 0:
                 return self._set_reconciliation_failed(
                     f"failed to read route {route_key}: {err or out or 'unknown error'}"
