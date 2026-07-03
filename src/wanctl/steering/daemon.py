@@ -2975,15 +2975,13 @@ def run_daemon_loop(
             consecutive_failures += 1
             logger.warning(f"Cycle failed ({consecutive_failures}/{max_consecutive_failures})")
 
-            # Stop watchdog notifications if sustained failures
-            if consecutive_failures >= max_consecutive_failures and watchdog_enabled:
-                watchdog_enabled = False
-                logger.error(
-                    f"Sustained failure: {consecutive_failures} consecutive failed cycles. "
-                    f"Stopping watchdog - systemd will terminate us."
-                )
-                if time.monotonic() - last_notify_degraded_ts > 60.0:
-                    notify_degraded("consecutive failures exceeded threshold")
+                        # Signal degraded to systemd but keep the process alive.
+            # RTT measurement failure is a data quality issue, not a process crash.
+            # The daemon still runs failover bridges, guard checks, and health endpoints.
+            if consecutive_failures >= max_consecutive_failures:
+                if time.monotonic() - last_notify_degraded_ts > 10.0:
+                    notify_degraded(f"{consecutive_failures} consecutive failures")
+                    last_notify_degraded_ts = time.monotonic()
                     last_notify_degraded_ts = time.monotonic()
 
         # Update health server with current failure state (INTG-03)
@@ -3028,11 +3026,13 @@ def run_daemon_loop(
             daemon._handle_mode_change(old_mode=old_mode)
             reset_reload_state()
 
-        # Notify systemd watchdog ONLY if healthy
-        if watchdog_enabled and cycle_success:
+                # Always notify watchdog — the process is alive even when RTT fails.
+        # Use degraded signal on failure so systemd knows quality is lower,
+        # but never surrender the watchdog token (no self-termination).
+        if cycle_success:
             notify_watchdog()
-        elif not watchdog_enabled:
-            notify_degraded(f"{consecutive_failures} consecutive failures")
+        else:
+            notify_degraded(f"cycle failure ({consecutive_failures})")
 
         # Sleep for remainder of cycle interval (interruptible)
         sleep_time = max(0, config.measurement_interval - elapsed)
