@@ -2975,13 +2975,12 @@ def run_daemon_loop(
             consecutive_failures += 1
             logger.warning(f"Cycle failed ({consecutive_failures}/{max_consecutive_failures})")
 
-                        # Signal degraded to systemd but keep the process alive.
-            # RTT measurement failure is a data quality issue, not a process crash.
-            # The daemon still runs failover bridges, guard checks, and health endpoints.
+            # Signal degraded but keep the process alive.
+            # RTT failure is data quality issue, not a process crash.
+            # Daemon still runs failover bridges, guard checks, health endpoints.
             if consecutive_failures >= max_consecutive_failures:
                 if time.monotonic() - last_notify_degraded_ts > 10.0:
                     notify_degraded(f"{consecutive_failures} consecutive failures")
-                    last_notify_degraded_ts = time.monotonic()
                     last_notify_degraded_ts = time.monotonic()
 
         # Update health server with current failure state (INTG-03)
@@ -3026,9 +3025,8 @@ def run_daemon_loop(
             daemon._handle_mode_change(old_mode=old_mode)
             reset_reload_state()
 
-                # Always notify watchdog — the process is alive even when RTT fails.
-        # Use degraded signal on failure so systemd knows quality is lower,
-        # but never surrender the watchdog token (no self-termination).
+        # Always notify watchdog - process alive even when RTT fails.
+        # Degraded signal on failure; never surrender watchdog token.
         if cycle_success:
             notify_watchdog()
         else:
