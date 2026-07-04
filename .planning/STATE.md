@@ -1,32 +1,37 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.58
-milestone_name: Active Route-Management Canary
+milestone: v1.59
+milestone_name: Widen-the-Canary
 status: executing
-stopped_at: Phase 262 planned (wave 1/3 pending)
+stopped_at: Phase 270 planned (route management hardening)
 
 ## Workflow
 workflow_auto_chain: false
-current_phase: 262
-current_plan: 262-01
-current_wave: 1/3
-plans_completed: 0/3
-last_action: plan 262 created
+current_phase: 270
+current_plan: 270-01
+current_wave: 1/1
+plans_completed: 0/1
+last_action: route management activated, daemon watchdog hardening deployed
 
 ## Phase Progress
 | Phase | Plans | Status |
 |-------|-------|--------|
-| 261 | 3/3 | Executed |
-| 262 | 0/3 | Planned (next) |
-| 263 | 0/TBD | Not started |
-| 264 | 0/TBD | Not started |
+| 265 | done | Backup route addition |
+| 266 | done | Spectrum failover bridge |
+| 267 | done | Bidirectional failover |
+| 268 | done | Netwatch retirement |
+| 269 | done | Gateway route expansion |
+| 270 | 0/1 | Route management hardening (watchdog) |
 
 ## Key State
-- Phase 261 complete: deploy reconciled, repo==prod proven, rollback anchor captured
-- Phase 262: abort scaffolding needs to be coded (wave 1), then deployed + drilled (wave 2)
-- steering.yaml mode=dry_run, active_owner=netwatch (unchanged)
-- Rollback anchor at /var/lib/wanctl/phase261-backups/20260628T225946Z/
+- v1.59 all 5 phases complete (2026-06-30)
+- Route management activated: mode=active, active_owner=wanctl (2026-07-03)
+- 6 routes managed (4 default + 2 gateway), guard ok, 0 conflicts
+- Both failover bridges armed, green counters incrementing
+- Watchdog hardening deployed: daemon no longer self-terminates on RTT failures
+- steering.yaml confidence.dry_run=true (steering mangle rule still inactive)
+- Mangle rule "ADAPTIVE: Steer latency-sensitive to ATT" does not exist on RouterOS
+- Rollback: set route_management.mode=dry_run + SIGUSR1
 
-## SAFE-22
-Active — no controller-path diff, no CAKE change, single canary route only
-
+## SAFE-23
+Active — route enable/disable permitted, no CAKE change, no controller-path diff
