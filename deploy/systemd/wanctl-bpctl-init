@@ -1,0 +1,60 @@
+#!/bin/sh
+set -eu
+
+MODULE=${MODULE:-/opt/bpctl-silicom/bpctl_mod.ko}
+DEV=${DEV:-/dev/bpctl0}
+
+if ! /usr/sbin/lsmod | /usr/bin/awk '{print $1}' | /bin/grep -qx bpctl_mod; then
+  # 1. Try modprobe (uses DKMS-built module if available)
+  if ! /sbin/modprobe bpctl_mod 2>/dev/null; then
+    # 2. Try DKMS autoinstall — builds for current kernel if headers exist
+    if /usr/sbin/dkms autoinstall 2>/dev/null; then
+      /sbin/modprobe bpctl_mod && exit 0 2>/dev/null || true
+    fi
+    # 3. If headers are missing, install them and retry
+    if /usr/bin/dpkg -s "linux-headers-$(uname -r)" >/dev/null 2>&1; then
+      : # headers exist, DKMS should have built — proceed to fallback
+    else
+      /usr/bin/apt-get -y -qq install "linux-headers-$(uname -r)" 2>/dev/null && \
+        /usr/sbin/dkms autoinstall 2>/dev/null && \
+        /sbin/modprobe bpctl_mod && exit 0 2>/dev/null || true
+    fi
+    # 4. Last resort: stale pre-built .ko (will likely fail on new kernels)
+    if [ ! -r "$MODULE" ]; then
+      echo "missing bpctl module: $MODULE" >&2
+      exit 1
+    fi
+    /sbin/insmod "$MODULE"
+  fi
+fi
+
+major=""
+i=0
+while [ "$i" -lt 50 ]; do
+  major=$(/usr/bin/awk '$2 == "bpctl" {print $1}' /proc/devices)
+  [ -n "$major" ] && break
+  i=$((i + 1))
+  sleep 0.1
+done
+
+if [ -z "$major" ]; then
+  echo "bpctl char device major not registered" >&2
+  exit 1
+fi
+
+if [ -e "$DEV" ]; then
+  current=$(/usr/bin/stat -c '%t:%T' "$DEV" 2>/dev/null || true)
+  expected=$(/usr/bin/printf '%x:0' "$major")
+  if [ "$current" != "$expected" ]; then
+    /bin/rm -f "$DEV"
+  fi
+fi
+
+if [ ! -e "$DEV" ]; then
+  /bin/mknod "$DEV" c "$major" 0
+fi
+
+/bin/chown root:root "$DEV"
+/bin/chmod 600 "$DEV"
+
+/opt/bpctl-silicom/bpctl_util info >/dev/null
