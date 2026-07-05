@@ -622,8 +622,7 @@ deploy_silicom_bypass() {
     ssh "$TARGET_HOST" "sudo install -d -o root -g root -m 0755 /usr/local/share/silicom-test-scenarios"
     local scenario_file scenario_basename
     for scenario_file in \
-        scripts/silicom-test-scenarios/cake-ab-spectrum.sh \
-        scripts/silicom-test-scenarios/failover-spectrum.sh; do
+        scripts/silicom-test-scenarios/*.sh; do
         scenario_basename=$(basename "$scenario_file")
         scp "$PROJECT_ROOT/$scenario_file" "$TARGET_HOST:$remote_tmp/$scenario_basename"
         ssh "$TARGET_HOST" "sudo install -o root -g root -m 0644 '$remote_tmp/$scenario_basename' /usr/local/share/silicom-test-scenarios/$scenario_basename"
