@@ -711,6 +711,14 @@ class WANController:
         self._prev_healer_irtt_rtt: float | None = None
         self._prev_irtt_ts: float | None = None
 
+        # Storage hygiene — fire-on-change emission (v1.60)
+        # Cache the last-emitted value for metrics that are mostly flat.
+        # Only emit to the DB when the value actually changes, which
+        # eliminates millions of redundant rows. Pattern proven by
+        # steering_enabled (commit 9b78ac3: ~172k rows/day eliminated).
+        self._last_dl_state_emitted: float | None = None
+        self._last_ul_state_emitted: float | None = None
+
     def _init_reflector_scoring(self) -> None:
         """Initialize per-reflector rolling quality scoring."""
         rq_config = self.config.reflector_quality_config
@@ -3351,8 +3359,22 @@ class WANController:
                 "raw",
             ),
             (ts, self.wan_name, "wanctl_rate_upload_mbps", ul_rate / 1e6, None, "raw"),
-            (ts, self.wan_name, "wanctl_state", dl_state, self._download_labels, "raw"),
         ]
+
+        # Fire-on-change: only emit wanctl_state when the value actually changes.
+        # 99%+ of rows are identical (GREEN), so this eliminates ~1.2M rows/day.
+        # The transition-reason path below (lines ~3587) still emits on every state
+        # change, so the reader always sees the correct state at transition time.
+        if dl_state != self._last_dl_state_emitted:
+            metrics_batch.append(
+                (ts, self.wan_name, "wanctl_state", dl_state, self._download_labels, "raw")
+            )
+            self._last_dl_state_emitted = dl_state
+        if ul_state != self._last_ul_state_emitted:
+            metrics_batch.append(
+                (ts, self.wan_name, "wanctl_state", ul_state, self._upload_labels, "raw")
+            )
+            self._last_ul_state_emitted = ul_state
 
         if self._last_signal_result is not None:
             sr = self._last_signal_result

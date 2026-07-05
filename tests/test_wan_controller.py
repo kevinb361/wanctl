@@ -2907,6 +2907,7 @@ class TestPhase193MetricsBatch:
             if labels == {"direction": "upload"}
         ]
         assert upload_metric_names == [
+            "wanctl_state",
             "wanctl_cake_drop_rate",
             "wanctl_cake_total_drop_rate",
             "wanctl_cake_backlog_bytes",
@@ -2932,6 +2933,86 @@ class TestPhase193MetricsBatch:
             )
         ]
         assert offending == [], f"UL metrics block was modified: {offending}"
+
+    def test_state_metric_fire_on_change_skips_unchanged_dl(self, controller):
+        """wanctl_state is only emitted when the DL state value changes."""
+        # First emission — cache is None, so it emits
+        with patch("wanctl.wan_controller.time.time", return_value=1234):
+            controller._run_logging_metrics(
+                measured_rtt=25.0,
+                fused_rtt=25.0,
+                dl_zone="GREEN",
+                ul_zone="GREEN",
+                dl_rate=100_000_000,
+                ul_rate=20_000_000,
+                delta=5.0,
+                dl_transition_reason=None,
+                ul_transition_reason=None,
+                irtt_result=None,
+            )
+
+        batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
+        state_in_batch = [m for _, _, m, _, _, _ in batch if m == "wanctl_state"]
+        assert len(state_in_batch) == 2  # dl_state + ul_state
+
+        # Second emission — same state, should be skipped
+        controller._metrics_writer.reset_mock()
+        with patch("wanctl.wan_controller.time.time", return_value=1235):
+            controller._run_logging_metrics(
+                measured_rtt=25.5,
+                fused_rtt=25.5,
+                dl_zone="GREEN",
+                ul_zone="GREEN",
+                dl_rate=100_000_000,
+                ul_rate=20_000_000,
+                delta=5.0,
+                dl_transition_reason=None,
+                ul_transition_reason=None,
+                irtt_result=None,
+            )
+
+        batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
+        state_in_batch = [m for _, _, m, _, _, _ in batch if m == "wanctl_state"]
+        assert len(state_in_batch) == 0  # no state emitted — unchanged
+
+    def test_state_metric_fire_on_change_emits_on_transition(self, controller):
+        """wanctl_state is emitted when DL state transitions from GREEN to YELLOW."""
+        # First emission — GREEN
+        with patch("wanctl.wan_controller.time.time", return_value=1234):
+            controller._run_logging_metrics(
+                measured_rtt=25.0,
+                fused_rtt=25.0,
+                dl_zone="GREEN",
+                ul_zone="GREEN",
+                dl_rate=100_000_000,
+                ul_rate=20_000_000,
+                delta=5.0,
+                dl_transition_reason=None,
+                ul_transition_reason=None,
+                irtt_result=None,
+            )
+
+        # Second emission — transition to YELLOW
+        controller._metrics_writer.reset_mock()
+        with patch("wanctl.wan_controller.time.time", return_value=1235):
+            controller._run_logging_metrics(
+                measured_rtt=50.0,
+                fused_rtt=50.0,
+                dl_zone="YELLOW",
+                ul_zone="GREEN",
+                dl_rate=100_000_000,
+                ul_rate=20_000_000,
+                delta=25.0,
+                dl_transition_reason="target_edge",
+                ul_transition_reason=None,
+                irtt_result=None,
+            )
+
+        batch = controller._metrics_writer.write_metrics_batch.call_args.args[0]
+        state_in_batch = [m for _, _, m, _, _, _ in batch if m == "wanctl_state"]
+        assert len(state_in_batch) == 1  # only dl_state emitted (ul unchanged)
+        state_vals = [v for _, _, mn, v, _, _ in batch if mn == "wanctl_state"]
+        assert 1.0 in state_vals  # YELLOW = 1.0
 
     def test_get_health_data_signal_arbitration_shape(self, controller):
         arb = controller.get_health_data()["signal_arbitration"]
