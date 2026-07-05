@@ -22,7 +22,7 @@ base_dl_shaper_rate_kbps=550000
 max_dl_shaper_rate_kbps=600000
 min_ul_shaper_rate_kbps=8000
 base_ul_shaper_rate_kbps=30000
-max_ul_shaper_rate_kbps=30000
+max_ul_shaper_rate_kbps=36000
 
 connection_active_thr_kbps=2000
 high_load_thr=0.75
