@@ -255,7 +255,7 @@ def write_metrics(state: dict) -> None:
         ),
     ]
     METRICS_DB.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(METRICS_DB, timeout=5) as conn:
+    with sqlite3.connect(METRICS_DB, timeout=30) as conn:
         conn.execute("PRAGMA journal_mode=WAL")
         ensure_metrics_schema(conn)
         conn.executemany(
