@@ -1,36 +1,30 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.59
-milestone_name: Widen-the-Canary
-status: shipped
-stopped_at: Phase 270 complete
+milestone: none
+milestone_name: between_milestones
+status: between_milestones
+stopped_at: none
+last_updated: "2026-07-05T15:05:00-05:00"
+last_activity: "v1.60 shipped — all items proven, ROADMAP archived"
+---
 
-## Workflow
-workflow_auto_chain: false
-current_phase: 270
-current_plan: 270-01
-current_wave: 1/1
-plans_completed: 1/1
-last_action: steering activated, mangle rule deployed, watchdog hardened
+## v1.60 Shipped 2026-07-05
 
-## Phase Progress
-| Phase | Plans | Status |
-|-------|-------|--------|
-| 265 | done | Backup route addition |
-| 266 | done | Spectrum failover bridge |
-| 267 | done | Bidirectional failover |
-| 268 | done | Netwatch retirement |
-| 269 | done | Gateway route expansion |
-| 270 | 1/1 | Route management hardening + steering activation |
+Three work items completed, 5/5 PROVEN in TRACEABILITY.md:
 
-## Key State
-- v1.59 complete — route management active, per-flow steering active
-- 6 routes managed (4 default + 2 gateway), guard ok, 0 conflicts
+1. **SEED-007 (Storage hygiene):** wanctl_state fire-on-change — 95% row reduction verified live (`31e82d8d`).
+2. **SEED-006 (Silicom bypass):** Phase B completed, 7 scenarios + orchestrator deployed (`acaaeadd`).
+3. **steering-degraded-on-clean-restart:** Phase 224 fix verified via live restart — SPECTRUM_GOOD immediately (`dccca17b`).
+
+Decision record: `decisions/2702-saga-mode-for-ops-work.md`
+
+### Deferred
+
+- UL rate soak (floor 30, ceiling 36 Mbps) — review metrics after afternoon DOCSIS congestion on at least one weekday.
+
+### Key State
+
+- 6 routes managed, guard ok, 0 conflicts
 - Both failover bridges armed
-- Mangle rule: ADAPTIVE (QOS_HIGH -> to_ATT), currently disabled (Spectrum GREEN)
-- confidence.dry_run=false (LIVE mode)
-- Watchdog hardening: daemon stays alive during RTT failures (no crash-loop)
-- Rollback: set dry_run=true, route_management.mode=dry_run + SIGUSR1
-
-## SAFE-23
-Complete — route enable/disable active, per-flow steering active, no CAKE change
+- Steering daemon: healthy, SPECTRUM_GOOD
+- Spectrum UL: floor 30 Mbps, ceiling 36 Mbps (soak in progress)
