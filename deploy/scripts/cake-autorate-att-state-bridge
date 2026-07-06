@@ -436,9 +436,41 @@ def start_health_server() -> ThreadingHTTPServer | None:
     return server
 
 
+def cleanup_old_metrics() -> None:
+    """Delete raw metrics older than 1 hour. Runs periodically to prevent DB bloat.
+
+    This replaces the wanctl@ daemon's startup maintenance, which doesn't run
+    when wanctl@ services are inactive (cake-autorate is the rate controller).
+    """
+    if not METRICS_ENABLED:
+        return
+    cutoff = int(time.time()) - 3600  # 1 hour
+    try:
+        with sqlite3.connect(METRICS_DB, timeout=30) as conn:
+            conn.execute("PRAGMA journal_mode=WAL")
+            cur = conn.execute(
+                "DELETE FROM metrics WHERE granularity='raw' AND timestamp < ?", (cutoff,)
+            )
+            deleted = cur.rowcount
+            if deleted > 0:
+                # Log cleanup to syslog
+                try:
+                    subprocess.run(
+                        ["logger", "-t", f"cake-autorate-{WAN_NAME}-bridge",
+                         f"retention cleanup: deleted {deleted} raw rows older than 1h"],
+                        check=False, timeout=5
+                    )
+                except Exception:
+                    pass  # non-critical
+    except Exception:
+        pass  # non-critical; will retry next cycle
+
+
 def main() -> int:
     start_health_server()
     green_streak = 1
+    last_cleanup = 0.0
+    CLEANUP_INTERVAL = 900  # 15 minutes (matches wanctl maintenance_interval_seconds)
     while True:
         parsed = latest_parsed_row()
         if parsed:
@@ -447,6 +479,10 @@ def main() -> int:
             write_metrics(state)
         if ONESHOT:
             return 0 if parsed else 1
+        now = time.time()
+        if now - last_cleanup >= CLEANUP_INTERVAL:
+            cleanup_old_metrics()
+            last_cleanup = now
         time.sleep(POLL_INTERVAL)
 
 
