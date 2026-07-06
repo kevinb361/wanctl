@@ -255,16 +255,26 @@ def write_metrics(state: dict) -> None:
         ),
     ]
     METRICS_DB.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(METRICS_DB, timeout=30) as conn:
-        conn.execute("PRAGMA journal_mode=WAL")
-        ensure_metrics_schema(conn)
-        conn.executemany(
-            """
-            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            rows,
-        )
+    # Retry loop for concurrent writes with wanctl@spectrum writer.
+    # Uses exponential backoff: 0.1s, 0.2s, 0.4s, 0.8s, 1.6s (max 5 attempts).
+    for attempt in range(5):
+        try:
+            with sqlite3.connect(METRICS_DB, timeout=30) as conn:
+                conn.execute("PRAGMA journal_mode=WAL")
+                ensure_metrics_schema(conn)
+                conn.executemany(
+                    """
+                    INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    rows,
+                )
+            break  # success
+        except sqlite3.OperationalError as exc:
+            if "locked" in str(exc).lower() and attempt < 4:
+                time.sleep(0.1 * (2 ** attempt))  # exponential backoff
+                continue
+            raise  # non-lock error or max retries exceeded
 
 
 def status_to_state(status: str) -> str:
