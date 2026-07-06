@@ -1,7 +1,6 @@
 [Unit]
 Description=Bridge Spectrum cake-autorate summary into wanctl state
 After=cake-autorate-spectrum.service
-Wants=cake-autorate-spectrum.service
 
 [Service]
 Type=simple

@@ -1,7 +1,6 @@
 [Unit]
 Description=Bridge ATT cake-autorate summary into wanctl state
 After=cake-autorate-att.service
-Wants=cake-autorate-att.service
 
 [Service]
 Type=simple
