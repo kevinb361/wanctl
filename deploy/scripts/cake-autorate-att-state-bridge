@@ -436,11 +436,91 @@ def start_health_server() -> ThreadingHTTPServer | None:
     return server
 
 
+def downsample_raw_to_1m() -> None:
+    """Downsample raw metrics older than 1 hour into 1-minute aggregates.
+
+    This replaces the wanctl@ daemon's periodic downsampling, which doesn't run
+    when wanctl@ services are inactive (cake-autorate is the rate controller).
+    Must run BEFORE cleanup_old_metrics to preserve historical data.
+    """
+    if not METRICS_ENABLED:
+        return
+    cutoff = int(time.time()) - 3600  # 1 hour
+    try:
+        with sqlite3.connect(METRICS_DB, timeout=30) as conn:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("BEGIN")
+
+            # Find distinct metric/wan combinations to downsample
+            cursor = conn.execute(
+                "SELECT DISTINCT metric_name, wan_name FROM metrics "
+                "WHERE granularity='raw' AND timestamp < ?", (cutoff,)
+            )
+            combinations = cursor.fetchall()
+            total_created = 0
+
+            for metric_name, wan_name in combinations:
+                cursor = conn.execute(
+                    "SELECT MIN(timestamp), MAX(timestamp) FROM metrics "
+                    "WHERE metric_name=? AND wan_name=? AND granularity='raw' AND timestamp < ?",
+                    (metric_name, wan_name, cutoff)
+                )
+                time_range = cursor.fetchone()
+                if not time_range or time_range[0] is None:
+                    continue
+                min_ts, max_ts = time_range
+
+                # Align bucket start to 60-second boundary
+                bucket_start = (min_ts // 60) * 60
+
+                while bucket_start <= max_ts:
+                    bucket_end = bucket_start + 60
+                    cursor = conn.execute(
+                        "SELECT COUNT(*), AVG(value), MIN(value), MAX(value) FROM metrics "
+                        "WHERE metric_name=? AND wan_name=? AND granularity='raw' "
+                        "AND timestamp >= ? AND timestamp < ?",
+                        (metric_name, wan_name, bucket_start, bucket_end)
+                    )
+                    row = cursor.fetchone()
+                    if row and row[0] > 0:
+                        count, avg_val, min_val, max_val = row
+                        # Only create aggregate if there's meaningful data
+                        if avg_val is not None:
+                            conn.execute(
+                                "INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity) "
+                                "VALUES (?, ?, ?, ?, ?, '1m')",
+                                (bucket_start, wan_name, metric_name, avg_val,
+                                 json.dumps({"downsampled_from": count}, separators=(",", ":")))
+                            )
+                            total_created += 1
+                    bucket_start = bucket_end
+
+            # Delete raw data that has been aggregated
+            cur = conn.execute(
+                "DELETE FROM metrics WHERE granularity='raw' AND timestamp < ?", (cutoff,)
+            )
+            deleted = cur.rowcount
+            conn.commit()
+
+            if total_created > 0 or deleted > 0:
+                try:
+                    subprocess.run(
+                        ["logger", "-t", f"cake-autorate-{WAN_NAME}-bridge",
+                         f"downsampling: created {total_created} 1m rows, deleted {deleted} raw rows"],
+                        check=False, timeout=5
+                    )
+                except Exception:
+                    pass  # non-critical
+    except Exception:
+        pass  # non-critical; will retry next cycle
+
+
 def cleanup_old_metrics() -> None:
     """Delete raw metrics older than 1 hour. Runs periodically to prevent DB bloat.
 
     This replaces the wanctl@ daemon's startup maintenance, which doesn't run
     when wanctl@ services are inactive (cake-autorate is the rate controller).
+    Note: downsample_raw_to_1m should be called BEFORE this to preserve data.
     """
     if not METRICS_ENABLED:
         return
@@ -481,7 +561,7 @@ def main() -> int:
             return 0 if parsed else 1
         now = time.time()
         if now - last_cleanup >= CLEANUP_INTERVAL:
-            cleanup_old_metrics()
+            downsample_raw_to_1m()  # aggregates + deletes in one shot
             last_cleanup = now
         time.sleep(POLL_INTERVAL)
 
