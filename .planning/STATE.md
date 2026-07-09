@@ -20,13 +20,13 @@ Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 
 ### Deferred
 
-- UL rate soak (floor 30, ceiling 36 Mbps) — review metrics after afternoon DOCSIS congestion on at least one weekday. Downsampling restored (2026-07-08) so 1m aggregates will survive retention cleanup.
+- UL rate soak (floor 30, ceiling 36 Mbps) — completed 2026-07-08. Floor 30 Mbps: clean upload latency (median 14.2ms, 95th 18.2ms), adaptive pullback during DOCSIS congestion (8-18 Mbps observed). Ceiling 36 Mbps: untested (actual demand ~22 Mbps < floor), leaving as-is (90% of 40 Mbps circuit). No changes needed.
 
 ### Key State
 
 - 6 routes managed, guard ok, 0 conflicts
 - Both failover bridges armed
 - Steering daemon: healthy, SPECTRUM_GOOD
-- Spectrum UL: floor 30 Mbps, ceiling 36 Mbps (soak in progress)
+- Spectrum UL: floor 30 Mbps, ceiling 36 Mbps (soak complete — no changes)
 - cake-autorate active rate controller (since 2026-07-05)
 - State-bridge downsampling: raw→1m every 15 min (commit `5c410373`)
