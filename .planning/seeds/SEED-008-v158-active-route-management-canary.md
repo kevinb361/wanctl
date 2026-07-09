@@ -1,6 +1,6 @@
 ---
 id: SEED-008
-status: active
+status: resolved
 selected_for: v1.58
 planted: 2026-06-26
 planted_during: v1.57 closeout — Phase 260 D-07 cross-check fix + live ready-for-approval re-run

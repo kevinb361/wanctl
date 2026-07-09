@@ -1,6 +1,6 @@
 ---
 id: SEED-007
-status: active
+status: resolved
 selected_for: v1.54
 planted: 2026-05-26
 planted_during: v1.44 closeout — `/gsd-review-backlog` triage of pending todos
