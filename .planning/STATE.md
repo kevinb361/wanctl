@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: none
 milestone_name: between_milestones
-status: between_milestones
-stopped_at: none
-last_updated: "2026-07-05T15:05:00-05:00"
-last_activity: "v1.60 shipped — all items proven, ROADMAP archived"
+status: active
+stopped_at: SEED-010 silicom-test harness validation
+last_updated: "2026-07-08T20:45:00-05:00"
+last_activity: "SEED-010 — running silicom-test harness validation"
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -17,6 +17,10 @@ Three work items completed, 5/5 PROVEN in TRACEABILITY.md:
 3. **steering-degraded-on-clean-restart:** Phase 224 fix verified via live restart — SPECTRUM_GOOD immediately (`dccca17b`).
 
 Decision record: `decisions/2702-saga-mode-for-ops-work.md`
+
+### Active Work
+
+- **SEED-010 (Silicom test harness validation):** 7 scenarios deployed but untested. Starting with `ab-cake spec-modem` (safest — toggles shaping on/off briefly, auto-restores).
 
 ### Deferred
 
