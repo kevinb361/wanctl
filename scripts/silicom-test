@@ -373,6 +373,7 @@ cmd_chaos() {
     file="$SILICOM_TEST_SCENARIO_DIR/$name.sh"
     [[ -f "$file" ]] || die "no scenario '$name' under $SILICOM_TEST_SCENARIO_DIR" 2
     init_run_dir "chaos-$name" "scenario"
+    shift # clear $1 so sourced scenario can use ${1:-default} for its own args
     # shellcheck source=/dev/null
     . "$file"
 }

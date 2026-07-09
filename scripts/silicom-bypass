@@ -462,6 +462,8 @@ cmd_disc() {
         return 0
     fi
     check_both_wan_gate "$pair" "$BOTH_WAN_CONFIRM"
+    # Must disable the "disable disconnect" gate before enabling disconnect
+    util "$pair" set_dis_disc off || true
     util "$pair" set_disc on
     got="$(util "$pair" get_disc)"
     assert_positive_disc "$got" "$pair set_disc on"

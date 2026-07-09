@@ -3,6 +3,8 @@
 # Sourced by silicom-test (not executed) so restore handlers remain in scope.
 # WARNING: requires --both-wan-confirm silicom-bypass guard. Use with caution.
 
+PAIR="spec-modem" # default for health poller; actual ops touch both pairs below
+
 "$SILICOM_BYPASS" mark "dual-wan-loss: PRE"
 capture_state pre
 warn_if_degraded_pre_state
@@ -14,7 +16,7 @@ run_bypass disc spec-modem --yes
 capture_state spectrum-down
 sleep 2
 
-run_bypass disc att-modem --yes
+run_bypass disc att-modem --yes --both-wan-confirm
 "$SILICOM_BYPASS" mark "dual-wan-loss: BOTH-PULLED"
 capture_state both-down
 sleep "$RECOVERY_WINDOW"
