@@ -20,11 +20,15 @@ Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 
 ### Active Work
 
-- **SEED-010 (Silicom test harness validation):** 7 scenarios deployed but untested. Starting with `ab-cake spec-modem` (safest — toggles shaping on/off briefly, auto-restores).
+None
 
 ### Deferred
 
 - UL rate soak (floor 30, ceiling 36 Mbps) — completed 2026-07-08. Floor 30 Mbps: clean upload latency (median 14.2ms, 95th 18.2ms), adaptive pullback during DOCSIS congestion (8-18 Mbps observed). Ceiling 36 Mbps: untested (actual demand ~22 Mbps < floor), leaving as-is (90% of 40 Mbps circuit). No changes needed.
+
+### Completed
+
+- **SEED-010 (Silicom test harness validation):** All 7 scenarios tested live 2026-07-09. Fixed 3 bugs: `set_dis_disc off` before disconnect (`silicom-bypass`), `shift` in `cmd_chaos` (`silicom-test`), `--both-wan-confirm` for dual-WAN loss. Commit `e2b0e6f3`.
 
 ### Key State
 
