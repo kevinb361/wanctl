@@ -4,8 +4,8 @@ milestone: none
 milestone_name: between_milestones
 status: between_milestones
 stopped_at: none
-last_updated: "2026-07-09T07:10:00-05:00"
-last_activity: "SEED-010 complete — all 7 silicom-test scenarios validated, 3 bugs fixed"
+last_updated: "2026-07-09T08:00:00-05:00"
+last_activity: "Backlog triage complete — RECLAIM-04 closed, FLIP-02/TIN-SPARSE/IRTT-MIG deferred post-ROLE-01, rollback drill done"
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -22,9 +22,17 @@ Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 
 None
 
+### Deferred (post-ROLE-01)
+
+- **FLIP-02 (fping/native keep canary):** Closed as moot. Native Python controller retiring; cake-autorate already uses fping. Code remains available if needed.
+- **TIN-SPARSE-01 (CAKE tin skip-on-unchanged):** Deferred. Consumer audit found raw-history semantics in `wanctl-history --tins`. Revisit after ROLE-01 — only state-bridge remains as consumer.
+- **IRTT-MIG-01 (IRTT first-class backend):** Deferred. Dead stub (`NotImplementedError`). No value while cake-autorate handles RTT measurement natively. Remove or implement post-ROLE-01.
+- **RECLAIM-04 (Spectrum upload reclaim):** Closed — no action needed. Actual demand ~22 Mbps < 30 Mbps floor (73% utilization). Lowering floor tightens the queue, hurts latency. Raising ceiling to 40 Mbps is cosmetic (never approached). Current config optimal for observed workload.
+- **ROLE-01 (native-controller retirement):** Rollback drill completed 2026-07-09 (PASS — native wanctl@att started, ran healthy, stopped, cake-autorate resumed cleanly). Remaining gate: >=14 consecutive stable cake-autorate days (~Jul 19 target).
+
 ### Deferred
 
-- UL rate soak (floor 30, ceiling 36 Mbps) — completed 2026-07-08. Floor 30 Mbps: clean upload latency (median 14.2ms, 95th 18.2ms), adaptive pullback during DOCSIS congestion (8-18 Mbps observed). Ceiling 36 Mbps: untested (actual demand ~22 Mbps < floor), leaving as-is (90% of 40 Mbps circuit). No changes needed.
+None
 
 ### Completed
 
