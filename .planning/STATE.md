@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: none
 milestone_name: between_milestones
-status: active
-stopped_at: SEED-010 silicom-test harness validation
-last_updated: "2026-07-08T20:45:00-05:00"
-last_activity: "SEED-010 — running silicom-test harness validation"
+status: between_milestones
+stopped_at: none
+last_updated: "2026-07-09T07:10:00-05:00"
+last_activity: "SEED-010 complete — all 7 silicom-test scenarios validated, 3 bugs fixed"
 ---
 
 ## v1.60 Shipped 2026-07-05
