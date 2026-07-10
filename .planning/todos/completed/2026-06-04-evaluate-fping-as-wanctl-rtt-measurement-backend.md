@@ -57,3 +57,7 @@ Research and prototype a pluggable RTT backend abstraction:
 - RTT sample output includes enough metadata to distinguish backend/source/reflector.
 - Steering and autorate cycle budgets do not regress.
 - Spectrum-specific source binding works on cake-shaper.
+
+## Closure (2026-07-09)
+
+Superseded by cake-autorate cutover. cake-autorate already uses fping natively as the production RTT measurement backend (active since 2026-07-05). FLIP-02 closed as moot per STATE.md. No wanctl-side fping backend needed.
