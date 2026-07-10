@@ -20,7 +20,7 @@ Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 
 ### Active Work
 
-None
+- **t_bfe1e19b (C901 refactor):** Done — `_run_logging_metrics` extracted into 6 private helpers. Complexity 17→below threshold. Commit `cd777d91`.
 
 ### Deferred (post-ROLE-01)
 
