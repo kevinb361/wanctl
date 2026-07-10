@@ -39,3 +39,11 @@ Accept the canary only if ATT `tcp_12down` is at least 95% of the last passing
 ATT baseline and mode proof shows `active_primary_signal == "queue"` with
 `wanctl_arbitration_active_primary == 1`. If the canary fails, roll ATT back to
 `rtt-blend` and keep VALN-05 blocked.
+
+---
+## Closure (2026-07-09, t_23fb5604)
+
+Superseded by cake-autorate cutover (v1.58+): cake-autorate is now the active
+rate controller for both Spectrum and ATT, making this Phase 196 ATT canary
+obsolete. Route ownership flipped to wanctl failover bridges; native controller
+retirement (ROLE-01) underway. See STATE.md FLIP-02 closure and v1.60 notes.
