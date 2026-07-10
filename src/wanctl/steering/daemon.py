@@ -131,6 +131,14 @@ DEFAULT_QUEUE_EWMA_ALPHA = 0.4
 # See docs/PRODUCTION_INTERVAL.md for time-constant preservation methodology
 ASSESSMENT_INTERVAL_SECONDS = 0.05  # Time between assessments (daemon cycle interval)
 
+# Throttle steering_state.json persistence to cut SSD write wear. The rolling
+# history deques mutate every cycle, so a whole-dict dirty check always fires;
+# throttling is the lever. Real FSM transitions and failover actions bypass this
+# (force=True), so recovery-critical fields are never stale on restart. Mirrors
+# wan_controller_state.py's MIN_SAVE_INTERVAL_SEC. At the deployed 0.5s cycle this
+# cuts ~2Hz unconditional saves to ~0.2Hz (~20x fewer disk writes).
+STATE_PERSIST_MIN_INTERVAL_S = 5.0
+
 # Baseline RTT sanity bounds (milliseconds) - C4 fix: tightened from 5-100 to 10-60
 # Typical home ISP latencies are 20-50ms. Anything below 10ms indicates local LAN,
 # anything above 60ms suggests routing issues or compromised autorate state.
@@ -1520,6 +1528,7 @@ class SteeringDaemon:
         # ATT bridge uses its own cake-autorate state bridge, with RTT failure tracking
         att_state, att_failed = self._get_att_congestion_state_with_fail()
 
+        acted = False  # a failover/route decision was applied this call
         for wan_name, bridge in self.failover_group._bridges.items():
             if not bridge.armed:
                 continue
@@ -1549,6 +1558,7 @@ class SteeringDaemon:
             decision = bridge.update(congestion_state)
             if decision is None:
                 continue
+            acted = True
 
             self._last_failover_decision = decision
             route_key = wan_name
@@ -1565,6 +1575,12 @@ class SteeringDaemon:
                 f"result={'ok' if result.success else 'blocked'}, "
                 f"error={result.error or 'none'}"
             )
+
+        # A failover decision mutated persisted failover state without setting the
+        # FSM state_changed flag; force an immediate persist so the write-throttle
+        # never delays a recovery-critical failover delta to disk.
+        if acted:
+            self._persist_state_throttled(force=True)
 
     def _get_rtt_failure_threshold(self, wan_name: str) -> int:
         """Get the RTT failure threshold for a WAN from config."""
@@ -1690,6 +1706,9 @@ class SteeringDaemon:
         # almost-always flat (e.g. steering_enabled flips a handful of times
         # per week yet was emitting ~172k rows/day).
         self._last_steering_enabled_emitted: float | None = None
+        # Monotonic timestamp of the last steering_state.json persist; drives the
+        # write-throttle (see STATE_PERSIST_MIN_INTERVAL_S / _persist_state_throttled).
+        self._last_state_persist: float = 0.0
         db_path = storage_config.get("db_path")
         if db_path and isinstance(db_path, str):
             self._storage_db_path = db_path
@@ -2670,6 +2689,20 @@ class SteeringDaemon:
 
         return True
 
+    def _persist_state_throttled(self, *, force: bool) -> None:
+        """Persist steering state, throttled to reduce SSD write wear.
+
+        Forced saves (real FSM transitions, failover actions, graceful shutdown)
+        bypass the throttle so recovery-critical fields are never stale on
+        restart. The per-cycle rolling history is otherwise persisted at most
+        once per STATE_PERSIST_MIN_INTERVAL_S. Mirrors the interval gate in
+        wan_controller_state.py.
+        """
+        now = time.monotonic()
+        if force or (now - self._last_state_persist) >= STATE_PERSIST_MIN_INTERVAL_S:
+            self.state_mgr.save()
+            self._last_state_persist = now
+
     def _run_steering_state_subsystem(
         self,
         current_rtt: float,
@@ -2732,8 +2765,9 @@ class SteeringDaemon:
                 f"(last transition: {state.get('last_transition_time', 'never')})"
             )
 
-        # Save state
-        self.state_mgr.save()
+        # Persist state — throttled to cut SSD wear; a real FSM transition forces
+        # an immediate save so current_state is never stale on restart.
+        self._persist_state_throttled(force=state_changed)
 
         # Record metrics
         self._record_steering_metrics(current_rtt, baseline_rtt, delta)

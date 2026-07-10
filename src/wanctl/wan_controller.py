@@ -3313,7 +3313,28 @@ class WANController:
         ts = int(time.time())
         dl_state = float(STATE_ENCODING.get(dl_zone, 0))
         ul_state = float(STATE_ENCODING.get(ul_zone, 0))
-        metrics_batch = [
+
+        metrics_batch = self._build_base_metrics_batch(ts, measured_rtt, fused_rtt, delta, dl_rate, ul_rate)
+        self._append_fire_on_change_state(ts, metrics_batch, dl_state, ul_state)
+        self._append_signal_metrics(ts, metrics_batch)
+        self._append_irtt_metrics(ts, metrics_batch, irtt_result)
+        self._append_cake_metrics(ts, metrics_batch)
+
+        self._flush_metrics_batch(metrics_batch)
+        self._write_transition_reason(ts, dl_state, "download", dl_transition_reason)
+        self._write_transition_reason(ts, ul_state, "upload", ul_transition_reason)
+
+    def _build_base_metrics_batch(
+        self,
+        ts: int,
+        measured_rtt: float,
+        fused_rtt: float,
+        delta: float,
+        dl_rate: int,
+        ul_rate: int,
+    ) -> list:
+        """Build the core metrics batch with RTT, fusion, and rate data."""
+        return [
             (ts, self.wan_name, "wanctl_rtt_ms", measured_rtt, None, "raw"),
             (
                 ts,
@@ -3361,10 +3382,10 @@ class WANController:
             (ts, self.wan_name, "wanctl_rate_upload_mbps", ul_rate / 1e6, None, "raw"),
         ]
 
-        # Fire-on-change: only emit wanctl_state when the value actually changes.
-        # 99%+ of rows are identical (GREEN), so this eliminates ~1.2M rows/day.
-        # The transition-reason path below (lines ~3587) still emits on every state
-        # change, so the reader always sees the correct state at transition time.
+    def _append_fire_on_change_state(
+        self, ts: int, metrics_batch: list, dl_state: float, ul_state: float
+    ) -> None:
+        """Fire-on-change state emission. Eliminates ~1.2M identical rows/day."""
         if dl_state != self._last_dl_state_emitted:
             metrics_batch.append(
                 (ts, self.wan_name, "wanctl_state", dl_state, self._download_labels, "raw")
@@ -3376,80 +3397,30 @@ class WANController:
             )
             self._last_ul_state_emitted = ul_state
 
+    def _append_signal_metrics(self, ts: int, metrics_batch: list) -> None:
+        """Append signal quality metrics when available."""
         if self._last_signal_result is not None:
             sr = self._last_signal_result
             metrics_batch.extend(
                 [
-                    (
-                        ts,
-                        self.wan_name,
-                        "wanctl_signal_jitter_ms",
-                        sr.jitter_ms,
-                        None,
-                        "raw",
-                    ),
-                    (
-                        ts,
-                        self.wan_name,
-                        "wanctl_signal_variance_ms2",
-                        sr.variance_ms2,
-                        None,
-                        "raw",
-                    ),
-                    (
-                        ts,
-                        self.wan_name,
-                        "wanctl_signal_confidence",
-                        sr.confidence,
-                        None,
-                        "raw",
-                    ),
-                    (
-                        ts,
-                        self.wan_name,
-                        "wanctl_signal_outlier_count",
-                        float(sr.total_outliers),
-                        None,
-                        "raw",
-                    ),
+                    (ts, self.wan_name, "wanctl_signal_jitter_ms", sr.jitter_ms, None, "raw"),
+                    (ts, self.wan_name, "wanctl_signal_variance_ms2", sr.variance_ms2, None, "raw"),
+                    (ts, self.wan_name, "wanctl_signal_confidence", sr.confidence, None, "raw"),
+                    (ts, self.wan_name, "wanctl_signal_outlier_count", float(sr.total_outliers), None, "raw"),
                 ]
             )
 
+    def _append_irtt_metrics(
+        self, ts: int, metrics_batch: list, irtt_result: IRTTResult | None
+    ) -> None:
+        """Append IRTT and asymmetry metrics when a fresh result is available."""
         if irtt_result is not None and irtt_result.timestamp != self._last_irtt_write_ts:
             metrics_batch.extend(
                 [
-                    (
-                        ts,
-                        self.wan_name,
-                        "wanctl_irtt_rtt_ms",
-                        irtt_result.rtt_mean_ms,
-                        None,
-                        "raw",
-                    ),
-                    (
-                        ts,
-                        self.wan_name,
-                        "wanctl_irtt_ipdv_ms",
-                        irtt_result.ipdv_mean_ms,
-                        None,
-                        "raw",
-                    ),
-                    (
-                        ts,
-                        self.wan_name,
-                        "wanctl_irtt_loss_up_pct",
-                        irtt_result.send_loss,
-                        None,
-                        "raw",
-                    ),
-                    (
-                        ts,
-                        self.wan_name,
-                        "wanctl_irtt_loss_down_pct",
-                        irtt_result.receive_loss,
-                        None,
-                        "raw",
-                    ),
+                    (ts, self.wan_name, "wanctl_irtt_rtt_ms", irtt_result.rtt_mean_ms, None, "raw"),
+                    (ts, self.wan_name, "wanctl_irtt_ipdv_ms", irtt_result.ipdv_mean_ms, None, "raw"),
+                    (ts, self.wan_name, "wanctl_irtt_loss_up_pct", irtt_result.send_loss, None, "raw"),
+                    (ts, self.wan_name, "wanctl_irtt_loss_down_pct", irtt_result.receive_loss, None, "raw"),
                 ]
             )
             if self._last_asymmetry_result is not None:
@@ -3475,55 +3446,21 @@ class WANController:
                 )
             self._last_irtt_write_ts = irtt_result.timestamp
 
-        # CAKE signal metrics (Phase 159, CAKE-04)
+    def _append_cake_metrics(self, ts: int, metrics_batch: list) -> None:
+        """Append CAKE signal and arbitration metrics."""
         if self._dl_cake_signal.config.metrics_enabled:
             snap = self._dl_cake_snapshot
             if snap is not None and not snap.cold_start:
                 metrics_batch.extend(
                     [
-                        (
-                            ts,
-                            self.wan_name,
-                            "wanctl_cake_drop_rate",
-                            snap.drop_rate,
-                            self._download_labels,
-                            "raw",
-                        ),
-                        (
-                            ts,
-                            self.wan_name,
-                            "wanctl_cake_total_drop_rate",
-                            snap.total_drop_rate,
-                            self._download_labels,
-                            "raw",
-                        ),
-                        (
-                            ts,
-                            self.wan_name,
-                            "wanctl_cake_backlog_bytes",
-                            float(snap.backlog_bytes),
-                            self._download_labels,
-                            "raw",
-                        ),
-                        (
-                            ts,
-                            self.wan_name,
-                            "wanctl_cake_peak_delay_us",
-                            float(snap.peak_delay_us),
-                            self._download_labels,
-                            "raw",
-                        ),
+                        (ts, self.wan_name, "wanctl_cake_drop_rate", snap.drop_rate, self._download_labels, "raw"),
+                        (ts, self.wan_name, "wanctl_cake_total_drop_rate", snap.total_drop_rate, self._download_labels, "raw"),
+                        (ts, self.wan_name, "wanctl_cake_backlog_bytes", float(snap.backlog_bytes), self._download_labels, "raw"),
+                        (ts, self.wan_name, "wanctl_cake_peak_delay_us", float(snap.peak_delay_us), self._download_labels, "raw"),
                     ]
                 )
                 metrics_batch.append(
-                    (
-                        ts,
-                        self.wan_name,
-                        "wanctl_cake_avg_delay_delta_us",
-                        float(snap.max_delay_delta_us),
-                        self._download_labels,
-                        "raw",
-                    )
+                    (ts, self.wan_name, "wanctl_cake_avg_delay_delta_us", float(snap.max_delay_delta_us), self._download_labels, "raw")
                 )
             active_primary = getattr(self, "_last_arbitration_primary", "rtt")
             refractory_active = getattr(self, "_dl_arbitration_used_refractory_snapshot", False)
@@ -3553,84 +3490,46 @@ class WANController:
             if not snap.cold_start:
                 metrics_batch.extend(
                     [
-                        (
-                            ts,
-                            self.wan_name,
-                            "wanctl_cake_drop_rate",
-                            snap.drop_rate,
-                            self._upload_labels,
-                            "raw",
-                        ),
-                        (
-                            ts,
-                            self.wan_name,
-                            "wanctl_cake_total_drop_rate",
-                            snap.total_drop_rate,
-                            self._upload_labels,
-                            "raw",
-                        ),
-                        (
-                            ts,
-                            self.wan_name,
-                            "wanctl_cake_backlog_bytes",
-                            float(snap.backlog_bytes),
-                            self._upload_labels,
-                            "raw",
-                        ),
-                        (
-                            ts,
-                            self.wan_name,
-                            "wanctl_cake_peak_delay_us",
-                            float(snap.peak_delay_us),
-                            self._upload_labels,
-                            "raw",
-                        ),
+                        (ts, self.wan_name, "wanctl_cake_drop_rate", snap.drop_rate, self._upload_labels, "raw"),
+                        (ts, self.wan_name, "wanctl_cake_total_drop_rate", snap.total_drop_rate, self._upload_labels, "raw"),
+                        (ts, self.wan_name, "wanctl_cake_backlog_bytes", float(snap.backlog_bytes), self._upload_labels, "raw"),
+                        (ts, self.wan_name, "wanctl_cake_peak_delay_us", float(snap.peak_delay_us), self._upload_labels, "raw"),
                     ]
                 )
 
+    def _flush_metrics_batch(self, metrics_batch: list) -> None:
+        """Write the assembled metrics batch via io_worker or direct writer."""
+        assert self._metrics_writer is not None
         if self._io_worker is not None:
             self._io_worker.enqueue_batch(metrics_batch)
         else:
             self._metrics_writer.write_metrics_batch(metrics_batch)
 
-        if dl_transition_reason:
-            if self._io_worker is not None:
-                self._io_worker.enqueue_write(
-                    timestamp=ts,
-                    wan_name=self.wan_name,
-                    metric_name="wanctl_state",
-                    value=dl_state,
-                    labels={"direction": "download", "reason": dl_transition_reason},
-                    granularity="raw",
-                )
-            else:
-                self._metrics_writer.write_metric(
-                    timestamp=ts,
-                    wan_name=self.wan_name,
-                    metric_name="wanctl_state",
-                    value=dl_state,
-                    labels={"direction": "download", "reason": dl_transition_reason},
-                    granularity="raw",
-                )
-        if ul_transition_reason:
-            if self._io_worker is not None:
-                self._io_worker.enqueue_write(
-                    timestamp=ts,
-                    wan_name=self.wan_name,
-                    metric_name="wanctl_state",
-                    value=ul_state,
-                    labels={"direction": "upload", "reason": ul_transition_reason},
-                    granularity="raw",
-                )
-            else:
-                self._metrics_writer.write_metric(
-                    timestamp=ts,
-                    wan_name=self.wan_name,
-                    metric_name="wanctl_state",
-                    value=ul_state,
-                    labels={"direction": "upload", "reason": ul_transition_reason},
-                    granularity="raw",
-                )
+    def _write_transition_reason(
+        self, ts: int, state_value: float, direction: str, reason: str | None
+    ) -> None:
+        """Write a state transition metric with reason labels. No-op when reason is empty."""
+        if not reason:
+            return
+        assert self._metrics_writer is not None
+        if self._io_worker is not None:
+            self._io_worker.enqueue_write(
+                timestamp=ts,
+                wan_name=self.wan_name,
+                metric_name="wanctl_state",
+                value=state_value,
+                labels={"direction": direction, "reason": reason},
+                granularity="raw",
+            )
+        else:
+            self._metrics_writer.write_metric(
+                timestamp=ts,
+                wan_name=self.wan_name,
+                metric_name="wanctl_state",
+                value=state_value,
+                labels={"direction": direction, "reason": reason},
+                granularity="raw",
+            )
 
     def _append_rtt_confidence_metric(self, metrics_batch: list, ts: int) -> None:
         if self._last_rtt_confidence is not None:
