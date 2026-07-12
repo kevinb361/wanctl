@@ -29,7 +29,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import yaml
 
@@ -155,7 +155,10 @@ def _extract_ceilings(data: dict, config_type: str) -> dict[str, int | None]:
 def _extract_mangle_comment(data: dict) -> str | None:
     """Extract mangle rule comment from steering config data."""
     mangle = data.get("mangle_rule", {})
-    return mangle.get("comment")  # type: ignore[no-any-return]
+    if not isinstance(mangle, dict):
+        return None
+    comment = mangle.get("comment")
+    return comment if isinstance(comment, str) else None
 
 
 def _extract_cake_optimization(data: dict) -> dict | None:
@@ -171,7 +174,7 @@ def _extract_cake_optimization(data: dict) -> dict | None:
     """
     value = data.get("cake_optimization")
     if value is not None and isinstance(value, dict):
-        return value  # type: ignore[no-any-return]
+        return cast(dict[str, Any], value)
     return None
 
 

@@ -105,7 +105,7 @@ class RouterOSREST:
         self.base_url = f"{protocol}://{host}:{port}/rest"
 
         # Create session with authentication
-        self._session = requests.Session()
+        self._session: requests.Session | None = requests.Session()
         self._session.auth = (user, password)
         self._session.verify = verify_ssl
 
@@ -140,11 +140,15 @@ class RouterOSREST:
         # to pass one. self.timeout is set in __init__ (default 15s).
         kwargs.setdefault("timeout", self.timeout)
 
+        session = self._session
+        if session is None:
+            raise requests.RequestException("REST API session is closed")
+
         if self._suppress_ssl_warnings:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=InsecureRequestWarning)
-                return self._session.request(method, url, **kwargs)
-        return self._session.request(method, url, **kwargs)
+                return session.request(method, url, **kwargs)
+        return session.request(method, url, **kwargs)
 
     @classmethod
     def from_config(cls, config: BaseConfig, logger: logging.Logger) -> RouterOSREST:
@@ -1156,7 +1160,7 @@ class RouterOSREST:
         """
         try:
             resp = self._request("GET", f"{self.base_url}/system/resource", timeout=5)
-            return resp.ok  # type: ignore[no-any-return]
+            return bool(resp.ok)
         except requests.RequestException:
             return False
 
