@@ -367,10 +367,10 @@ class TestRunDaemonLoop:
     # Watchdog tests
     # =========================================================================
 
-    def test_watchdog_disabled_after_max_failures(
+    def test_watchdog_degraded_after_max_failures(
         self, mock_daemon, mock_config, mock_logger, shutdown_event
     ):
-        """Test watchdog stops after MAX_CONSECUTIVE_FAILURES."""
+        """Test sustained failures emit degraded state without watchdog success pings."""
         from wanctl.steering.daemon import run_daemon_loop
 
         call_count = [0]
@@ -393,8 +393,8 @@ class TestRunDaemonLoop:
         mock_watchdog.assert_not_called()
         # Degraded should be called after MAX failures threshold
         assert mock_degraded.called
-        # Logger should have logged error about sustained failure
-        assert mock_logger.error.called
+        # Logger should record each failed cycle as a warning, not surrender/crash the daemon.
+        assert mock_logger.warning.call_count >= 5
 
     def test_watchdog_notification_on_success(
         self, mock_daemon, mock_config, mock_logger, shutdown_event
@@ -448,10 +448,10 @@ class TestRunDaemonLoop:
         # Cycle 4: notify_degraded("4 consecutive failures")
         assert mock_degraded.call_count >= 2
 
-    def test_watchdog_re_enabled_after_recovery(
+    def test_watchdog_continues_after_recovery(
         self, mock_daemon, mock_config, mock_logger, shutdown_event
     ):
-        """Test watchdog resumes after surrender when cycles start succeeding again."""
+        """Test watchdog success pings resume after failed cycles recover."""
         from wanctl.steering.daemon import run_daemon_loop
 
         call_count = [0]
@@ -474,14 +474,14 @@ class TestRunDaemonLoop:
         assert result == 0
         # Watchdog should be notified for recovered cycles 4, 5, and 6
         assert mock_watchdog.call_count == 3
-        # Logger should have logged recovery message
+        # Watchdog surrender was removed; recovery should not need a re-enable log.
         info_calls = [str(c) for c in mock_logger.info.call_args_list]
-        assert any("Re-enabling watchdog" in c for c in info_calls)
+        assert not any("Re-enabling watchdog" in c for c in info_calls)
 
-    def test_watchdog_recovery_logs_only_once(
+    def test_watchdog_recovery_does_not_log_reenable(
         self, mock_daemon, mock_config, mock_logger, shutdown_event
     ):
-        """Test recovery log appears once, not on every subsequent success."""
+        """Test recovery does not log obsolete watchdog re-enable messages."""
         from wanctl.steering.daemon import run_daemon_loop
 
         call_count = [0]
@@ -501,10 +501,10 @@ class TestRunDaemonLoop:
                 with patch("wanctl.steering.daemon.notify_degraded"):
                     run_daemon_loop(mock_daemon, mock_config, mock_logger, shutdown_event)
 
-        # Recovery message should appear exactly once (cycle 4 only)
+        # Watchdog is never surrendered, so no re-enable message should appear.
         info_calls = [str(c) for c in mock_logger.info.call_args_list]
         recovery_msgs = [c for c in info_calls if "Re-enabling watchdog" in c]
-        assert len(recovery_msgs) == 1
+        assert recovery_msgs == []
 
     # =========================================================================
     # Timing tests

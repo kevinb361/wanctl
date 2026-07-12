@@ -27,7 +27,7 @@ import logging
 import shutil
 import threading
 from collections.abc import Callable
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from wanctl.check_config_validators import MEASUREMENT_BACKENDS
 from wanctl.fping_measurement import FpingMeasurement, FpingThread
@@ -158,8 +158,9 @@ class RttBackendHandle:
         if self.backend_active == "irtt":
             if self.irtt_config is None:
                 raise ValueError("irtt backend requested but no IRTT config")
+            irtt_backend = cast(IrttRttBackend, self.backend)
             irtt_thread = IRTTThread(
-                self.backend._measurement,  # type: ignore[arg-type, union-attr]
+                irtt_backend._measurement,
                 cadence_sec=self.irtt_cadence_sec,
                 shutdown_event=shutdown_event,
                 logger=self._logger,
@@ -238,10 +239,10 @@ def build_rtt_backend(
             return _build_icmplib_handle(
                 config, source_ip, logger, wan_key, fping_cadence_sec, fell_back=False
             )
-        backend = IrttRttBackend(irtt_config, logger)
+        irtt_backend = IrttRttBackend(irtt_config, logger)
         controller_measurement = _build_controller_measurement(config, source_ip, logger)
         return RttBackendHandle(
-            backend=backend,
+            backend=irtt_backend,
             controller_measurement=controller_measurement,
             backend_active="irtt",
             fell_back=False,
@@ -254,10 +255,10 @@ def build_rtt_backend(
         )
 
     if requested == "fping" and shutil.which("fping") is not None:
-        backend = FpingMeasurement(_fping_measurement_config(fping_config, source_ip), logger)
+        fping_backend = FpingMeasurement(_fping_measurement_config(fping_config, source_ip), logger)
         controller_measurement = _build_controller_measurement(config, source_ip, logger)
         return RttBackendHandle(
-            backend=backend,
+            backend=fping_backend,
             controller_measurement=controller_measurement,
             backend_active="fping",
             fell_back=False,

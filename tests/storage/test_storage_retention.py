@@ -2,7 +2,7 @@
 
 import sqlite3
 import time
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from wanctl.storage.retention import (
     BATCH_SIZE,
@@ -81,11 +81,24 @@ class TestCleanupOldMetrics:
 
     def test_boundary_data_at_exactly_retention_days(self, test_db):
         """Test data at retention boundary is preserved (not yet expired)."""
-        # Insert data exactly at 7 days old - should be PRESERVED
-        # (cutoff is strictly less-than, so data at exactly 7 days is not yet expired)
-        insert_test_metrics(test_db, 10, days_old=7)
+        # Freeze cleanup time so the strict less-than boundary is deterministic.
+        now = int(time.time())
+        boundary = now - (7 * 86400)
+        rows = [
+            (boundary + i, "spectrum", "wanctl_rtt_ms", 15.0 + i * 0.1, None, "raw")
+            for i in range(10)
+        ]
+        test_db.executemany(
+            """
+            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+        test_db.commit()
 
-        deleted = cleanup_old_metrics(test_db, retention_days=7)
+        with patch("wanctl.storage.retention.time.time", return_value=now):
+            deleted = cleanup_old_metrics(test_db, retention_days=7)
 
         # Data at exactly 7 days is preserved (not strictly older than 7 days)
         assert deleted == 0

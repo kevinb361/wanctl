@@ -50,7 +50,8 @@ def test_spectrum_cake_autorate_artifacts_are_repo_owned() -> None:
     assert "ExecStartPre=/usr/local/sbin/cake-autorate-spectrum-qdisc-init" in service
 
     bridge_service = BRIDGE_SERVICE.read_text(encoding="utf-8")
-    assert "Wants=cake-autorate-spectrum.service" in bridge_service
+    assert "Wants=cake-autorate-spectrum.service" not in bridge_service
+    assert "After=cake-autorate-spectrum.service" in bridge_service
     assert "Environment=CAKE_AUTORATE_BRIDGE_HEALTH_HOST=10.10.110.223" in bridge_service
     assert "Environment=WANCTL_EXTERNAL_PING_SOURCE_IP=10.10.110.223" in bridge_service
     assert "Environment=WANCTL_EXTERNAL_PING_HOSTS=1.1.1.1,9.9.9.9,208.67.222.222" in bridge_service
@@ -67,8 +68,8 @@ def test_spectrum_cake_autorate_artifacts_are_repo_owned() -> None:
     assert "ul_if=spec-modem" in config
     assert "adjust_dl_shaper_rate=1" in config
     assert "adjust_ul_shaper_rate=1" in config
-    assert "base_ul_shaper_rate_kbps=28000" in config
-    assert "max_ul_shaper_rate_kbps=28000" in config
+    assert "base_ul_shaper_rate_kbps=30000" in config
+    assert "max_ul_shaper_rate_kbps=36000" in config
     assert "pinger_method=fping" in config
     assert 'ping_extra_args="-S 10.10.110.223"' in config
 

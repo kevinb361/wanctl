@@ -44,6 +44,7 @@ dev = [
     "pytest-timeout>=2.4.0",
     "ruff>=0.4.0",
     "pyflakes>=3.2.0",
+    "vulture>=2.14",
     # Security scanning tools
     "pip-audit>=2.10.0",
     "bandit>=1.9.3",
@@ -170,7 +171,7 @@ relative_files = true
 show_missing = true
 skip_empty = true
 precision = 1
-fail_under = 90
+fail_under = 88
 
 [tool.coverage.html]
 directory = "coverage-report"

@@ -62,7 +62,8 @@ def test_att_cake_autorate_artifacts_are_repo_owned() -> None:
     assert "ExecStartPre=/usr/local/sbin/cake-autorate-att-qdisc-init" in service
 
     bridge_service = BRIDGE_SERVICE.read_text(encoding="utf-8")
-    assert "Wants=cake-autorate-att.service" in bridge_service
+    assert "Wants=cake-autorate-att.service" not in bridge_service
+    assert "After=cake-autorate-att.service" in bridge_service
     assert "Environment=WANCTL_EXTERNAL_WAN_NAME=att" in bridge_service
     assert "Environment=WANCTL_EXTERNAL_DL_IF=att-router" in bridge_service
     assert "Environment=WANCTL_EXTERNAL_UL_IF=att-modem" in bridge_service

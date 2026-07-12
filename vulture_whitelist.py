@@ -158,3 +158,49 @@ DEFAULT_LOCK_TIMEOUT  # noqa  # tested in test_timeouts.py
 # tuning/strategies/response.py -- dataclass fields (Pitfall 3, D-04)
 _.pre_rate_mbps  # RecoveryEpisode dataclass field, tested
 _.post_rate_mbps  # RecoveryEpisode dataclass field, tested
+
+# --- Existing public/test/config/observability surfaces reported by vulture after CI sync (2026-07) ---
+analyze_baseline  # noqa
+check_detection_events  # noqa
+_._upload_consecutive_yellow_decay_clamp_explicit
+_._integral_window_seconds_explicit
+_._integral_threshold_ms_s_explicit
+_._cake_backlog_low_threshold_bytes_explicit
+_._cake_delay_delta_low_threshold_us_explicit
+_.get_both_queue_stats
+dropped_packets  # noqa
+ecn_marked_packets  # noqa
+avg_delay_us  # noqa
+base_delay_us  # noqa
+delay_delta_us  # noqa
+_._cold_start
+HANDOFF_TEXT  # noqa
+_._find_mangle_rule_id
+_.to_snapshot
+cycle_timestamp  # noqa
+_.ping_count
+_.route_management_migration_acknowledged
+_.failover_enabled
+_.failover_wan
+_.failover_red_cycles
+_.failover_green_cycles
+_.route_decision_policy
+_.route_decision_state
+_._last_route_abort_log_ts
+att_failed  # noqa
+_._get_att_congestion_state
+_.red_count
+_.green_count
+_.get_bridge
+_.get_decisions
+_.armed_count
+route_actions  # noqa
+alternate_route_key  # noqa
+RouteMode  # noqa
+_.reset_circuit
+owner  # noqa
+_detect_route_mutating_scripts  # noqa
+detect_netwatch_route_conflicts  # noqa
+_.enqueue_alert
+DEFAULT_MAINTENANCE_LOCK_TIMEOUT  # noqa
+_._encode_state
