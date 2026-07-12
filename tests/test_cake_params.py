@@ -412,7 +412,7 @@ class TestBuildCakeParamsInvalidDirection:
 
 
 class TestSpectrumNativeCakeAutorateParity:
-    """Lock native Spectrum canary params to the external cake-autorate envelope."""
+    """Lock native Spectrum canary params to the live external cake-autorate envelope."""
 
     @staticmethod
     def _spectrum_config() -> dict[str, Any]:
@@ -423,8 +423,8 @@ class TestSpectrumNativeCakeAutorateParity:
         cfg = self._spectrum_config()
         download = cfg["continuous_monitoring"]["download"]
 
-        assert download["floor_green_mbps"] == 550
-        assert download["ceiling_mbps"] == 600
+        assert download["floor_green_mbps"] == 800
+        assert download["ceiling_mbps"] == 900
 
     def test_native_spectrum_qdisc_params_match_external_trial_shape(self) -> None:
         cfg = self._spectrum_config()

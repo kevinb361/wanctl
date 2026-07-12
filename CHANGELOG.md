@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Phase 213:** Verified the baseline harness threat register with `threats_open: 0`; accepted live-traffic and polling risks are documented in `213-SECURITY.md`.
 
+### Changed
+
+- **Live artifact reconciliation:** Promoted cake-shaper's current wanctl runtime artifacts back into the repo: Spectrum cake-autorate 200/800/900 Mbps download envelope, native Spectrum 800/900 Mbps download and 35 Mbps upload ceiling, active steering/route-management posture, failover bridge disabled flags, and the live wanctl logrotate policy. Updated the native/external parity test to lock the reconciled Spectrum envelope.
+
 ### Fixed
 
 - **Phase 243:** Hardened benchmark gate review findings by requiring the complete eight-arm benchmark design by default, validating CPU evidence arithmetic before gate math, constraining transient bench lock/state cleanup paths to bench-only runtime locations, covering the preflight abort-path proof writer with a runtime regression test, switching benchmark cycle evidence from retained journald output to the durable per-arm debug log with an immediate per-arm cycle floor check, keeping fping benchmark cadence below the controller stale-data fallback limit, and preserving CPU evidence on long load arms with a larger transient unit runtime margin.

@@ -63,11 +63,11 @@ continuous_monitoring:
 
   # Download parameters (Phase 2A: 4-state with SOFT_RED)
   download:
-    floor_green_mbps: 550 # GREEN: healthy, high floor
+    floor_green_mbps: 800 # GREEN: healthy, high floor
     floor_yellow_mbps: 350 # YELLOW: early warning
     floor_soft_red_mbps: 275 # SOFT_RED: RTT-only congestion (no steering)
     floor_red_mbps: 200 # RED: severe congestion
-    ceiling_mbps: 600 # Phase 248.3: align native canary with external cake-autorate 550M base / 600M max envelope
+    ceiling_mbps: 900 # Phase 248.3: align native canary with external cake-autorate 550M base / 600M max envelope
     step_up_mbps: 10 # p158 re-confirmed 2026-04-09 (linux-cake post-DSCP post-netlink)
     factor_down: 0.85 # linux-cake validated 2026-04-02 (was 0.90, confirmed in pass)
     factor_down_yellow: 0.92 # linux-cake confirmed 2026-04-02 (unchanged from REST)
@@ -76,7 +76,7 @@ continuous_monitoring:
   # Upload parameters (Phase 2A: unchanged, 3-state)
   upload:
     floor_mbps: 8 # Keeps upstream from going too conservative
-    ceiling_mbps: 18 # Latency-first gaming-server soak 2026-04-29; stopped-controller sweep had best p95/p99 at 18Mbit
+    ceiling_mbps: 35 # Latency-first gaming-server soak 2026-04-29; stopped-controller sweep had best p95/p99 at 18Mbit
     step_up_mbps: 5 # Phase 135 validated 2026-04-03 (was 1, +17.6% UL throughput)
     factor_down: 0.90 # Phase 135 validated 2026-04-03 (was 0.85, gentler decay wins on UL)
     factor_down_yellow: 1.0 # 200-10 R5: hold during YELLOW; restores QueueController default for Spectrum per 200-09
