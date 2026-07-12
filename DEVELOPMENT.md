@@ -201,6 +201,16 @@ scripts/deploy-dry-run-gate.sh \
 
 The gate runs `scripts/deploy.sh ... --dry-run` and `scripts/phase231-rollback.sh ... --dry-run`, then fails closed unless both the deploy plan and rollback plan prove they are non-mutating. Real canary deploys remain a separate operator-approved milestone.
 
+### Read-Only Live Preflight
+
+Before any real canary, capture live state from `cake-shaper` with the read-only preflight:
+
+```bash
+scripts/live_preflight.py --ssh-host cake-shaper
+```
+
+The preflight uses SSH only for read-only commands: service state, systemd `Conflicts=` guards, config/code presence, health endpoints, and rollback dry-run rendering. It writes JSON proof under `.planning/evidence/live-preflight/` and has no mutation mode. A passing preflight is required evidence before discussing an operator-approved one-WAN canary.
+
 ## Questions?
 
 Open an issue on GitHub for development questions.
