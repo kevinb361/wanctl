@@ -7,11 +7,11 @@ without mounting Textual widgets or importing widget render logic.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class HistoryState(str, Enum):
+class HistoryState(StrEnum):
     """History browser render states."""
 
     SUCCESS = "success"
