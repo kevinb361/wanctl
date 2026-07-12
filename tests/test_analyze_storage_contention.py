@@ -5,6 +5,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+HELPER = ROOT / "scripts" / "analyze_storage_contention.py"
+
 
 def _write_capture(path: Path, payload: dict) -> Path:
     path.write_text(json.dumps(payload))
@@ -20,7 +23,7 @@ def _run_helper(tmp_path: Path, autorate: dict, steering: dict, metrics_text: st
     result = subprocess.run(
         [
             sys.executable,
-            "scripts/analyze_storage_contention.py",
+            str(HELPER),
             "--autorate-health",
             str(autorate_path),
             "--steering-health",
@@ -28,6 +31,7 @@ def _run_helper(tmp_path: Path, autorate: dict, steering: dict, metrics_text: st
             "--metrics-text",
             str(metrics_path),
         ],
+        cwd=ROOT,
         check=True,
         capture_output=True,
         text=True,

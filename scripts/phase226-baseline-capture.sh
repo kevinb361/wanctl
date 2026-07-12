@@ -281,13 +281,6 @@ if [[ "$MARKED_EF" == "1" && "$EF_REF_PORT" == "$REF_PORT" ]]; then
     exit 2
 fi
 
-require_command ssh
-require_command curl
-require_command python3
-require_command sha256sum
-require_command flent
-require_command iperf3
-
 LOCAL_HOUR="$(date +%H)"
 if [[ "$DRY_RUN" == "1" && -n "$TEST_HOUR" ]]; then
     LOCAL_HOUR="$TEST_HOUR"
@@ -316,6 +309,13 @@ if [[ "$DRY_RUN" == "1" ]]; then
     echo "DRY_RUN: no baseline evidence tree created and no load generated"
     exit 0
 fi
+
+require_command ssh
+require_command curl
+require_command python3
+require_command sha256sum
+require_command flent
+require_command iperf3
 
 if [[ -d "$OUTPUT_DIR" ]] && [[ -n "$(find "$OUTPUT_DIR" -mindepth 1 -maxdepth 1 ! -name 'discarded-*' -print -quit)" ]]; then
     echo "ERROR: --output-dir exists and contains non-discarded entries: $OUTPUT_DIR" >&2
