@@ -1,12 +1,15 @@
 """Tests for scripts/analyze_storage_contention.py."""
 
+import importlib.util
 import json
-import subprocess
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "scripts" / "analyze_storage_contention.py"
+spec = importlib.util.spec_from_file_location("analyze_storage_contention", HELPER)
+assert spec is not None and spec.loader is not None
+helper = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(helper)
 
 
 def _write_capture(path: Path, payload: dict) -> Path:
@@ -20,23 +23,16 @@ def _run_helper(tmp_path: Path, autorate: dict, steering: dict, metrics_text: st
     metrics_path = tmp_path / "metrics.txt"
     metrics_path.write_text(metrics_text)
 
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(HELPER),
-            "--autorate-health",
-            str(autorate_path),
-            "--steering-health",
-            str(steering_path),
-            "--metrics-text",
-            str(metrics_path),
-        ],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
+    autorate_payload = helper._load_json(autorate_path)
+    steering_payload = helper._load_json(steering_path)
+    wan_payload = autorate_payload.get("wans", [{}])[0]
+    return helper._build_summary(
+        helper._extract_storage_section(wan_payload, "storage"),
+        helper._extract_storage_section(steering_payload, "storage"),
+        helper._extract_cycle_utilization(wan_payload),
+        helper._extract_cycle_utilization(steering_payload),
+        metrics_path.read_text(),
     )
-    return json.loads(result.stdout)
 
 
 def test_helper_classifies_keep_shared_db(tmp_path: Path) -> None:
