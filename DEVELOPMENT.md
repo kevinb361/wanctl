@@ -186,6 +186,21 @@ make security
 
 All checks must pass before merging.
 
+### Manual Deploy Dry-Run Gate
+
+Deployment automation is intentionally manual-only. Push and pull-request workflows run validation only; they do not deploy and must not have production SSH keys, router credentials, or sudo authority.
+
+When a deployment path needs CI proof, use the manual `Manual Deploy Dry Run` workflow or run the same gate locally:
+
+```bash
+scripts/deploy-dry-run-gate.sh \
+    --wan spectrum \
+    --target-host cake-shaper \
+    --deploy-mode spectrum-cake-autorate
+```
+
+The gate runs `scripts/deploy.sh ... --dry-run` and `scripts/phase231-rollback.sh ... --dry-run`, then fails closed unless both the deploy plan and rollback plan prove they are non-mutating. Real canary deploys remain a separate operator-approved milestone.
+
 ## Questions?
 
 Open an issue on GitHub for development questions.
