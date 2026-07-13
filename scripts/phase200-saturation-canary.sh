@@ -306,10 +306,12 @@ summarize_baseline() {
     local out_json="$2"
     local label="$3"
 
-    jq -s --arg label "$label" '
+    # `label` is a reserved keyword in jq (label/break control flow); jq 1.6
+    # rejects a variable named $label outright, so the arg is $run_label.
+    jq -s --arg run_label "$label" '
       [ .[] | select(.wans[0].baseline_rtt_ms? != null) | .wans[0].baseline_rtt_ms ] as $rtts
       | {
-          "label": $label,
+          label: $run_label,
           sample_count: ($rtts | length),
           baseline_rtt_ms: {
             min: ($rtts | min),
