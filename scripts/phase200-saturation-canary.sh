@@ -309,7 +309,7 @@ summarize_baseline() {
     jq -s --arg label "$label" '
       [ .[] | select(.wans[0].baseline_rtt_ms? != null) | .wans[0].baseline_rtt_ms ] as $rtts
       | {
-          label: $label,
+          "label": $label,
           sample_count: ($rtts | length),
           baseline_rtt_ms: {
             min: ($rtts | min),
