@@ -15,6 +15,7 @@ Covers all phase requirements:
 
 import copy
 import json
+import os
 import sys
 from unittest.mock import patch
 
@@ -1021,6 +1022,10 @@ class TestCrossConfigValidation:
         warns = [r for r in results if r.severity == Severity.WARN]
         assert len(warns) >= 1
 
+    @pytest.mark.skipif(
+        hasattr(os, "geteuid") and os.geteuid() == 0,
+        reason="root bypasses filesystem permission checks, so a 0o000 file stays readable",
+    )
     def test_file_unreadable_produces_warn(self, tmp_path):
         ref_config = tmp_path / "spectrum.yaml"
         ref_config.write_text(yaml.dump({"wan_name": "spectrum"}))
