@@ -33,5 +33,16 @@ jobs:
         # hosts have both; the bare act container does not.
         run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-yaml iproute2
 
-      - name: Run canonical validation gate
-        run: make ci
+      - name: Create non-root CI user
+        # The test suite is written for a non-root environment: it asserts
+        # filesystem permission denial (chmod 0o000) and assumes no test can
+        # create the global /var/lib/wanctl. The act job container runs as root
+        # by default, which defeats both. Run the gate as a non-root user so CI
+        # matches the developer environment.
+        run: sudo useradd -m -u 1001 ciuser
+
+      - name: Run canonical validation gate (non-root)
+        run: |
+          sudo chown -R ciuser:ciuser "$GITHUB_WORKSPACE"
+          sudo -u ciuser --preserve-env=PATH bash -c \
+            "cd '$GITHUB_WORKSPACE' && . .venv/bin/activate && make ci"
