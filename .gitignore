@@ -55,8 +55,11 @@ fetch_logs*.py
 analyze_*.py
 
 # Lock files (users generate their own)
-uv.lock
 *.lock
+# uv.lock IS committed: wanctl deploys as an app (/opt/wanctl) and CI needs a
+# reproducible resolve. Without it, `uv sync` grabs latest and breaks on
+# wheel-less versions (e.g. mypy 2.3.0). Regenerate with `uv lock`.
+!uv.lock
 
 # Site-specific configs (use examples/ as templates)
 configs/*.yaml

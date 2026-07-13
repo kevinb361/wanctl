@@ -23,7 +23,7 @@ jobs:
         run: python -m pip install --upgrade uv
 
       - name: Install dependencies
-        run: uv sync --group dev --all-extras
+        run: uv sync --frozen --group dev --all-extras
 
       - name: Run canonical validation gate
         run: make ci
