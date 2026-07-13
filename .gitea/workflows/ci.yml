@@ -25,10 +25,13 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen --group dev --all-extras
 
+      - name: Provision system pyyaml
+        # The predeploy-gate tests run scripts under a hardcoded minimal
+        # PATH=/usr/bin:/bin, so their `python3` is the container's system
+        # interpreter. Those scripts import pyyaml (the only non-stdlib module
+        # any script uses). Production deploy hosts have it system-wide; the
+        # bare act container does not — install it so the gate scripts run.
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-yaml
+
       - name: Run canonical validation gate
-        # Activate the venv so subprocess `python3` in gate scripts
-        # (e.g. phase201-predeploy-gate.sh) resolves to the project
-        # interpreter with pyyaml, not the wheel-less container system python.
-        run: |
-          . .venv/bin/activate
-          make ci
+        run: make ci
