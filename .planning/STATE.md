@@ -1,8 +1,8 @@
 ---
-gsd_state_version: 1.0
+saga_state_version: 1.0
 milestone: none
 milestone_name: between_milestones
-status: between_milestones
+status: active
 stopped_at: none
 last_updated: "2026-07-09T08:00:00-05:00"
 last_activity: "Backlog triage complete — RECLAIM-04 closed, FLIP-02/TIN-SPARSE/IRTT-MIG deferred post-ROLE-01, rollback drill done"
