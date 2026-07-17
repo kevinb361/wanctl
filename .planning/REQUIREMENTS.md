@@ -11,10 +11,11 @@
 - [ ] **REQ-003** — Both WAN paths apply the same four-class contract and unclassified traffic falls back to Best Effort; duplicate bridge application classifiers are removed only after equivalent contract coverage is proven. (milestone: v1.61)
   Partial evidence: exact symmetric import/restore and Best Effort fallback assertions in `tests/test_bridge_qos_nft.py`; `../infra-ansible/scripts/routeros-qos-contract-audit.py` now mechanically reports the five live application-equivalence gaps. Classifier retirement remains open.
 - [ ] **REQ-004** — Adaptive WAN steering is selected independently from QoS priority, applies only to eligible new connections, and does not move recursive DNS merely because DNS is high priority. (milestone: v1.61)
-  Partial evidence: proposal-only composite policy in `../infra-ansible/artifacts/network-changes/20260717_routeros-qos-composite-policy/` plus static and audit tests. Live RouterOS convergence remains open.
+  Partial evidence: proposal plus independently reviewed, approval-gated Work-VPN canary in `../infra-ansible/artifacts/network-changes/20260717_routeros-qos-composite-policy/`; exact address-list membership, DNS exclusion, first-packet route adjacency, and staged rollback are tested. Live RouterOS convergence remains open.
 - [x] **REQ-005** — The effective RouterOS QoS and steering policy has a version-controlled, read-only audit surface that detects ordering, FastTrack, DSCP-map, per-application equivalence, and steering-eligibility drift. (milestone: v1.61)
   Evidence: `../infra-ansible/scripts/routeros-qos-contract-audit.py`, `../infra-ansible/tests/test_routeros_qos_contract_audit.py`, `../infra-ansible/tests/test_routeros_qos_composite_policy.py`, live `make routeros-qos-contract-audit` 2026-07-17.
 - [ ] **REQ-006** — A reversible live canary under controlled bulk load proves DNS responsiveness, work-VPN reachability, expected CAKE tin counters, both-WAN behavior, and successful rollback. (milestone: v1.61)
+  Partial evidence: reviewed Work-VPN canary package, immutable capture hashes, exact rollback, verification commands, partial-failure cleanup, and conntrack drain gate. No live canary or rollback drill has run; explicit approval remains required.
 
 ### SAFE-24 — Production QoS convergence
 
