@@ -3,9 +3,9 @@ saga_state_version: 1.0
 milestone: v1.61
 milestone_name: qos_classification_contract
 status: active
-stopped_at: REQ-004 corrected-canary approval gate
-last_updated: "2026-07-17T16:48:53-05:00"
-last_activity: "v1.61 corrected Work-VPN canary passed independent review with no blockers; reapply blocked pending fresh capture and explicit approval"
+stopped_at: REQ-006 VPN-session verification gate
+last_updated: "2026-07-17T17:00:43-05:00"
+last_activity: "v1.61 corrected Work-VPN canary active and narrowly verified: QOS_HIGH_ATT via ATT, replies seen, EF emitter/counters increased, DNS healthy; actual VPN-session proof remains"
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -26,7 +26,7 @@ Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 - **REQ-003 retirement checkpoint: BLOCKED and now mechanically gated.** The audit reports generic RTP `16384-32767`, WireGuard `51820`, SSH `22`, UDP `3480`, and NNTP `119` as exact live coverage gaps. A producer counts only when it is enabled, same-class, new-connection-only, terminal, and reachable before the default classifier. No bridge classifier was removed or deployed.
 - **REQ-004 package prerequisite: COMPLETE.** `infra-ansible/artifacts/network-changes/20260717_routeros-qos-composite-policy/` defines `QOS_HIGH_ATT` as an inspectable composite of EF queue intent and sticky ATT affinity, restricts assignment to explicit new-connection producers, keeps DNS on plain `QOS_HIGH`, removes the broad legacy route in the proposed full-policy state, and includes an approval-gated bounded Work-VPN canary with exact rollback.
 - **Work-VPN composite-mark canary package: LIVE ATTEMPT FAILED SAFELY.** Exact preflight passed and apply reached `state=canary`, but a new TCP connection to the Work-VPN endpoint timed out over `to_ATT`. The producer was restored immediately, active `QOS_HIGH_ATT` connections drained to zero, compatibility rules were removed, and status returned to `baseline`. Both internal resolvers and endpoint TCP/443 passed after rollback; cake-shaper QoS/autorate services remained active.
-- **Live checkpoint — REQ-006:** staged rollback is now live-proven, but the requirement remains OPEN because Work-VPN reachability failed and no controlled bulk-load/tin-counter proof ran. Root cause is the prerouting composite route consumer matching WAN replies; the corrected package requires `in-interface-list=!WAN`, and the audit rejects an unguarded consumer. Independent read-only review passed with no blockers and confirmed no other route consumer needs the guard. Reapply is blocked pending fresh capture and renewed approval. REQ-003 retirement remains blocked.
+- **Live checkpoint — REQ-006:** corrected reapply is active after fresh capture and renewed approval. A held endpoint connection was `QOS_HIGH_ATT`, assured, reply-seen, and NATed through the ATT public address; ten bounded probes incremented the producer, route consumer, composite EF emitter, and ATT CAKE Voice counters. DNS and endpoint checks remained healthy. REQ-006 stays OPEN for actual VPN-session proof and any separately approved controlled-load/both-WAN test. REQ-003 retirement remains blocked.
 
 - **t_bfe1e19b (C901 refactor):** Done — `_run_logging_metrics` extracted into 6 private helpers. Complexity 17→below threshold. Commit `cd777d91`.
 

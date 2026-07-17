@@ -11,11 +11,11 @@
 - [ ] **REQ-003** — Both WAN paths apply the same four-class contract and unclassified traffic falls back to Best Effort; duplicate bridge application classifiers are removed only after equivalent contract coverage is proven. (milestone: v1.61)
   Partial evidence: exact symmetric import/restore and Best Effort fallback assertions in `tests/test_bridge_qos_nft.py`; `../infra-ansible/scripts/routeros-qos-contract-audit.py` now mechanically reports the five live application-equivalence gaps. Classifier retirement remains open.
 - [ ] **REQ-004** — Adaptive WAN steering is selected independently from QoS priority, applies only to eligible new connections, and does not move recursive DNS merely because DNS is high priority. (milestone: v1.61)
-  Partial evidence: the approved Work-VPN canary exposed a prerouting route consumer that also matched inbound WAN replies; staged rollback returned RouterOS to baseline. The corrected package requires `in-interface-list=!WAN`, and the audit rejects unguarded composite consumers. Independent review and renewed approval are required before reapply.
+  Partial evidence: corrected Work-VPN canary is active. A live `QOS_HIGH_ATT` connection was assured/reply-seen through ATT, guarded route and EF-emitter counters increased, and DNS remained healthy. Full-policy convergence remains open.
 - [x] **REQ-005** — The effective RouterOS QoS and steering policy has a version-controlled, read-only audit surface that detects ordering, FastTrack, DSCP-map, per-application equivalence, and steering-eligibility drift. (milestone: v1.61)
   Evidence: `../infra-ansible/scripts/routeros-qos-contract-audit.py`, `../infra-ansible/tests/test_routeros_qos_contract_audit.py`, `../infra-ansible/tests/test_routeros_qos_composite_policy.py`, live `make routeros-qos-contract-audit` 2026-07-17.
 - [ ] **REQ-006** — A reversible live canary under controlled bulk load proves DNS responsiveness, work-VPN reachability, expected CAKE tin counters, both-WAN behavior, and successful rollback. (milestone: v1.61)
-  Partial evidence: approved live apply reached canary state; Work-VPN endpoint reachability failed; staged producer rollback, zero-active-conntrack drain, compatibility cleanup, and final baseline verification all passed. DNS and endpoint reachability recovered after rollback. Controlled bulk-load, CAKE tin, and successful Work-VPN-over-ATT evidence remain open.
+  Partial evidence: first apply proved staged rollback. Corrected reapply proved endpoint reachability, ATT NAT path, `QOS_HIGH_ATT`, EF-emitter and ATT CAKE Voice counter increments, DNS responsiveness, and service health. Actual VPN-session and separately approved controlled-load/both-WAN proof remain open.
 
 ### SAFE-24 — Production QoS convergence
 
