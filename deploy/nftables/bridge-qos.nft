@@ -9,9 +9,9 @@
 # Loaded by:   wanctl-bridge-qos.sh (via systemd oneshot)
 #
 # CAKE diffserv4 tin mapping:
-#   Voice:       EF (46), CS5 (40), CS6 (48), CS7 (56)
-#   Video:       AF4x (34,36,38), CS4 (32)
-#   Best Effort: CS0 (0), AF1x-AF3x
+#   Voice:       EF (46), CS4 (32), CS5 (40), CS6 (48), CS7 (56)
+#   Video:       AF4x, AF3x, CS3, AF2x, CS2
+#   Best Effort: CS0 (0), AF1x
 #   Bulk:        CS1 (8), LE (1)
 #
 # Bridge NIC topology:
@@ -37,18 +37,19 @@ table bridge qos {
     # -----------------------------------------------------------------------
     # Router classification import
     # -----------------------------------------------------------------------
-    # RouterOS classifies priority traffic as QOS_HIGH/EF and sustained
-    # transfers as QOS_LOW/CS1 after NAT. Import those trusted classes into
-    # this bridge's conntrack so download replies are restored into CAKE's
-    # Voice or Bulk tin. Without this, the shaper cannot distinguish priority
-    # VPN tunnels or LAN clients behind the separate RouterOS NAT.
+    # RouterOS classifies traffic before the separate NAT boundary and emits a
+    # normalized DSCP contract. Import trusted EF/AF31/CS1 classes into this
+    # bridge's conntrack so download replies are restored into CAKE's Voice,
+    # Video, or Bulk tin. Unmarked CS0 remains Best Effort.
     chain spectrum_ul {
         ether type ip ip dscp ef ct mark set 0x00000004 accept
+        ether type ip ip dscp af31 ct mark set 0x00000002 accept
         ether type ip ip dscp cs1 ct mark set 0x00000001 accept
     }
 
     chain att_ul {
         ether type ip ip dscp ef ct mark set 0x00000004 accept
+        ether type ip ip dscp af31 ct mark set 0x00000002 accept
         ether type ip ip dscp cs1 ct mark set 0x00000001 accept
     }
 
@@ -150,7 +151,7 @@ table bridge qos {
     chain forward {
         type filter hook forward priority -10; policy accept;
 
-        # Import trusted RouterOS CS1 classification before replies arrive.
+        # Import the trusted RouterOS EF/AF31/CS1 contract before replies arrive.
         iif spec-router oif spec-modem jump spectrum_ul
         iif att-router oif att-modem jump att_ul
 

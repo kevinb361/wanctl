@@ -2,6 +2,7 @@
 
 ## Milestones
 
+- 🚧 **v1.61 QoS Classification Contract** — planning 2026-07-17 (6 REQs; formalize the RouterOS classifier / cake-shaper enforcer split, close DSCP propagation gaps, decouple steering from QoS, and verify under controlled load; SAFE-24 no production mutation without rollback and explicit approval)
 - ✅ **v1.60 Ops Consolidation** — shipped 2026-07-05 (saga-mode; wanctl_state fire-on-change 95% row reduction, silicom test harness 7 scenarios deployed, steering clean-restart verified via live restart; 0 ASSERTED, 0 OPEN in TRACEABILITY.md) — `milestones/v1.60-ROADMAP.md`
 - ✅ **v1.59 Widen-the-Canary** — shipped 2026-07-05 (Phases 265–270; multi-route, bidirectional failover, netwatch retirement, gateway route expansion, steering activation; wanctl owns 6 routes across both WANs with per-WAN failover bridges; SAFE-23) — `milestones/v1.59-ROADMAP.md`
 - ✅ **v1.58 Active Route-Management Canary** — shipped 2026-06-29 (Phases 261–264; first *mutating* milestone in the route-ownership line — wanctl takes single-route default-ownership from Netwatch under an explicit reversible operator gate with automatic abort-to-Netwatch; SAFE-22) — `milestones/v1.58-ROADMAP.md`

@@ -1,11 +1,11 @@
 ---
 saga_state_version: 1.0
-milestone: none
-milestone_name: between_milestones
+milestone: v1.61
+milestone_name: qos_classification_contract
 status: active
-stopped_at: none
-last_updated: "2026-07-09T08:00:00-05:00"
-last_activity: "Backlog triage complete — RECLAIM-04 closed, FLIP-02/TIN-SPARSE/IRTT-MIG deferred post-ROLE-01, rollback drill done"
+stopped_at: REQ-003
+last_updated: "2026-07-17T13:52:22-05:00"
+last_activity: "v1.61 REQ-005 PROVEN — infra-ansible read-only RouterOS QoS contract audit added, tested, and run live; retained disabled QoS-coupled adaptive rule correctly reported as WARN"
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -19,6 +19,12 @@ Three work items completed, 5/5 PROVEN in TRACEABILITY.md:
 Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 
 ### Active Work
+
+- **v1.61 / REQ-001–REQ-002 (repo-only): COMPLETE.** Contract recorded and AF31 import added on both WAN upload chains. TDD evidence: expected RED failure, targeted GREEN (`1 passed`), bridge-QoS suite (`4 passed`), namespace nft syntax check (`NFT_SYNTAX_OK`), and full `make ci` (`5,758 passed`, 90.17% coverage). Production unchanged.
+- **REQ-003 contract-proof slice (repo-only): COMPLETE.** Exact EF/AF31/CS1 import parity, Voice/Video/Bulk restore parity, carrier wash, and unmatched-CS0 Best Effort fallback are mechanically asserted on both WANs. Evidence: bridge suite `5 passed`, namespace `NFT_SYNTAX_OK`, full `make ci` (`5,759 passed`, 90.17% coverage). No fallback classifier was removed; REQ-003 remains open for safe retirement work.
+- **REQ-005 read-only audit: COMPLETE.** `infra-ansible/scripts/routeros-qos-contract-audit.py` checks FastTrack, the EF/AF31/CS1/CS0 map, wash-before-trust ordering, and steering eligibility through the vaulted `ai-readonly` wrapper. Tests: `6 passed`; infra-ansible `make ci`: `32 passed`; live run: three PASS plus one WARN for the retained disabled `QOS_HIGH` adaptive route; strict mode exited nonzero. RouterOS unchanged.
+- **Next bounded slice — REQ-003 (repo-only):** retire duplicate bridge application classifiers now that both-WAN bridge contract coverage and the live RouterOS class-map audit are proven. Preserve carrier wash, DSCP/ct-mark import, reply restoration, and unmatched Best Effort fallback; do not deploy.
+- **Live checkpoint — REQ-006:** blocked by SAFE-24 until an immutable rollback anchor, one-WAN canary procedure, and explicit operator approval exist.
 
 - **t_bfe1e19b (C901 refactor):** Done — `_run_logging_metrics` extracted into 6 private helpers. Complexity 17→below threshold. Commit `cd777d91`.
 

@@ -16,6 +16,7 @@ validation reports live in [`docs/archive/`](archive/).
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md): portable controller invariants and configuration-driven design.
 - [`SUBSYSTEMS.md`](SUBSYSTEMS.md): storage, dashboard, transports, health, alerting, measurement quality, and bridge QoS internals.
+- [`QOS_CLASSIFICATION_CONTRACT.md`](QOS_CLASSIFICATION_CONTRACT.md): RouterOS classifier / cake-shaper enforcer ownership, DSCP contract, steering separation, and rollout gates.
 - [`STEERING.md`](STEERING.md): optional dual-WAN steering behavior and operations.
 - [`PERFORMANCE.md`](PERFORMANCE.md): 50ms production interval, profiling, and historical interval-test pointers.
 - [`SECURITY.md`](SECURITY.md): SSH host-key validation and credential handling notes.
