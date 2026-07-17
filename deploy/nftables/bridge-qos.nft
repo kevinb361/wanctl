@@ -37,15 +37,18 @@ table bridge qos {
     # -----------------------------------------------------------------------
     # Router classification import
     # -----------------------------------------------------------------------
-    # RouterOS classifies sustained transfers as QOS_LOW and emits CS1 after
-    # NAT. Import that trusted classification into this bridge's conntrack so
-    # download replies are restored into CAKE's Bulk tin. Without this, the
-    # shaper cannot distinguish LAN clients behind the separate RouterOS NAT.
+    # RouterOS classifies priority traffic as QOS_HIGH/EF and sustained
+    # transfers as QOS_LOW/CS1 after NAT. Import those trusted classes into
+    # this bridge's conntrack so download replies are restored into CAKE's
+    # Voice or Bulk tin. Without this, the shaper cannot distinguish priority
+    # VPN tunnels or LAN clients behind the separate RouterOS NAT.
     chain spectrum_ul {
+        ether type ip ip dscp ef ct mark set 0x00000004 accept
         ether type ip ip dscp cs1 ct mark set 0x00000001 accept
     }
 
     chain att_ul {
+        ether type ip ip dscp ef ct mark set 0x00000004 accept
         ether type ip ip dscp cs1 ct mark set 0x00000001 accept
     }
 

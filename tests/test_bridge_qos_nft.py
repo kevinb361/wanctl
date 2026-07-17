@@ -54,7 +54,9 @@ def test_router_dscp_bulk_classification_is_propagated_to_download_replies() -> 
     }
     for chain_name, dispatch in expected_paths.items():
         body = _chain_body(ruleset, chain_name)
+        assert "ip dscp ef ct mark set 0x00000004 accept" in body
         assert "ip dscp cs1 ct mark set 0x00000001 accept" in body
+        assert body.index("ip dscp ef") < body.index("ip dscp cs1")
         assert dispatch in ruleset
 
 
