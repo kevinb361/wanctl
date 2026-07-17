@@ -15,7 +15,7 @@
 - [x] **REQ-005** — The effective RouterOS QoS and steering policy has a version-controlled, read-only audit surface that detects ordering, FastTrack, DSCP-map, per-application equivalence, and steering-eligibility drift. (milestone: v1.61)
   Evidence: `../infra-ansible/scripts/routeros-qos-contract-audit.py`, `../infra-ansible/tests/test_routeros_qos_contract_audit.py`, `../infra-ansible/tests/test_routeros_qos_composite_policy.py`, live `make routeros-qos-contract-audit` 2026-07-17.
 - [ ] **REQ-006** — A reversible live canary under controlled bulk load proves DNS responsiveness, work-VPN reachability, expected CAKE tin counters, both-WAN behavior, and successful rollback. (milestone: v1.61)
-  Partial evidence: first apply proved staged rollback. Corrected reapply proved endpoint reachability, ATT NAT path, `QOS_HIGH_ATT`, EF-emitter and ATT CAKE Voice counter increments, DNS responsiveness, and service health. Actual VPN-session and separately approved controlled-load/both-WAN proof remain open.
+  Partial evidence: first apply proved staged rollback. Corrected reapply plus an actual FortiVPN reconnect proved VPN reachability, ATT NAT path, assured bidirectional `QOS_HIGH_ATT`, EF-emitter and ATT CAKE Voice counter increments, DNS responsiveness, and service health. Separately approved controlled-load/both-WAN proof remains open.
 
 ### SAFE-24 — Production QoS convergence
 
