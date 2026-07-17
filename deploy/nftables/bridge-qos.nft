@@ -16,7 +16,9 @@
 #
 # Bridge NIC topology:
 #   Spectrum download: iif spec-modem (modem) -> oif spec-router (router)
+#   Spectrum upload:   iif spec-router (router) -> oif spec-modem (modem)
 #   ATT download:      iif att-modem (modem) -> oif att-router (router)
+#   ATT upload:        iif att-router (router) -> oif att-modem (modem)
 #
 # Connection marks:
 #   0x00000004 = Voice (EF)
@@ -31,6 +33,21 @@ table bridge qos
 delete table bridge qos
 
 table bridge qos {
+
+    # -----------------------------------------------------------------------
+    # Router classification import
+    # -----------------------------------------------------------------------
+    # RouterOS classifies sustained transfers as QOS_LOW and emits CS1 after
+    # NAT. Import that trusted classification into this bridge's conntrack so
+    # download replies are restored into CAKE's Bulk tin. Without this, the
+    # shaper cannot distinguish LAN clients behind the separate RouterOS NAT.
+    chain spectrum_ul {
+        ether type ip ip dscp cs1 ct mark set 0x00000001 accept
+    }
+
+    chain att_ul {
+        ether type ip ip dscp cs1 ct mark set 0x00000001 accept
+    }
 
     # -----------------------------------------------------------------------
     # Spectrum download classification (ens16 modem -> ens17 router)
@@ -82,9 +99,9 @@ table bridge qos {
         ether type ip ct mark 0x00000000 tcp sport 119 ip dscp set cs1 ct mark set 0x00000001 accept
 
         # --- Large-flow demotion ---
-        # Unclassified flows move to Video after 10MB, then Bulk after 100MB.
-        ether type ip ct bytes > 100000000 ct mark 0 ip dscp set cs1 ct mark set 0x00000001
-        ether type ip ct bytes > 10000000 ct mark 0 ip dscp set af41 ct mark set 0x00000002
+        # Size alone is not evidence of video. Sustained generic transfers go
+        # directly to Bulk so model/container downloads yield to streaming.
+        ether type ip ct bytes > 10000000 ct mark 0x00000000 ip dscp set cs1 ct mark set 0x00000001 accept
 
         # Unmatched packets fall through with DSCP 0 (Best Effort, D-04)
     }
@@ -120,8 +137,7 @@ table bridge qos {
         ether type ip ct mark 0x00000000 tcp sport 119 ip dscp set cs1 ct mark set 0x00000001 accept
 
         # --- Large-flow demotion ---
-        ether type ip ct bytes > 100000000 ct mark 0 ip dscp set cs1 ct mark set 0x00000001
-        ether type ip ct bytes > 10000000 ct mark 0 ip dscp set af41 ct mark set 0x00000002
+        ether type ip ct bytes > 10000000 ct mark 0x00000000 ip dscp set cs1 ct mark set 0x00000001 accept
     }
 
     # -----------------------------------------------------------------------
@@ -130,6 +146,10 @@ table bridge qos {
     # -----------------------------------------------------------------------
     chain forward {
         type filter hook forward priority -10; policy accept;
+
+        # Import trusted RouterOS CS1 classification before replies arrive.
+        iif spec-router oif spec-modem jump spectrum_ul
+        iif att-router oif att-modem jump att_ul
 
         # Spectrum download path
         iif spec-modem oif spec-router jump spectrum_dl

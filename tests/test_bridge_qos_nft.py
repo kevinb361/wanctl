@@ -43,3 +43,29 @@ def test_reply_classification_uses_unmarked_conntrack_not_new_state() -> None:
     ]
     for expected in expected_rules:
         assert expected in ruleset
+
+
+def test_router_dscp_bulk_classification_is_propagated_to_download_replies() -> None:
+    ruleset = BRIDGE_QOS.read_text()
+
+    expected_paths = {
+        "spectrum_ul": 'iif spec-router oif spec-modem jump spectrum_ul',
+        "att_ul": 'iif att-router oif att-modem jump att_ul',
+    }
+    for chain_name, dispatch in expected_paths.items():
+        body = _chain_body(ruleset, chain_name)
+        assert "ip dscp cs1 ct mark set 0x00000001 accept" in body
+        assert dispatch in ruleset
+
+
+def test_generic_large_downloads_go_directly_to_bulk() -> None:
+    ruleset = BRIDGE_QOS.read_text()
+
+    for chain_name in ("spectrum_dl", "att_dl"):
+        body = _chain_body(ruleset, chain_name)
+        assert (
+            "ct bytes > 10000000 ct mark 0x00000000 "
+            "ip dscp set cs1 ct mark set 0x00000001 accept"
+        ) in body
+        assert "ct bytes > 10000000 ct mark 0 ip dscp set af41" not in body
+        assert "ct bytes > 100000000" not in body
