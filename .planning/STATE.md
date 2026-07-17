@@ -3,9 +3,9 @@ saga_state_version: 1.0
 milestone: v1.61
 milestone_name: qos_classification_contract
 status: active
-stopped_at: REQ-003
-last_updated: "2026-07-17T14:29:23-05:00"
-last_activity: "v1.61 REQ-003 retirement blocked before commit — live per-application class equivalence is not proven; attempted bridge-only removal reverted; production and repo rules unchanged"
+stopped_at: REQ-004 approval gate
+last_updated: "2026-07-17T14:56:40-05:00"
+last_activity: "v1.61 repo-only prerequisite complete — audit now mechanically proves the five live application-equivalence gaps and a tested proposal-only composite-mark policy separates QoS from ATT affinity; production unchanged"
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -22,9 +22,10 @@ Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 
 - **v1.61 / REQ-001–REQ-002 (repo-only): COMPLETE.** Contract recorded and AF31 import added on both WAN upload chains. TDD evidence: expected RED failure, targeted GREEN (`1 passed`), bridge-QoS suite (`4 passed`), namespace nft syntax check (`NFT_SYNTAX_OK`), and full `make ci` (`5,758 passed`, 90.17% coverage). Production unchanged.
 - **REQ-003 contract-proof slice (repo-only): COMPLETE.** Exact EF/AF31/CS1 import parity, Voice/Video/Bulk restore parity, carrier wash, and unmatched-CS0 Best Effort fallback are mechanically asserted on both WANs. Evidence: bridge suite `5 passed`, namespace `NFT_SYNTAX_OK`, full `make ci` (`5,759 passed`, 90.17% coverage). No fallback classifier was removed; REQ-003 remains open for safe retirement work.
-- **REQ-005 read-only audit: COMPLETE.** `infra-ansible/scripts/routeros-qos-contract-audit.py` checks FastTrack, the EF/AF31/CS1/CS0 map, wash-before-trust ordering, and steering eligibility through the vaulted `ai-readonly` wrapper. Tests: `6 passed`; infra-ansible `make ci`: `32 passed`; live run: three PASS plus one WARN for the retained disabled `QOS_HIGH` adaptive route; strict mode exited nonzero. RouterOS unchanged.
-- **REQ-003 retirement checkpoint: BLOCKED.** A bridge-only retirement passed structural tests and nft syntax, but final equivalence review against the live RouterOS capture disproved the prerequisite. The RouterOS class map exists, but it does not prove the same application treatment: generic RTP `16384-32767` and WireGuard `51820` lack equivalent `QOS_HIGH` producers, SSH `22` is `QOS_MEDIUM` rather than the bridge's EF treatment, UDP `3480` is outside the high realtime rule, and NNTP `119` lacks the bridge's Bulk equivalent. The attempted repo diff was reverted before commit; no classifier was removed or deployed.
-- **Next bounded slice — REQ-004 prerequisite (repo-only):** define and test an undeployed RouterOS policy artifact that separates steering eligibility from QoS and closes the class-equivalence gaps above. Do not retire bridge exceptions or mutate RouterOS until the audit proves exact per-application coverage.
+- **REQ-005 read-only audit: COMPLETE.** `infra-ansible/scripts/routeros-qos-contract-audit.py` now checks FastTrack, the EF/AF31/CS1/CS0 map, wash-before-trust ordering, per-application class equivalence, and composite steering safety through the vaulted `ai-readonly` wrapper. Tests: `10 passed`; policy tests: `3 passed`; infra-ansible `make ci`: `39 passed`. Fresh live read-only run: three PASS, application-equivalence FAIL with all five expected gaps, and steering WARN for the retained disabled `QOS_HIGH` adaptive route. RouterOS unchanged.
+- **REQ-003 retirement checkpoint: BLOCKED and now mechanically gated.** The audit reports generic RTP `16384-32767`, WireGuard `51820`, SSH `22`, UDP `3480`, and NNTP `119` as exact live coverage gaps. A producer counts only when it is enabled, same-class, new-connection-only, terminal, and reachable before the default classifier. No bridge classifier was removed or deployed.
+- **REQ-004 repo-only prerequisite: COMPLETE.** `infra-ansible/artifacts/network-changes/20260717_routeros-qos-composite-policy/` defines `QOS_HIGH_ATT` as an inspectable composite of EF queue intent and sticky ATT affinity, restricts assignment to explicit new-connection producers, keeps DNS on plain `QOS_HIGH`, removes the broad legacy route in the proposed state, and includes exact rollback commands. The artifact is deliberately non-executing and has no apply script.
+- **Next bounded slice — approval-gated RouterOS canary:** generate and independently review an idempotent apply artifact from the proposal, capture a fresh rollback anchor, then obtain explicit operator approval before any RouterOS mutation. REQ-003 retirement remains blocked until post-canary live audit is green.
 - **Live checkpoint — REQ-006:** blocked by SAFE-24 until an immutable rollback anchor, one-WAN canary procedure, and explicit operator approval exist.
 
 - **t_bfe1e19b (C901 refactor):** Done — `_run_logging_metrics` extracted into 6 private helpers. Complexity 17→below threshold. Commit `cd777d91`.
