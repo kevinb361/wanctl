@@ -1123,3 +1123,11 @@ _A living document updated after each milestone. Lessons feed forward into futur
 4. Production graduation requires degradation verification — config changes aren't enough, validate failure paths before declaring "live" (v1.13)
 5. Observation mode → fusion is the right two-milestone pattern — ship supplemental signals in observation mode first, graduate to active input after production data validates the approach (v1.18 → v1.19)
 6. Zero new dependencies scales surprisingly far — stdlib `statistics` + existing SQLite powered all adaptive tuning analysis for 6-8 scalar parameters without scipy/numpy (v1.20)
+
+---
+
+## 2026-07-17 — DSCP map coverage is not application-policy equivalence
+
+REQ-003's bridge-classifier retirement initially looked safe because the four RouterOS DSCP classes, both-WAN import/restore symmetry, and Best Effort fallback were mechanically proven. A final comparison against the live RouterOS mangle capture showed that this was the wrong proof level: generic RTP `16384-32767`, WireGuard `51820`, UDP `3480`, and NNTP `119` had no same-class RouterOS producer, while SSH `22` was `QOS_MEDIUM` instead of the bridge's EF treatment.
+
+The bridge-only removal was reverted before commit or deployment. Future classifier retirement must compare every removed bridge selector to an enabled RouterOS producer with the same effective class, not merely confirm that the global EF/AF31/CS1/CS0 map exists. Promote this as a durable audit requirement in the RouterOS QoS contract tooling before retrying REQ-003.

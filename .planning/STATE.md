@@ -4,8 +4,8 @@ milestone: v1.61
 milestone_name: qos_classification_contract
 status: active
 stopped_at: REQ-003
-last_updated: "2026-07-17T13:52:22-05:00"
-last_activity: "v1.61 REQ-005 PROVEN — infra-ansible read-only RouterOS QoS contract audit added, tested, and run live; retained disabled QoS-coupled adaptive rule correctly reported as WARN"
+last_updated: "2026-07-17T14:29:23-05:00"
+last_activity: "v1.61 REQ-003 retirement blocked before commit — live per-application class equivalence is not proven; attempted bridge-only removal reverted; production and repo rules unchanged"
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -23,7 +23,8 @@ Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 - **v1.61 / REQ-001–REQ-002 (repo-only): COMPLETE.** Contract recorded and AF31 import added on both WAN upload chains. TDD evidence: expected RED failure, targeted GREEN (`1 passed`), bridge-QoS suite (`4 passed`), namespace nft syntax check (`NFT_SYNTAX_OK`), and full `make ci` (`5,758 passed`, 90.17% coverage). Production unchanged.
 - **REQ-003 contract-proof slice (repo-only): COMPLETE.** Exact EF/AF31/CS1 import parity, Voice/Video/Bulk restore parity, carrier wash, and unmatched-CS0 Best Effort fallback are mechanically asserted on both WANs. Evidence: bridge suite `5 passed`, namespace `NFT_SYNTAX_OK`, full `make ci` (`5,759 passed`, 90.17% coverage). No fallback classifier was removed; REQ-003 remains open for safe retirement work.
 - **REQ-005 read-only audit: COMPLETE.** `infra-ansible/scripts/routeros-qos-contract-audit.py` checks FastTrack, the EF/AF31/CS1/CS0 map, wash-before-trust ordering, and steering eligibility through the vaulted `ai-readonly` wrapper. Tests: `6 passed`; infra-ansible `make ci`: `32 passed`; live run: three PASS plus one WARN for the retained disabled `QOS_HIGH` adaptive route; strict mode exited nonzero. RouterOS unchanged.
-- **Next bounded slice — REQ-003 (repo-only):** retire duplicate bridge application classifiers now that both-WAN bridge contract coverage and the live RouterOS class-map audit are proven. Preserve carrier wash, DSCP/ct-mark import, reply restoration, and unmatched Best Effort fallback; do not deploy.
+- **REQ-003 retirement checkpoint: BLOCKED.** A bridge-only retirement passed structural tests and nft syntax, but final equivalence review against the live RouterOS capture disproved the prerequisite. The RouterOS class map exists, but it does not prove the same application treatment: generic RTP `16384-32767` and WireGuard `51820` lack equivalent `QOS_HIGH` producers, SSH `22` is `QOS_MEDIUM` rather than the bridge's EF treatment, UDP `3480` is outside the high realtime rule, and NNTP `119` lacks the bridge's Bulk equivalent. The attempted repo diff was reverted before commit; no classifier was removed or deployed.
+- **Next bounded slice — REQ-004 prerequisite (repo-only):** define and test an undeployed RouterOS policy artifact that separates steering eligibility from QoS and closes the class-equivalence gaps above. Do not retire bridge exceptions or mutate RouterOS until the audit proves exact per-application coverage.
 - **Live checkpoint — REQ-006:** blocked by SAFE-24 until an immutable rollback anchor, one-WAN canary procedure, and explicit operator approval exist.
 
 - **t_bfe1e19b (C901 refactor):** Done — `_run_logging_metrics` extracted into 6 private helpers. Complexity 17→below threshold. Commit `cd777d91`.

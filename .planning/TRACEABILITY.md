@@ -14,13 +14,13 @@ Most recent milestone first. Generated per the /saga-verify process.
 |--------|--------|----------|
 | REQ-001 | PROVEN | `docs/QOS_CLASSIFICATION_CONTRACT.md`; `.planning/CONTEXT.md`; `.planning/decisions/2703-routeros-classifies-cake-enforces.md` |
 | REQ-002 | PROVEN | `deploy/nftables/bridge-qos.nft`; `tests/test_bridge_qos_nft.py::test_router_dscp_classification_is_propagated_to_download_replies`; RED failure then GREEN pass; full `make ci`: 5,758 passed, 20 skipped, 2 deselected, 90.17% coverage |
-| REQ-003 | OPEN (contract proof PROVEN) | Exact EF/AF31/CS1 import symmetry, Voice/Video/Bulk restore symmetry, carrier wash, and unmatched-CS0 fallback: `tests/test_bridge_qos_nft.py::test_router_dscp_classification_is_propagated_to_download_replies`, `::test_download_restore_contract_is_symmetric_with_best_effort_fallback`; bridge suite `5 passed`; namespace `NFT_SYNTAX_OK`; full `make ci`: 5,759 passed, 20 skipped, 2 deselected, 90.17% coverage. Duplicate classifier retirement remains open and no classifier was removed. |
+| REQ-003 | BLOCKED (contract proof PROVEN) | Exact EF/AF31/CS1 import/restore symmetry and CS0 fallback remain proven, but live capture `../infra-ansible/artifacts/network-readonly/20260717_185112-routeros-qos-contract/main-router__mangle.txt` disproves exact application equivalence for generic RTP `16384-32767`, WireGuard `51820`, SSH class (`QOS_MEDIUM` vs bridge EF), UDP `3480`, and NNTP `119`. A bridge-only retirement reached targeted GREEN, namespace `NFT_SYNTAX_OK`, full `make ci` green, and independent review, then was reverted before commit when this semantic gap was found. No classifier was removed or deployed. |
 | REQ-004 | OPEN | Steering eligibility remains coupled to QoS priority in the live RouterOS policy. |
 | REQ-005 | PROVEN | `../infra-ansible/scripts/routeros-qos-contract-audit.py`; `../infra-ansible/tests/test_routeros_qos_contract_audit.py` (`6 passed`); infra-ansible full `make ci` (`32 passed`); live vaulted `ai-readonly` run: FastTrack PASS, four-class DSCP map PASS, wash-before-trust PASS, steering-eligibility WARN for the retained disabled `QOS_HIGH` adaptive rule; `--strict` exited 1 on that warning. No RouterOS mutation. |
 | REQ-006 | OPEN | No v1.61 live canary or rollback drill has run; SAFE-24 blocks implicit deployment. |
 | SAFE-24 | PROVEN for repo slice | No deploy, restart, RouterOS mutation, qdisc change, or controlled saturation occurred. |
 
-**Summary:** 3 PROVEN, 3 OPEN; production unchanged.
+**Summary:** 3 PROVEN, 2 OPEN, 1 BLOCKED; production unchanged.
 
 ---
 

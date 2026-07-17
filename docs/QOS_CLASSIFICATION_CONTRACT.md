@@ -77,7 +77,7 @@ The target steering behavior is:
 
 ## Known implementation gaps
 
-1. RouterOS and bridge rules duplicate several DNS, VPN, realtime, QUIC, and large-flow classifications.
+1. RouterOS and bridge rules duplicate several DNS, VPN, realtime, QUIC, and large-flow classifications. Retirement is blocked until exact class equivalence exists for the bridge-only or class-mismatched cases found in the live policy: generic RTP `16384-32767`, WireGuard `51820`, SSH `22`, UDP `3480`, and NNTP `119`.
 2. Adaptive steering currently derives eligibility from `QOS_HIGH`, coupling route selection to queue priority.
 3. A disabled legacy `QOS_HIGH` adaptive route remains on RouterOS; the read-only contract audit reports it as steering-eligibility drift and strict mode fails while it remains.
 4. Existing steering and traffic-shaping documentation contains stale live-mode and qdisc assumptions.
