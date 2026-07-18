@@ -2,10 +2,10 @@
 saga_state_version: 1.0
 milestone: v1.61
 milestone_name: qos_classification_contract
-status: active
-stopped_at: REQ-003 renewed approval gate for corrected fresh-session classifier canary
-last_updated: "2026-07-17T21:11:20-05:00"
-last_activity: "generic RTP canary failed audit and rolled back exactly; fresh-session ordering repair passed CI and independent review"
+status: blocked
+stopped_at: REQ-003 escalated after second generic-RTP verification failure
+last_updated: "2026-07-17T21:38:54-05:00"
+last_activity: "corrected generic RTP canary passed immediate fresh-session proof but failed later independent audit; exact rollback restored healthy baseline"
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -33,6 +33,7 @@ Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 - **REQ-003 slice 2 — finite classifier registry (repo-only): COMPLETE.** Extended the proven canary machinery behind an explicit five-selector registry covering generic RTP, WireGuard `51820`, SSH `22`, UDP `3480`, and NNTP `119`. Every selector is mechanically bound to `policy.json`, uses new/unmarked exact rules and selector-specific confirmations, converges into one canonical block before the default regardless of apply order, stages disabled until placement succeeds, cleans up on placement/enable failure, and retains fresh-hash gating plus read-only default status. Focused suite: `20 passed`; full infra `make ci`: `78 passed`. Independent Claude review passed after one repair cycle. No live command, classifier retirement, or conntrack clear occurred.
 - **REQ-003 slice 3 — live read-only approval packet: COMPLETE / STOPPED AT MUTATION GATE.** Fresh status for all five finite selectors returned `state=baseline`, `changed=false`, and the same current mangle anchor `f59a7c9a2352bc965a5d31c36072d6a34d2f78d96e2269c237d8262216bf7123`. Fresh contract audit capture `20260718_012433-routeros-qos-contract` passed FastTrack, DSCP map, wash/trust ordering, and steering eligibility while reporting the exact five expected application-equivalence gaps. No RouterOS mutation, conntrack clear, service restart, or bridge retirement occurred. Next action requires explicit production approval for the bounded per-selector applies.
 - **REQ-003 slice 4 — generic-RTP live canary: FAILED SAFELY / CORRECTION REVIEWED / RENEWED APPROVAL REQUIRED.** The approved generic-RTP apply returned `applied`, but a fresh independent audit found the enabled rule after the terminal default and therefore unreachable. Remaining applies froze immediately. Exact rollback with the fresh post-change anchor restored `baseline` and the original full mangle hash; both resolvers, six shaping/bridge/steering units, steering health, router reachability, route guard, and the original five-gap audit state passed. No conntrack clear occurred. Root cause: the mutating API session's order readback did not match a subsequent fresh connection. Infra commit `f0d71e3` now closes the mutation session, requires fresh-session target/order proof, and exactly removes the new row on fresh-session failure; focused suite `22 passed`, full infra CI `80 passed`, independent Claude second-pass review `PASS`. Corrected live reapply is stopped at renewed explicit approval.
+- **REQ-003 slice 5 — corrected generic-RTP canary: FAILED SAFELY / ESCALATED.** Renewed approval covered generic RTP only. Fresh baseline, five-gap audit, DNS, authoritative 25/25 wanctl preflight, services, and health endpoints passed. Corrected apply passed its immediate new-session gate, but a later independent status had a different anchor and the audit again found the enabled selector after the terminal default at rule #36. Exact rollback with that latest anchor restored the original full hash and healthy five-gap baseline; no other selector was attempted and no conntrack was cleared. This is the second verification failure, so local repair/retry is exhausted. Escalation must determine whether RouterOS needs add-time placement, active-rule move semantics, or a bounded settle/poll proof before any new live approval.
 
 - **t_bfe1e19b (C901 refactor):** Done — `_run_logging_metrics` extracted into 6 private helpers. Complexity 17→below threshold. Commit `cd777d91`.
 

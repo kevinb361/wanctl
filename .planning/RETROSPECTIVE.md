@@ -1139,3 +1139,11 @@ The bridge-only removal was reverted before commit or deployment. Future classif
 The first generic-RTP canary's mutating API session reported the new selector enabled in canonical order, but the immediately following independent audit connection observed it after the terminal default and correctly rejected it as unreachable. Exact rollback restored the original mangle hash and healthy baseline without clearing conntrack.
 
 For ordered RouterOS policy mutations, an in-session readback is not sufficient convergence evidence. Close the mutating session, open a fresh connection, and prove final target, exact fields, and order before reporting success. If that fresh proof fails for a newly added exact selector, remove only that selector and fail closed. This is implemented in the classifier canary package and should be promoted to project guidance if another RouterOS ordered-rule workflow needs the same guarantee.
+
+---
+
+## 2026-07-17 — One immediate fresh RouterOS session is still not convergence
+
+The corrected generic-RTP helper closed its mutating session and passed exact target/order proof on a new API connection, yet the next independent status and audit saw the enabled row after the terminal default. The mangle anchor also changed between the apply result and that subsequent status even though packet and byte counters are excluded. Exact rollback again restored the original hash and healthy baseline.
+
+For RouterOS ordered-rule mutation, “fresh connection” is necessary but not sufficient when persistence or ordering visibility is delayed. The next design must prove a bounded stable condition across time or avoid post-add reordering entirely, and it must explain the non-counter hash drift. Do not stack more retries on the current move/enable sequence; two live verification failures are the escalation boundary.
