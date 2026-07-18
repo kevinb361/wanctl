@@ -4,8 +4,8 @@ milestone: v1.61
 milestone_name: qos_classification_contract
 status: active
 stopped_at: REQ-003 application-equivalence gaps block bridge-classifier retirement
-last_updated: "2026-07-17T20:12:00-05:00"
-last_activity: "completed repo-only generic RTP migration package; 70-test infra CI and independent review pass"
+last_updated: "2026-07-17T20:22:47-05:00"
+last_activity: "completed and independently reviewed the repo-only finite application-classifier registry; no live mutation"
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -30,6 +30,7 @@ Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 - **REQ-004/REQ-006 DNS-safe adaptive convergence: COMPLETE.** The broad `QOS_HIGH` route is retired and replaced by exact `ADAPTIVE: Work VPN eligible for ATT` selection for eligible new Work-VPN connections. Live verification exposed and fixed startup logical/rule-state drift; full wanctl CI passed (`5,766 passed`, 90.14%), independent Claude review passed, and the reviewed daemon module was deployed with matching SHA-256. Controller restart disabled and verified the exact producer under `SPECTRUM_GOOD`. Approval-gated demigration and remigration passed without clearing conntrack; both resolvers passed 50/50 final probes; all QoS/autorate services and steering health remained active.
 - **Adaptive status gate repair (repo-only): COMPLETE.** Reproduced the stale `canary-active-corrected-verified` assertion, updated it to the live `adaptive-active-corrected-verified` state, and added a direct assertion for `bounded_adaptive_migration_status=live-verified`. Focused test passed; full infra `make ci` passed with 58 tests. No live mutation or policy behavior change.
 - **REQ-003 slice 1 — generic RTP migration package (repo-only): COMPLETE.** Added the exact new/unmarked UDP `16384-32767 -> QOS_HIGH` producer, immediate pre-default ordering, read-only status, a counter-insensitive live mangle SHA-256 mutation anchor, distinct confirmations, duplicate/drift checks, failed-move cleanup, idempotent rollback, Ansible wrapper, and operator procedure. Focused suite: `12 passed`; full infra `make ci`: `70 passed`. Independent Claude review passed after one repair cycle. Infra commit `359305a`. No live command, classifier retirement, or conntrack clear occurred.
+- **REQ-003 slice 2 — finite classifier registry (repo-only): COMPLETE.** Extended the proven canary machinery behind an explicit five-selector registry covering generic RTP, WireGuard `51820`, SSH `22`, UDP `3480`, and NNTP `119`. Every selector is mechanically bound to `policy.json`, uses new/unmarked exact rules and selector-specific confirmations, converges into one canonical block before the default regardless of apply order, stages disabled until placement succeeds, cleans up on placement/enable failure, and retains fresh-hash gating plus read-only default status. Focused suite: `20 passed`; full infra `make ci`: `78 passed`. Independent Claude review passed after one repair cycle. No live command, classifier retirement, or conntrack clear occurred.
 
 - **t_bfe1e19b (C901 refactor):** Done — `_run_logging_metrics` extracted into 6 private helpers. Complexity 17→below threshold. Commit `cd777d91`.
 
