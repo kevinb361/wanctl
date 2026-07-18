@@ -3,9 +3,9 @@ saga_state_version: 1.0
 milestone: v1.61
 milestone_name: qos_classification_contract
 status: complete
-stopped_at: v1.61 closed; 6/6 requirements frontier-PROVEN; roadmap flipped; durable commits pending
-last_updated: "2026-07-18T17:21:17-05:00"
-last_activity: "independent frontier close-out freshly wrote TRACEABILITY and AUDIT; 6 PROVEN / 0 ASSERTED / 0 OPEN; SAFE-24 PROVEN; audit CONDITIONAL; roadmap v1.61 flipped to shipped"
+stopped_at: v1.61 closed and pushed; no active milestone
+last_updated: "2026-07-18T17:26:11-05:00"
+last_activity: "v1.61 implementation, evidence, frontier audit, and shipped roadmap committed and pushed; wanctl 0345e33c and infra-ansible 37e8a96"
 ---
 
 ## v1.60 Shipped 2026-07-05
