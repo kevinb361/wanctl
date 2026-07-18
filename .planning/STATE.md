@@ -4,8 +4,8 @@ milestone: v1.61
 milestone_name: qos_classification_contract
 status: active
 stopped_at: REQ-003 application-equivalence gaps block bridge-classifier retirement
-last_updated: "2026-07-17T19:04:37-05:00"
-last_activity: "v1.61 DNS-safe adaptive selector deployed; startup reconciliation, demigration, remigration, DNS, and live service health proven"
+last_updated: "2026-07-17T19:16:24-05:00"
+last_activity: "repaired stale adaptive package-status assertion; focused test and full infra make ci pass"
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -28,6 +28,7 @@ Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 - **Work-VPN composite-mark canary package: LIVE ATTEMPT FAILED SAFELY.** Exact preflight passed and apply reached `state=canary`, but a new TCP connection to the Work-VPN endpoint timed out over `to_ATT`. The producer was restored immediately, active `QOS_HIGH_ATT` connections drained to zero, compatibility rules were removed, and status returned to `baseline`. Both internal resolvers and endpoint TCP/443 passed after rollback; cake-shaper QoS/autorate services remained active.
 - **Live checkpoint — REQ-006:** corrected reapply remains active. A download-only Spectrum speedtest transferred 163,662,768 bytes at 130.67 Mbit/s while the actual FortiVPN session remained assured/reply-seen as `QOS_HIGH_ATT` through ATT. Both resolvers passed 40/40 uncached probes, Spectrum connections demoted to `QOS_LOW`, Spectrum Bulk and ATT Voice counters increased, and all QoS/autorate services stayed active.
 - **REQ-004/REQ-006 DNS-safe adaptive convergence: COMPLETE.** The broad `QOS_HIGH` route is retired and replaced by exact `ADAPTIVE: Work VPN eligible for ATT` selection for eligible new Work-VPN connections. Live verification exposed and fixed startup logical/rule-state drift; full wanctl CI passed (`5,766 passed`, 90.14%), independent Claude review passed, and the reviewed daemon module was deployed with matching SHA-256. Controller restart disabled and verified the exact producer under `SPECTRUM_GOOD`. Approval-gated demigration and remigration passed without clearing conntrack; both resolvers passed 50/50 final probes; all QoS/autorate services and steering health remained active.
+- **Adaptive status gate repair (repo-only): COMPLETE.** Reproduced the stale `canary-active-corrected-verified` assertion, updated it to the live `adaptive-active-corrected-verified` state, and added a direct assertion for `bounded_adaptive_migration_status=live-verified`. Focused test passed; full infra `make ci` passed with 58 tests. No live mutation or policy behavior change.
 
 - **t_bfe1e19b (C901 refactor):** Done — `_run_logging_metrics` extracted into 6 private helpers. Complexity 17→below threshold. Commit `cd777d91`.
 
