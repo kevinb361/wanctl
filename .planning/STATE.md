@@ -3,9 +3,9 @@ saga_state_version: 1.0
 milestone: v1.61
 milestone_name: qos_classification_contract
 status: paused
-stopped_at: REQ-003 generic-RTP counter proven; next slice is fresh WireGuard approval packet
-last_updated: "2026-07-18T08:50:25-05:00"
-last_activity: "natural traffic hit generic-RTP: 110 packets/10428 bytes; status and postflight healthy"
+stopped_at: REQ-003 WireGuard packet ready at explicit production mutation gate
+last_updated: "2026-07-18T08:54:21-05:00"
+last_activity: "fresh WireGuard baseline/audit/25-check preflight/DNS passed; approval packet written"
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -33,6 +33,8 @@ Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 - **REQ-003 slice 15 — corrected-verifier generic-RTP reapply: CANARY ACTIVE / VERIFIED.** Explicit approval authorized exactly one `generic-rtp` apply against fresh baseline hash `bd0958a0...1f98a`. Apply returned `applied`, hash `39f11729...0d83`; two independent status reads agreed and remained stable. Corrected audit capture `20260718_134242-routeros-qos-contract` explicitly passed `generic-rtp: prerouting udp dst-port=16384-32767 -> QOS_HIGH via #36 CONTRACT: HIGH generic RTP`; raw numbered order proves enabled #36 immediately before true catch-all #37. Overall audit remains expected FAIL for WireGuard, SSH, UDP 3480, and NNTP only. Post-apply wanctl proof `wanctl-live-preflight-20260718T134308Z.json` passed `25/25`; both DNS resolvers answered; expected services and health endpoints passed. No rollback condition fired, so the corrected canary remains active. No conntrack clear, restart, route/queue change, bridge retirement, other selector, or load generation occurred. Evidence: `../infra-ansible/artifacts/network-changes/20260717_routeros-qos-composite-policy/live-canary-result-generic-rtp-reapply-20260718T134346Z.md`.
 
 - **REQ-003 slice 16 — generic-RTP counter proof: COMPLETE / INSPECT-ONLY.** The repo-owned read-only wrapper captured the exact enabled selector at `110` naturally occurring packets / `10,428` bytes with the intended new/unmarked UDP `16384-32767 -> QOS_HIGH`, terminal fields. No synthetic traffic was generated. Fresh status remained `applied`, `changed=false`, hash `39f11729...0d83`; wanctl preflight passed `25/25`; both DNS resolvers answered. No mutation or bridge retirement occurred. Evidence: `../infra-ansible/artifacts/network-changes/20260717_routeros-qos-composite-policy/generic-rtp-natural-counter-proof-20260718T135025Z.md`. Next bounded slice is a fresh read-only approval packet for WireGuard; it does not authorize apply.
+
+- **REQ-003 slice 17 — WireGuard approval packet: COMPLETE / PAUSED AT EXPLICIT MUTATION GATE.** Registry contract is exact new/unmarked prerouting UDP `51820 -> QOS_HIGH`, terminal, selector-specific confirmation tokens. Fresh WireGuard status is `baseline`, `changed=false`, hash `39f11729...0d83`; RouterOS mutation task skipped. Fresh audit capture `20260718_135351-routeros-qos-contract` passes generic RTP and reports only the expected WireGuard, SSH, UDP 3480, and NNTP gaps. Fresh wanctl proof `wanctl-live-preflight-20260718T135357Z.json` passed `25/25`; both DNS resolvers answered. Packet: `../infra-ansible/artifacts/network-changes/20260717_routeros-qos-composite-policy/approval-packet-wireguard-20260718T135421Z.md`. Acceptance requires explicit WireGuard PASS before the true catch-all while preserving generic RTP; overall audit remains expected FAIL for three unrelated selectors. No mutation, probe traffic, restart, conntrack clear, route/queue change, or bridge retirement occurred.
 
 - **v1.61 / REQ-001–REQ-002 (repo-only): COMPLETE.** Contract recorded and AF31 import added on both WAN upload chains. TDD evidence: expected RED failure, targeted GREEN (`1 passed`), bridge-QoS suite (`4 passed`), namespace nft syntax check (`NFT_SYNTAX_OK`), and full `make ci` (`5,758 passed`, 90.17% coverage). Production unchanged.
 - **REQ-003 contract-proof slice (repo-only): COMPLETE.** Exact EF/AF31/CS1 import parity, Voice/Video/Bulk restore parity, carrier wash, and unmatched-CS0 Best Effort fallback are mechanically asserted on both WANs. Evidence: bridge suite `5 passed`, namespace `NFT_SYNTAX_OK`, full `make ci` (`5,759 passed`, 90.17% coverage). No fallback classifier was removed; REQ-003 remains open for safe retirement work.
