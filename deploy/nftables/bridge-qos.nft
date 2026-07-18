@@ -77,14 +77,10 @@ table bridge qos {
         ether type ip ct mark 0x00000000 tcp sport 53 ip dscp set ef ct mark set 0x00000004 accept
         # SIP signaling
         ether type ip ct mark 0x00000000 udp sport 5060 ip dscp set ef ct mark set 0x00000004 accept
-        # RTP media (standard dynamic port range)
-        ether type ip ct mark 0x00000000 udp sport 16384-32767 ip dscp set ef ct mark set 0x00000004 accept
         # Interactive control / tunneling / NAT traversal
-        ether type ip ct mark 0x00000000 tcp sport 22 ip dscp set ef ct mark set 0x00000004 accept
         ether type ip ct mark 0x00000000 udp sport 123 ip dscp set ef ct mark set 0x00000004 accept
-        ether type ip ct mark 0x00000000 udp sport 3478-3480 ip dscp set ef ct mark set 0x00000004 accept
-        ether type ip ct mark 0x00000000 udp sport 51820 ip dscp set ef ct mark set 0x00000004 accept
-        ether type ip ct mark 0x00000000 udp dport 51820 ip dscp set ef ct mark set 0x00000004 accept
+        # RouterOS covers UDP/3480; retain adjacent STUN fallback ports.
+        ether type ip ct mark 0x00000000 udp sport 3478-3479 ip dscp set ef ct mark set 0x00000004 accept
         ether type ip ct mark 0x00000000 udp sport 4500 ip dscp set ef ct mark set 0x00000004 accept
         ether type ip ct mark 0x00000000 udp sport 500 ip dscp set ef ct mark set 0x00000004 accept
         ether type ip ct mark 0x00000000 udp sport 9993 ip dscp set ef ct mark set 0x00000004 accept
@@ -99,9 +95,6 @@ table bridge qos {
         ether type ip ct mark 0x00000000 tcp sport 6881-6889 ip dscp set cs1 ct mark set 0x00000001 accept
         # Usenet NNTPS
         ether type ip ct mark 0x00000000 tcp sport 563 ip dscp set cs1 ct mark set 0x00000001 accept
-        # NNTP
-        ether type ip ct mark 0x00000000 tcp sport 119 ip dscp set cs1 ct mark set 0x00000001 accept
-
         # --- Large-flow demotion ---
         # Size alone is not evidence of video. Sustained generic transfers go
         # directly to Bulk so model/container downloads yield to streaming.
@@ -127,10 +120,8 @@ table bridge qos {
         ether type ip ct mark 0x00000000 udp sport 53 ip dscp set ef ct mark set 0x00000004 accept
         ether type ip ct mark 0x00000000 tcp sport 53 ip dscp set ef ct mark set 0x00000004 accept
         ether type ip ct mark 0x00000000 udp sport 5060 ip dscp set ef ct mark set 0x00000004 accept
-        ether type ip ct mark 0x00000000 udp sport 16384-32767 ip dscp set ef ct mark set 0x00000004 accept
-        ether type ip ct mark 0x00000000 tcp sport 22 ip dscp set ef ct mark set 0x00000004 accept
         ether type ip ct mark 0x00000000 udp sport 123 ip dscp set ef ct mark set 0x00000004 accept
-        ether type ip ct mark 0x00000000 udp sport 3478-3480 ip dscp set ef ct mark set 0x00000004 accept
+        ether type ip ct mark 0x00000000 udp sport 3478-3479 ip dscp set ef ct mark set 0x00000004 accept
 
         # --- Video classification for unmarked download packets ---
         ether type ip ct mark 0x00000000 udp sport 443 ip dscp set af41 ct mark set 0x00000002 accept
@@ -138,7 +129,6 @@ table bridge qos {
         # --- Bulk classification for unmarked download packets (D-03) ---
         ether type ip ct mark 0x00000000 tcp sport 6881-6889 ip dscp set cs1 ct mark set 0x00000001 accept
         ether type ip ct mark 0x00000000 tcp sport 563 ip dscp set cs1 ct mark set 0x00000001 accept
-        ether type ip ct mark 0x00000000 tcp sport 119 ip dscp set cs1 ct mark set 0x00000001 accept
 
         # --- Large-flow demotion ---
         ether type ip ct bytes > 10000000 ct mark 0x00000000 ip dscp set cs1 ct mark set 0x00000001 accept

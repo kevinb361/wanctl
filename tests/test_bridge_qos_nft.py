@@ -104,3 +104,27 @@ def test_generic_large_downloads_go_directly_to_bulk() -> None:
         ) in body
         assert "ct bytes > 10000000 ct mark 0 ip dscp set af41" not in body
         assert "ct bytes > 100000000" not in body
+
+
+def test_download_chains_retire_routeros_equivalent_application_fallbacks() -> None:
+    ruleset = BRIDGE_QOS.read_text()
+
+    retired_from_both = (
+        "udp sport 16384-32767",
+        "tcp sport 22",
+        "udp sport 3478-3480",
+        "tcp sport 119",
+    )
+    for chain_name in ("spectrum_dl", "att_dl"):
+        body = _chain_body(ruleset, chain_name)
+        for selector in retired_from_both:
+            assert selector not in body
+
+        # RouterOS covers only UDP/3480. Preserve the adjacent STUN fallbacks.
+        assert "udp sport 3478-3479" in body
+        assert "udp sport 123" in body
+        assert "tcp sport 563" in body
+
+    spectrum = _chain_body(ruleset, "spectrum_dl")
+    assert "udp sport 51820" not in spectrum
+    assert "udp dport 51820" not in spectrum

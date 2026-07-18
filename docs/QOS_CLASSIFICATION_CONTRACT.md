@@ -75,21 +75,21 @@ The target steering behavior is:
 - keep recursive DNS on an intentional stable route unless a separate resolver-failover policy says otherwise;
 - preserve forced-WAN source/destination policy independently of QoS class.
 
-## Known implementation gaps
+## Current implementation status
 
-1. RouterOS and bridge rules duplicate several DNS, VPN, realtime, QUIC, and large-flow classifications. Retirement is blocked until exact class equivalence exists for the bridge-only or class-mismatched cases found in the live policy: generic RTP `16384-32767`, WireGuard `51820`, SSH `22`, UDP `3480`, and NNTP `119`.
-2. Adaptive steering currently derives eligibility from `QOS_HIGH`, coupling route selection to queue priority.
-3. A disabled legacy `QOS_HIGH` adaptive route remains on RouterOS; the read-only contract audit reports it as steering-eligibility drift and strict mode fails while it remains.
-4. Existing steering and traffic-shaping documentation contains stale live-mode and qdisc assumptions.
+1. RouterOS application equivalence is live-proven for generic RTP `16384-32767`, WireGuard `51820`, SSH `22`, UDP `3480`, and NNTP `119`; the read-only contract audit is overall PASS.
+2. Spectrum and ATT duplicate bridge fallbacks are retired and live-verified. Each broader UDP `3478-3480` fallback is narrowed to `3478-3479` so the non-equivalent STUN ports remain classified.
+3. Symmetric AF31 upload import is live on both WANs at reviewed ruleset hash `a6b85d55...04884`. The load-aware v2 canary proved one AF31 import per upload chain, exact immutable rollback, RouterOS audit PASS, wanctl `25/25`, healthy DNS/HTTPS/service state, and preserved CAKE handles/`diffserv4`/four-tin continuity without generated traffic.
+4. Existing steering and traffic-shaping documentation still contains stale live-mode and qdisc assumptions outside this bounded retirement slice.
 
 ## Implementation sequence
 
-1. Complete and test AF31 import on both WAN upload chains. **Repo-verified 2026-07-17; live deployment pending.**
-2. Prove the full four-class mapping and Best Effort fallback mechanically. **Repo-verified 2026-07-17; live deployment pending.**
+1. Complete and test AF31 import on both WAN upload chains. **Repo-verified 2026-07-17; live-verified 2026-07-18.**
+2. Prove the full four-class mapping and Best Effort fallback mechanically. **Repo-verified 2026-07-17; live-verified 2026-07-18.**
 3. Add a read-only RouterOS contract audit before changing live mangle policy. **Implemented and live-verified 2026-07-17 in `infra-ansible`; RouterOS unchanged.**
 4. Separate steering eligibility from QoS class; preserve new-connection-only behavior and stable DNS routing. **Live-verified 2026-07-17: the daemon toggles only `ADAPTIVE: Work VPN eligible for ATT`, reconciles that exact rule to its persisted logical state once at startup, and the broad QoS-coupled route and installer are retired. Approval-gated migration, demigration, remigration, and final 50/50 DNS probes per resolver passed.**
-5. Remove duplicated bridge classifiers incrementally only after equivalent contract coverage is proven.
-6. Deploy one WAN at a time with immutable rollback snapshots and controlled-load verification.
+5. Remove duplicated bridge classifiers incrementally only after equivalent contract coverage is proven. **Completed and live-verified Spectrum-first then ATT on 2026-07-18.**
+6. Deploy one WAN at a time with immutable rollback snapshots and controlled-load verification. **Completed with immutable backups; the prior controlled-load proof and bounded natural/load-aware checks remain recorded in the milestone evidence.**
 
 ## Verification contract
 

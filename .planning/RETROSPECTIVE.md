@@ -1163,3 +1163,13 @@ Even three green samples do not prove ordering forever. Mutation output must sta
 The add-time-placement canary removed post-add moves and held the same canonical state and `.id`-independent hash across three fresh API sessions plus a later independent API status. At the same time, the CLI/export-backed contract audit showed the enabled selector at rule #36 after the terminal default. Exact rollback restored the original anchor and healthy baseline.
 
 The earlier failures were not merely delayed convergence. On this device/path, API `print` ordering and the rule-numbered representation used by the authoritative audit disagree. Ordered policy acceptance must use the same representation that expresses actual rule numbers/evaluation order. Do not add more API polling or placement choreography: either perform and verify the ordered mutation through a CLI/export-equivalent mechanism with exact rollback, or redesign the policy so correctness does not depend on inserting before an existing terminal rule.
+
+---
+
+## 2026-07-18 — Natural CAKE drops are load evidence, not classifier-failure evidence
+
+A structurally correct two-line AF31 nft convergence reached its exact target and passed audit, service, health, DNS, and HTTPS checks, but the approved postcheck required zero drops/backlog during an unbounded natural window. Concurrent Spectrum Bulk saturation produced expected CAKE drops and backlog, so the exact rollback contract correctly restored baseline even though the observation did not implicate the nft change.
+
+Future classifier reloads should gate entry on a bounded uncongested precondition, then verify post-apply qdisc identity, class structure, parseability, monotonic counters, service health, and exact policy state. Report load-driven drops/backlog rather than treating them as configuration failure. Controlled-load behavior belongs to an explicit load test, not an incidental natural-health window.
+
+The repair also exposed a Bash safety trap: `set -e` is suppressed inside a function invoked by `if ! function`. Production helpers must explicitly test and return failure for every rollback-triggering postcheck rather than rely on `errexit` inside conditional function calls. Flag both rules for promotion into future network-change helper guidance.
