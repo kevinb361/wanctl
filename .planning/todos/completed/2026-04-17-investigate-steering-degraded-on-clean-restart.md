@@ -35,7 +35,7 @@ Keeping as low-pri observation work. Closes either when (a) we happen to catch a
 - **Closure date:** 2026-06-02
 - **Outcome:** `reproduced-bug`
 - **Rationale:** effective_steering remained true during recovery-window cycles [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] from pre-enabled boot rule; this violates the binary-on/off + autorate-baseline-authoritative spine contract because persisted DEGRADED kept traffic effectively steered before fresh GOOD-consistent measurements recovered the daemon at cycle 14.
-- **Evidence:** `.planning/phases/223-staging-proof-clean-restart-reproduction/evidence/clean-restart-reproduction.md`
-- **Corpus row:** `.planning/phases/223-staging-proof-clean-restart-reproduction/evidence/replay-results.md`
-- **Closure status:** Resolved by Phase 223 PROOF-02 annotation; todo remains in `pending/` for operator-controlled archival.
+- **Evidence:** `.planning/milestones/v1.48-phases/223-staging-proof-clean-restart-reproduction/evidence/clean-restart-reproduction.md`
+- **Corpus row:** `.planning/milestones/v1.48-phases/223-staging-proof-clean-restart-reproduction/evidence/replay-results.md`
+- **Closure status:** Resolved by Phase 223 PROOF-02 annotation; archived under `completed/` during planning-spine hygiene.
 - **Fix held against Phase 224 pre-canary gate or follow-up phase — NOT landing in v1.48 Phase 223.**

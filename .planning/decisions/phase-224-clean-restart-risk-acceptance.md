@@ -16,11 +16,11 @@ References: Plan 02 `clean-restart-reproduction.{json,md}` and Plan 03/04 `spine
 
 ## Evidence Links
 
-- `.planning/phases/223-staging-proof-clean-restart-reproduction/evidence/clean-restart-reproduction.json`
-- `.planning/phases/223-staging-proof-clean-restart-reproduction/evidence/clean-restart-reproduction.md`
-- `.planning/phases/223-staging-proof-clean-restart-reproduction/evidence/spine-evidence.json` (clean-restart-degraded row)
-- `.planning/phases/223-staging-proof-clean-restart-reproduction/evidence/spine-evidence.md` (Phase 224 Readiness section)
-- `.planning/phases/223-staging-proof-clean-restart-reproduction/223-VERIFICATION.md` (Gap #1 restart-persistence sub-issue)
+- `.planning/milestones/v1.48-phases/223-staging-proof-clean-restart-reproduction/evidence/clean-restart-reproduction.json`
+- `.planning/milestones/v1.48-phases/223-staging-proof-clean-restart-reproduction/evidence/clean-restart-reproduction.md`
+- `.planning/milestones/v1.48-phases/223-staging-proof-clean-restart-reproduction/evidence/spine-evidence.json` (clean-restart-degraded row)
+- `.planning/milestones/v1.48-phases/223-staging-proof-clean-restart-reproduction/evidence/spine-evidence.md` (Phase 224 Readiness section)
+- `.planning/milestones/v1.48-phases/223-staging-proof-clean-restart-reproduction/223-VERIFICATION.md` (Gap #1 restart-persistence sub-issue)
 
 ## Default Disposition
 

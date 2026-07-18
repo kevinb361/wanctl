@@ -102,6 +102,71 @@
   "interactions_log": [
     {
       "cycle": -1,
+      "method": "run_cmd",
+      "result": [
+        0,
+        "[]",
+        ""
+      ],
+      "timestamp_iso": "2026-06-02T00:00:00Z",
+      "cmd": "/system script print detail",
+      "capture": true,
+      "timeout": 5
+    },
+    {
+      "cycle": -1,
+      "method": "run_cmd",
+      "result": [
+        0,
+        "[{\".id\": \"*ATT\", \"comment\": \"ATT\", \"disabled\": \"false\"}]",
+        ""
+      ],
+      "timestamp_iso": "2026-06-02T00:00:00Z",
+      "cmd": "/ip route print detail where comment=\"ATT\"",
+      "capture": true,
+      "timeout": 5
+    },
+    {
+      "cycle": -1,
+      "method": "run_cmd",
+      "result": [
+        0,
+        "[]",
+        ""
+      ],
+      "timestamp_iso": "2026-06-02T00:00:00Z",
+      "cmd": "/ip route print detail where comment=\"Route to ATT public gateway for check-gateway\"",
+      "capture": true,
+      "timeout": 5
+    },
+    {
+      "cycle": -1,
+      "method": "run_cmd",
+      "result": [
+        0,
+        "[]",
+        ""
+      ],
+      "timestamp_iso": "2026-06-02T00:00:00Z",
+      "cmd": "/system script print detail",
+      "capture": true,
+      "timeout": 5
+    },
+    {
+      "cycle": -1,
+      "method": "run_cmd",
+      "result": [
+        0,
+        "[{\".id\": \"*SPECTRUM\", \"comment\": \"Spectrum\", \"disabled\": \"false\", \"dst-address\": \"0.0.0.0/0\", \"gateway\": \"fixture-gateway\", \"distance\": \"1\"}, {\".id\": \"*ATT\", \"comment\": \"ATT\", \"disabled\": \"false\", \"dst-address\": \"0.0.0.0/0\", \"gateway\": \"fixture-gateway\", \"distance\": \"1\"}]",
+        ""
+      ],
+      "timestamp_iso": "2026-06-02T00:00:00Z",
+      "cmd": "/ip route print",
+      "capture": true,
+      "timeout": 5
+    },
+    {
+      "cycle": -1,
       "method": "get_rule_status",
       "result": true,
       "timestamp_iso": "2026-06-02T00:00:00Z"
@@ -324,6 +389,71 @@
     }
   ],
   "steering_interactions": [
+    {
+      "cycle": -1,
+      "method": "run_cmd",
+      "result": [
+        0,
+        "[]",
+        ""
+      ],
+      "timestamp_iso": "2026-06-02T00:00:00Z",
+      "cmd": "/system script print detail",
+      "capture": true,
+      "timeout": 5
+    },
+    {
+      "cycle": -1,
+      "method": "run_cmd",
+      "result": [
+        0,
+        "[{\".id\": \"*ATT\", \"comment\": \"ATT\", \"disabled\": \"false\"}]",
+        ""
+      ],
+      "timestamp_iso": "2026-06-02T00:00:00Z",
+      "cmd": "/ip route print detail where comment=\"ATT\"",
+      "capture": true,
+      "timeout": 5
+    },
+    {
+      "cycle": -1,
+      "method": "run_cmd",
+      "result": [
+        0,
+        "[]",
+        ""
+      ],
+      "timestamp_iso": "2026-06-02T00:00:00Z",
+      "cmd": "/ip route print detail where comment=\"Route to ATT public gateway for check-gateway\"",
+      "capture": true,
+      "timeout": 5
+    },
+    {
+      "cycle": -1,
+      "method": "run_cmd",
+      "result": [
+        0,
+        "[]",
+        ""
+      ],
+      "timestamp_iso": "2026-06-02T00:00:00Z",
+      "cmd": "/system script print detail",
+      "capture": true,
+      "timeout": 5
+    },
+    {
+      "cycle": -1,
+      "method": "run_cmd",
+      "result": [
+        0,
+        "[{\".id\": \"*SPECTRUM\", \"comment\": \"Spectrum\", \"disabled\": \"false\", \"dst-address\": \"0.0.0.0/0\", \"gateway\": \"fixture-gateway\", \"distance\": \"1\"}, {\".id\": \"*ATT\", \"comment\": \"ATT\", \"disabled\": \"false\", \"dst-address\": \"0.0.0.0/0\", \"gateway\": \"fixture-gateway\", \"distance\": \"1\"}]",
+        ""
+      ],
+      "timestamp_iso": "2026-06-02T00:00:00Z",
+      "cmd": "/ip route print",
+      "capture": true,
+      "timeout": 5
+    },
     {
       "cycle": -1,
       "method": "get_rule_status",

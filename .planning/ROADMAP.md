@@ -33,7 +33,7 @@
 
 ---
 
-## 🚧 v1.59 Widen-the-Canary (Phases 265–269) — IN PROGRESS
+## ✅ v1.59 Widen-the-Canary (Phases 265–269) — SHIPPED 2026-07-05
 
 **Milestone Goal:** Expand wanctl from single-route canary to full both-WAN route ownership: multi-route (4 default routes), bidirectional failover (per-WAN failover bridges with hysteresis), netwatch retirement (RouterOS entries removed), and gateway route expansion (6 routes total).
 
