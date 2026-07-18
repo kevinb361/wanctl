@@ -3,9 +3,9 @@ saga_state_version: 1.0
 milestone: v1.61
 milestone_name: qos_classification_contract
 status: active
-stopped_at: REQ-003 application-equivalence gaps block bridge-classifier retirement
-last_updated: "2026-07-17T20:22:47-05:00"
-last_activity: "completed and independently reviewed the repo-only finite application-classifier registry; no live mutation"
+stopped_at: REQ-003 explicit production approval gate for five RouterOS classifier applies
+last_updated: "2026-07-17T20:24:45-05:00"
+last_activity: "captured fresh read-only baseline status and audit for all five application classifiers; no live mutation"
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -31,6 +31,7 @@ Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 - **Adaptive status gate repair (repo-only): COMPLETE.** Reproduced the stale `canary-active-corrected-verified` assertion, updated it to the live `adaptive-active-corrected-verified` state, and added a direct assertion for `bounded_adaptive_migration_status=live-verified`. Focused test passed; full infra `make ci` passed with 58 tests. No live mutation or policy behavior change.
 - **REQ-003 slice 1 — generic RTP migration package (repo-only): COMPLETE.** Added the exact new/unmarked UDP `16384-32767 -> QOS_HIGH` producer, immediate pre-default ordering, read-only status, a counter-insensitive live mangle SHA-256 mutation anchor, distinct confirmations, duplicate/drift checks, failed-move cleanup, idempotent rollback, Ansible wrapper, and operator procedure. Focused suite: `12 passed`; full infra `make ci`: `70 passed`. Independent Claude review passed after one repair cycle. Infra commit `359305a`. No live command, classifier retirement, or conntrack clear occurred.
 - **REQ-003 slice 2 — finite classifier registry (repo-only): COMPLETE.** Extended the proven canary machinery behind an explicit five-selector registry covering generic RTP, WireGuard `51820`, SSH `22`, UDP `3480`, and NNTP `119`. Every selector is mechanically bound to `policy.json`, uses new/unmarked exact rules and selector-specific confirmations, converges into one canonical block before the default regardless of apply order, stages disabled until placement succeeds, cleans up on placement/enable failure, and retains fresh-hash gating plus read-only default status. Focused suite: `20 passed`; full infra `make ci`: `78 passed`. Independent Claude review passed after one repair cycle. No live command, classifier retirement, or conntrack clear occurred.
+- **REQ-003 slice 3 — live read-only approval packet: COMPLETE / STOPPED AT MUTATION GATE.** Fresh status for all five finite selectors returned `state=baseline`, `changed=false`, and the same current mangle anchor `f59a7c9a2352bc965a5d31c36072d6a34d2f78d96e2269c237d8262216bf7123`. Fresh contract audit capture `20260718_012433-routeros-qos-contract` passed FastTrack, DSCP map, wash/trust ordering, and steering eligibility while reporting the exact five expected application-equivalence gaps. No RouterOS mutation, conntrack clear, service restart, or bridge retirement occurred. Next action requires explicit production approval for the bounded per-selector applies.
 
 - **t_bfe1e19b (C901 refactor):** Done — `_run_logging_metrics` extracted into 6 private helpers. Complexity 17→below threshold. Commit `cd777d91`.
 
