@@ -4,8 +4,8 @@ milestone: v1.61
 milestone_name: qos_classification_contract
 status: complete
 stopped_at: v1.61 closed and pushed; no active milestone
-last_updated: "2026-07-18T17:26:11-05:00"
-last_activity: "v1.61 implementation, evidence, frontier audit, and shipped roadmap committed and pushed; wanctl 0345e33c and infra-ansible 37e8a96"
+last_updated: "2026-07-18T17:48:17-05:00"
+last_activity: "ROLE-01 read-only readiness assessment NOT READY: strict 14-day cake-autorate continuity gate matures no earlier than 2026-07-24T08:55:27-05:00"
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -19,6 +19,8 @@ Three work items completed, 5/5 PROVEN in TRACEABILITY.md:
 Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 
 ### Active Work
+
+- **ROLE-01 read-only readiness assessment — NOT READY / TIME-GATED.** Both cake-autorate services and state bridges are active/successful with zero restarts and no warning-or-higher journal entries since the mechanically proven continuity anchor on 2026-07-10. Both WAN rollback preflights and dry-run plans pass; historical ATT rollback drill remains PASS. The strict 14-day gate matures no earlier than `2026-07-24T08:55:27-05:00`. UDP/3480 and NNTP selectors remain applied but at `0 packets / 0 bytes`; no synthetic traffic was generated. Evidence: `.planning/evidence/role01-readiness-20260718.md`. No production mutation or new milestone was initiated.
 
 - **REQ-003 slice 10 — documented RouterOS insertion repair (repo-only): COMPLETE.** The generic-RTP helper now uses direct SSH exec with exit/stderr plus RouterOS stdout error-marker detection, disabled add-time `place-before=[find where ...]`, `find`-identified enable/remove, exact field/order readback, and reconnecting exact cleanup. TDD: stdout-error test RED then GREEN; focused suite `35 passed`; Ruff, compilation, and Ansible syntax pass; full infra `make ci` `93 passed`; diff checks clean. Independent Claude review found the stdout/rc=0 gap, the repair was added, and re-review returned `NO FINDINGS`. Final live read-only status reports `baseline`, hash `bd0958a0b751ae352cc9c1b093d77c7cf0a76da27d0e90c315224d8b5871f98a`, `changed: false`; mutation task skipped. No live mutation was authorized or performed.
 
