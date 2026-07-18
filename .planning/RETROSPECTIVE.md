@@ -1131,3 +1131,11 @@ _A living document updated after each milestone. Lessons feed forward into futur
 REQ-003's bridge-classifier retirement initially looked safe because the four RouterOS DSCP classes, both-WAN import/restore symmetry, and Best Effort fallback were mechanically proven. A final comparison against the live RouterOS mangle capture showed that this was the wrong proof level: generic RTP `16384-32767`, WireGuard `51820`, UDP `3480`, and NNTP `119` had no same-class RouterOS producer, while SSH `22` was `QOS_MEDIUM` instead of the bridge's EF treatment.
 
 The bridge-only removal was reverted before commit or deployment. Future classifier retirement must compare every removed bridge selector to an enabled RouterOS producer with the same effective class, not merely confirm that the global EF/AF31/CS1/CS0 map exists. Promote this as a durable audit requirement in the RouterOS QoS contract tooling before retrying REQ-003.
+
+---
+
+## 2026-07-17 — RouterOS mutation proof must cross an API-session boundary
+
+The first generic-RTP canary's mutating API session reported the new selector enabled in canonical order, but the immediately following independent audit connection observed it after the terminal default and correctly rejected it as unreachable. Exact rollback restored the original mangle hash and healthy baseline without clearing conntrack.
+
+For ordered RouterOS policy mutations, an in-session readback is not sufficient convergence evidence. Close the mutating session, open a fresh connection, and prove final target, exact fields, and order before reporting success. If that fresh proof fails for a newly added exact selector, remove only that selector and fail closed. This is implemented in the classifier canary package and should be promoted to project guidance if another RouterOS ordered-rule workflow needs the same guarantee.
