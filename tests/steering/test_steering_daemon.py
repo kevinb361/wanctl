@@ -284,6 +284,22 @@ class TestRunDaemonLoop:
         # Daemon should not have run any cycles
         mock_daemon.run_cycle.assert_not_called()
 
+    def test_startup_reconciles_rule_before_first_cycle(
+        self, mock_daemon, mock_config, mock_logger, shutdown_event
+    ):
+        """The loop reconciles external RouterOS state once, even on immediate shutdown."""
+        from wanctl.steering.daemon import run_daemon_loop
+
+        shutdown_event.set()
+
+        with patch("wanctl.steering.daemon.is_systemd_available", return_value=False):
+            with patch("wanctl.steering.daemon.notify_watchdog"):
+                result = run_daemon_loop(mock_daemon, mock_config, mock_logger, shutdown_event)
+
+        assert result == 0
+        mock_daemon.reconcile_steering_rule.assert_called_once_with()
+        mock_daemon.run_cycle.assert_not_called()
+
     def test_shutdown_after_cycles(self, mock_daemon, mock_config, mock_logger, shutdown_event):
         """Test shutdown after running some cycles."""
         from wanctl.steering.daemon import run_daemon_loop
@@ -695,9 +711,54 @@ class TestExecuteSteeringTransition:
             )
         return daemon
 
-    # =========================================================================
+    # ===========================================================================
+    # Startup steering-rule reconciliation tests
+    # ===========================================================================
+
+    def test_reconcile_disables_enabled_rule_when_state_is_good(self, daemon):
+        """Startup reconciliation makes the RouterOS rule match GOOD state."""
+        daemon.router.get_rule_status.return_value = True
+
+        result = daemon.reconcile_steering_rule()
+
+        assert result is True
+        daemon.router.disable_steering.assert_called_once_with()
+        daemon.router.enable_steering.assert_not_called()
+
+    def test_reconcile_enables_disabled_rule_when_state_is_degraded(self, daemon):
+        """Startup reconciliation makes the RouterOS rule match DEGRADED state."""
+        daemon.state_mgr.state["current_state"] = "SPECTRUM_DEGRADED"
+        daemon.router.get_rule_status.return_value = False
+
+        result = daemon.reconcile_steering_rule()
+
+        assert result is True
+        daemon.router.enable_steering.assert_called_once_with()
+        daemon.router.disable_steering.assert_not_called()
+
+    def test_reconcile_is_noop_when_rule_already_matches_state(self, daemon):
+        """Startup reconciliation does not rewrite an already-correct rule."""
+        daemon.router.get_rule_status.return_value = False
+
+        result = daemon.reconcile_steering_rule()
+
+        assert result is True
+        daemon.router.enable_steering.assert_not_called()
+        daemon.router.disable_steering.assert_not_called()
+
+    def test_reconcile_missing_rule_fails_closed_without_mutation(self, daemon):
+        """A not-yet-created selector cannot fall back to another rule."""
+        daemon.router.get_rule_status.return_value = None
+
+        result = daemon.reconcile_steering_rule()
+
+        assert result is False
+        daemon.router.enable_steering.assert_not_called()
+        daemon.router.disable_steering.assert_not_called()
+
+    # ===========================================================================
     # Enable steering tests
-    # =========================================================================
+    # ===========================================================================
 
     def test_enable_steering_calls_router_enable(self, daemon):
         """Test enable_steering=True calls router.enable_steering()."""

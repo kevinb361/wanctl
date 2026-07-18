@@ -87,7 +87,7 @@ The target steering behavior is:
 1. Complete and test AF31 import on both WAN upload chains. **Repo-verified 2026-07-17; live deployment pending.**
 2. Prove the full four-class mapping and Best Effort fallback mechanically. **Repo-verified 2026-07-17; live deployment pending.**
 3. Add a read-only RouterOS contract audit before changing live mangle policy. **Implemented and live-verified 2026-07-17 in `infra-ansible`; RouterOS unchanged.**
-4. Separate steering eligibility from QoS class; preserve new-connection-only behavior and stable DNS routing.
+4. Separate steering eligibility from QoS class; preserve new-connection-only behavior and stable DNS routing. **Live-verified 2026-07-17: the daemon toggles only `ADAPTIVE: Work VPN eligible for ATT`, reconciles that exact rule to its persisted logical state once at startup, and the broad QoS-coupled route and installer are retired. Approval-gated migration, demigration, remigration, and final 50/50 DNS probes per resolver passed.**
 5. Remove duplicated bridge classifiers incrementally only after equivalent contract coverage is proven.
 6. Deploy one WAN at a time with immutable rollback snapshots and controlled-load verification.
 

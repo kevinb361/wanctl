@@ -31,7 +31,9 @@ cake_state_sources:
 
 # Mangle rule to toggle (daemon finds this rule by comment)
 mangle_rule:
-  comment: "ADAPTIVE: Steer latency-sensitive to ATT"
+  # Toggle only the explicit new-connection eligibility producer. The always-on
+  # QOS_HIGH_ATT route consumer preserves established NAT/WAN affinity.
+  comment: "ADAPTIVE: Work VPN eligible for ATT"
 
 # RTT measurement settings
 measurement:

@@ -2008,6 +2008,57 @@ class SteeringDaemon:
 
         return False
 
+    def reconcile_steering_rule(self) -> bool:
+        """Make the RouterOS selector match the persisted logical state at startup.
+
+        A missing exact-comment selector is left untouched so configuration-first
+        deployments fail closed until the approval-gated RouterOS rule exists.
+        """
+        current_state = self.state_mgr.state["current_state"]
+        desired_enabled = not self._is_current_state_good(current_state)
+
+        try:
+            actual_enabled = self.router.get_rule_status()
+            if actual_enabled is None:
+                self.logger.warning(
+                    "Startup steering reconciliation skipped: exact selector is absent"
+                )
+                return False
+            if actual_enabled == desired_enabled:
+                self.logger.info(
+                    "Startup steering reconciliation: selector already matches %s",
+                    current_state,
+                )
+                return True
+
+            changed = (
+                self.router.enable_steering()
+                if desired_enabled
+                else self.router.disable_steering()
+            )
+            if not changed:
+                self.router_connectivity.record_failure(
+                    ConnectionError("Failed startup steering-rule reconciliation")
+                )
+                self.logger.error(
+                    "Startup steering reconciliation failed for state %s", current_state
+                )
+                return False
+
+            self.router_connectivity.record_success()
+            self.logger.info(
+                "Startup steering reconciliation set selector enabled=%s for state %s",
+                desired_enabled,
+                current_state,
+            )
+            return True
+        except Exception as exc:
+            failure_type = self.router_connectivity.record_failure(exc)
+            self.logger.warning(
+                "Startup steering reconciliation failed closed (%s)", failure_type
+            )
+            return False
+
     def is_wan_grace_period_active(self) -> bool:
         """Check if startup grace period for WAN awareness is still active."""
         return (time.monotonic() - self._startup_time) < self._wan_grace_period_sec
@@ -2982,6 +3033,9 @@ def run_daemon_loop(
     logger.info(f"Starting daemon mode with {config.measurement_interval}s cycle interval")
     if is_systemd_available():
         logger.info("Systemd watchdog support enabled")
+
+    if not daemon.reconcile_steering_rule():
+        logger.warning("Startup steering-rule reconciliation did not converge; continuing fail closed")
 
     storage_config = get_storage_config(config.data)
     maintenance_db_path = storage_config.get("db_path") if maintenance_conn is not None else None
