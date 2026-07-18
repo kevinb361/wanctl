@@ -3,9 +3,9 @@ saga_state_version: 1.0
 milestone: v1.61
 milestone_name: qos_classification_contract
 status: active
-stopped_at: REQ-003 SSH-CLI attempt failed closed; fresh diagnostic approval required
-last_updated: "2026-07-18T05:55:01-05:00"
-last_activity: "approved generic-RTP SSH-CLI attempt failed, exact baseline was restored, and censored-error observability was repaired; root cause remains unknown"
+stopped_at: REQ-003 fresh generic-RTP diagnostic packet ready; explicit mutation approval required
+last_updated: "2026-07-18T07:17:00-05:00"
+last_activity: "fresh read-only generic-RTP packet passed baseline, 25/25 preflight, DNS, steering, and service gates; stopped before mutation"
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -21,6 +21,8 @@ Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 ### Active Work
 
 - **REQ-003 slice 10 — documented RouterOS insertion repair (repo-only): COMPLETE.** The generic-RTP helper now uses direct SSH exec with exit/stderr plus RouterOS stdout error-marker detection, disabled add-time `place-before=[find where ...]`, `find`-identified enable/remove, exact field/order readback, and reconnecting exact cleanup. TDD: stdout-error test RED then GREEN; focused suite `35 passed`; Ruff, compilation, and Ansible syntax pass; full infra `make ci` `93 passed`; diff checks clean. Independent Claude review found the stdout/rc=0 gap, the repair was added, and re-review returned `NO FINDINGS`. Final live read-only status reports `baseline`, hash `bd0958a0b751ae352cc9c1b093d77c7cf0a76da27d0e90c315224d8b5871f98a`, `changed: false`; mutation task skipped. No live mutation was authorized or performed.
+
+- **REQ-003 slice 11 — fresh generic-RTP diagnostic approval packet: COMPLETE / STOPPED AT MUTATION GATE.** Two authoritative SSH-CLI status reads proved `baseline`, `changed=false`, and stable mangle hash `bd0958a0b751ae352cc9c1b093d77c7cf0a76da27d0e90c315224d8b5871f98a`. The contract audit passed FastTrack, DSCP map, wash/trust ordering, and steering eligibility while reporting only the expected five application-equivalence gaps. wanctl read-only preflight passed `25/25`; both DNS resolvers answered; steering was healthy at `SPECTRUM_GOOD`/GREEN with route guard and reconciliation `ok`; CAKE/state-bridge/watchdog services passed. Packet: `infra-ansible/artifacts/network-changes/20260717_routeros-qos-composite-policy/approval-packet-generic-rtp-20260718T121541Z.md`. No mutation, conntrack clear, restart, route/queue change, or bridge retirement occurred. One generic-RTP diagnostic apply requires separate explicit production approval.
 
 - **v1.61 / REQ-001–REQ-002 (repo-only): COMPLETE.** Contract recorded and AF31 import added on both WAN upload chains. TDD evidence: expected RED failure, targeted GREEN (`1 passed`), bridge-QoS suite (`4 passed`), namespace nft syntax check (`NFT_SYNTAX_OK`), and full `make ci` (`5,758 passed`, 90.17% coverage). Production unchanged.
 - **REQ-003 contract-proof slice (repo-only): COMPLETE.** Exact EF/AF31/CS1 import parity, Voice/Video/Bulk restore parity, carrier wash, and unmatched-CS0 Best Effort fallback are mechanically asserted on both WANs. Evidence: bridge suite `5 passed`, namespace `NFT_SYNTAX_OK`, full `make ci` (`5,759 passed`, 90.17% coverage). No fallback classifier was removed; REQ-003 remains open for safe retirement work.
