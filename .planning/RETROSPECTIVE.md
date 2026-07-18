@@ -1147,3 +1147,11 @@ For ordered RouterOS policy mutations, an in-session readback is not sufficient 
 The corrected generic-RTP helper closed its mutating session and passed exact target/order proof on a new API connection, yet the next independent status and audit saw the enabled row after the terminal default. The mangle anchor also changed between the apply result and that subsequent status even though packet and byte counters are excluded. Exact rollback again restored the original hash and healthy baseline.
 
 For RouterOS ordered-rule mutation, “fresh connection” is necessary but not sufficient when persistence or ordering visibility is delayed. The next design must prove a bounded stable condition across time or avoid post-add reordering entirely, and it must explain the non-counter hash drift. Do not stack more retries on the current move/enable sequence; two live verification failures are the escalation boundary.
+
+---
+
+## 2026-07-17 — Bounded stability is evidence, not durable RouterOS proof
+
+The frontier repair uses a genuinely different placement path: add the enabled mangle selector with `place-before`, then require three independently opened API sessions separated across a bounded settle window. Any mismatch or verification transport failure reconnects and removes only the exact new row after exact-field validation. RouterOS `.id` is excluded from the policy anchor because librouteros documents it as reboot-volatile, but the historical post-apply hash drift is not attributed to `.id` because raw before/after rows were not retained.
+
+Even three green samples do not prove ordering forever. Mutation output must state that its proof is bounded, and the independent contract audit remains the live acceptance gate. Tests can prove fail-closed behavior for modeled delayed drift; only an approval-gated live canary can establish whether firewall-mangle add-time `place-before` behaves correctly on the production RouterOS version.
