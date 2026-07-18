@@ -72,3 +72,7 @@ Rollback immediately to `besteffort wash` if any of these appear:
 ## Notes
 
 This is a validation todo, not an instruction to mutate production immediately. The historical v1.44 decision remains valid until a fresh A/B under the current CRS/Ruckus/local-DSCP topology proves otherwise.
+
+## Closure — 2026-07-18
+
+Superseded by v1.61's stronger end-to-end QoS classification contract and live convergence proof. Current read-only production state has both Spectrum CAKE directions on `diffserv4 wash`, the bridge QoS service active/successful, and all four tins carrying classified traffic. v1.61 mechanically proved the RouterOS-to-cake-shaper DSCP contract and retained rollback evidence, so this older standalone A/B todo no longer represents pending work.

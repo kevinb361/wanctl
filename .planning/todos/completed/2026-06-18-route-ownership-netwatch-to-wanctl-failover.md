@@ -65,3 +65,7 @@ Netwatch may remain the interim route owner until wanctl route ownership is impl
 - No immediate live route mutation.
 - No disabling Netwatch until wanctl ownership is implemented, tested, and operator-approved.
 - No threshold tuning based solely on this todo; use recorded WAN health evidence.
+
+## Closure — 2026-07-18
+
+Completed by v1.59. Live read-only verification shows `route_management.mode=active`, `active_owner=wanctl`, `guard.status=ok`, `conflict_count=0`, six reconciled routes, and matching observed/configured ownership. RouterOS Netwatch route mutation was retired in Phase 268. This todo no longer represents pending work.
