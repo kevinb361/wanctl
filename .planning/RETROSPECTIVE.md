@@ -1155,3 +1155,11 @@ For RouterOS ordered-rule mutation, “fresh connection” is necessary but not 
 The frontier repair uses a genuinely different placement path: add the enabled mangle selector with `place-before`, then require three independently opened API sessions separated across a bounded settle window. Any mismatch or verification transport failure reconnects and removes only the exact new row after exact-field validation. RouterOS `.id` is excluded from the policy anchor because librouteros documents it as reboot-volatile, but the historical post-apply hash drift is not attributed to `.id` because raw before/after rows were not retained.
 
 Even three green samples do not prove ordering forever. Mutation output must state that its proof is bounded, and the independent contract audit remains the live acceptance gate. Tests can prove fail-closed behavior for modeled delayed drift; only an approval-gated live canary can establish whether firewall-mangle add-time `place-before` behaves correctly on the production RouterOS version.
+
+---
+
+## 2026-07-17 — RouterOS API mangle order is not the evaluation-order source of truth here
+
+The add-time-placement canary removed post-add moves and held the same canonical state and `.id`-independent hash across three fresh API sessions plus a later independent API status. At the same time, the CLI/export-backed contract audit showed the enabled selector at rule #36 after the terminal default. Exact rollback restored the original anchor and healthy baseline.
+
+The earlier failures were not merely delayed convergence. On this device/path, API `print` ordering and the rule-numbered representation used by the authoritative audit disagree. Ordered policy acceptance must use the same representation that expresses actual rule numbers/evaluation order. Do not add more API polling or placement choreography: either perform and verify the ordered mutation through a CLI/export-equivalent mechanism with exact rollback, or redesign the policy so correctness does not depend on inserting before an existing terminal rule.
