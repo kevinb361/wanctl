@@ -4,8 +4,8 @@ milestone: v1.61
 milestone_name: qos_classification_contract
 status: complete
 stopped_at: v1.61 closed and pushed; no active milestone
-last_updated: "2026-07-18T17:48:17-05:00"
-last_activity: "ROLE-01 read-only readiness assessment NOT READY: strict 14-day cake-autorate continuity gate matures no earlier than 2026-07-24T08:55:27-05:00"
+last_updated: "2026-07-19T12:21:00-05:00"
+last_activity: "Saga semantic spine reconciliation complete: latest v1.61 canonical, v1.58/v1.60 history archived, saga-lint clean."
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -19,6 +19,8 @@ Three work items completed, 5/5 PROVEN in TRACEABILITY.md:
 Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 
 ### Active Work
+
+- **Saga semantic spine reconciliation — COMPLETE (repo-only).** Root REQUIREMENTS/TRACEABILITY now cover latest v1.61 only; SAFE-24 is canonical; retained v1.58/v1.60 records are archived under `.planning/milestones/`. `saga-lint` and `git diff --check` pass. No application, production, or network changes.
 
 - **ROLE-01 read-only readiness assessment — NOT READY / TIME-GATED.** Both cake-autorate services and state bridges are active/successful with zero restarts and no warning-or-higher journal entries since the mechanically proven continuity anchor on 2026-07-10. Both WAN rollback preflights and dry-run plans pass; historical ATT rollback drill remains PASS. The strict 14-day gate matures no earlier than `2026-07-24T08:55:27-05:00`. UDP/3480 and NNTP selectors remain applied but at `0 packets / 0 bytes`; no synthetic traffic was generated. Evidence: `.planning/evidence/role01-readiness-20260718.md`. No production mutation or new milestone was initiated.
 
