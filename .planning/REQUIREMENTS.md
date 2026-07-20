@@ -1,5 +1,36 @@
 # Requirements — wanctl
 
+## v1.62 QoS Validation & Trust Hardening
+
+**Goal:** Add packet-level evidence and bounded hardening to the proven RouterOS-classifies / cake-shaper-enforces contract without retuning or broadening production scope.
+
+- [x] **QVT-001** — A fresh read-only baseline proves the strict RouterOS QoS contract, live cake-shaper service/health posture, both-WAN CAKE continuity, and the exact nature of current bridge artifact drift. (milestone: v1.62)
+  Evidence: `.planning/evidence/v1.62-baseline-20260719.md`; `../infra-ansible/artifacts/network-audits/20260719_211000-main-router-firewall-qos/qos-contract-audit.json`; `.planning/evidence/live-preflight/wanctl-live-preflight-20260719T210924Z.json`.
+- [x] **QVT-002** — A bounded Spectrum proof demonstrates EF, AF31, CS1, and CS0 on the RouterOS-to-cake-shaper path and shows CAKE remains structurally healthy, with no saturation requirement. (milestone: v1.62)
+  Evidence: `.planning/evidence/v1.62-qvt002-second-attempt-pass-20260719.md`; exact live artifacts under `.planning/evidence/qvt002-spectrum-20260719T220859Z/`.
+- [x] **QVT-003** — The zero-hit IoT DSCP wash rule is explained by read-only path evidence or a separately approved single-probe test that proves wash/normalization; ambiguity is not recorded as pass. (milestone: v1.62)
+  Evidence: `.planning/evidence/v1.62-qvt003-natural-canary-proof-20260720.md`; the exact source-subnet canary increased `1429/377172 → 1458/385374` over ten seconds of natural traffic while the untouched interface rule remained `0/0`, matching the earlier proven EF packet mismatch and bridge/trunk root-cause evidence. No re-proof packet was generated.
+- [x] **QVT-004** — DSCP trust is either narrowed to explicit legitimate marking sources through an exact reversible change, or retained by an explicit evidence-backed risk acceptance; broad trust is not left accidental. (milestone: v1.62)
+  Evidence: explicit operator LOW-risk acceptance on 2026-07-20; `.planning/evidence/v1.62-qvt004-dscp-trust-analysis-20260720.md`; `.planning/evidence/v1.62-qvt004-ephemeral-v5-observation-20260720.md`. Broad EF/AF4x trust is intentionally retained with no RouterOS rule change: bounded observation found legitimate EF sources, AF4x remained inconclusive, CAKE limits scheduling abuse, and strict/postflight audits stayed healthy.
+- [x] **QVT-005** — Repository/live `bridge-qos.nft` drift is reconciled or formally classified with executable-rule parity mechanically proven; no executable nftables change may hide inside comment convergence. (milestone: v1.62)
+  Evidence: `.planning/evidence/v1.62-qvt005-bridge-drift-disposition-20260720.md`; fresh repo/live executable lines are ordered-equal `55/55`, both files pass nft syntax, and loaded five-chain/41-rule semantics equal repo. Raw difference is comment-only and formally retained until the next justified executable deployment; no reload occurred.
+- [x] **QVT-006** — Disabled `QOS_GAME_DL` output and its absent producer receive an evidence-backed keep/remove disposition; any removal is exact, reversible, and separately approved. (milestone: v1.62)
+  Evidence: `.planning/evidence/v1.62-qvt006-game-dl-disposition-20260720.md`. Keep exact `*308` disabled: fresh live scan finds one consumer, zero producers, zero counters, and no script/scheduler references; disabled state has no traffic/audit overhead, while standalone deletion adds rollback risk with no runtime benefit. No removal occurred.
+
+### SAFE-25 — Bounded production proof and hardening
+
+- [x] **SAFE-25** — Every controlled packet-generation step and every RouterOS/nftables/service mutation uses a fresh baseline, explicit action-specific approval, deterministic acceptance, and exact rollback; CAKE rates, autorate thresholds, routing/steering, NAT, firewall policy, topology, and saturation are unchanged. (milestone: v1.62)
+  Evidence: `.planning/evidence/v1.62-safe25-invariant-20260720.md`; complete action ledger covers both QVT-002 packet attempts, QVT-003 failed packet and additive canary, all QVT-004 blocked/ephemeral attempts, retained failures, exact cleanup, no-retry/token rotation, risk acceptance, and declined nft/rule cleanup. Fresh strict audit PASS and wanctl `25/25`.
+
+### Out of scope
+
+- CAKE bandwidth/rate or controller-threshold tuning.
+- Route ownership, WAN steering, NAT, firewall, VLAN, or topology changes.
+- Broad load/saturation tests or clearing conntrack.
+- Replacing the split-edge architecture or claiming per-LAN-host fairness.
+
+---
+
 ## v1.61 QoS Classification Contract
 
 **Goal:** Make RouterOS the authoritative host-aware classifier and route selector, make cake-shaper the authoritative CAKE enforcement point, and use a tested DSCP/conntrack contract between them without duplicating application policy.

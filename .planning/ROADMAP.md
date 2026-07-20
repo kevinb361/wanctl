@@ -2,6 +2,7 @@
 
 ## Milestones
 
+- ✅ **v1.62 QoS Validation & Trust Hardening** — shipped 2026-07-20 (QVT-001..006 and SAFE-25 PROVEN; four-class packet proof, IoT wash root cause + active source-subnet repair, explicit LOW-risk DSCP trust acceptance, executable-parity comment-drift disposition, intentional keep-disabled GAME_DL; independent frontier audit CONDITIONAL PASS; durable commit resolved, artifact-only live boundary and documented residuals retained)
 - ✅ **v1.61 QoS Classification Contract** — shipped 2026-07-18 (6/6 REQs PROVEN; RouterOS application equivalence live, duplicate bridge classifiers retired Spectrum-first then ATT, symmetric AF31 upload import live at `a6b85d55...04884`, SAFE-24 proven; frontier audit CONDITIONAL on durable commit plus deferred natural UDP/3480 and NNTP counters)
 - ✅ **v1.60 Ops Consolidation** — shipped 2026-07-05 (saga-mode; wanctl_state fire-on-change 95% row reduction, silicom test harness 7 scenarios deployed, steering clean-restart verified via live restart; 0 ASSERTED, 0 OPEN in TRACEABILITY.md) — `milestones/v1.60-ROADMAP.md`
 - ✅ **v1.59 Widen-the-Canary** — shipped 2026-07-05 (Phases 265–270; multi-route, bidirectional failover, netwatch retirement, gateway route expansion, steering activation; wanctl owns 6 routes across both WANs with per-WAN failover bridges; SAFE-23) — `milestones/v1.59-ROADMAP.md`
@@ -30,6 +31,23 @@
 > **Production controller state (2026-06-10):** Both WANs run upstream cake-autorate with wanctl state bridges (`cake-autorate-{spectrum,att}.service` + `-state-bridge.service`, live since 2026-06-08); `wanctl@{spectrum,att}` disabled as the **verified** rollback path (v1.50 SOAK-02 provable path, both-WAN preflight `overall_pass: true`). Steering consumes bridge-written state. Native wanctl remains the MikroTik/RouterOS controller and the portable default. Repo is the drift-proof source of truth for both WANs' artifact sets (`deploy.sh --with-{spectrum,att}-cake-autorate`). Spectrum CAKE: member-NIC `diffserv4 wash` 550M base DL autorate / fixed 18M UL. ATT: `diffserv4 nowash` 95M base DL autorate / fixed 19M UL.
 >
 > **Route ownership (2026-06-30):** wanctl is the active default-route owner for 6 routes across both WANs (4 default routes + 2 ATT gateway host routes). Netwatch entries removed (Phase 268). Per-WAN failover bridges armed with hysteresis. RTT failure tracking active. Guard defaults to ok. `migration_acknowledged: true`.
+
+---
+
+## ✅ v1.62 QoS Validation & Trust Hardening — SHIPPED 2026-07-20
+
+**Milestone Goal:** Extend the structurally proven split-edge contract with bounded packet-level evidence and remove the small trust/drift ambiguities found by the 2026-07-19 live audit, without retuning CAKE or widening routing scope.
+
+**SAFE-25:** Read-only inspection and repo-only test tooling may run directly. Controlled packet generation, RouterOS mangle changes, nftables reloads, service restarts, and rule deletion are production actions: each requires a fresh baseline, explicit operator approval for that exact action, deterministic acceptance, and exact rollback. CAKE rates, autorate thresholds, route ownership, NAT, firewall policy, topology, and saturation tests are out of scope.
+
+### Bounded execution slices
+
+- [x] **Slice 1 — Baseline and plan:** Record strict RouterOS contract PASS, cake-shaper 25/25 preflight, healthy CAKE paths, and comment-only bridge drift; create finite requirements and gates.
+- [x] **Slice 2 — Spectrum packet-proof harness:** Built and dry-ran the bounded, two-token capture/generator procedure for EF, AF31, CS1, and CS0; focused/static/full CI gates passed; no SSH or live packet generation.
+- [x] **Slice 3 — Controlled Spectrum packet proof:** Second, separately approved repaired attempt proved exact EF46/AF31-26/CS1-8/CS0-0 at five packets each plus healthy CAKE `8004:`/`diffserv4` before/after; no saturation or configuration change.
+- [x] **Slice 4 — IoT wash diagnosis:** Read-only path/counters rejected inactivity; one separately approved EF-marked VLAN120 packet proved source `tos 0xb8` but wash stayed 0/0, recording an exact live mismatch with healthy postflight and no mutation.
+- [x] **Slice 5 — Trust and drift package:** Completed with evidence-backed LOW-risk trust retention after bounded attribution and formal comment-only drift classification; no trust change or nft reload was justified.
+- [x] **Slice 6 — Approved cleanup and close-out:** Kept producerless `QOS_GAME_DL` intentionally disabled, reran strict audits/preflight, proved SAFE-25 action ledger, and passed independent frontier close-out with 6/6 QVT PROVEN.
 
 ---
 

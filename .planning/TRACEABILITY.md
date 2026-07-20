@@ -4,6 +4,30 @@ Most recent milestone first. Generated per the /saga-verify process.
 
 ---
 
+## Traceability — Milestone v1.62 QoS Validation & Trust Hardening
+
+**Date:** 2026-07-20
+**Mode:** saga
+**Scope:** QVT-001 through QVT-006; SAFE-25
+**Verifier:** independent frontier close-out (auditor had no live production access; repo/test evidence reproduced locally, live evidence verified by artifact inspection)
+
+| Requirement | Description | Status | Evidence |
+|-------------|-------------|--------|----------|
+| QVT-001 | Fresh strict RouterOS contract, cake-shaper posture, both-WAN continuity, and drift characterization | **PROVEN** | `.planning/evidence/v1.62-baseline-20260719.md`; strict live audit exit `0`/PASS; live preflight `25/25`; executable bridge rules equal after comment removal. |
+| QVT-002 | Spectrum packet-level EF/AF31/CS1/CS0 proof | **PROVEN** | Separately approved repaired attempt produced exact SYN-isolated EF `[46]` ×5, AF31 `[26]` ×5, CS1 `[8]` ×5, and CS0 `[0]` ×5; generator recorded 5/5/5/5 flows; CAKE handle `8004:`/`diffserv4` and health remained healthy before/after; immediate/post strict audits PASS and wanctl preflights `25/25`; no remaining processes, saturation, or config mutation. `.planning/evidence/v1.62-qvt002-second-attempt-pass-20260719.md`. |
+| QVT-003 | Explain/prove zero-hit IoT wash behavior | **PROVEN** | Earlier EF packet/reply plus `0/0` legacy result and bridge/trunk inspection identified the unreachable logical-interface selector. Exact additive canary apply was the sole normalized mangle change. Two read-only snapshots then showed exact source-subnet `change-dscp 0` canary `1429/377172 → 1458/385374` (+29/+8202) over 10s while untouched legacy stayed `0/0`; strict audit PASS, wanctl `25/25`, health/DNS green, stable applied hash. Natural traffic made exact +1 attribution nondeterministic, so no packet ran and acceptance was not weakened: `.planning/evidence/v1.62-qvt003-natural-canary-proof-20260720.md`. |
+| QVT-004 | Narrow DSCP trust or record explicit evidence-backed acceptance | **PROVEN** | Operator explicitly accepted LOW residual risk on 2026-07-20 with no trust-rule change. Evidence: broad trust analysis; safely retained failed attempts; v5 exact ephemeral cleanup and sanitized source attribution showing legitimate EF infrastructure/mobile/operator/work sources; AF4x inconclusive versus historical use; WAN/IoT wash, firewall independence, CAKE isolation, strict PASS and wanctl `25/25`. Concurrent controller-owned Work-VPN toggle remains recorded as packet acceptance disagreement, not hidden. `.planning/evidence/v1.62-qvt004-dscp-trust-analysis-20260720.md`, `.planning/evidence/v1.62-qvt004-ephemeral-v5-observation-20260720.md`; living acceptance in `docs/QOS_CLASSIFICATION_CONTRACT.md`. |
+| QVT-005 | Reconcile/classify bridge artifact drift with executable parity | **PROVEN** | Formally classified documentation-only drift: raw hashes differ (`e6f7...` repo / `a6b85...` live), but ordered executable lines equal `55/55`; both syntax checks PASS; loaded table has exact five chains/41 semantic lines equal repo after nft display normalization; service active/success. Repo comments authoritative; comment-only reload rejected as real risk with zero executable benefit. `.planning/evidence/v1.62-qvt005-bridge-drift-disposition-20260720.md`. |
+| QVT-006 | Dispose of disabled producerless `QOS_GAME_DL` output | **PROVEN** | Evidence-backed keep-disabled disposition. Fresh 66-row scan: exact `*308` is sole reference/consumer, disabled/static/valid, CS1 output, `0/0`; zero producers and no script/scheduler references. Historical 2026-07-03 disable intent reproduced. Disabled rule has no matching/audit overhead; standalone deletion adds positional rollback risk for cosmetic benefit only. Reopen triggers documented; no removal. `.planning/evidence/v1.62-qvt006-game-dl-disposition-20260720.md`. |
+| SAFE-25 | Action-specific approval, baseline, acceptance, and rollback for traffic/live changes | **PROVEN** | Complete ledger proves fresh baselines, action-specific approvals, deterministic outcomes, retained failure/no-retry semantics, non-replayable diagnostic tokens, exact mangle/identity cleanup, and declined unjustified nft/rule actions. v5 controller-toggle acceptance disagreement remains explicit. No CAKE/rate/controller config/routing/NAT/firewall/VLAN/topology/saturation mutation. Fresh strict PASS + wanctl `25/25`. `.planning/evidence/v1.62-safe25-invariant-20260720.md`. |
+
+**Counts (QVT-001..006):** PROVEN 6 / ASSERTED 0 / OPEN 0. SAFE-25 gate **PROVEN**.
+
+**Auditor-reproduced (green):** `saga-lint .` exit `0`; wanctl bridge-qos + QoS packet/wash proof-analyzer tests `17 passed`; infra-ansible DSCP-trust-attribution + ephemeral-torch + contract-audit + composite-policy tests `37 passed`. QVT-002 `class-analysis.json`, QVT-003 failed-packet `wash-analysis.json`, and QVT-005 `parity-report.json` machine records match their prose; all referenced evidence directories exist; the QVT-004 LOW-risk acceptance is durably recorded in `docs/QOS_CLASSIFICATION_CONTRACT.md` (2026-07-20).
+**Auditor scope note:** live-production evidence (RouterOS strict audits, `wanctl 25/25` preflights, live mangle/nft hashes, source captures, CAKE counters) was verified by artifact inspection only — the auditor did not (and per SAFE-25 must not) touch production. Confidence is high: the v1.62 mangle-hash lineage is continuous and gap-free (`4ad83ba7…921e` → `43f7b575…ae7c3` → `634d177a…e6e5`, each baseline equal to the prior action's result, continuing the audited v1.61 lineage) and all failed/blocked attempts are preserved as failures. Verdict CONDITIONAL PASS: requirements met with zero ASSERTED/OPEN; durable commit finalization subsequently completed. Remaining conditions are the artifact-only live-evidence boundary, the still-active approved QVT-003 source-wash canary, and the honestly-preserved QVT-004 v5 policy-hash acceptance disagreement. ROADMAP is shipped; no v1.62 phase directory exists to archive. Full audit: `.planning/AUDIT.md`.
+
+---
+
 ## Traceability — Milestone v1.61 QoS Classification Contract
 
 **Date:** 2026-07-18
