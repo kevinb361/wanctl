@@ -4,8 +4,8 @@ milestone: v1.62
 milestone_name: qos_validation_and_trust_hardening
 status: complete
 stopped_at: v1.62 shipped, independently audited, and durably committed; no requirement rework
-last_updated: "2026-07-20T06:36:18-05:00"
-last_activity: "Finalizer equivalent and full CI PASS; bounded QoS proof tooling, contract, audit, traceability, and milestone records committed."},{
+last_updated: "2026-07-25T18:56:21-05:00"
+last_activity: "Repaired malformed STATE frontmatter; YAML parse, saga-lint, and diff checks passed; no application or live-system changes."
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -19,6 +19,8 @@ Three work items completed, 5/5 PROVEN in TRACEABILITY.md:
 Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 
 ### Active Work
+
+- **STATE frontmatter repair (repo-only): COMPLETE / GATE GREEN.** Removed the accidental trailing `},{` from `last_activity` and preserved all other state content. YAML parsing, `saga-lint .`, and `git diff --check` passed. No application or live-system changes.
 
 - **Post-v1.62 corrective slice — REV-001/REV-002 Spectrum proof hardening (repo-only): COMPLETE / GATE GREEN / INDEPENDENTLY VERIFIED RESOLVED.** REV-001 now validates healthy Spectrum CAKE `diffserv4` before capture or generator invocation; degraded health and wrong-qdisc regressions prove the generator marker remains absent. REV-002 now requires exact 5/5/5/5 observed packets and an exact target/source/class/port/count generator manifest; 1/4/6 packet counts and a 4-flow manifest are rejected. Focused proof suite `17 passed`; Ruff, Bash syntax, ShellCheck, and `git diff --check` passed; full `make ci` passed (`5784 passed`, 20 skipped, 2 deselected, coverage 90.15%). A fresh independent read-only review re-ran 12 focused tests plus static checks, adversarially rejected wrong source/target/port, extra probes, non-dict manifests, and over-count captures, and marked REV-001 and REV-002 RESOLVED with no new material finding. The exact-count retransmit sensitivity was noted as a non-blocking intentional strictness trade-off. Living contract updated. No live traffic, SSH, deploy, service, RouterOS, nftables, qdisc, or network mutation.
 
