@@ -134,11 +134,12 @@ A live canary is not successful until evidence shows:
 `scripts/qos-spectrum-packet-proof.sh` is the action-gated Spectrum proof surface for the
 transmitted contract. Dry-run prints the exact plan without SSH or traffic. Live mode requires
 both `QVT-002` and `SAFE-25` confirmation tokens plus an operator-controlled target. It sends
-five short flows for TCP/22, TCP/443, TCP/119, and UDP/9, then requires exact EF(46), AF31(26),
-CS1(8), and CS0(0) observations at `cake-shaper/spec-router` ingress. TCP evidence is restricted
-to new SYN packets so established traffic cannot contaminate a selector; the analyzer accepts
-the live multiline `tcpdump -vv` record shape. CAKE must remain healthy and `diffserv4` before
-and after, and after-snapshots are retained even when packet analysis fails. The harness has no
+five short flows for TCP/22, TCP/443, TCP/119, and UDP/9, then requires exactly five EF(46),
+AF31(26), CS1(8), and CS0(0) observations at `cake-shaper/spec-router` ingress plus an exact
+5/5/5/5 generator manifest. TCP evidence is restricted to new SYN packets so established traffic
+cannot contaminate a selector; the analyzer accepts the live multiline `tcpdump -vv` record
+shape. The harness validates healthy CAKE `diffserv4` before starting capture or traffic, validates
+it again afterward, and retains after-snapshots even when packet analysis fails. The harness has no
 bulk payload, throughput target, config mutation, service restart, or implicit authorization to
 run.
 

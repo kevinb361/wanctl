@@ -15,6 +15,7 @@ CLASS_BY_PORT = {
     119: ("CS1", 8),
     9: ("CS0", 0),
 }
+EXPECTED_PACKET_COUNT = 5
 TOS_RE = re.compile(r"\btos\s+0x([0-9a-fA-F]+)\b")
 DEST_PORT_RE = re.compile(r"\s>\s[^ ]+\.(22|443|119|9):")
 TCP_SYN_RE = re.compile(r"\bFlags\s+\[S\]")
@@ -37,6 +38,19 @@ def packet_records(text: str) -> list[str]:
     return records
 
 
+def generator_manifest_valid(payload: Any, *, expected_target: str, expected_source: str) -> bool:
+    expected_probes = [
+        {"class": name, "destination_port": port, "flows_attempted": EXPECTED_PACKET_COUNT}
+        for port, (name, _) in CLASS_BY_PORT.items()
+    ]
+    return bool(
+        isinstance(payload, dict)
+        and payload.get("target") == expected_target
+        and payload.get("source") == expected_source
+        and payload.get("probes") == expected_probes
+    )
+
+
 def analyze_capture(text: str) -> dict[str, Any]:
     observed: dict[int, set[int]] = {port: set() for port in CLASS_BY_PORT}
     packet_counts: dict[int, int] = {port: 0 for port in CLASS_BY_PORT}
@@ -56,7 +70,7 @@ def analyze_capture(text: str) -> dict[str, Any]:
     classes: list[dict[str, Any]] = []
     for port, (name, expected) in CLASS_BY_PORT.items():
         values = sorted(observed[port])
-        passed = packet_counts[port] > 0 and values == [expected]
+        passed = packet_counts[port] == EXPECTED_PACKET_COUNT and values == [expected]
         classes.append(
             {
                 "class": name,
@@ -77,10 +91,20 @@ def analyze_capture(text: str) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--capture", required=True, type=Path)
+    parser.add_argument("--generator", required=True, type=Path)
+    parser.add_argument("--expected-target", required=True)
+    parser.add_argument("--expected-source", required=True)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
 
     report = analyze_capture(args.capture.read_text(encoding="utf-8", errors="replace"))
+    manifest_valid = generator_manifest_valid(
+        json.loads(args.generator.read_text(encoding="utf-8")),
+        expected_target=args.expected_target,
+        expected_source=args.expected_source,
+    )
+    report["generator_manifest_valid"] = manifest_valid
+    report["overall_pass"] = report["overall_pass"] and manifest_valid
     args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     print(json.dumps(report, sort_keys=True))
     return 0 if report["overall_pass"] else 1

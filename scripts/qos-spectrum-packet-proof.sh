@@ -123,10 +123,30 @@ health_before="$OUTPUT_DIR/spectrum-health-before.json"
 health_after="$OUTPUT_DIR/spectrum-health-after.json"
 analysis_file="$OUTPUT_DIR/class-analysis.json"
 
+validate_posture() {
+    local qdisc_file="$1" health_file="$2" label="$3"
+    python3 - "$qdisc_file" "$health_file" "$label" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+qdisc_path = Path(sys.argv[1])
+health_path = Path(sys.argv[2])
+label = sys.argv[3]
+qdisc = qdisc_path.read_text()
+if "qdisc cake" not in qdisc or "diffserv4" not in qdisc:
+    raise SystemExit(f"{label} CAKE diffserv4 missing from {qdisc_path}")
+health = json.loads(health_path.read_text())
+if health.get("status") != "healthy":
+    raise SystemExit(f"{label} Spectrum health is not healthy in {health_path}")
+PY
+}
+
 ssh -o BatchMode=yes "$CAPTURE_SSH_HOST" \
     "sudo -n tc -d qdisc show dev spec-modem" >"$qdisc_before"
 ssh -o BatchMode=yes "$CAPTURE_SSH_HOST" \
     "curl -fsS --max-time 5 http://10.10.110.223:9101/health" >"$health_before"
+validate_posture "$qdisc_before" "$health_before" before
 
 generator_program="$(cat <<'PY'
 import json
@@ -178,7 +198,11 @@ trap - EXIT
 
 analysis_rc=0
 python3 "$SCRIPT_DIR/qos_packet_proof_analyzer.py" \
-    --capture "$capture_file" --output "$analysis_file" || analysis_rc=$?
+    --capture "$capture_file" \
+    --generator "$generator_file" \
+    --expected-target "$PROBE_TARGET" \
+    --expected-source "$SOURCE_IP" \
+    --output "$analysis_file" || analysis_rc=$?
 
 # Always collect the after-snapshots when packet analysis disagrees. This is
 # evidence collection only; neither command changes qdisc or service state.
@@ -188,21 +212,7 @@ ssh -o BatchMode=yes "$CAPTURE_SSH_HOST" \
     "curl -fsS --max-time 5 http://10.10.110.223:9101/health" >"$health_after"
 
 posture_rc=0
-python3 - "$qdisc_before" "$qdisc_after" "$health_before" "$health_after" <<'PY' || posture_rc=$?
-import json
-import sys
-from pathlib import Path
-
-q_before, q_after, h_before, h_after = map(Path, sys.argv[1:])
-for path in (q_before, q_after):
-    text = path.read_text()
-    if "qdisc cake" not in text or "diffserv4" not in text:
-        raise SystemExit(f"CAKE diffserv4 missing from {path}")
-for path in (h_before, h_after):
-    payload = json.loads(path.read_text())
-    if payload.get("status") != "healthy":
-        raise SystemExit(f"Spectrum health is not healthy in {path}")
-PY
+validate_posture "$qdisc_after" "$health_after" after || posture_rc=$?
 
 cat >"$OUTPUT_DIR/MANIFEST.md" <<EOF
 # Spectrum four-class packet proof
