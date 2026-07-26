@@ -16,6 +16,9 @@
 #
 set -e
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
+
 # Version
 VERSION="1.37.0"
 
@@ -286,9 +289,13 @@ install_dependencies() {
                 print_step "Installing Python packages via pip..."
                 pip3 install pyyaml
             fi
-            # Warn about missing system tools
+            if [[ ${#missing_py[@]} -gt 0 ]] && ! command -v pip3 &>/dev/null; then
+                print_error "Cannot install Python prerequisites: neither apt-get nor pip3 is available"
+                return 1
+            fi
             if [[ ${#missing_sys[@]} -gt 0 ]]; then
-                print_warning "Please install system packages manually: ${missing_sys[*]}"
+                print_error "Required system packages are missing: ${missing_sys[*]}"
+                return 1
             fi
         fi
     fi
@@ -296,21 +303,11 @@ install_dependencies() {
     print_success "Dependencies satisfied"
 }
 
-# Install Python runtime dependencies via pip
-# Dependencies must match pyproject.toml [project.dependencies]
+# Install the project and exact runtime closure from pyproject.toml + uv.lock.
 install_python_deps() {
-    print_step "Installing Python runtime dependencies..."
-
-    if ! command -v pip3 &>/dev/null; then
-        print_warning "pip3 not found — skipping Python dependency installation"
-        print_warning "Install pip3 and re-run, or install manually: pip3 install requests pyyaml paramiko tabulate icmplib cryptography"
-        return 0
-    fi
-
-    pip3 install --break-system-packages \
-        requests pyyaml paramiko tabulate icmplib cryptography \
-        && print_success "Python runtime dependencies installed" \
-        || print_warning "pip3 install failed — some dependencies may be missing"
+    print_step "Installing frozen Python runtime..."
+    "$SCRIPT_DIR/install-python-runtime.sh" "$REPO_ROOT"
+    print_success "Frozen Python runtime installed"
 }
 
 # Configure logrotate

@@ -78,7 +78,7 @@ run_continuous() {
     log_info "Starting continuous RTT monitoring..."
     log_info "Config: $CONFIG"
 
-    exec python3 -m autorate_continuous --config "$CONFIG" "${@:2}"
+    exec wanctl --config "$CONFIG" "${@:2}"
 }
 
 # Run calibration mode
@@ -107,7 +107,7 @@ print(router.get('host', ''))
         exit 1
     fi
 
-    exec python3 -m calibrate \
+    exec wanctl-calibrate \
         --wan-name "$wan_name" \
         --router "$router_host" \
         "${@:2}"
@@ -125,14 +125,14 @@ run_steering() {
         exit 1
     fi
 
-    exec python3 -m steering.daemon --config "$steering_config" "${@:2}"
+    exec wanctl-steering --config "$steering_config" "${@:2}"
 }
 
 # Run single measurement cycle
 run_oneshot() {
     log_info "Running single measurement cycle..."
 
-    exec python3 -m autorate_continuous --config "$CONFIG" --once "${@:2}"
+    exec wanctl --config "$CONFIG" --once "${@:2}"
 }
 
 # Show help

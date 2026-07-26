@@ -53,38 +53,6 @@ def _load_dockerfile() -> str:
     return dockerfile_path.read_text()
 
 
-def _extract_pip_install_deps(dockerfile_text: str) -> list[str]:
-    """Extract package specs from the pip install --no-cache-dir block.
-
-    Parses continuation lines (ending with backslash) after 'pip install'.
-    Returns list of 'package>=version' strings.
-    """
-    lines = dockerfile_text.splitlines()
-    in_pip_block = False
-    deps: list[str] = []
-
-    for line in lines:
-        stripped = line.strip()
-
-        if "pip install" in stripped:
-            in_pip_block = True
-            # The pip install line itself may have deps after flags
-            # e.g., "RUN pip install --no-cache-dir \"
-            # Usually just flags on this line, deps on continuation lines
-            continue
-
-        if in_pip_block:
-            # Remove trailing backslash for continuation
-            dep_part = stripped.rstrip("\\").strip()
-            if dep_part and not dep_part.startswith("#"):
-                deps.append(dep_part)
-            # Stop if line doesn't end with backslash (end of block)
-            if not stripped.endswith("\\"):
-                in_pip_block = False
-
-    return deps
-
-
 # ---------------------------------------------------------------------------
 # Module-level data for parametrized tests
 # ---------------------------------------------------------------------------
@@ -101,38 +69,16 @@ _RUNTIME_DEPS = [_parse_dependency(d) for d in _PYPROJECT["project"]["dependenci
 class TestDockerfileDependencyContract:
     """Validate Dockerfile stays in sync with pyproject.toml."""
 
-    def test_all_pyproject_deps_in_dockerfile(self):
-        """Every package from pyproject.toml dependencies appears in Dockerfile pip install."""
+    def test_docker_uses_frozen_project_runtime(self):
+        """Docker installs the package from pyproject.toml + uv.lock, not a duplicate list."""
         dockerfile = _load_dockerfile()
-        pip_deps = _extract_pip_install_deps(dockerfile)
-        pip_pkg_names = {_parse_dependency(d)[0].lower() for d in pip_deps}
 
-        pyproject_pkg_names = {name.lower() for name, _, _ in _RUNTIME_DEPS}
-
-        missing = pyproject_pkg_names - pip_pkg_names
-        assert not missing, (
-            f"Dependencies in pyproject.toml but missing from Dockerfile pip install: {missing}"
-        )
-
-    def test_version_specs_match(self):
-        """Version specs in Dockerfile match pyproject.toml exactly."""
-        dockerfile = _load_dockerfile()
-        pip_deps = _extract_pip_install_deps(dockerfile)
-        pip_specs = {
-            _parse_dependency(d)[0].lower(): f"{_parse_dependency(d)[1]}{_parse_dependency(d)[2]}"
-            for d in pip_deps
-        }
-
-        for pkg_name, op, version in _RUNTIME_DEPS:
-            expected_spec = f"{op}{version}"
-            actual_spec = pip_specs.get(pkg_name.lower())
-            assert actual_spec is not None, (
-                f"Package {pkg_name!r} not found in Dockerfile pip install"
-            )
-            assert actual_spec == expected_spec, (
-                f"Version spec mismatch for {pkg_name}: "
-                f"pyproject.toml has {expected_spec!r}, Dockerfile has {actual_spec!r}"
-            )
+        assert "COPY pyproject.toml uv.lock /opt/wanctl/" in dockerfile
+        assert "COPY scripts/install-python-runtime.sh" in dockerfile
+        assert "install-python-runtime.sh /opt/wanctl" in dockerfile
+        assert "uv==0.11.29" in dockerfile
+        for pkg_name, _, _ in _RUNTIME_DEPS:
+            assert not re.search(rf"^\s+{re.escape(pkg_name)}[><=]", dockerfile, re.MULTILINE)
 
     def test_label_version_matches_pyproject(self):
         """Dockerfile LABEL version matches pyproject.toml [project].version."""

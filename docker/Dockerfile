@@ -42,25 +42,17 @@ RUN chown -R root:wanctl /etc/wanctl \
     && chmod 750 /var/lib/wanctl \
     && chmod 750 /var/log/wanctl
 
-# Dependencies must match pyproject.toml [project.dependencies]
-RUN pip install --no-cache-dir \
-    requests>=2.33.0 \
-    pyyaml>=6.0.1 \
-    paramiko>=5.0.0 \
-    tabulate>=0.9.0 \
-    icmplib>=3.0.4 \
-    cryptography>=48.0.1
-
-# Copy the entire wanctl package directory intact, preserving subpackage layout.
-# Imports like `from wanctl.storage.deferred_writer import DeferredIOWorker`
-# require /opt/wanctl/wanctl/__init__.py (PYTHONPATH=/opt/wanctl below).
+# Install one pinned resolver, then consume the repository's frozen runtime.
 # IMPORTANT: build context MUST be the repo root, not docker/. Use:
 #     docker build -f docker/Dockerfile -t wanctl:latest .
-COPY src/wanctl /opt/wanctl/wanctl
-
-# Set permissions on code (read-only for everyone, executable for dirs)
-RUN find /opt/wanctl/wanctl -type d -exec chmod 755 {} + \
-    && find /opt/wanctl/wanctl -type f -name '*.py' -exec chmod 644 {} +
+RUN pip install --no-cache-dir uv==0.11.29
+COPY pyproject.toml uv.lock /opt/wanctl/
+COPY src/ /opt/wanctl/src/
+COPY scripts/install-python-runtime.sh /usr/local/bin/install-python-runtime.sh
+RUN chmod 755 /usr/local/bin/install-python-runtime.sh \
+    && /usr/local/bin/install-python-runtime.sh /opt/wanctl \
+    && find /opt/wanctl/src -type d -exec chmod 755 {} + \
+    && find /opt/wanctl/src -type f -name '*.py' -exec chmod 644 {} +
 
 # Copy entrypoint script
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
@@ -72,7 +64,6 @@ WORKDIR /opt/wanctl
 # Environment variables (can be overridden)
 ENV WANCTL_CONFIG=/etc/wanctl/wan.yaml
 ENV WANCTL_MODE=continuous
-ENV PYTHONPATH=/opt/wanctl
 ENV PYTHONUNBUFFERED=1
 
 # Health check - verify config exists and Python works

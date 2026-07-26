@@ -1,9 +1,9 @@
-# Production dependency lock -- cake-shaper VM (10.10.110.223)
-# Generated: 2026-03-26 from pip freeze on running production VM
-# Purpose: Reproducible production environment (OPSEC-05)
-# Usage: pip install -r requirements-production.txt
+# Historical production snapshot -- NOT an installation source
+# Generated: 2026-03-26 from pip freeze on the then-running production VM
+# Purpose: retained drift evidence only; versions are stale and may be vulnerable
+# Supported installs consume pyproject.toml + uv.lock through install-python-runtime.sh.
 #
-# DO NOT edit manually. Regenerate from production VM:
+# DO NOT install or edit manually. Regenerate only as a new historical snapshot:
 #   ssh kevin@10.10.110.223 "pip freeze" > requirements-production.txt
 #
 # Environment: system Python 3.12 (/usr/bin/python3), no virtualenv
