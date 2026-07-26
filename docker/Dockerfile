@@ -46,10 +46,10 @@ RUN chown -R root:wanctl /etc/wanctl \
 RUN pip install --no-cache-dir \
     requests>=2.33.0 \
     pyyaml>=6.0.1 \
-    paramiko>=3.4.0 \
+    paramiko>=5.0.0 \
     tabulate>=0.9.0 \
     icmplib>=3.0.4 \
-    cryptography>=46.0.5
+    cryptography>=48.0.1
 
 # Copy the entire wanctl package directory intact, preserving subpackage layout.
 # Imports like `from wanctl.storage.deferred_writer import DeferredIOWorker`

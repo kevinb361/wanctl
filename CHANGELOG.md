@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **REM-002:** Updated the frozen runtime closure to Paramiko 5.0.0, cryptography 48.0.1, idna 3.15, urllib3 2.7.0, and Pygments 2.20.0. The resolved runtime audit is clean; Paramiko 5 intentionally removes SHA-1 RSA signatures/key exchange and GSSAPI, while wanctl's supported SSHClient/RejectPolicy path remains covered by focused compatibility tests.
 - **Phase 213:** Verified the baseline harness threat register with `threats_open: 0`; accepted live-traffic and polling risks are documented in `213-SECURITY.md`.
 
 ### Changed
