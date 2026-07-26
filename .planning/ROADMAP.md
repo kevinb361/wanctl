@@ -2,6 +2,9 @@
 
 ## Milestones
 
+- 🚧 **v1.63 Repository & Deployment Integrity** — active (REM-001..004 and SAFE-26; public/private boundary, vulnerable runtime closure, reproducible supported installs, trustworthy build identity)
+- 🚧 **v1.64 Control-Path Correctness** — planned (REM-005..012 and SAFE-27; failover, recovery, hot reload, IRTT, tuning, timing, and SSH teardown)
+- 🚧 **v1.65 Historical & Operator-Tool Correctness** — planned (REM-013..017 and SAFE-28; labeled history, retention-aware queries, complete dashboard results, valid benchmarks, and exception-safe calibration)
 - ✅ **v1.62 QoS Validation & Trust Hardening** — shipped 2026-07-20 (QVT-001..006 and SAFE-25 PROVEN; four-class packet proof, IoT wash root cause + active source-subnet repair, explicit LOW-risk DSCP trust acceptance, executable-parity comment-drift disposition, intentional keep-disabled GAME_DL; independent frontier audit CONDITIONAL PASS; durable commit resolved, artifact-only live boundary and documented residuals retained)
 - ✅ **v1.61 QoS Classification Contract** — shipped 2026-07-18 (6/6 REQs PROVEN; RouterOS application equivalence live, duplicate bridge classifiers retired Spectrum-first then ATT, symmetric AF31 upload import live at `a6b85d55...04884`, SAFE-24 proven; frontier audit CONDITIONAL on durable commit plus deferred natural UDP/3480 and NNTP counters)
 - ✅ **v1.60 Ops Consolidation** — shipped 2026-07-05 (saga-mode; wanctl_state fire-on-change 95% row reduction, silicom test harness 7 scenarios deployed, steering clean-restart verified via live restart; 0 ASSERTED, 0 OPEN in TRACEABILITY.md) — `milestones/v1.60-ROADMAP.md`
@@ -31,6 +34,52 @@
 > **Production controller state (2026-06-10):** Both WANs run upstream cake-autorate with wanctl state bridges (`cake-autorate-{spectrum,att}.service` + `-state-bridge.service`, live since 2026-06-08); `wanctl@{spectrum,att}` disabled as the **verified** rollback path (v1.50 SOAK-02 provable path, both-WAN preflight `overall_pass: true`). Steering consumes bridge-written state. Native wanctl remains the MikroTik/RouterOS controller and the portable default. Repo is the drift-proof source of truth for both WANs' artifact sets (`deploy.sh --with-{spectrum,att}-cake-autorate`). Spectrum CAKE: member-NIC `diffserv4 wash` 550M base DL autorate / fixed 18M UL. ATT: `diffserv4 nowash` 95M base DL autorate / fixed 19M UL.
 >
 > **Route ownership (2026-06-30):** wanctl is the active default-route owner for 6 routes across both WANs (4 default routes + 2 ATT gateway host routes). Netwatch entries removed (Phase 268). Per-WAN failover bridges armed with hysteresis. RTT failure tracking active. Guard defaults to ok. `migration_acknowledged: true`.
+
+---
+
+## 🚧 v1.63 Repository & Deployment Integrity — ACTIVE
+
+**Milestone Goal:** Restore a fail-closed public/private boundary and make every advertised installation identify and reproduce a dependency-audited runtime without weakening RouterOS transport compatibility.
+
+**Source:** 2026-07-25 whole-codebase `ops-assess` report at revision `63ad2ef6739d9dafe650e7a27e777e4a5fac0fad`, findings ASSESS-001, ASSESS-002, ASSESS-010, ASSESS-011, and ASSESS-018.
+
+**SAFE-26:** Repository-only inspection, tests, dependency resolution, packaging, and public-safe documentation may run directly. Credential rotation, public-history rewriting, release publication, deployment, service restart, or network access is not implied: each requires its own explicit approval, bounded scope, recovery plan, and fresh proof. Secret auditing must not print secret values. Dependency and installer changes must preserve Python 3.11+ plus RouterOS REST/SSH compatibility through deterministic tests.
+
+### Bounded execution slices
+
+- [ ] **Slice 1 — Public/private boundary:** Complete REM-001 with a credential-safe tracked-tree/history inventory and a synthetic fail-closed CI gate; stop before rotation or history rewrite.
+- [ ] **Slice 2 — Runtime dependency closure:** Complete REM-002 through the staged `ops-upgrade` workflow and focused transport compatibility tests.
+- [ ] **Slice 3 — Supported clean installs:** Complete REM-003 for Docker and host installation using one authoritative frozen dependency source and fail-closed startup/install tests.
+- [ ] **Slice 4 — Runtime identity:** Complete REM-004 with immutable build/revision readback and consistency checks.
+- [ ] **Slice 5 — Independent close-out:** Run fresh `saga-check` then independent `saga-audit`; do not self-certify remediation.
+
+---
+
+## 📋 v1.64 Control-Path Correctness — PLANNED
+
+**Milestone Goal:** Make portable native control and active steering failure behavior match their documented contracts under deterministic injected failures without changing production network state.
+
+**Source:** 2026-07-25 `ops-assess`, findings ASSESS-003 through ASSESS-007, ASSESS-009, ASSESS-012, and ASSESS-017.
+
+**SAFE-27:** Repo-only code/tests may run directly. No deployment, RouterOS command, route mutation, qdisc/rate change, service restart, generated traffic, or native-controller activation is authorized. Core algorithm/state-machine changes require explicit operator approval; prefer contract-local repairs. Any later live proof needs a fresh baseline, exact rollback, and action-specific approval.
+
+### Delivery boundary
+
+REM-005..012 are independently gated corrective requirements. Each carries its original finding ID, focused regression/failure-injection proof, and full `make ci`; close-out requires fresh independent re-verification of every remediated blocking finding.
+
+---
+
+## 📋 v1.65 Historical & Operator-Tool Correctness — PLANNED
+
+**Milestone Goal:** Preserve historical metric meaning and make dashboard, benchmark, and calibration outputs fail closed rather than silently returning incomplete or invalid results.
+
+**Source:** 2026-07-25 `ops-assess`, findings ASSESS-008 and ASSESS-013 through ASSESS-016.
+
+**SAFE-28:** Use synthetic SQLite fixtures and mocked subprocess/router boundaries by default. No production database rewrite, retention run, benchmark traffic, queue mutation, calibration run, or service restart is authorized. Any schema/data repair requires a separately approved backup, compatibility, and rollback procedure; calibration cleanup must retain the original failure while reporting restoration failure.
+
+### Delivery boundary
+
+REM-013..017 are independently gated corrective requirements. Historical-reader changes must prove no gaps, duplication, or label loss across retention boundaries before any migration is considered.
 
 ---
 
@@ -245,7 +294,7 @@ Summary: fping profiling/canary repair path completed without a production defau
 
 ### Deferred future RTT-backend work
 
-- **IRTT-MIG-01** — migrate the existing IRTT path to a first-class `IrttBackend` behind the seam (v1.53 only shapes the Protocol to absorb it via SEAM-04).
+- **IRTT-MIG-01** — superseded by active corrective requirement REM-009 in v1.64 after 2026-07-25 `ops-assess` ASSESS-007 proved the first-class path's controller/health integration unsafe.
 - **FPING-JSON-01** — adopt `fping -J` structured JSON once the schema stabilizes and lands in the Debian/Ubuntu deploy baseline (5.1 ships alpha-only `-J`; parse stable text in v1.53).
 - **NATIVE-AB-01** — stand up native autorate to validate fping on the native control path (currently dormant; inherits the seam passively).
 </content>

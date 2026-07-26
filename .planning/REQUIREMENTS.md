@@ -1,5 +1,75 @@
 # Requirements — wanctl
 
+## v1.65 Historical & Operator-Tool Correctness
+
+**Goal:** Preserve historical metric meaning and make operator tools reject incomplete or invalid evidence.
+
+- [ ] **REM-013** — Downsampling preserves canonical label identity, including distinct CAKE tins, across raw, `1m`, `5m`, and `1h` rows without duplicate aggregation. (milestone: v1.65)
+  Source: 2026-07-25 `ops-assess` ASSESS-008 at `63ad2ef6`. Proof: deterministic multi-tin and mixed labeled/unlabeled SQLite fixtures survive repeated maintenance with exact label identity.
+- [ ] **REM-014** — Every supported history range returns continuous data from the finest available retention tiers without gaps or duplicate boundary rows. (milestone: v1.65)
+  Source: 2026-07-25 `ops-assess` ASSESS-013 at `63ad2ef6`. Proof: endpoint/reader tests cross 15m, 6h, 1d, and 7d retention boundaries.
+- [ ] **REM-015** — Dashboard history either consumes the complete requested result set or prominently reports that the result is partial; summaries never silently describe only the first page. (milestone: v1.65)
+  Source: 2026-07-25 `ops-assess` ASSESS-014 at `63ad2ef6`. Proof: a response over 1,000 rows is fully paginated or deterministically rendered incomplete.
+- [ ] **REM-016** — Benchmark grading and persistence require a valid positive latency baseline distinct from server reachability. (milestone: v1.65)
+  Source: 2026-07-25 `ops-assess` ASSESS-015 at `63ad2ef6`. Proof: netperf success with both RTT methods unavailable blocks grading/storage while valid baselines retain current behavior.
+- [ ] **REM-017** — Every calibration exit after temporary queue mutation attempts restoration of both queues, preserves the original failure, and reports any restoration disagreement. (milestone: v1.65)
+  Source: 2026-07-25 `ops-assess` ASSESS-016 at `63ad2ef6`. Proof: injected upload-search exception and interrupt tests assert both reset attempts and failure precedence.
+
+### SAFE-28 — Synthetic proof before data or network mutation
+
+- [ ] **SAFE-28** — v1.65 closes using synthetic databases and mocked network/router boundaries; any production data repair, benchmark traffic, queue mutation, or calibration execution remains separately approval-gated with backup/rollback evidence. (milestone: v1.65)
+  Proof: changed-path inventory plus independent close-out confirms no live/database mutation and verifies each REM regression plus full `make ci`.
+
+---
+
+## v1.64 Control-Path Correctness
+
+**Goal:** Make portable native control and active steering obey their documented failure contracts under deterministic injected failures.
+
+- [ ] **REM-005** — Failover bridges resolve health sources, state, and failure counters by configured WAN identity; arbitrary WAN names work without ISP-specific literals or cross-WAN accounting. (milestone: v1.64)
+  Source: 2026-07-25 `ops-assess` ASSESS-003 at `63ad2ef6`. Proof: arbitrary-WAN tests cover independent endpoint selection, RED/GREEN transitions, failure counting, and recovery.
+- [ ] **REM-006** — Retryable RouterOS REST connection failures exercise bounded retry and then SSH fallback under one explicit transport-failure contract. (milestone: v1.64)
+  Source: 2026-07-25 `ops-assess` ASSESS-004 at `63ad2ef6`. Proof: a real `RouterOSREST` wrapped by `FailoverRouterClient` retries injected `RequestException` and performs exactly one fallback transition.
+- [ ] **REM-007** — Queued/no-I/O rate handling leaves router connectivity unchanged, and failed pending-rate replay remains pending while reporting router failure; success is recorded only after confirmed contact. (milestone: v1.64)
+  Source: 2026-07-25 `ops-assess` ASSESS-005 at `63ad2ef6`. Proof: direct unreachable-entry, false-return replay, exception replay, success replay, stale-discard, and watchdog-distinction tests.
+- [ ] **REM-008** — Disabling CAKE immediately removes stale snapshots from arbitration, and re-enabling cold-starts counters, EWMAs, and refractory state. (milestone: v1.64)
+  Source: 2026-07-25 `ops-assess` ASSESS-006 at `63ad2ef6`. Proof: disable-with-snapshot, disabled-arbitration, and re-enable-cold-start regressions.
+- [ ] **REM-009** — First-class IRTT mode accepts a target distinct from ICMP reflectors, rejects total-loss/zero-received samples, and reports backend-aware one-target health without crashing or fabricating success. (milestone: v1.64)
+  Source: 2026-07-25 `ops-assess` ASSESS-007 at `63ad2ef6`; supersedes deferred `IRTT-MIG-01`. Proof: controller-level tests cover distinct server, 100% loss, cold start, health rendering, and ICMP fallback.
+- [ ] **REM-010** — Upload adaptive-response strategies consume upload evidence, and Hampel sigma adjustments demonstrably move outlier behavior toward the configured target without positive feedback. (milestone: v1.64)
+  Source: 2026-07-25 `ops-assess` ASSESS-009 at `63ad2ef6`. Proof: divergent upload/download datasets plus high/low/oscillating detector replay converge within bounds and retain revert safety.
+- [ ] **REM-011** — Concurrent RTT helper timeout parameters bound caller wall-clock time within a tested margin and clean up unfinished workers safely. (milestone: v1.64)
+  Source: 2026-07-25 `ops-assess` ASSESS-012 at `63ad2ef6`. Proof: deliberately slow-worker tests enforce elapsed-time bounds and lifecycle cleanup.
+- [ ] **REM-012** — A timed-out persistent SSH command closes both channel and client before the connection reference is discarded, while preserving bounded reconnect behavior. (milestone: v1.64)
+  Source: 2026-07-25 `ops-assess` ASSESS-017 at `63ad2ef6`. Proof: timeout-path tests assert channel/client closure and one bounded reconnect path.
+
+### SAFE-27 — Control-path remediation without implicit production change
+
+- [ ] **SAFE-27** — v1.64 changes remain repo-only and preserve the documented 50ms loop, native/external mode boundary, rate/state-machine safety invariants, and active route ownership; any live proof or deployment is separately approval-gated with exact rollback. (milestone: v1.64)
+  Proof: changed-path/safety-contract review, focused regressions, full `make ci`, and independent close-out addressing ASSESS-003..007/009/012/017.
+
+---
+
+## v1.63 Repository & Deployment Integrity
+
+**Goal:** Restore a fail-closed public/private boundary and make supported installs reproducible, dependency-audited, and uniquely identifiable.
+
+- [ ] **REM-001** — The public tracked tree contains only explicitly public-safe planning/configuration material, and required CI rejects a synthetic secret addition without modifying its baseline. (milestone: v1.63)
+  Source: 2026-07-25 `ops-assess` ASSESS-001 at `63ad2ef6`. Proof: credential-safe tracked-tree/history inventory, explicit allowlist, private rotation disposition if needed, and synthetic fail-closed CI regression. History rewrite or credential rotation is not implied.
+- [ ] **REM-002** — The frozen runtime dependency closure contains no known unwaived advisories, and supported RouterOS REST/SSH behavior remains compatible after the staged upgrade. (milestone: v1.63)
+  Source: 2026-07-25 `ops-assess` ASSESS-002 at `63ad2ef6`. Proof: runtime-only dependency audit, focused transport tests, and full `make ci`; any unavoidable advisory has an explicit owner, scope, and revisit trigger.
+- [ ] **REM-003** — Docker continuous/calibrate/steering/oneshot modes and the supported clean host installer resolve the same authoritative frozen runtime, start through the installed package surface, and fail nonzero when dependencies cannot be installed. (milestone: v1.63) (depends: REM-002)
+  Source: 2026-07-25 `ops-assess` ASSESS-010 and ASSESS-018 at `63ad2ef6`. Proof: clean image/startup contracts for every mode plus clean host/container install and injected dependency-install failure.
+- [ ] **REM-004** — Built artifacts and health/operator surfaces expose a consistent release identity plus immutable source revision so materially different runtimes cannot report the same build. (milestone: v1.63)
+  Source: 2026-07-25 `ops-assess` ASSESS-011 at `63ad2ef6`. Proof: package/image metadata and health readback agree in a clean build and differ when the source revision differs.
+
+### SAFE-26 — Fail-closed boundary and staged supply-chain repair
+
+- [ ] **SAFE-26** — Secret inspection never emits credential values; destructive history rewrite, credential rotation, release publication, deployment, restart, or network mutation occurs only under separate explicit approval; dependency/install changes preserve Python 3.11+ and RouterOS REST/SSH compatibility. (milestone: v1.63)
+  Proof: action ledger, changed-path review, synthetic boundary checks, compatibility tests, full `make ci`, and independent close-out.
+
+---
+
 ## v1.62 QoS Validation & Trust Hardening
 
 **Goal:** Add packet-level evidence and bounded hardening to the proven RouterOS-classifies / cake-shaper-enforces contract without retuning or broadening production scope.

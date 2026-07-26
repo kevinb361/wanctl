@@ -1,11 +1,11 @@
 ---
 saga_state_version: 1.0
-milestone: v1.62
-milestone_name: qos_validation_and_trust_hardening
-status: complete
-stopped_at: v1.62 shipped, independently audited, and durably committed; no requirement rework
-last_updated: "2026-07-25T18:56:21-05:00"
-last_activity: "Repaired malformed STATE frontmatter; YAML parse, saga-lint, and diff checks passed; no application or live-system changes."
+milestone: v1.63
+milestone_name: repository_and_deployment_integrity
+status: active
+stopped_at: v1.63 planned; next slice is REM-001 credential-safe public/private boundary inventory
+last_updated: "2026-07-25T19:05:56-05:00"
+last_activity: "Reconciled all 18 findings from the 2026-07-25 ops-assess into REM-001..017 across v1.63-v1.65 with SAFE-26..28; saga-lint and diff checks passed; no implementation or live changes."
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -19,6 +19,13 @@ Three work items completed, 5/5 PROVEN in TRACEABILITY.md:
 Decision record: `decisions/2702-saga-mode-for-ops-work.md`
 
 ### Active Work
+
+- **2026-07-25 assessment reconciliation (repo-only planning): COMPLETE / GATE GREEN.** `saga-lint .`, finding/requirement coverage, dependency/cycle checks, and `git diff --check` passed. All 18 source findings at assessed revision `63ad2ef6` have established causes and terminal **add corrective requirement** dispositions; none were waived, rejected, or silently deferred. v1.63 is active; v1.64 and v1.65 are planned. No implementation, dependency change, credential inspection output, history rewrite, deployment, service, database, router, traffic, or network mutation occurred.
+  - ASSESS-001 → REM-001; ASSESS-002 → REM-002; ASSESS-010 + ASSESS-018 → REM-003; ASSESS-011 → REM-004.
+  - ASSESS-003 → REM-005; ASSESS-004 → REM-006; ASSESS-005 → REM-007; ASSESS-006 → REM-008; ASSESS-007 → REM-009 (supersedes deferred IRTT-MIG-01); ASSESS-009 → REM-010; ASSESS-012 → REM-011; ASSESS-017 → REM-012.
+  - ASSESS-008 → REM-013; ASSESS-013 → REM-014; ASSESS-014 → REM-015; ASSESS-015 → REM-016; ASSESS-016 → REM-017.
+
+- **Next bounded slice — REM-001 credential-safe boundary inventory (inspect-only): READY.** Inventory tracked/public planning and active-config paths without printing secret values; classify each against an explicit public-safe allowlist; mechanically characterize the current secret-gate/CI behavior; produce the exact repo-only correction and separate approval gates for any credential rotation or public-history rewrite. Stop before untracking, rotation, history rewrite, CI mutation, release, or deployment. Proof sought: path-only inventory, synthetic detector reproduction, and bounded remediation handoff.
 
 - **STATE frontmatter repair (repo-only): COMPLETE / GATE GREEN.** Removed the accidental trailing `},{` from `last_activity` and preserved all other state content. YAML parsing, `saga-lint .`, and `git diff --check` passed. No application or live-system changes.
 

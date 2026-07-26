@@ -4,6 +4,68 @@ Most recent milestone first. Generated per the /saga-verify process.
 
 ---
 
+## Traceability — Milestone v1.65 Historical & Operator-Tool Correctness
+
+**Date:** 2026-07-25
+**Mode:** saga planning
+**Scope:** REM-013 through REM-017; SAFE-28
+**Source:** 2026-07-25 `ops-assess` at revision `63ad2ef6`
+
+| Requirement | Description | Status | Evidence needed |
+|-------------|-------------|--------|-----------------|
+| REM-013 | Preserve label identity through downsampling | **OPEN** | Multi-tin/mixed-label repeated-maintenance SQLite regressions plus `make ci` |
+| REM-014 | Return continuous retention-aware history | **OPEN** | Boundary tests at 15m/6h/1d/7d with no gaps or duplicates plus `make ci` |
+| REM-015 | Fetch complete dashboard history or disclose partial data | **OPEN** | Over-1,000-row pagination/incomplete-state regression plus `make ci` |
+| REM-016 | Require a positive benchmark RTT baseline | **OPEN** | No-RTT failure injection and valid-baseline regression plus `make ci` |
+| REM-017 | Restore queues on every calibration exit | **OPEN** | Exception/interrupt cleanup regressions plus `make ci` |
+| SAFE-28 | No implicit production DB/network mutation | **OPEN** | Changed-path/action review and independent close-out |
+
+**Counts:** PROVEN 0 / ASSERTED 0 / OPEN 6.
+
+---
+
+## Traceability — Milestone v1.64 Control-Path Correctness
+
+**Date:** 2026-07-25
+**Mode:** saga planning
+**Scope:** REM-005 through REM-012; SAFE-27
+**Source:** 2026-07-25 `ops-assess` at revision `63ad2ef6`
+
+| Requirement | Description | Status | Evidence needed |
+|-------------|-------------|--------|-----------------|
+| REM-005 | Config-driven arbitrary-WAN failover | **OPEN** | Arbitrary-name endpoint/counter/recovery regressions plus `make ci` |
+| REM-006 | REST retry and SSH fallback | **OPEN** | Real REST wrapper with injected request failure and bounded fallback plus `make ci` |
+| REM-007 | Honest queued-rate recovery health | **OPEN** | No-I/O and replay-failure regressions plus `make ci` |
+| REM-008 | CAKE hot-reload cold-state semantics | **OPEN** | Disable/arbitration/re-enable regressions plus `make ci` |
+| REM-009 | Safe first-class IRTT integration | **OPEN** | Distinct-target, total-loss, health, cold-start, and fallback regressions plus `make ci` |
+| REM-010 | Directionally correct adaptive tuning | **OPEN** | Divergent-direction and closed-loop detector replay plus `make ci` |
+| REM-011 | Wall-clock-bounded RTT timeout | **OPEN** | Slow-worker elapsed-time/lifecycle regression plus `make ci` |
+| REM-012 | Complete SSH timeout teardown | **OPEN** | Channel/client closure and reconnect regression plus `make ci` |
+| SAFE-27 | Repo-only correction preserving control/network invariants | **OPEN** | Safety-contract review and independent close-out of all source findings |
+
+**Counts:** PROVEN 0 / ASSERTED 0 / OPEN 9.
+
+---
+
+## Traceability — Milestone v1.63 Repository & Deployment Integrity
+
+**Date:** 2026-07-25
+**Mode:** saga planning
+**Scope:** REM-001 through REM-004; SAFE-26
+**Source:** 2026-07-25 `ops-assess` at revision `63ad2ef6`
+
+| Requirement | Description | Status | Evidence needed |
+|-------------|-------------|--------|-----------------|
+| REM-001 | Fail-closed public/private boundary | **OPEN** | Credential-safe inventory/allowlist and synthetic required-CI rejection |
+| REM-002 | Advisory-clean or explicitly waived runtime closure | **OPEN** | Runtime dependency audit, transport compatibility, and `make ci` |
+| REM-003 | Reproducible fail-closed Docker/host installs | **OPEN** | Clean startup/install matrix and injected install failure; depends on REM-002 |
+| REM-004 | Consistent release plus immutable revision identity | **OPEN** | Clean artifact/health identity readback and revision differentiation |
+| SAFE-26 | Secret-safe, approval-gated supply-chain remediation | **OPEN** | Action ledger, changed-path review, full gate, and independent close-out |
+
+**Counts:** PROVEN 0 / ASSERTED 0 / OPEN 5.
+
+---
+
 ## Traceability — Milestone v1.62 QoS Validation & Trust Hardening
 
 **Date:** 2026-07-20
