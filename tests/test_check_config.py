@@ -741,9 +741,9 @@ class TestSteeringValidation:
         assert len(warns) >= 1
         assert "did you mean" in (warns[0].suggestion or "").lower()
 
-    def test_production_steering_yaml_no_unknown_keys(self):
-        """Production steering.yaml must produce zero unknown-key warnings."""
-        with open("configs/steering.yaml") as f:
+    def test_public_steering_example_has_no_unknown_keys(self):
+        """The tracked steering example must produce zero unknown-key warnings."""
+        with open("configs/examples/steering.yaml.example") as f:
             data = yaml.safe_load(f)
         results = check_steering_unknown_keys(data)
         warns = [r for r in results if r.severity == Severity.WARN]
@@ -780,7 +780,9 @@ class TestSteeringValidation:
         }
 
         results = check_steering_unknown_keys(data)
-        warns = [r for r in results if r.severity == Severity.WARN and "route_management" in r.field]
+        warns = [
+            r for r in results if r.severity == Severity.WARN and "route_management" in r.field
+        ]
         assert len(warns) == 0
 
     def test_route_management_migration_acknowledgement_path_not_flagged_steering(self):
@@ -794,7 +796,9 @@ class TestSteeringValidation:
         }
 
         results = check_steering_unknown_keys(data)
-        warns = [r for r in results if r.severity == Severity.WARN and "route_management" in r.field]
+        warns = [
+            r for r in results if r.severity == Severity.WARN and "route_management" in r.field
+        ]
         assert len(warns) == 0
 
     def test_route_management_defaults_off(self, tmp_path):
@@ -885,7 +889,9 @@ class TestSteeringCrossField:
 
         results = validate_steering_cross_fields(data)
         errors = [r for r in results if r.severity == Severity.ERROR]
-        assert any("migration" in r.message.lower() or "ownership" in r.message.lower() for r in errors)
+        assert any(
+            "migration" in r.message.lower() or "ownership" in r.message.lower() for r in errors
+        )
 
     def test_route_management_active_with_acknowledgement_without_routes_still_fails(self):
         data = _valid_steering_data()
@@ -1340,11 +1346,11 @@ class TestMeasurementBackendValidation:
         assert len(self._errors(results)) == 0
         assert len(self._warnings(results)) == 1
 
-    def test_cfg03_real_config_delta_has_no_new_schema_unknown_or_backend_warnings(self):
+    def test_cfg03_public_example_delta_has_no_new_schema_unknown_or_backend_warnings(self):
         cases = (
-            ("configs/att.yaml", _run_autorate_validators),
-            ("configs/spectrum.yaml", _run_autorate_validators),
-            ("configs/steering.yaml", _run_steering_validators),
+            ("configs/examples/dsl.yaml.example", _run_autorate_validators),
+            ("configs/examples/cable.yaml.example", _run_autorate_validators),
+            ("configs/examples/steering.yaml.example", _run_steering_validators),
         )
         compared_categories = {"Schema Validation", "Unknown Keys", "Measurement Backend"}
 

@@ -1,23 +1,15 @@
-"""Phase 201 replay corpus loader and synthetic-trace generator.
+"""Public-safe Phase 201 replay corpus builders.
 
-Single source of truth for replay-test inputs. All Phase 201 test files
-that need historical or synthetic UL traces import from this module.
-
-Origin: RESEARCH.md Section 8 (Replay-Test Corpus); PATTERNS.md
-'tests/test_phase_201_replay.py (NEW)'.
+The original replay consumed site-specific captures from the private planning
+tree. Tests use deterministic synthetic surrogates so a clean public checkout
+exercises the same controller states without publishing operational evidence.
 """
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
-from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-PHASE200_ARCHIVE = REPO_ROOT / ".planning/milestones/v1.41-phases/200-per-direction-rtt-bloat-thresholds"
-ATTEMPT3_NDJSON_PATH = PHASE200_ARCHIVE / "canary/20260504T133207Z/loaded_capture.ndjson"
-ATTEMPT3_VERDICT_PATH = PHASE200_ARCHIVE / "canary/20260504T133207Z/verdict.json"
-ATTEMPT2_NDJSON_PATH = PHASE200_ARCHIVE / "canary/20260503T215734Z/loaded_capture.ndjson"
+ATTEMPT3_SYNTHETIC_CYCLES = 885
 
 
 @dataclass(frozen=True)
@@ -31,49 +23,20 @@ class ReplaySample:
     cake_cold_start: bool | None
 
 
-def _parse_line(raw: str) -> ReplaySample | None:
-    raw = raw.strip()
-    if not raw:
-        return None
-    try:
-        obj = json.loads(raw)
-    except json.JSONDecodeError:
-        return None
-    wans = obj.get("wans") or []
-    if not wans:
-        return None
-    w = wans[0]
-    ul = w.get("upload") or {}
-    cs = (w.get("cake_signal") or {}).get("upload") or {}
-    return ReplaySample(
-        ts=obj.get("sampled_at_utc", ""),
-        baseline_rtt_ms=w.get("baseline_rtt_ms"),
-        load_rtt_ms=w.get("load_rtt_ms"),
-        upload_state=ul.get("state", ""),
-        upload_current_rate_mbps=float(ul.get("current_rate_mbps") or 0.0),
-        cake_backlog_bytes=cs.get("backlog_bytes"),
-        cake_cold_start=cs.get("cold_start"),
+def load_attempt3_trace() -> list[ReplaySample]:
+    """Return a deterministic RED-heavy surrogate for the private Attempt 3 capture."""
+    return synthesize_sustained_load_trace(
+        cycles=ATTEMPT3_SYNTHETIC_CYCLES,
+        baseline_rtt_ms=22.0,
+        peak_delta_ms=100.0,
+        ramp_cycles=10,
+        backlog_bytes=8000,
     )
 
 
-def _load_ndjson(path: Path) -> list[ReplaySample]:
-    if not path.exists():
-        return []
-    out: list[ReplaySample] = []
-    with path.open("r", encoding="utf-8") as fh:
-        for line in fh:
-            sample = _parse_line(line)
-            if sample is not None:
-                out.append(sample)
-    return out
-
-
-def load_attempt3_trace() -> list[ReplaySample]:
-    return _load_ndjson(ATTEMPT3_NDJSON_PATH)
-
-
 def load_attempt2_trace() -> list[ReplaySample]:
-    return _load_ndjson(ATTEMPT2_NDJSON_PATH)
+    """The optional secondary private corpus has no public surrogate."""
+    return []
 
 
 def synthesize_sustained_load_trace(

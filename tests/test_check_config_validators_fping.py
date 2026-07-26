@@ -108,7 +108,7 @@ def test_valid_fping_config_no_unknown_key_warnings():
     assert unknown_warnings == []
 
 
-def test_existing_spectrum_config_has_no_fping_validator_rows():
-    with open("configs/spectrum.yaml") as f:
+def test_public_cable_example_has_no_fping_validator_rows():
+    with open("configs/examples/cable.yaml.example") as f:
         data = yaml.safe_load(f)
     assert validate_measurement_fping(data) == []

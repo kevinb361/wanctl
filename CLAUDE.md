@@ -56,7 +56,7 @@ router:
 
 ## Development Commands
 
-Use the virtualenv directly:
+Use the virtualenv directly. Required CI must pass from a clean public checkout: tests may not depend on private `.planning/` evidence or ignored active configs; use tracked public-safe fixtures or deterministic synthetic builders.
 
 ```bash
 .venv/bin/pytest tests/ -v

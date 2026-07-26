@@ -1,7 +1,7 @@
 """Smoke tests for Phase 201 replay corpus fixtures (Plan 201-01)."""
 
 from tests.fixtures.phase201_replay_corpus import (
-    ATTEMPT3_NDJSON_PATH,
+    ATTEMPT3_SYNTHETIC_CYCLES,
     load_attempt2_trace,
     load_attempt3_trace,
     synthesize_idle_trace,
@@ -17,9 +17,7 @@ def test_attempt3_trace_loads_nonempty():
 
 def test_attempt3_trace_has_baseline_and_load_rtt():
     samples = load_attempt3_trace()
-    populated = [
-        s for s in samples if s.baseline_rtt_ms is not None and s.load_rtt_ms is not None
-    ]
+    populated = [s for s in samples if s.baseline_rtt_ms is not None and s.load_rtt_ms is not None]
     assert len(populated) >= 800
 
 
@@ -59,6 +57,8 @@ def test_synthesize_idle_trace_low_delta():
     assert max(deltas) <= 0.5 + 1e-9
 
 
-def test_attempt3_path_constant_resolves():
-    # Anchor: file exists at runtime; if False, planner-cited path is wrong.
-    assert ATTEMPT3_NDJSON_PATH.exists(), f"missing {ATTEMPT3_NDJSON_PATH}"
+def test_attempt3_surrogate_is_deterministic():
+    first = load_attempt3_trace()
+    second = load_attempt3_trace()
+    assert len(first) == ATTEMPT3_SYNTHETIC_CYCLES
+    assert first == second

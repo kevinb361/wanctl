@@ -5,10 +5,10 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_production_steering_toggles_explicit_work_vpn_eligibility() -> None:
-    config = yaml.safe_load((ROOT / "configs/steering.yaml").read_text())
+def test_public_steering_example_names_an_explicit_mangle_rule() -> None:
+    config = yaml.safe_load((ROOT / "configs/examples/steering.yaml.example").read_text())
 
-    assert config["mangle_rule"]["comment"] == "ADAPTIVE: Work VPN eligible for ATT"
+    assert config["mangle_rule"]["comment"] == "ADAPTIVE: Steer latency-sensitive to WAN2"
 
 
 def test_legacy_broad_rule_installer_fails_closed() -> None:

@@ -16,11 +16,9 @@ Coverage targets:
 - Invalid direction: ValueError
 """
 
-from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import pytest
-import yaml
 
 from wanctl.cake_params import (
     DOWNLOAD_DEFAULTS,
@@ -411,30 +409,37 @@ class TestBuildCakeParamsInvalidDirection:
 # =============================================================================
 
 
-class TestSpectrumNativeCakeAutorateParity:
-    """Lock native Spectrum canary params to the live external cake-autorate envelope."""
+class TestPublicSyntheticCakeAutorateParity:
+    """Exercise native/external parameter parity without private WAN configuration."""
 
     @staticmethod
-    def _spectrum_config() -> dict[str, Any]:
-        path = Path(__file__).resolve().parents[1] / "configs" / "spectrum.yaml"
-        return cast(dict[str, Any], yaml.safe_load(path.read_text(encoding="utf-8")))
+    def _public_synthetic_config() -> dict[str, Any]:
+        return {
+            "continuous_monitoring": {"download": {"floor_green_mbps": 100, "ceiling_mbps": 200}},
+            "cake_params": {
+                "rtt": "50ms",
+                "allow_wash": True,
+                "wash": True,
+                "ingress": False,
+            },
+        }
 
-    def test_native_spectrum_download_envelope_matches_external_trial(self) -> None:
-        cfg = self._spectrum_config()
+    def test_synthetic_download_envelope_is_explicit(self) -> None:
+        cfg = self._public_synthetic_config()
         download = cfg["continuous_monitoring"]["download"]
 
-        assert download["floor_green_mbps"] == 800
-        assert download["ceiling_mbps"] == 900
+        assert download["floor_green_mbps"] == 100
+        assert download["ceiling_mbps"] == 200
 
-    def test_native_spectrum_qdisc_params_match_external_trial_shape(self) -> None:
-        cfg = self._spectrum_config()
+    def test_synthetic_qdisc_params_preserve_directional_defaults(self) -> None:
+        cfg = self._public_synthetic_config()
         cake = cfg["cake_params"]
 
-        assert cake["rtt"] == "25ms"
+        assert cake["rtt"] == "50ms"
         assert "ack_filter" not in cake
 
-        download = build_cake_params("download", cake, bandwidth_kbit=550000)
-        upload = build_cake_params("upload", cake, bandwidth_kbit=18000)
+        download = build_cake_params("download", cake, bandwidth_kbit=100000)
+        upload = build_cake_params("upload", cake, bandwidth_kbit=10000)
 
         assert download["ack-filter"] is False
         assert upload["ack-filter"] is True
@@ -442,10 +447,10 @@ class TestSpectrumNativeCakeAutorateParity:
         assert upload["ingress"] is False
         assert download["wash"] is True
         assert upload["wash"] is True
-        assert download["rtt"] == "25ms"
-        assert upload["rtt"] == "25ms"
-        assert download["bandwidth"] == "550000kbit"
-        assert upload["bandwidth"] == "18000kbit"
+        assert download["rtt"] == "50ms"
+        assert upload["rtt"] == "50ms"
+        assert download["bandwidth"] == "100000kbit"
+        assert upload["bandwidth"] == "10000kbit"
 
 
 # =============================================================================

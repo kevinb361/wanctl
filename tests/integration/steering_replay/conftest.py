@@ -33,6 +33,10 @@ except ImportError:  # direct script import from replay_harness.py
     from fake_live_rtt_source import FixtureBaselineLoader  # type: ignore[no-redef]
     from fake_router_transport import FakeRouterTransport  # type: ignore[no-redef]
 
+PUBLIC_STEERING_CONFIG = (
+    Path(__file__).resolve().parents[3] / "configs/examples/steering.yaml.example"
+)
+
 PRODUCTION_ROOTS = (
     Path("/var/lib/wanctl"),
     Path("/etc/wanctl"),
@@ -117,12 +121,15 @@ def _under_production_root(path: Path) -> bool:
 
 
 def build_replay_config(workspace: Path, harness_mode: str = "hysteresis-only") -> SteeringConfig:
-    source = yaml.safe_load(Path("configs/steering.yaml").read_text())
+    source = yaml.safe_load(PUBLIC_STEERING_CONFIG.read_text())
     data = copy.deepcopy(source)
+    # Replay fixtures use stable public labels independent of any site config.
+    data["topology"]["primary_wan"] = "spectrum"
+    data["topology"]["alternate_wan"] = "att"
     data["topology"]["primary_wan_config"] = str(workspace / "primary.yaml")
     data["cake_state_sources"]["primary"] = str(workspace / "spectrum_state.json")
     data["state"]["file"] = str(workspace / "steering_state.json")
-    data["storage"]["db_path"] = ""
+    data.setdefault("storage", {})["db_path"] = ""
     data["logging"]["main_log"] = str(workspace / "steering.log")
     data["logging"]["debug_log"] = str(workspace / "steering_debug.log")
     data["lock_file"] = str(workspace / "steering.lock")

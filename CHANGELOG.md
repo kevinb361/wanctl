@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **REM-001 clean-clone CI:** Decoupled replay and configuration tests from ignored private planning evidence and active site configs. Tests now use tracked public examples or deterministic synthetic fixtures, so the strict public tree passes the same full CI gate as the local private-overlay checkout.
 - **Live artifact reconciliation:** Promoted cake-shaper's current wanctl runtime artifacts back into the repo: Spectrum cake-autorate 200/800/900 Mbps download envelope, native Spectrum 800/900 Mbps download and 35 Mbps upload ceiling, active steering/route-management posture, failover bridge disabled flags, and the live wanctl logrotate policy. Updated the native/external parity test to lock the reconciled Spectrum envelope.
 
 ### Fixed
