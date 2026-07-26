@@ -56,7 +56,7 @@ Most recent milestone first. Generated per the /saga-verify process.
 
 | Requirement | Description | Status | Evidence needed |
 |-------------|-------------|--------|-----------------|
-| REM-001 | Fail-closed public/private boundary | **OPEN** | Credential-safe inventory/allowlist and synthetic required-CI rejection |
+| REM-001 | Fail-closed public/private boundary | **OPEN** | Inventory complete: 3,325 tracked planning files, 3 active configs, 16 current/20 historical redacted Gitleaks candidates; synthetic proof shows current target mutates baseline/exits 0 while hook fails closed. Awaiting approved untracking/allowlist, private candidate disposition, and required-CI regression. |
 | REM-002 | Advisory-clean or explicitly waived runtime closure | **OPEN** | Runtime dependency audit, transport compatibility, and `make ci` |
 | REM-003 | Reproducible fail-closed Docker/host installs | **OPEN** | Clean startup/install matrix and injected install failure; depends on REM-002 |
 | REM-004 | Consistent release plus immutable revision identity | **OPEN** | Clean artifact/health identity readback and revision differentiation |

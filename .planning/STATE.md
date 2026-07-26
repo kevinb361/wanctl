@@ -3,9 +3,9 @@ saga_state_version: 1.0
 milestone: v1.63
 milestone_name: repository_and_deployment_integrity
 status: active
-stopped_at: v1.63 planned; next slice is REM-001 credential-safe public/private boundary inventory
-last_updated: "2026-07-25T19:05:56-05:00"
-last_activity: "Reconciled all 18 findings from the 2026-07-25 ops-assess into REM-001..017 across v1.63-v1.65 with SAFE-26..28; saga-lint and diff checks passed; no implementation or live changes."
+stopped_at: REM-001 inventory complete; blocked at explicit public-boundary disposition gate before untracking, credential action, history rewrite, CI mutation, or publication
+last_updated: "2026-07-25T19:18:07-05:00"
+last_activity: "REM-001 credential-safe inventory proved 3325 tracked planning files, 3 ignored-but-tracked active configs, 16 current/20 historical redacted gitleaks candidates, and a mutating non-failing secret gate; no secret values or live changes."
 ---
 
 ## v1.60 Shipped 2026-07-05
@@ -25,7 +25,10 @@ Decision record: `decisions/2702-saga-mode-for-ops-work.md`
   - ASSESS-003 → REM-005; ASSESS-004 → REM-006; ASSESS-005 → REM-007; ASSESS-006 → REM-008; ASSESS-007 → REM-009 (supersedes deferred IRTT-MIG-01); ASSESS-009 → REM-010; ASSESS-012 → REM-011; ASSESS-017 → REM-012.
   - ASSESS-008 → REM-013; ASSESS-013 → REM-014; ASSESS-014 → REM-015; ASSESS-015 → REM-016; ASSESS-016 → REM-017.
 
-- **Next bounded slice — REM-001 credential-safe boundary inventory (inspect-only): READY.** Inventory tracked/public planning and active-config paths without printing secret values; classify each against an explicit public-safe allowlist; mechanically characterize the current secret-gate/CI behavior; produce the exact repo-only correction and separate approval gates for any credential rotation or public-history rewrite. Stop before untracking, rotation, history rewrite, CI mutation, release, or deployment. Proof sought: path-only inventory, synthetic detector reproduction, and bounded remediation handoff.
+- **v1.63 slice 1a — REM-001 credential-safe boundary inventory (inspect-only + repo state): COMPLETE / BLOCKED AT EXPLICIT DISPOSITION GATE.** Path/count-only inspection found 3,325 ignored-but-tracked `.planning` files and three ignored-but-tracked active configs on both HEAD and the local `github/main` ref. Current tracked content has private-address patterns in 509 files and absolute home paths in 233; broad assignment/private-key-marker checks returned zero, which is not a credential clearance. Fully redacted Gitleaks scanned 349 MB at HEAD and found 16 unresolved candidates (12 curl-auth-user, 4 generic-api-key); full 3,332-commit history scanned 364 MB and found 20 (14 planning, 2 config, 4 other). The detect-secrets baseline contains two stale findings for absent planning paths; a focused current active-config scan found zero. Both required CI workflows run `make ci`, not security. Synthetic proof reproduced `detect-secrets scan --baseline` returning 0 while mutating its baseline to absorb a new finding; `detect-secrets-hook --baseline` returned 1 without mutation. No candidate values were emitted, no publication/network fetch occurred, and temporary reports were deleted.
+  - **Disposition needed:** approve a repo-only public-boundary correction that untracks all historical `.planning` material and the three active configs while retaining local ignored copies, then add a small explicit public-safe planning allowlist and fail-closed required-CI hook. This changes the public tree and is not implied by loop consent.
+  - **Separate later gates:** private review/rotation disposition for the 16 current/20 historical redacted candidates; destructive public-history rewrite only if separately chosen after rotation. Do not baseline unresolved candidates.
+  - **Exact next approval:** “Approve REM-001 repo-only untracking of `.planning/**`, `configs/att.yaml`, `configs/spectrum.yaml`, and `configs/steering.yaml`, preserving local ignored files; retain only an explicit public-safe Saga allowlist; add fail-closed CI. No history rewrite, rotation, release, or deployment.”
 
 - **STATE frontmatter repair (repo-only): COMPLETE / GATE GREEN.** Removed the accidental trailing `},{` from `last_activity` and preserved all other state content. YAML parsing, `saga-lint .`, and `git diff --check` passed. No application or live-system changes.
 
