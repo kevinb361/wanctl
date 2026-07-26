@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **REM-004:** Added immutable clean-Git source revision identity across installed package metadata, `wanctl-version`, controller/steering health payloads, host installation records, and OCI image labels. Supported image builds now derive version and revision through `scripts/build-image.sh` and fail closed on dirty or mismatched source.
 - **BASE-01 / BASE-02 / BASE-03 (Phase 213):** Added the Phase 213 experience baseline harness, including read-only health polling, browse-loop timing, alert-window extraction, steering snapshots, offline classification, and the baseline runbook for serialized Spectrum/ATT evidence capture.
 
 ### Security

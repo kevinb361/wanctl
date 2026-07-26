@@ -44,6 +44,7 @@ SSH_TARGET=""
 TIMEOUT="$DEFAULT_TIMEOUT"
 SKIP_STEERING=false
 EXPECT_VERSION=""
+EXPECT_REVISION=""
 JSON_MODE=false
 INPUT_FILE=""
 HAS_JQ=false
@@ -64,7 +65,8 @@ Options:
   --ssh TARGET       SSH target for remote execution
   --timeout N        Readiness timeout in seconds (default: ${DEFAULT_TIMEOUT})
   --skip-steering    Skip steering health check
-  --expect-version V Warn if health version != V
+  --expect-version V  Warn if health version != V
+  --expect-revision R Warn if health revision != R
   --input FILE       Read health JSON from file instead of curling endpoints
   --json             Output results as JSON array
   --help, -h         Show help
@@ -220,7 +222,7 @@ check_status_field() {
 check_autorate_health() {
     local target="$1"
     local json="$2"
-    local version uptime row_count index row_json row_name
+    local version revision uptime row_count index row_json row_name
 
     check_status_field "autorate" "$target" "$json"
     report_storage_sizes "autorate" "$target" "$json"
@@ -230,6 +232,13 @@ check_autorate_health() {
         print_warn "autorate ${target}: version ${version} != expected ${EXPECT_VERSION}"
     else
         print_pass "autorate ${target}: version ${version}"
+    fi
+
+    revision=$(jq_or_py "$json" '.revision // "unknown"' 'd.get("revision", "unknown")')
+    if [[ -n "$EXPECT_REVISION" && "$revision" != "$EXPECT_REVISION" ]]; then
+        print_warn "autorate ${target}: revision ${revision} != expected ${EXPECT_REVISION}"
+    else
+        print_pass "autorate ${target}: revision ${revision}"
     fi
 
     uptime=$(jq_or_py "$json" '.uptime_seconds // 0' 'd.get("uptime_seconds", 0)')
@@ -426,6 +435,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --expect-version)
             EXPECT_VERSION="${2:-}"
+            shift 2
+            ;;
+        --expect-revision)
+            EXPECT_REVISION="${2:-}"
             shift 2
             ;;
         --input)

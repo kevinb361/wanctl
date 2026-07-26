@@ -69,6 +69,25 @@ sudo ./scripts/install.sh --reconfigure
 sudo ./scripts/install.sh --uninstall
 ```
 
+Supported installs require a clean Git tree and embed its full commit revision. Verify the
+installed release and source identity with:
+
+```bash
+wanctl-version --json
+```
+
+Build local container images through the identity-preserving wrapper rather than invoking
+`docker build` directly:
+
+```bash
+./scripts/build-image.sh
+# Export the emitted version-revision tag before using docker/docker-compose.yml.
+export WANCTL_IMAGE='wanctl:<version>-<revision-prefix>'
+```
+
+The controller and steering health payloads expose the same identity as top-level `version`
+and `revision` fields plus the nested `build` object.
+
 After wizard completion, enable the native `wanctl@` service:
 
 ```bash

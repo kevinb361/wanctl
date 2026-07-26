@@ -9,17 +9,17 @@
 #   docker-compose down            # Stop all services
 #
 # Prerequisites:
-#   1. Copy configs/examples/*.yaml.example to ./configs/ and customize
-#   2. Copy your router SSH key to ./ssh/router.key
-#   3. Create state directory: mkdir -p ./state
+#   1. Build from a clean tree: scripts/build-image.sh
+#   2. Export WANCTL_IMAGE to the emitted version-revision tag
+#   3. Copy configs/examples/*.yaml.example to ./configs/ and customize
+#   4. Copy your router SSH key to ./ssh/router.key
+#   5. Create state directory: mkdir -p ./state
 #
 
 services:
   # Primary WAN - continuous monitoring
   wan1:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
+    image: "${WANCTL_IMAGE:?Build with scripts/build-image.sh and set WANCTL_IMAGE}"
     container_name: wanctl-wan1
     restart: unless-stopped
     network_mode: host  # Required for accurate RTT measurements
@@ -39,9 +39,7 @@ services:
 
   # Secondary WAN - continuous monitoring
   wan2:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
+    image: "${WANCTL_IMAGE:?Build with scripts/build-image.sh and set WANCTL_IMAGE}"
     container_name: wanctl-wan2
     restart: unless-stopped
     network_mode: host
@@ -61,9 +59,7 @@ services:
 
   # Steering daemon (optional - for multi-WAN setups)
   steering:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
+    image: "${WANCTL_IMAGE:?Build with scripts/build-image.sh and set WANCTL_IMAGE}"
     container_name: wanctl-steering
     restart: unless-stopped
     network_mode: host
@@ -85,9 +81,7 @@ services:
 #
 # services:
 #   wan:
-#     build:
-#       context: ..
-#       dockerfile: docker/Dockerfile
+#     image: "${WANCTL_IMAGE:?Build with scripts/build-image.sh and set WANCTL_IMAGE}"
 #     container_name: wanctl
 #     restart: unless-stopped
 #     network_mode: host

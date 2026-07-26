@@ -80,19 +80,25 @@ class TestDockerfileDependencyContract:
         for pkg_name, _, _ in _RUNTIME_DEPS:
             assert not re.search(rf"^\s+{re.escape(pkg_name)}[><=]", dockerfile, re.MULTILINE)
 
-    def test_label_version_matches_pyproject(self):
-        """Dockerfile LABEL version matches pyproject.toml [project].version."""
+    def test_oci_labels_use_required_build_identity(self):
+        """Docker labels and package installation consume the same required build args."""
         dockerfile = _load_dockerfile()
-        pyproject_version = _PYPROJECT["project"]["version"]
 
-        match = re.search(r'LABEL\s+version="([^"]+)"', dockerfile)
-        assert match, "No LABEL version= found in Dockerfile"
+        assert "ARG WANCTL_RELEASE_VERSION" in dockerfile
+        assert "ARG WANCTL_BUILD_REVISION" in dockerfile
+        assert 'LABEL version="${WANCTL_RELEASE_VERSION}"' in dockerfile
+        assert 'org.opencontainers.image.version="${WANCTL_RELEASE_VERSION}"' in dockerfile
+        assert 'org.opencontainers.image.revision="${WANCTL_BUILD_REVISION}"' in dockerfile
+        assert 'test -n "$WANCTL_RELEASE_VERSION"' in dockerfile
+        assert 'WANCTL_BUILD_REVISION="$WANCTL_BUILD_REVISION"' in dockerfile
 
-        dockerfile_version = match.group(1)
-        assert dockerfile_version == pyproject_version, (
-            f"Version mismatch: Dockerfile LABEL={dockerfile_version!r}, "
-            f"pyproject.toml={pyproject_version!r}"
-        )
+    def test_compose_requires_one_preidentified_image(self):
+        """Compose cannot silently rebuild an artifact without immutable identity args."""
+        compose = (_PROJECT_ROOT / "docker" / "docker-compose.yml").read_text()
+
+        assert "build:" not in compose
+        assert compose.count("WANCTL_IMAGE:?") == 4
+        assert "scripts/build-image.sh" in compose
 
     def test_copy_paths_resolve_to_files(self):
         """Each Dockerfile COPY source glob resolves to at least one real file."""

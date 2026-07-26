@@ -3,14 +3,18 @@
 # Adaptive CAKE bandwidth controller for Mikrotik RouterOS
 #
 # Usage:
-#   docker build -t wanctl .
-#   docker run -v ./configs/wan1.yaml:/etc/wanctl/wan.yaml wanctl
+#   scripts/build-image.sh
+#   docker run -v ./configs/wan1.yaml:/etc/wanctl/wan.yaml <emitted-tag>
 #
 FROM python:3.12-slim
 
+ARG WANCTL_RELEASE_VERSION
+ARG WANCTL_BUILD_REVISION
 LABEL maintainer="wanctl project"
 LABEL description="Adaptive CAKE bandwidth controller for Mikrotik RouterOS"
-LABEL version="1.47.0"
+LABEL version="${WANCTL_RELEASE_VERSION}"
+LABEL org.opencontainers.image.version="${WANCTL_RELEASE_VERSION}"
+LABEL org.opencontainers.image.revision="${WANCTL_BUILD_REVISION}"
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -43,14 +47,15 @@ RUN chown -R root:wanctl /etc/wanctl \
     && chmod 750 /var/log/wanctl
 
 # Install one pinned resolver, then consume the repository's frozen runtime.
-# IMPORTANT: build context MUST be the repo root, not docker/. Use:
-#     docker build -f docker/Dockerfile -t wanctl:latest .
+# IMPORTANT: use scripts/build-image.sh so version/revision args come from a clean Git tree.
 RUN pip install --no-cache-dir uv==0.11.29
 COPY pyproject.toml uv.lock /opt/wanctl/
 COPY src/ /opt/wanctl/src/
 COPY scripts/install-python-runtime.sh /usr/local/bin/install-python-runtime.sh
 RUN chmod 755 /usr/local/bin/install-python-runtime.sh \
-    && /usr/local/bin/install-python-runtime.sh /opt/wanctl \
+    && test -n "$WANCTL_RELEASE_VERSION" \
+    && test "$WANCTL_RELEASE_VERSION" = "$(python3 -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("/opt/wanctl/pyproject.toml").read_text())["project"]["version"])')" \
+    && WANCTL_BUILD_REVISION="$WANCTL_BUILD_REVISION" /usr/local/bin/install-python-runtime.sh /opt/wanctl \
     && find /opt/wanctl/src -type d -exec chmod 755 {} + \
     && find /opt/wanctl/src -type f -name '*.py' -exec chmod 644 {} +
 

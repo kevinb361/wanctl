@@ -1,5 +1,5 @@
 # 200-13: prevent caches and dev artifacts from leaking into the build context.
-# Build invocation MUST be `docker build -f docker/Dockerfile .` (repo root).
+# Build through scripts/build-image.sh; it supplies clean-tree version/revision identity.
 **/__pycache__
 **/*.pyc
 **/*.pyo

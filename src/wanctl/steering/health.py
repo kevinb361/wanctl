@@ -20,7 +20,7 @@ from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import TYPE_CHECKING, Any
 
-from wanctl import __version__
+from wanctl.build_identity import get_build_identity
 from wanctl.health_check import _build_cycle_budget, _get_disk_space_status
 from wanctl.runtime_pressure import (
     build_runtime_section as build_runtime_status_section,
@@ -112,7 +112,14 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             try:
                 health = self._get_health_status()
             except Exception:
-                health = {"status": "degraded", "error": "health check failed", "version": __version__}
+                build_identity = get_build_identity()
+                health = {
+                    "status": "degraded",
+                    "error": "health check failed",
+                    "version": build_identity["version"],
+                    "revision": build_identity["revision"],
+                    "build": build_identity,
+                }
                 logging.getLogger(__name__).warning("Health endpoint failed", exc_info=True)
             status_code = 200 if health["status"] == "healthy" else 503
 
@@ -135,10 +142,13 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         uptime = time.monotonic() - self.start_time if self.start_time else 0
         router_reachable = True
 
+        build_identity = get_build_identity()
         health: dict[str, Any] = {
             "status": "healthy",
             "uptime_seconds": round(uptime, 1),
-            "version": __version__,
+            "version": build_identity["version"],
+            "revision": build_identity["revision"],
+            "build": build_identity,
         }
 
         if self.daemon is not None:

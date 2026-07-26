@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urlparse
 
-from wanctl import __version__
+from wanctl.build_identity import get_build_identity
 from wanctl.runtime_pressure import (
     build_runtime_section as build_runtime_status_section,
 )
@@ -196,10 +196,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         # Default: assume all routers reachable (startup or no controller)
         all_routers_reachable = True
 
+        build_identity = get_build_identity()
         health: dict[str, Any] = {
             "status": "healthy",  # Will be updated below
             "uptime_seconds": round(uptime, 1),
-            "version": __version__,
+            "version": build_identity["version"],
+            "revision": build_identity["revision"],
+            "build": build_identity,
             "consecutive_failures": self.consecutive_failures,
         }
 

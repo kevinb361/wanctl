@@ -19,8 +19,9 @@ set -e
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 
-# Version
-VERSION="1.37.0"
+# Release identity comes from the project metadata used to build the package.
+VERSION=$(awk -F'"' '/^version = "/ {print $2; exit}' "$REPO_ROOT/pyproject.toml")
+[[ -n "$VERSION" ]] || { echo "Unable to read project version" >&2; exit 1; }
 
 # Colors for output
 RED='\033[0;31m'
@@ -1659,10 +1660,20 @@ main() {
     setup_logrotate
     create_example_configs
 
-    # Write version file
-    echo "$VERSION" > "$CODE_DIR/.version"
-    echo "Installed: $(date -Iseconds)" >> "$CODE_DIR/.version"
-    print_success "Installed wanctl version $VERSION"
+    # Record the same immutable identity exposed by the installed package.
+    local installed_version installed_revision
+    installed_version=$(python3 -c 'import wanctl; print(wanctl.__version__)')
+    installed_revision=$(python3 -c 'import wanctl; print(wanctl.__revision__)')
+    [[ "$installed_version" == "$VERSION" ]] || {
+        print_error "Installed package version disagrees with pyproject.toml"
+        return 1
+    }
+    {
+        echo "Version: $installed_version"
+        echo "Revision: $installed_revision"
+        echo "Installed: $(date -Iseconds)"
+    } > "$CODE_DIR/.version"
+    print_success "Installed wanctl $installed_version ($installed_revision)"
 
     # Run interactive wizard if requested
     if [[ "$RUN_WIZARD" == "true" ]]; then

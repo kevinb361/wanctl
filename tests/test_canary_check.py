@@ -9,6 +9,7 @@ CANARY_SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "canary-che
 HEALTHY_FIXTURE = {
     "status": "healthy",
     "version": "1.33.0",
+    "revision": "a" * 40,
     "uptime_seconds": 120.5,
     "disk_space": {"status": "ok"},
     "summary": {
@@ -103,6 +104,12 @@ class TestCanaryPassFail:
         fixture = _write_fixture(tmp_path, "version-mismatch.json", data)
         result = _run_canary(["--input", str(fixture), "--expect-version", "1.33.0"])
         assert result.returncode == 2
+
+    def test_revision_mismatch_warns(self, tmp_path: Path) -> None:
+        fixture = _write_fixture(tmp_path, "revision-mismatch.json", HEALTHY_FIXTURE)
+        result = _run_canary(["--input", str(fixture), "--expect-revision", "b" * 40])
+        assert result.returncode == 2
+        assert "revision" in result.stdout
 
 
 class TestCanaryJson:
