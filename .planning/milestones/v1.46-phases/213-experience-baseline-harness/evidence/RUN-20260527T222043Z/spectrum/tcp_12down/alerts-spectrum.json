@@ -1,7 +1,0 @@
-{
-  "wan": "spectrum",
-  "db": "/var/lib/wanctl/metrics-spectrum.db",
-  "present": true,
-  "rows": [],
-  "summary": []
-}

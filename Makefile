@@ -26,8 +26,8 @@ type:
 format:
 	.venv/bin/ruff format src/ tests/
 
-# All CI checks (lint, type, coverage, dead-code, check-deps)
-ci: lint type coverage-check dead-code check-deps check-boundaries check-brittleness
+# All required CI checks, including the fail-closed tracked-file secret gate
+ci: lint type coverage-check dead-code check-deps check-boundaries check-brittleness security-secrets
 
 # Dead code detection (vulture + ruff F401)
 dead-code:
@@ -87,10 +87,10 @@ security-code:
 	@echo "Running static security analysis..."
 	.venv/bin/bandit -r src/ -c pyproject.toml
 
-# Secret detection (detect-secrets)
+# Secret detection: reject new findings without printing values or mutating the baseline
 security-secrets:
-	@echo "Checking for secrets..."
-	.venv/bin/detect-secrets scan --baseline .secrets.baseline
+	@echo "Checking tracked files for secrets..."
+	.venv/bin/python scripts/check_secrets.py
 
 # License compliance (pip-licenses)
 # Note: LGPL allowed (paramiko) - weak copyleft permits library use without affecting wanctl's license

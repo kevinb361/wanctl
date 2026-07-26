@@ -1,3 +1,0 @@
-udp_observed_egress_dscp=0
-tcp_observed_egress_dscp=0
-neutrality=unmarked-no-tos-or-dscp-option

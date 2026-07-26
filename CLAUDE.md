@@ -20,7 +20,7 @@ It measures RTT and queue signals, adjusts shaping rates in real time, and runs 
 
 ## Knowledge Map
 
-Pre-computed knowledge for this project:
+Pre-computed knowledge for this project. `.planning/` is local-private by default and only its public boundary notice is tracked, so these sources may be absent from public clones:
 
 - `.planning/graphs/GRAPH_REPORT.md` — graphify god nodes, community clusters, surprising connections
 - `.planning/intel/arch.md` — architecture overview

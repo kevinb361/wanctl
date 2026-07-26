@@ -8,8 +8,10 @@ __pycache__/
 .bg-shell/
 .codex
 
-# Planning directory (contains site-specific data, credentials in investigation notes)
-.planning/
+# Planning is private by default: it contains site-specific operational evidence.
+# Only the public-safe boundary notice is tracked; all Saga records remain local.
+.planning/*
+!.planning/README.md
 
 # Coverage artifacts
 .coverage
