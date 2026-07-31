@@ -17,8 +17,8 @@ reflector_ping_interval_s=0.2
 # Conservative Spectrum DOCSIS production trial envelope.
 adjust_dl_shaper_rate=1
 adjust_ul_shaper_rate=1
-min_dl_shaper_rate_kbps=200000
-base_dl_shaper_rate_kbps=800000
+min_dl_shaper_rate_kbps=100000
+base_dl_shaper_rate_kbps=450000
 max_dl_shaper_rate_kbps=900000
 min_ul_shaper_rate_kbps=8000
 base_ul_shaper_rate_kbps=30000
@@ -30,7 +30,7 @@ high_load_thr=0.75
 # Latency-first DOCSIS thresholds from the Spectrum trial.
 dl_owd_delta_delay_thr_ms=30.0
 ul_owd_delta_delay_thr_ms=30.0
-dl_avg_owd_delta_max_adjust_up_thr_ms=10.0
+dl_avg_owd_delta_max_adjust_up_thr_ms=4.0
 ul_avg_owd_delta_max_adjust_up_thr_ms=10.0
 dl_avg_owd_delta_max_adjust_down_thr_ms=60.0
 ul_avg_owd_delta_max_adjust_down_thr_ms=60.0
@@ -42,7 +42,7 @@ bufferbloat_refractory_period_ms=300
 shaper_rate_min_adjust_down_bufferbloat=0.98
 shaper_rate_max_adjust_down_bufferbloat=0.75
 shaper_rate_min_adjust_up_load_high=1.00
-shaper_rate_max_adjust_up_load_high=1.03
+shaper_rate_max_adjust_up_load_high=1.025
 shaper_rate_adjust_down_load_low=0.995
 shaper_rate_adjust_up_load_low=1.005
 

@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Spectrum autorate envelope retune (2026-07-30):** Lowered the external cake-autorate Spectrum download envelope from 200/800/900 to 100/450/900 Mbps (min/base/max) and set the high-load climb to 1.025 gated by a stricter 4.0 ms average-OWD-delta threshold (was 1.03 gated at 10.0 ms). Latency-first posture from the Steam-burst WAN-failover investigation: the lower floor and base contain evening DOCSIS ceiling degradation while the gated climb restores fast recovery toward 900 Mbps on clean paths. Pairs with the RouterOS-side Steam CDN SNI early demotion and recursive check-gateway hardening in infra-ansible.
 - **REM-001 clean-clone CI:** Decoupled replay and configuration tests from ignored private planning evidence and active site configs. Tests now use tracked public examples or deterministic synthetic fixtures, so the strict public tree passes the same full CI gate as the local private-overlay checkout.
 - **Live artifact reconciliation:** Promoted cake-shaper's current wanctl runtime artifacts back into the repo: Spectrum cake-autorate 200/800/900 Mbps download envelope, native Spectrum 800/900 Mbps download and 35 Mbps upload ceiling, active steering/route-management posture, failover bridge disabled flags, and the live wanctl logrotate policy. Updated the native/external parity test to lock the reconciled Spectrum envelope.
 
