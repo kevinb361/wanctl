@@ -262,6 +262,19 @@ the scraper-reachable host address, and restrict TCP/9103 to trusted monitoring 
 firewall. The checked-in unit carries the current deployment's dedicated scrape address rather than
 opening every interface. The exporter is unauthenticated and must not be exposed to untrusted networks.
 
+After at least fourteen retained days, build the baseline with explicit immutable UTC bounds:
+
+```bash
+python scripts/cake_telemetry_baseline.py \
+  --prometheus-url http://<prometheus-host>:9090 \
+  --start <RFC3339-UTC-start> --end <RFC3339-UTC-end> \
+  --output cake-telemetry-baseline.json
+```
+
+The tool uses only the Prometheus range-query API, fixed five-minute sampling, fixed WAN/direction/tin
+labels, and declared UTC/load cohorts. Exit `2` means not yet eligible or rejected coverage; it never
+backfills, generates traffic, changes configuration, or tunes the shaper.
+
 If steering is enabled:
 
 ```bash
