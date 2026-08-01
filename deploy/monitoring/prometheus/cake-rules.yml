@@ -1,0 +1,36 @@
+groups:
+  - name: cake-telemetry
+    interval: 30s
+    rules:
+      - record: cake:tin_drop_rate5m
+        expr: sum by (wan, direction, tin) (rate(cake_tin_dropped_packets_total[5m]))
+      - record: cake:tin_ecn_rate5m
+        expr: sum by (wan, direction, tin) (rate(cake_tin_ecn_marked_packets_total[5m]))
+      - record: cake:tin_backlog_bytes
+        expr: max by (wan, direction, tin) (cake_tin_backlog_bytes)
+      - record: cake:rtt_delta_seconds
+        expr: cake_rtt_delta_ms / 1000
+      - alert: CakeStatsUnavailable
+        expr: min_over_time(cake_stats_up[5m]) == 0
+        for: 5m
+        labels:
+          severity: warning
+          maturity: baseline-pending
+        annotations:
+          summary: "CAKE statistics unavailable for {{ $labels.wan }}"
+      - alert: CakeStatsStale
+        expr: cake_stats_age_seconds > 120
+        for: 5m
+        labels:
+          severity: warning
+          maturity: baseline-pending
+        annotations:
+          summary: "CAKE statistics for {{ $labels.wan }} are stale"
+      - alert: CakeProbeUnavailable
+        expr: cake_probe_up == 0
+        for: 5m
+        labels:
+          severity: warning
+          maturity: baseline-pending
+        annotations:
+          summary: "CAKE RTT probe unavailable for {{ $labels.wan }}"

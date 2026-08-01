@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 import threading
 import time
+from contextlib import contextmanager
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -17,10 +18,34 @@ from pathlib import Path
 WAN_NAME = os.environ.get("WANCTL_EXTERNAL_WAN_NAME", "spectrum")
 DL_IF = os.environ.get("WANCTL_EXTERNAL_DL_IF", "spec-router")
 UL_IF = os.environ.get("WANCTL_EXTERNAL_UL_IF", "spec-modem")
-LOG = Path(os.environ.get("CAKE_AUTORATE_BRIDGE_LOG", f"/var/log/cake-autorate/cake-autorate.{WAN_NAME}.log"))
+LOG = Path(
+    os.environ.get(
+        "CAKE_AUTORATE_BRIDGE_LOG", f"/var/log/cake-autorate/cake-autorate.{WAN_NAME}.log"
+    )
+)
 STATE = Path(os.environ.get("WANCTL_EXTERNAL_STATE_PATH", f"/var/lib/wanctl/{WAN_NAME}_state.json"))
-METRICS_DB = Path(os.environ.get("WANCTL_EXTERNAL_METRICS_DB", f"/var/lib/wanctl/metrics-{WAN_NAME}.db"))
-METRICS_ENABLED = os.environ.get("WANCTL_EXTERNAL_METRICS_ENABLED", "1") not in {"0", "false", "False", "no"}
+METRICS_DB = Path(
+    os.environ.get("WANCTL_EXTERNAL_METRICS_DB", f"/var/lib/wanctl/metrics-{WAN_NAME}.db")
+)
+METRICS_ENABLED = os.environ.get("WANCTL_EXTERNAL_METRICS_ENABLED", "1") not in {
+    "0",
+    "false",
+    "False",
+    "no",
+}
+
+
+@contextmanager
+def open_metrics_db():
+    """Commit or roll back a bridge metrics transaction, then close its connection."""
+    conn = sqlite3.connect(METRICS_DB, timeout=30)
+    try:
+        with conn:
+            yield conn
+    finally:
+        conn.close()
+
+
 DEFAULT_BASELINE_RTT = float(os.environ.get("WANCTL_EXTERNAL_BASELINE_RTT", "22.535852814520855"))
 WANCTL_UID = int(os.environ.get("WANCTL_STATE_UID", "988"))
 WANCTL_GID = int(os.environ.get("WANCTL_STATE_GID", "988"))
@@ -47,35 +72,102 @@ BASELINE_ALPHA = float(os.environ.get("WANCTL_EXTERNAL_BASELINE_ALPHA", "0.02"))
 BASELINE_UPWARD_GUARD_MS = float(os.environ.get("WANCTL_EXTERNAL_BASELINE_UPWARD_GUARD_MS", "5.0"))
 
 LINE_RE = re.compile(r"^(SUMMARY|LOAD); ")
-BANDWIDTH_RE = re.compile(r"\bbandwidth\s+([0-9.]+)(Kbit|Mbit|Gbit)\b")
+
+TIN_NAMES = ("bulk", "best_effort", "video", "voice")
+TIN_COUNTER_KEYS = ("sent_bytes", "sent_packets", "drops", "ecn_mark")
+TIN_GAUGE_KEYS = ("backlog_bytes", "peak_delay_us", "avg_delay_us", "base_delay_us")
 
 
-def bandwidth_to_bps(value: str, unit: str) -> int:
-    scale = {"Kbit": 1_000, "Mbit": 1_000_000, "Gbit": 1_000_000_000}[unit]
-    return int(float(value) * scale)
+def _nonnegative_int(value) -> int:
+    if isinstance(value, bool):
+        raise TypeError("boolean is not a CAKE statistic")
+    parsed = int(value)
+    if parsed < 0:
+        raise ValueError("negative CAKE statistic")
+    return parsed
 
 
-def qdisc_rate_bps(dev: str) -> int | None:
+def qdisc_snapshot(dev: str) -> tuple[dict | None, str | None]:
+    """Read rate and all four diffserv4 tins with one bounded tc invocation."""
     try:
         result = subprocess.run(
-            ["tc", "qdisc", "show", "dev", dev],
+            ["tc", "-j", "-s", "qdisc", "show", "dev", dev],
             check=False,
             capture_output=True,
             text=True,
             timeout=2,
         )
-    except (OSError, subprocess.TimeoutExpired):
-        return None
+    except subprocess.TimeoutExpired:
+        return None, "timeout"
+    except OSError:
+        return None, "exec_error"
     if result.returncode != 0:
-        return None
-    match = BANDWIDTH_RE.search(result.stdout)
-    if not match:
-        return None
-    return bandwidth_to_bps(match.group(1), match.group(2))
+        return None, "tc_error"
+    try:
+        entries = json.loads(result.stdout)
+        if not isinstance(entries, list):
+            raise TypeError("qdisc result is not a list")
+        cake = next(
+            entry for entry in entries if isinstance(entry, dict) and entry.get("kind") == "cake"
+        )
+        raw_tins = cake.get("tins")
+        if not isinstance(raw_tins, list) or len(raw_tins) != len(TIN_NAMES):
+            return None, "invalid_tins"
+        tins = []
+        for name, raw_tin in zip(TIN_NAMES, raw_tins, strict=True):
+            if not isinstance(raw_tin, dict):
+                return None, "invalid_tins"
+            tin = {"name": name}
+            for key in (*TIN_COUNTER_KEYS, *TIN_GAUGE_KEYS):
+                tin[key] = _nonnegative_int(raw_tin.get(key, 0))
+            tin["counter_reset"] = False
+            tin["counter_resets_total"] = 0
+            tins.append(tin)
+        options = cake.get("options") if isinstance(cake.get("options"), dict) else {}
+        bandwidth_bytes = options.get("bandwidth")
+        rate_bps = _nonnegative_int(bandwidth_bytes) * 8 if bandwidth_bytes is not None else None
+        return {
+            "interface": dev,
+            "rate_bps": rate_bps,
+            "packets": _nonnegative_int(cake.get("packets", 0)),
+            "bytes": _nonnegative_int(cake.get("bytes", 0)),
+            "drops": _nonnegative_int(cake.get("drops", 0)),
+            "backlog_bytes": _nonnegative_int(cake.get("backlog", 0)),
+            "tins": tins,
+        }, None
+    except (StopIteration, TypeError, ValueError, json.JSONDecodeError):
+        return None, "malformed_json"
 
 
-def actual_qdisc_rates(parsed_dl_bps: int, parsed_ul_bps: int) -> tuple[int, int]:
-    return qdisc_rate_bps(DL_IF) or parsed_dl_bps, qdisc_rate_bps(UL_IF) or parsed_ul_bps
+def mark_counter_resets(current: dict, previous: dict | None) -> None:
+    if not previous:
+        return
+    old_tins = {
+        tin.get("name"): tin
+        for tin in previous.get("tins", [])
+        if isinstance(tin, dict) and isinstance(tin.get("name"), str)
+    }
+    for tin in current["tins"]:
+        old = old_tins.get(tin["name"])
+        if old:
+            try:
+                tin["counter_reset"] = any(
+                    tin[key] < _nonnegative_int(old.get(key, 0)) for key in TIN_COUNTER_KEYS
+                )
+                tin["counter_resets_total"] = _nonnegative_int(
+                    old.get("counter_resets_total", 0)
+                ) + int(tin["counter_reset"])
+            except (TypeError, ValueError):
+                tin["counter_reset"] = False
+
+
+def previous_cake_directions() -> dict:
+    try:
+        old = json.loads(STATE.read_text(encoding="utf-8"))
+        directions = (old.get("cake_stats") or {}).get("directions") or {}
+        return directions if isinstance(directions, dict) else {}
+    except (OSError, AttributeError, json.JSONDecodeError):
+        return {}
 
 
 def rates_from_row(kind: str, parts: list[str]) -> tuple[int, int, str, str] | None:
@@ -181,7 +273,11 @@ def update_rtt(dl_state: str, ul_state: str) -> tuple[float, float, str | None]:
         return baseline, previous_load, None
 
     load = measured
-    if dl_state == "GREEN" and ul_state == "GREEN" and measured <= baseline + BASELINE_UPWARD_GUARD_MS:
+    if (
+        dl_state == "GREEN"
+        and ul_state == "GREEN"
+        and measured <= baseline + BASELINE_UPWARD_GUARD_MS
+    ):
         alpha = max(0.0, min(1.0, BASELINE_ALPHA))
         baseline = (baseline * (1.0 - alpha)) + (measured * alpha)
     elif measured < baseline:
@@ -194,7 +290,7 @@ def update_rtt(dl_state: str, ul_state: str) -> tuple[float, float, str | None]:
 
 def write_state(state: dict) -> None:
     STATE.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(prefix="spectrum_state.", suffix=".tmp", dir=str(STATE.parent))
+    fd, tmp = tempfile.mkstemp(prefix=f"{WAN_NAME}_state.", suffix=".tmp", dir=str(STATE.parent))
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(state, f, separators=(",", ":"))
         f.write("\n")
@@ -232,13 +328,19 @@ def write_metrics(state: dict) -> None:
         return
     timestamp = int(time.time())
     ewma = state.get("ewma", {}) if isinstance(state.get("ewma"), dict) else {}
-    last_applied = state.get("last_applied", {}) if isinstance(state.get("last_applied"), dict) else {}
+    last_applied = (
+        state.get("last_applied", {}) if isinstance(state.get("last_applied"), dict) else {}
+    )
     congestion = state.get("congestion", {}) if isinstance(state.get("congestion"), dict) else {}
     baseline = float(ewma.get("baseline_rtt", DEFAULT_BASELINE_RTT))
     load = float(ewma.get("load_rtt", baseline))
     dl_rate = float(last_applied.get("dl_rate", 0)) / 1_000_000
     ul_rate = float(last_applied.get("ul_rate", 0)) / 1_000_000
-    state_value = 0.0 if congestion.get("dl_state") == "GREEN" and congestion.get("ul_state") == "GREEN" else 1.0
+    state_value = (
+        0.0
+        if congestion.get("dl_state") == "GREEN" and congestion.get("ul_state") == "GREEN"
+        else 1.0
+    )
     rows = [
         (timestamp, WAN_NAME, "wanctl_rate_download_mbps", dl_rate, None, "raw"),
         (timestamp, WAN_NAME, "wanctl_rate_upload_mbps", ul_rate, None, "raw"),
@@ -259,7 +361,7 @@ def write_metrics(state: dict) -> None:
     # Uses exponential backoff: 0.1s, 0.2s, 0.4s, 0.8s, 1.6s (max 5 attempts).
     for attempt in range(5):
         try:
-            with sqlite3.connect(METRICS_DB, timeout=30) as conn:
+            with open_metrics_db() as conn:
                 conn.execute("PRAGMA journal_mode=WAL")
                 ensure_metrics_schema(conn)
                 conn.executemany(
@@ -272,7 +374,7 @@ def write_metrics(state: dict) -> None:
             break  # success
         except sqlite3.OperationalError as exc:
             if "locked" in str(exc).lower() and attempt < 4:
-                time.sleep(0.1 * (2 ** attempt))  # exponential backoff
+                time.sleep(0.1 * (2**attempt))  # exponential backoff
                 continue
             raise  # non-lock error or max retries exceeded
 
@@ -288,7 +390,15 @@ def status_to_state(status: str) -> str:
 
 def build_state(parsed: tuple[int, int, str, str], green_streak: int) -> tuple[dict, int]:
     parsed_dl_rate_bps, parsed_ul_rate_bps, dl_status, ul_status = parsed
-    dl_rate_bps, ul_rate_bps = actual_qdisc_rates(parsed_dl_rate_bps, parsed_ul_rate_bps)
+    previous_directions = previous_cake_directions()
+    dl_stats, dl_error = qdisc_snapshot(DL_IF)
+    ul_stats, ul_error = qdisc_snapshot(UL_IF)
+    if dl_stats:
+        mark_counter_resets(dl_stats, previous_directions.get("download"))
+    if ul_stats:
+        mark_counter_resets(ul_stats, previous_directions.get("upload"))
+    dl_rate_bps = (dl_stats or {}).get("rate_bps") or parsed_dl_rate_bps
+    ul_rate_bps = (ul_stats or {}).get("rate_bps") or parsed_ul_rate_bps
     dl_state = status_to_state(dl_status)
     ul_state = status_to_state(ul_status)
     baseline, load, rtt_backend = update_rtt(dl_state, ul_state)
@@ -314,6 +424,12 @@ def build_state(parsed: tuple[int, int, str, str], green_streak: int) -> tuple[d
                 "hosts": PING_HOSTS,
             },
             "last_applied": {"dl_rate": dl_rate_bps, "ul_rate": ul_rate_bps},
+            "cake_stats": {
+                "collected_at": datetime.now().isoformat(),
+                "collection_ok": dl_error is None and ul_error is None,
+                "errors": {"download": dl_error, "upload": ul_error},
+                "directions": {"download": dl_stats, "upload": ul_stats},
+            },
             "timestamp": datetime.now().isoformat(),
             "congestion": {"dl_state": dl_state, "ul_state": ul_state},
             "source": "cake-autorate-state-bridge",
@@ -360,7 +476,9 @@ def health_payload() -> dict:
     measurement = state.get("measurement") if isinstance(state.get("measurement"), dict) else {}
     raw_rtt = ewma.get("load_rtt")
     available = isinstance(raw_rtt, (int, float)) and age <= MAX_STATE_AGE_SECONDS
-    last_applied = state.get("last_applied", {}) if isinstance(state.get("last_applied"), dict) else {}
+    last_applied = (
+        state.get("last_applied", {}) if isinstance(state.get("last_applied"), dict) else {}
+    )
     congestion = state.get("congestion", {}) if isinstance(state.get("congestion"), dict) else {}
     dl_rate = last_applied.get("dl_rate")
     ul_rate = last_applied.get("ul_rate")
@@ -447,14 +565,15 @@ def downsample_raw_to_1m() -> None:
         return
     cutoff = int(time.time()) - 3600  # 1 hour
     try:
-        with sqlite3.connect(METRICS_DB, timeout=30) as conn:
+        with open_metrics_db() as conn:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("BEGIN")
 
             # Find distinct metric/wan combinations to downsample
             cursor = conn.execute(
                 "SELECT DISTINCT metric_name, wan_name FROM metrics "
-                "WHERE granularity='raw' AND timestamp < ?", (cutoff,)
+                "WHERE granularity='raw' AND timestamp < ?",
+                (cutoff,),
             )
             combinations = cursor.fetchall()
             total_created = 0
@@ -463,7 +582,7 @@ def downsample_raw_to_1m() -> None:
                 cursor = conn.execute(
                     "SELECT MIN(timestamp), MAX(timestamp) FROM metrics "
                     "WHERE metric_name=? AND wan_name=? AND granularity='raw' AND timestamp < ?",
-                    (metric_name, wan_name, cutoff)
+                    (metric_name, wan_name, cutoff),
                 )
                 time_range = cursor.fetchone()
                 if not time_range or time_range[0] is None:
@@ -479,7 +598,7 @@ def downsample_raw_to_1m() -> None:
                         "SELECT COUNT(*), AVG(value), MIN(value), MAX(value) FROM metrics "
                         "WHERE metric_name=? AND wan_name=? AND granularity='raw' "
                         "AND timestamp >= ? AND timestamp < ?",
-                        (metric_name, wan_name, bucket_start, bucket_end)
+                        (metric_name, wan_name, bucket_start, bucket_end),
                     )
                     row = cursor.fetchone()
                     if row and row[0] > 0:
@@ -489,8 +608,13 @@ def downsample_raw_to_1m() -> None:
                             conn.execute(
                                 "INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity) "
                                 "VALUES (?, ?, ?, ?, ?, '1m')",
-                                (bucket_start, wan_name, metric_name, avg_val,
-                                 json.dumps({"downsampled_from": count}, separators=(",", ":")))
+                                (
+                                    bucket_start,
+                                    wan_name,
+                                    metric_name,
+                                    avg_val,
+                                    json.dumps({"downsampled_from": count}, separators=(",", ":")),
+                                ),
                             )
                             total_created += 1
                     bucket_start = bucket_end
@@ -505,9 +629,14 @@ def downsample_raw_to_1m() -> None:
             if total_created > 0 or deleted > 0:
                 try:
                     subprocess.run(
-                        ["logger", "-t", f"cake-autorate-{WAN_NAME}-bridge",
-                         f"downsampling: created {total_created} 1m rows, deleted {deleted} raw rows"],
-                        check=False, timeout=5
+                        [
+                            "logger",
+                            "-t",
+                            f"cake-autorate-{WAN_NAME}-bridge",
+                            f"downsampling: created {total_created} 1m rows, deleted {deleted} raw rows",
+                        ],
+                        check=False,
+                        timeout=5,
                     )
                 except Exception:
                     pass  # non-critical
@@ -526,7 +655,7 @@ def cleanup_old_metrics() -> None:
         return
     cutoff = int(time.time()) - 3600  # 1 hour
     try:
-        with sqlite3.connect(METRICS_DB, timeout=30) as conn:
+        with open_metrics_db() as conn:
             conn.execute("PRAGMA journal_mode=WAL")
             cur = conn.execute(
                 "DELETE FROM metrics WHERE granularity='raw' AND timestamp < ?", (cutoff,)
@@ -536,9 +665,14 @@ def cleanup_old_metrics() -> None:
                 # Log cleanup to syslog
                 try:
                     subprocess.run(
-                        ["logger", "-t", f"cake-autorate-{WAN_NAME}-bridge",
-                         f"retention cleanup: deleted {deleted} raw rows older than 1h"],
-                        check=False, timeout=5
+                        [
+                            "logger",
+                            "-t",
+                            f"cake-autorate-{WAN_NAME}-bridge",
+                            f"retention cleanup: deleted {deleted} raw rows older than 1h",
+                        ],
+                        check=False,
+                        timeout=5,
                     )
                 except Exception:
                     pass  # non-critical
@@ -550,7 +684,7 @@ def main() -> int:
     start_health_server()
     green_streak = 1
     last_cleanup = 0.0
-    CLEANUP_INTERVAL = 900  # 15 minutes (matches wanctl maintenance_interval_seconds)
+    cleanup_interval = 900  # 15 minutes (matches wanctl maintenance_interval_seconds)
     while True:
         parsed = latest_parsed_row()
         if parsed:
@@ -560,7 +694,7 @@ def main() -> int:
         if ONESHOT:
             return 0 if parsed else 1
         now = time.time()
-        if now - last_cleanup >= CLEANUP_INTERVAL:
+        if now - last_cleanup >= cleanup_interval:
             downsample_raw_to_1m()  # aggregates + deletes in one shot
             last_cleanup = now
         time.sleep(POLL_INTERVAL)

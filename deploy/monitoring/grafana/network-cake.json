@@ -1,0 +1,385 @@
+{
+  "editable": false,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 100,
+      "options": {
+        "content": "**Read-only evidence, not a controller.** Missing/stale data is explicit. Queue thresholds are intentionally not treated as tuning verdicts until the 14-day baseline is accepted.",
+        "mode": "markdown"
+      },
+      "title": "CAKE telemetry safety boundary",
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-ds"
+      },
+      "description": "1 only when both WAN collectors are healthy.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 3
+      },
+      "id": 101,
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-ds"
+          },
+          "editorMode": "code",
+          "expr": "min(cake_stats_up)",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "CAKE collection up",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-ds"
+      },
+      "description": "Freshness in seconds; missing data is not zero.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 3
+      },
+      "id": 102,
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-ds"
+          },
+          "editorMode": "code",
+          "expr": "max(cake_stats_age_seconds)",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Worst collection age",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-ds"
+      },
+      "description": "1 only when both WAN raw RTT probes are current.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 3
+      },
+      "id": 103,
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-ds"
+          },
+          "editorMode": "code",
+          "expr": "min(cake_probe_up)",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "RTT probes up",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-ds"
+      },
+      "description": "Read-only telemetry. Align series in time; this panel never actuates shaping.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "id": 104,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-ds"
+          },
+          "editorMode": "code",
+          "expr": "cake_shaped_rate_bps / 1000000",
+          "legendFormat": "{{wan}} {{direction}} shaped Mbit/s",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-ds"
+          },
+          "editorMode": "code",
+          "expr": "cake_rtt_delta_ms",
+          "legendFormat": "{{wan}} loaded RTT delta ms",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-ds"
+          },
+          "editorMode": "code",
+          "expr": "max by (wan, direction) (cake_tin_average_delay_seconds) * 1000",
+          "legendFormat": "{{wan}} {{direction}} worst average tin delay ms",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Rate, loaded RTT, and worst tin delay correlation",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-ds"
+      },
+      "description": "Read-only telemetry. Align series in time; this panel never actuates shaping.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "id": 105,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-ds"
+          },
+          "editorMode": "code",
+          "expr": "cake_tin_average_delay_seconds * 1000",
+          "legendFormat": "{{wan}} {{direction}} {{tin}} average ms",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-ds"
+          },
+          "editorMode": "code",
+          "expr": "cake_tin_peak_delay_seconds * 1000",
+          "legendFormat": "{{wan}} {{direction}} {{tin}} peak ms",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Per-tin delay",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-ds"
+      },
+      "description": "Read-only telemetry. Align series in time; this panel never actuates shaping.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
+      "id": 106,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-ds"
+          },
+          "editorMode": "code",
+          "expr": "cake_tin_backlog_bytes",
+          "legendFormat": "{{wan}} {{direction}} {{tin}} backlog bytes",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-ds"
+          },
+          "editorMode": "code",
+          "expr": "rate(cake_tin_dropped_packets_total[$__rate_interval])",
+          "legendFormat": "{{wan}} {{direction}} {{tin}} drops/s",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Per-tin backlog and drops",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-ds"
+      },
+      "description": "Read-only telemetry. Align series in time; this panel never actuates shaping.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "id": 107,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-ds"
+          },
+          "editorMode": "code",
+          "expr": "rate(cake_tin_sent_bytes_total[$__rate_interval]) * 8 / 1000000",
+          "legendFormat": "{{wan}} {{direction}} {{tin}} Mbit/s",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-ds"
+          },
+          "editorMode": "code",
+          "expr": "rate(cake_tin_ecn_marked_packets_total[$__rate_interval])",
+          "legendFormat": "{{wan}} {{direction}} {{tin}} ECN/s",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus-ds"
+          },
+          "editorMode": "code",
+          "expr": "cake_tin_resets_total",
+          "legendFormat": "{{wan}} {{direction}} {{tin}} resets",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Per-tin throughput, ECN, and reset visibility",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": [
+    "network",
+    "cake",
+    "wan",
+    "read-only"
+  ],
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Network \u00b7 CAKE Shaper",
+  "uid": "network-cake",
+  "version": 4
+}

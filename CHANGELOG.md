@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **OBS-005:** Added deterministic read-only CAKE Grafana and Prometheus rule generation, with aligned rate/RTT/per-tin panels, explicit stale/missing visibility, recording rules, and warning-only baseline-pending alerts.
+- **OBS-004:** Extended the repository-owned exporter with bounded both-WAN/per-direction/four-tin raw counters, delay/backlog gauges, persistent reset visibility, collection freshness, and raw RTT probe health while preserving all ten legacy metrics.
+- **OBS-003:** Added atomic both-direction/four-tin CAKE statistics to each external state bridge using the existing two bounded qdisc reads per cycle, with malformed/unavailable isolation from the core state snapshot.
+- **OBS-002:** Added repository ownership and deployment wiring for the existing read-only `cake-metrics-exporter` and hardened systemd unit, with deterministic coverage of its ten-metric compatibility contract, per-WAN failure isolation, and no-control/write boundary. External-mode deployment installs the artifacts but leaves restart operator-gated.
 - **REM-004:** Added immutable clean-Git source revision identity across installed package metadata, `wanctl-version`, controller/steering health payloads, host installation records, and OCI image labels. Supported image builds now derive version and revision through `scripts/build-image.sh` and fail closed on dirty or mismatched source.
 - **BASE-01 / BASE-02 / BASE-03 (Phase 213):** Added the Phase 213 experience baseline harness, including read-only health polling, browse-loop timing, alert-window extraction, steering snapshots, offline classification, and the baseline runbook for serialized Spectrum/ATT evidence capture.
 
@@ -25,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **OBS-001:** External cake-autorate state bridges now close every SQLite metrics connection after commit, rollback, or lock-retry failure instead of leaking database/WAL file descriptors. Deployment guidance also makes the per-WAN metrics databases durable `/var/lib/wanctl` files and treats symlinks into `/run/wanctl` as migration-gated drift.
 - **REM-003:** Made Docker and host installation consume `pyproject.toml` plus the frozen `uv.lock` through one fail-closed runtime installer. Docker modes now invoke installed wanctl console scripts instead of nonexistent top-level modules; missing tooling, lockfiles, dependency installation, and package verification fail nonzero. `requirements.txt` is a generated lock export and the old production freeze is explicitly historical-only.
 - **Phase 243:** Hardened benchmark gate review findings by requiring the complete eight-arm benchmark design by default, validating CPU evidence arithmetic before gate math, constraining transient bench lock/state cleanup paths to bench-only runtime locations, covering the preflight abort-path proof writer with a runtime regression test, switching benchmark cycle evidence from retained journald output to the durable per-arm debug log with an immediate per-arm cycle floor check, keeping fping benchmark cadence below the controller stale-data fallback limit, and preserving CPU evidence on long load arms with a larger transient unit runtime margin.
 

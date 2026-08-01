@@ -76,6 +76,9 @@ ATT_CAKE_AUTORATE_SYSTEMD=(
     "deploy/systemd/cake-autorate-att-state-bridge.service"
 )
 
+CAKE_METRICS_EXPORTER_SCRIPT="deploy/scripts/cake-metrics-exporter"
+CAKE_METRICS_EXPORTER_UNIT="deploy/systemd/cake-metrics-exporter.service"
+
 SILICOM_BYPASS_SYSTEMD=(
     "deploy/systemd/silicom-bypass-init.service"
     "deploy/systemd/bpctl-silicom.service"
@@ -551,6 +554,30 @@ deploy_att_cake_autorate() {
     ssh "$TARGET_HOST" "sudo systemctl daemon-reload"
 
     print_success "ATT cake-autorate artifacts deployed"
+}
+
+deploy_cake_metrics_exporter() {
+    print_step "Deploying read-only cake-autorate metrics exporter artifacts..."
+
+    if [[ ! -f "$PROJECT_ROOT/$CAKE_METRICS_EXPORTER_SCRIPT" ]]; then
+        print_error "Missing CAKE metrics exporter: $CAKE_METRICS_EXPORTER_SCRIPT"
+        exit 1
+    fi
+    if [[ ! -f "$PROJECT_ROOT/$CAKE_METRICS_EXPORTER_UNIT" ]]; then
+        print_error "Missing CAKE metrics exporter unit: $CAKE_METRICS_EXPORTER_UNIT"
+        exit 1
+    fi
+
+    scp "$PROJECT_ROOT/$CAKE_METRICS_EXPORTER_SCRIPT" "$TARGET_HOST:/tmp/cake-metrics-exporter"
+    ssh "$TARGET_HOST" "sudo mv /tmp/cake-metrics-exporter /usr/local/sbin/cake-metrics-exporter && sudo chown root:root /usr/local/sbin/cake-metrics-exporter && sudo chmod 755 /usr/local/sbin/cake-metrics-exporter"
+    echo "  -> /usr/local/sbin/cake-metrics-exporter"
+
+    scp "$PROJECT_ROOT/$CAKE_METRICS_EXPORTER_UNIT" "$TARGET_HOST:/tmp/cake-metrics-exporter.service"
+    ssh "$TARGET_HOST" "sudo mv /tmp/cake-metrics-exporter.service $TARGET_SYSTEMD_DIR/cake-metrics-exporter.service && sudo chown root:root $TARGET_SYSTEMD_DIR/cake-metrics-exporter.service && sudo chmod 644 $TARGET_SYSTEMD_DIR/cake-metrics-exporter.service"
+    echo "  -> cake-metrics-exporter.service"
+
+    ssh "$TARGET_HOST" "sudo systemctl daemon-reload"
+    print_success "CAKE metrics exporter artifacts deployed (restart remains operator-gated)"
 }
 
 print_silicom_bypass_plan() {
@@ -1030,6 +1057,10 @@ fi
 
 if [[ "$WITH_ATT_CAKE_AUTORATE" == "true" ]]; then
     deploy_att_cake_autorate
+fi
+
+if [[ "$WITH_SPECTRUM_CAKE_AUTORATE" == "true" || "$WITH_ATT_CAKE_AUTORATE" == "true" ]]; then
+    deploy_cake_metrics_exporter
 fi
 
 verify_deployment "$WAN_NAME"

@@ -1,0 +1,31 @@
+[Unit]
+Description=cake-autorate Prometheus exporter (read-only state JSON)
+After=cake-autorate-spectrum-state-bridge.service cake-autorate-att-state-bridge.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wanctl
+Group=wanctl
+Environment=CAKE_EXPORTER_PORT=9103
+# Current remote scraper reaches the dedicated Spectrum-side address only.
+# Other deployments must set their own scraper-reachable, firewall-restricted address.
+Environment=CAKE_EXPORTER_BIND=10.10.110.223
+ExecStart=/usr/local/sbin/cake-metrics-exporter
+Restart=always
+RestartSec=5
+# Hardening — this is a read-only metrics server; lock it down.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+ReadOnlyPaths=/var/lib/wanctl
+CapabilityBoundingSet=
+MemoryMax=64M
+
+[Install]
+WantedBy=multi-user.target

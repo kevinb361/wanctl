@@ -145,6 +145,12 @@ Expected topology after Phase 178:
 - `/var/lib/wanctl/metrics.db` remains active for steering
 - `/var/lib/wanctl/spectrum_metrics.db` and `/var/lib/wanctl/att_metrics.db` are not part of the authoritative active DB set
 
+The per-WAN metrics databases are retained history and must remain regular files under
+`/var/lib/wanctl`. Symlinking them into `/run/wanctl` is unsupported because tmpfiles/runtime
+cleanup or reboot can erase the history while the configured path still appears valid. Treat such
+a symlink as deployment drift and reconcile it through a separately approved migration with a
+backup, service stop/start order, and post-migration history readback.
+
 For autorate history validation, do not target `/var/lib/wanctl/metrics.db` directly.
 On the current production hosts:
 
@@ -215,9 +221,10 @@ sudo systemctl enable --now steering.service
 
 For external cake-autorate mode, also install the repo-owned cake-autorate config,
 qdisc-init script, `cake-autorate-<wan>.service`, and
-`cake-autorate-<wan>-state-bridge.service` for that WAN. Keep the native
-`wanctl@<wan>.service` disabled while the external rate controller is active; the
-unit conflict prevents simultaneous writers.
+`cake-autorate-<wan>-state-bridge.service` for that WAN. The same external-mode deploy
+owns the read-only `cake-metrics-exporter` script and hardened systemd unit, but leaves
+its restart operator-gated. Keep the native `wanctl@<wan>.service` disabled while the
+external rate controller is active; the unit conflict prevents simultaneous writers.
 
 ## Monitoring
 
@@ -235,10 +242,25 @@ External cake-autorate mode:
 
 ```bash
 systemctl status cake-autorate-<wan>.service cake-autorate-<wan>-state-bridge.service
+systemctl status cake-metrics-exporter.service
 journalctl -u cake-autorate-<wan>.service -u cake-autorate-<wan>-state-bridge.service -f
+curl -fsS http://127.0.0.1:9103/metrics
 scripts/soak-monitor.sh
 wanctl-operator-summary http://<health-ip-1>:9101/health http://<health-ip-2>:9101/health
 ```
+
+The exporter preserves the ten legacy state/rate/RTT metrics and adds fixed-cardinality
+CAKE telemetry for two WANs, two directions, and four tins: raw packet/byte/drop/ECN
+counters, delay/backlog gauges, cumulative reset detection, collection freshness, and raw
+probe health. `scripts/generate_cake_observability.py` deterministically owns the Grafana
+and Prometheus sources under `deploy/monitoring/`. New alerts remain warning-only and
+`baseline-pending` until the fourteen-day baseline is accepted.
+
+The exporter defaults to loopback when run directly. A remote Prometheus scrape requires an
+explicit `CAKE_EXPORTER_BIND` address in the systemd unit or a deployment-local override; bind only
+the scraper-reachable host address, and restrict TCP/9103 to trusted monitoring sources with the host
+firewall. The checked-in unit carries the current deployment's dedicated scrape address rather than
+opening every interface. The exporter is unauthenticated and must not be exposed to untrusted networks.
 
 If steering is enabled:
 
