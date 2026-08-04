@@ -410,8 +410,8 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
         """Build failover bridge observability section.
 
         Supports both legacy flat format and new per-WAN group format.
-        If per-WAN keys (spectrum/att) are detected, returns the raw
-        per-WAN data plus last_decision.
+        Per-WAN entries are detected by bridge snapshot shape rather than
+        deployment-specific WAN names.
         """
         raw = health_data.get("failover")
         fo: dict[str, Any] = raw if isinstance(raw, dict) else {}
@@ -420,9 +420,9 @@ class SteeringHealthHandler(BaseHTTPRequestHandler):
             last_decision_raw if isinstance(last_decision_raw, dict) else None
         )
 
-        # Detect per-WAN group format vs legacy flat format
-        if any(k in fo for k in ("spectrum", "att")):
-            # Per-WAN group format — pass through as-is with last_decision
+        # Detect per-WAN group format vs legacy flat format. Bridge snapshots
+        # always contain "armed"; metadata dicts such as rtt_fail_count do not.
+        if any(isinstance(value, dict) and "armed" in value for value in fo.values()):
             result = dict(fo)
             result["last_decision"] = last_decision
             return result

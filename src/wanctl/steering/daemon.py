@@ -161,30 +161,27 @@ MAX_SANE_RTT_DELTA_MS = 500.0
 # =============================================================================
 
 
-def _parse_failover_config(failover: Any) -> dict[str, dict[str, Any]]:
+def _parse_failover_config(
+    failover: Any, *, default_wan: str = "wan1"
+) -> dict[str, dict[str, Any]]:
     """Parse route_management.failover into a per-WAN config dict.
 
-    Supports both new per-WAN format and legacy flat format.
+    Supports both per-WAN mappings and the legacy flat format. Callers pass
+    the configured primary identity so a legacy block without ``wan`` remains
+    attached to the actual primary WAN.
     """
     if not isinstance(failover, dict):
         return {}
 
     result: dict[str, dict[str, Any]] = {}
-    if any(k in failover for k in ("spectrum", "att")):
-        for wan_name, cfg in failover.items():
-            if not isinstance(cfg, dict):
-                continue
-            result[wan_name] = {
-                "enabled": bool(cfg.get("enabled", False)),
-                "red_cycles": int(cfg.get("red_cycles", 3)),
-                "green_cycles": int(cfg.get("green_cycles", 5)),
-                "rtt_failure_cycles": int(cfg.get("rtt_failure_cycles", 3)),
-                "yellow_contributes_to_recovery": bool(
-                    cfg.get("yellow_contributes_to_recovery", True)
-                ),
-            }
-    elif failover.get("enabled") is not None or "wan" in failover:
-        wan = failover.get("wan", "spectrum")
+    per_wan_items = [
+        (wan_name, cfg) for wan_name, cfg in failover.items() if isinstance(cfg, dict)
+    ]
+
+    # Prefer the per-WAN shape whenever mapping values exist. This keeps WANs
+    # literally named "wan" or "enabled" from being mistaken for flat keys.
+    if not per_wan_items and (failover.get("enabled") is not None or "wan" in failover):
+        wan = str(failover.get("wan", default_wan))
         result[wan] = {
             "enabled": bool(failover.get("enabled", False)),
             "red_cycles": int(failover.get("red_cycles", 3)),
@@ -192,6 +189,24 @@ def _parse_failover_config(failover: Any) -> dict[str, dict[str, Any]]:
             "rtt_failure_cycles": int(failover.get("rtt_failure_cycles", 3)),
             "yellow_contributes_to_recovery": True,
         }
+        return result
+
+    # Per-WAN format is identity-driven: every mapping key is a WAN name.
+    # Do not special-case deployment-specific ISP labels here.
+    for wan_name, cfg in per_wan_items:
+        if not isinstance(cfg, dict):
+            continue
+        parsed: dict[str, Any] = {
+            "enabled": bool(cfg.get("enabled", False)),
+            "red_cycles": int(cfg.get("red_cycles", 3)),
+            "green_cycles": int(cfg.get("green_cycles", 5)),
+            "rtt_failure_cycles": int(cfg.get("rtt_failure_cycles", 3)),
+            "yellow_contributes_to_recovery": bool(cfg.get("yellow_contributes_to_recovery", True)),
+        }
+        health_url = cfg.get("health_url")
+        if isinstance(health_url, str) and health_url:
+            parsed["health_url"] = health_url
+        result[str(wan_name)] = parsed
     return result
 
 
@@ -446,16 +461,18 @@ class SteeringConfig(BaseConfig):
         # Supports two formats:
         #   New (per-WAN dict):
         #     failover:
-        #       spectrum: {enabled: true, red_cycles: 3, green_cycles: 5}
-        #       att: {enabled: true, red_cycles: 4, green_cycles: 6}
+        #       fiber: {enabled: true, red_cycles: 3, green_cycles: 5}
+        #       lte: {enabled: true, health_url: "http://lte:9101/health"}
         #   Legacy (flat dict — backward compat):
-        #     failover: {enabled: true, wan: spectrum, red_cycles: 3, green_cycles: 5}
+        #     failover: {enabled: true, wan: fiber, red_cycles: 3, green_cycles: 5}
         failover = route_management.get("failover", {})
         if not isinstance(failover, dict):
             failover = {}
 
         # Parse into per-WAN config (shared with _reload_route_management_config)
-        self.failover_config = _parse_failover_config(failover)
+        self.failover_config = _parse_failover_config(
+            failover, default_wan=self.primary_wan
+        )
 
         # Keep legacy flat attributes for backward compat with existing code
         # that checks self.failover_enabled etc. during reload.
@@ -1314,15 +1331,20 @@ class SteeringDaemon:
             bridge = FailoverBridge(
                 red_cycles=cfg["red_cycles"],
                 green_cycles=cfg["green_cycles"],
-                yellow_contributes_to_recovery=cfg.get(
-                    "yellow_contributes_to_recovery", True
-                ),
+                yellow_contributes_to_recovery=cfg.get("yellow_contributes_to_recovery", True),
             )
             bridge.armed = cfg["enabled"]
             self.failover_group.add_bridge(wan_name, bridge)
 
-        # ATT health endpoint for congestion assessment (cake-autorate state bridge)
-        self._att_health_url = "http://10.10.110.227:9101/health"
+        # Resolve each non-primary bridge's health source by configured WAN
+        # identity. Explicit per-WAN URLs win; sibling WAN config files preserve
+        # compatibility with existing two-WAN deployments without ISP literals.
+        self._failover_health_urls: dict[str, str] = {}
+        self._missing_failover_health_warned: set[str] = set()
+        for wan_name, cfg in self.config.failover_config.items():
+            health_url = self._resolve_failover_health_url(wan_name, cfg)
+            if health_url is not None:
+                self._failover_health_urls[wan_name] = health_url
 
         # Per-WAN RTT failure tracking: consecutive failures before emitting RED.
         # Keyed by WAN name. Reset to 0 on successful RTT measurement.
@@ -1432,7 +1454,9 @@ class SteeringDaemon:
         self.config.route_management_routes = routes if isinstance(routes, dict) else {}
 
         # Failover bridge group config — rebuild group on any change
-        new_failover_config = _parse_failover_config(fresh_rm.get("failover", {}))
+        new_failover_config = _parse_failover_config(
+            fresh_rm.get("failover", {}), default_wan=self.config.primary_wan
+        )
 
         # Rebuild group if config changed
         if _failover_config_changed(self.config.failover_config, new_failover_config):
@@ -1443,9 +1467,7 @@ class SteeringDaemon:
                 bridge = FailoverBridge(
                     red_cycles=cfg["red_cycles"],
                     green_cycles=cfg["green_cycles"],
-                    yellow_contributes_to_recovery=cfg.get(
-                        "yellow_contributes_to_recovery", True
-                    ),
+                    yellow_contributes_to_recovery=cfg.get("yellow_contributes_to_recovery", True),
                 )
                 bridge.armed = cfg["enabled"]
                 new_group.add_bridge(wn, bridge)
@@ -1453,6 +1475,12 @@ class SteeringDaemon:
             new_group.restore_state(saved_state)
             self.failover_group = new_group
             self.config.failover_config = new_failover_config
+            self._failover_health_urls = {}
+            self._missing_failover_health_warned = set()
+            for wn, cfg in new_failover_config.items():
+                health_url = self._resolve_failover_health_url(wn, cfg)
+                if health_url is not None:
+                    self._failover_health_urls[wn] = health_url
 
             # Rebuild RTT fail count dict for new bridge set
             self._rtt_fail_count = {wn: 0 for wn in new_failover_config}
@@ -1522,22 +1550,22 @@ class SteeringDaemon:
         if self.failover_group.is_empty():
             return
 
-        # Spectrum bridge uses the normal congestion assessment
-        spectrum_state = self.state_mgr.state.get("congestion_state", "GREEN")
-
-        # ATT bridge uses its own cake-autorate state bridge, with RTT failure tracking
-        att_state, att_failed = self._get_att_congestion_state_with_fail()
+        primary_state = self.state_mgr.state.get("congestion_state", "GREEN")
 
         acted = False  # a failover/route decision was applied this call
         for wan_name, bridge in self.failover_group._bridges.items():
             if not bridge.armed:
                 continue
 
-            # Start with the normal congestion state for this WAN
-            if wan_name == "spectrum":
-                congestion_state = spectrum_state
+            # The primary WAN uses the daemon's normal congestion assessment.
+            # Every other WAN resolves and reads its own configured health source.
+            if wan_name == self.config.primary_wan:
+                congestion_state = primary_state
+                source_failed = False
             else:
-                congestion_state = att_state
+                congestion_state, source_failed = self._get_wan_congestion_state_with_fail(
+                    wan_name
+                )
 
             # RTT failure override: if consecutive failures >= threshold, emit RED.
             # This handles complete WAN outages where RTT measurement fails entirely.
@@ -1551,8 +1579,9 @@ class SteeringDaemon:
                     f"{fail_count} consecutive failures (threshold={fail_threshold}) — "
                     f"emitting RED to bridge"
                 )
-            elif fail_count > 0 and congestion_state != "RED":
-                # RTT recovered after failures — reset counter
+            elif fail_count > 0 and congestion_state != "RED" and not source_failed:
+                # A successful source read is recovery evidence. Do not erase
+                # the counter in the same cycle that a failed read incremented it.
                 self._rtt_fail_count[wan_name] = 0
 
             decision = bridge.update(congestion_state)
@@ -1587,57 +1616,71 @@ class SteeringDaemon:
         cfg = self.config.failover_config.get(wan_name, {})
         return int(cfg.get("rtt_failure_cycles", 3))
 
-    def _get_att_congestion_state_with_fail(self) -> tuple[str, bool]:
-        """Fetch ATT congestion state from cake-autorate health endpoint.
+    def _resolve_failover_health_url(self, wan_name: str, cfg: dict[str, Any]) -> str | None:
+        """Resolve one WAN's cake-autorate health URL without ISP assumptions."""
+        explicit = cfg.get("health_url")
+        if isinstance(explicit, str) and explicit:
+            return explicit
+        if wan_name == self.config.primary_wan:
+            return self.config.primary_health_url
 
-        Returns (congestion_state, failed) where failed=True if the health
-        endpoint was unreachable.
-        """
+        # Existing deployments colocate per-WAN YAML files. Deriving the
+        # sibling path keeps them compatible while arbitrary deployments can
+        # use an explicit health_url in the per-WAN failover block.
+        config_path = self.config.primary_wan_config.with_name(f"{wan_name}.yaml")
+        try:
+            import yaml
+
+            with config_path.open() as f:
+                wan_cfg = yaml.safe_load(f) or {}
+            health = wan_cfg.get("health_check", {})
+            if not isinstance(health, dict):
+                return None
+            host = health.get("host")
+            port = health.get("port", 9101)
+            if isinstance(host, str) and host and isinstance(port, int):
+                return f"http://{host}:{port}/health"
+        except Exception:
+            pass
+        return None
+
+    def _get_wan_congestion_state_with_fail(self, wan_name: str) -> tuple[str, bool]:
+        """Fetch one configured WAN's congestion state and account failures to it."""
+        health_url = self._failover_health_urls.get(wan_name)
+        if health_url is None:
+            # Resolution can fail transiently while a sibling config is being
+            # installed. Retry each cycle rather than caching that failure for
+            # the process lifetime, but log the configuration problem once.
+            cfg = self.config.failover_config.get(wan_name, {})
+            health_url = self._resolve_failover_health_url(wan_name, cfg)
+            if health_url is not None:
+                self._failover_health_urls[wan_name] = health_url
+                self._missing_failover_health_warned.discard(wan_name)
+            else:
+                if wan_name not in self._missing_failover_health_warned:
+                    self.logger.error(
+                        f"[FAILOVER] No health source configured for WAN {wan_name!r}"
+                    )
+                    self._missing_failover_health_warned.add(wan_name)
+                self._rtt_fail_count[wan_name] = self._rtt_fail_count.get(wan_name, 0) + 1
+                return "GREEN", True
+
         try:
             import urllib.request
 
-            with urllib.request.urlopen(
-                self._att_health_url, timeout=2
-            ) as resp:
+            with urllib.request.urlopen(health_url, timeout=2) as resp:
                 data = json.loads(resp.read())
-                dl_state = (
-                    data.get("congestion", {})
-                    .get("dl_state", "GREEN")
-                )
-                if dl_state == "RED":
-                    return "RED", False
-                if dl_state == "YELLOW":
-                    return "YELLOW", False
-                return "GREEN", False
+            dl_state = data.get("congestion", {}).get("dl_state", "GREEN")
+            # A successful current read is recovery evidence for this WAN.
+            self._rtt_fail_count[wan_name] = 0
+            if dl_state == "RED":
+                return "RED", False
+            if dl_state == "YELLOW":
+                return "YELLOW", False
+            return "GREEN", False
         except Exception:
-            # ATT health endpoint unreachable — track as failure
-            self._rtt_fail_count["att"] = self._rtt_fail_count.get("att", 0) + 1
+            self._rtt_fail_count[wan_name] = self._rtt_fail_count.get(wan_name, 0) + 1
             return "GREEN", True
-
-    def _get_att_congestion_state(self) -> str:
-        """Fetch ATT congestion state from cake-autorate health endpoint.
-
-        Returns "RED" if ATT download is in RED congestion, "GREEN" if GREEN,
-        or "YELLOW" for anything else. Defaults to GREEN if unreachable.
-        """
-        try:
-            import urllib.request
-
-            with urllib.request.urlopen(
-                self._att_health_url, timeout=2
-            ) as resp:
-                data = json.loads(resp.read())
-                dl_state = (
-                    data.get("congestion", {})
-                    .get("dl_state", "GREEN")
-                )
-                if dl_state == "RED":
-                    return "RED"
-                if dl_state == "YELLOW":
-                    return "YELLOW"
-                return "GREEN"
-        except Exception:
-            return "GREEN"
 
     def _build_failover_health(self) -> dict[str, Any]:
         """Build per-WAN failover health section for the health endpoint."""
@@ -2696,7 +2739,7 @@ class SteeringDaemon:
             current_rtt = self._measure_current_rtt_with_retry()
 
         # Track RTT failures per-WAN for failover bridge.
-        # RTT measurement targets the primary WAN (Spectrum).
+        # RTT measurement targets the configured primary WAN.
         primary_wan = self.config.primary_wan
         if current_rtt is None:
             self._rtt_fail_count[primary_wan] = self._rtt_fail_count.get(primary_wan, 0) + 1

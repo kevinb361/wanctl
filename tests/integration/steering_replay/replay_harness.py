@@ -169,8 +169,10 @@ def _build_daemon(fixture: dict[str, Any], workspace: Path):
     # Keep replay fully offline: ATT/primary health HTTP is represented by
     # fixture files and safe defaults, not by urlopen attempts.
     daemon._load_target_wan_health = lambda: None  # type: ignore[method-assign]
-    daemon._get_att_congestion_state = lambda: "GREEN"  # type: ignore[method-assign]
-    daemon._get_att_congestion_state_with_fail = lambda: ("GREEN", False)  # type: ignore[method-assign]
+    daemon._get_wan_congestion_state_with_fail = lambda _wan: (  # type: ignore[method-assign]
+        "GREEN",
+        False,
+    )
     daemon.cake_reader = cake_reader
     assert daemon.cake_reader is cake_reader
     assert daemon._metrics_writer is None

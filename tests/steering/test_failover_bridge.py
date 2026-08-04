@@ -1,9 +1,14 @@
 """Unit tests for FailoverBridge hysteresis state machine and FailoverBridgeGroup."""
 
+import json
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
 import pytest
 
-from wanctl.steering.daemon import _parse_failover_config
+from wanctl.steering.daemon import SteeringDaemon, _parse_failover_config
 from wanctl.steering.failover_bridge import FailoverBridge, FailoverBridgeGroup
+from wanctl.steering.health import SteeringHealthHandler
 
 
 @pytest.fixture
@@ -491,6 +496,268 @@ class TestBridgeGroupStateSaveRestore:
         assert spec_b is not None
         assert spec_b.red_count == 0
         assert spec_b.green_count == 0
+
+
+# =============================================================================
+# Arbitrary-WAN daemon integration (REM-005 / ASSESS-003)
+# =============================================================================
+
+
+class TestArbitraryWanFailover:
+    def test_parser_accepts_arbitrary_wan_names_and_health_sources(self):
+        cfg = _parse_failover_config(
+            {
+                "fiber": {"enabled": True, "red_cycles": 2},
+                "lte": {
+                    "enabled": True,
+                    "green_cycles": 7,
+                    "health_url": "http://lte-health:9101/health",
+                },
+            }
+        )
+
+        assert list(cfg) == ["fiber", "lte"]
+        assert cfg["fiber"]["red_cycles"] == 2
+        assert cfg["lte"]["green_cycles"] == 7
+        assert cfg["lte"]["health_url"] == "http://lte-health:9101/health"
+
+    def test_legacy_flat_config_defaults_to_configured_primary(self):
+        cfg = _parse_failover_config(
+            {"enabled": True, "red_cycles": 2}, default_wan="fiber"
+        )
+        assert list(cfg) == ["fiber"]
+
+    def test_mapping_named_enabled_is_parsed_as_wan_identity(self):
+        cfg = _parse_failover_config({"enabled": {"enabled": True}})
+        assert cfg["enabled"]["enabled"] is True
+
+    def test_health_source_resolution_prefers_explicit_then_sibling_config(
+        self, tmp_path
+    ):
+        primary_config = tmp_path / "fiber.yaml"
+        primary_config.write_text("health_check:\n  host: fiber-health\n  port: 9101\n")
+        (tmp_path / "lte.yaml").write_text(
+            "health_check:\n  host: lte-health\n  port: 9201\n"
+        )
+        daemon = object.__new__(SteeringDaemon)
+        daemon.config = SimpleNamespace(
+            primary_wan="fiber",
+            primary_health_url="http://fiber-health:9101/health",
+            primary_wan_config=primary_config,
+        )
+
+        assert daemon._resolve_failover_health_url("fiber", {}) == (
+            "http://fiber-health:9101/health"
+        )
+        assert daemon._resolve_failover_health_url(
+            "lte", {"health_url": "http://override:9301/health"}
+        ) == "http://override:9301/health"
+        assert daemon._resolve_failover_health_url("lte", {}) == (
+            "http://lte-health:9201/health"
+        )
+        assert daemon._resolve_failover_health_url("satellite", {}) is None
+
+    def test_health_fetch_selects_endpoint_and_accounts_failure_by_wan(self, monkeypatch):
+        daemon = object.__new__(SteeringDaemon)
+        daemon._failover_health_urls = {
+            "lte": "http://lte-health:9101/health",
+            "satellite": "http://sat-health:9101/health",
+        }
+        daemon._rtt_fail_count = {"fiber": 0, "lte": 2, "satellite": 0}
+        requested: list[str] = []
+
+        class Response:
+            def __init__(self, state: str) -> None:
+                self.state = state
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self) -> bytes:
+                return json.dumps({"congestion": {"dl_state": self.state}}).encode()
+
+        def fake_urlopen(url: str, *, timeout: int):
+            requested.append(url)
+            assert timeout == 2
+            if "sat-health" in url:
+                raise OSError("offline")
+            return Response("YELLOW")
+
+        monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+
+        assert daemon._get_wan_congestion_state_with_fail("lte") == ("YELLOW", False)
+        assert daemon._get_wan_congestion_state_with_fail("satellite") == ("GREEN", True)
+        assert requested == [
+            "http://lte-health:9101/health",
+            "http://sat-health:9101/health",
+        ]
+        assert daemon._rtt_fail_count == {"fiber": 0, "lte": 0, "satellite": 1}
+
+    def test_failed_reads_accumulate_to_red_and_success_recovers(
+        self, monkeypatch
+    ):
+        daemon = object.__new__(SteeringDaemon)
+        alternate = FailoverBridge(red_cycles=1, green_cycles=1)
+        alternate.armed = True
+        daemon.failover_group = FailoverBridgeGroup({"lte": alternate})
+        daemon.config = SimpleNamespace(
+            primary_wan="fiber",
+            failover_config={"lte": {"rtt_failure_cycles": 2}},
+        )
+        daemon.state_mgr = SimpleNamespace(state={"congestion_state": "GREEN"})
+        daemon._failover_health_urls = {"lte": "http://lte-health:9101/health"}
+        daemon._missing_failover_health_warned = set()
+        daemon._rtt_fail_count = {"fiber": 0, "lte": 0}
+        daemon._last_failover_decision = None
+        daemon.logger = MagicMock()
+        daemon.route_manager = MagicMock()
+        daemon.route_manager.plan_or_apply.return_value = SimpleNamespace(
+            success=True, dry_run=False, error=None
+        )
+        daemon._persist_state_throttled = MagicMock()
+
+        monkeypatch.setattr(
+            "urllib.request.urlopen",
+            MagicMock(side_effect=OSError("offline")),
+        )
+        daemon._process_failover_bridge()
+        daemon.route_manager.plan_or_apply.assert_not_called()
+        assert daemon._rtt_fail_count["lte"] == 1
+
+        daemon._process_failover_bridge()
+        daemon.route_manager.plan_or_apply.assert_called_once_with("disable", "lte")
+        assert daemon._rtt_fail_count["lte"] == 2
+
+        class HealthyResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self) -> bytes:
+                return b'{"congestion":{"dl_state":"GREEN"}}'
+
+        daemon.route_manager.reset_mock()
+        monkeypatch.setattr(
+            "urllib.request.urlopen", lambda _url, timeout: HealthyResponse()
+        )
+        daemon._process_failover_bridge()
+        daemon.route_manager.plan_or_apply.assert_called_once_with("enable", "lte")
+        assert daemon._rtt_fail_count["lte"] == 0
+
+    def test_missing_health_source_is_retried_and_logged_once(self):
+        daemon = object.__new__(SteeringDaemon)
+        daemon._failover_health_urls = {}
+        daemon._missing_failover_health_warned = set()
+        daemon._rtt_fail_count = {"lte": 0}
+        daemon.config = SimpleNamespace(failover_config={"lte": {}})
+        daemon.logger = MagicMock()
+        daemon._resolve_failover_health_url = MagicMock(return_value=None)
+
+        assert daemon._get_wan_congestion_state_with_fail("lte") == ("GREEN", True)
+        assert daemon._get_wan_congestion_state_with_fail("lte") == ("GREEN", True)
+
+        assert daemon._resolve_failover_health_url.call_count == 2
+        daemon.logger.error.assert_called_once()
+        assert daemon._rtt_fail_count["lte"] == 2
+
+    def test_primary_and_alternate_transitions_are_identity_driven(self):
+        daemon = object.__new__(SteeringDaemon)
+        primary = FailoverBridge(red_cycles=1, green_cycles=1)
+        alternate = FailoverBridge(red_cycles=1, green_cycles=1)
+        primary.armed = True
+        alternate.armed = True
+        daemon.failover_group = FailoverBridgeGroup({"fiber": primary, "lte": alternate})
+        daemon.config = SimpleNamespace(
+            primary_wan="fiber",
+            failover_config={
+                "fiber": {"rtt_failure_cycles": 3},
+                "lte": {"rtt_failure_cycles": 3},
+            },
+        )
+        daemon.state_mgr = SimpleNamespace(state={"congestion_state": "RED"})
+        daemon._rtt_fail_count = {"fiber": 0, "lte": 0}
+        daemon._last_failover_decision = None
+        daemon.logger = MagicMock()
+        daemon.route_manager = MagicMock()
+        daemon.route_manager.plan_or_apply.return_value = SimpleNamespace(
+            success=True, dry_run=False, error=None
+        )
+        daemon._persist_state_throttled = MagicMock()
+        daemon._get_wan_congestion_state_with_fail = MagicMock(return_value=("GREEN", False))
+
+        daemon._process_failover_bridge()
+
+        daemon._get_wan_congestion_state_with_fail.assert_called_once_with("lte")
+        daemon.route_manager.plan_or_apply.assert_called_once_with("disable", "fiber")
+        assert primary.snapshot()["disabled"] is True
+        assert alternate.snapshot()["disabled"] is False
+
+        daemon.route_manager.reset_mock()
+        daemon.state_mgr.state["congestion_state"] = "GREEN"
+        daemon._process_failover_bridge()
+
+        daemon.route_manager.plan_or_apply.assert_called_once_with("enable", "fiber")
+        assert primary.snapshot()["disabled"] is False
+
+    def test_alternate_failure_and_recovery_use_its_own_counter(self):
+        daemon = object.__new__(SteeringDaemon)
+        alternate = FailoverBridge(red_cycles=1, green_cycles=1)
+        alternate.armed = True
+        daemon.failover_group = FailoverBridgeGroup({"lte": alternate})
+        daemon.config = SimpleNamespace(
+            primary_wan="fiber",
+            failover_config={"lte": {"rtt_failure_cycles": 2}},
+        )
+        daemon.state_mgr = SimpleNamespace(state={"congestion_state": "GREEN"})
+        daemon._rtt_fail_count = {"fiber": 0, "lte": 2}
+        daemon._last_failover_decision = None
+        daemon.logger = MagicMock()
+        daemon.route_manager = MagicMock()
+        daemon.route_manager.plan_or_apply.return_value = SimpleNamespace(
+            success=True, dry_run=False, error=None
+        )
+        daemon._persist_state_throttled = MagicMock()
+        calls = 0
+
+        def alternate_state(_wan):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return "GREEN", True
+            daemon._rtt_fail_count["lte"] = 0
+            return "GREEN", False
+
+        daemon._get_wan_congestion_state_with_fail = MagicMock(
+            side_effect=alternate_state
+        )
+
+        daemon._process_failover_bridge()
+        daemon.route_manager.plan_or_apply.assert_called_once_with("disable", "lte")
+        assert alternate.snapshot()["disabled"] is True
+        assert daemon._rtt_fail_count["fiber"] == 0
+
+        daemon.route_manager.reset_mock()
+        daemon._process_failover_bridge()
+        daemon.route_manager.plan_or_apply.assert_called_once_with("enable", "lte")
+        assert alternate.snapshot()["disabled"] is False
+
+    def test_health_payload_preserves_arbitrary_wan_entries(self):
+        failover = {
+            "fiber": {"armed": True, "red_count": 1},
+            "lte": {"armed": False, "red_count": 0},
+            "rtt_fail_count": {"fiber": 0, "lte": 2},
+        }
+
+        section = SteeringHealthHandler._build_failover_section(None, {"failover": failover})
+
+        assert section["fiber"]["armed"] is True
+        assert section["lte"]["armed"] is False
+        assert section["rtt_fail_count"] == {"fiber": 0, "lte": 2}
 
 
 # =============================================================================

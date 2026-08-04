@@ -159,6 +159,31 @@ but resets counters on YELLOW. When Spectrum hovers in YELLOW (which is common
 under congestion), failback never completes and the system remains stuck on ATT.
 The fix requires recovery based on sustained non-RED rather than perfect GREEN.
 
+### Portable Failover Sources
+
+Failover bridges are keyed by configured WAN identity, not ISP name. The primary
+WAN consumes the daemon's normal congestion assessment. Each additional WAN can
+set an explicit cake-autorate health source:
+
+```yaml
+route_management:
+  failover:
+    fiber:
+      enabled: true
+      red_cycles: 3
+      green_cycles: 5
+    lte:
+      enabled: true
+      health_url: "http://lte-health:9101/health"
+      rtt_failure_cycles: 3
+```
+
+If `health_url` is omitted, wanctl looks for a sibling `<wan-name>.yaml` beside
+the configured primary WAN file and derives its `health_check` endpoint. Missing
+or unreachable sources count only against that WAN and recover on its next
+successful read. The legacy flat `failover` form remains supported and defaults
+to `topology.primary_wan` when `wan` is omitted.
+
 ### Route Management Dry-Run Surface
 
 Route management is present as an inert future surface for the Netwatch retirement

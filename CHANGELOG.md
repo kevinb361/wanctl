@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **REM-005:** Made route failover identity-driven for arbitrary WAN names, including per-WAN health-source selection, isolated failure accounting and recovery, generic health payloads, and offline replay coverage without ISP-specific dispatch literals.
 - **OBS-006 readiness:** Added a fail-closed, read-only Prometheus baseline tool with immutable fourteen-day windows, 99.9% freshness/probe coverage, fixed UTC/load cohorts, comprehensive RTT/congestion/per-tin dimensions, deterministic quantiles, and explicit missing-cohort disclosure. It exits nonzero before temporal eligibility and has no traffic or tuning surface.
 - **OBS-005:** Added deterministic read-only CAKE Grafana and Prometheus rule generation, with aligned rate/RTT/per-tin panels, explicit stale/missing visibility, recording rules, and warning-only baseline-pending alerts.
 - **OBS-004:** Extended the repository-owned exporter with bounded both-WAN/per-direction/four-tin raw counters, delay/backlog gauges, persistent reset visibility, collection freshness, and raw RTT probe health while preserving all ten legacy metrics.

@@ -391,7 +391,17 @@ def check_steering_unknown_keys(data: dict) -> list[CheckResult]:
         # Skip dynamic WAN names under route_management.failover, but validate known leaves.
         if path.startswith("route_management.failover."):
             suffix = path.removeprefix("route_management.failover.")
-            if suffix and ("." not in suffix or suffix.rsplit(".", 1)[-1] in {"enabled", "red_cycles", "green_cycles"}):
+            failover_leaves = {
+                "enabled",
+                "red_cycles",
+                "green_cycles",
+                "rtt_failure_cycles",
+                "yellow_contributes_to_recovery",
+                "health_url",
+            }
+            if suffix and (
+                "." not in suffix or suffix.rsplit(".", 1)[-1] in failover_leaves
+            ):
                 continue
 
         if path not in KNOWN_STEERING_PATHS:

@@ -785,6 +785,30 @@ class TestSteeringValidation:
         ]
         assert len(warns) == 0
 
+    def test_per_wan_failover_keys_not_flagged_steering(self):
+        data = _valid_steering_data()
+        data["route_management"] = {
+            "enabled": True,
+            "mode": "dry_run",
+            "routes": {},
+            "failover": {
+                "fiber": {
+                    "enabled": True,
+                    "red_cycles": 3,
+                    "green_cycles": 5,
+                    "rtt_failure_cycles": 4,
+                    "yellow_contributes_to_recovery": True,
+                    "health_url": "http://fiber-health:9101/health",
+                }
+            },
+        }
+
+        results = check_steering_unknown_keys(data)
+        warns = [
+            r for r in results if r.severity == Severity.WARN and "failover" in r.field
+        ]
+        assert warns == []
+
     def test_route_management_migration_acknowledgement_path_not_flagged_steering(self):
         """The explicit active-mode acknowledgement key is a known path."""
         data = _valid_steering_data()

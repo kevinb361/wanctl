@@ -191,8 +191,10 @@ def daemon_factory(
         # Keep replay fully offline: ATT/primary health HTTP is represented by
         # fixture files and safe defaults, not by urlopen attempts.
         daemon._load_target_wan_health = lambda: None  # type: ignore[method-assign]
-        daemon._get_att_congestion_state = lambda: "GREEN"  # type: ignore[method-assign]
-        daemon._get_att_congestion_state_with_fail = lambda: ("GREEN", False)  # type: ignore[method-assign]
+        daemon._get_wan_congestion_state_with_fail = lambda _wan: (  # type: ignore[method-assign]
+            "GREEN",
+            False,
+        )
         daemon.cake_reader = fake_cake_reader
         assert daemon.router is fake_router
         assert daemon.cake_reader is fake_cake_reader
