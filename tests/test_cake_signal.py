@@ -264,6 +264,23 @@ class TestCakeSignalProcessorColdStart:
         assert snap is not None
         assert snap.cold_start is False
 
+    def test_reset_discards_counters_ewma_and_last_snapshot(self) -> None:
+        proc = CakeSignalProcessor(config=CakeSignalConfig(enabled=True))
+        proc.update(make_mock_stats(tin_drops=[0, 10, 0, 0]))
+        hot = proc.update(make_mock_stats(tin_drops=[0, 20, 0, 0]))
+        assert hot is not None
+        assert hot.cold_start is False
+        assert hot.drop_rate > 0
+
+        proc.reset()
+
+        assert proc.update(None) is None
+        cold = proc.update(make_mock_stats(tin_drops=[0, 1_000, 0, 0]))
+        assert cold is not None
+        assert cold.cold_start is True
+        assert cold.drop_rate == 0.0
+        assert cold.total_drop_rate == 0.0
+
 
 # ---------------------------------------------------------------------------
 # CakeSignalProcessor -- EWMA convergence
@@ -932,6 +949,94 @@ class TestCakeSignalReload:
         call_args = mock_ctrl.logger.warning.call_args
         formatted = call_args[0][0] % call_args[0][1:]
         assert "(unchanged)" in formatted
+
+    def test_disable_clears_snapshots_and_arbitration_state(self, tmp_path) -> None:
+        """A disable transition removes stale CAKE evidence immediately."""
+        import yaml
+
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+        from wanctl.wan_controller import WANController
+
+        mock_ctrl, _ = self._make_mock_ctrl(
+            tmp_path, yaml.dump({"cake_signal": {"enabled": False}})
+        )
+        enabled = CakeSignalConfig(enabled=True)
+        mock_ctrl._dl_cake_signal = CakeSignalProcessor(config=enabled)
+        mock_ctrl._ul_cake_signal = CakeSignalProcessor(config=enabled)
+        mock_ctrl._dl_cake_signal.update(make_mock_stats(tin_drops=[0, 0, 0, 0]))
+        stale = mock_ctrl._dl_cake_signal.update(
+            make_mock_stats(
+                tin_drops=[0, 20, 0, 0],
+                tin_avg_delay=[0, 20_000, 0, 0],
+            )
+        )
+        assert stale is not None and not stale.cold_start
+        mock_ctrl._dl_cake_snapshot = stale
+        mock_ctrl._ul_cake_snapshot = stale
+        mock_ctrl._dl_refractory_remaining = 9
+        mock_ctrl._ul_refractory_remaining = 7
+        mock_ctrl._dl_arbitration_used_refractory_snapshot = True
+        mock_ctrl._cake_signal_supported = True
+        mock_ctrl.baseline_rtt = 10.0
+        mock_ctrl.load_rtt = 30.0
+        mock_ctrl.green_threshold = 5.0
+        mock_ctrl._select_dl_primary_scalar_ms = (
+            WANController._select_dl_primary_scalar_ms.__get__(mock_ctrl, WANController)
+        )
+
+        mock_ctrl._reload_cake_signal_config()
+
+        assert mock_ctrl._dl_cake_snapshot is None
+        assert mock_ctrl._ul_cake_snapshot is None
+        assert mock_ctrl._dl_refractory_remaining == 0
+        assert mock_ctrl._ul_refractory_remaining == 0
+        assert mock_ctrl._dl_arbitration_used_refractory_snapshot is False
+        assert mock_ctrl._dl_cake_signal.update(None) is None
+
+        # Defense in depth: injected stale evidence cannot enter arbitration
+        # while the processor configuration is disabled.
+        primary, scalar, _ = mock_ctrl._select_dl_primary_scalar_ms(stale)
+        assert primary == "rtt"
+        assert scalar == 30.0
+
+    def test_enabled_disable_reenable_cold_starts_accumulated_state(self, tmp_path) -> None:
+        """A hot processor cannot carry counters or EWMA across disable/re-enable."""
+        import yaml
+
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+
+        mock_ctrl, config_file = self._make_mock_ctrl(
+            tmp_path, yaml.dump({"cake_signal": {"enabled": False}})
+        )
+        enabled = CakeSignalConfig(enabled=True)
+        mock_ctrl._dl_cake_signal = CakeSignalProcessor(config=enabled)
+        mock_ctrl._ul_cake_signal = CakeSignalProcessor(config=enabled)
+        for processor in (mock_ctrl._dl_cake_signal, mock_ctrl._ul_cake_signal):
+            processor.update(make_mock_stats(tin_drops=[0, 10, 0, 0]))
+            hot = processor.update(make_mock_stats(tin_drops=[0, 30, 0, 0]))
+            assert hot is not None
+            assert hot.cold_start is False
+            assert hot.drop_rate > 0
+        mock_ctrl._dl_refractory_remaining = 11
+        mock_ctrl._ul_refractory_remaining = 13
+
+        # Disable resets the processors that had already accumulated live state.
+        mock_ctrl._reload_cake_signal_config()
+        assert mock_ctrl._dl_refractory_remaining == 0
+        assert mock_ctrl._ul_refractory_remaining == 0
+
+        # Re-enable, then present counters far beyond the pre-disable values.
+        # They must establish a new baseline rather than create a huge delta.
+        config_file.write_text(yaml.dump({"cake_signal": {"enabled": True}}))
+        mock_ctrl._reload_cake_signal_config()
+        first = mock_ctrl._dl_cake_signal.update(
+            make_mock_stats(tin_drops=[0, 50_000, 0, 0])
+        )
+
+        assert first is not None
+        assert first.cold_start is True
+        assert first.drop_rate == 0.0
+        assert first.total_drop_rate == 0.0
 
 
 # ---------------------------------------------------------------------------

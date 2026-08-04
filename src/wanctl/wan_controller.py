@@ -1164,8 +1164,6 @@ class WANController:
             return
         if not self._dl_cake_signal.config.enabled and not self._ul_cake_signal.config.enabled:
             return
-        if not self._dl_cake_signal.config.enabled and not self._ul_cake_signal.config.enabled:
-            return
 
         from wanctl.backends.linux_cake_adapter import LinuxCakeAdapter
 
@@ -2497,6 +2495,28 @@ class WANController:
         self._dl_cake_signal.config = new_config
         self._ul_cake_signal.config = new_config
 
+        if old_config.enabled != new_config.enabled:
+            # Enable/disable is a state boundary, not only a configuration
+            # change.  Discard snapshots immediately so disabled arbitration
+            # cannot consume stale queue evidence, and reset processors so a
+            # later enable cannot turn accumulated counter deltas or EWMAs into
+            # a fabricated congestion signal.
+            self._dl_cake_signal.reset()
+            self._ul_cake_signal.reset()
+            self._dl_cake_snapshot = None
+            self._ul_cake_snapshot = None
+            self._dl_refractory_remaining = 0
+            self._ul_refractory_remaining = 0
+            self._dl_arbitration_used_refractory_snapshot = False
+            self._prev_queue_delta_ms = None
+            self._prev_rtt_delta_ms = None
+            self._last_queue_direction = "unknown"
+            self._last_rtt_direction = "unknown"
+            self._last_rtt_confidence = None
+            self._healer_aligned_streak = 0
+            self._fusion_bypass_active = False
+            self._fusion_bypass_reason = None
+
         # Update refractory and detection thresholds (Phase 160)
         self._refractory_cycles = new_config.refractory_cycles
 
@@ -3006,7 +3026,12 @@ class WANController:
             getattr(self, "_dl_arbitration_used_refractory_snapshot", False)
         )
 
-        if self._cake_signal_supported and dl_cake is not None and not dl_cake.cold_start:
+        if (
+            self._cake_signal_supported
+            and self._dl_cake_signal.config.enabled
+            and dl_cake is not None
+            and not dl_cake.cold_start
+        ):
             delta_ms = dl_cake.max_delay_delta_us * 0.001
             load_for_classifier = self.baseline_rtt + delta_ms
             if in_refractory:
@@ -3052,8 +3077,9 @@ class WANController:
         # 40-cycle refractory window (Phase 160 cascade-safety invariant).
         # Arbitration consumes the live snapshot so _select_dl_primary_scalar_ms
         # can return queue-primary during refractory instead of cratering to RTT.
-        dl_cake_for_detection = self._dl_cake_snapshot
-        dl_cake_for_arbitration = self._dl_cake_snapshot
+        cake_enabled = self._cake_signal_supported and self._dl_cake_signal.config.enabled
+        dl_cake_for_detection = self._dl_cake_snapshot if cake_enabled else None
+        dl_cake_for_arbitration = self._dl_cake_snapshot if cake_enabled else None
         # Stash refractory-active flag BEFORE decrement so this cycle's
         # arbitration regime is reported truthfully even when remaining decrements 1->0.
         self._dl_arbitration_used_refractory_snapshot = self._dl_refractory_remaining > 0
@@ -3061,7 +3087,11 @@ class WANController:
             dl_cake_for_detection = None  # Phase 160: mask detection only.
             self._dl_refractory_remaining -= 1
 
-        ul_cake = self._ul_cake_snapshot
+        ul_cake = (
+            self._ul_cake_snapshot
+            if self._cake_signal_supported and self._ul_cake_signal.config.enabled
+            else None
+        )
         if self._ul_refractory_remaining > 0:
             ul_cake = None
             self._ul_refractory_remaining -= 1

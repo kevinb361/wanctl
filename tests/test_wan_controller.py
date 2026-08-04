@@ -4200,6 +4200,15 @@ class TestRefractoryPeriod:
                 rtt_measurement=MagicMock(),
                 logger=MagicMock(),
             )
+        # This class exercises the CAKE-enabled assessment path even though its
+        # generic router mock is not a LinuxCakeAdapter.
+        from wanctl.cake_signal import CakeSignalConfig, CakeSignalProcessor
+
+        ctrl._cake_signal_supported = True
+        enabled_cake = CakeSignalConfig(enabled=True)
+        ctrl._dl_cake_signal = CakeSignalProcessor(config=enabled_cake)
+        ctrl._ul_cake_signal = CakeSignalProcessor(config=enabled_cake)
+
         # Set baseline values needed for _run_congestion_assessment
         ctrl.baseline_rtt = 25.0
         ctrl.load_rtt = 30.0

@@ -225,6 +225,14 @@ class CakeSignalProcessor:
         tc = max(0.1, value.time_constant_sec) if value.time_constant_sec > 0 else 1.0
         self._alpha = CYCLE_INTERVAL_SECONDS / tc
 
+    def reset(self) -> None:
+        """Discard counter, EWMA, and snapshot state for a true cold start."""
+        self._prev_counters = None
+        self._cold_start = True
+        self._drop_rate_ewma = 0.0
+        self._total_drop_rate_ewma = 0.0
+        self._last_snapshot = None
+
     def update(self, raw_stats: dict[str, Any] | None) -> CakeSignalSnapshot | None:
         """Process one cycle of CAKE stats.
 
