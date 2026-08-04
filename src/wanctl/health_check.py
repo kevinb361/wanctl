@@ -441,15 +441,11 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         measurement-health contract:
 
         - ``state``: one of ``"healthy"``, ``"reduced"``, ``"collapsed"``
-          derived from the count of reflectors that produced a successful
-          measurement in the most recent background RTT cycle.
+          derived from backend-aware current-cycle success. ICMP uses the
+          three-reflector quorum; single-target IRTT is healthy at 1/1.
         - ``successful_count``: raw integer count derived from
-          ``len(successful_reflector_hosts)`` after None-coercion.
-          Under the current 3-reflector deployment the practical range
-          is ``[0, 3]``; the contract permits any ``int >= 0`` so future
-          N-reflector configurations do not require a contract revision
-          (D-15). The range is a deployment assumption, not an enforced
-          invariant.
+          ``len(successful_reflector_hosts)`` after None-coercion. The
+          practical range is ``[0, 3]`` for ICMP and ``[0, 1]`` for IRTT.
         - ``stale``: ``True`` when the age of the last raw RTT sample
           exceeds ``3 * cadence_sec``, reusing the existing fusion
           staleness pattern at ``health_check.py::_resolve_fusion_rtt_sources``.
@@ -462,9 +458,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         ``state`` and ``stale`` are orthogonal axes; there are exactly
         six legal cross-product combinations of
         ``{healthy, reduced, collapsed} x {stale, fresh}`` and downstream
-        consumers must handle all six. The ``successful_count`` boundary
-        over ``{0, 1, 2, 3}`` is a separate partition within the
-        ``collapsed`` state, not a third axis (D-03).
+        consumers must handle all six. ``successful_count`` is a separate,
+        backend-cardinality-aware partition, not a third axis (D-03).
 
         Existing fields (``available``, ``raw_rtt_ms``, ``staleness_sec``,
         ``active_reflector_hosts``, ``successful_reflector_hosts``) are
@@ -480,8 +475,16 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         successful_hosts = measurement.get("successful_reflector_hosts") or []
         active_hosts = measurement.get("active_reflector_hosts") or []
 
+        backend_active = measurement.get("backend_active", "icmplib")
+        if not isinstance(backend_active, str) or not backend_active:
+            backend_active = "icmplib"
+
         successful_count = len(successful_hosts)
-        if successful_count == 3:
+        active_count = len(active_hosts)
+        if backend_active == "irtt":
+            # IRTT is intentionally single-target; 1/1 is fully healthy.
+            state = "healthy" if active_count == 1 and successful_count == 1 else "collapsed"
+        elif successful_count == 3:
             state = "healthy"
         elif successful_count == 2:
             state = "reduced"
@@ -496,15 +499,15 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             stale = True
         fallback_count_raw = measurement.get("fallback_count", 0)
         fallback_count = fallback_count_raw if isinstance(fallback_count_raw, int) else 0
-        backend_active = measurement.get("backend_active", "icmplib")
-        if not isinstance(backend_active, str) or not backend_active:
-            backend_active = "icmplib"
         backend = measurement.get("backend")
-        if backend not in {"icmplib", "fping"}:
+        if backend not in {"icmplib", "fping", "irtt"}:
             backend = None
         source_ip = measurement.get("source_ip")
         if not isinstance(source_ip, str) or not source_ip:
             source_ip = None
+        target = measurement.get("target")
+        if not isinstance(target, str) or not target:
+            target = None
 
         return {
             "available": raw_rtt is not None,
@@ -521,6 +524,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             "producer": "wanctl-backend",
             "backend": backend,
             "source_ip": source_ip,
+            "target": target,
         }
 
     def _build_background_workers_section(

@@ -109,5 +109,43 @@ def test_measure_allows_different_targets_to_run_concurrently(tmp_path: Path) ->
     assert max_active == 2
 
 
+def test_parse_rejects_valid_json_with_zero_received_total_loss(tmp_path: Path) -> None:
+    payload = {
+        "stats": {
+            "rtt": {"mean": 0, "median": 0},
+            "ipdv_round_trip": {"mean": 0},
+            "upstream_loss_percent": 100.0,
+            "downstream_loss_percent": 100.0,
+            "packets_sent": 10,
+            "packets_received": 0,
+        }
+    }
+    with (
+        patch("wanctl.irtt_measurement.shutil.which", return_value="/usr/bin/irtt"),
+        patch.dict("os.environ", {"WANCTL_RUN_DIR": str(tmp_path)}),
+    ):
+        measurement = IRTTMeasurement(_config("198.51.100.50"), threading_logger())
+
+    assert measurement._parse_json(json.dumps(payload)) is None
+
+
+def test_parse_rejects_malformed_numeric_shapes_without_raising(tmp_path: Path) -> None:
+    malformed = {
+        "stats": {
+            "rtt": {"mean": "not-a-number", "median": None},
+            "ipdv_round_trip": {},
+            "packets_sent": "ten",
+            "packets_received": None,
+        }
+    }
+    with (
+        patch("wanctl.irtt_measurement.shutil.which", return_value="/usr/bin/irtt"),
+        patch.dict("os.environ", {"WANCTL_RUN_DIR": str(tmp_path)}),
+    ):
+        measurement = IRTTMeasurement(_config("198.51.100.50"), threading_logger())
+
+    assert measurement._parse_json(json.dumps(malformed)) is None
+
+
 def threading_logger():
     return logging.getLogger("test_irtt_measurement")

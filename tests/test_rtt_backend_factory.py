@@ -534,13 +534,32 @@ def test_irtt_backend_selected(logger: logging.Logger) -> None:
         "interval_ms": 100,
         "cadence_sec": 10.0,
     }
-    handle = _build(backend="irtt", irtt=irtt_cfg, logger=logger)
+    with patch("wanctl.rtt_backend_factory.shutil.which", return_value="/usr/bin/irtt"):
+        handle = _build(backend="irtt", irtt=irtt_cfg, logger=logger)
 
     assert isinstance(handle.backend, IrttRttBackend)
     assert handle.backend_active == "irtt"
     assert handle.fell_back is False
     assert handle.irtt_cadence_sec == 10.0
     assert handle.irtt_config == irtt_cfg
+
+
+def test_irtt_backend_fallback_when_binary_absent(
+    logger: logging.Logger, caplog: pytest.LogCaptureFixture
+) -> None:
+    irtt_cfg = {"enabled": True, "server": "198.51.100.50"}
+
+    with (
+        patch("wanctl.rtt_backend_factory.shutil.which", return_value=None),
+        caplog.at_level(logging.WARNING),
+    ):
+        handle = _build(backend="irtt", irtt=irtt_cfg, logger=logger)
+
+    assert isinstance(handle.backend, RTTMeasurement)
+    assert handle.backend_active == "icmplib"
+    assert handle.fell_back is True
+    assert handle.fallback_count == 1
+    assert any("binary was not found" in record.message for record in caplog.records)
 
 
 def test_irtt_backend_fallback_when_disabled(logger: logging.Logger, caplog: pytest.LogCaptureFixture) -> None:
@@ -552,7 +571,7 @@ def test_irtt_backend_fallback_when_disabled(logger: logging.Logger, caplog: pyt
 
     assert isinstance(handle.backend, RTTMeasurement)
     assert handle.backend_active == "icmplib"
-    assert handle.fell_back is False  # not a fping fallback
+    assert handle.fell_back is True  # requested IRTT, active backend is ICMP
     assert any("irtt" in r.message and "not configured" in r.message for r in caplog.records)
 
 
@@ -591,7 +610,8 @@ def test_irtt_driver_thread_converts_result(caplog: pytest.LogCaptureFixture) ->
     mock_thread.get_latest.return_value = result
     mock_thread.get_profile_stats.return_value = {}
 
-    driver = _IrttDriverThread(mock_thread)
+    mock_thread.last_attempt_succeeded.return_value = True
+    driver = _IrttDriverThread(mock_thread, "198.51.100.50")
 
     assert driver.cadence_sec == 10.0
     sample = driver.get_latest()
@@ -600,6 +620,17 @@ def test_irtt_driver_thread_converts_result(caplog: pytest.LogCaptureFixture) ->
     assert sample.backend == "irtt"
     assert sample.source_ip == "198.51.100.50"
     assert sample.per_host_loss["198.51.100.50"] == 3.0
+
+    status = driver.get_cycle_status()
+    assert status is not None
+    assert status.successful_count == 1
+    assert status.successful_hosts == ("198.51.100.50",)
+
+    mock_thread.last_attempt_succeeded.return_value = False
+    failed_status = driver.get_cycle_status()
+    assert failed_status is not None
+    assert failed_status.successful_count == 0
+    assert failed_status.successful_hosts == ()
 
     # When no result yet
     mock_thread.get_latest.return_value = None
@@ -618,12 +649,13 @@ def test_irtt_make_thread_creates_driver(logger: logging.Logger) -> None:
         "interval_ms": 100,
         "cadence_sec": 10.0,
     }
-    handle = _build(backend="irtt", irtt=irtt_cfg, logger=logger)
-    thread = handle.make_thread(
-        lambda: ["ignored"],
-        threading.Event(),
-        cadence_sec=0.25,
-    )
+    with patch("wanctl.rtt_backend_factory.shutil.which", return_value="/usr/bin/irtt"):
+        handle = _build(backend="irtt", irtt=irtt_cfg, logger=logger)
+        thread = handle.make_thread(
+            lambda: ["ignored"],
+            threading.Event(),
+            cadence_sec=0.25,
+        )
 
     assert isinstance(thread, _IrttDriverThread)
     assert thread.cadence_sec == 10.0  # uses IRTT cadence, not controller cadence

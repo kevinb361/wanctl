@@ -69,8 +69,8 @@ class RttSample:
         )
 
 
-def sample_from_irtt_result(result: IRTTResult) -> RttSample:
-    """Map an IRTT result into an ``RttSample`` without I/O or side effects.
+def sample_from_irtt_result(result: IRTTResult) -> RttSample | None:
+    """Map a valid IRTT result into an ``RttSample`` without side effects.
 
     ``rtt_median_ms`` becomes the sample RTT, ``server`` becomes the source
     identity and per-host key, and the host loss percentage is the larger of
@@ -78,6 +78,15 @@ def sample_from_irtt_result(result: IRTTResult) -> RttSample:
     the single seam field conservative while preserving the documented
     0.0-to-100.0 percent unit.
     """
+
+    if (
+        not result.success
+        or result.packets_sent <= 0
+        or result.packets_received <= 0
+        or result.rtt_mean_ms <= 0
+        or result.rtt_median_ms <= 0
+    ):
+        return None
 
     combined_loss_percent = max(result.send_loss, result.receive_loss)
     return RttSample(

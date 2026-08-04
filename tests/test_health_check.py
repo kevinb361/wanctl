@@ -5477,6 +5477,32 @@ class TestMeasurementContract:
         assert measurement["successful_count"] == expected_count
         assert measurement["stale"] is expected_stale
 
+    def test_irtt_one_target_success_is_backend_aware_healthy(self):
+        handler = self._make_handler()
+        health_data = self._make_health_data(
+            successful_hosts=["198.51.100.50"],
+            active_hosts=["198.51.100.50"],
+            staleness_sec=0.05,
+            cadence_sec=10.0,
+        )
+        health_data["measurement"].update(
+            {
+                "backend_active": "irtt",
+                "backend": "irtt",
+                "source_ip": "192.0.2.10",
+                "target": "198.51.100.50",
+            }
+        )
+
+        measurement = handler._build_measurement_section(health_data)
+
+        assert measurement["state"] == "healthy"
+        assert measurement["successful_count"] == 1
+        assert measurement["backend_active"] == "irtt"
+        assert measurement["backend"] == "irtt"
+        assert measurement["source_ip"] == "192.0.2.10"
+        assert measurement["target"] == "198.51.100.50"
+
     def test_zero_success_cycle_reports_collapsed(self):
         """Phase 187: cached rtt + zero-success current cycle => state='collapsed'."""
         handler = self._make_handler()

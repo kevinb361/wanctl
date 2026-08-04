@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **REM-009:** Hardened first-class IRTT mode with binary-aware ICMP fallback, distinct target/scorer isolation, total-loss rejection, current-burst success attribution, backend-aware one-target health, and separate source/target reporting.
 - **REM-008:** Made CAKE hot-reload a cold-state boundary: disable immediately clears stale snapshots and arbitration state, while re-enable resets counter baselines, EWMAs, direction history, and refractory state before accepting fresh samples.
 - **REM-007:** Made queued-rate recovery connectivity-honest: no-I/O paths preserve state, failed replays remain pending and record failure, unreachable controllers recover only through a real bounded write probe, and watchdog router-only/auth distinctions are regression-tested.
 - **REM-006:** Normalized retryable RouterOS REST failures into a bounded two-attempt contract that transitions once to SSH, preserves legacy direct-API failure returns, prevents false primary restoration, and keeps native queue writes inside the systemd watchdog budget.

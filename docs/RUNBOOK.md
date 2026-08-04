@@ -236,8 +236,8 @@ On shared multi-WAN hosts, treat concurrent same-target IRTT as a separate risk 
 
 | Field                          | Values                                                                        | What it means for the operator                                                                                          |
 | ------------------------------ | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `measurement.state`            | `healthy` / `reduced` / `collapsed`                                           | Derived from the count of reflectors that produced a successful RTT sample in the most recent background cycle.         |
-| `measurement.successful_count` | integer `>= 0` (practical range `0..3` on the current 3-reflector deployment) | Raw reflector-success count behind `state`.                                                                             |
+| `measurement.state`            | `healthy` / `reduced` / `collapsed`                                           | Backend-aware current-cycle health: ICMP uses three-reflector quorum; IRTT is healthy at one successful configured target. |
+| `measurement.successful_count` | integer `>= 0` (ICMP `0..3`; IRTT `0..1`)                                    | Current-cycle target-success count behind `state`.                                                                       |
 | `measurement.stale`            | `true` / `false`                                                              | `true` when the last raw RTT sample age exceeds `3 * cadence_sec`, or when cadence is unknown (startup, failed thread). |
 
 `state` and `stale` are orthogonal. A WAN can be `state="healthy"` and
@@ -278,9 +278,9 @@ wanctl-operator-summary http://10.10.110.223:9101/health http://10.10.110.227:91
 
 | Observed `/health` measurement                            | Operator reading                                                                                                                                                   |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `state="healthy"`, `stale=false`, `successful_count=3`    | measurement honest, any latency regression is a real congestion or path event, not a measurement collapse.                                                         |
+| `state="healthy"`, `stale=false`, backend-expected success (`3` for ICMP; `1` for IRTT) | measurement honest, any latency regression is a real congestion or path event, not a measurement collapse.                                      |
 | `state="reduced"`, `successful_count=2`                   | single reflector drop; watch for correlation with latency spikes. Not a controller action on its own.                                                              |
-| `state="collapsed"`, `successful_count<=1`, `stale=false` | measurement has collapsed on the current cycle; recent latency spikes on this WAN are NOT trustworthy as a controller signal and match the Phase 187 honesty path. |
+| `state="collapsed"`, backend quorum absent, `stale=false` | measurement has collapsed on the current cycle; recent latency spikes on this WAN are NOT trustworthy as a controller signal and match the honesty path.           |
 | `state="healthy"`, `stale=true`                           | quorum is nominally present but the last raw RTT sample is older than `3 * cadence_sec`; treat as measurement-degraded, not as a fresh healthy sample.             |
 | any `state` with `successful_count=0`                     | zero-success cycle; Phase 187 keeps bounded controller behavior but the operator reading is "do not tune on this window."                                          |
 

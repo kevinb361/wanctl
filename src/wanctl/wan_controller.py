@@ -1197,8 +1197,9 @@ class WANController:
         if snapshot is None:
             if self._initial_rtt_sample_pending():
                 if not self._initial_rtt_pending_logged:
+                    backend = getattr(self._rtt_backend_status, "backend_active", "background")
                     self.logger.info(
-                        f"{self.wan_name}: Waiting for initial fping RTT sample; "
+                        f"{self.wan_name}: Waiting for initial {backend} RTT sample; "
                         "freezing startup cycle instead of running fallback checks"
                     )
                     self._initial_rtt_pending_logged = True
@@ -1219,7 +1220,9 @@ class WANController:
             self.logger.debug(f"{self.wan_name}: RTT data aging ({age:.1f}s)")
 
         snapshot_backend = getattr(snapshot, "backend", "icmplib")
-        skip_scorer_for_backend = snapshot_backend == "fping"
+        # Only ICMP samples belong to the ICMP reflector scorer. IRTT's
+        # configured UDP server may intentionally be absent from ping_hosts.
+        skip_scorer_for_backend = snapshot_backend in {"fping", "irtt"}
         zero_success_cycle = bool(cycle_status and self._should_skip_scorer_update(cycle_status))
 
         # Skip stale cached attribution during zero-success blackout cycles.
@@ -1312,9 +1315,9 @@ class WANController:
         return soft_stale_sec, hard_stale_sec
 
     def _initial_rtt_sample_pending(self) -> bool:
-        """Return True while fping is inside bounded first-sample startup grace.
+        """Return True while an async backend is inside first-sample startup grace.
 
-        The fping backend runs as an independent background producer. During
+        The fping and IRTT backends run as independent background producers. During
         startup, the 50ms control loop can run before the first fping burst has
         published a cached sample. Treat that short window as producer readiness,
         not ICMP failure. The icmplib path keeps its historical immediate
@@ -1328,7 +1331,7 @@ class WANController:
             if backend_status is not None
             else "icmplib"
         )
-        if backend_active != "fping":
+        if backend_active not in {"fping", "irtt"}:
             return False
         if self._rtt_thread.get_latest() is not None:
             return False
@@ -4578,6 +4581,13 @@ class WANController:
         )
         if not isinstance(source_ip, str) or not source_ip:
             source_ip = None
+        target = None
+        if rtt_backend_status is not None and backend_active == "irtt":
+            irtt_config = getattr(rtt_backend_status, "irtt_config", None)
+            if isinstance(irtt_config, dict):
+                target = irtt_config.get("server")
+        if not isinstance(target, str) or not target:
+            target = None
         # Autorate does not retain per-sample RttSample.backend; this is the
         # selected backend proxy. The per-sample A/B source lands on steering.
         selected_backend = backend_active
@@ -4628,6 +4638,7 @@ class WANController:
                 "producer": "wanctl-backend",
                 "backend": selected_backend,
                 "source_ip": source_ip,
+                "target": target,
             },
             "background_workers": {
                 "rtt": {

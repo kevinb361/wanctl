@@ -177,7 +177,7 @@ After the service is up, confirm:
 - `/var/lib/wanctl/` begins receiving runtime state
 - config validation passes with `wanctl-check-config`
 - `scripts/canary-check.sh --ssh target-host` exits `0`
-- `.wans[].measurement.state` is `healthy`, `.wans[].measurement.successful_count` is `3`, and `.wans[].measurement.stale` is `false` before you sign off on a host running the measurement-resilience changes
+- `.wans[].measurement.state` is `healthy`, `.wans[].measurement.successful_count` matches the backend (`3` for ICMP, `1` for IRTT), and `.wans[].measurement.stale` is `false` before you sign off on a host running the measurement-resilience changes
 
 For the bounded measurement-health check, follow
 [`RUNBOOK.md`](RUNBOOK.md) under `## Measurement Health Inspection`. That

@@ -121,8 +121,9 @@ ssh <target_host> 'curl -s http://<health-ip-1>:9101/health' \
 ```
 
 On a freshly deployed host that includes the measurement-resilience changes,
-`state` should be
-`"healthy"`, `successful_count` should be `3`, and `stale` should be `false`.
+`state` should be `"healthy"`, `successful_count` should match the active backend
+(`3` for the normal ICMP reflector set; `1` for single-target IRTT), and `stale`
+should be `false`.
 Any other combination must be correlated against the rubric in
 [`RUNBOOK.md`](RUNBOOK.md) under `## Measurement Health Inspection` before
 signing off on the deploy. Inspect these literal paths in the payload:

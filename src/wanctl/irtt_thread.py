@@ -38,6 +38,7 @@ class IRTTThread:
         self._shutdown_event = shutdown_event
         self._logger = logger
         self._cached_result: IRTTResult | None = None
+        self._last_attempt_succeeded: bool | None = None
         self._profiler = OperationProfiler(max_samples=1200)
         self._thread: threading.Thread | None = None
 
@@ -53,6 +54,10 @@ class IRTTThread:
     def get_latest(self) -> IRTTResult | None:
         """Return the most recent successful measurement, or ``None``."""
         return self._cached_result
+
+    def last_attempt_succeeded(self) -> bool | None:
+        """Return the latest burst outcome, or ``None`` before the first attempt."""
+        return self._last_attempt_succeeded
 
     def get_profile_stats(self) -> dict[str, object]:
         """Return background IRTT timing stats."""
@@ -88,8 +93,10 @@ class IRTTThread:
                 result = self._measurement.measure()
                 elapsed_ms = (time.perf_counter() - t0) * 1000.0
                 self._profiler.record("irtt_background_cycle", elapsed_ms)
+                self._last_attempt_succeeded = result is not None
                 if result is not None:
                     self._cached_result = result
             except Exception:
+                self._last_attempt_succeeded = False
                 self._logger.debug("IRTT measurement error", exc_info=True)
             self._shutdown_event.wait(timeout=self._cadence_sec)

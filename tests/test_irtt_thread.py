@@ -43,6 +43,7 @@ class TestIRTTThreadCache:
         logger = logging.getLogger("test_irtt_thread")
         thread = IRTTThread(measurement, cadence_sec=10.0, shutdown_event=shutdown, logger=logger)
         assert thread.get_latest() is None
+        assert thread.last_attempt_succeeded() is None
 
     def test_get_latest_returns_result_after_measurement(self) -> None:
         shutdown = threading.Event()
@@ -60,6 +61,7 @@ class TestIRTTThreadCache:
         shutdown.wait = MagicMock(side_effect=side_effect)
         thread._run()
         assert thread.get_latest() is result
+        assert thread.last_attempt_succeeded() is True
 
     def test_get_latest_retains_last_on_failure(self) -> None:
         shutdown = threading.Event()
@@ -83,6 +85,51 @@ class TestIRTTThreadCache:
         shutdown.wait = MagicMock(side_effect=side_effect)
         thread._run()
         assert thread.get_latest() is good_result
+        assert thread.last_attempt_succeeded() is False
+
+    def test_real_driver_reports_success_failure_recovery_while_cache_is_bounded(self) -> None:
+        from wanctl.rtt_backend_factory import _IrttDriverThread
+
+        shutdown = threading.Event()
+        measurement = MagicMock()
+        first = _make_result(rtt_median_ms=24.0)
+        recovered = _make_result(rtt_median_ms=25.0, timestamp=110.0)
+        measurement.measure.side_effect = [first, None, recovered]
+        thread = IRTTThread(
+            measurement,
+            cadence_sec=10.0,
+            shutdown_event=shutdown,
+            logger=logging.getLogger("test_irtt_thread"),
+        )
+        driver = _IrttDriverThread(thread, "1.2.3.4")
+
+        def run_once() -> None:
+            shutdown.clear()
+
+            def stop_after_iteration(timeout: float) -> bool:
+                shutdown.set()
+                return True
+
+            shutdown.wait = MagicMock(side_effect=stop_after_iteration)
+            thread._run()
+
+        run_once()
+        first_sample = driver.get_latest()
+        first_status = driver.get_cycle_status()
+        assert first_sample is not None and first_sample.rtt_ms == 24.0
+        assert first_status is not None and first_status.successful_count == 1
+
+        run_once()
+        failed_sample = driver.get_latest()
+        failed_status = driver.get_cycle_status()
+        assert failed_sample is not None and failed_sample.rtt_ms == 24.0
+        assert failed_status is not None and failed_status.successful_count == 0
+
+        run_once()
+        recovered_sample = driver.get_latest()
+        recovered_status = driver.get_cycle_status()
+        assert recovered_sample is not None and recovered_sample.rtt_ms == 25.0
+        assert recovered_status is not None and recovered_status.successful_count == 1
 
 
 class TestIRTTThreadLifecycle:
@@ -183,6 +230,7 @@ class TestIRTTThreadLoop:
         assert measurement.measure.call_count == 2
         assert "IRTT measurement error" in caplog.text
         assert "network timeout" in caplog.text
+        assert thread.last_attempt_succeeded() is False
 
     def test_loop_continues_after_exception(self) -> None:
         shutdown = threading.Event()

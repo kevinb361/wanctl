@@ -209,15 +209,37 @@ class IRTTMeasurement:
         ipdv_rt = stats.get("ipdv_round_trip", {})
         send_delay = stats.get("send_delay", {})
         receive_delay = stats.get("receive_delay", {})
+        if not all(isinstance(value, dict) for value in (rtt, ipdv_rt, send_delay, receive_delay)):
+            return None
+
+        packets_sent = stats.get("packets_sent", 0)
+        packets_received = stats.get("packets_received", 0)
+        rtt_mean_ns = rtt.get("mean", 0)
+        rtt_median_ns = rtt.get("median", 0)
+        numeric_values = (packets_sent, packets_received, rtt_mean_ns, rtt_median_ns)
+        if any(
+            not isinstance(value, (int, float)) or isinstance(value, bool)
+            for value in numeric_values
+        ):
+            return None
+
+        rtt_mean_ms = rtt_mean_ns / ns_to_ms
+        rtt_median_ms = rtt_median_ns / ns_to_ms
+
+        # IRTT may emit syntactically valid JSON on a non-zero exit with
+        # 100% loss. Such output is diagnostic evidence, not an RTT sample:
+        # accepting its zero-valued statistics fabricates successful contact.
+        if packets_sent <= 0 or packets_received <= 0 or rtt_mean_ms <= 0 or rtt_median_ms <= 0:
+            return None
 
         return IRTTResult(
-            rtt_mean_ms=rtt.get("mean", 0) / ns_to_ms,
-            rtt_median_ms=rtt.get("median", 0) / ns_to_ms,
+            rtt_mean_ms=rtt_mean_ms,
+            rtt_median_ms=rtt_median_ms,
             ipdv_mean_ms=ipdv_rt.get("mean", 0) / ns_to_ms,
             send_loss=stats.get("upstream_loss_percent", 0.0),
             receive_loss=stats.get("downstream_loss_percent", 0.0),
-            packets_sent=stats.get("packets_sent", 0),
-            packets_received=stats.get("packets_received", 0),
+            packets_sent=packets_sent,
+            packets_received=packets_received,
             server=self._server,  # type: ignore[arg-type]
             port=self._port,
             timestamp=time.monotonic(),

@@ -26,6 +26,7 @@ import dataclasses
 import logging
 import shutil
 import threading
+import time
 from collections.abc import Callable
 from typing import Any, Protocol, cast
 
@@ -100,8 +101,9 @@ class _IrttDriverThread:
     RttSample via sample_from_irtt_result() on each get_latest() call.
     """
 
-    def __init__(self, irtt_thread: IRTTThread) -> None:
+    def __init__(self, irtt_thread: IRTTThread, server: str) -> None:
         self._irtt_thread = irtt_thread
+        self._server = server
 
     @property
     def cadence_sec(self) -> float:
@@ -120,7 +122,15 @@ class _IrttDriverThread:
         return sample_from_irtt_result(result)
 
     def get_cycle_status(self) -> RTTCycleStatus | None:
-        return None
+        succeeded = self._irtt_thread.last_attempt_succeeded()
+        if succeeded is None:
+            return None
+        return RTTCycleStatus(
+            successful_count=1 if succeeded else 0,
+            active_hosts=(self._server,),
+            successful_hosts=(self._server,) if succeeded else (),
+            cycle_timestamp=time.monotonic(),
+        )
 
     def get_profile_stats(self) -> dict[str, object]:
         return self._irtt_thread.get_profile_stats()
@@ -165,7 +175,10 @@ class RttBackendHandle:
                 shutdown_event=shutdown_event,
                 logger=self._logger,
             )
-            return _IrttDriverThread(irtt_thread)
+            server = self.irtt_config.get("server")
+            if not isinstance(server, str) or not server:
+                raise ValueError("irtt backend requested without a valid server")
+            return _IrttDriverThread(irtt_thread, server)
 
         if self.backend_active == "fping":
             try:
@@ -231,13 +244,24 @@ def build_rtt_backend(
     if requested == "irtt":
         irtt_enabled = irtt_config.get("enabled", False)
         irtt_server = irtt_config.get("server")
-        if not irtt_enabled or not irtt_server:
+        irtt_binary = shutil.which("irtt")
+        if not irtt_enabled or not irtt_server or irtt_binary is None:
+            reason = (
+                "irtt binary was not found"
+                if irtt_binary is None and irtt_enabled and irtt_server
+                else "irtt is not configured or enabled"
+            )
             logger.warning(
-                f"irtt backend requested for {wan_key} but irtt is not configured or enabled; "
-                f"falling back to icmplib"
+                f"irtt backend requested for {wan_key} but {reason}; falling back to icmplib"
             )
             return _build_icmplib_handle(
-                config, source_ip, logger, wan_key, fping_cadence_sec, fell_back=False
+                config,
+                source_ip,
+                logger,
+                wan_key,
+                fping_cadence_sec,
+                fell_back=True,
+                fallback_backend="irtt",
             )
         irtt_backend = IrttRttBackend(irtt_config, logger)
         controller_measurement = _build_controller_measurement(config, source_ip, logger)
@@ -273,7 +297,13 @@ def build_rtt_backend(
     controller_measurement = _build_controller_measurement(config, source_ip, logger)
     fell_back = requested == "fping"
     return _build_icmplib_handle(
-        config, source_ip, logger, wan_key, fping_cadence_sec, fell_back
+        config,
+        source_ip,
+        logger,
+        wan_key,
+        fping_cadence_sec,
+        fell_back,
+        fallback_backend="fping" if fell_back else None,
     )
 
 
@@ -284,6 +314,7 @@ def _build_icmplib_handle(
     wan_key: str,
     fping_cadence_sec: float,
     fell_back: bool,
+    fallback_backend: str | None = None,
 ) -> RttBackendHandle:
     """Build an icmplib RttBackendHandle (used for default and fallback paths)."""
     controller_measurement = _build_controller_measurement(config, source_ip, logger)
@@ -299,7 +330,7 @@ def _build_icmplib_handle(
         _logger=logger,
         _wan_key=wan_key,
     )
-    if fell_back:
+    if fallback_backend == "fping":
         handle._warn_once(
             "binary-absent",
             f"fping selected for {wan_key} but fping binary was not found; falling back to icmplib",

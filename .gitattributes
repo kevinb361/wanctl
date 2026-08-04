@@ -1,3 +1,4 @@
-# These legacy fixtures are intentionally CRLF; do not flag CR at EOL as whitespace.
+# These legacy paths retain CRLF; do not flag CR at EOL as whitespace.
 tests/test_router_behavioral.py whitespace=cr-at-eol
 tests/test_routeros_rest.py whitespace=cr-at-eol
+src/wanctl/irtt_measurement.py whitespace=cr-at-eol

@@ -88,6 +88,7 @@ def test_sample_from_irtt_result_mapping():
 
     sample = sample_from_irtt_result(result)
 
+    assert sample is not None
     assert sample.rtt_ms == 13.5
     assert sample.per_host_results == {"198.51.100.30": 13.5}
     assert sample.timestamp == 45678.0
@@ -105,7 +106,10 @@ def test_irtt_backend_wired():
 
     mock_measurement = MagicMock()
     mock_result = MagicMock()
+    mock_result.rtt_mean_ms = 43.0
     mock_result.rtt_median_ms = 42.5
+    mock_result.packets_sent = 100
+    mock_result.packets_received = 95
     mock_result.server = "198.51.100.30"
     mock_result.timestamp = 100.0
     mock_result.success = True
@@ -127,6 +131,24 @@ def test_irtt_backend_wired():
         assert sample.source_ip == "198.51.100.30"
         assert sample.per_host_loss["198.51.100.30"] == 4.5
         mock_measurement.measure.assert_called_once()
+
+
+def test_sample_from_irtt_result_rejects_zero_received_total_loss():
+    result = IRTTResult(
+        rtt_mean_ms=0.0,
+        rtt_median_ms=0.0,
+        ipdv_mean_ms=0.0,
+        send_loss=100.0,
+        receive_loss=100.0,
+        packets_sent=10,
+        packets_received=0,
+        server="198.51.100.30",
+        port=2112,
+        timestamp=45678.0,
+        success=True,
+    )
+
+    assert sample_from_irtt_result(result) is None
 
 
 def test_irtt_backend_returns_none_on_failure():
