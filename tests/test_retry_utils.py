@@ -23,6 +23,12 @@ class TestIsRetryableError:
         error = subprocess.TimeoutExpired("cmd", 30)
         assert is_retryable_error(error) is True
 
+    def test_command_completion_timeout_is_not_retryable(self):
+        error = TimeoutError(
+            "recv_exit_status timed out after 15s for command: /queue tree print"
+        )
+        assert is_retryable_error(error) is False
+
     def test_connection_error_is_retryable(self):
         """Test that ConnectionError is retryable."""
         error = ConnectionError("Connection failed")

@@ -567,6 +567,51 @@ class TestRunCmd:
             ssh_client.run_cmd("/test")
             mock_ensure.assert_called_once()
 
+    def test_timeout_closes_resources_before_next_call_reconnects_once(self, ssh_client) -> None:
+        """A timed-out client is fully torn down before one next-call reconnect."""
+        first_client = MagicMock(spec=paramiko.SSHClient)
+        first_stdout = MagicMock()
+        first_stdout.channel.exit_status_ready.return_value = False
+        first_client.exec_command.return_value = (MagicMock(), first_stdout, MagicMock())
+
+        second_client = MagicMock(spec=paramiko.SSHClient)
+        second_stdout = MagicMock()
+        second_stderr = MagicMock()
+        second_stdout.channel.exit_status_ready.return_value = True
+        second_stdout.channel.recv_exit_status.return_value = 0
+        second_stdout.read.return_value = b"reconnected"
+        second_stderr.read.return_value = b""
+        second_client.exec_command.return_value = (MagicMock(), second_stdout, second_stderr)
+
+        cleanup_order: list[str] = []
+        first_stdout.channel.close.side_effect = lambda: cleanup_order.append("channel")
+        first_client.close.side_effect = lambda: cleanup_order.append("client")
+        ssh_client._client = first_client
+        ensure_calls = 0
+
+        def ensure_connected() -> None:
+            nonlocal ensure_calls
+            ensure_calls += 1
+            if ensure_calls == 2:
+                assert ssh_client._client is None
+                assert cleanup_order == ["channel", "client"]
+                ssh_client._client = second_client
+
+        with (
+            patch.object(ssh_client, "_ensure_connected", side_effect=ensure_connected),
+            patch("wanctl.routeros_ssh.time.sleep"),
+        ):
+            with pytest.raises(TimeoutError, match="recv_exit_status timed out"):
+                ssh_client.run_cmd("/test", capture=True, timeout=0)
+            result = ssh_client.run_cmd("/test", capture=True, timeout=0)
+
+        assert result == (0, "reconnected", "")
+        assert ensure_calls == 2
+        first_stdout.channel.close.assert_called_once_with()
+        first_client.close.assert_called_once_with()
+        first_client.exec_command.assert_called_once_with("/test", timeout=0)
+        second_client.exec_command.assert_called_once_with("/test", timeout=0)
+
     def test_run_cmd_ssh_exception_clears_client(self, ssh_client, mock_ssh_client) -> None:
         """SSHException during run_cmd sets _client to None."""
         ssh_client._client = mock_ssh_client

@@ -200,11 +200,12 @@ class RouterOSSSH:
         Uses paramiko's exec_command() on a persistent connection for
         low-latency command execution (~30-50ms vs ~200ms for subprocess).
 
-        Retries on:
-        - Connection errors (connection lost, timeout)
-        - Transport errors
+        Retries only errors classified as transient by ``retry_utils``.
+        A command-completion timeout is not retried in-call: its resources
+        are closed, and the next command reconnects from a clean client.
 
         Does NOT retry on:
+        - Command-completion timeouts
         - Authentication failures (handled at connection time)
         - Command syntax errors (RouterOS returns non-zero)
 
@@ -241,13 +242,20 @@ class RouterOSSSH:
             elapsed = 0.0
             while not stdout.channel.exit_status_ready():
                 if elapsed >= exit_timeout:
-                    # Close the channel to free resources and avoid leaking
-                    # the connection until the next reconnect cycle.
+                    # The persistent client owns transport resources beyond
+                    # this command channel. Close both before dropping the
+                    # reference so the next command starts from a clean client.
+                    timed_out_client = self._client
                     try:
                         stdout.channel.close()
                     except Exception:
                         pass
-                    self._client = None
+                    try:
+                        timed_out_client.close()
+                    except Exception as e:
+                        self.logger.debug(f"Error closing timed-out SSH connection: {e}")
+                    finally:
+                        self._client = None
                     raise TimeoutError(
                         f"recv_exit_status timed out after {exit_timeout}s for command: {cmd}"
                     )
