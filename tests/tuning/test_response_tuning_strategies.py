@@ -10,6 +10,7 @@ RTUN-03: Green required adjustment from re-trigger rate
 """
 
 from wanctl.tuning.models import SafetyBounds
+from wanctl.tuning.strategies import response as response_module
 from wanctl.tuning.strategies.response import (
     RESPONSE_PARAMS,
     RecoveryEpisode,
@@ -54,9 +55,7 @@ def _make_episode_data(
     """Create combined wanctl_state + wanctl_rate_{direction}_mbps data."""
     result = _make_state_sequence(states, start_ts)
     if rates is not None:
-        result.extend(
-            _make_metrics(f"wanctl_rate_{direction}_mbps", rates, start_ts)
-        )
+        result.extend(_make_metrics(f"wanctl_rate_{direction}_mbps", rates, start_ts))
     return result
 
 
@@ -484,6 +483,93 @@ class TestTuneGreenRequired:
         result = tune_ul_green_required(metrics, 5.0, self.BOUNDS, "Spectrum")
         if result is not None:
             assert result.parameter == "ul_green_required"
+
+
+class TestDirectionSpecificResponseEvidence:
+    """DL and UL strategies must consume their own durable state series."""
+
+    @staticmethod
+    def _states(metric_name: str, values: list[float]) -> list[dict]:
+        return _make_metrics(metric_name, values)
+
+    def test_step_up_and_green_required_diverge_by_direction(self):
+        high_retrigger = ([0.0, 0.0, 3.0, 2.0, 3.0, 0.0] * 10) + [0.0] * 10
+        low_retrigger = [0.0] * 5 + [2.0, 3.0, 2.0] + [0.0] * 20 + [2.0, 3.0, 2.0] + [0.0] * 30
+        metrics = self._states("wanctl_state_download", high_retrigger)
+        metrics += self._states("wanctl_state_upload", low_retrigger)
+
+        bounds = SafetyBounds(min_value=0.5, max_value=15.0)
+        dl_step = tune_dl_step_up(metrics, 2.0, bounds, "test")
+        ul_step = tune_ul_step_up(metrics, 2.0, bounds, "test")
+        dl_green = tune_dl_green_required(metrics, 5.0, bounds, "test")
+        ul_green = tune_ul_green_required(metrics, 5.0, bounds, "test")
+
+        assert dl_step is not None and dl_step.new_value < 2.0
+        assert ul_step is not None and ul_step.new_value > 2.0
+        assert dl_green is not None and dl_green.new_value > 5.0
+        assert ul_green is not None and ul_green.new_value < 5.0
+
+    def test_factor_down_diverges_by_direction(self):
+        fast = [2.0, 0.0, 0.0, 0.0] * 15
+        slow = [2.0, 3.0, 2.0, 3.0, 2.0, 3.0, 2.0, 3.0, 0.0, 0.0, 0.0, 0.0] * 5
+        metrics = self._states("wanctl_state_download", fast)
+        metrics += self._states("wanctl_state_upload", slow)
+        bounds = SafetyBounds(min_value=0.5, max_value=0.98)
+
+        dl_result = tune_dl_factor_down(metrics, 0.85, bounds, "test")
+        ul_result = tune_ul_factor_down(metrics, 0.85, bounds, "test")
+
+        assert dl_result is not None and dl_result.new_value > 0.85
+        assert ul_result is not None and ul_result.new_value < 0.85
+
+    def test_quiet_direction_does_not_borrow_sibling_or_legacy_state(self):
+        high_retrigger = ([0.0, 0.0, 3.0, 2.0, 3.0, 0.0] * 10) + [0.0] * 10
+        metrics = self._states("wanctl_state_download", high_retrigger)
+        metrics += self._states("wanctl_state", high_retrigger)
+        bounds = SafetyBounds(min_value=0.5, max_value=15.0)
+
+        assert tune_ul_step_up(metrics, 2.0, bounds, "test") is None
+        assert tune_ul_factor_down(metrics, 0.85, bounds, "test") is None
+        assert tune_ul_green_required(metrics, 5.0, bounds, "test") is None
+
+    def test_directional_state_takes_precedence_over_legacy_history(self):
+        high_retrigger = ([0.0, 0.0, 3.0, 2.0, 3.0, 0.0] * 10) + [0.0] * 10
+        low_retrigger = [0.0] * 5 + [2.0, 3.0, 2.0] + [0.0] * 20 + [2.0, 3.0, 2.0] + [0.0] * 30
+        metrics = self._states("wanctl_state", high_retrigger)
+        metrics += self._states("wanctl_state_upload", low_retrigger)
+        result = tune_ul_step_up(metrics, 2.0, SafetyBounds(min_value=0.5, max_value=5.0), "test")
+        assert result is not None and result.new_value > 2.0
+
+
+class TestUploadDirectionDelegation:
+    """Upload wrappers must pass the upload direction through the strategy seam."""
+
+    def test_all_upload_wrappers_delegate_with_upload_direction(self, monkeypatch):
+        seen: list[tuple[str, str]] = []
+
+        def fake_step(*args, param_name: str, direction: str, **kwargs):
+            seen.append((param_name, direction))
+
+        def fake_factor(*args, param_name: str, direction: str, **kwargs):
+            seen.append((param_name, direction))
+
+        def fake_green(*args, param_name: str, direction: str, **kwargs):
+            seen.append((param_name, direction))
+
+        monkeypatch.setattr(response_module, "_tune_step_up_impl", fake_step)
+        monkeypatch.setattr(response_module, "_tune_factor_down_impl", fake_factor)
+        monkeypatch.setattr(response_module, "_tune_green_required_impl", fake_green)
+        bounds = SafetyBounds(min_value=0.1, max_value=20.0)
+
+        tune_ul_step_up([], 1.0, bounds, "test")
+        tune_ul_factor_down([], 0.9, bounds, "test")
+        tune_ul_green_required([], 5.0, bounds, "test")
+
+        assert seen == [
+            ("ul_step_up_mbps", "upload"),
+            ("ul_factor_down", "upload"),
+            ("ul_green_required", "upload"),
+        ]
 
 
 # ---------------------------------------------------------------------------

@@ -166,9 +166,12 @@ class TestResponseLayerDefinition:
     def test_response_params_names(self):
         """RESPONSE_PARAMS should contain correct param names."""
         expected = {
-            "dl_step_up_mbps", "ul_step_up_mbps",
-            "dl_factor_down", "ul_factor_down",
-            "dl_green_required", "ul_green_required",
+            "dl_step_up_mbps",
+            "ul_step_up_mbps",
+            "dl_factor_down",
+            "ul_factor_down",
+            "dl_green_required",
+            "ul_green_required",
         }
         assert set(RESPONSE_PARAMS) == expected
 
@@ -182,6 +185,7 @@ class TestResponseLayerDefinition:
             tune_ul_green_required,
             tune_ul_step_up,
         )
+
         # All are callable
         assert callable(tune_dl_step_up)
         assert callable(tune_ul_step_up)
@@ -206,8 +210,7 @@ class TestOscillationLockout:
             states: List of (timestamp, state_value) tuples.
         """
         return [
-            {"timestamp": ts, "metric_name": "wanctl_state", "value": val}
-            for ts, val in states
+            {"timestamp": ts, "metric_name": "wanctl_state", "value": val} for ts, val in states
         ]
 
     def test_low_transition_rate_no_lockout(self):
@@ -382,9 +385,7 @@ class TestExcludeParamsDefault:
         """When exclude_params: [] is set, nothing is excluded."""
         from wanctl.autorate_config import Config
 
-        config = self._make_config_obj({
-            "tuning": {"enabled": True, "exclude_params": []}
-        })
+        config = self._make_config_obj({"tuning": {"enabled": True, "exclude_params": []}})
         Config._load_tuning_config(config)
         assert config.tuning_config is not None
         assert len(config.tuning_config.exclude_params) == 0
@@ -393,15 +394,41 @@ class TestExcludeParamsDefault:
         """When user provides explicit list, only those are excluded."""
         from wanctl.autorate_config import Config
 
-        config = self._make_config_obj({
-            "tuning": {"enabled": True, "exclude_params": ["fusion_icmp_weight"]}
-        })
+        config = self._make_config_obj(
+            {"tuning": {"enabled": True, "exclude_params": ["fusion_icmp_weight"]}}
+        )
         Config._load_tuning_config(config)
         assert config.tuning_config is not None
         assert config.tuning_config.exclude_params == frozenset(["fusion_icmp_weight"])
         # Response params should NOT be excluded when user provides explicit list
         for p in RESPONSE_PARAMS:
             assert p not in config.tuning_config.exclude_params
+
+
+class TestDirectionalStateEmission:
+    """Native metrics retain separate DL/UL state names through downsampling."""
+
+    def test_fire_on_change_emits_legacy_and_directional_state_metrics(self):
+        from wanctl.wan_controller import WANController
+
+        wc = WANController.__new__(WANController)
+        wc.wan_name = "test"
+        wc._download_labels = {"direction": "download"}
+        wc._upload_labels = {"direction": "upload"}
+        wc._last_dl_state_emitted = None
+        wc._last_ul_state_emitted = None
+        batch: list[tuple] = []
+
+        wc._append_fire_on_change_state(1000, batch, 2.0, 0.0)
+
+        assert [row[2] for row in batch] == [
+            "wanctl_state",
+            "wanctl_state_download",
+            "wanctl_state",
+            "wanctl_state_upload",
+        ]
+        assert batch[1][3:] == (2.0, None, "raw")
+        assert batch[3][3:] == (0.0, None, "raw")
 
 
 class TestCurrentParamsExtension:

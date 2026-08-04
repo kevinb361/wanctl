@@ -210,6 +210,16 @@ class TestClampToStep:
         # clamped = 0.0001 (within bounds), delta = 0.0009 < 0.001, within step
         assert result == 0.0
 
+    def test_precision_rounding_is_reclamped_to_off_grid_bound(self):
+        result = clamp_to_step(
+            current=0.95,
+            candidate=0.9561,
+            max_step_pct=10.0,
+            bounds=SafetyBounds(min_value=0.5, max_value=0.956),
+            precision=2,
+        )
+        assert result == 0.956
+
     def test_exact_boundary_value(self):
         """Candidate exactly at step boundary."""
         result = clamp_to_step(

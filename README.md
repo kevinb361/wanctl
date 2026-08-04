@@ -367,7 +367,12 @@ curl http://127.0.0.1:9100/metrics
 
 Common metrics include `wanctl_bandwidth_mbps`, `wanctl_rtt_delta_ms`, `wanctl_state`, `wanctl_cycles_total`, storage pressure gauges, runtime pressure gauges, checkpoint/WAL counters, router update counters, ping failure counters, and steering counters.
 
-Stored SQLite history is also available through the autorate health server:
+Native-controller SQLite history also retains `wanctl_state_download` and
+`wanctl_state_upload` so adaptive response analysis can distinguish directions;
+the legacy labeled `wanctl_state` series remains for compatibility. External
+cake-autorate state bridges do not run native adaptive tuning.
+
+Stored SQLite history is available through the autorate health server:
 
 ```bash
 curl 'http://127.0.0.1:9101/metrics/history?range=1h&limit=20'

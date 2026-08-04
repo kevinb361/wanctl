@@ -10,9 +10,9 @@ SIGP-03: Load EWMA time constant from settling time analysis
 NOTE on SIGP-03: This strategy outputs parameter="load_time_constant_sec"
 (range 0.5-10s), NOT "alpha_load" directly. The applier converts tc to alpha
 via alpha = 0.05 / tc in _apply_tuning_to_controller. This avoids Pitfall 3
-from research: clamp_to_step rounds to 1 decimal (destroying alpha precision
-like 0.025 -> 0.0), and the trivial change filter (abs < 0.1) blocks tiny
-alpha deltas. Time constants in the 0.5-10s range survive both filters.
+from research: the tuning domain uses one-decimal clamping, which would destroy
+alpha precision such as 0.025 -> 0.0. Time constants in the 0.5-10s range
+survive that clamping and are converted only at the controller boundary.
 """
 
 from __future__ import annotations
@@ -88,8 +88,8 @@ def tune_hampel_sigma(
     """Tune Hampel sigma threshold based on outlier rate analysis.
 
     SIGP-01: Adjusts sigma toward a target outlier rate range (5-15%).
-    Too many outliers -> decrease sigma (more aggressive filtering).
-    Too few outliers -> increase sigma (less aggressive filtering).
+    Too many outliers -> increase sigma (loosen detection).
+    Too few outliers -> decrease sigma (tighten detection).
 
     Matches StrategyFn signature:
         Callable[[list[dict], float, SafetyBounds, str], TuningResult | None]
@@ -101,7 +101,9 @@ def tune_hampel_sigma(
     if len(rates) < MIN_SAMPLES:
         logger.info(
             "[TUNING] %s: hampel_sigma skipped, only %d rate deltas (need %d)",
-            wan_name, len(rates), MIN_SAMPLES,
+            wan_name,
+            len(rates),
+            MIN_SAMPLES,
         )
         return None
 
@@ -110,11 +112,24 @@ def tune_hampel_sigma(
     if TARGET_OUTLIER_RATE_MIN <= mean_outlier_rate <= TARGET_OUTLIER_RATE_MAX:
         logger.info(
             "[TUNING] %s: hampel_sigma converged, outlier_rate=%.1f%% in target range",
-            wan_name, mean_outlier_rate * 100,
+            wan_name,
+            mean_outlier_rate * 100,
         )
         return None
 
-    candidate = current_value - SIGMA_STEP if mean_outlier_rate > TARGET_OUTLIER_RATE_MAX else current_value + SIGMA_STEP
+    # Hampel flags values beyond ``sigma * scaled_MAD``. Increasing sigma
+    # therefore lowers the observed outlier rate; decreasing it raises the
+    # rate. Keep the correction negative-feedback and clamp here so repeated
+    # analysis cannot propose values outside the configured safety envelope.
+    candidate = (
+        current_value + SIGMA_STEP
+        if mean_outlier_rate > TARGET_OUTLIER_RATE_MAX
+        else current_value - SIGMA_STEP
+    )
+    candidate = max(bounds.min_value, min(bounds.max_value, candidate))
+    if candidate == current_value:
+        return None
+
     confidence = min(1.0, len(rates) / 1440.0)
     direction = "above" if mean_outlier_rate > TARGET_OUTLIER_RATE_MAX else "below"
 
@@ -132,9 +147,7 @@ def tune_hampel_sigma(
     )
 
 
-def _compute_outlier_rates(
-    metrics_data: list[dict], wan_name: str
-) -> list[float] | None:
+def _compute_outlier_rates(metrics_data: list[dict], wan_name: str) -> list[float] | None:
     """Extract outlier count deltas and compute per-sample outlier rates.
 
     Returns None if insufficient data (fewer than 2 outlier_count samples).
@@ -147,7 +160,8 @@ def _compute_outlier_rates(
     if len(count_by_ts) < 2:
         logger.info(
             "[TUNING] %s: hampel_sigma skipped, only %d outlier_count samples",
-            wan_name, len(count_by_ts),
+            wan_name,
+            len(count_by_ts),
         )
         return None
 
@@ -252,7 +266,9 @@ def tune_alpha_load(
     if len(rtt_by_ts) < MIN_SAMPLES:
         logger.info(
             "[TUNING] %s: alpha_load skipped, only %d RTT samples (need %d)",
-            wan_name, len(rtt_by_ts), MIN_SAMPLES,
+            wan_name,
+            len(rtt_by_ts),
+            MIN_SAMPLES,
         )
         return None
 
@@ -262,7 +278,9 @@ def tune_alpha_load(
     if len(settling_times) < MIN_STEPS:
         logger.info(
             "[TUNING] %s: alpha_load skipped, only %d steps detected (need %d)",
-            wan_name, len(settling_times), MIN_STEPS,
+            wan_name,
+            len(settling_times),
+            MIN_STEPS,
         )
         return None
 
@@ -314,16 +332,15 @@ def _measure_settling_times(
 
     # Find step indices
     step_indices = [
-        i for i in range(1, len(sorted_ts))
+        i
+        for i in range(1, len(sorted_ts))
         if abs(rtt_by_ts[sorted_ts[i]] - rtt_by_ts[sorted_ts[i - 1]]) >= step_threshold
     ]
 
     # Measure settling for each step
     settling_times: list[float] = []
     for step_idx in step_indices:
-        settling = _measure_single_step_settling(
-            rtt_by_ts, ewma_by_ts, sorted_ts, step_idx
-        )
+        settling = _measure_single_step_settling(rtt_by_ts, ewma_by_ts, sorted_ts, step_idx)
         if settling is not None:
             settling_times.append(settling)
 
@@ -369,7 +386,9 @@ def _compute_alpha_load_result(
     if abs(avg_settling_sec - TARGET_SETTLING_SEC) <= SETTLING_TOLERANCE:
         logger.info(
             "[TUNING] %s: alpha_load converged, settling=%.1fs near target %.1fs",
-            wan_name, avg_settling_sec, TARGET_SETTLING_SEC,
+            wan_name,
+            avg_settling_sec,
+            TARGET_SETTLING_SEC,
         )
         return None
 

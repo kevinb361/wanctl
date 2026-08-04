@@ -119,7 +119,7 @@ def apply_tuning_results(
     For each result:
     1. Skip low-confidence results below min_confidence
     2. Clamp new_value to safety bounds + max_step_pct
-    3. Skip trivial changes (abs difference < 0.1)
+    3. Skip exact no-op changes after one-decimal clamping
     4. Log at WARNING with old->new and rationale
     5. Persist to SQLite
     6. Return list of actually-applied results (post-clamp)
@@ -157,18 +157,23 @@ def apply_tuning_results(
             )
             continue
 
-        # Clamp to bounds + max step
+        # factor_down is intentionally tuned in 0.01 increments; the other
+        # parameter domains use one-decimal steps.
+        precision = 2 if result.parameter in {"dl_factor_down", "ul_factor_down"} else 1
         clamped_value = clamp_to_step(
             current=result.old_value,
             candidate=result.new_value,
             max_step_pct=tuning_config.max_step_pct,
             bounds=bounds,
+            precision=precision,
         )
 
-        # Skip trivial changes
-        if abs(clamped_value - result.old_value) < 0.1:
+        # clamp_to_step rounds to one decimal, so any real change is at least
+        # 0.1. Compare for actual equality instead of using ``< 0.1``: binary
+        # float representation otherwise drops valid 0.1 Hampel corrections.
+        if clamped_value == result.old_value:
             logger.debug(
-                "[TUNING] %s: %s trivial change %.1f->%.1f, skipping",
+                "[TUNING] %s: %s no-op %.1f->%.1f, skipping",
                 result.wan_name,
                 result.parameter,
                 result.old_value,
@@ -189,11 +194,11 @@ def apply_tuning_results(
 
         # Log at WARNING (same level as SIGUSR1 transitions)
         logger.warning(
-            "[TUNING] %s: %s %.1f->%.1f (%s)",
+            "[TUNING] %s: %s %s->%s (%s)",
             applied_result.wan_name,
             applied_result.parameter,
-            applied_result.old_value,
-            applied_result.new_value,
+            f"{applied_result.old_value:.{precision}f}",
+            f"{applied_result.new_value:.{precision}f}",
             applied_result.rationale,
         )
 

@@ -23,6 +23,8 @@ def _make_config(
         min_confidence=min_confidence,
         bounds={
             "target_bloat_ms": SafetyBounds(min_value=3.0, max_value=50.0),
+            "dl_factor_down": SafetyBounds(min_value=0.5, max_value=0.98),
+            "ul_factor_down": SafetyBounds(min_value=0.5, max_value=0.98),
         },
     )
 
@@ -148,14 +150,14 @@ class TestApplyTuningResultsConfidenceGate:
         assert len(applied) == 1
 
 
-class TestApplyTuningResultsTrivialChange:
-    """Trivial change (< 0.1 abs difference) is skipped and logged at DEBUG."""
+class TestApplyTuningResultsNoOp:
+    """One-decimal clamp no-ops are skipped without swallowing real 0.1 steps."""
 
-    def test_trivial_change_skipped(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_rounded_no_op_skipped(self, caplog: pytest.LogCaptureFixture) -> None:
         from wanctl.tuning.applier import apply_tuning_results
 
-        # Change from 15.0 to 15.05 -> after clamp still ~15.0, trivial
-        result = _make_result(old_value=15.0, new_value=15.05)
+        # Change from 15.0 to 15.04 rounds back to an exact 15.0 no-op.
+        result = _make_result(old_value=15.0, new_value=15.04)
         config = _make_config(max_step_pct=10.0)
 
         with caplog.at_level(logging.DEBUG):
@@ -165,7 +167,53 @@ class TestApplyTuningResultsTrivialChange:
                 writer=None,
             )
         assert applied == []
-        assert "trivial change" in caplog.text
+        assert "no-op" in caplog.text
+
+    @pytest.mark.parametrize(
+        ("parameter", "old_value", "new_value"),
+        [
+            ("dl_factor_down", 0.85, 0.86),
+            ("ul_factor_down", 0.85, 0.84),
+            ("dl_factor_down", 0.98, 0.97),
+        ],
+    )
+    def test_factor_down_point_zero_one_step_is_exact_and_bounded(
+        self, parameter: str, old_value: float, new_value: float
+    ) -> None:
+        from wanctl.tuning.applier import apply_tuning_results
+
+        result = _make_result(parameter=parameter, old_value=old_value, new_value=new_value)
+        applied = apply_tuning_results(
+            results=[result], tuning_config=_make_config(), writer=None
+        )
+
+        assert len(applied) == 1
+        assert applied[0].new_value == new_value
+        assert 0.5 <= applied[0].new_value <= 0.98
+
+    def test_factor_down_rounding_cannot_escape_upper_bound(self) -> None:
+        from wanctl.tuning.applier import apply_tuning_results
+
+        result = _make_result(parameter="dl_factor_down", old_value=0.95, new_value=0.99)
+        applied = apply_tuning_results(
+            results=[result], tuning_config=_make_config(), writer=None
+        )
+
+        assert len(applied) == 1
+        assert applied[0].new_value == 0.98
+
+    def test_valid_point_one_step_is_applied(self) -> None:
+        from wanctl.tuning.applier import apply_tuning_results
+
+        result = _make_result(old_value=3.2, new_value=3.3)
+        applied = apply_tuning_results(
+            results=[result],
+            tuning_config=_make_config(max_step_pct=10.0),
+            writer=None,
+        )
+
+        assert len(applied) == 1
+        assert applied[0].new_value == 3.3
 
 
 class TestApplyTuningResultsReturnPostClamp:

@@ -94,6 +94,7 @@ def clamp_to_step(
     candidate: float,
     max_step_pct: float,
     bounds: SafetyBounds,
+    precision: int = 1,
 ) -> float:
     """Clamp a candidate value to safety bounds and max step percentage.
 
@@ -107,8 +108,10 @@ def clamp_to_step(
         max_step_pct: Maximum percentage change allowed per cycle.
         bounds: Safety bounds for the parameter.
 
+        precision: Decimal places retained after clamping.
+
     Returns:
-        Clamped value rounded to 1 decimal place.
+        Rounded value re-clamped to the configured safety bounds.
     """
     # Phase 1: Clamp to safety bounds
     clamped = max(bounds.min_value, min(bounds.max_value, candidate))
@@ -122,4 +125,5 @@ def clamp_to_step(
         direction = 1 if clamped > current else -1
         clamped = current + max_delta * direction
 
-    return round(clamped, 1)
+    rounded = round(clamped, precision)
+    return max(bounds.min_value, min(bounds.max_value, rounded))

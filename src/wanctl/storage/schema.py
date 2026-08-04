@@ -18,6 +18,8 @@ STORED_METRICS: dict[str, str] = {
     "wanctl_rate_download_mbps": "Current download rate limit in Mbps",
     "wanctl_rate_upload_mbps": "Current upload rate limit in Mbps",
     "wanctl_state": "Congestion state (0=GREEN, 1=YELLOW, 2=SOFT_RED, 3=RED)",
+    "wanctl_state_download": "Download congestion state (0=GREEN, 1=YELLOW, 2=SOFT_RED, 3=RED)",
+    "wanctl_state_upload": "Upload congestion state (0=GREEN, 1=YELLOW, 2=SOFT_RED, 3=RED)",
     "wanctl_steering_enabled": "Steering active status (0=disabled, 1=enabled)",
     "wanctl_wan_zone": "WAN congestion zone from autorate (0=GREEN, 1=YELLOW, 2=SOFT_RED, 3=RED)",
     "wanctl_wan_weight": "WAN confidence weight applied (0 when GREEN/None, config weight when RED/SOFT_RED)",

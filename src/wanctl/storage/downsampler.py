@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 # Granularity levels
 Granularity = Literal["raw", "1m", "5m", "1h"]
 
+
 def get_downsample_thresholds(
     raw_age_seconds: int = 900,
     aggregate_1m_age_seconds: int = 86400,
@@ -65,6 +66,8 @@ DOWNSAMPLE_THRESHOLDS: dict[str, dict[str, int | str]] = get_downsample_threshol
 MODE_AGGREGATION_METRICS = frozenset(
     [
         "wanctl_state",
+        "wanctl_state_download",
+        "wanctl_state_upload",
         "wanctl_steering_enabled",
     ]
 )

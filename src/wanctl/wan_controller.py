@@ -3445,10 +3445,16 @@ class WANController:
             metrics_batch.append(
                 (ts, self.wan_name, "wanctl_state", dl_state, self._download_labels, "raw")
             )
+            metrics_batch.append(
+                (ts, self.wan_name, "wanctl_state_download", dl_state, None, "raw")
+            )
             self._last_dl_state_emitted = dl_state
         if ul_state != self._last_ul_state_emitted:
             metrics_batch.append(
                 (ts, self.wan_name, "wanctl_state", ul_state, self._upload_labels, "raw")
+            )
+            metrics_batch.append(
+                (ts, self.wan_name, "wanctl_state_upload", ul_state, None, "raw")
             )
             self._last_ul_state_emitted = ul_state
 

@@ -78,6 +78,22 @@ class RecoveryEpisode:
     post_rate_mbps: float | None
 
 
+def _state_rows_for_direction(metrics_data: list[dict], direction: str) -> list[dict]:
+    """Return direction-specific state rows, with legacy fallback for old history."""
+    metric_name = f"wanctl_state_{direction}"
+    directional = [row for row in metrics_data if row["metric_name"] == metric_name]
+    if directional:
+        return directional
+    if any(
+        row["metric_name"] in {"wanctl_state_download", "wanctl_state_upload"}
+        for row in metrics_data
+    ):
+        # New-format history is present. No rows for this direction means no
+        # directional evidence, not permission to borrow the sibling series.
+        return []
+    return [row for row in metrics_data if row["metric_name"] == "wanctl_state"]
+
+
 def _detect_recovery_episodes(
     metrics_data: list[dict], direction: str = "download"
 ) -> list[RecoveryEpisode]:
@@ -94,11 +110,11 @@ def _detect_recovery_episodes(
     Returns:
         List of RecoveryEpisode instances.
     """
-    # Extract state values by timestamp
-    state_by_ts: dict[int, float] = {}
-    for row in metrics_data:
-        if row["metric_name"] == "wanctl_state":
-            state_by_ts[row["timestamp"]] = row["value"]
+    # Prefer durable direction-specific state metrics. Fall back to the
+    # historical direction-blind metric so old retained data remains usable.
+    state_by_ts: dict[int, float] = {
+        row["timestamp"]: row["value"] for row in _state_rows_for_direction(metrics_data, direction)
+    }
 
     # Extract rate values by timestamp
     rate_metric = f"wanctl_rate_{direction}_mbps"
@@ -200,8 +216,7 @@ def _tune_step_up_impl(
     RTUN-01: High re-trigger rate -> step_up is too aggressive (decrease).
     Low re-trigger rate -> step_up may be too conservative (increase).
     """
-    # Filter wanctl_state samples
-    state_samples = [r for r in metrics_data if r["metric_name"] == "wanctl_state"]
+    state_samples = _state_rows_for_direction(metrics_data, direction)
     if len(state_samples) < MIN_SAMPLES:
         logger.info(
             "[TUNING] %s: %s skipped, only %d state samples (need %d)",
@@ -259,7 +274,7 @@ def _tune_factor_down_impl(
     RTUN-02: Fast resolution -> factor_down may be too aggressive (increase toward 1.0).
     Slow resolution -> factor_down is too gentle (decrease toward 0.0).
     """
-    state_samples = [r for r in metrics_data if r["metric_name"] == "wanctl_state"]
+    state_samples = _state_rows_for_direction(metrics_data, direction)
     if len(state_samples) < MIN_SAMPLES:
         logger.info(
             "[TUNING] %s: %s skipped, only %d state samples (need %d)",
@@ -320,7 +335,7 @@ def _tune_green_required_impl(
     RTUN-03: High re-trigger -> green_required too low (increase by 1).
     Low re-trigger with room to decrease -> green_required may be too high (decrease by 1).
     """
-    state_samples = [r for r in metrics_data if r["metric_name"] == "wanctl_state"]
+    state_samples = _state_rows_for_direction(metrics_data, direction)
     if len(state_samples) < MIN_SAMPLES:
         logger.info(
             "[TUNING] %s: %s skipped, only %d state samples (need %d)",
@@ -381,8 +396,12 @@ def tune_dl_step_up(
 ) -> TuningResult | None:
     """Tune download step_up_mbps from recovery episode re-trigger analysis (RTUN-01)."""
     return _tune_step_up_impl(
-        metrics_data, current_value, bounds, wan_name,
-        param_name="dl_step_up_mbps", direction="download",
+        metrics_data,
+        current_value,
+        bounds,
+        wan_name,
+        param_name="dl_step_up_mbps",
+        direction="download",
     )
 
 
@@ -394,8 +413,12 @@ def tune_ul_step_up(
 ) -> TuningResult | None:
     """Tune upload step_up_mbps from recovery episode re-trigger analysis (RTUN-01)."""
     return _tune_step_up_impl(
-        metrics_data, current_value, bounds, wan_name,
-        param_name="ul_step_up_mbps", direction="download",
+        metrics_data,
+        current_value,
+        bounds,
+        wan_name,
+        param_name="ul_step_up_mbps",
+        direction="upload",
     )
 
 
@@ -407,8 +430,12 @@ def tune_dl_factor_down(
 ) -> TuningResult | None:
     """Tune download factor_down from congestion resolution speed (RTUN-02)."""
     return _tune_factor_down_impl(
-        metrics_data, current_value, bounds, wan_name,
-        param_name="dl_factor_down", direction="download",
+        metrics_data,
+        current_value,
+        bounds,
+        wan_name,
+        param_name="dl_factor_down",
+        direction="download",
     )
 
 
@@ -420,8 +447,12 @@ def tune_ul_factor_down(
 ) -> TuningResult | None:
     """Tune upload factor_down from congestion resolution speed (RTUN-02)."""
     return _tune_factor_down_impl(
-        metrics_data, current_value, bounds, wan_name,
-        param_name="ul_factor_down", direction="download",
+        metrics_data,
+        current_value,
+        bounds,
+        wan_name,
+        param_name="ul_factor_down",
+        direction="upload",
     )
 
 
@@ -433,8 +464,12 @@ def tune_dl_green_required(
 ) -> TuningResult | None:
     """Tune download green_required from re-trigger rate analysis (RTUN-03)."""
     return _tune_green_required_impl(
-        metrics_data, current_value, bounds, wan_name,
-        param_name="dl_green_required", direction="download",
+        metrics_data,
+        current_value,
+        bounds,
+        wan_name,
+        param_name="dl_green_required",
+        direction="download",
     )
 
 
@@ -446,8 +481,12 @@ def tune_ul_green_required(
 ) -> TuningResult | None:
     """Tune upload green_required from re-trigger rate analysis (RTUN-03)."""
     return _tune_green_required_impl(
-        metrics_data, current_value, bounds, wan_name,
-        param_name="ul_green_required", direction="download",
+        metrics_data,
+        current_value,
+        bounds,
+        wan_name,
+        param_name="ul_green_required",
+        direction="upload",
     )
 
 
@@ -501,9 +540,7 @@ def check_oscillation_lockout(
         return False
 
     transitions = sum(
-        1
-        for i in range(1, len(recent))
-        if state_by_ts[recent[i]] != state_by_ts[recent[i - 1]]
+        1 for i in range(1, len(recent)) if state_by_ts[recent[i]] != state_by_ts[recent[i - 1]]
     )
 
     span_min = max(1, (recent[-1] - recent[0]) / 60)

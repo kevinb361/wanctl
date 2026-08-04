@@ -850,8 +850,8 @@ class TestTuneHampelSigma:
 
     BOUNDS = SafetyBounds(min_value=1.5, max_value=5.0)
 
-    def test_high_outlier_rate_decreases_sigma(self):
-        """outlier_rate=0.20 (above 0.15 max) -> sigma decreases."""
+    def test_high_outlier_rate_increases_sigma(self):
+        """outlier_rate=0.20 (above 0.15 max) -> sigma increases to loosen detection."""
         # Monotonically increasing counter: increments of 240 per minute
         # = 240/1200 = 20% outlier rate (above TARGET_OUTLIER_RATE_MAX=0.15)
         n = 100
@@ -859,21 +859,21 @@ class TestTuneHampelSigma:
         metrics = _make_metrics("wanctl_signal_outlier_count", counts)
         result = tune_hampel_sigma(metrics, 3.0, self.BOUNDS, "Spectrum")
         assert result is not None
-        assert result.new_value < 3.0
+        assert result.new_value > 3.0
         assert result.parameter == "hampel_sigma_threshold"
         assert result.wan_name == "Spectrum"
         assert result.confidence > 0
         assert "outlier_rate" in result.rationale
 
-    def test_low_outlier_rate_increases_sigma(self):
-        """outlier_rate=0.01 (below 0.05 min) -> sigma increases."""
+    def test_low_outlier_rate_decreases_sigma(self):
+        """outlier_rate=0.01 (below 0.05 min) -> sigma decreases to tighten detection."""
         # Increments of 12 per minute = 12/1200 = 1% outlier rate
         n = 100
         counts = [i * 12.0 for i in range(n)]
         metrics = _make_metrics("wanctl_signal_outlier_count", counts)
         result = tune_hampel_sigma(metrics, 3.0, self.BOUNDS, "ATT")
         assert result is not None
-        assert result.new_value > 3.0
+        assert result.new_value < 3.0
         assert result.parameter == "hampel_sigma_threshold"
         assert result.wan_name == "ATT"
         assert "outlier_rate" in result.rationale
@@ -912,6 +912,56 @@ class TestTuneHampelSigma:
         # That's 66 positive deltas out of 99 total, > MIN_SAMPLES.
         # Rate = 120/1200 = 0.10 = in range, returns None.
         assert result is None
+
+    @staticmethod
+    def _metrics_for_rate(outlier_rate: float, n: int = 100) -> list[dict]:
+        increment = 60.0 * 20.0 * outlier_rate
+        return _make_metrics("wanctl_signal_outlier_count", [i * increment for i in range(n)])
+
+    def test_closed_loop_high_and_low_rates_converge_to_target_band(self):
+        """A monotonic detector model converges from either side without positive feedback."""
+        for initial_sigma in (1.5, 5.0):
+            sigma = initial_sigma
+            for _ in range(40):
+                # A larger Hampel threshold flags fewer samples. This bounded
+                # monotonic model makes correction direction observable.
+                observed_rate = max(0.0, min(1.0, 0.40 - 0.10 * sigma))
+                result = tune_hampel_sigma(
+                    self._metrics_for_rate(observed_rate), sigma, self.BOUNDS, "test"
+                )
+                if result is None:
+                    break
+                sigma = result.new_value
+                assert self.BOUNDS.min_value <= sigma <= self.BOUNDS.max_value
+
+            final_rate = max(0.0, min(1.0, 0.40 - 0.10 * sigma))
+            assert 0.05 <= final_rate <= 0.15
+
+    def test_alternating_detector_rates_remain_bounded(self):
+        """Alternating high/low observations cannot run sigma beyond safety bounds."""
+        sigma = 3.0
+        for observed_rate in [0.20, 0.01] * 20:
+            result = tune_hampel_sigma(
+                self._metrics_for_rate(observed_rate), sigma, self.BOUNDS, "test"
+            )
+            assert result is not None
+            sigma = result.new_value
+            assert self.BOUNDS.min_value <= sigma <= self.BOUNDS.max_value
+        assert sigma == 3.0
+
+    def test_at_safety_bound_does_not_propose_out_of_range_change(self):
+        assert (
+            tune_hampel_sigma(
+                self._metrics_for_rate(0.01), self.BOUNDS.min_value, self.BOUNDS, "test"
+            )
+            is None
+        )
+        assert (
+            tune_hampel_sigma(
+                self._metrics_for_rate(0.20), self.BOUNDS.max_value, self.BOUNDS, "test"
+            )
+            is None
+        )
 
     def test_confidence_scales_with_data_count(self):
         """Confidence = min(1.0, len(rates) / 1440.0)."""
@@ -955,11 +1005,11 @@ class TestHampelSigmaRecordingDensity:
 
     @pytest.mark.parametrize("interval_sec", [1, 5, 60])
     def test_rate_consistent_across_recording_densities(self, interval_sec):
-        """Same 20% outlier rate produces sigma decrease at any recording interval."""
+        """Same 20% outlier rate produces sigma increase at any recording interval."""
         metrics = self._make_density_metrics(interval_sec, 0.20, n=100)
         result = tune_hampel_sigma(metrics, 3.0, self.BOUNDS, "Spectrum")
         assert result is not None, f"Expected result at {interval_sec}s intervals"
-        assert result.new_value < 3.0, f"Expected sigma decrease at {interval_sec}s"
+        assert result.new_value > 3.0, f"Expected sigma increase at {interval_sec}s"
 
     def test_production_density_05s_converged(self):
         """At production density (1s gaps), 10% rate returns None (converged)."""
@@ -1308,4 +1358,3 @@ class TestTuneAlphaLoad:
         result = tune_alpha_load(metrics, 2.0, self.BOUNDS, "Spectrum")
         # With only 1 step_time (2 transitions), fewer than 3 settled steps
         assert result is None
-

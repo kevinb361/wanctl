@@ -24,6 +24,8 @@ class TestStoredMetrics:
             "wanctl_rate_download_mbps",
             "wanctl_rate_upload_mbps",
             "wanctl_state",
+            "wanctl_state_download",
+            "wanctl_state_upload",
             "wanctl_steering_enabled",
             "wanctl_wan_zone",
             "wanctl_wan_weight",

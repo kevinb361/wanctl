@@ -197,6 +197,27 @@ class TestDownsampleToGranularity:
         cursor = test_db.execute("SELECT value FROM metrics WHERE granularity = '1m'")
         assert cursor.fetchone()[0] == 0.0  # Most common: GREEN
 
+    def test_mode_aggregation_preserves_both_directional_state_names(self, test_db):
+        """DL and UL state series downsample independently with MODE semantics."""
+        now = int(time.time())
+        start = align_to_bucket(now - 7200, 60)
+        insert_metrics(
+            test_db, "wanctl_state_download", "spectrum", [2.0, 2.0, 0.0], start
+        )
+        insert_metrics(
+            test_db, "wanctl_state_upload", "spectrum", [0.0, 0.0, 3.0], start
+        )
+
+        rows = downsample_to_granularity(test_db, "raw", "1m", 60, now - 3600)
+
+        assert rows == 2
+        values = dict(
+            test_db.execute(
+                "SELECT metric_name, value FROM metrics WHERE granularity = '1m'"
+            ).fetchall()
+        )
+        assert values == {"wanctl_state_download": 2.0, "wanctl_state_upload": 0.0}
+
     def test_mode_aggregation_for_steering(self, test_db):
         """Test MODE aggregation for steering_enabled metric."""
         now = int(time.time())
@@ -364,6 +385,11 @@ class TestModeAggregationMetrics:
     def test_state_uses_mode(self):
         """Test wanctl_state uses MODE aggregation."""
         assert "wanctl_state" in MODE_AGGREGATION_METRICS
+
+    def test_directional_states_use_mode(self):
+        """Directional state metrics retain categorical MODE semantics."""
+        assert "wanctl_state_download" in MODE_AGGREGATION_METRICS
+        assert "wanctl_state_upload" in MODE_AGGREGATION_METRICS
 
     def test_steering_enabled_uses_mode(self):
         """Test wanctl_steering_enabled uses MODE aggregation."""

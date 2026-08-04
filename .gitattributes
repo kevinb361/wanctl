@@ -2,3 +2,7 @@
 tests/test_router_behavioral.py whitespace=cr-at-eol
 tests/test_routeros_rest.py whitespace=cr-at-eol
 src/wanctl/irtt_measurement.py whitespace=cr-at-eol
+src/wanctl/storage/downsampler.py whitespace=cr-at-eol
+src/wanctl/storage/schema.py whitespace=cr-at-eol
+tests/storage/test_storage_downsampler.py whitespace=cr-at-eol
+tests/storage/test_storage_schema.py whitespace=cr-at-eol
