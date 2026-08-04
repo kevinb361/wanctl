@@ -303,26 +303,43 @@ class RTTMeasurement:
 
         Returns:
             Dict mapping host -> RTT in ms (or None if ping failed/timed out).
+
+        Timeout cleanup:
+            Pending futures are cancelled. Already-running icmplib calls cannot
+            be force-cancelled by Python; they remain bounded by ``timeout_ping``
+            and are reaped by the executor without extending the caller deadline.
         """
         if not hosts:
             return {}
 
         results: dict[str, float | None] = {}
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(hosts)) as executor:
-            future_to_host = {executor.submit(self.ping_host, host, count): host for host in hosts}
-            try:
-                for future in concurrent.futures.as_completed(future_to_host, timeout=timeout):
-                    host = future_to_host[future]
-                    try:
-                        results[host] = future.result()
-                    except Exception:
-                        self.logger.debug("Concurrent ping to %s failed", host, exc_info=True)
-                        results[host] = None
-            except concurrent.futures.TimeoutError:
-                for host in future_to_host.values():
-                    if host not in results:
-                        results[host] = None
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=len(hosts))
+        future_to_host = {executor.submit(self.ping_host, host, count): host for host in hosts}
+        timed_out = False
+        try:
+            for future in concurrent.futures.as_completed(future_to_host, timeout=timeout):
+                host = future_to_host[future]
+                try:
+                    results[host] = future.result()
+                except Exception:
+                    self.logger.debug("Concurrent ping to %s failed", host, exc_info=True)
+                    results[host] = None
+        except concurrent.futures.TimeoutError:
+            timed_out = True
+            for host in future_to_host.values():
+                if host not in results:
+                    results[host] = None
+        finally:
+            if timed_out:
+                for future in future_to_host:
+                    if not future.done():
+                        future.cancel()
+                # Do not let shutdown(wait=True) turn the aggregate timeout
+                # into a wait for running workers. Running ping_host calls are
+                # self-bounded by timeout_ping and are reaped when they return.
+                executor.shutdown(wait=False, cancel_futures=True)
+            else:
+                executor.shutdown(wait=True)
 
         return results
 
@@ -378,7 +395,9 @@ class RTTMeasurement:
 
         Returns:
             List of successful RTT measurements in milliseconds.
-            Empty list if all pings failed.
+            Empty list if all pings failed. Pending work is cancelled on the
+            aggregate timeout; already-running pings finish under
+            ``timeout_ping`` without extending this caller's deadline.
 
         Example:
             >>> rtt = RTTMeasurement(logger)
@@ -392,23 +411,32 @@ class RTTMeasurement:
             return []
 
         rtts: list[float] = []
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=len(hosts))
+        future_to_host = {executor.submit(self.ping_host, host, count): host for host in hosts}
+        timed_out = False
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(hosts)) as executor:
-            # Submit all pings in parallel
-            future_to_host = {executor.submit(self.ping_host, host, count): host for host in hosts}
-
-            # Collect results with timeout
-            try:
-                for future in concurrent.futures.as_completed(future_to_host, timeout=timeout):
-                    host = future_to_host[future]
-                    try:
-                        rtt = future.result()
-                        if rtt is not None:
-                            rtts.append(rtt)
-                    except Exception as e:
-                        self.logger.debug("Concurrent ping to %s failed: %s", host, e)
-            except concurrent.futures.TimeoutError:
-                self.logger.debug("Concurrent ping timeout after %ss", timeout)
+        try:
+            for future in concurrent.futures.as_completed(future_to_host, timeout=timeout):
+                host = future_to_host[future]
+                try:
+                    rtt = future.result()
+                    if rtt is not None:
+                        rtts.append(rtt)
+                except Exception as e:
+                    self.logger.debug("Concurrent ping to %s failed: %s", host, e)
+        except concurrent.futures.TimeoutError:
+            timed_out = True
+            self.logger.debug("Concurrent ping timeout after %ss", timeout)
+        finally:
+            if timed_out:
+                for future in future_to_host:
+                    if not future.done():
+                        future.cancel()
+                # Running workers cannot be force-cancelled, but ping_host is
+                # internally bounded and shutdown must not wait past timeout.
+                executor.shutdown(wait=False, cancel_futures=True)
+            else:
+                executor.shutdown(wait=True)
 
         return rtts
 

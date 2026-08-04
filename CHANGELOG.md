@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **REM-011:** Made both legacy concurrent RTT helpers honor aggregate caller deadlines by cancelling pending work and using non-waiting teardown for internally bounded running pings. This intentionally supersedes the historical Phase 239 protected-body freeze for `RTTMeasurement.ping_hosts_with_results`; focused elapsed-time and lifecycle regressions are the new contract.
 - **REM-010:** Made adaptive response tuning direction-aware through durable native DL/UL state metrics, corrected Hampel sigma feedback direction, and preserved exact bounded 0.01/0.1 parameter steps through the applier.
 - **REM-009:** Hardened first-class IRTT mode with binary-aware ICMP fallback, distinct target/scorer isolation, total-loss rejection, current-burst success attribution, backend-aware one-target health, and separate source/target reporting.
 - **REM-008:** Made CAKE hot-reload a cold-state boundary: disable immediately clears stale snapshots and arbitration state, while re-enable resets counter baselines, EWMAs, direction history, and refractory state before accepting fresh samples.

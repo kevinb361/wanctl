@@ -71,17 +71,42 @@ class TestPingHostsWithResults:
         assert result["8.8.8.8"] is None
         assert result["1.1.1.1"] is None
 
-    def test_timeout_marks_remaining_as_none(self, rtt_measurement):
-        """Timed-out hosts are mapped to None."""
-        import time
+    def test_timeout_bounds_wall_clock_and_marks_remaining_none(self, rtt_measurement):
+        """Timed-out hosts return promptly and are mapped to None."""
+        release = threading.Event()
 
         def slow_ping(*args, **kwargs):
-            time.sleep(10)
+            release.wait(1.0)
             return 10.0
 
-        with patch.object(rtt_measurement, "ping_host", side_effect=slow_ping):
-            result = rtt_measurement.ping_hosts_with_results(["8.8.8.8"], timeout=0.01)
+        started = time.monotonic()
+        try:
+            with patch.object(rtt_measurement, "ping_host", side_effect=slow_ping):
+                result = rtt_measurement.ping_hosts_with_results(["8.8.8.8"], timeout=0.02)
+        finally:
+            release.set()
+
+        assert time.monotonic() - started < 0.2
         assert result["8.8.8.8"] is None
+
+    def test_timeout_cancels_unfinished_future_and_uses_nonwaiting_shutdown(
+        self, rtt_measurement
+    ):
+        import concurrent.futures
+
+        future: concurrent.futures.Future[float | None] = concurrent.futures.Future()
+        executor = MagicMock()
+        executor.submit.return_value = future
+
+        with patch(
+            "wanctl.rtt_measurement.concurrent.futures.ThreadPoolExecutor",
+            return_value=executor,
+        ):
+            result = rtt_measurement.ping_hosts_with_results(["8.8.8.8"], timeout=0.01)
+
+        assert result == {"8.8.8.8": None}
+        assert future.cancelled()
+        executor.shutdown.assert_called_once_with(wait=False, cancel_futures=True)
 
 
 class TestRTTMeasurementProbe:
@@ -249,6 +274,40 @@ class TestPingHostsConcurrent:
         rtts = rtt_measurement.ping_hosts_concurrent(["8.8.8.8"], timeout=0.1)
 
         assert rtts == []
+
+    def test_slow_worker_timeout_bounds_wall_clock(self, rtt_measurement):
+        release = threading.Event()
+
+        def slow_ping(*args, **kwargs):
+            release.wait(1.0)
+            return 10.0
+
+        started = time.monotonic()
+        try:
+            with patch.object(rtt_measurement, "ping_host", side_effect=slow_ping):
+                result = rtt_measurement.ping_hosts_concurrent(["8.8.8.8"], timeout=0.02)
+        finally:
+            release.set()
+
+        assert time.monotonic() - started < 0.2
+        assert result == []
+
+    def test_slow_worker_is_cancelled_with_nonwaiting_shutdown(self, rtt_measurement):
+        import concurrent.futures
+
+        future: concurrent.futures.Future[float | None] = concurrent.futures.Future()
+        executor = MagicMock()
+        executor.submit.return_value = future
+
+        with patch(
+            "wanctl.rtt_measurement.concurrent.futures.ThreadPoolExecutor",
+            return_value=executor,
+        ):
+            result = rtt_measurement.ping_hosts_concurrent(["8.8.8.8"], timeout=0.01)
+
+        assert result == []
+        assert future.cancelled()
+        executor.shutdown.assert_called_once_with(wait=False, cancel_futures=True)
 
     def test_single_host_works(self, rtt_measurement, mock_icmplib_ping):
         """Should work with a single host."""
