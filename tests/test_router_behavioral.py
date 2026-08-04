@@ -176,8 +176,39 @@ class TestRouterOSRESTBehavioral:
         assert rc == 1
         assert stdout == ""
 
-    def test_connection_error_returns_error(self, logger):
-        """run_cmd returns (1, "", ...) when requests.ConnectionError is raised."""
+    def test_connection_error_propagates_as_transport_error(self, logger):
+        """ASSESS-004: a retryable transport failure escapes run_cmd.
+
+        The handler-level `except requests.RequestException` used to swallow
+        this into None -> (1, "", "Command failed"), which hid a dead REST
+        link from FailoverRouterClient. It is now normalized to
+        RouterTransportError, which passes through those handlers.
+        """
+        import requests
+
+        from wanctl.router_errors import RouterTransportError
+
+        mock_session_cls = MagicMock()
+        mock_session = mock_session_cls.return_value
+        mock_session.get.side_effect = requests.ConnectionError("Connection refused")
+
+        client = self._make_rest_client(mock_session_cls, logger)
+
+        with (
+            patch("wanctl.retry_utils.time.sleep"),
+            pytest.raises(RouterTransportError, match="Connection refused"),
+        ):
+            client.run_cmd("/queue tree print")
+
+        # Bounded: exactly 2 REST attempts, no unbounded hammering
+        assert mock_session.get.call_count == 2
+
+    def test_test_connection_contains_transport_error(self, logger):
+        """test_connection keeps its legacy False contract, never raising.
+
+        Only run_cmd propagates transport failure; direct legacy APIs such as
+        the wanctl-check-cake audit path must stay boolean.
+        """
         import requests
 
         mock_session_cls = MagicMock()
@@ -185,14 +216,8 @@ class TestRouterOSRESTBehavioral:
         mock_session.get.side_effect = requests.ConnectionError("Connection refused")
 
         client = self._make_rest_client(mock_session_cls, logger)
-        rc, stdout, stderr = client.run_cmd("/queue tree print")
 
-        assert rc == 1
-        assert stdout == ""
-        # Error is caught at _handle_queue_tree_print level and returns None,
-        # which run_cmd translates to "Command failed" -- the important thing
-        # is that no exception propagates to the caller
-        assert stderr != ""
+        assert client.test_connection() is False
 
 
 # =============================================================================

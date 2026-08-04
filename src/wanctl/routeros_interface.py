@@ -9,6 +9,10 @@ import logging
 from wanctl.autorate_config import Config
 from wanctl.router_client import get_router_client_with_failover
 
+# Two bounded REST attempts plus one SSH fallback must stay comfortably below
+# wanctl@.service's 30-second watchdog deadline.
+_ROUTER_COMMAND_TIMEOUT_SECONDS = 5
+
 
 class RouterOS:
     """RouterOS interface for setting queue limits.
@@ -57,7 +61,9 @@ class RouterOS:
             f"queue=cake-up-{wan_lower} max-limit={up_bps}"
         )
 
-        rc, _, _ = self.client.run_cmd(cmd)
+        rc, _, _ = self.client.run_cmd(
+            cmd, timeout=_ROUTER_COMMAND_TIMEOUT_SECONDS
+        )
         if rc != 0:
             self.logger.error(f"Failed to set queue limits: {cmd}")
             return False

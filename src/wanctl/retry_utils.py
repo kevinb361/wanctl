@@ -38,19 +38,13 @@ def is_retryable_error(exception: Exception) -> bool:
     if isinstance(exception, ConnectionError):
         return True
 
-    # OSError with specific messages
-    if isinstance(exception, OSError):
-        err_str = str(exception).lower()
-        retryable_messages = [
-            "connection refused",
-            "connection timed out",
-            "connection reset",
-            "broken pipe",
-            "network is unreachable",
-        ]
-        return any(msg in err_str for msg in retryable_messages)
-
-    # Handle requests library exceptions (if requests is available)
+    # Handle requests library exceptions (if requests is available).
+    #
+    # This must run BEFORE the generic OSError message heuristic below:
+    # requests.RequestException subclasses IOError/OSError, so the OSError
+    # branch would return unconditionally and classify a transport-level
+    # requests.ConnectionError as non-retryable whenever its message text
+    # happened not to contain one of the known substrings.
     try:
         import requests.exceptions
 
@@ -74,6 +68,18 @@ def is_retryable_error(exception: Exception) -> bool:
             return False
     except ImportError:
         pass
+
+    # OSError with specific messages
+    if isinstance(exception, OSError):
+        err_str = str(exception).lower()
+        retryable_messages = [
+            "connection refused",
+            "connection timed out",
+            "connection reset",
+            "broken pipe",
+            "network is unreachable",
+        ]
+        return any(msg in err_str for msg in retryable_messages)
 
     # All other exceptions are not retryable
     return False

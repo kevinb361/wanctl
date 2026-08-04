@@ -862,3 +862,195 @@ class TestClearRouterPassword:
             client = get_router_client(config, logger)
             mock_rest.from_config.assert_called_once_with(config, logger)
             assert client is not None
+
+
+class TestREM006TransportContract:
+    """Concrete REST retry/fallback contracts for ASSESS-004."""
+
+    @pytest.fixture
+    def mock_logger(self) -> MagicMock:
+        return MagicMock(spec=logging.Logger)
+
+    def test_real_rest_retries_then_transitions_once_to_ssh(self, mock_logger: MagicMock) -> None:
+        """ASSESS-004: real REST retries twice, then exactly one SSH transition.
+
+        Uses a real RouterOSREST built by the real factory, with the failure
+        injected at requests.Session.request -- i.e. below the session the
+        concrete instance actually uses. Nothing in the REST client is mocked,
+        so this exercises the whole normalize -> bounded retry -> failover
+        chain rather than a stand-in.
+        """
+        from types import SimpleNamespace
+
+        import requests
+
+        from wanctl.routeros_rest import RouterOSREST
+
+        config = SimpleNamespace(
+            router_transport="rest",
+            router_host="router.invalid",
+            router_user="operator",
+            router_password="testpass",  # pragma: allowlist secret
+            router_port=443,
+            router_verify_ssl=True,
+            timeout_ssh_command=1,
+        )
+        mock_ssh = MagicMock()
+        mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
+
+        with (
+            patch(
+                "requests.Session.request",
+                side_effect=requests.ConnectionError("REST refused"),
+            ) as mock_request,
+            patch(
+                "wanctl.router_client.RouterOSSSH.from_config",
+                return_value=mock_ssh,
+            ) as mock_ssh_factory,
+            patch("wanctl.retry_utils.time.sleep") as mock_sleep,
+        ):
+            client = get_router_client_with_failover(config, mock_logger)
+            # Both are REST-supported commands, so a second REST attempt would
+            # show up in mock_request.call_count if failover were not sticky.
+            first = client.run_cmd('/queue tree print where name="WAN"', capture=True)
+            second = client.run_cmd('/queue tree print where name="WAN2"', capture=True)
+
+        # The REST client is the real one, not a mock
+        assert isinstance(client._primary_client, RouterOSREST)
+
+        assert first == (0, "ssh ok", "")
+        assert second == (0, "ssh ok", "")
+        # Bounded: 2 REST attempts total (retry_with_backoff max_attempts=2),
+        # then no further REST traffic once failover is latched.
+        assert mock_request.call_count == 2
+        mock_sleep.assert_called_once()
+        # Exactly one SSH transition, and the fallback client is built once.
+        mock_ssh_factory.assert_called_once_with(config, mock_logger)
+        assert mock_ssh.run_cmd.call_count == 2
+        transitions = [
+            call
+            for call in mock_logger.warning.call_args_list
+            if "Switching to fallback" in str(call)
+        ]
+        assert len(transitions) == 1
+        assert client._using_fallback is True
+
+    def test_real_rest_transport_error_is_normalized(self, mock_logger: MagicMock) -> None:
+        """A real RouterOSREST run_cmd surfaces RouterTransportError, not a tuple."""
+        import requests
+
+        from wanctl.router_errors import RouterTransportError
+        from wanctl.routeros_rest import RouterOSREST
+
+        rest = RouterOSREST(
+            host="router.invalid",
+            user="operator",
+            password="testpass",  # pragma: allowlist secret
+            logger=mock_logger,
+        )
+        with (
+            patch(
+                "requests.Session.request",
+                side_effect=requests.ConnectionError("REST refused"),
+            ),
+            patch("wanctl.retry_utils.time.sleep"),
+            pytest.raises(RouterTransportError, match="REST refused"),
+        ):
+            rest.run_cmd('/queue tree print where name="WAN"', capture=True)
+
+        # Same underlying failure stays contained on the legacy probe API
+        with patch(
+            "requests.Session.request",
+            side_effect=requests.ConnectionError("REST refused"),
+        ):
+            assert rest.test_connection() is False
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            '/ip firewall mangle enable [find comment="test"]',
+            "/tool netwatch set [find host=1.1.1.1] disabled=yes",
+            "/tool netwatch remove numbers=*1",
+        ],
+    )
+    def test_mutating_command_handlers_preserve_transport_error(
+        self, command: str, mock_logger: MagicMock
+    ) -> None:
+        import requests
+
+        from wanctl.router_errors import RouterTransportError
+        from wanctl.routeros_rest import RouterOSREST
+
+        rest = RouterOSREST(
+            host="router.invalid",
+            user="operator",
+            password="testpass",  # pragma: allowlist secret
+            logger=mock_logger,
+        )
+        with (
+            patch(
+                "requests.Session.request",
+                side_effect=requests.ConnectionError("REST refused"),
+            ) as mock_request,
+            patch("wanctl.retry_utils.time.sleep"),
+            pytest.raises(RouterTransportError, match="REST refused"),
+        ):
+            rest.run_cmd(command)
+
+        assert mock_request.call_count == 2
+
+    def test_failed_real_rest_reprobe_does_not_false_restore(
+        self, mock_logger: MagicMock
+    ) -> None:
+        from types import SimpleNamespace
+
+        import requests
+
+        config = SimpleNamespace(
+            router_transport="rest",
+            router_host="router.invalid",
+            router_user="operator",
+            router_password="testpass",  # pragma: allowlist secret
+            router_port=443,
+            router_verify_ssl=True,
+            timeout_ssh_command=1,
+        )
+        mock_ssh = MagicMock()
+        mock_ssh.run_cmd.return_value = (0, "ssh ok", "")
+
+        with (
+            patch(
+                "requests.Session.request",
+                side_effect=requests.ConnectionError("REST refused"),
+            ) as mock_request,
+            patch(
+                "wanctl.router_client.RouterOSSSH.from_config",
+                return_value=mock_ssh,
+            ),
+            patch("wanctl.retry_utils.time.sleep"),
+            patch("wanctl.router_client._time") as mock_time,
+        ):
+            mock_time.monotonic.return_value = 100.0
+            client = get_router_client_with_failover(config, mock_logger)
+            assert client.run_cmd('/queue tree print where name="WAN"') == (
+                0,
+                "ssh ok",
+                "",
+            )
+
+            mock_time.monotonic.return_value = 131.0
+            assert client.run_cmd('/queue tree print where name="WAN"') == (
+                0,
+                "ssh ok",
+                "",
+            )
+
+        assert mock_request.call_count == 4
+        assert mock_ssh.run_cmd.call_count == 2
+        assert client._using_fallback is True
+        restored_logs = [
+            call
+            for call in mock_logger.info.call_args_list
+            if "restored successfully" in str(call)
+        ]
+        assert restored_logs == []

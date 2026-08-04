@@ -313,31 +313,41 @@ class TestRouterOSRESTRunCmd:
         assert '"name": "WAN-Download"' in stdout
         assert stderr == ""
 
-    def test_run_cmd_network_error_in_handler(self, rest_client, mock_session):
-        """RequestException in handler returns (1, '', 'Command failed')."""
-        # When RequestException occurs inside a handler, it catches it and returns None,
-        # which results in "Command failed" from run_cmd
+    def test_run_cmd_transport_error_propagates_after_bounded_attempts(
+        self, rest_client, mock_session
+    ):
+        """ASSESS-004: retryable transport failure raises after bounded retries.
+
+        run_cmd is the single REST entry point that propagates transport
+        failure, so FailoverRouterClient can switch to SSH. It must not be
+        collapsed into an opaque (1, '', 'Command failed') tuple.
+        """
+        from wanctl.router_errors import RouterTransportError
+
         mock_session.get.side_effect = requests.RequestException("Connection refused")
 
-        rc, stdout, stderr = rest_client.run_cmd('/queue tree print where name="WAN-Download"')
+        with (
+            patch("wanctl.retry_utils.time.sleep") as mock_sleep,
+            pytest.raises(RouterTransportError, match="Connection refused"),
+        ):
+            rest_client.run_cmd('/queue tree print where name="WAN-Download"')
 
-        assert rc == 1
-        assert stdout == ""
-        assert stderr == "Command failed"
+        # Bounded: exactly 2 REST attempts (retry_with_backoff max_attempts=2)
+        assert mock_session.get.call_count == 2
+        assert mock_sleep.call_count == 1
 
-    def test_run_cmd_network_error_propagated(self, rest_client):
-        """RequestException propagating to run_cmd returns (1, '', error_message)."""
-        # Mock _execute_command to raise exception directly
+    def test_run_cmd_nonretryable_request_error_returns_failure(self, rest_client):
+        """A non-transport RequestException remains a command failure tuple."""
         with patch.object(
             rest_client,
             "_execute_command",
-            side_effect=requests.RequestException("Connection refused"),
+            side_effect=requests.RequestException("invalid request"),
         ):
             rc, stdout, stderr = rest_client.run_cmd("/queue tree print")
 
         assert rc == 1
         assert stdout == ""
-        assert "Connection refused" in stderr
+        assert "invalid request" in stderr
 
     def test_run_cmd_unexpected_error(self, rest_client, mock_session):
         """Generic exception returns (1, '', error_message)."""

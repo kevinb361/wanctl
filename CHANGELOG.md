@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **REM-006:** Normalized retryable RouterOS REST failures into a bounded two-attempt contract that transitions once to SSH, preserves legacy direct-API failure returns, prevents false primary restoration, and keeps native queue writes inside the systemd watchdog budget.
 - **REM-005:** Made route failover identity-driven for arbitrary WAN names, including per-WAN health-source selection, isolated failure accounting and recovery, generic health payloads, and offline replay coverage without ISP-specific dispatch literals.
 - **OBS-006 readiness:** Added a fail-closed, read-only Prometheus baseline tool with immutable fourteen-day windows, 99.9% freshness/probe coverage, fixed UTC/load cohorts, comprehensive RTT/congestion/per-tin dimensions, deterministic quantiles, and explicit missing-cohort disclosure. It exits nonzero before temporal eligibility and has no traffic or tuning surface.
 - **OBS-005:** Added deterministic read-only CAKE Grafana and Prometheus rule generation, with aligned rate/RTT/per-tin panels, explicit stale/missing visibility, recording rules, and warning-only baseline-pending alerts.

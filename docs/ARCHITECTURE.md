@@ -141,6 +141,17 @@ This is purely **config-driven** — no code branching.
 - Same RTT measurement methodology
 - Same backend abstraction for RouterOS REST/SSH and Linux CAKE transports
 
+### Router transport-failure boundary
+
+REST request failures are normalized once as `RouterTransportError`. A
+`RouterOSREST.run_cmd()` invocation makes at most two REST attempts; when used
+through `FailoverRouterClient`, exhaustion causes one transition to SSH and
+subsequent commands remain on SSH until a bounded primary re-probe succeeds.
+Direct probe/configuration helpers retain their documented `False`/`None`
+contracts rather than leaking transport exceptions. Native `wanctl@` queue
+writes use a five-second per-attempt timeout so two REST attempts plus SSH
+fallback remain below the 30-second service watchdog budget.
+
 ### ❌ Not Portable (Forbidden)
 
 - `if wan_type == "cable": ...`

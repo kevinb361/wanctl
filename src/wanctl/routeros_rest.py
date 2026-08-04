@@ -50,7 +50,8 @@ if TYPE_CHECKING:
     from wanctl.config_base import BaseConfig
 from urllib3.exceptions import InsecureRequestWarning
 
-from wanctl.retry_utils import retry_with_backoff
+from wanctl.retry_utils import is_retryable_error, retry_with_backoff
+from wanctl.router_errors import RouterTransportError
 
 
 class RouterOSREST:
@@ -135,6 +136,16 @@ class RouterOSREST:
 
         Returns:
             requests.Response from the session
+
+        Raises:
+            RouterTransportError: If the session raised a retryable transport
+                error. This is the single normalization point for the
+                transport-failure contract (see router_errors); the distinct
+                type is what lets the failure travel through the
+                ``except requests.RequestException`` handlers below instead of
+                collapsing into an opaque "Command failed" tuple.
+            requests.RequestException: For non-retryable request errors, which
+                keep their legacy handling.
         """
         # Default timeout prevents indefinite blocking when the caller forgets
         # to pass one. self.timeout is set in __init__ (default 15s).
@@ -144,11 +155,16 @@ class RouterOSREST:
         if session is None:
             raise requests.RequestException("REST API session is closed")
 
-        if self._suppress_ssl_warnings:
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=InsecureRequestWarning)
-                return session.request(method, url, **kwargs)
-        return session.request(method, url, **kwargs)
+        try:
+            if self._suppress_ssl_warnings:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=InsecureRequestWarning)
+                    return session.request(method, url, **kwargs)
+            return session.request(method, url, **kwargs)
+        except requests.RequestException as e:
+            if is_retryable_error(e):
+                raise RouterTransportError(str(e)) from e
+            raise
 
     @classmethod
     def from_config(cls, config: BaseConfig, logger: logging.Logger) -> RouterOSREST:
@@ -211,7 +227,11 @@ class RouterOSREST:
             - stderr: error message if any
 
         Raises:
-            requests.RequestException: On persistent network errors after retries
+            RouterTransportError: On a retryable transport failure that survived
+                the bounded REST attempts. This is the only REST entry point
+                that propagates transport failure; FailoverRouterClient relies
+                on it to switch to SSH exactly once. All other public methods
+                keep their legacy False/None contract. See router_errors.
         """
         timeout_val = timeout if timeout is not None else self.timeout
         self.logger.debug(f"RouterOS REST command: {cmd} (timeout={timeout_val}s)")
@@ -226,7 +246,14 @@ class RouterOSREST:
                 return 0, json.dumps(result), ""
             return 1, "", "Command failed"
 
+        except RouterTransportError:
+            # Normalized retryable transport failure. Propagate so the
+            # retry decorator exhausts its bounded attempts and the outer
+            # FailoverRouterClient applies the transport-failure contract.
+            raise
         except requests.RequestException as e:
+            # Non-retryable request error (bad request, closed session, ...):
+            # keep the legacy command-failure tuple.
             self.logger.warning(f"REST API error: {e}")
             return 1, "", str(e)
         except Exception as e:
@@ -527,8 +554,9 @@ class RouterOSREST:
             self.logger.error(f"Unknown mangle action in: {cmd}")
             return None
 
-        # Find the rule ID
-        rule_id = self.find_mangle_rule_id(comment, timeout=timeout_val)
+        # Find the rule ID. Use the propagating lookup so a REST outage reaches
+        # run_cmd as a transport failure instead of "rule not found".
+        rule_id = self._lookup_mangle_rule_id(comment, timeout=timeout_val)
         if rule_id is None:
             self.logger.error(f"Mangle rule not found: {comment}")
             return None
@@ -678,11 +706,17 @@ class RouterOSREST:
             self.logger.error(f"REST API error getting netwatch: {e}")
             return None
 
-    def _handle_netwatch_set(self, cmd: str, timeout: int | None = None) -> dict[str, Any] | None:
-        """Handle /tool netwatch set commands via REST (PATCH)."""
-        timeout_val = timeout if timeout is not None else self.timeout
-        base_url = f"{self.base_url}/tool/netwatch"
+    @staticmethod
+    def _parse_netwatch_set_args(cmd: str) -> tuple[str | None, dict[str, str]] | None:
+        """Split a netwatch set command into its [find ...] filter and key=value pairs.
 
+        Args:
+            cmd: Netwatch set command
+
+        Returns:
+            (filter_spec, kv_pairs), or None when the command carries no
+            arguments at all.
+        """
         parts = (
             cmd.replace("/tool netwatch set ", "")
             .replace("/tool/netwatch/set ", "")
@@ -690,9 +724,9 @@ class RouterOSREST:
             .split()
         )
         if not parts:
-            return {"status": "ok"}
+            return None
 
-        filter_spec = None
+        filter_spec: str | None = None
         kv_pairs: dict[str, str] = {}
         in_filter = False
         filter_text = ""
@@ -708,9 +742,37 @@ class RouterOSREST:
                     in_filter = False
                     filter_spec = filter_text.strip("[]")
                 continue
-            if "=" in part and not in_filter:
+            if "=" in part:
                 k, v = part.split("=", 1)
                 kv_pairs[k] = v
+
+        return filter_spec, kv_pairs
+
+    @staticmethod
+    def _filter_netwatch_entries(
+        entries: list[dict[str, Any]], filter_spec: str | None
+    ) -> list[dict[str, Any]]:
+        """Apply a parsed ``find key=value`` filter to netwatch entries."""
+        if not filter_spec:
+            return entries
+        filter_parts = filter_spec.split()
+        if len(filter_parts) < 2 or filter_parts[0] != "find":
+            return entries
+        if "=" in filter_parts[1]:
+            fk, fv = filter_parts[1].split("=", 1)
+        else:
+            fk, fv = filter_parts[1], ""
+        return [e for e in entries if str(e.get(fk, "")) == fv]
+
+    def _handle_netwatch_set(self, cmd: str, timeout: int | None = None) -> dict[str, Any] | None:
+        """Handle /tool netwatch set commands via REST (PATCH)."""
+        timeout_val = timeout if timeout is not None else self.timeout
+        base_url = f"{self.base_url}/tool/netwatch"
+
+        parsed = self._parse_netwatch_set_args(cmd)
+        if parsed is None:
+            return {"status": "ok"}
+        filter_spec, kv_pairs = parsed
 
         try:
             resp = self._request("GET", base_url, timeout=timeout_val)
@@ -718,15 +780,15 @@ class RouterOSREST:
                 self.logger.error(f"Failed to get netwatch entries: {resp.status_code}")
                 return None
             entries = resp.json()
+        except RouterTransportError:
+            # Do not absorb transport failure into a "no entries" result;
+            # run_cmd must see it so failover can happen.
+            raise
         except Exception as e:
             self.logger.error(f"Failed to get netwatch entries: {e}")
             return None
 
-        if filter_spec:
-            filter_parts = filter_spec.split()
-            if len(filter_parts) >= 2 and filter_parts[0] == "find":
-                fk, fv = filter_parts[1].split("=", 1) if "=" in filter_parts[1] else (filter_parts[1], "")
-                entries = [e for e in entries if str(e.get(fk, "")) == fv]
+        entries = self._filter_netwatch_entries(entries, filter_spec)
 
         updated = 0
         for entry in entries:
@@ -740,6 +802,9 @@ class RouterOSREST:
                     updated += 1
                 else:
                     self.logger.warning(f"Failed to update netwatch {entry_id}: {resp.status_code}")
+            except RouterTransportError:
+                # Transport is down; reporting a partial "ok" would hide it.
+                raise
             except Exception as e:
                 self.logger.error(f"Failed to update netwatch {entry_id}: {e}")
 
@@ -773,9 +838,10 @@ class RouterOSREST:
                     removed += 1
                     self.logger.info(f"Removed netwatch entry {entry_id}")
                 else:
-                    self.logger.warning(
-                        f"Failed to remove netwatch {entry_id}: {resp.status_code}"
-                    )
+                    self.logger.warning(f"Failed to remove netwatch {entry_id}: {resp.status_code}")
+            except RouterTransportError:
+                # Transport is down; reporting a partial "ok" would hide it.
+                raise
             except Exception as e:
                 self.logger.error(f"Failed to remove netwatch {entry_id}: {e}")
 
@@ -992,6 +1058,35 @@ class RouterOSREST:
         """Backward-compatible alias for find_mangle_rule_id."""
         return self.find_mangle_rule_id(comment, use_cache=use_cache, timeout=timeout)
 
+    def _lookup_mangle_rule_id(
+        self, comment: str, use_cache: bool = True, timeout: int | None = None
+    ) -> str | None:
+        """Find mangle rule ID by comment, propagating transport failure.
+
+        Internal lookup used by the run_cmd command path, where a retryable
+        transport failure must reach run_cmd rather than being reported as a
+        missing rule. Direct callers should use find_mangle_rule_id.
+
+        Args:
+            comment: Comment of the rule
+            use_cache: Whether to use cached ID (default True)
+            timeout: Request timeout in seconds
+
+        Returns:
+            Rule ID or None if not found
+
+        Raises:
+            RouterTransportError: On a retryable transport failure.
+        """
+        return self._find_resource_id(
+            endpoint="ip/firewall/mangle",
+            filter_key="comment",
+            filter_value=comment,
+            cache=self._mangle_id_cache,
+            use_cache=use_cache,
+            timeout=timeout,
+        )
+
     def find_mangle_rule_id(
         self, comment: str, use_cache: bool = True, timeout: int | None = None
     ) -> str | None:
@@ -1005,14 +1100,12 @@ class RouterOSREST:
         Returns:
             Rule ID or None if not found
         """
-        return self._find_resource_id(
-            endpoint="ip/firewall/mangle",
-            filter_key="comment",
-            filter_value=comment,
-            cache=self._mangle_id_cache,
-            use_cache=use_cache,
-            timeout=timeout,
-        )
+        try:
+            return self._lookup_mangle_rule_id(comment, use_cache=use_cache, timeout=timeout)
+        except RouterTransportError as e:
+            # Legacy direct-client contract: None, never an exception.
+            self.logger.error(f"REST API error finding mangle rule: {e}")
+            return None
 
     def set_queue_limit(self, queue_name: str, max_limit: int) -> bool:
         """Set queue tree max-limit directly via REST API.
@@ -1026,14 +1119,13 @@ class RouterOSREST:
         Returns:
             True if successful, False otherwise
         """
-        queue_id = self._find_queue_id(queue_name)
-        if queue_id is None:
-            self.logger.error(f"Queue not found: {queue_name}")
-            return False
-
-        url = f"{self.base_url}/queue/tree/{queue_id}"
-
         try:
+            queue_id = self._find_queue_id(queue_name)
+            if queue_id is None:
+                self.logger.error(f"Queue not found: {queue_name}")
+                return False
+
+            url = f"{self.base_url}/queue/tree/{queue_id}"
             resp = self._request(
                 "PATCH", url, json={"max-limit": str(max_limit)}, timeout=self.timeout
             )
@@ -1044,7 +1136,8 @@ class RouterOSREST:
             self.logger.error(f"Failed to set queue limit: {resp.status_code}")
             return False
 
-        except requests.RequestException as e:
+        except (requests.RequestException, RouterTransportError) as e:
+            # Legacy direct-client contract: False, never an exception.
             self.logger.error(f"REST API error: {e}")
             return False
 
@@ -1069,7 +1162,8 @@ class RouterOSREST:
 
             return None
 
-        except requests.RequestException as e:
+        except (requests.RequestException, RouterTransportError) as e:
+            # Legacy direct-client contract: None, never an exception.
             self.logger.error(f"REST API error: {e}")
             return None
 
@@ -1099,7 +1193,8 @@ class RouterOSREST:
 
             return None
 
-        except requests.RequestException as e:
+        except (requests.RequestException, RouterTransportError) as e:
+            # Legacy direct-client contract: None, never an exception.
             self.logger.error(f"REST API error: {e}")
             return None
 
@@ -1135,7 +1230,8 @@ class RouterOSREST:
             if not type_id:
                 self.logger.error(f"Queue type has no .id: {type_name}")
                 return False
-        except requests.RequestException as e:
+        except (requests.RequestException, RouterTransportError) as e:
+            # Legacy direct-client contract: False, never an exception.
             self.logger.error(f"REST API error finding queue type: {e}")
             return False
 
@@ -1148,7 +1244,8 @@ class RouterOSREST:
                 return True
             self.logger.error(f"Failed to set queue type params: {resp.status_code}")
             return False
-        except requests.RequestException as e:
+        except (requests.RequestException, RouterTransportError) as e:
+            # Legacy direct-client contract: False, never an exception.
             self.logger.error(f"REST API error: {e}")
             return False
 
@@ -1161,7 +1258,9 @@ class RouterOSREST:
         try:
             resp = self._request("GET", f"{self.base_url}/system/resource", timeout=5)
             return bool(resp.ok)
-        except requests.RequestException:
+        except (requests.RequestException, RouterTransportError):
+            # Legacy direct-client contract: connectivity failure is False,
+            # never an exception. Only run_cmd propagates transport failure.
             return False
 
     def close(self) -> None:
