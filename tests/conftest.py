@@ -1,5 +1,6 @@
 """Pytest configuration and shared fixtures."""
 
+import copy
 import json
 import sys
 import tempfile
@@ -15,8 +16,16 @@ from tests.fixtures.phase201_replay_corpus import (
     synthesize_sustained_load_trace,
 )
 
-# Add src to path for imports
+# Keep tests runnable from a fresh checkout before an editable install.
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+# Pre-import the metrics module once at conftest load time so the autouse
+# fixture avoids per-test import overhead. The module is cheap to import,
+# and the guard supports intentionally incomplete test environments.
+try:
+    from wanctl import metrics as _wanctl_metrics
+except (ImportError, AttributeError):
+    _wanctl_metrics = None
 
 
 @pytest.fixture(autouse=True)
@@ -26,19 +35,11 @@ def reset_prometheus_registry():
     Required for xdist worker isolation (D-18). Each test must start with
     clean metrics state regardless of which worker process runs it.
     """
-    try:
-        from wanctl import metrics
-
-        metrics.reset()
-    except (ImportError, AttributeError):
-        pass
+    if _wanctl_metrics is not None:
+        _wanctl_metrics.reset()
     yield
-    try:
-        from wanctl import metrics
-
-        metrics.reset()
-    except (ImportError, AttributeError):
-        pass
+    if _wanctl_metrics is not None:
+        _wanctl_metrics.reset()
 
 
 @pytest.fixture
@@ -116,13 +117,8 @@ def sample_config_data():
 # =============================================================================
 
 
-@pytest.fixture
-def mock_autorate_config():
-    """Shared mock config for autorate WANController tests.
-
-    Contains the full superset of attributes used across all autorate test
-    files. Individual tests may override specific attributes as needed.
-    """
+def _build_mock_autorate_config():
+    """Build the full mock autorate config template."""
     config = MagicMock()
     config.wan_name = "TestWAN"
     config.baseline_rtt_initial = 25.0
@@ -240,3 +236,27 @@ def mock_autorate_config():
     # Tuning config (optional, disabled by default)
     config.tuning_config = None
     return config
+
+
+# Pre-built template avoids rebuilding 80+ attributes for every fixture call.
+_MOCK_AUTORATE_TEMPLATE = _build_mock_autorate_config()
+
+
+def _clone_mock_config(template: MagicMock) -> MagicMock:
+    """Clone configured attributes without sharing mutable fixture state."""
+    config = MagicMock()
+    internal_keys = set(config.__dict__)
+    for key, value in template.__dict__.items():
+        if key not in internal_keys:
+            setattr(config, key, copy.deepcopy(value))
+    return config
+
+
+@pytest.fixture
+def mock_autorate_config():
+    """Shared mock config for autorate WANController tests.
+
+    Contains the full superset of attributes used across all autorate test
+    files. Individual tests may override specific attributes as needed.
+    """
+    return _clone_mock_config(_MOCK_AUTORATE_TEMPLATE)

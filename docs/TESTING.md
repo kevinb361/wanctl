@@ -16,13 +16,13 @@ If you manage the virtualenv manually, create `.venv` and install the dev depend
 
 [`pyproject.toml`](../pyproject.toml) configures pytest with:
 
-- `--cov-config=pyproject.toml`
-- `--timeout=30`
+- `--timeout=30` using the lower-overhead `signal` timeout method
 - `-m 'not integration'`
-- `timeout_method = "thread"`
+- xdist logical-CPU workers, capped at 16
+- `loadfile` distribution to keep each test module on one worker
 - coverage settings under `[tool.coverage.*]`
 
-Plain `pytest` and Makefile pytest targets therefore exclude tests marked `integration` unless you explicitly override `addopts`.
+Plain `pytest` and Makefile pytest targets therefore run the unit suite in parallel and exclude tests marked `integration` unless you explicitly override `addopts`. Use `-o addopts=''` for commands that must disable these defaults.
 
 ## Fast Test Commands
 

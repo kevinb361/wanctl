@@ -179,8 +179,8 @@ directory = "coverage-report"
 show_contexts = true
 
 [tool.pytest.ini_options]
-addopts = "--timeout=30 -m 'not integration'"
-timeout_method = "thread"
+addopts = "--timeout=30 -m 'not integration' -n logical --maxprocesses=16 --dist=loadfile"
+timeout_method = "signal"
 
 [tool.bandit]
 exclude_dirs = [".venv", "build", "dist"]

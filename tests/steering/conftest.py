@@ -4,18 +4,14 @@ Fixtures specific to steering daemon, confidence scoring, CAKE stats,
 and steering health endpoint tests.
 """
 
+import copy
 from unittest.mock import MagicMock
 
 import pytest
 
 
-@pytest.fixture
-def mock_steering_config():
-    """Shared mock config for steering daemon tests.
-
-    Contains the full superset of attributes used across all steering test
-    files. Individual tests may override specific attributes as needed.
-    """
+def _build_mock_steering_config():
+    """Build the full mock steering config template."""
     config = MagicMock()
     config.primary_wan = "spectrum"
     config.alternate_wan = "att"
@@ -53,3 +49,26 @@ def mock_steering_config():
     config.route_management_routes = {}
     config.route_management_migration_acknowledged = False
     return config
+
+
+_MOCK_STEERING_TEMPLATE = _build_mock_steering_config()
+
+
+def _clone_mock_config(template: MagicMock) -> MagicMock:
+    """Clone configured attributes without sharing mutable fixture state."""
+    config = MagicMock()
+    internal_keys = set(config.__dict__)
+    for key, value in template.__dict__.items():
+        if key not in internal_keys:
+            setattr(config, key, copy.deepcopy(value))
+    return config
+
+
+@pytest.fixture
+def mock_steering_config():
+    """Shared mock config for steering daemon tests.
+
+    Contains the full superset of attributes used across all steering test
+    files. Individual tests may override specific attributes as needed.
+    """
+    return _clone_mock_config(_MOCK_STEERING_TEMPLATE)
