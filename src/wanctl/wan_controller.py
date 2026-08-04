@@ -362,6 +362,7 @@ class WANController:
         self._rtt_backend_status = rtt_backend_status
         self.router_connectivity = RouterConnectivityState(self.logger)
         self.pending_rates = PendingRateChange()
+        self._last_rate_apply_outcome = "not_run"
 
         self._init_baseline_and_thresholds()
         self._init_flash_wear_protection()
@@ -1665,9 +1666,15 @@ class WANController:
         )
         return (False, None)
 
-    def apply_rate_changes_if_needed(self, dl_rate: int, ul_rate: int) -> bool:
+    def apply_rate_changes_if_needed(
+        self, dl_rate: int, ul_rate: int, *, force_router_contact: bool = False
+    ) -> bool:
         """
         Apply rate changes to router with flash wear protection and rate limiting.
+
+        ``force_router_contact`` is reserved for the bounded recovery probe: it
+        bypasses no-I/O guards so an unreachable router has a real path back to
+        reachable state.
 
         Only sends updates to router when rates have actually changed (flash wear
         protection) and within the rate limit window (API overload protection).
@@ -1689,11 +1696,14 @@ class WANController:
             - Records metrics (router_update, rate_limit_event)
             - Calls save_state() when rate limited
         """
+        self._last_rate_apply_outcome = "not_run"
+
         # =====================================================================
         # FAIL-CLOSED: Queue rates when router unreachable (ERRR-03)
         # Rates are preserved for later application instead of being discarded.
         # =====================================================================
-        if not self.router_connectivity.is_reachable:
+        if not self.router_connectivity.is_reachable and not force_router_contact:
+            self._last_rate_apply_outcome = "queued_no_io"
             self.pending_rates.queue(dl_rate, ul_rate)
             self.logger.debug(
                 f"{self.wan_name}: Router unreachable, queuing rate change "
@@ -1705,7 +1715,12 @@ class WANController:
         # PROTECTED: Flash wear protection - only send queue limits when values change.
         # Router NAND has 100K-1M write cycles. See docs/CORE-ALGORITHM-ANALYSIS.md.
         # =====================================================================
-        if dl_rate == self.last_applied_dl_rate and ul_rate == self.last_applied_ul_rate:
+        if (
+            not force_router_contact
+            and dl_rate == self.last_applied_dl_rate
+            and ul_rate == self.last_applied_ul_rate
+        ):
+            self._last_rate_apply_outcome = "unchanged_no_io"
             self.logger.debug(
                 f"{self.wan_name}: Rates unchanged, skipping router update (flash wear protection)"
             )
@@ -1715,7 +1730,12 @@ class WANController:
         # PROTECTED: Rate limiting prevents RouterOS API overload (RB5009 limit ~50 req/sec).
         # When rate_limiter is None (linux-cake), this block is skipped entirely (RATE-02, RATE-05).
         # =====================================================================
-        if self.rate_limiter is not None and not self.rate_limiter.can_change():
+        if (
+            not force_router_contact
+            and self.rate_limiter is not None
+            and not self.rate_limiter.can_change()
+        ):
+            self._last_rate_apply_outcome = "rate_limited_no_io"
             # Log once when entering throttled state (not every cycle)
             if not self._rate_limit_logged:
                 wait_time = self.rate_limiter.time_until_available()
@@ -1741,6 +1761,7 @@ class WANController:
             self.logger.debug("overlap counter update failed", exc_info=True)
 
         if not success:
+            self._last_rate_apply_outcome = "failed_contact"
             self.logger.error(f"{self.wan_name}: Failed to apply limits")
             return False
 
@@ -1767,6 +1788,7 @@ class WANController:
         self.last_applied_dl_rate = applied_dl_rate
         self.last_applied_ul_rate = applied_ul_rate
         self.pending_rates.clear()
+        self._last_rate_apply_outcome = "successful_contact"
         self.logger.debug(f"{self.wan_name}: Applied new limits to router")
         return True
 
@@ -3771,7 +3793,7 @@ class WANController:
                 )
                 return True, breakdown  # router_failed = True
 
-            self.router_connectivity.record_success()
+            confirmed_contact = self._last_rate_apply_outcome == "successful_contact"
 
             if self.pending_rates.has_pending():
                 if self.pending_rates.is_stale():
@@ -3783,17 +3805,45 @@ class WANController:
                     pending_dl = self.pending_rates.pending_dl_rate
                     pending_ul = self.pending_rates.pending_ul_rate
                     if pending_dl is not None and pending_ul is not None:
+                        recovery_probe = (
+                            self._last_rate_apply_outcome == "queued_no_io"
+                            and not self.router_connectivity.is_reachable
+                        )
+                        action = "Probing router recovery with" if recovery_probe else "Applying"
                         self.logger.info(
-                            f"{self.wan_name}: Applying pending rates after "
-                            f"reconnection "
+                            f"{self.wan_name}: {action} pending rates "
                             f"(DL={pending_dl / 1e6:.1f}Mbps, "
                             f"UL={pending_ul / 1e6:.1f}Mbps)"
                         )
                         with PerfTimer("autorate_router_apply_pending") as pending_timer:
-                            self.apply_rate_changes_if_needed(pending_dl, pending_ul)
+                            pending_ok = self.apply_rate_changes_if_needed(
+                                pending_dl,
+                                pending_ul,
+                                force_router_contact=recovery_probe,
+                            )
                         breakdown["autorate_router_apply_pending"] = pending_timer.elapsed_ms
                         for key, value in self._consume_router_write_timings().items():
                             breakdown[key] += value
+
+                        pending_outcome = self._last_rate_apply_outcome
+                        if not pending_ok:
+                            self.router_connectivity.record_failure(
+                                ConnectionError("Failed to apply pending rate limits to router")
+                            )
+                            return True, breakdown
+                        if pending_outcome == "successful_contact":
+                            confirmed_contact = True
+                        elif pending_outcome == "unchanged_no_io":
+                            # The queued target is already the effective target;
+                            # retire it without claiming fresh router contact.
+                            self.pending_rates.clear()
+
+            if confirmed_contact:
+                self.router_connectivity.record_success()
+            elif not self.router_connectivity.is_reachable:
+                # Queued/no-I/O cycles preserve the existing outage state so
+                # watchdog logic can distinguish router-only failure honestly.
+                return True, breakdown
         except Exception as e:
             failure_type = self.router_connectivity.record_failure(e)
             failures = self.router_connectivity.consecutive_failures
