@@ -1,10 +1,13 @@
 """Tests for tuning safety module -- congestion measurement, revert detection, hysteresis lock."""
 
+import sqlite3
 from dataclasses import FrozenInstanceError
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+from wanctl.storage.schema import create_tables
 from wanctl.tuning.models import TuningResult
 
 
@@ -199,6 +202,100 @@ class TestMeasureCongestionRateFiltering:
         rate = measure_congestion_rate("/tmp/test.db", "Spectrum", 1000, 2000)
         # 4 out of 12 are >= 2.0 (2 SOFT_RED + 2 RED)
         assert rate == pytest.approx(4.0 / 12.0)
+
+
+class TestMeasureCongestionRateStoredIdentities:
+    """The storage query can reach durable state without borrowing bridge state."""
+
+    @staticmethod
+    def _write_rows(
+        db_path: Path,
+        rows: list[tuple[int, str, str, float, str | None, str]],
+    ) -> None:
+        conn = sqlite3.connect(db_path)
+        create_tables(conn)
+        conn.executemany(
+            """
+            INSERT INTO metrics
+                (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+        conn.commit()
+        conn.close()
+
+    def test_durable_download_series_is_reachable_and_preferred(self, tmp_path: Path) -> None:
+        from wanctl.tuning.safety import measure_congestion_rate
+
+        db_path = tmp_path / "directional.db"
+        rows = []
+        for i in range(10):
+            timestamp = 1000 + i * 60
+            rows.append(
+                (
+                    timestamp,
+                    "Spectrum",
+                    "wanctl_state_download",
+                    3.0 if i < 3 else 0.0,
+                    None,
+                    "1m",
+                )
+            )
+            rows.append(
+                (
+                    timestamp,
+                    "Spectrum",
+                    "wanctl_state",
+                    1.0,
+                    '{"source":"cake-autorate-state-bridge"}',
+                    "1m",
+                )
+            )
+        self._write_rows(db_path, rows)
+
+        assert measure_congestion_rate(db_path, "Spectrum", 1000, 2000) == pytest.approx(0.3)
+
+    @pytest.mark.parametrize("labels", [None, '{"direction":"download"}'])
+    def test_legacy_download_identity_remains_a_bounded_fallback(
+        self, tmp_path: Path, labels: str | None
+    ) -> None:
+        from wanctl.tuning.safety import measure_congestion_rate
+
+        db_path = tmp_path / f"legacy-{labels is not None}.db"
+        rows = [
+            (
+                1000 + i * 60,
+                "Spectrum",
+                "wanctl_state",
+                3.0 if i < 4 else 0.0,
+                labels,
+                "1m",
+            )
+            for i in range(10)
+        ]
+        self._write_rows(db_path, rows)
+
+        assert measure_congestion_rate(db_path, "Spectrum", 1000, 2000) == pytest.approx(0.4)
+
+    def test_bridge_binary_state_is_not_misgraded_as_native_congestion(self, tmp_path: Path) -> None:
+        from wanctl.tuning.safety import measure_congestion_rate
+
+        db_path = tmp_path / "bridge.db"
+        rows = [
+            (
+                1000 + i * 60,
+                "Spectrum",
+                "wanctl_state",
+                1.0,
+                '{"source":"cake-autorate-state-bridge"}',
+                "1m",
+            )
+            for i in range(10)
+        ]
+        self._write_rows(db_path, rows)
+
+        assert measure_congestion_rate(db_path, "Spectrum", 1000, 2000) is None
 
 
 # ============================================================================

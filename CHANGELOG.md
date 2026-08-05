@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Pending external-bridge rollout:** The repository versions of both cake-autorate state bridges include the undeployed polling/SQLite/downsampling rewrite from `d6a21cf3`; the live revisions were last proven during v1.66 OBS-001 before that commit. Do not ship these artifacts as a side effect of an unrelated deploy. v1.66 OBS-007 owns semantic correction, labeled regressions, and a separately reviewed one-WAN-at-a-time exact-hash rollout with rollback and health/history/qdisc/rate proof.
 - **REM-014:** Made history reads continuous across observed raw/1m/5m/1h series frontiers instead of nominal retention ages, including semantic label identity, deterministic global pagination/counting, tier-isolated CLI summaries, and downsample-before-cleanup maintenance ordering with safe startup deferral.
 - **REM-013:** Preserved bounded canonical metric identities through every downsampling tier, including distinct CAKE tins; made collision handling idempotent, retained cutoff-straddling source rows for the next complete bucket, kept categorical MODE ties safety-biased, collapsed redundant WAN-zone labels, and made tuning consumers deterministically select one download state per timestamp.
 - **External-mode canary validation:** Post-deploy checks now recognize the cake-autorate state-bridge health contract, requiring available RTT measurements, state freshness within 15 seconds, and valid per-direction states instead of native-only summary/storage fields.
@@ -47,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Tuning safety history:** Post-adjustment congestion observation now queries the durable download-state series as well as bounded legacy state, while bridge-authored binary state remains excluded from the native 0–3 congestion domain.
+- **History reader API clarity:** Replaced the ignored timestamp-shaped `retention_reference_ts` selector with an explicit `use_observed_tiers` boolean while preserving availability-based mixed-tier results.
 - **REM-017:** Calibration queue searches now restore download and upload limits independently on every normal, interrupted, or exceptional exit; cleanup disagreements are reported without replacing the original failure.
 - **REM-016:** Benchmark runs now treat server reachability and latency-baseline validity as separate prerequisites, reject non-finite or non-positive RTT baselines before launching Flent or grading results, and refuse to persist invalid-baseline records.
 - **Storage downsampling:** Preserve bounded labeled metric-series identities across all aggregation tiers, canonicalize equivalent label JSON, retain deterministic worst-state MODE ties, and skip colliding pre-existing target identities without wedging later maintenance.

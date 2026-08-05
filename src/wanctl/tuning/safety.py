@@ -50,8 +50,8 @@ def measure_congestion_rate(
 ) -> float | None:
     """Measure the fraction of time in congested state (SOFT_RED or RED).
 
-    Queries wanctl_state metric at 1m granularity and counts samples
-    where state >= 2.0 (SOFT_RED=2, RED=3).
+    Queries the durable download-state metric plus legacy wanctl_state at 1m
+    granularity and counts samples where state >= 2.0 (SOFT_RED=2, RED=3).
 
     Args:
         db_path: Path to SQLite metrics database.
@@ -66,7 +66,7 @@ def measure_congestion_rate(
         db_path=db_path,
         start_ts=start_ts,
         end_ts=end_ts,
-        metrics=["wanctl_state"],
+        metrics=["wanctl_state_download", "wanctl_state"],
         wan=wan_name,
         granularity="1m",
     )

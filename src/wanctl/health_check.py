@@ -1068,8 +1068,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             to_ts=params.get("to"),
         )
 
-        retention_reference_ts = int(time.time())
-
         offset = params.get("offset", 0)
         limit = params.get("limit", 1000)
 
@@ -1081,7 +1079,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 end_ts=end_ts,
                 metrics=params.get("metrics"),
                 wan=params.get("wan"),
-                retention_reference_ts=retention_reference_ts,
+                use_observed_tiers=True,
             )
             paginated = query_metrics(
                 db_path=db_paths[0],
@@ -1089,7 +1087,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 end_ts=end_ts,
                 metrics=params.get("metrics"),
                 wan=params.get("wan"),
-                retention_reference_ts=retention_reference_ts,
+                use_observed_tiers=True,
                 limit=limit,
                 offset=offset,
             )
@@ -1101,7 +1099,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 end_ts=end_ts,
                 metrics=params.get("metrics"),
                 wan=params.get("wan"),
-                retention_reference_ts=retention_reference_ts,
+                use_observed_tiers=True,
             )
             if getattr(merged_results, "all_failed", False):
                 self._send_json_error(503, "All metrics databases failed to read")

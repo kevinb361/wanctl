@@ -1723,7 +1723,7 @@ class TestRetentionAwareHistory:
             start_ts=now - 9 * 86400,
             end_ts=now,
             metrics=["wanctl_rtt_ms"],
-            retention_reference_ts=now,
+            use_observed_tiers=True,
         )
 
         assert [(row["value"], row["granularity"]) for row in result] == [
@@ -1742,7 +1742,7 @@ class TestRetentionAwareHistory:
             db_path=db_path,
             start_ts=now - 6 * 3600,
             end_ts=now,
-            retention_reference_ts=now,
+            use_observed_tiers=True,
         )
         assert {row["granularity"] for row in result} == {"raw", "1m"}
 
@@ -1771,7 +1771,7 @@ class TestRetentionAwareHistory:
             start_ts=now - 5 * 86400,
             end_ts=now,
             metrics=["wanctl_custom_history"],
-            retention_reference_ts=now,
+            use_observed_tiers=True,
         )
 
         assert [(row["value"], row["granularity"]) for row in result] == [
@@ -1804,7 +1804,7 @@ class TestRetentionAwareHistory:
             start_ts=now - 3600,
             end_ts=now,
             metrics=["wanctl_lagging"],
-            retention_reference_ts=now,
+            use_observed_tiers=True,
         )
 
         assert len(result) == 4
@@ -1832,7 +1832,7 @@ class TestRetentionAwareHistory:
             start_ts=now - 900,
             end_ts=now,
             metrics=["wanctl_cake_tin_delay_us"],
-            retention_reference_ts=now,
+            use_observed_tiers=True,
         )
 
         assert [(row["value"], row["granularity"]) for row in result] == [
@@ -1862,7 +1862,7 @@ class TestRetentionAwareHistory:
             start_ts=start,
             end_ts=now,
             metrics=["wanctl_query_window"],
-            retention_reference_ts=now,
+            use_observed_tiers=True,
         )
 
         assert [(row["value"], row["granularity"]) for row in result] == [(2.0, "1m")]
@@ -1873,13 +1873,13 @@ class TestRetentionAwareHistory:
             query_metrics(
                 db_path=db_path,
                 granularity="raw",
-                retention_reference_ts=now,
+                use_observed_tiers=True,
             )
         with pytest.raises(ValueError, match="mutually exclusive"):
             count_metrics(
                 db_path=db_path,
                 granularity="raw",
-                retention_reference_ts=now,
+                use_observed_tiers=True,
             )
 
     def test_count_and_pagination_share_mixed_tier_contract(self, tiered_db):
@@ -1888,7 +1888,7 @@ class TestRetentionAwareHistory:
             "db_path": db_path,
             "start_ts": now - 9 * 86400,
             "end_ts": now,
-            "retention_reference_ts": now,
+            "use_observed_tiers": True,
         }
         assert count_metrics(**kwargs) == 6
         full = query_metrics(**kwargs)

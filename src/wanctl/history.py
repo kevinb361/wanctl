@@ -949,7 +949,7 @@ def _handle_special_query(
             end_ts=end_ts,
             metrics=PER_TIN_METRICS,
             wan=args.wan,
-            retention_reference_ts=int(time.time()),
+            use_observed_tiers=True,
         )
         if getattr(results, "all_failed", False):
             print("All metrics databases failed to read.", file=sys.stderr)
@@ -1050,7 +1050,7 @@ def main() -> int:
         end_ts=end_ts,
         metrics=metrics_list,
         wan=args.wan,
-        retention_reference_ts=int(time.time()),
+        use_observed_tiers=True,
     )
     if getattr(results, "all_failed", False):
         print("All metrics databases failed to read.", file=sys.stderr)

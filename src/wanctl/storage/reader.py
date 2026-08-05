@@ -138,7 +138,7 @@ def query_metrics(
     limit: int | None = None,
     offset: int = 0,
     *,
-    retention_reference_ts: int | None = None,
+    use_observed_tiers: bool = False,
 ) -> list[dict]:
     """Query metrics from the database with optional filters.
 
@@ -153,8 +153,8 @@ def query_metrics(
         granularity: Data granularity to filter (raw, 1m, 5m, 1h)
         limit: Maximum number of rows to return.
         offset: Number of rows to skip before returning results.
-        retention_reference_ts: Enable availability-based mixed-tier selection. The
-            timestamp is retained for API compatibility; observed rows define boundaries.
+        use_observed_tiers: Select non-overlapping tiers from observed per-series
+            availability instead of filtering to one explicit granularity.
 
     Returns:
         List of dicts with keys: timestamp, wan_name, metric_name, value, labels, granularity
@@ -185,9 +185,9 @@ def query_metrics(
             wan=wan,
             granularity=granularity,
         )
-        if retention_reference_ts is not None:
+        if use_observed_tiers:
             if granularity is not None:
-                raise ValueError("granularity and retention_reference_ts are mutually exclusive")
+                raise ValueError("granularity and use_observed_tiers are mutually exclusive")
             cte_sql, available_from_sql = _available_tier_query_sql(where_sql)
             sql = (
                 cte_sql + " SELECT metrics.timestamp, metrics.wan_name, metrics.metric_name, "
@@ -562,7 +562,7 @@ def count_metrics(
     wan: str | None = None,
     granularity: str | None = None,
     *,
-    retention_reference_ts: int | None = None,
+    use_observed_tiers: bool = False,
 ) -> int:
     """Count metrics rows matching the provided filters."""
     db_path = Path(db_path)
@@ -586,9 +586,9 @@ def count_metrics(
             wan=wan,
             granularity=granularity,
         )
-        if retention_reference_ts is not None:
+        if use_observed_tiers:
             if granularity is not None:
-                raise ValueError("granularity and retention_reference_ts are mutually exclusive")
+                raise ValueError("granularity and use_observed_tiers are mutually exclusive")
             cte_sql, available_from_sql = _available_tier_query_sql(where_sql)
             sql = cte_sql + " SELECT COUNT(*) " + available_from_sql
         else:
