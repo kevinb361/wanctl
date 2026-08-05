@@ -4,6 +4,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 from wanctl.operator_summary import create_parser, format_operator_summary, main
 
 
@@ -82,6 +84,32 @@ def test_format_operator_summary_renders_autorate_and_steering():
     assert "route_owner=netwatch" in table
     assert "guard=conflict" in table
     assert "circuit=closed" in table
+
+
+def test_format_operator_summary_rejects_missing_or_invalid_rows():
+    with pytest.raises(TypeError, match="does not include a summary"):
+        format_operator_summary([("missing.json", {})])
+    with pytest.raises(TypeError, match="invalid summary rows"):
+        format_operator_summary(
+            [("invalid.json", {"summary": {"service": "autorate", "rows": {}}})]
+        )
+
+
+def test_format_operator_summary_skips_non_object_rows():
+    table = format_operator_summary(
+        [("health.json", {"summary": {"service": "autorate", "rows": [None]}})]
+    )
+    assert "Service" in table
+    assert "None" not in table
+
+
+def test_main_rejects_non_object_json(tmp_path: Path, monkeypatch, capsys):
+    health_path = tmp_path / "health.json"
+    health_path.write_text("[]")
+    monkeypatch.setattr(sys, "argv", ["wanctl-operator-summary", str(health_path)])
+
+    assert main() == 1
+    assert "did not decode to a JSON object" in capsys.readouterr().err
 
 
 def test_main_json_output(tmp_path: Path, monkeypatch, capsys):

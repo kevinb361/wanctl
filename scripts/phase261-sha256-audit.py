@@ -2,7 +2,7 @@
 """Phase 261 D-01 per-file sha256 audit: repo src/wanctl/ tree vs prod /opt/wanctl/.
 
 Builds sorted sha256 manifests for the deploy-managed code surface (D-01 set):
-  - Repo side: all non-pyc files under src/wanctl/ (110 files: 109 .py + dashboard.tcss)
+  - Repo side: all non-pyc files under src/wanctl/ (enumerated dynamically)
   - Prod side: the same tree under /opt/wanctl (scripts/ pruned; audited separately)
 
 Emit token PHASE261_AUDIT_SRC_TREE_EQUAL (exit 0) or

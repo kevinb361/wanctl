@@ -161,8 +161,8 @@ On the current production hosts:
 Use `/metrics/history` (for example via the `curl` command above) to confirm endpoint availability,
 response shape, and that WAN's local history view. Use
 `sudo -n env PYTHONPATH=/opt python3 -m wanctl.history ...` when you need merged cross-WAN proof;
-fall back to direct DB inventory only if the CLI is unavailable. The dashboard history tab
-surfaces this same distinction via `metadata.source` so operators see it in both places.
+fall back to direct DB inventory only if the CLI is unavailable. The HTTP response exposes
+this distinction directly through `metadata.source`.
 
 10. If the per-WAN DB files are still above the expected footprint after retention cleanup has had
 time to run, compact them explicitly during a controlled restart window:

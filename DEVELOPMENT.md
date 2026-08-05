@@ -83,7 +83,6 @@ wanctl/
 │   └── steering/               # Multi-WAN steering
 │       ├── daemon.py           # Steering daemon
 │       └── congestion_assessment.py
-│   ├── dashboard/              # Textual dashboard
 │   ├── storage/                # History and retention pipeline
 │   └── tuning/                 # Adaptive tuning modules
 ├── tests/                    # Unit tests

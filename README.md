@@ -25,7 +25,7 @@ Reduces bufferbloat by continuously monitoring RTT and adjusting CAKE bandwidth 
 - **Reflector quality scoring** - Rolling quality scores with automatic deprioritization and recovery
 - **Adaptive tuning** - Self-optimizing controller learns optimal parameters from production metrics
 - **Alerting** - Discord webhook notifications for congestion, hard-red, connectivity, IRTT loss, fusion healing, and cycle-budget events
-- **TUI dashboard** - Real-time terminal dashboard with sparklines and history browser
+- **Operator inspection** - Health endpoints, compact summaries, and metrics/alert/tuning history CLI
 - **CLI tools** - Config validation, CAKE queue audit, RRUL benchmarking, metrics/alert/tuning history
 
 ## Quick Start
@@ -247,7 +247,7 @@ Copy to `/etc/wanctl/` and customize for your setup. See [CONFIG_SCHEMA.md](docs
 Additional references:
 
 - [Documentation Index](docs/README.md) - canonical map of current docs versus archived historical notes
-- [SUBSYSTEMS.md](docs/SUBSYSTEMS.md) - storage, dashboard, backend, health, alerting, and measurement-quality internals
+- [SUBSYSTEMS.md](docs/SUBSYSTEMS.md) - storage, backend, health, alerting, and measurement-quality internals
 - [PERFORMANCE.md](docs/PERFORMANCE.md) - production timing, cycle-budget, and profiling guidance
 - [TESTING.md](docs/TESTING.md) - current test commands and integration-test invocation
 - [SILICOM-BYPASS.md](docs/SILICOM-BYPASS.md) - Silicom bypass NIC operations, powered fail-open watchdogs, and Spectrum migration validation notes
@@ -422,7 +422,6 @@ wanctl ships with several CLI utilities for diagnostics, operations, and validat
 | `wanctl` | Run the autorate daemon or one-shot validation modes | `wanctl --config /etc/wanctl/wan1.yaml` |
 | `wanctl-calibrate` | Measure baseline/throughput and generate a starter WAN config | `wanctl-calibrate --wan-name wan1 --router 192.168.1.1` |
 | `wanctl-steering` | Run the optional multi-WAN steering daemon | `wanctl-steering --config /etc/wanctl/steering.yaml` |
-| `wanctl-dashboard` | Open the terminal monitoring dashboard | `wanctl-dashboard --autorate-url http://127.0.0.1:9101` |
 | `wanctl-operator-summary` | Render compact health summaries from health JSON URLs/files | `wanctl-operator-summary http://host:9101/health` |
 | `wanctl-history` | Query metrics, alerts, tuning, and per-tin history from SQLite | `wanctl-history --last 1h --metrics wanctl_rtt_ms --json` |
 | `wanctl-check-config` | Validate config files offline before deploy | `wanctl-check-config /etc/wanctl/wan1.yaml` |

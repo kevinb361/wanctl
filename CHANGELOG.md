@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **REM-004:** Added immutable clean-Git source revision identity across installed package metadata, `wanctl-version`, controller/steering health payloads, host installation records, and OCI image labels. Supported image builds now derive version and revision through `scripts/build-image.sh` and fail closed on dirty or mismatched source.
 - **BASE-01 / BASE-02 / BASE-03 (Phase 213):** Added the Phase 213 experience baseline harness, including read-only health polling, browse-loop timing, alert-window extraction, steering snapshots, offline classification, and the baseline runbook for serialized Spectrum/ATT evidence capture.
 
+### Removed
+
+- Retired the unused Textual `wanctl-dashboard`, its optional Textual/httpx dependency closure, and its dedicated UI tests. Read-only `/health`, `/metrics/history`, `wanctl-operator-summary`, and `wanctl-history` remain the supported operator surfaces.
+
 ### Security
 
 - **REM-002:** Updated the frozen runtime closure to Paramiko 5.0.0, cryptography 48.0.1, idna 3.15, urllib3 2.7.0, and Pygments 2.20.0. The resolved runtime audit is clean; Paramiko 5 intentionally removes SHA-1 RSA signatures/key exchange and GSSAPI, while wanctl's supported SSHClient/RejectPolicy path remains covered by focused compatibility tests.

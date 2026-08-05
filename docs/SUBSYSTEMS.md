@@ -29,39 +29,18 @@ Tables include:
 
 Retention and downsampling are separate operations. Raw samples are aggregated to `1m`, then `5m`, then `1h` according to `storage.retention.*`. Cleanup deletes rows per granularity in batches. Startup maintenance is watchdog-safe and may defer downsampling when a startup time budget is active. Space reclamation uses incremental vacuum after large deletions instead of full `VACUUM` in the hot path.
 
-## Dashboard
+## Operator Inspection
 
-Implementation map:
+wanctl exposes read-only health and history surfaces without bundling a terminal dashboard:
 
-- `src/wanctl/dashboard/app.py`: `DashboardApp`, CLI parsing, live polling orchestration.
-- `src/wanctl/dashboard/config.py`: `DashboardConfig`, YAML loading, CLI overrides.
-- `src/wanctl/dashboard/poller.py`: `EndpointPoller`, HTTP polling and error handling.
-- `src/wanctl/dashboard/widgets/history_browser.py`: history tab and `/metrics/history` fetching.
-- `src/wanctl/dashboard/widgets/history_state.py`: history state classification.
-
-`wanctl-dashboard` is a local Textual TUI for operator monitoring. It polls autorate and steering health endpoints and renders live WAN state, rates, RTT delta, cycle budget, steering status, and short in-process sparklines.
-
-Default endpoints:
-
-- autorate: `http://127.0.0.1:9101/health`
-- steering: `http://127.0.0.1:9102/health`
-
-Configuration is loaded from `~/.config/wanctl/dashboard.yaml` unless `--config` is supplied. CLI flags override the config file.
-
-```yaml
-autorate_url: "http://127.0.0.1:9101"
-secondary_autorate_url: "http://127.0.0.1:9111"
-steering_url: "http://127.0.0.1:9102"
-refresh_interval: 2
-wan_rate_limits:
-  spectrum:
-    dl_mbps: 940
-    ul_mbps: 38
-```
-
-The History tab queries the selected autorate endpoint's `/metrics/history`. When that endpoint is attached to a live daemon, it reads that daemon's configured local DB. For authoritative merged cross-WAN history, use:
+- `/health` on each autorate or steering service provides the endpoint-local runtime state.
+- `wanctl-operator-summary <health-url>` renders a compact health summary.
+- `/metrics/history` provides endpoint-local history with pagination metadata.
+- `wanctl-history` or `python3 -m wanctl.history` is the merged cross-WAN history path.
 
 ```bash
+wanctl-operator-summary http://127.0.0.1:9101/health
+curl -s "http://127.0.0.1:9101/metrics/history?range=1h&limit=5" | python3 -m json.tool
 sudo -n env PYTHONPATH=/opt python3 -m wanctl.history --last 1h --metrics wanctl_rtt_ms --json
 ```
 

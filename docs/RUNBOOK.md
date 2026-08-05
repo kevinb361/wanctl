@@ -371,9 +371,8 @@ On the current production hosts:
 
 Use the `curl` command above to confirm endpoint availability, response shape, and that WAN's
 local history view. Use the `python3 -m wanctl.history` command above — falling back to direct
-DB inventory only if the CLI is unavailable — when you need merged cross-WAN verification. The
-dashboard history tab surfaces this same distinction through `metadata.source`, so the rule is
-identical in the TUI and in this runbook.
+DB inventory only if the CLI is unavailable — when you need merged cross-WAN verification.
+The HTTP response identifies its endpoint-local source through `metadata.source`.
 
 > Per-cycle SQLite denominator: `wanctl_arbitration_active_primary` is emitted on every CAKE-metrics-enabled cycle and is the reliable denominator for coverage queries against the per-WAN metrics SQLite store. `wanctl_rtt_confidence` and `wanctl_cake_avg_delay_delta_us` are emitted only when valid. Per REQUIREMENTS.md OBS-02: cold-start and invalid-snapshot cycles produce absent SQLite rows and `/health` nulls — no NaN, -1, or sentinel emission. Absent rows for those two metrics are expected, not data loss.
 

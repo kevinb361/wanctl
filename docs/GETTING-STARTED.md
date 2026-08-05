@@ -191,7 +191,7 @@ Once `wanctl` is running, two complementary history surfaces are available for a
 - `/metrics/history` (HTTP) is the endpoint-local HTTP history view for the connected autorate daemon. Query it with `curl` against `http://<health-ip>:9101/metrics/history?range=1h&limit=5` to confirm endpoint availability, response shape, and that WAN's local history view.
 - `python3 -m wanctl.history` (CLI) is the authoritative merged cross-WAN proof path. Run it as `sudo -n env PYTHONPATH=/opt python3 -m wanctl.history --last 1h --metrics wanctl_rtt_ms --json` when you need merged cross-WAN proof across all deployed autorate instances on the host.
 
-The dashboard history tab surfaces the same distinction via `metadata.source`, so the rule is identical in the TUI, in the runbook, and in the deployment workflow. For deeper operator detail see [`RUNBOOK.md`](RUNBOOK.md) and [`DEPLOYMENT.md`](DEPLOYMENT.md).
+The HTTP response exposes this distinction through `metadata.source`. For deeper operator detail see [`RUNBOOK.md`](RUNBOOK.md) and [`DEPLOYMENT.md`](DEPLOYMENT.md).
 
 When the measurement-resilience changes are deployed, add the
 measurement-health inspection pass before treating

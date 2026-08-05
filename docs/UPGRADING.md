@@ -74,4 +74,4 @@ forensics unless there is a specific corruption finding.
 | SSH transport fails | Missing key, permissions, or host key | [`SECURITY.md`](SECURITY.md) SSH setup |
 | REST transport fails | TLS, credential, or RouterOS API issue | Config `router.*` fields and service logs |
 | `/health` degraded after restart | Router unreachable, repeated controller failures, or storage pressure | [`RUNBOOK.md`](RUNBOOK.md) quick reference |
-| History missing or split by WAN | Expected endpoint-local HTTP history versus merged CLI distinction | [`SUBSYSTEMS.md`](SUBSYSTEMS.md) dashboard/storage sections |
+| History missing or split by WAN | Expected endpoint-local HTTP history versus merged CLI distinction | [`SUBSYSTEMS.md`](SUBSYSTEMS.md) storage/operator-inspection sections |

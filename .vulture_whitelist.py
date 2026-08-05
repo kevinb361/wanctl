@@ -7,7 +7,7 @@ These items appear unused to static analysis but are reachable through:
 - Inter-process communication (autorate -> steering via state files)
 - Test-only utilities
 - Signal handler chains (SIGUSR1 reload)
-- Framework lifecycle methods (Textual TUI, BaseHTTPRequestHandler)
+- Framework lifecycle methods (BaseHTTPRequestHandler)
 - SQLite row_factory attribute assignment
 - NamedTuple field declarations
 
@@ -92,22 +92,6 @@ do_GET  # BaseHTTPRequestHandler override -- called by HTTP server
 log_message  # BaseHTTPRequestHandler override -- suppress default logging
 
 # =============================================================================
-# FRAMEWORK: Textual TUI lifecycle methods and class variables
-# dashboard/app.py, dashboard/widgets/*.py
-# These are called by the Textual framework, not by user code.
-# =============================================================================
-DEFAULT_CSS  # Textual Widget/App class variable
-CSS_PATH  # Textual App class variable
-BINDINGS  # Textual App class variable
-compose  # Textual Widget.compose() lifecycle
-on_mount  # Textual Widget.on_mount() lifecycle
-on_resize  # Textual App.on_resize() lifecycle
-on_unmount  # Textual App.on_unmount() lifecycle
-action_refresh  # Textual action binding handler
-_utilization_pct  # CycleBudgetGaugeWidget internal state
-_maxlen  # SparklinePanelWidget internal state
-
-# =============================================================================
 # SQLite: row_factory attribute assignment
 # conn.row_factory = sqlite3.Row is the standard way to get dict-like rows.
 # storage/reader.py (4 occurrences), storage/writer.py (1 occurrence)
@@ -135,13 +119,6 @@ consecutive_successes  # reflector_scorer.py ReflectorScore field
 last_decision  # steering/steering_confidence.py
 last_decision_time  # steering/steering_confidence.py
 Granularity  # storage/downsampler.py enum re-export
-
-# =============================================================================
-# Dashboard poller properties -- accessed by Textual widget refresh cycle
-# =============================================================================
-is_online  # dashboard/poller.py property
-last_data  # dashboard/poller.py property
-current_interval  # dashboard/poller.py property
 
 # =============================================================================
 # Metrics registry methods -- used by various callers dynamically
@@ -180,8 +157,3 @@ HEADER  # calibrate.py -- header constant for calibration output
 TIMEOUT_QUICK  # timeouts.py
 TIMEOUT_THROUGHPUT_MEASUREMENT  # timeouts.py
 DEFAULT_LOCK_TIMEOUT  # timeouts.py
-
-# =============================================================================
-# select_changed Textual event handler
-# =============================================================================
-on_select_changed  # dashboard/widgets/history_browser.py

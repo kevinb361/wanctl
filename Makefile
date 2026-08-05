@@ -37,14 +37,12 @@ dead-code:
 # Dependency audit (unused pip packages in [dependencies] and [optional-dependencies])
 # Pip name -> import name mapping (update when adding/removing deps):
 #   requests -> requests | pyyaml -> yaml | paramiko -> paramiko
-#   tabulate -> tabulate | icmplib -> icmplib
-#   textual -> textual | httpx -> httpx | pyroute2 -> pyroute2
+#   tabulate -> tabulate | icmplib -> icmplib | pyroute2 -> pyroute2
 check-deps:
 	@echo "Checking for unused pip dependencies..."
 	@UNUSED=""; \
 	for pair in "requests:requests" "pyyaml:yaml" "paramiko:paramiko" \
-	            "tabulate:tabulate" "icmplib:icmplib" \
-	            "textual:textual" "httpx:httpx" "pyroute2:pyroute2"; do \
+	            "tabulate:tabulate" "icmplib:icmplib" "pyroute2:pyroute2"; do \
 	    pkg=$${pair%%:*}; imp=$${pair##*:}; \
 	    if ! grep -rq "import $${imp}\b\|from $${imp}" src/wanctl/; then \
 	        UNUSED="$${UNUSED} $${pkg}"; \

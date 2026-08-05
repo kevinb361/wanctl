@@ -56,16 +56,13 @@ Examples:
 pytest tests/test_check_config.py -v
 pytest tests/steering/ -v
 pytest tests/tuning/ -v
-pytest tests/dashboard/ -v
 pytest tests/storage/ -v
 pytest tests/backends/ -v
 ```
 
-Top-level tests cover the core controller and utility modules under `src/wanctl/`. Subdirectories under `tests/` cover larger feature areas such as steering, adaptive tuning, dashboard UI, storage, backends, and integration validation.
+Top-level tests cover the core controller and utility modules under `src/wanctl/`. Subdirectories under `tests/` cover larger feature areas such as steering, adaptive tuning, storage, backends, and integration validation.
 
 `tests/backends/` covers router backend contracts and Linux CAKE implementations, including RouterOS-compatible APIs, `tc`-based CAKE control, netlink CAKE control, queue stats, validation, and fallback behavior.
-
-`tests/dashboard/` covers the Textual dashboard app, widgets, layout switching, history browser/state classification, endpoint polling/backoff, config loading, and dashboard entry point wiring.
 
 ## Integration Tests
 

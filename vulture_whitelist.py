@@ -131,12 +131,6 @@ _._last_tuning_ts  # test-only attribute (D-04) -- tests verify init value
 # config_base.py
 STORAGE_SCHEMA  # noqa  # test-only (D-04) -- imported and validated in test_config_base.py
 
-# dashboard/widgets/cycle_gauge.py -- optional-dep Textual widget (D-03, D-04)
-_._utilization_pct  # set in update_utilization, read in tests
-
-# dashboard/widgets/sparkline_panel.py -- optional-dep Textual widget (D-03, D-04)
-_._maxlen  # sparkline panel maxlen stored for test access
-
 # steering/daemon.py -- config attributes loaded from YAML (D-04)
 _.primary_upload_queue  # config attribute, tested in test_steering_daemon.py
 _.enable_yellow_state  # config attribute, tested in test_steering_daemon.py
