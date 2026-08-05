@@ -325,6 +325,13 @@ class TestBuildResult:
         mock_datetime.now.assert_called_once_with(UTC)
         assert result.timestamp == "2026-03-13T20:00:00+00:00"
 
+    @pytest.mark.parametrize("baseline_rtt", [0.0, -1.0, float("nan"), float("inf")])
+    def test_invalid_baseline_blocks_grading(self, baseline_rtt: float) -> None:
+        from wanctl.benchmark import build_result
+
+        with pytest.raises(ValueError, match="valid positive RTT baseline"):
+            build_result({}, baseline_rtt=baseline_rtt, server="server", duration=10)
+
 
 # ---------------------------------------------------------------------------
 # Task 1: Prerequisite checks, server connectivity, daemon warning
@@ -400,6 +407,32 @@ class TestServerConnectivity:
         assert reachable is True
         assert baseline == 0.0
 
+    @patch("icmplib.ping")
+    @patch("wanctl.benchmark.parse_ping_output")
+    @patch("wanctl.benchmark.subprocess.run")
+    def test_netperf_reachable_but_both_rtt_methods_unavailable(
+        self,
+        mock_run: MagicMock,
+        mock_parse_ping: MagicMock,
+        mock_icmp_ping: MagicMock,
+    ) -> None:
+        """Reachability remains distinct when neither RTT method yields a baseline."""
+        from wanctl.benchmark import check_server_connectivity
+
+        mock_run.side_effect = [
+            MagicMock(returncode=0),
+            MagicMock(returncode=1, stdout=""),
+        ]
+        mock_icmp_ping.return_value = MagicMock(is_alive=False, min_rtt=0.0)
+        mock_parse_ping.return_value = []
+
+        reachable, baseline = check_server_connectivity("netperf.bufferbloat.net")
+
+        assert reachable is True
+        assert baseline == 0.0
+        assert mock_run.call_args_list[0].args[0][0] == "netperf"
+        assert mock_run.call_args_list[1].args[0][0] == "ping"
+
     @patch("wanctl.benchmark.parse_ping_output")
     @patch("wanctl.benchmark.subprocess.run")
     def test_custom_timeout(self, mock_run: MagicMock, mock_parse_ping: MagicMock) -> None:
@@ -429,13 +462,29 @@ class TestPrerequisites:
         mock_server.return_value = (True, 23.0)
 
         checks, baseline = check_prerequisites("netperf.bufferbloat.net")
-        assert len(checks) == 3
+        assert len(checks) == 4
         assert all(passed for _, passed, _ in checks)
         assert baseline == 23.0
-        # Server detail includes baseline RTT
         server_check = [c for c in checks if c[0] == "server"][0]
-        assert "23" in server_check[2]
+        baseline_check = [c for c in checks if c[0] == "baseline"][0]
         assert "reachable" in server_check[2]
+        assert "23.0ms" in baseline_check[2]
+
+    @patch("wanctl.benchmark.check_server_connectivity")
+    @patch("wanctl.benchmark.shutil.which")
+    def test_reachable_server_without_baseline_fails_distinct_prerequisite(
+        self, mock_which: MagicMock, mock_server: MagicMock
+    ) -> None:
+        from wanctl.benchmark import check_prerequisites
+
+        mock_which.side_effect = lambda x: f"/usr/bin/{x}"
+        mock_server.return_value = (True, 0.0)
+
+        checks, baseline = check_prerequisites("netperf.bufferbloat.net")
+
+        assert ("server", True, "reachable") in checks
+        assert ("baseline", False, "valid positive RTT unavailable") in checks
+        assert baseline == 0.0
 
     @patch("wanctl.benchmark.shutil.which")
     def test_flent_missing(self, mock_which: MagicMock) -> None:
@@ -665,6 +714,14 @@ class TestRunBenchmark:
         assert "-l" in cmd
         assert "60" in cmd
         assert "-D" in cmd
+
+    @pytest.mark.parametrize("baseline_rtt", [0.0, -1.0, float("nan"), float("inf")])
+    @patch("wanctl.benchmark.subprocess.run")
+    def test_invalid_baseline_blocks_flent(self, mock_run: MagicMock, baseline_rtt: float) -> None:
+        from wanctl.benchmark import run_benchmark
+
+        assert run_benchmark("server", 60, baseline_rtt=baseline_rtt) is None
+        mock_run.assert_not_called()
 
     @patch("wanctl.benchmark.subprocess.run")
     def test_flent_failure(self, mock_run: MagicMock) -> None:
@@ -933,6 +990,40 @@ class TestMain:
 
         assert exit_code == 1
 
+    @patch("wanctl.benchmark.format_grade_display")
+    @patch("wanctl.benchmark.store_benchmark")
+    @patch("wanctl.benchmark.run_benchmark")
+    @patch("wanctl.benchmark.check_prerequisites")
+    @patch("wanctl.benchmark.sys.stderr")
+    def test_missing_baseline_blocks_benchmark_grade_and_storage(
+        self,
+        mock_stderr: MagicMock,
+        mock_prereqs: MagicMock,
+        mock_run: MagicMock,
+        mock_store: MagicMock,
+        mock_format: MagicMock,
+    ) -> None:
+        from wanctl.benchmark import main
+
+        mock_stderr.isatty.return_value = False
+        mock_prereqs.return_value = (
+            [
+                ("flent", True, "found"),
+                ("netperf", True, "found"),
+                ("server", True, "reachable"),
+                ("baseline", False, "valid positive RTT unavailable"),
+            ],
+            0.0,
+        )
+
+        with patch("wanctl.benchmark.sys.argv", ["wanctl-benchmark"]):
+            exit_code = main()
+
+        assert exit_code == 1
+        mock_run.assert_not_called()
+        mock_store.assert_not_called()
+        mock_format.assert_not_called()
+
     @patch("wanctl.benchmark.run_benchmark")
     @patch("wanctl.benchmark.check_daemon_running")
     @patch("wanctl.benchmark.check_prerequisites")
@@ -1096,6 +1187,18 @@ class TestStoreBenchmark:
         row_id = store_benchmark(result, wan_name="spectrum", daemon_running=False, db_path=db)
         assert isinstance(row_id, int)
         assert row_id >= 1
+
+    @pytest.mark.parametrize("baseline_rtt", [0.0, -1.0, float("nan"), float("inf")])
+    def test_invalid_baseline_is_not_persisted(self, tmp_path: Path, baseline_rtt: float) -> None:
+        from wanctl.benchmark import store_benchmark
+
+        db = tmp_path / "test.db"
+        result = _make_benchmark_result(baseline_rtt=baseline_rtt)
+
+        row_id = store_benchmark(result, wan_name="spectrum", daemon_running=False, db_path=db)
+
+        assert row_id is None
+        assert not db.exists()
 
     def test_store_all_fields_correct(self, tmp_path: Path) -> None:
         """Stored row contains all BenchmarkResult fields plus metadata."""

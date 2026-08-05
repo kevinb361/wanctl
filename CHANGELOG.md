@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **REM-016:** Benchmark runs now treat server reachability and latency-baseline validity as separate prerequisites, reject non-finite or non-positive RTT baselines before launching Flent or grading results, and refuse to persist invalid-baseline records.
 - **Storage downsampling:** Preserve bounded labeled metric-series identities across all aggregation tiers, canonicalize equivalent label JSON, retain deterministic worst-state MODE ties, and skip colliding pre-existing target identities without wedging later maintenance.
 - **REM-012:** Timed-out persistent RouterOS SSH commands now close the command channel and owning client before discarding the connection reference; completion timeouts remain nonretryable in-call, and the next command reconnects from a clean client without exceeding the watchdog budget.
 - **OBS-001:** External cake-autorate state bridges now close every SQLite metrics connection after commit, rollback, or lock-retry failure instead of leaking database/WAL file descriptors. Deployment guidance also makes the per-WAN metrics databases durable `/var/lib/wanctl` files and treats symlinks into `/run/wanctl` as migration-gated drift.

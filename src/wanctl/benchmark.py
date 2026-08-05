@@ -16,6 +16,7 @@ import glob
 import gzip
 import json
 import logging
+import math
 import shutil
 import socket
 import sqlite3
@@ -60,6 +61,11 @@ def compute_grade(latency_increase_ms: float) -> str:
         if latency_increase_ms < threshold:
             return grade
     return "F"
+
+
+def _has_valid_baseline_rtt(baseline_rtt: float) -> bool:
+    """Return whether *baseline_rtt* can support latency grading."""
+    return math.isfinite(baseline_rtt) and baseline_rtt > 0
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +124,10 @@ def store_benchmark(
     Returns:
         The row ID of the inserted record, or ``None`` on error.
     """
+    if not _has_valid_baseline_rtt(result.baseline_rtt):
+        logger.warning("Refusing to store benchmark result without a valid positive RTT baseline")
+        return None
+
     try:
         db_path = Path(db_path)
         db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -256,7 +266,13 @@ def build_result(
     Both download and upload grades and latency percentiles are derived from
     the same ICMP ping series (RRUL is bidirectional).  Per-direction
     throughput differs (TCP download sum vs TCP upload sum).
+
+    Raises:
+        ValueError: If *baseline_rtt* is not finite and positive.
     """
+    if not _has_valid_baseline_rtt(baseline_rtt):
+        raise ValueError("Benchmark grading requires a valid positive RTT baseline")
+
     latency = extract_latency_stats(data, baseline_rtt)
     dl_throughput, ul_throughput = extract_throughput(data)
 
@@ -341,7 +357,8 @@ def check_prerequisites(
 
     Returns ``(checks, baseline_rtt)`` where *checks* is a list of
     ``(name, passed, detail)`` tuples and *baseline_rtt* is the measured
-    baseline RTT in milliseconds (0.0 if not measured).
+    baseline RTT in milliseconds (0.0 if not measured). Server reachability
+    and baseline validity are reported as distinct prerequisites.
     """
     checks: list[tuple[str, bool, str]] = []
     baseline_rtt = 0.0
@@ -362,7 +379,12 @@ def check_prerequisites(
     if flent_path and netperf_path:
         reachable, baseline_rtt = check_server_connectivity(server)
         if reachable:
-            checks.append(("server", True, f"reachable ({baseline_rtt:.0f}ms baseline)"))
+            checks.append(("server", True, "reachable"))
+            if _has_valid_baseline_rtt(baseline_rtt):
+                checks.append(("baseline", True, f"{baseline_rtt:.1f}ms RTT"))
+            else:
+                checks.append(("baseline", False, "valid positive RTT unavailable"))
+                baseline_rtt = 0.0
         else:
             checks.append(("server", False, f"{server} unreachable (3s timeout)"))
             baseline_rtt = 0.0
@@ -409,14 +431,18 @@ def run_benchmark(
     server: str,
     duration: int,
     *,
-    baseline_rtt: float = 0.0,
+    baseline_rtt: float,
 ) -> BenchmarkResult | None:
     """Run an RRUL benchmark test via ``flent`` and return the result.
 
     Creates a temporary directory for the flent output file, runs
     ``flent rrul``, parses the results, and returns a :class:`BenchmarkResult`.
-    Returns ``None`` if flent fails or times out.
+    Returns ``None`` if the baseline is invalid or flent fails or times out.
     """
+    if not _has_valid_baseline_rtt(baseline_rtt):
+        print("Benchmark requires a valid positive RTT baseline", file=sys.stderr)
+        return None
+
     tmpdir = tempfile.mkdtemp(prefix="wanctl-benchmark-")
 
     # Use -D (data dir) instead of -o: flent writes its own auto-named
