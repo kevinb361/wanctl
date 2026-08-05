@@ -3,7 +3,7 @@
 import argparse
 from datetime import datetime
 from subprocess import TimeoutExpired
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -1304,6 +1304,28 @@ class TestRunCalibration:
 class TestStepBinarySearch:
     """Tests for _step_binary_search helper function."""
 
+    @staticmethod
+    def _run_active_step():  # noqa: ANN205
+        from wanctl.calibrate import _step_binary_search
+
+        return _step_binary_search(
+            netperf_host="netperf.test",
+            ping_host="1.1.1.1",
+            router_host="192.168.1.1",
+            router_user="admin",
+            download_queue="DL",
+            upload_queue="UL",
+            raw_download=500.0,
+            raw_upload=50.0,
+            baseline_rtt=10.0,
+            target_bloat=10.0,
+            ssh_key=None,
+            skip_binary_search=False,
+            skip_throughput=False,
+            download_bloat_raw=15.0,
+            upload_bloat_raw=10.0,
+        )
+
     def test_step_binary_search_skipped_by_flag(self):
         """Test _step_binary_search returns skipped values when flag is set."""
         from wanctl.calibrate import _step_binary_search
@@ -1392,6 +1414,10 @@ class TestStepBinarySearch:
 
         assert result == (450.0, 45.0, 8.0, 7.0)
         assert mock_binary_search.call_count == 2
+        assert mock_set_limit.call_args_list == [
+            call("192.168.1.1", "admin", "DL", 0, None),
+            call("192.168.1.1", "admin", "UL", 0, None),
+        ]
 
     @patch("wanctl.calibrate.binary_search_optimal_rate")
     @patch("wanctl.calibrate.set_cake_limit")
@@ -1426,6 +1452,118 @@ class TestStepBinarySearch:
         )
 
         assert result is None
+        assert mock_set_limit.call_args_list == [
+            call("192.168.1.1", "admin", "DL", 0, None),
+            call("192.168.1.1", "admin", "UL", 0, None),
+        ]
+
+    @patch("wanctl.calibrate.binary_search_optimal_rate")
+    @patch("wanctl.calibrate.set_cake_limit")
+    @patch("wanctl.calibrate.is_shutdown_requested")
+    @patch("wanctl.calibrate.time.sleep")
+    def test_upload_exception_preserved_when_both_restorations_fail(
+        self,
+        mock_sleep,
+        mock_shutdown,
+        mock_set_limit,
+        mock_binary_search,
+        capsys,
+    ):
+        mock_shutdown.return_value = False
+        original = RuntimeError("upload search failed")
+        mock_binary_search.side_effect = [(450.0, 8.0), original]
+        mock_set_limit.side_effect = [False, OSError("upload reset failed")]
+
+        with pytest.raises(RuntimeError, match="upload search failed") as raised:
+            self._run_active_step()
+
+        assert raised.value is original
+        assert mock_set_limit.call_args_list == [
+            call("192.168.1.1", "admin", "DL", 0, None),
+            call("192.168.1.1", "admin", "UL", 0, None),
+        ]
+        output = capsys.readouterr().out
+        assert "download queue 'DL'" in output
+        assert "reset rejected" in output
+        assert "upload queue 'UL'" in output
+        assert "upload reset failed" in output
+
+    @pytest.mark.parametrize(
+        "first_reset_error",
+        [OSError("download reset failed"), KeyboardInterrupt()],
+    )
+    @patch("wanctl.calibrate.binary_search_optimal_rate")
+    @patch("wanctl.calibrate.set_cake_limit")
+    @patch("wanctl.calibrate.is_shutdown_requested")
+    @patch("wanctl.calibrate.time.sleep")
+    def test_first_reset_exception_cannot_skip_second_queue_or_replace_original(
+        self,
+        mock_sleep,
+        mock_shutdown,
+        mock_set_limit,
+        mock_binary_search,
+        first_reset_error,
+    ):
+        mock_shutdown.return_value = False
+        original = RuntimeError("upload search failed")
+        mock_binary_search.side_effect = [(450.0, 8.0), original]
+        mock_set_limit.side_effect = [first_reset_error, True]
+
+        with pytest.raises(RuntimeError, match="upload search failed") as raised:
+            self._run_active_step()
+
+        assert raised.value is original
+        assert mock_set_limit.call_args_list == [
+            call("192.168.1.1", "admin", "DL", 0, None),
+            call("192.168.1.1", "admin", "UL", 0, None),
+        ]
+
+    @patch("wanctl.calibrate.binary_search_optimal_rate")
+    @patch("wanctl.calibrate.set_cake_limit")
+    @patch("wanctl.calibrate.is_shutdown_requested")
+    @patch("wanctl.calibrate.time.sleep")
+    def test_upload_keyboard_interrupt_preserved_after_both_restoration_attempts(
+        self,
+        mock_sleep,
+        mock_shutdown,
+        mock_set_limit,
+        mock_binary_search,
+    ):
+        mock_shutdown.return_value = False
+        original = KeyboardInterrupt()
+        mock_binary_search.side_effect = [(450.0, 8.0), original]
+        mock_set_limit.return_value = True
+
+        with pytest.raises(KeyboardInterrupt) as raised:
+            self._run_active_step()
+
+        assert raised.value is original
+        assert mock_set_limit.call_args_list == [
+            call("192.168.1.1", "admin", "DL", 0, None),
+            call("192.168.1.1", "admin", "UL", 0, None),
+        ]
+
+    @patch("wanctl.calibrate.binary_search_optimal_rate")
+    @patch("wanctl.calibrate.set_cake_limit")
+    @patch("wanctl.calibrate.is_shutdown_requested")
+    @patch("wanctl.calibrate.time.sleep")
+    def test_successful_search_returns_none_when_restoration_disagrees(
+        self,
+        mock_sleep,
+        mock_shutdown,
+        mock_set_limit,
+        mock_binary_search,
+        capsys,
+    ):
+        mock_shutdown.return_value = False
+        mock_binary_search.side_effect = [(450.0, 8.0), (45.0, 7.0)]
+        mock_set_limit.side_effect = [True, False]
+
+        result = self._run_active_step()
+
+        assert result is None
+        assert mock_set_limit.call_count == 2
+        assert "upload queue 'UL'" in capsys.readouterr().out
 
 
 class TestStepDisplaySummary:

@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **REM-017:** Calibration queue searches now restore download and upload limits independently on every normal, interrupted, or exceptional exit; cleanup disagreements are reported without replacing the original failure.
 - **REM-016:** Benchmark runs now treat server reachability and latency-baseline validity as separate prerequisites, reject non-finite or non-positive RTT baselines before launching Flent or grading results, and refuse to persist invalid-baseline records.
 - **Storage downsampling:** Preserve bounded labeled metric-series identities across all aggregation tiers, canonicalize equivalent label JSON, retain deterministic worst-state MODE ties, and skip colliding pre-existing target identities without wedging later maintenance.
 - **REM-012:** Timed-out persistent RouterOS SSH commands now close the command channel and owning client before discarding the connection reference; completion timeouts remain nonretryable in-call, and the next command reconnects from a clean client without exceeding the watchdog budget.

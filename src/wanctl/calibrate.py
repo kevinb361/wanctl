@@ -372,6 +372,33 @@ def _step_raw_throughput(
     return raw_download, raw_upload, download_bloat_raw, upload_bloat_raw
 
 
+def _restore_queue_limits(
+    router_host: str,
+    router_user: str,
+    download_queue: str,
+    upload_queue: str,
+    ssh_key: str | None,
+) -> bool:
+    """Best-effort reset of both queues without short-circuiting cleanup."""
+    print_step("Resetting queue limits...")
+    restored = True
+    for direction, queue_name in (
+        ("download", download_queue),
+        ("upload", upload_queue),
+    ):
+        try:
+            reset = set_cake_limit(router_host, router_user, queue_name, 0, ssh_key)
+        except BaseException as exc:
+            # Cleanup must continue through interrupts so the sibling queue is attempted.
+            restored = False
+            print_error(f"Failed to restore {direction} queue '{queue_name}': {exc!r}")
+            continue
+        if not reset:
+            restored = False
+            print_error(f"Failed to restore {direction} queue '{queue_name}': reset rejected")
+    return restored
+
+
 def _step_binary_search(
     netperf_host: str,
     ping_host: str,
@@ -424,53 +451,52 @@ def _step_binary_search(
     print_info(f"Finding maximum rates with <{target_bloat}ms bloat...")
     print_info("This will temporarily modify your CAKE queue limits.")
 
-    # Binary search download
-    optimal_download, download_bloat = binary_search_optimal_rate(
-        direction="download",
-        netperf_host=netperf_host,
-        ping_host=ping_host,
-        router_host=router_host,
-        router_user=router_user,
-        queue_name=download_queue,
-        min_rate=raw_download * 0.3,
-        max_rate=raw_download,
-        baseline_rtt=baseline_rtt,
-        target_bloat=target_bloat,
-        ssh_key=ssh_key,
-    )
+    result: tuple[float, float, float, float] | None = None
+    try:
+        optimal_download, download_bloat = binary_search_optimal_rate(
+            direction="download",
+            netperf_host=netperf_host,
+            ping_host=ping_host,
+            router_host=router_host,
+            router_user=router_user,
+            queue_name=download_queue,
+            min_rate=raw_download * 0.3,
+            max_rate=raw_download,
+            baseline_rtt=baseline_rtt,
+            target_bloat=target_bloat,
+            ssh_key=ssh_key,
+        )
 
-    # Check for user interrupt after download binary search
-    if is_shutdown_requested():
-        print("\n\nCalibration interrupted.")
-        # Reset queues before exit
-        print_step("Resetting queue limits...")
-        set_cake_limit(router_host, router_user, download_queue, 0, ssh_key)
-        set_cake_limit(router_host, router_user, upload_queue, 0, ssh_key)
+        if is_shutdown_requested():
+            print("\n\nCalibration interrupted.")
+        else:
+            time.sleep(3)
+            optimal_upload, upload_bloat = binary_search_optimal_rate(
+                direction="upload",
+                netperf_host=netperf_host,
+                ping_host=ping_host,
+                router_host=router_host,
+                router_user=router_user,
+                queue_name=upload_queue,
+                min_rate=raw_upload * 0.3,
+                max_rate=raw_upload,
+                baseline_rtt=baseline_rtt,
+                target_bloat=target_bloat,
+                ssh_key=ssh_key,
+            )
+            result = optimal_download, optimal_upload, download_bloat, upload_bloat
+    finally:
+        restored = _restore_queue_limits(
+            router_host,
+            router_user,
+            download_queue,
+            upload_queue,
+            ssh_key,
+        )
+
+    if not restored:
         return None
-
-    time.sleep(3)
-
-    # Binary search upload
-    optimal_upload, upload_bloat = binary_search_optimal_rate(
-        direction="upload",
-        netperf_host=netperf_host,
-        ping_host=ping_host,
-        router_host=router_host,
-        router_user=router_user,
-        queue_name=upload_queue,
-        min_rate=raw_upload * 0.3,
-        max_rate=raw_upload,
-        baseline_rtt=baseline_rtt,
-        target_bloat=target_bloat,
-        ssh_key=ssh_key,
-    )
-
-    # Reset queues to unshaped
-    print_step("Resetting queue limits...")
-    set_cake_limit(router_host, router_user, download_queue, 0, ssh_key)
-    set_cake_limit(router_host, router_user, upload_queue, 0, ssh_key)
-
-    return optimal_download, optimal_upload, download_bloat, upload_bloat
+    return result
 
 
 def _step_display_summary(result: CalibrationResult) -> None:
