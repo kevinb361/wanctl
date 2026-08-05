@@ -197,16 +197,22 @@ class TestDownsampleToGranularity:
         cursor = test_db.execute("SELECT value FROM metrics WHERE granularity = '1m'")
         assert cursor.fetchone()[0] == 0.0  # Most common: GREEN
 
+    def test_mode_tie_preserves_worst_state(self, test_db):
+        """Equal MODE counts retain the highest (worst) state value."""
+        now = int(time.time())
+        start = align_to_bucket(now - 7200, 60)
+        insert_metrics(test_db, "wanctl_state", "spectrum", [0.0, 0.0, 3.0, 3.0], start)
+
+        assert downsample_to_granularity(test_db, "raw", "1m", 60, now - 3600) == 1
+        value = test_db.execute("SELECT value FROM metrics WHERE granularity = '1m'").fetchone()[0]
+        assert value == 3.0
+
     def test_mode_aggregation_preserves_both_directional_state_names(self, test_db):
         """DL and UL state series downsample independently with MODE semantics."""
         now = int(time.time())
         start = align_to_bucket(now - 7200, 60)
-        insert_metrics(
-            test_db, "wanctl_state_download", "spectrum", [2.0, 2.0, 0.0], start
-        )
-        insert_metrics(
-            test_db, "wanctl_state_upload", "spectrum", [0.0, 0.0, 3.0], start
-        )
+        insert_metrics(test_db, "wanctl_state_download", "spectrum", [2.0, 2.0, 0.0], start)
+        insert_metrics(test_db, "wanctl_state_upload", "spectrum", [0.0, 0.0, 3.0], start)
 
         rows = downsample_to_granularity(test_db, "raw", "1m", 60, now - 3600)
 
@@ -266,6 +272,205 @@ class TestDownsampleToGranularity:
         rows = downsample_to_granularity(test_db, "raw", "1m", 60, now - 3600)
 
         assert rows == 2  # One bucket per metric
+
+    def test_canonical_labels_survive_all_tiers_without_repeat_duplicates(self, test_db):
+        """Mixed labeled series retain identity through repeated tier maintenance."""
+        start = align_to_bucket(int(time.time()) - (8 * 86400), 3600)
+        labeled_rows = [
+            (
+                start,
+                "spectrum",
+                "wanctl_cake_tin_delay_us",
+                10.0,
+                '{"tin":"Voice","direction":"download"}',
+                "raw",
+            ),
+            (
+                start + 1,
+                "spectrum",
+                "wanctl_cake_tin_delay_us",
+                20.0,
+                '{"direction": "download", "tin": "Voice"}',
+                "raw",
+            ),
+            (
+                start,
+                "spectrum",
+                "wanctl_cake_tin_delay_us",
+                30.0,
+                '{"tin":"Video","direction":"download"}',
+                "raw",
+            ),
+            (
+                start,
+                "spectrum",
+                "wanctl_cake_tin_delay_us",
+                40.0,
+                '{"tin":"BestEffort","direction":"download"}',
+                "raw",
+            ),
+            (
+                start,
+                "spectrum",
+                "wanctl_cake_tin_delay_us",
+                50.0,
+                '{"tin":"Bulk","direction":"download"}',
+                "raw",
+            ),
+            (start, "spectrum", "wanctl_cake_tin_delay_us", 60.0, None, "raw"),
+        ]
+        test_db.executemany(
+            """
+            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            labeled_rows,
+        )
+        test_db.commit()
+
+        transitions = [("raw", "1m", 60), ("1m", "5m", 300), ("5m", "1h", 3600)]
+        expected_labels = {
+            None,
+            '{"tin":"BestEffort"}',
+            '{"tin":"Bulk"}',
+            '{"tin":"Video"}',
+            '{"tin":"Voice"}',
+        }
+
+        for source, target, bucket_seconds in transitions:
+            cutoff = start + 7200
+            assert downsample_to_granularity(test_db, source, target, bucket_seconds, cutoff) == 5
+            assert downsample_to_granularity(test_db, source, target, bucket_seconds, cutoff) == 0
+            rows = test_db.execute(
+                """
+                SELECT labels, value
+                FROM metrics
+                WHERE metric_name = 'wanctl_cake_tin_delay_us'
+                  AND granularity = ?
+                """,
+                (target,),
+            ).fetchall()
+            assert len(rows) == 5
+            assert {labels for labels, _ in rows} == expected_labels
+            assert dict(rows)['{"tin":"Voice"}'] == 15.0
+
+    def test_two_key_state_identity_is_canonicalized(self, test_db):
+        """Equivalent two-key JSON identities share one canonical aggregate."""
+        start = align_to_bucket(int(time.time()) - 7200, 60)
+        test_db.executemany(
+            """
+            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, 'spectrum', 'wanctl_state', ?, ?, 'raw')
+            """,
+            [
+                (start, 3.0, '{"source":"bridge","direction":"download"}'),
+                (start + 1, 3.0, '{"direction":"download","source":"bridge"}'),
+            ],
+        )
+        test_db.commit()
+
+        assert downsample_to_granularity(test_db, "raw", "1m", 60, start + 120) == 1
+        row = test_db.execute(
+            "SELECT labels, value FROM metrics WHERE granularity = '1m'"
+        ).fetchone()
+        assert row == ('{"direction":"download","source":"bridge"}', 3.0)
+
+    def test_sqlite_row_factory_preserves_labeled_series(self, test_db):
+        """Production-style sqlite3.Row results remain compatible."""
+        test_db.row_factory = sqlite3.Row
+        start = align_to_bucket(int(time.time()) - 7200, 60)
+        test_db.executemany(
+            """
+            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, 'spectrum', 'wanctl_cake_tin_delay_us', ?, ?, 'raw')
+            """,
+            [
+                (start, 10.0, '{"tin":"Voice"}'),
+                (start, 30.0, '{"tin":"Video"}'),
+            ],
+        )
+        test_db.commit()
+
+        assert downsample_to_granularity(test_db, "raw", "1m", 60, start + 120) == 2
+        rows = test_db.execute(
+            "SELECT labels, value FROM metrics WHERE granularity = '1m' ORDER BY labels"
+        ).fetchall()
+        assert [(row["labels"], row["value"]) for row in rows] == [
+            ('{"tin":"Video"}', 30.0),
+            ('{"tin":"Voice"}', 10.0),
+        ]
+
+    def test_unbounded_reason_text_is_not_a_series_dimension(self, test_db):
+        """State reason details cannot inflate aggregate label cardinality."""
+        start = align_to_bucket(int(time.time()) - 7200, 60)
+        rows = [
+            (
+                start + index,
+                "spectrum",
+                "wanctl_state",
+                float(index % 2),
+                f'{{"direction":"download","reason":"delta {index}.0ms"}}',
+                "raw",
+            )
+            for index in range(60)
+        ]
+        test_db.executemany(
+            """
+            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+        test_db.commit()
+
+        assert downsample_to_granularity(test_db, "raw", "1m", 60, start + 120) == 1
+        aggregate = test_db.execute(
+            "SELECT labels FROM metrics WHERE granularity = '1m'"
+        ).fetchone()
+        assert aggregate[0] == '{"direction":"download"}'
+
+    def test_existing_target_identity_is_skipped_without_wedging(self, test_db, caplog):
+        """Late source cannot overwrite a target or block healthy aggregation."""
+        start = align_to_bucket(int(time.time()) - 7200, 300)
+        voice = '{"tin":"Voice"}'
+        video = '{"tin":"Video"}'
+        test_db.executemany(
+            """
+            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, 'spectrum', ?, ?, ?, ?)
+            """,
+            [
+                (start, "wanctl_cake_tin_delay_us", 10.0, voice, "raw"),
+                (start, "wanctl_cake_tin_delay_us", 30.0, video, "raw"),
+                (start, "wanctl_cake_tin_delay_us", 20.0, voice, "1m"),
+                (start, "wanctl_rtt_ms", 40.0, None, "raw"),
+            ],
+        )
+        test_db.commit()
+
+        assert downsample_to_granularity(test_db, "raw", "1m", 60, start + 120) == 2
+        assert "Skipping 1 existing 1m aggregate identities" in caplog.text
+        rows = test_db.execute(
+            """
+            SELECT metric_name, labels, value
+            FROM metrics
+            WHERE granularity = '1m'
+            ORDER BY metric_name, labels
+            """
+        ).fetchall()
+        assert rows == [
+            ("wanctl_cake_tin_delay_us", video, 30.0),
+            ("wanctl_cake_tin_delay_us", voice, 20.0),
+            ("wanctl_rtt_ms", None, 40.0),
+        ]
+        assert (
+            test_db.execute("SELECT COUNT(*) FROM metrics WHERE granularity = 'raw'").fetchone()[0]
+            == 0
+        )
+
+        # Repeated maintenance is a no-op, and lower-tier work still proceeds.
+        assert downsample_to_granularity(test_db, "raw", "1m", 60, start + 120) == 0
+        assert downsample_to_granularity(test_db, "1m", "5m", 300, start + 600) == 3
 
     def test_empty_database(self, test_db):
         """Test downsampling empty database returns 0."""
@@ -423,7 +628,7 @@ class TestDownsampleWatchdogSupport:
         cutoff = now - 3600
         downsample_to_granularity(test_db, "raw", "1m", 60, cutoff, watchdog_fn=watchdog)
 
-        assert watchdog.call_count == 2  # Once per metric/wan combination
+        assert watchdog.call_count >= 4  # Each bucket plus each metric/WAN combination
 
     def test_watchdog_fn_called_between_levels(self, test_db):
         """Test watchdog callback fires after each aggregation level."""

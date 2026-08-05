@@ -44,6 +44,14 @@ def _fixture(wan: str, direction: str = "download") -> str:
     return json.dumps(data)
 
 
+def _combined_fixture(wan: str) -> str:
+    download = json.loads(_fixture(wan, "download"))[0]
+    upload = json.loads(_fixture(wan, "upload"))[0]
+    download["dev"] = f"{wan}-download"
+    upload["dev"] = f"{wan}-upload"
+    return json.dumps([download, upload])
+
+
 def _completed(stdout: str, returncode: int = 0) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess([], returncode, stdout=stdout, stderr="")
 
@@ -77,7 +85,7 @@ def test_qdisc_snapshot_parses_representative_four_tin_fixture(
 
 
 @pytest.mark.parametrize("bridge", BRIDGES, ids=("spectrum", "att"))
-def test_build_state_uses_exactly_one_bounded_qdisc_read_per_direction(
+def test_build_state_uses_one_bounded_qdisc_read_for_both_directions(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, bridge: Path
 ) -> None:
     wan = _wan(bridge)
@@ -86,14 +94,16 @@ def test_build_state_uses_exactly_one_bounded_qdisc_read_per_direction(
 
     def run(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
         calls.append(command)
-        direction = "upload" if command[-1].endswith("upload") else "download"
-        return _completed(_fixture(wan, direction))
+        download = json.loads(_fixture(wan, "download"))[0]
+        upload = json.loads(_fixture(wan, "upload"))[0]
+        download["dev"] = f"{wan}-download"
+        upload["dev"] = f"{wan}-upload"
+        return _completed(json.dumps([download, upload]))
 
     monkeypatch.setattr(namespace["subprocess"], "run", run)
     state, _ = namespace["build_state"]((100_000_000, 20_000_000, "dl_idle", "ul_idle"), 0)
 
-    assert len(calls) == 2
-    assert all(command[:6] == ["tc", "-j", "-s", "qdisc", "show", "dev"] for command in calls)
+    assert calls == [["tc", "-j", "-s", "qdisc", "show"]]
     assert state["download"]["current_rate"] == RATES[wan]["download"]
     assert state["upload"]["current_rate"] == RATES[wan]["upload"]
     assert state["cake_stats"]["collection_ok"] is True
@@ -147,14 +157,15 @@ def test_bad_download_stats_do_not_suppress_or_stale_core_snapshot(
     }
     namespace["STATE"].write_text(json.dumps(old), encoding="utf-8")
 
-    def run(command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
-        if command[-1].endswith("upload"):
-            return _completed(_fixture(wan, "upload"))
+    def run(_command: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        entries = json.loads(_combined_fixture(wan))
         if failure == "short-tins":
-            data = json.loads(_fixture(wan))
-            data[0]["tins"] = data[0]["tins"][:1]
-            return _completed(json.dumps(data))
-        return _completed(failure)
+            entries[0]["tins"] = entries[0]["tins"][:1]
+        elif failure == "not-json":
+            entries[0]["packets"] = "not-a-number"
+        else:
+            entries.pop(0)
+        return _completed(json.dumps(entries))
 
     monkeypatch.setattr(namespace["subprocess"], "run", run)
     state, _ = namespace["build_state"]((123_000_000, 17_000_000, "dl_idle", "ul_idle"), 4)
@@ -197,9 +208,7 @@ def test_counter_decrease_is_visible_per_tin(
     monkeypatch.setattr(
         namespace["subprocess"],
         "run",
-        lambda command, **_kwargs: _completed(
-            _fixture(wan, "upload" if command[-1].endswith("upload") else "download")
-        ),
+        lambda _command, **_kwargs: _completed(_combined_fixture(wan)),
     )
 
     state, _ = namespace["build_state"]((1, 1, "dl_idle", "ul_idle"), 0)

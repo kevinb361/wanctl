@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import re
@@ -24,6 +25,9 @@ LOG = Path(
     )
 )
 STATE = Path(os.environ.get("WANCTL_EXTERNAL_STATE_PATH", f"/var/lib/wanctl/{WAN_NAME}_state.json"))
+STATE_PARENT = STATE.parent
+STATE_PARENT_STRING = str(STATE_PARENT)
+STATE_TEMP_PREFIX = f"{WAN_NAME}_state."
 METRICS_DB = Path(
     os.environ.get("WANCTL_EXTERNAL_METRICS_DB", f"/var/lib/wanctl/metrics-{WAN_NAME}.db")
 )
@@ -33,6 +37,8 @@ METRICS_ENABLED = os.environ.get("WANCTL_EXTERNAL_METRICS_ENABLED", "1") not in 
     "False",
     "no",
 }
+_METRICS_CONN: sqlite3.Connection | None = None
+_METRICS_IDENTITY: tuple[int, int] | None = None
 
 
 @contextmanager
@@ -87,29 +93,8 @@ def _nonnegative_int(value) -> int:
     return parsed
 
 
-def qdisc_snapshot(dev: str) -> tuple[dict | None, str | None]:
-    """Read rate and all four diffserv4 tins with one bounded tc invocation."""
+def _snapshot_from_cake(dev: str, cake: dict) -> tuple[dict | None, str | None]:
     try:
-        result = subprocess.run(
-            ["tc", "-j", "-s", "qdisc", "show", "dev", dev],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=2,
-        )
-    except subprocess.TimeoutExpired:
-        return None, "timeout"
-    except OSError:
-        return None, "exec_error"
-    if result.returncode != 0:
-        return None, "tc_error"
-    try:
-        entries = json.loads(result.stdout)
-        if not isinstance(entries, list):
-            raise TypeError("qdisc result is not a list")
-        cake = next(
-            entry for entry in entries if isinstance(entry, dict) and entry.get("kind") == "cake"
-        )
         raw_tins = cake.get("tins")
         if not isinstance(raw_tins, list) or len(raw_tins) != len(TIN_NAMES):
             return None, "invalid_tins"
@@ -135,8 +120,71 @@ def qdisc_snapshot(dev: str) -> tuple[dict | None, str | None]:
             "backlog_bytes": _nonnegative_int(cake.get("backlog", 0)),
             "tins": tins,
         }, None
-    except (StopIteration, TypeError, ValueError, json.JSONDecodeError):
+    except (TypeError, ValueError):
         return None, "malformed_json"
+
+
+def qdisc_snapshot(dev: str) -> tuple[dict | None, str | None]:
+    """Read one interface's CAKE snapshot with one bounded tc invocation."""
+    try:
+        result = subprocess.run(
+            ["tc", "-j", "-s", "qdisc", "show", "dev", dev],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+    except subprocess.TimeoutExpired:
+        return None, "timeout"
+    except OSError:
+        return None, "exec_error"
+    if result.returncode != 0:
+        return None, "tc_error"
+    try:
+        entries = json.loads(result.stdout)
+        if not isinstance(entries, list):
+            raise TypeError("qdisc result is not a list")
+        cake = next(
+            entry for entry in entries if isinstance(entry, dict) and entry.get("kind") == "cake"
+        )
+    except (StopIteration, TypeError, json.JSONDecodeError):
+        return None, "malformed_json"
+    return _snapshot_from_cake(dev, cake)
+
+
+def qdisc_snapshots(devices: tuple[str, ...]) -> dict[str, tuple[dict | None, str | None]]:
+    """Read all requested interfaces through one bounded, unscoped tc snapshot."""
+    try:
+        result = subprocess.run(
+            ["tc", "-j", "-s", "qdisc", "show"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+    except subprocess.TimeoutExpired:
+        return {dev: (None, "timeout") for dev in devices}
+    except OSError:
+        return {dev: (None, "exec_error") for dev in devices}
+    if result.returncode != 0:
+        return {dev: (None, "tc_error") for dev in devices}
+    try:
+        entries = json.loads(result.stdout)
+        if not isinstance(entries, list):
+            raise TypeError("qdisc result is not a list")
+    except (TypeError, json.JSONDecodeError):
+        return {dev: (None, "malformed_json") for dev in devices}
+
+    cakes: dict[object, dict] = {}
+    for entry in entries:
+        if isinstance(entry, dict) and entry.get("kind") == "cake":
+            cakes.setdefault(entry.get("dev"), entry)
+    return {
+        dev: _snapshot_from_cake(dev, cakes[dev])
+        if dev in cakes
+        else (None, "malformed_json")
+        for dev in devices
+    }
 
 
 def mark_counter_resets(current: dict, previous: dict | None) -> None:
@@ -161,12 +209,30 @@ def mark_counter_resets(current: dict, previous: dict | None) -> None:
                 tin["counter_reset"] = False
 
 
-def previous_cake_directions() -> dict:
+_READ_PREVIOUS_STATE = object()
+_PREVIOUS_STATE_CACHE: object = _READ_PREVIOUS_STATE
+
+
+def previous_state_snapshot() -> object:
+    global _PREVIOUS_STATE_CACHE
+    if _PREVIOUS_STATE_CACHE is not _READ_PREVIOUS_STATE:
+        return _PREVIOUS_STATE_CACHE
     try:
-        old = json.loads(STATE.read_text(encoding="utf-8"))
-        directions = (old.get("cake_stats") or {}).get("directions") or {}
+        _PREVIOUS_STATE_CACHE = json.loads(STATE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        _PREVIOUS_STATE_CACHE = {}
+    return _PREVIOUS_STATE_CACHE
+
+
+def previous_cake_directions(previous_state: object = _READ_PREVIOUS_STATE) -> dict:
+    if previous_state is _READ_PREVIOUS_STATE:
+        previous_state = previous_state_snapshot()
+    if not isinstance(previous_state, dict):
+        return {}
+    try:
+        directions = (previous_state.get("cake_stats") or {}).get("directions") or {}
         return directions if isinstance(directions, dict) else {}
-    except (OSError, AttributeError, json.JSONDecodeError):
+    except AttributeError:
         return {}
 
 
@@ -181,17 +247,15 @@ def rates_from_row(kind: str, parts: list[str]) -> tuple[int, int, str, str] | N
     return None
 
 
-def latest_parsed_row() -> tuple[int, int, str, str] | None:
-    try:
-        with LOG.open("rb") as f:
-            f.seek(0, os.SEEK_END)
-            end = f.tell()
-            f.seek(max(0, end - 5_000_000))
-            data = f.read().decode("utf-8", "replace")
-    except FileNotFoundError:
-        return None
+_LOG_IDENTITY: tuple[int, int] | None = None
+_LOG_OFFSET = 0
+_LOG_PARTIAL = b""
+_LOG_ANCHOR = b""
+_LATEST_PARSED_ROW: tuple[int, int, str, str] | None = None
 
-    for line in reversed(data.splitlines()):
+
+def _latest_from_lines(lines: list[str]) -> tuple[int, int, str, str] | None:
+    for line in reversed(lines):
         match = LINE_RE.match(line)
         if not match:
             continue
@@ -201,14 +265,79 @@ def latest_parsed_row() -> tuple[int, int, str, str] | None:
     return None
 
 
-def old_rtt() -> tuple[float, float]:
+def latest_parsed_row() -> tuple[int, int, str, str] | None:
+    """Return the latest summary while reading only bytes appended since the last poll."""
+    global _LATEST_PARSED_ROW, _LOG_ANCHOR, _LOG_IDENTITY, _LOG_OFFSET, _LOG_PARTIAL
     try:
-        old = json.loads(STATE.read_text(encoding="utf-8"))
-        ewma = old.get("ewma") or {}
+        with LOG.open("rb") as f:
+            stat = os.fstat(f.fileno())
+            identity = (stat.st_dev, stat.st_ino)
+            reset = identity != _LOG_IDENTITY or stat.st_size < _LOG_OFFSET
+            if not reset and _LOG_ANCHOR:
+                f.seek(_LOG_OFFSET - len(_LOG_ANCHOR))
+                reset = f.read(len(_LOG_ANCHOR)) != _LOG_ANCHOR
+            if reset:
+                scan_limit = max(0, stat.st_size - 5_000_000)
+                scan_size = min(4_096, stat.st_size - scan_limit)
+                data = b""
+                parsed = None
+                while True:
+                    scan_start = max(scan_limit, stat.st_size - scan_size)
+                    if scan_start > 0:
+                        f.seek(scan_start - 1)
+                        starts_at_boundary = f.read(1) in {b"\n", b"\r"}
+                    else:
+                        f.seek(0)
+                        starts_at_boundary = True
+                    data = f.read(stat.st_size - scan_start)
+                    lines = data.decode("utf-8", "replace").splitlines()
+                    if not starts_at_boundary and lines:
+                        lines = lines[1:]
+                    parsed = _latest_from_lines(lines)
+                    if parsed is not None or len(data) >= stat.st_size - scan_limit:
+                        break
+                    scan_size = min(stat.st_size - scan_limit, scan_size * 4)
+                _LOG_IDENTITY = identity
+                _LOG_OFFSET = stat.st_size
+                _LOG_PARTIAL = b""
+                _LOG_ANCHOR = data[-128:]
+                _LATEST_PARSED_ROW = parsed
+                return _LATEST_PARSED_ROW
+            if stat.st_size == _LOG_OFFSET:
+                return _LATEST_PARSED_ROW
+            f.seek(_LOG_OFFSET)
+            appended = f.read(stat.st_size - _LOG_OFFSET)
+            data = _LOG_PARTIAL + appended
+            _LOG_OFFSET = stat.st_size
+            _LOG_ANCHOR = (_LOG_ANCHOR + appended)[-128:]
+    except FileNotFoundError:
+        return None
+
+    if data.endswith((b"\n", b"\r")):
+        complete, _LOG_PARTIAL = data, b""
+    else:
+        split_at = max(data.rfind(b"\n"), data.rfind(b"\r"))
+        if split_at < 0:
+            _LOG_PARTIAL = data
+            return _LATEST_PARSED_ROW
+        complete, _LOG_PARTIAL = data[: split_at + 1], data[split_at + 1 :]
+    parsed = _latest_from_lines(complete.decode("utf-8", "replace").splitlines())
+    if parsed is not None:
+        _LATEST_PARSED_ROW = parsed
+    return _LATEST_PARSED_ROW
+
+
+def old_rtt(previous_state: object = _READ_PREVIOUS_STATE) -> tuple[float, float]:
+    if previous_state is _READ_PREVIOUS_STATE:
+        previous_state = previous_state_snapshot()
+    if not isinstance(previous_state, dict):
+        return DEFAULT_BASELINE_RTT, DEFAULT_BASELINE_RTT
+    try:
+        ewma = previous_state.get("ewma") or {}
         baseline = float(ewma.get("baseline_rtt", DEFAULT_BASELINE_RTT))
         load = float(ewma.get("load_rtt", baseline))
         return baseline, load
-    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+    except (AttributeError, TypeError, ValueError):
         return DEFAULT_BASELINE_RTT, DEFAULT_BASELINE_RTT
 
 
@@ -266,8 +395,10 @@ def measure_rtt_ms() -> float | None:
     return float(statistics.median(samples))
 
 
-def update_rtt(dl_state: str, ul_state: str) -> tuple[float, float, str | None]:
-    baseline, previous_load = old_rtt()
+def update_rtt(
+    dl_state: str, ul_state: str, previous_state: object = _READ_PREVIOUS_STATE
+) -> tuple[float, float, str | None]:
+    baseline, previous_load = old_rtt(previous_state)
     measured = measure_rtt_ms()
     if measured is None:
         return baseline, previous_load, None
@@ -289,15 +420,30 @@ def update_rtt(dl_state: str, ul_state: str) -> tuple[float, float, str | None]:
 
 
 def write_state(state: dict) -> None:
-    STATE.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(prefix=f"{WAN_NAME}_state.", suffix=".tmp", dir=str(STATE.parent))
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        json.dump(state, f, separators=(",", ":"))
-        f.write("\n")
+    global _PREVIOUS_STATE_CACHE
+    payload = (json.dumps(state, separators=(",", ":")) + "\n").encode("utf-8")
+    try:
+        fd, tmp = tempfile.mkstemp(
+            prefix=STATE_TEMP_PREFIX, suffix=".tmp", dir=STATE_PARENT_STRING
+        )
+    except FileNotFoundError:
+        STATE_PARENT.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(
+            prefix=STATE_TEMP_PREFIX, suffix=".tmp", dir=STATE_PARENT_STRING
+        )
+    try:
+        written = os.write(fd, payload)
+        while written < len(payload):
+            chunk_size = os.write(fd, payload[written:])
+            if chunk_size == 0:
+                raise OSError("state payload write made no progress")
+            written += chunk_size
+    finally:
+        os.close(fd)
     if CHOWN_STATE:
         os.chown(tmp, WANCTL_UID, WANCTL_GID)
-    os.chmod(tmp, 0o600)
     os.replace(tmp, STATE)
+    _PREVIOUS_STATE_CACHE = state
 
 
 def ensure_metrics_schema(conn: sqlite3.Connection) -> None:
@@ -321,6 +467,44 @@ def ensure_metrics_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_metrics_granularity_time ON metrics(granularity, timestamp)"
     )
+
+
+def close_metrics_connection() -> None:
+    global _METRICS_CONN, _METRICS_IDENTITY
+    if _METRICS_CONN is not None:
+        _METRICS_CONN.close()
+    _METRICS_CONN = None
+    _METRICS_IDENTITY = None
+
+
+def metrics_connection() -> sqlite3.Connection:
+    """Return a durable connection, reopening if the database path was replaced."""
+    global _METRICS_CONN, _METRICS_IDENTITY
+    try:
+        stat = METRICS_DB.stat()
+        identity = (stat.st_dev, stat.st_ino)
+    except FileNotFoundError:
+        identity = None
+    if _METRICS_CONN is not None and identity == _METRICS_IDENTITY:
+        return _METRICS_CONN
+    close_metrics_connection()
+    METRICS_DB.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(METRICS_DB, timeout=30)
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        ensure_metrics_schema(conn)
+        conn.commit()
+    except Exception:
+        conn.close()
+        raise
+    stat = METRICS_DB.stat()
+    _METRICS_CONN = conn
+    _METRICS_IDENTITY = (stat.st_dev, stat.st_ino)
+    return conn
+
+
+atexit.register(close_metrics_connection)
 
 
 def write_metrics(state: dict) -> None:
@@ -356,14 +540,12 @@ def write_metrics(state: dict) -> None:
             "raw",
         ),
     ]
-    METRICS_DB.parent.mkdir(parents=True, exist_ok=True)
     # Retry loop for concurrent writes with wanctl@spectrum writer.
     # Uses exponential backoff: 0.1s, 0.2s, 0.4s, 0.8s, 1.6s (max 5 attempts).
     for attempt in range(5):
         try:
-            with open_metrics_db() as conn:
-                conn.execute("PRAGMA journal_mode=WAL")
-                ensure_metrics_schema(conn)
+            conn = metrics_connection()
+            with conn:
                 conn.executemany(
                     """
                     INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
@@ -376,6 +558,7 @@ def write_metrics(state: dict) -> None:
             if "locked" in str(exc).lower() and attempt < 4:
                 time.sleep(0.1 * (2**attempt))  # exponential backoff
                 continue
+            close_metrics_connection()
             raise  # non-lock error or max retries exceeded
 
 
@@ -390,9 +573,11 @@ def status_to_state(status: str) -> str:
 
 def build_state(parsed: tuple[int, int, str, str], green_streak: int) -> tuple[dict, int]:
     parsed_dl_rate_bps, parsed_ul_rate_bps, dl_status, ul_status = parsed
-    previous_directions = previous_cake_directions()
-    dl_stats, dl_error = qdisc_snapshot(DL_IF)
-    ul_stats, ul_error = qdisc_snapshot(UL_IF)
+    previous_state = previous_state_snapshot()
+    previous_directions = previous_cake_directions(previous_state)
+    snapshots = qdisc_snapshots((DL_IF, UL_IF))
+    dl_stats, dl_error = snapshots[DL_IF]
+    ul_stats, ul_error = snapshots[UL_IF]
     if dl_stats:
         mark_counter_resets(dl_stats, previous_directions.get("download"))
     if ul_stats:
@@ -401,7 +586,7 @@ def build_state(parsed: tuple[int, int, str, str], green_streak: int) -> tuple[d
     ul_rate_bps = (ul_stats or {}).get("rate_bps") or parsed_ul_rate_bps
     dl_state = status_to_state(dl_status)
     ul_state = status_to_state(ul_status)
-    baseline, load, rtt_backend = update_rtt(dl_state, ul_state)
+    baseline, load, rtt_backend = update_rtt(dl_state, ul_state, previous_state)
     next_green_streak = green_streak + 1 if dl_state == "GREEN" and ul_state == "GREEN" else 0
     return (
         {
@@ -565,59 +750,25 @@ def downsample_raw_to_1m() -> None:
         return
     cutoff = int(time.time()) - 3600  # 1 hour
     try:
-        with open_metrics_db() as conn:
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute("BEGIN")
-
-            # Find distinct metric/wan combinations to downsample
+        conn = metrics_connection()
+        with conn:
             cursor = conn.execute(
-                "SELECT DISTINCT metric_name, wan_name FROM metrics "
-                "WHERE granularity='raw' AND timestamp < ?",
+                """
+                INSERT INTO metrics
+                    (timestamp, wan_name, metric_name, value, labels, granularity)
+                SELECT timestamp - (timestamp % 60),
+                       wan_name,
+                       metric_name,
+                       AVG(value),
+                       '{"downsampled_from":' || COUNT(*) || '}',
+                       '1m'
+                FROM metrics
+                WHERE granularity = 'raw' AND timestamp < ?
+                GROUP BY wan_name, metric_name, timestamp - (timestamp % 60)
+                """,
                 (cutoff,),
             )
-            combinations = cursor.fetchall()
-            total_created = 0
-
-            for metric_name, wan_name in combinations:
-                cursor = conn.execute(
-                    "SELECT MIN(timestamp), MAX(timestamp) FROM metrics "
-                    "WHERE metric_name=? AND wan_name=? AND granularity='raw' AND timestamp < ?",
-                    (metric_name, wan_name, cutoff),
-                )
-                time_range = cursor.fetchone()
-                if not time_range or time_range[0] is None:
-                    continue
-                min_ts, max_ts = time_range
-
-                # Align bucket start to 60-second boundary
-                bucket_start = (min_ts // 60) * 60
-
-                while bucket_start <= max_ts:
-                    bucket_end = bucket_start + 60
-                    cursor = conn.execute(
-                        "SELECT COUNT(*), AVG(value), MIN(value), MAX(value) FROM metrics "
-                        "WHERE metric_name=? AND wan_name=? AND granularity='raw' "
-                        "AND timestamp >= ? AND timestamp < ?",
-                        (metric_name, wan_name, bucket_start, bucket_end),
-                    )
-                    row = cursor.fetchone()
-                    if row and row[0] > 0:
-                        count, avg_val, min_val, max_val = row
-                        # Only create aggregate if there's meaningful data
-                        if avg_val is not None:
-                            conn.execute(
-                                "INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity) "
-                                "VALUES (?, ?, ?, ?, ?, '1m')",
-                                (
-                                    bucket_start,
-                                    wan_name,
-                                    metric_name,
-                                    avg_val,
-                                    json.dumps({"downsampled_from": count}, separators=(",", ":")),
-                                ),
-                            )
-                            total_created += 1
-                    bucket_start = bucket_end
+            total_created = cursor.rowcount
 
             # Delete raw data that has been aggregated
             cur = conn.execute(
