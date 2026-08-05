@@ -17,6 +17,7 @@ import logging
 from statistics import mean, quantiles, stdev
 
 from wanctl.tuning.models import SafetyBounds, TuningResult
+from wanctl.tuning.state_samples import state_rows_for_direction
 
 logger = logging.getLogger(__name__)
 
@@ -39,48 +40,30 @@ _MIN_SUB_WINDOW_SAMPLES = 10
 
 
 def _extract_green_deltas(metrics_data: list[dict]) -> list[float]:
-    """Extract RTT delta values from timestamps where state was GREEN.
-
-    In 1m aggregated data, wanctl_state uses MODE aggregation (most common
-    state in the minute).  State value 0.0 = GREEN (majority of minute).
-
-    Builds two dicts keyed by timestamp, then returns delta values where
-    the corresponding state is GREEN.
-    """
-    state_by_ts: dict[int, float] = {}
-    delta_by_ts: dict[int, float] = {}
-
-    for row in metrics_data:
-        ts = row["timestamp"]
-        name = row["metric_name"]
-        val = row["value"]
-        if name == "wanctl_state":
-            state_by_ts[ts] = val
-        elif name == "wanctl_rtt_delta_ms":
-            delta_by_ts[ts] = val
-
+    """Extract RTT delta values from timestamps where download state was GREEN."""
+    state_by_ts = {
+        row["timestamp"]: row["value"] for row in state_rows_for_direction(metrics_data, "download")
+    }
+    delta_by_ts = {
+        row["timestamp"]: row["value"]
+        for row in metrics_data
+        if row["metric_name"] == "wanctl_rtt_delta_ms"
+    }
     return [delta_by_ts[ts] for ts in delta_by_ts if state_by_ts.get(ts) == STATE_GREEN]
 
 
 def _extract_green_deltas_with_timestamps(
     metrics_data: list[dict],
 ) -> tuple[list[float], list[int]]:
-    """Extract GREEN-state RTT deltas and their timestamps.
-
-    Same logic as _extract_green_deltas but also returns the matched
-    timestamps for convergence sub-windowing.
-    """
-    state_by_ts: dict[int, float] = {}
-    delta_by_ts: dict[int, float] = {}
-
-    for row in metrics_data:
-        ts = row["timestamp"]
-        name = row["metric_name"]
-        val = row["value"]
-        if name == "wanctl_state":
-            state_by_ts[ts] = val
-        elif name == "wanctl_rtt_delta_ms":
-            delta_by_ts[ts] = val
+    """Extract GREEN download-state RTT deltas and their timestamps."""
+    state_by_ts = {
+        row["timestamp"]: row["value"] for row in state_rows_for_direction(metrics_data, "download")
+    }
+    delta_by_ts = {
+        row["timestamp"]: row["value"]
+        for row in metrics_data
+        if row["metric_name"] == "wanctl_rtt_delta_ms"
+    }
 
     deltas: list[float] = []
     timestamps: list[int] = []

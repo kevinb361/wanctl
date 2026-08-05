@@ -137,6 +137,58 @@ class TestMeasureCongestionRateFiltering:
         assert rate == 0.0  # All 12 state samples are GREEN
 
     @patch("wanctl.tuning.safety.query_metrics")
+    def test_labeled_identities_use_one_download_sample_per_timestamp(self, mock_qm) -> None:
+        """Upload and steering identities cannot inflate or contaminate the rate."""
+        from wanctl.tuning.safety import measure_congestion_rate
+
+        rows = []
+        for i in range(10):
+            timestamp = 1000 + i * 60
+            rows.extend(
+                [
+                    _make_metric_row(
+                        timestamp=timestamp,
+                        value=2.0 if i < 3 else 0.0,
+                        labels='{"direction":"download"}',
+                    ),
+                    _make_metric_row(
+                        timestamp=timestamp,
+                        value=3.0,
+                        labels='{"direction":"upload"}',
+                    ),
+                    _make_metric_row(
+                        timestamp=timestamp,
+                        value=2.0,
+                        labels='{"source":"steering"}',
+                    ),
+                ]
+            )
+
+        mock_qm.return_value = rows
+        rate = measure_congestion_rate("/tmp/test.db", "Spectrum", 1000, 2000)
+        assert rate == pytest.approx(0.3)
+
+    @patch("wanctl.tuning.safety.query_metrics")
+    def test_download_label_outranks_legacy_row_at_same_timestamp(self, mock_qm) -> None:
+        """A transition boundary cannot double-count legacy and labeled rows."""
+        from wanctl.tuning.safety import measure_congestion_rate
+
+        rows = []
+        for i in range(10):
+            timestamp = 1000 + i * 60
+            rows.append(_make_metric_row(timestamp=timestamp, value=3.0))
+            rows.append(
+                _make_metric_row(
+                    timestamp=timestamp,
+                    value=0.0,
+                    labels='{"direction":"download"}',
+                )
+            )
+
+        mock_qm.return_value = rows
+        assert measure_congestion_rate("/tmp/test.db", "Spectrum", 1000, 2000) == 0.0
+
+    @patch("wanctl.tuning.safety.query_metrics")
     def test_mixed_states_counted_correctly(self, mock_qm) -> None:
         from wanctl.tuning.safety import measure_congestion_rate
 

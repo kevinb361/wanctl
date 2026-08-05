@@ -22,6 +22,7 @@ from typing import Any
 
 from wanctl.tuning.models import SafetyBounds, TuningResult
 from wanctl.tuning.safety import lock_parameter
+from wanctl.tuning.state_samples import state_rows_for_direction
 
 logger = logging.getLogger(__name__)
 
@@ -80,18 +81,7 @@ class RecoveryEpisode:
 
 def _state_rows_for_direction(metrics_data: list[dict], direction: str) -> list[dict]:
     """Return direction-specific state rows, with legacy fallback for old history."""
-    metric_name = f"wanctl_state_{direction}"
-    directional = [row for row in metrics_data if row["metric_name"] == metric_name]
-    if directional:
-        return directional
-    if any(
-        row["metric_name"] in {"wanctl_state_download", "wanctl_state_upload"}
-        for row in metrics_data
-    ):
-        # New-format history is present. No rows for this direction means no
-        # directional evidence, not permission to borrow the sibling series.
-        return []
-    return [row for row in metrics_data if row["metric_name"] == "wanctl_state"]
+    return state_rows_for_direction(metrics_data, direction)
 
 
 def _detect_recovery_episodes(

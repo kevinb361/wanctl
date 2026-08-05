@@ -16,6 +16,7 @@ from pathlib import Path
 
 from wanctl.storage.reader import query_metrics
 from wanctl.tuning.models import TuningResult
+from wanctl.tuning.state_samples import state_rows_for_direction
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +71,7 @@ def measure_congestion_rate(
         granularity="1m",
     )
 
-    # Defensive filter: only wanctl_state rows
-    state_values = [row["value"] for row in rows if row["metric_name"] == "wanctl_state"]
+    state_values = [row["value"] for row in state_rows_for_direction(rows, "download")]
 
     if len(state_values) < MIN_OBSERVATION_SAMPLES:
         return None

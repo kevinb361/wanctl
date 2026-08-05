@@ -128,6 +128,46 @@ class TestExtractGreenDeltas:
         # 50% of 100 = 50 GREEN timestamps
         assert len(result) == 50
 
+    def test_labeled_state_rows_select_download_deterministically(self) -> None:
+        """Upload and steering rows cannot overwrite download state by timestamp."""
+        from wanctl.tuning.strategies.congestion_thresholds import (
+            _extract_green_deltas,
+        )
+
+        metrics = []
+        for i in range(10):
+            timestamp = 1000 + i * 60
+            metrics.extend(
+                [
+                    {
+                        "timestamp": timestamp,
+                        "metric_name": "wanctl_rtt_delta_ms",
+                        "value": float(i),
+                        "labels": None,
+                    },
+                    {
+                        "timestamp": timestamp,
+                        "metric_name": "wanctl_state",
+                        "value": 0.0 if i < 5 else 3.0,
+                        "labels": '{"direction":"download"}',
+                    },
+                    {
+                        "timestamp": timestamp,
+                        "metric_name": "wanctl_state",
+                        "value": 3.0,
+                        "labels": '{"direction":"upload"}',
+                    },
+                    {
+                        "timestamp": timestamp,
+                        "metric_name": "wanctl_state",
+                        "value": 2.0,
+                        "labels": '{"source":"steering"}',
+                    },
+                ]
+            )
+
+        assert _extract_green_deltas(metrics) == [0.0, 1.0, 2.0, 3.0, 4.0]
+
     def test_returns_empty_when_no_green_state(self) -> None:
         """Test 2: Returns empty list when no GREEN-state timestamps exist."""
         from wanctl.tuning.strategies.congestion_thresholds import (
