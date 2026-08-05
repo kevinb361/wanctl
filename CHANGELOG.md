@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **REM-014:** Made history reads continuous across observed raw/1m/5m/1h series frontiers instead of nominal retention ages, including semantic label identity, deterministic global pagination/counting, tier-isolated CLI summaries, and downsample-before-cleanup maintenance ordering with safe startup deferral.
 - **REM-013:** Preserved bounded canonical metric identities through every downsampling tier, including distinct CAKE tins; made collision handling idempotent, retained cutoff-straddling source rows for the next complete bucket, kept categorical MODE ties safety-biased, collapsed redundant WAN-zone labels, and made tuning consumers deterministically select one download state per timestamp.
 - **External-mode canary validation:** Post-deploy checks now recognize the cake-autorate state-bridge health contract, requiring available RTT measurements, state freshness within 15 seconds, and valid per-direction states instead of native-only summary/storage fields.
 - **Direction-aware tuning history:** Congestion safety, threshold calibration, and response analysis now select one download state identity per timestamp, prefer labeled download rows over legacy unlabeled rows, and exclude upload/steering identities from mixed `wanctl_state` history.

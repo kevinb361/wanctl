@@ -89,7 +89,7 @@ def _identity_label_keys(metric_name: str) -> tuple[str, ...]:
     return _IDENTITY_LABEL_KEYS.get(metric_name, ())
 
 
-def _canonicalize_labels(
+def canonicalize_series_labels(
     metric_name: str,
     labels: str | None,
     identity_cache: dict[tuple[tuple[str, object], ...], str] | None = None,
@@ -260,7 +260,9 @@ def _group_labeled_avg_buckets(
         if labels in label_cache:
             identity = label_cache[labels]
         else:
-            identity = _canonicalize_labels(metric_name, labels, identity_cache, identity_keys)
+            identity = canonicalize_series_labels(
+                metric_name, labels, identity_cache, identity_keys
+            )
             if len(label_cache) < 128:
                 label_cache[labels] = identity
         series = accumulators.get(bucket_start)
@@ -431,7 +433,9 @@ def _group_source_buckets(
             identity = label_cache[labels]
             label_cache_hits = 1
         else:
-            identity = _canonicalize_labels(metric_name, labels, identity_cache, identity_keys)
+            identity = canonicalize_series_labels(
+                metric_name, labels, identity_cache, identity_keys
+            )
             if label_cache is not None:
                 if len(label_cache) < 128:
                     label_cache[labels] = identity
@@ -483,7 +487,7 @@ def _load_target_identities(
         (wan_name, metric_name, to_granularity, first_bucket, last_bucket),
     )
     for timestamp, labels in rows:
-        identities.setdefault(timestamp, set()).add(_canonicalize_labels(metric_name, labels))
+        identities.setdefault(timestamp, set()).add(canonicalize_series_labels(metric_name, labels))
     return identities
 
 

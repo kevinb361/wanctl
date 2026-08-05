@@ -31,7 +31,7 @@ from wanctl.runtime_pressure import (
     build_storage_section as build_storage_status_section,
 )
 from wanctl.storage.db_utils import discover_wan_dbs, query_all_wans
-from wanctl.storage.reader import count_metrics, query_metrics, select_granularity
+from wanctl.storage.reader import count_metrics, query_metrics
 from wanctl.storage.writer import DEFAULT_DB_PATH
 
 # Default: warn when less than 100MB free on data partition
@@ -1068,8 +1068,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             to_ts=params.get("to"),
         )
 
-        # Select granularity automatically
-        granularity = select_granularity(start_ts, end_ts)
+        retention_reference_ts = int(time.time())
 
         offset = params.get("offset", 0)
         limit = params.get("limit", 1000)
@@ -1082,7 +1081,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 end_ts=end_ts,
                 metrics=params.get("metrics"),
                 wan=params.get("wan"),
-                granularity=granularity,
+                retention_reference_ts=retention_reference_ts,
             )
             paginated = query_metrics(
                 db_path=db_paths[0],
@@ -1090,7 +1089,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 end_ts=end_ts,
                 metrics=params.get("metrics"),
                 wan=params.get("wan"),
-                granularity=granularity,
+                retention_reference_ts=retention_reference_ts,
                 limit=limit,
                 offset=offset,
             )
@@ -1102,7 +1101,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 end_ts=end_ts,
                 metrics=params.get("metrics"),
                 wan=params.get("wan"),
-                granularity=granularity,
+                retention_reference_ts=retention_reference_ts,
             )
             if getattr(merged_results, "all_failed", False):
                 self._send_json_error(503, "All metrics databases failed to read")
@@ -1122,7 +1121,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             "metadata": {
                 "total_count": total_count,
                 "returned_count": len(formatted_data),
-                "granularity": granularity,
+                "granularity": "mixed",
                 "limit": limit,
                 "offset": offset,
                 "source": {

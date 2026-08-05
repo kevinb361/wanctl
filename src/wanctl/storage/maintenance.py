@@ -39,14 +39,13 @@ def maintenance_lock_path(db_path: Path | str) -> Path:
     return db_path.with_name(f".{db_path.name}.maintenance.lock")
 
 
-
 def _try_acquire_maintenance_lock(lock_path: Path) -> bool:
     """Acquire the shared maintenance lock, cleaning up stale holders quietly."""
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     for _ in range(2):
         try:
             fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-            with os.fdopen(fd, 'w') as lock_file:
+            with os.fdopen(fd, "w") as lock_file:
                 lock_file.write(f"{os.getpid()}\n")
             return True
         except OSError as e:
@@ -99,18 +98,15 @@ def run_startup_maintenance(
     is deferred to periodic maintenance where time pressure is lower.
 
     When ``max_seconds`` is provided, startup maintenance treats that as a
-    hard startup budget. Cleanup still runs with the budget because it is
-    batched and can bail out safely. Downsampling is deferred to periodic
-    maintenance because partial downsampling is not currently resumable
-    mid-combination without risking duplicate aggregates or long pre-health
-    startup stalls.
+    hard startup budget and defers both downsampling and cleanup. Deleting a
+    source tier while its aggregation is deferred would create history gaps.
 
     Args:
         conn: SQLite connection (from MetricsWriter.connection)
         retention_days: Retention period for cleanup (used when retention_config is None)
         log: Optional logger (uses module logger if None)
         watchdog_fn: Optional callback to ping between steps (e.g. systemd watchdog)
-        max_seconds: Optional time budget for cleanup (passed to cleanup_old_metrics)
+        max_seconds: Optional startup budget; when set, maintenance is deferred
         retention_config: Optional per-granularity retention thresholds dict.
             If provided, overrides retention_days for cleanup and builds custom
             downsample thresholds.
@@ -129,43 +125,18 @@ def run_startup_maintenance(
     }
 
     try:
-        # 1. Cleanup old metrics beyond retention period
-        if retention_config is not None:
-            deleted = cleanup_old_metrics(
-                conn,
-                watchdog_fn=watchdog_fn,
-                max_seconds=max_seconds,
-                retention_config=retention_config,
-            )
-        else:
-            deleted = cleanup_old_metrics(
-                conn,
-                retention_days,
-                watchdog_fn=watchdog_fn,
-                max_seconds=max_seconds,
-            )
-        result["cleanup_deleted"] = deleted
-
-        if watchdog_fn is not None:
-            watchdog_fn()
-
-        # 2. VACUUM intentionally skipped at startup
-        # VACUUM is uninterruptible and can exceed watchdog timeout on large DBs.
-        # Deferred to periodic maintenance where pings continue between steps.
-
-        # 3. Downsample metrics at each level.
-        # Startup callers may impose a hard time budget to keep health/watchdog
-        # surfaces reachable. Cleanup can honor that budget safely; downsampling
-        # cannot yet stop mid-combination without risking duplicate aggregates,
-        # so defer it to periodic maintenance when a startup budget is active.
+        # A bounded startup cannot safely delete source tiers while deferring
+        # their aggregation. Defer both operations to periodic maintenance.
         if max_seconds is not None:
             log.info(
-                "Startup maintenance: deferring downsampling to periodic maintenance "
-                "because startup time budget %.1fs is active",
+                "Startup maintenance: deferring downsampling and cleanup to periodic "
+                "maintenance because startup time budget %.1fs is active",
                 max_seconds,
             )
-            downsampling = {}
+            deleted = 0
+            downsampling: dict[str, int] = {}
         else:
+            # Aggregate source tiers before cleanup applies the same age cutoffs.
             if retention_config is not None:
                 custom_thresholds = get_downsample_thresholds(
                     raw_age_seconds=retention_config["raw_age_seconds"],
@@ -175,12 +146,27 @@ def run_startup_maintenance(
                 downsampling = downsample_metrics(
                     conn, watchdog_fn=watchdog_fn, thresholds=custom_thresholds
                 )
+                deleted = cleanup_old_metrics(
+                    conn,
+                    watchdog_fn=watchdog_fn,
+                    retention_config=retention_config,
+                )
             else:
                 downsampling = downsample_metrics(conn, watchdog_fn=watchdog_fn)
+                deleted = cleanup_old_metrics(
+                    conn,
+                    retention_days,
+                    watchdog_fn=watchdog_fn,
+                )
+
         result["downsampling"] = downsampling
+        result["cleanup_deleted"] = deleted
 
         if watchdog_fn is not None:
             watchdog_fn()
+
+        # VACUUM intentionally skipped at startup. It is uninterruptible and
+        # can exceed watchdog timeout on large DBs; periodic maintenance owns it.
 
         # Log summary if any work was done
         total_downsampled = sum(downsampling.values())

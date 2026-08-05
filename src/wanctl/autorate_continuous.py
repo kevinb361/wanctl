@@ -112,7 +112,9 @@ def _log_startup_config(config: "Config", logger: logging.Logger) -> None:
     logger.info(f"Ping: hosts={config.ping_hosts}, median-of-three={config.use_median_of_three}")
 
 
-def _create_wan_components(config: "Config", logger: logging.Logger) -> tuple[Any, RttBackendHandle]:
+def _create_wan_components(
+    config: "Config", logger: logging.Logger
+) -> tuple[Any, RttBackendHandle]:
     """Create router backend and RTT measurement for a WAN.
 
     Validates transport/cake_params compatibility and selects the appropriate
@@ -381,7 +383,9 @@ def _init_storage(
                 if maint_result.get("error"):
                     startup_logger.warning(f"Startup maintenance error: {maint_result['error']}")
             else:
-                startup_logger.info("Startup storage: maintenance lock busy, skipping startup maintenance")
+                startup_logger.info(
+                    "Startup storage: maintenance lock busy, skipping startup maintenance"
+                )
                 record_storage_maintenance_lock_skip("autorate")
 
     return maintenance_conn, maintenance_retention_config, maintenance_interval_seconds
@@ -632,7 +636,9 @@ def _run_maintenance(
             from wanctl.storage.maintenance import maintenance_lock
             from wanctl.storage.retention import cleanup_old_metrics, vacuum_if_needed
 
-            db_path = get_storage_config(controller.wan_controllers[0]["config"].data).get("db_path")
+            db_path = get_storage_config(controller.wan_controllers[0]["config"].data).get(
+                "db_path"
+            )
             if not isinstance(db_path, str):
                 return
 
@@ -641,22 +647,26 @@ def _run_maintenance(
                     record_storage_maintenance_lock_skip("autorate")
                     return
 
-                deleted = cleanup_old_metrics(
-                    maintenance_conn,
-                    retention_config=maintenance_retention_config,
-                    watchdog_fn=notify_watchdog,
-                )
-                notify_watchdog()
-
                 custom_thresholds = get_downsample_thresholds(
                     raw_age_seconds=maintenance_retention_config["raw_age_seconds"],
-                    aggregate_1m_age_seconds=maintenance_retention_config["aggregate_1m_age_seconds"],
-                    aggregate_5m_age_seconds=maintenance_retention_config["aggregate_5m_age_seconds"],
+                    aggregate_1m_age_seconds=maintenance_retention_config[
+                        "aggregate_1m_age_seconds"
+                    ],
+                    aggregate_5m_age_seconds=maintenance_retention_config[
+                        "aggregate_5m_age_seconds"
+                    ],
                 )
                 downsampled = downsample_metrics(
                     maintenance_conn,
                     watchdog_fn=notify_watchdog,
                     thresholds=custom_thresholds,
+                )
+                notify_watchdog()
+
+                deleted = cleanup_old_metrics(
+                    maintenance_conn,
+                    retention_config=maintenance_retention_config,
+                    watchdog_fn=notify_watchdog,
                 )
                 notify_watchdog()
 
@@ -877,11 +887,13 @@ def _analyze_and_apply_tuning(
                     end_ts=int(time.time()),
                 )
                 if pre_rate is not None:
-                    wc.set_pending_observation(PendingObservation(
-                        applied_ts=int(time.time()),
-                        pre_congestion_rate=pre_rate,
-                        applied_results=tuple(applied),
-                    ))
+                    wc.set_pending_observation(
+                        PendingObservation(
+                            applied_ts=int(time.time()),
+                            pre_congestion_rate=pre_rate,
+                            applied_results=tuple(applied),
+                        )
+                    )
         else:
             wan_info["logger"].info(
                 "[TUNING] %s: no adjustments needed",
@@ -1347,8 +1359,8 @@ def main() -> int | None:
         controller = ContinuousAutoRate(args.config, debug=args.debug)
         _configure_controller_flags(controller, args)
         controller.wan_controllers[0]["logger"].info("Startup stage: entering _init_storage")
-        maintenance_conn, maintenance_retention_config, maintenance_interval_seconds = _init_storage(
-            controller
+        maintenance_conn, maintenance_retention_config, maintenance_interval_seconds = (
+            _init_storage(controller)
         )
         controller.wan_controllers[0]["logger"].info("Startup stage: _init_storage complete")
 
@@ -1372,9 +1384,13 @@ def main() -> int | None:
         atexit.register(emergency_lock_cleanup)
         register_signal_handlers()
 
-        controller.wan_controllers[0]["logger"].info("Startup stage: starting metrics/health servers")
+        controller.wan_controllers[0]["logger"].info(
+            "Startup stage: starting metrics/health servers"
+        )
         metrics_server, health_server = _start_servers(controller)
-        controller.wan_controllers[0]["logger"].info("Startup stage: metrics/health servers started")
+        controller.wan_controllers[0]["logger"].info(
+            "Startup stage: metrics/health servers started"
+        )
         irtt_thread = _start_irtt_thread(controller)
         io_worker = _setup_daemon_state(controller, irtt_thread)
 

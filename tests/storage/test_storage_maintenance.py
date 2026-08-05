@@ -45,7 +45,7 @@ class TestRunStartupMaintenance:
 
         result = run_startup_maintenance(test_db, retention_days=7)
 
-        assert result["cleanup_deleted"] == 100
+        assert result["cleanup_deleted"] > 0
         cursor = test_db.execute("SELECT COUNT(*) FROM metrics")
         assert cursor.fetchone()[0] == 0
 
@@ -148,11 +148,45 @@ class TestRunStartupMaintenance:
 
         # With 2-day retention, data should be deleted
         result = run_startup_maintenance(test_db, retention_days=2)
-        assert result["cleanup_deleted"] == 50
+        assert result["cleanup_deleted"] > 0
+        assert test_db.execute("SELECT COUNT(*) FROM metrics").fetchone()[0] == 0
 
 
 class TestMaintenanceIntegration:
     """Integration tests for maintenance workflow."""
+
+    def test_per_tier_cleanup_cannot_delete_raw_before_aggregation(self, test_db):
+        """Matching raw retention/downsample cutoffs still create 1m history."""
+        now = int(time.time())
+        start = ((now - 7200) // 60) * 60
+        rows = [(start + i, "spectrum", "wanctl_rtt_ms", 20.0, None, "raw") for i in range(60)]
+        test_db.executemany(
+            """
+            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+        test_db.commit()
+
+        result = run_startup_maintenance(
+            test_db,
+            retention_config={
+                "raw_age_seconds": 3600,
+                "aggregate_1m_age_seconds": 86400,
+                "aggregate_5m_age_seconds": 604800,
+            },
+        )
+
+        assert result["downsampling"]["raw->1m"] == 1
+        assert (
+            test_db.execute("SELECT COUNT(*) FROM metrics WHERE granularity = '1m'").fetchone()[0]
+            == 1
+        )
+        assert (
+            test_db.execute("SELECT COUNT(*) FROM metrics WHERE granularity = 'raw'").fetchone()[0]
+            == 0
+        )
 
     def test_full_maintenance_cycle(self, test_db):
         """Test full cleanup + downsample cycle."""
@@ -175,8 +209,8 @@ class TestMaintenanceIntegration:
 
         result = run_startup_maintenance(test_db, retention_days=7)
 
-        # Old data deleted
-        assert result["cleanup_deleted"] == 50
+        # Old data was aggregated first, then its expired aggregate was deleted.
+        assert result["cleanup_deleted"] > 0
 
         # Raw data downsampled
         assert result["downsampling"].get("raw->1m", 0) >= 1
@@ -201,15 +235,15 @@ class TestStartupMaintenanceWatchdog:
     """Tests for watchdog-aware startup maintenance."""
 
     def test_watchdog_fn_called_between_steps(self, test_db):
-        """Test watchdog callback is called between cleanup and downsample."""
+        """Test watchdog callback is called across downsample and cleanup."""
         watchdog = MagicMock()
         # Insert old data to trigger cleanup
         insert_test_metrics(test_db, 100, days_old=10)
 
         result = run_startup_maintenance(test_db, retention_days=7, watchdog_fn=watchdog)
 
-        assert result["cleanup_deleted"] == 100
-        # Called: between batches in cleanup + after cleanup + after downsample
+        assert result["cleanup_deleted"] > 0
+        # Called during downsampling, cleanup batches, and after maintenance work.
         assert watchdog.call_count >= 2
 
     def test_watchdog_fn_called_even_with_no_work(self, test_db):
@@ -222,27 +256,25 @@ class TestStartupMaintenanceWatchdog:
         # Still called after cleanup step and after downsample step
         assert watchdog.call_count >= 2
 
-    def test_max_seconds_passed_to_cleanup(self, test_db):
-        """Test time budget is forwarded to cleanup_old_metrics."""
+    def test_max_seconds_defers_destructive_cleanup(self, test_db):
+        """A bounded startup cannot delete rows it deferred aggregating."""
         with patch("wanctl.storage.maintenance.cleanup_old_metrics") as mock_cleanup:
-            mock_cleanup.return_value = 0
+            result = run_startup_maintenance(test_db, max_seconds=15)
 
-            run_startup_maintenance(test_db, max_seconds=15)
-
-            mock_cleanup.assert_called_once()
-            _, kwargs = mock_cleanup.call_args
-            assert kwargs.get("max_seconds") == 15
+        assert result["cleanup_deleted"] == 0
+        mock_cleanup.assert_not_called()
 
     def test_max_seconds_defers_downsample(self, test_db):
         """Startup time budget skips downsampling to keep startup bounded."""
         with (
-            patch("wanctl.storage.maintenance.cleanup_old_metrics", return_value=0),
+            patch("wanctl.storage.maintenance.cleanup_old_metrics", return_value=0) as mock_cleanup,
             patch("wanctl.storage.maintenance.downsample_metrics") as mock_downsample,
         ):
             result = run_startup_maintenance(test_db, max_seconds=15)
 
         assert result["downsampling"] == {}
         mock_downsample.assert_not_called()
+        mock_cleanup.assert_not_called()
 
     def test_watchdog_fn_passed_to_cleanup(self, test_db):
         """Test watchdog callback is forwarded to cleanup_old_metrics."""
@@ -262,7 +294,7 @@ class TestStartupMaintenanceWatchdog:
         result = run_startup_maintenance(test_db, retention_days=7, watchdog_fn=None)
 
         assert result["error"] is None
-        assert result["cleanup_deleted"] == 50
+        assert result["cleanup_deleted"] > 0
 
 
 class TestIncrementalVacuum:
@@ -340,8 +372,12 @@ class TestStartupMaintenanceRetentionConfig:
         }
         with (
             patch("wanctl.storage.maintenance.cleanup_old_metrics", return_value=0),
-            patch("wanctl.storage.maintenance.downsample_metrics", return_value={}) as mock_downsample,
-            patch("wanctl.storage.maintenance.get_downsample_thresholds", return_value={"test": {}}) as mock_get_thresholds,
+            patch(
+                "wanctl.storage.maintenance.downsample_metrics", return_value={}
+            ) as mock_downsample,
+            patch(
+                "wanctl.storage.maintenance.get_downsample_thresholds", return_value={"test": {}}
+            ) as mock_get_thresholds,
         ):
             run_startup_maintenance(test_db, retention_config=retention_config)
 
@@ -370,7 +406,9 @@ class TestStartupMaintenanceRetentionConfig:
         """Without retention_config, downsample_metrics is called without custom thresholds."""
         with (
             patch("wanctl.storage.maintenance.cleanup_old_metrics", return_value=0),
-            patch("wanctl.storage.maintenance.downsample_metrics", return_value={}) as mock_downsample,
+            patch(
+                "wanctl.storage.maintenance.downsample_metrics", return_value={}
+            ) as mock_downsample,
         ):
             run_startup_maintenance(test_db, retention_days=7)
 
@@ -410,7 +448,9 @@ def _build_controller(logger: MagicMock | None = None) -> SimpleNamespace:
         wan_controllers=[
             {
                 "logger": logger or MagicMock(spec=logging.Logger),
-                "config": SimpleNamespace(data={"storage": {"db_path": "/tmp/test-maintenance.db"}}),
+                "config": SimpleNamespace(
+                    data={"storage": {"db_path": "/tmp/test-maintenance.db"}}
+                ),
             }
         ]
     )
@@ -442,7 +482,9 @@ def _run_maintenance_with_mocks(
     if isinstance(downsample_side_effect, (BaseException, list)):
         downsample_mock.side_effect = downsample_side_effect
     else:
-        downsample_mock.return_value = downsample_side_effect if downsample_side_effect is not None else {}
+        downsample_mock.return_value = (
+            downsample_side_effect if downsample_side_effect is not None else {}
+        )
 
     vacuum_mock = MagicMock()
     if isinstance(vacuum_side_effect, (BaseException, list)):
@@ -451,7 +493,10 @@ def _run_maintenance_with_mocks(
         vacuum_mock.return_value = vacuum_side_effect
 
     with (
-        patch("wanctl.storage.maintenance.maintenance_lock", side_effect=lambda *_args, **_kwargs: _acquired_lock()),
+        patch(
+            "wanctl.storage.maintenance.maintenance_lock",
+            side_effect=lambda *_args, **_kwargs: _acquired_lock(),
+        ),
         patch("wanctl.storage.retention.cleanup_old_metrics", cleanup_mock),
         patch("wanctl.storage.downsampler.get_downsample_thresholds", return_value={"raw->1m": {}}),
         patch("wanctl.storage.downsampler.downsample_metrics", downsample_mock),

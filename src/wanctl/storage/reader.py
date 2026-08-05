@@ -11,9 +11,20 @@ import sqlite3
 from pathlib import Path
 from statistics import mean, quantiles
 
+from wanctl.storage.downsampler import canonicalize_series_labels
 from wanctl.storage.writer import DEFAULT_DB_PATH
 
 logger = logging.getLogger(__name__)
+
+
+def _register_reader_functions(conn: sqlite3.Connection) -> None:
+    """Register deterministic series-identity normalization for mixed tiers."""
+    conn.create_function(
+        "canonical_series_labels",
+        2,
+        canonicalize_series_labels,
+        deterministic=True,
+    )
 
 
 def _build_metrics_filter_sql(
@@ -54,6 +65,69 @@ def _build_metrics_filter_sql(
     return sql, params
 
 
+def _available_tier_query_sql(filtered_where_sql: str) -> tuple[str, str]:
+    """Build a mixed-tier query from observed per-series coverage.
+
+    Retention cutoffs are intentionally not duplicated here. Maintenance is
+    asynchronous and bucket-aligned, so nominal ages can hide source rows
+    before their aggregate exists. The filtered rows are scanned once to find
+    each tier's observed start for a WAN/metric/canonical-label series.
+    """
+    cte_sql = f"""
+        WITH filtered_metrics AS (
+            SELECT
+                *,
+                canonical_series_labels(metric_name, labels) AS series_labels
+            {filtered_where_sql}
+        ),
+        tier_starts AS (
+            SELECT
+                wan_name,
+                metric_name,
+                series_labels,
+                MIN(CASE WHEN granularity = 'raw' THEN timestamp END) AS raw_start,
+                MIN(CASE WHEN granularity = '1m' THEN timestamp END) AS one_minute_start,
+                MIN(CASE WHEN granularity = '5m' THEN timestamp END) AS five_minute_start
+            FROM filtered_metrics
+            GROUP BY wan_name, metric_name, series_labels
+        )
+    """
+    available_from_sql = """
+        FROM filtered_metrics AS metrics
+        JOIN tier_starts AS starts
+          ON starts.wan_name = metrics.wan_name
+         AND starts.metric_name = metrics.metric_name
+         AND starts.series_labels IS metrics.series_labels
+        WHERE
+            metrics.granularity = 'raw'
+            OR (
+                metrics.granularity = '1m'
+                AND (starts.raw_start IS NULL OR metrics.timestamp < starts.raw_start)
+            )
+            OR (
+                metrics.granularity = '5m'
+                AND (starts.raw_start IS NULL OR metrics.timestamp < starts.raw_start)
+                AND (
+                    starts.one_minute_start IS NULL
+                    OR metrics.timestamp < starts.one_minute_start
+                )
+            )
+            OR (
+                metrics.granularity = '1h'
+                AND (starts.raw_start IS NULL OR metrics.timestamp < starts.raw_start)
+                AND (
+                    starts.one_minute_start IS NULL
+                    OR metrics.timestamp < starts.one_minute_start
+                )
+                AND (
+                    starts.five_minute_start IS NULL
+                    OR metrics.timestamp < starts.five_minute_start
+                )
+            )
+    """
+    return cte_sql, available_from_sql
+
+
 def query_metrics(
     db_path: Path | str = DEFAULT_DB_PATH,
     start_ts: int | None = None,
@@ -63,6 +137,8 @@ def query_metrics(
     granularity: str | None = None,
     limit: int | None = None,
     offset: int = 0,
+    *,
+    retention_reference_ts: int | None = None,
 ) -> list[dict]:
     """Query metrics from the database with optional filters.
 
@@ -77,6 +153,8 @@ def query_metrics(
         granularity: Data granularity to filter (raw, 1m, 5m, 1h)
         limit: Maximum number of rows to return.
         offset: Number of rows to skip before returning results.
+        retention_reference_ts: Enable availability-based mixed-tier selection. The
+            timestamp is retained for API compatibility; observed rows define boundaries.
 
     Returns:
         List of dicts with keys: timestamp, wan_name, metric_name, value, labels, granularity
@@ -93,6 +171,7 @@ def query_metrics(
         # Open read-only connection
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
         conn.row_factory = sqlite3.Row
+        _register_reader_functions(conn)
     except sqlite3.OperationalError as e:
         logger.warning("Failed to open database: %s", e)
         return []
@@ -106,11 +185,22 @@ def query_metrics(
             wan=wan,
             granularity=granularity,
         )
-        sql = (
-            "SELECT timestamp, wan_name, metric_name, value, labels, granularity "
-            + where_sql
-            + " ORDER BY timestamp DESC"
-        )
+        if retention_reference_ts is not None:
+            if granularity is not None:
+                raise ValueError("granularity and retention_reference_ts are mutually exclusive")
+            cte_sql, available_from_sql = _available_tier_query_sql(where_sql)
+            sql = (
+                cte_sql + " SELECT metrics.timestamp, metrics.wan_name, metrics.metric_name, "
+                "metrics.value, metrics.labels, metrics.granularity "
+                + available_from_sql
+                + " ORDER BY metrics.timestamp DESC, metrics.granularity ASC, metrics.id DESC"
+            )
+        else:
+            sql = (
+                "SELECT timestamp, wan_name, metric_name, value, labels, granularity "
+                + where_sql
+                + " ORDER BY timestamp DESC, granularity ASC, id DESC"
+            )
 
         if limit is not None:
             sql += " LIMIT ?"
@@ -471,6 +561,8 @@ def count_metrics(
     metrics: list[str] | None = None,
     wan: str | None = None,
     granularity: str | None = None,
+    *,
+    retention_reference_ts: int | None = None,
 ) -> int:
     """Count metrics rows matching the provided filters."""
     db_path = Path(db_path)
@@ -481,6 +573,7 @@ def count_metrics(
 
     try:
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        _register_reader_functions(conn)
     except sqlite3.OperationalError as e:
         logger.warning("Failed to open database: %s", e)
         return 0
@@ -493,7 +586,13 @@ def count_metrics(
             wan=wan,
             granularity=granularity,
         )
-        sql = "SELECT COUNT(*) " + where_sql
+        if retention_reference_ts is not None:
+            if granularity is not None:
+                raise ValueError("granularity and retention_reference_ts are mutually exclusive")
+            cte_sql, available_from_sql = _available_tier_query_sql(where_sql)
+            sql = cte_sql + " SELECT COUNT(*) " + available_from_sql
+        else:
+            sql = "SELECT COUNT(*) " + where_sql
         row = conn.execute(sql, params).fetchone()
         return int(row[0]) if row is not None else 0
     except sqlite3.OperationalError as e:

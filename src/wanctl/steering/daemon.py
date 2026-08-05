@@ -174,9 +174,7 @@ def _parse_failover_config(
         return {}
 
     result: dict[str, dict[str, Any]] = {}
-    per_wan_items = [
-        (wan_name, cfg) for wan_name, cfg in failover.items() if isinstance(cfg, dict)
-    ]
+    per_wan_items = [(wan_name, cfg) for wan_name, cfg in failover.items() if isinstance(cfg, dict)]
 
     # Prefer the per-WAN shape whenever mapping values exist. This keeps WANs
     # literally named "wan" or "enabled" from being mistaken for flat keys.
@@ -470,9 +468,7 @@ class SteeringConfig(BaseConfig):
             failover = {}
 
         # Parse into per-WAN config (shared with _reload_route_management_config)
-        self.failover_config = _parse_failover_config(
-            failover, default_wan=self.primary_wan
-        )
+        self.failover_config = _parse_failover_config(failover, default_wan=self.primary_wan)
 
         # Keep legacy flat attributes for backward compat with existing code
         # that checks self.failover_enabled etc. during reload.
@@ -1563,9 +1559,7 @@ class SteeringDaemon:
                 congestion_state = primary_state
                 source_failed = False
             else:
-                congestion_state, source_failed = self._get_wan_congestion_state_with_fail(
-                    wan_name
-                )
+                congestion_state, source_failed = self._get_wan_congestion_state_with_fail(wan_name)
 
             # RTT failure override: if consecutive failures >= threshold, emit RED.
             # This handles complete WAN outages where RTT measurement fails entirely.
@@ -2075,9 +2069,7 @@ class SteeringDaemon:
                 return True
 
             changed = (
-                self.router.enable_steering()
-                if desired_enabled
-                else self.router.disable_steering()
+                self.router.enable_steering() if desired_enabled else self.router.disable_steering()
             )
             if not changed:
                 self.router_connectivity.record_failure(
@@ -2097,9 +2089,7 @@ class SteeringDaemon:
             return True
         except Exception as exc:
             failure_type = self.router_connectivity.record_failure(exc)
-            self.logger.warning(
-                "Startup steering reconciliation failed closed (%s)", failure_type
-            )
+            self.logger.warning("Startup steering reconciliation failed closed (%s)", failure_type)
             return False
 
     def is_wan_grace_period_active(self) -> bool:
@@ -2749,7 +2739,10 @@ class SteeringDaemon:
             self._record_profiling(cake_timer.elapsed_ms, rtt_timer.elapsed_ms, 0.0, cycle_start)
             # Still run failover bridge — RTT failure may trigger failover.
             # Route abort check first though.
-            if self.config.route_management_enabled and self.config.route_management_mode == "active":
+            if (
+                self.config.route_management_enabled
+                and self.config.route_management_mode == "active"
+            ):
                 self._check_route_abort()
             self._process_failover_bridge()
             return False
@@ -3078,7 +3071,9 @@ def run_daemon_loop(
         logger.info("Systemd watchdog support enabled")
 
     if not daemon.reconcile_steering_rule():
-        logger.warning("Startup steering-rule reconciliation did not converge; continuing fail closed")
+        logger.warning(
+            "Startup steering-rule reconciliation did not converge; continuing fail closed"
+        )
 
     storage_config = get_storage_config(config.data)
     maintenance_db_path = storage_config.get("db_path") if maintenance_conn is not None else None
@@ -3261,13 +3256,6 @@ def _run_steering_maintenance(
             return
 
         try:
-            deleted = cleanup_old_metrics(
-                maintenance_conn,
-                retention_config=retention_config,
-                watchdog_fn=notify_watchdog,
-            )
-            notify_watchdog()
-
             if isinstance(retention_config, dict):
                 thresholds = get_downsample_thresholds(
                     raw_age_seconds=retention_config["raw_age_seconds"],
@@ -3281,6 +3269,13 @@ def _run_steering_maintenance(
                 )
             else:
                 downsampled = downsample_metrics(maintenance_conn, watchdog_fn=notify_watchdog)
+            notify_watchdog()
+
+            deleted = cleanup_old_metrics(
+                maintenance_conn,
+                retention_config=retention_config,
+                watchdog_fn=notify_watchdog,
+            )
             notify_watchdog()
 
             vacuumed = vacuum_if_needed(maintenance_conn, deleted, watchdog_fn=notify_watchdog)

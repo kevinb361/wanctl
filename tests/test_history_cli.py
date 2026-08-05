@@ -259,6 +259,20 @@ class TestFormatSummary:
         summary = format_summary(results)
         assert "2 samples" in summary
 
+    def test_mixed_tiers_are_summarized_separately(self):
+        """Raw samples and aggregate values never share one distribution."""
+        results = [
+            {"metric_name": "wanctl_rtt_ms", "value": 10.0, "granularity": "raw"},
+            {"metric_name": "wanctl_rtt_ms", "value": 20.0, "granularity": "raw"},
+            {"metric_name": "wanctl_rtt_ms", "value": 100.0, "granularity": "1m"},
+        ]
+
+        summary = format_summary(results)
+
+        assert "wanctl_rtt_ms [raw] (2 samples)" in summary
+        assert "wanctl_rtt_ms [1m] (1 samples)" in summary
+        assert summary.count("avg:") == 2
+
 
 # =============================================================================
 # ARGUMENT PARSER TESTS
@@ -902,9 +916,7 @@ class TestIngestionRateCli:
         assert payload["window"]["window_seconds"] == end - start
         assert payload["totals"]["row_count"] == 30
         assert payload["totals"]["wan_count"] == 1
-        assert payload["totals"]["rows_per_sec"] == pytest.approx(
-            30 / (end - start), rel=0.01
-        )
+        assert payload["totals"]["rows_per_sec"] == pytest.approx(30 / (end - start), rel=0.01)
         assert isinstance(payload["wans"], list)
         assert len(payload["wans"]) == 1
         row = payload["wans"][0]
@@ -920,9 +932,7 @@ class TestIngestionRateCli:
         ):
             assert required in row
 
-    def test_ingestion_rate_wan_filter_restricts_iteration(
-        self, tmp_path, monkeypatch, capsys
-    ):
+    def test_ingestion_rate_wan_filter_restricts_iteration(self, tmp_path, monkeypatch, capsys):
         """--wan spectrum with spectrum+att DBs emits only a spectrum row."""
         MetricsWriter._reset_instance()
         spectrum_db = tmp_path / "metrics-spectrum.db"

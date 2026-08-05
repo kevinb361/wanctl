@@ -30,7 +30,6 @@ from wanctl.storage.reader import (
     compute_summary,
     count_metrics,
     query_metrics,
-    select_granularity,
 )
 from wanctl.storage.writer import DEFAULT_DB_PATH
 
@@ -200,19 +199,28 @@ def format_summary(results: list[dict]) -> str:
     Returns:
         Formatted summary string
     """
-    # Group results by metric name
-    groups: dict[str, list[float]] = {}
-    for r in results:
-        name = r["metric_name"]
-        if name not in groups:
-            groups[name] = []
-        groups[name].append(r["value"])
+    # Never pool rows that represent different time widths. Mixed-tier
+    # history is continuous, but its raw and aggregate rows are not equally
+    # weighted samples and must be summarized independently.
+    groups: dict[tuple[str, str | None], list[float]] = {}
+    tiers_by_metric: dict[str, set[str | None]] = {}
+    for row in results:
+        metric_name = row["metric_name"]
+        granularity = row.get("granularity")
+        groups.setdefault((metric_name, granularity), []).append(row["value"])
+        tiers_by_metric.setdefault(metric_name, set()).add(granularity)
 
     output_lines = []
+    tier_order = {"raw": 0, "1m": 1, "5m": 2, "1h": 3, None: 4}
 
-    for metric_name in sorted(groups.keys()):
-        values = groups[metric_name]
-        output_lines.append(f"\n{metric_name} ({len(values)} samples)")
+    for (metric_name, granularity), values in sorted(
+        groups.items(),
+        key=lambda item: (item[0][0], tier_order.get(item[0][1], 5)),
+    ):
+        tier_suffix = (
+            f" [{granularity or 'unknown'}]" if len(tiers_by_metric[metric_name]) > 1 else ""
+        )
+        output_lines.append(f"\n{metric_name}{tier_suffix} ({len(values)} samples)")
         output_lines.append("-" * 40)
 
         # Check if this is a state metric (values are small integers representing states)
@@ -689,9 +697,7 @@ def _parse_rolling_seconds(rolling: str) -> list[int]:
     try:
         rolling_secs = [int(s.strip()) for s in rolling.split(",") if s.strip()]
     except ValueError as exc:
-        raise argparse.ArgumentTypeError(
-            "--rolling values must be positive integers"
-        ) from exc
+        raise argparse.ArgumentTypeError("--rolling values must be positive integers") from exc
     if any(window_sec <= 0 for window_sec in rolling_secs):
         raise argparse.ArgumentTypeError("--rolling values must be positive integers")
     if len(rolling_secs) > 16:
@@ -699,9 +705,7 @@ def _parse_rolling_seconds(rolling: str) -> list[int]:
     return rolling_secs
 
 
-def _resolve_rolling_windows(
-    args: argparse.Namespace, now: int
-) -> list[tuple[int, int, int]]:
+def _resolve_rolling_windows(args: argparse.Namespace, now: int) -> list[tuple[int, int, int]]:
     """Resolve ingestion-rate windows, optionally from --rolling seconds."""
     if args.rolling:
         return [
@@ -938,7 +942,6 @@ def _handle_special_query(
         return _handle_ingestion_rate_query(args, db_paths, start_ts, end_ts)
 
     if args.tins:
-        granularity = select_granularity(start_ts, end_ts)
         results = query_all_wans(
             query_metrics,
             db_paths=db_paths,
@@ -946,7 +949,7 @@ def _handle_special_query(
             end_ts=end_ts,
             metrics=PER_TIN_METRICS,
             wan=args.wan,
-            granularity=granularity,
+            retention_reference_ts=int(time.time()),
         )
         if getattr(results, "all_failed", False):
             print("All metrics databases failed to read.", file=sys.stderr)
@@ -973,9 +976,7 @@ def _handle_special_query(
         if not results:
             print("No tuning adjustments found for the specified time range.")
             return 0
-        print(
-            format_tuning_json(results) if args.json_output else format_tuning_table(results)
-        )
+        print(format_tuning_json(results) if args.json_output else format_tuning_table(results))
         return 0
 
     if args.alerts:
@@ -994,9 +995,7 @@ def _handle_special_query(
         if not results:
             print("No alerts found for the specified time range.")
             return 0
-        print(
-            format_alerts_json(results) if args.json_output else format_alerts_table(results)
-        )
+        print(format_alerts_json(results) if args.json_output else format_alerts_table(results))
         return 0
 
     return None
@@ -1042,10 +1041,8 @@ def main() -> int:
     if args.metrics:
         metrics_list = [m.strip() for m in args.metrics.split(",")]
 
-    # Select granularity automatically
-    granularity = select_granularity(start_ts, end_ts)
-
-    # Query metrics across the resolved database set.
+    # Query metrics across the resolved database set using non-overlapping
+    # retention tiers rather than choosing one tier for the entire range.
     results = query_all_wans(
         query_metrics,
         db_paths=db_paths,
@@ -1053,7 +1050,7 @@ def main() -> int:
         end_ts=end_ts,
         metrics=metrics_list,
         wan=args.wan,
-        granularity=granularity,
+        retention_reference_ts=int(time.time()),
     )
     if getattr(results, "all_failed", False):
         print("All metrics databases failed to read.", file=sys.stderr)

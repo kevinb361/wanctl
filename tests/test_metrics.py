@@ -58,6 +58,7 @@ from wanctl.storage.reader import (
     query_metrics,
     select_granularity,
 )
+from wanctl.storage.schema import create_tables
 from wanctl.storage.writer import MetricsWriter
 
 
@@ -461,7 +462,6 @@ class TestMetricsHandler:
         assert exc_info.value.code == 404
         exc_info.value.close()
 
-
     def test_metrics_endpoint_invokes_scrape_callbacks(self, running_server):
         """Test /metrics executes registered scrape callbacks before exposition."""
         _, port = running_server
@@ -524,7 +524,10 @@ class TestRecordAutorateCycle:
 
         # Check cycle counter
         assert metrics.get_counter(METRIC_CYCLES_TOTAL, {"wan": "spectrum"}) == 1
-        assert metrics.get_gauge(METRIC_BURST_ACTIVE, {"wan": "spectrum", "direction": "download"}) == 0.0
+        assert (
+            metrics.get_gauge(METRIC_BURST_ACTIVE, {"wan": "spectrum", "direction": "download"})
+            == 0.0
+        )
 
     def test_record_autorate_cycle_rtt_delta_clamps_to_zero(self):
         """Test RTT delta is clamped to 0 when load < baseline."""
@@ -1682,6 +1685,216 @@ class TestQueryMetricsPagination:
         assert offset_result == full_result[5:10]
 
 
+class TestRetentionAwareHistory:
+    """Mixed-tier history uses strict, duplicate-free retention boundaries."""
+
+    @pytest.fixture
+    def tiered_db(self, tmp_path):
+        db_path = tmp_path / "tiered.db"
+        conn = sqlite3.connect(db_path)
+        create_tables(conn)
+        now = 2_000_000_000
+        rows = [
+            (now - 600, "spectrum", "wanctl_rtt_ms", 1.0, None, "raw"),
+            (now - 900, "spectrum", "wanctl_rtt_ms", 2.0, None, "raw"),
+            (now - 900, "spectrum", "wanctl_rtt_ms", 20.0, None, "1m"),
+            (now - 6 * 3600, "spectrum", "wanctl_rtt_ms", 3.0, None, "1m"),
+            (now - 86400, "spectrum", "wanctl_rtt_ms", 4.0, None, "1m"),
+            (now - 86400, "spectrum", "wanctl_rtt_ms", 40.0, None, "5m"),
+            (now - 7 * 86400, "spectrum", "wanctl_rtt_ms", 5.0, None, "5m"),
+            (now - 7 * 86400, "spectrum", "wanctl_rtt_ms", 50.0, None, "1h"),
+            (now - 8 * 86400, "spectrum", "wanctl_rtt_ms", 6.0, None, "1h"),
+        ]
+        conn.executemany(
+            """
+            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+        conn.commit()
+        conn.close()
+        return db_path, now
+
+    def test_crosses_all_retention_boundaries_without_duplicates(self, tiered_db):
+        db_path, now = tiered_db
+        result = query_metrics(
+            db_path=db_path,
+            start_ts=now - 9 * 86400,
+            end_ts=now,
+            metrics=["wanctl_rtt_ms"],
+            retention_reference_ts=now,
+        )
+
+        assert [(row["value"], row["granularity"]) for row in result] == [
+            (1.0, "raw"),
+            (2.0, "raw"),
+            (3.0, "1m"),
+            (4.0, "1m"),
+            (5.0, "5m"),
+            (6.0, "1h"),
+        ]
+        assert len({row["timestamp"] for row in result}) == len(result)
+
+    def test_six_hour_query_includes_recent_raw_and_older_1m(self, tiered_db):
+        db_path, now = tiered_db
+        result = query_metrics(
+            db_path=db_path,
+            start_ts=now - 6 * 3600,
+            end_ts=now,
+            retention_reference_ts=now,
+        )
+        assert {row["granularity"] for row in result} == {"raw", "1m"}
+
+    def test_boundaries_follow_observed_tiers_not_nominal_retention(self, tiered_db):
+        db_path, now = tiered_db
+        conn = sqlite3.connect(db_path)
+        conn.executemany(
+            """
+            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, 'spectrum', 'wanctl_custom_history', ?, NULL, ?)
+            """,
+            [
+                (now - 4 * 86400, 1.0, "1h"),
+                (now - 2 * 86400, 2.0, "5m"),
+                (now - 12 * 3600, 3.0, "1m"),
+                (now - 3600, 4.0, "raw"),
+                (now - 1800, 30.0, "1m"),
+                (now - 600, 5.0, "raw"),
+            ],
+        )
+        conn.commit()
+        conn.close()
+
+        result = query_metrics(
+            db_path=db_path,
+            start_ts=now - 5 * 86400,
+            end_ts=now,
+            metrics=["wanctl_custom_history"],
+            retention_reference_ts=now,
+        )
+
+        assert [(row["value"], row["granularity"]) for row in result] == [
+            (5.0, "raw"),
+            (4.0, "raw"),
+            (3.0, "1m"),
+            (2.0, "5m"),
+            (1.0, "1h"),
+        ]
+
+    def test_unaggregated_lagging_raw_rows_remain_visible(self, tiered_db):
+        db_path, now = tiered_db
+        conn = sqlite3.connect(db_path)
+        rows = [
+            (now - age, "spectrum", "wanctl_lagging", float(age), None, "raw")
+            for age in (600, 1200, 1800, 2400)
+        ]
+        conn.executemany(
+            """
+            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+        conn.commit()
+        conn.close()
+
+        result = query_metrics(
+            db_path=db_path,
+            start_ts=now - 3600,
+            end_ts=now,
+            metrics=["wanctl_lagging"],
+            retention_reference_ts=now,
+        )
+
+        assert len(result) == 4
+        assert {row["granularity"] for row in result} == {"raw"}
+
+    def test_tier_starts_use_canonical_labels_and_isolate_series(self, tiered_db):
+        db_path, now = tiered_db
+        conn = sqlite3.connect(db_path)
+        conn.executemany(
+            """
+            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, 'spectrum', 'wanctl_cake_tin_delay_us', ?, ?, ?)
+            """,
+            [
+                (now - 300, 1.0, '{"tin": "Bulk"}', "raw"),
+                (now - 300, 10.0, '{"tin":"Bulk"}', "1m"),
+                (now - 300, 2.0, '{"tin":"Voice"}', "1m"),
+            ],
+        )
+        conn.commit()
+        conn.close()
+
+        result = query_metrics(
+            db_path=db_path,
+            start_ts=now - 900,
+            end_ts=now,
+            metrics=["wanctl_cake_tin_delay_us"],
+            retention_reference_ts=now,
+        )
+
+        assert [(row["value"], row["granularity"]) for row in result] == [
+            (2.0, "1m"),
+            (1.0, "raw"),
+        ]
+
+    def test_finer_rows_before_query_start_do_not_hide_requested_tier(self, tiered_db):
+        db_path, now = tiered_db
+        start = now - 3600
+        conn = sqlite3.connect(db_path)
+        conn.executemany(
+            """
+            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, 'spectrum', 'wanctl_query_window', ?, NULL, ?)
+            """,
+            [
+                (start - 1, 1.0, "raw"),
+                (start + 60, 2.0, "1m"),
+            ],
+        )
+        conn.commit()
+        conn.close()
+
+        result = query_metrics(
+            db_path=db_path,
+            start_ts=start,
+            end_ts=now,
+            metrics=["wanctl_query_window"],
+            retention_reference_ts=now,
+        )
+
+        assert [(row["value"], row["granularity"]) for row in result] == [(2.0, "1m")]
+
+    def test_explicit_and_mixed_granularity_are_mutually_exclusive(self, tiered_db):
+        db_path, now = tiered_db
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            query_metrics(
+                db_path=db_path,
+                granularity="raw",
+                retention_reference_ts=now,
+            )
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            count_metrics(
+                db_path=db_path,
+                granularity="raw",
+                retention_reference_ts=now,
+            )
+
+    def test_count_and_pagination_share_mixed_tier_contract(self, tiered_db):
+        db_path, now = tiered_db
+        kwargs = {
+            "db_path": db_path,
+            "start_ts": now - 9 * 86400,
+            "end_ts": now,
+            "retention_reference_ts": now,
+        }
+        assert count_metrics(**kwargs) == 6
+        full = query_metrics(**kwargs)
+        assert query_metrics(**kwargs, limit=2, offset=2) == full[2:4]
+
+
 class TestCountMetrics:
     """Tests for count_metrics SQL-side counting."""
 
@@ -1923,8 +2136,6 @@ class TestSelectGranularity:
         assert result == "raw"
 
 
-
-
 class TestStorageObservabilityMetrics:
     """Tests for Phase 165 storage observability metric exports."""
 
@@ -1942,7 +2153,10 @@ class TestStorageObservabilityMetrics:
             with urllib.request.urlopen(url, timeout=5) as response:
                 content = response.read().decode("utf-8")
 
-            assert '# HELP wanctl_storage_pending_writes Queued SQLite write operations not yet processed' in content
+            assert (
+                "# HELP wanctl_storage_pending_writes Queued SQLite write operations not yet processed"
+                in content
+            )
             assert 'wanctl_storage_pending_writes{process="autorate"} 3.0' in content
             assert 'wanctl_storage_write_success_total{process="autorate"} 1' in content
             assert 'wanctl_storage_checkpointed_pages{process="autorate"} 7.0' in content
@@ -1980,11 +2194,16 @@ class TestBurstObservabilityMetrics:
 
             assert 'wanctl_burst_active{direction="download",wan="spectrum"} 1.0' in content
             assert 'wanctl_burst_triggers_total{direction="download",wan="spectrum"} 1' in content
-            assert 'wanctl_burst_last_trigger_delta_ms{direction="download",wan="spectrum"} 25.0' in content
-            assert 'wanctl_burst_last_trigger_accel_ms{direction="download",wan="spectrum"} 18.5' in content
+            assert (
+                'wanctl_burst_last_trigger_delta_ms{direction="download",wan="spectrum"} 25.0'
+                in content
+            )
+            assert (
+                'wanctl_burst_last_trigger_accel_ms{direction="download",wan="spectrum"} 18.5'
+                in content
+            )
         finally:
             server.stop()
-
 
 
 class TestRuntimePressureMetrics:
