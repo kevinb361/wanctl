@@ -6,6 +6,22 @@ from pathlib import Path
 
 CANARY_SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "canary-check.sh"
 
+EXTERNAL_HEALTHY_FIXTURE = {
+    "status": "healthy",
+    "version": "cake-autorate-trial",
+    "revision": "unknown",
+    "uptime_seconds": None,
+    "source": "cake-autorate-state-bridge",
+    "wans": [
+        {
+            "name": "spectrum",
+            "measurement": {"available": True, "staleness_sec": 0.2},
+            "download": {"state": "GREEN", "current_rate_mbps": 450.0},
+            "upload": {"state": "GREEN", "current_rate_mbps": 30.0},
+        }
+    ],
+}
+
 HEALTHY_FIXTURE = {
     "status": "healthy",
     "version": "1.33.0",
@@ -59,6 +75,21 @@ class TestCanaryPassFail:
         fixture = _write_fixture(tmp_path, "healthy.json", HEALTHY_FIXTURE)
         result = _run_canary(["--input", str(fixture)])
         assert result.returncode == 0
+
+    def test_external_bridge_health_exits_zero(self, tmp_path: Path) -> None:
+        fixture = _write_fixture(tmp_path, "external-healthy.json", EXTERNAL_HEALTHY_FIXTURE)
+        result = _run_canary(["--input", str(fixture)])
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "RTT measurement available" in result.stdout
+        assert "state fresh" in result.stdout
+
+    def test_external_bridge_stale_state_exits_one(self, tmp_path: Path) -> None:
+        data = json.loads(json.dumps(EXTERNAL_HEALTHY_FIXTURE))
+        data["wans"][0]["measurement"]["staleness_sec"] = 16.0
+        fixture = _write_fixture(tmp_path, "external-stale.json", data)
+        result = _run_canary(["--input", str(fixture)])
+        assert result.returncode == 1
+        assert "state stale" in result.stdout
 
     def test_router_unreachable_exits_one(self, tmp_path: Path) -> None:
         data = json.loads(json.dumps(HEALTHY_FIXTURE))

@@ -143,6 +143,16 @@ get_summary_row_json() {
     fi
 }
 
+get_wan_row_json() {
+    local json="$1"
+    local index="$2"
+    if $HAS_JQ; then
+        echo "$json" | jq -c ".wans[$index]"
+    else
+        echo "$json" | python3 -c "import json, sys; d=json.load(sys.stdin); print(json.dumps(d.get('wans', [])[int(sys.argv[1])]))" "$index"
+    fi
+}
+
 report_storage_sizes() {
     local service="$1"
     local target="$2"
@@ -222,10 +232,9 @@ check_status_field() {
 check_autorate_health() {
     local target="$1"
     local json="$2"
-    local version revision uptime row_count index row_json row_name
+    local version revision uptime row_count index row_json row_name source staleness
 
     check_status_field "autorate" "$target" "$json"
-    report_storage_sizes "autorate" "$target" "$json"
 
     version=$(jq_or_py "$json" '.version // "unknown"' 'd.get("version", "unknown")')
     if [[ -n "$EXPECT_VERSION" && "$version" != "$EXPECT_VERSION" ]]; then
@@ -241,6 +250,42 @@ check_autorate_health() {
         print_pass "autorate ${target}: revision ${revision}"
     fi
 
+    source=$(jq_or_py "$json" '.source // "native"' 'd.get("source", "native")')
+    if [[ "$source" == "cake-autorate-state-bridge" ]]; then
+        row_count=$(jq_or_py "$json" '.wans | length' 'len(d.get("wans", []))')
+        if [[ ! "$row_count" =~ ^[0-9]+$ ]] || [[ "$row_count" -eq 0 ]]; then
+            print_fail "autorate ${target}: wans missing"
+            return
+        fi
+        for ((index = 0; index < row_count; index++)); do
+            row_json=$(get_wan_row_json "$json" "$index")
+            row_name=$(jq_or_py "$row_json" '.name // "unknown"' 'd.get("name", "unknown")')
+            if [[ "$(jq_or_py "$row_json" '.measurement.available // false' 'd.get("measurement", {}).get("available", False)')" == "true" ]]; then
+                print_pass "autorate ${target}/${row_name}: RTT measurement available"
+            else
+                print_fail "autorate ${target}/${row_name}: RTT measurement unavailable"
+            fi
+            staleness=$(jq_or_py "$row_json" '.measurement.staleness_sec // 999999' 'd.get("measurement", {}).get("staleness_sec", 999999)')
+            if python3 -c "import sys; raise SystemExit(0 if float(sys.argv[1]) <= 15 else 1)" "$staleness"; then
+                print_pass "autorate ${target}/${row_name}: state fresh (${staleness}s)"
+            else
+                print_fail "autorate ${target}/${row_name}: state stale (${staleness}s)"
+            fi
+            case "$(jq_or_py "$row_json" '.download.state // "unknown"' 'd.get("download", {}).get("state", "unknown")')" in
+                GREEN|YELLOW) print_pass "autorate ${target}/${row_name}: download state healthy" ;;
+                SOFT_RED|RED) print_warn "autorate ${target}/${row_name}: download state elevated" ;;
+                *) print_fail "autorate ${target}/${row_name}: download state unknown" ;;
+            esac
+            case "$(jq_or_py "$row_json" '.upload.state // "unknown"' 'd.get("upload", {}).get("state", "unknown")')" in
+                GREEN|YELLOW) print_pass "autorate ${target}/${row_name}: upload state healthy" ;;
+                SOFT_RED|RED) print_warn "autorate ${target}/${row_name}: upload state elevated" ;;
+                *) print_fail "autorate ${target}/${row_name}: upload state unknown" ;;
+            esac
+        done
+        return
+    fi
+
+    report_storage_sizes "autorate" "$target" "$json"
     uptime=$(jq_or_py "$json" '.uptime_seconds // 0' 'd.get("uptime_seconds", 0)')
     if python3 -c "import sys; raise SystemExit(0 if float(sys.argv[1]) >= 10 else 1)" "$uptime"; then
         print_pass "autorate ${target}: uptime ${uptime}s"
