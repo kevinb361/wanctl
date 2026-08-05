@@ -207,6 +207,27 @@ class TestDownsampleToGranularity:
         value = test_db.execute("SELECT value FROM metrics WHERE granularity = '1m'").fetchone()[0]
         assert value == 3.0
 
+    def test_wan_zone_collapses_label_to_one_mode_series(self, test_db):
+        """Zone text is redundant metadata, not a separate aggregate identity."""
+        start = align_to_bucket(int(time.time()) - 7200, 60)
+        test_db.executemany(
+            """
+            INSERT INTO metrics (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, 'spectrum', 'wanctl_wan_zone', ?, ?, 'raw')
+            """,
+            [
+                (start, 0.0, '{"zone":"GREEN"}'),
+                (start + 1, 0.0, '{"zone":"GREEN"}'),
+                (start + 2, 3.0, '{"zone":"RED"}'),
+            ],
+        )
+        test_db.commit()
+
+        assert downsample_to_granularity(test_db, "raw", "1m", 60, start + 120) == 1
+        assert test_db.execute(
+            "SELECT labels, value FROM metrics WHERE granularity = '1m'"
+        ).fetchone() == (None, 0.0)
+
     def test_mode_aggregation_preserves_both_directional_state_names(self, test_db):
         """DL and UL state series downsample independently with MODE semantics."""
         now = int(time.time())
@@ -472,6 +493,26 @@ class TestDownsampleToGranularity:
         assert downsample_to_granularity(test_db, "raw", "1m", 60, start + 120) == 0
         assert downsample_to_granularity(test_db, "1m", "5m", 300, start + 600) == 3
 
+    def test_unaligned_cutoff_preserves_straddling_bucket(self, test_db):
+        """Rows in a partial cutoff bucket survive for the next pass."""
+        start = align_to_bucket(int(time.time()) - 7200, 60)
+        insert_metrics(test_db, "wanctl_rtt_ms", "spectrum", [10.0] * 90, start)
+
+        assert downsample_to_granularity(test_db, "raw", "1m", 60, start + 90) == 1
+        raw_timestamps = [
+            row[0]
+            for row in test_db.execute(
+                "SELECT timestamp FROM metrics WHERE granularity = 'raw' ORDER BY timestamp"
+            ).fetchall()
+        ]
+        assert raw_timestamps == list(range(start + 60, start + 90))
+
+        assert downsample_to_granularity(test_db, "raw", "1m", 60, start + 120) == 1
+        assert (
+            test_db.execute("SELECT COUNT(*) FROM metrics WHERE granularity = 'raw'").fetchone()[0]
+            == 0
+        )
+
     def test_empty_database(self, test_db):
         """Test downsampling empty database returns 0."""
         now = int(time.time())
@@ -600,6 +641,10 @@ class TestModeAggregationMetrics:
         """Test wanctl_steering_enabled uses MODE aggregation."""
         assert "wanctl_steering_enabled" in MODE_AGGREGATION_METRICS
 
+    def test_wan_zone_uses_mode(self):
+        """WAN zone codes retain categorical MODE semantics."""
+        assert "wanctl_wan_zone" in MODE_AGGREGATION_METRICS
+
     def test_rtt_not_in_mode_metrics(self):
         """Test RTT metrics are not in MODE set (use AVG)."""
         assert "wanctl_rtt_ms" not in MODE_AGGREGATION_METRICS
@@ -628,7 +673,7 @@ class TestDownsampleWatchdogSupport:
         cutoff = now - 3600
         downsample_to_granularity(test_db, "raw", "1m", 60, cutoff, watchdog_fn=watchdog)
 
-        assert watchdog.call_count >= 4  # Each bucket plus each metric/WAN combination
+        assert watchdog.call_count == 4  # 2 bucket pings + 2 combination pings
 
     def test_watchdog_fn_called_between_levels(self, test_db):
         """Test watchdog callback fires after each aggregation level."""

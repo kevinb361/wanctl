@@ -262,6 +262,38 @@ class TestOscillationLockout:
         for p in RESPONSE_PARAMS:
             assert p in locks
 
+    def test_sibling_state_identities_do_not_trigger_lockout(self):
+        """Upload and steering rows cannot overwrite stable download state."""
+        metrics = []
+        for i in range(60):
+            timestamp = 1000 + i * 60
+            metrics.extend(
+                [
+                    {
+                        "timestamp": timestamp,
+                        "metric_name": "wanctl_state",
+                        "value": 0.0,
+                        "labels": '{"direction":"download"}',
+                    },
+                    {
+                        "timestamp": timestamp,
+                        "metric_name": "wanctl_state",
+                        "value": float(i % 2),
+                        "labels": '{"direction":"upload"}',
+                    },
+                    {
+                        "timestamp": timestamp,
+                        "metric_name": "wanctl_state",
+                        "value": float(2 if i % 2 else 0),
+                        "labels": '{"source":"steering"}',
+                    },
+                ]
+            )
+
+        locks: dict[str, float] = {}
+        assert not check_oscillation_lockout(metrics, locks)
+        assert locks == {}
+
     def test_lockout_fires_alert(self):
         """AlertEngine.fire is called with oscillation_lockout type."""
         base = 1000

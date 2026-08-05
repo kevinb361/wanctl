@@ -71,6 +71,7 @@ MODE_AGGREGATION_METRICS = frozenset(
         "wanctl_state_download",
         "wanctl_state_upload",
         "wanctl_steering_enabled",
+        "wanctl_wan_zone",
     ]
 )
 
@@ -80,7 +81,6 @@ _IDENTITY_LABEL_KEYS: dict[str, tuple[str, ...]] = {
     "wanctl_cake_tin_delay_us": ("tin",),
     "wanctl_cake_tin_backlog_bytes": ("tin",),
     "wanctl_state": ("direction", "source"),
-    "wanctl_wan_zone": ("zone",),
 }
 
 
@@ -193,11 +193,7 @@ def _group_unlabeled_avg_buckets(
         if watchdog_fn is not None:
             conn.set_progress_handler(None, 0)
 
-    return {
-        bucket_start: {None: [value]}
-        for bucket_start, value in rows
-        if value is not None
-    }
+    return {bucket_start: {None: [value]} for bucket_start, value in rows if value is not None}
 
 
 def _group_labeled_avg_buckets(
@@ -487,9 +483,7 @@ def _load_target_identities(
         (wan_name, metric_name, to_granularity, first_bucket, last_bucket),
     )
     for timestamp, labels in rows:
-        identities.setdefault(timestamp, set()).add(
-            _canonicalize_labels(metric_name, labels)
-        )
+        identities.setdefault(timestamp, set()).add(_canonicalize_labels(metric_name, labels))
     return identities
 
 
@@ -616,7 +610,10 @@ def downsample_to_granularity(
                     )
                     insert_batch.clear()
 
-            # Delete original data that was aggregated
+            # Delete only source rows from complete buckets. The wall-clock
+            # cutoff normally straddles a bucket; those rows must survive for
+            # the next maintenance pass rather than being dropped unaggregated.
+            complete_cutoff = (cutoff // bucket_seconds) * bucket_seconds
             conn.execute(
                 """
                 DELETE FROM metrics
@@ -625,7 +622,7 @@ def downsample_to_granularity(
                   AND granularity = ?
                   AND timestamp < ?
                 """,
-                (metric_name, wan_name, from_granularity, cutoff),
+                (metric_name, wan_name, from_granularity, complete_cutoff),
             )
 
             if watchdog_fn is not None:

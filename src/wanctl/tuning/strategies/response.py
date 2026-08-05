@@ -511,11 +511,13 @@ def check_oscillation_lockout(
     Returns:
         True if lockout was triggered, False otherwise.
     """
-    # Extract state values by timestamp
-    state_by_ts: dict[int, float] = {}
-    for row in metrics_data:
-        if row["metric_name"] == "wanctl_state":
-            state_by_ts[row["timestamp"]] = row["value"]
+    # Oscillation lockout protects download response parameters. Select one
+    # deterministic download sample per timestamp so upload and steering
+    # identities cannot inflate or contaminate the transition rate.
+    state_by_ts = {
+        row["timestamp"]: row["value"]
+        for row in _state_rows_for_direction(metrics_data, "download")
+    }
 
     if len(state_by_ts) < 2:
         return False
