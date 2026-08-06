@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import runpy
 import sqlite3
-import time
 from pathlib import Path
 from typing import Any
 
@@ -111,24 +110,26 @@ def test_bridge_state_write_recovers_missing_parent_and_partial_writes(
 
 
 @pytest.mark.parametrize("bridge", BRIDGES, ids=("spectrum", "att"))
-def test_bridge_downsampling_preserves_avg_counts_and_partial_buckets(
+def test_bridge_downsampling_averages_only_complete_buckets(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, bridge: Path
 ) -> None:
     namespace = _load_bridge(monkeypatch, tmp_path, bridge)
-    base = ((int(time.time()) - 7_200) // 60) * 60
+    now = 1_000_000
+    complete_cutoff = ((now - 3_600) // 60) * 60
+    base = complete_cutoff - 60
+    monkeypatch.setattr(namespace["time"], "time", lambda: now)
     with sqlite3.connect(namespace["METRICS_DB"]) as conn:
         namespace["ensure_metrics_schema"](conn)
         conn.executemany(
             """
             INSERT INTO metrics
                 (timestamp, wan_name, metric_name, value, labels, granularity)
-            VALUES (?, 'test', ?, ?, NULL, 'raw')
+            VALUES (?, 'test', 'metric_a', ?, NULL, 'raw')
             """,
             [
-                (base + 1, "metric_a", 1.0),
-                (base + 2, "metric_a", 3.0),
-                (base + 61, "metric_a", 10.0),
-                (base + 1, "metric_b", 8.0),
+                (base + 1, 1.0),
+                (base + 2, 3.0),
+                (complete_cutoff + 1, 10.0),
             ],
         )
     monkeypatch.setattr(namespace["subprocess"], "run", lambda *_args, **_kwargs: None)
@@ -136,22 +137,88 @@ def test_bridge_downsampling_preserves_avg_counts_and_partial_buckets(
     namespace["downsample_raw_to_1m"]()
 
     with sqlite3.connect(namespace["METRICS_DB"]) as conn:
-        assert conn.execute(
-            "SELECT COUNT(*) FROM metrics WHERE granularity='raw'"
-        ).fetchone() == (0,)
-        rows = conn.execute(
-            "SELECT timestamp, metric_name, value, labels FROM metrics "
-            "WHERE granularity='1m' ORDER BY metric_name, timestamp"
+        raw_rows = conn.execute(
+            "SELECT timestamp, value FROM metrics WHERE granularity='raw'"
         ).fetchall()
-    assert rows == [
-        (base, "metric_a", 2.0, '{"downsampled_from":2}'),
-        (base + 60, "metric_a", 10.0, '{"downsampled_from":1}'),
-        (base, "metric_b", 8.0, '{"downsampled_from":1}'),
+        aggregate_rows = conn.execute(
+            "SELECT timestamp, metric_name, value, labels FROM metrics WHERE granularity='1m'"
+        ).fetchall()
+    assert raw_rows == [(complete_cutoff + 1, 10.0)]
+    assert aggregate_rows == [(base, "metric_a", 2.0, None)]
+
+
+@pytest.mark.parametrize("bridge", BRIDGES, ids=("spectrum", "att"))
+def test_bridge_downsampling_preserves_labels_uses_mode_and_avoids_duplicates(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, bridge: Path
+) -> None:
+    namespace = _load_bridge(monkeypatch, tmp_path, bridge)
+    now = 1_000_000
+    base = ((now - 7_200) // 60) * 60
+    monkeypatch.setattr(namespace["time"], "time", lambda: now)
+    rows = [
+        (base + 1, "wanctl_cake_tin_delay_us", 10.0, '{"tin":"bulk","ignored":1}', "raw"),
+        (base + 2, "wanctl_cake_tin_delay_us", 30.0, '{"ignored":2,"tin":"bulk"}', "raw"),
+        (base + 3, "wanctl_cake_tin_delay_us", 100.0, '{"tin":"video"}', "raw"),
+        (base + 4, "wanctl_state", 0.0, '{"source":"bridge","direction":"download"}', "raw"),
+        (base + 5, "wanctl_state", 1.0, '{"direction":"download","source":"bridge"}', "raw"),
+        (
+            base + 6,
+            "wanctl_state",
+            1.0,
+            '{"reason":"busy","source":"bridge","direction":"download"}',
+            "raw",
+        ),
+        (
+            base + 7,
+            "wanctl_state",
+            0.0,
+            '{"reason":"stable","direction":"download","source":"bridge"}',
+            "raw",
+        ),
+        (base + 8, "wanctl_state", 0.0, '{"source":"bridge"}', "raw"),
+        (base + 9, "metric_existing", 1.0, None, "raw"),
+        (base, "metric_existing", 99.0, None, "1m"),
+    ]
+    with sqlite3.connect(namespace["METRICS_DB"]) as conn:
+        namespace["ensure_metrics_schema"](conn)
+        conn.executemany(
+            """
+            INSERT INTO metrics
+                (timestamp, wan_name, metric_name, value, labels, granularity)
+            VALUES (?, 'test', ?, ?, ?, ?)
+            """,
+            rows,
+        )
+    monkeypatch.setattr(namespace["subprocess"], "run", lambda *_args, **_kwargs: None)
+
+    traced_statements: list[str] = []
+    namespace["metrics_connection"]().set_trace_callback(traced_statements.append)
+    namespace["downsample_raw_to_1m"]()
+    assert any("timestamp BETWEEN" in statement for statement in traced_statements)
+
+    traced_statements.clear()
+    namespace["downsample_raw_to_1m"]()
+    assert not any("granularity = '1m'" in statement for statement in traced_statements)
+
+    with sqlite3.connect(namespace["METRICS_DB"]) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM metrics WHERE granularity='raw'").fetchone() == (
+            0,
+        )
+        aggregate_rows = conn.execute(
+            "SELECT metric_name, value, labels FROM metrics "
+            "WHERE granularity='1m' ORDER BY metric_name, labels"
+        ).fetchall()
+    assert aggregate_rows == [
+        ("metric_existing", 99.0, None),
+        ("wanctl_cake_tin_delay_us", 20.0, '{"tin":"bulk"}'),
+        ("wanctl_cake_tin_delay_us", 100.0, '{"tin":"video"}'),
+        ("wanctl_state", 1.0, '{"direction":"download","source":"bridge"}'),
+        ("wanctl_state", 0.0, '{"source":"bridge"}'),
     ]
 
 
 @pytest.mark.parametrize("bridge", BRIDGES, ids=("spectrum", "att"))
-def test_bridge_reuses_metrics_connection_for_downsampling_and_bounds_cleanup(
+def test_bridge_reuses_metrics_connection_for_downsampling(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, bridge: Path
 ) -> None:
     namespace = _load_bridge(monkeypatch, tmp_path, bridge)
@@ -169,14 +236,12 @@ def test_bridge_reuses_metrics_connection_for_downsampling_and_bounds_cleanup(
 
     namespace["write_metrics"](_state())
     namespace["downsample_raw_to_1m"]()
-    namespace["cleanup_old_metrics"]()
 
-    assert len(opened) == 2
+    assert len(opened) == 1
     assert opened[0].closed is False
     assert opened[0].execute("PRAGMA synchronous").fetchone() == (1,)
-    assert opened[1].closed is True
     namespace["close_metrics_connection"]()
-    assert all(conn.closed for conn in opened)
+    assert opened[0].closed is True
 
 
 @pytest.mark.parametrize("bridge", BRIDGES, ids=("spectrum", "att"))
