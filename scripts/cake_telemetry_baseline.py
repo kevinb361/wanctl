@@ -18,6 +18,8 @@ MIN_WINDOW_SECONDS = 14 * 24 * 60 * 60
 STEP_SECONDS = 300
 MAX_STATS_AGE_SECONDS = 120.0
 MIN_COVERAGE_RATIO = 0.999
+MIN_PROBE_AVAILABILITY_RATIO = 0.995
+MAX_CONSECUTIVE_PROBE_DOWN_WINDOWS = 2
 MIN_DIMENSION_COVERAGE_RATIO = 0.99
 MIN_COHORT_COMPLETENESS_RATIO = 0.99
 MIN_COHORT_SAMPLES = 12
@@ -144,6 +146,21 @@ def require_exact_labels(
         raise BaselineError(f"{name} label mismatch: missing={missing}, extra={extra}")
 
 
+def _probe_unavailable_runs(
+    points: dict[int, float], expected_timestamps: list[int]
+) -> list[list[int]]:
+    runs: list[list[int]] = []
+    previous_unavailable = False
+    for timestamp in expected_timestamps:
+        unavailable = points.get(timestamp) != 1.0
+        if unavailable and not previous_unavailable:
+            runs.append([timestamp])
+        elif unavailable:
+            runs[-1].append(timestamp)
+        previous_unavailable = unavailable
+    return runs
+
+
 def validate_coverage(
     matrices: dict[str, dict[tuple[str, ...], dict[int, float]]],
     start: datetime,
@@ -151,24 +168,72 @@ def validate_coverage(
     step_seconds: int = STEP_SECONDS,
 ) -> dict[str, Any]:
     expected_points = math.floor((end.timestamp() - start.timestamp()) / step_seconds)
+    expected_timestamps = list(
+        range(int(start.timestamp()) + step_seconds, int(end.timestamp()) + 1, step_seconds)
+    )
+    if len(expected_timestamps) != expected_points:
+        raise BaselineError("coverage bounds do not align to the sampling step")
     minimum_points = math.ceil(expected_points * MIN_COVERAGE_RATIO)
     coverage: dict[str, Any] = {"expected_points_per_series": expected_points, "series": {}}
     for name in ("stats_up", "probe_up", "stats_age_seconds"):
         require_exact_labels(name, matrices[name], ("wan",))
         for (wan,), points in matrices[name].items():
-            ratio = len(points) / expected_points
+            present_points = sum(timestamp in points for timestamp in expected_timestamps)
+            ratio = present_points / expected_points
             coverage["series"][f"{name}:{wan}"] = {
-                "points": len(points),
+                "points": present_points,
                 "ratio": round(ratio, 6),
             }
-            if len(points) < minimum_points:
+            if present_points < minimum_points:
                 raise BaselineError(
                     f"{name}:{wan} coverage {ratio:.3%} below {MIN_COVERAGE_RATIO:.1%}"
                 )
-    for name in ("stats_up", "probe_up"):
-        for (wan,), points in matrices[name].items():
-            if any(value != 1.0 for value in points.values()):
-                raise BaselineError(f"{name}:{wan} contains unavailable samples")
+    for (wan,), points in matrices["stats_up"].items():
+        if any(value != 1.0 for value in points.values()):
+            raise BaselineError(f"stats_up:{wan} contains unavailable samples")
+    for (wan,), points in matrices["probe_up"].items():
+        if any(value not in {0.0, 1.0} for value in points.values()):
+            raise BaselineError(f"probe_up:{wan} contains non-binary samples")
+        good_points = sum(points.get(timestamp) == 1.0 for timestamp in expected_timestamps)
+        reported_down_points = sum(
+            points.get(timestamp) == 0.0 for timestamp in expected_timestamps
+        )
+        missing_points = sum(timestamp not in points for timestamp in expected_timestamps)
+        availability_ratio = good_points / expected_points
+        runs = _probe_unavailable_runs(points, expected_timestamps)
+        longest_run = max((len(run) for run in runs), default=0)
+        coverage["series"][f"probe_up:{wan}"].update(
+            {
+                "available_points": good_points,
+                "availability_ratio": round(availability_ratio, 6),
+                "down_windows": expected_points - good_points,
+                "reported_down_windows": reported_down_points,
+                "missing_windows": missing_points,
+                "longest_down_run_windows": longest_run,
+                "down_runs": [
+                    {
+                        "start": format_timestamp(datetime.fromtimestamp(run[0], UTC)),
+                        "end": format_timestamp(datetime.fromtimestamp(run[-1], UTC)),
+                        "windows": len(run),
+                        "reported_down_windows": sum(
+                            points.get(timestamp) == 0.0 for timestamp in run
+                        ),
+                        "missing_windows": sum(timestamp not in points for timestamp in run),
+                    }
+                    for run in runs
+                ],
+            }
+        )
+        if availability_ratio < MIN_PROBE_AVAILABILITY_RATIO:
+            raise BaselineError(
+                f"probe_up:{wan} availability {availability_ratio:.3%} below "
+                f"{MIN_PROBE_AVAILABILITY_RATIO:.1%}"
+            )
+        if longest_run > MAX_CONSECUTIVE_PROBE_DOWN_WINDOWS:
+            raise BaselineError(
+                f"probe_up:{wan} has {longest_run} consecutive down windows; maximum is "
+                f"{MAX_CONSECUTIVE_PROBE_DOWN_WINDOWS}"
+            )
     for (wan,), points in matrices["stats_age_seconds"].items():
         if max(points.values(), default=math.inf) > MAX_STATS_AGE_SECONDS:
             raise BaselineError(f"stats_age_seconds:{wan} exceeds {MAX_STATS_AGE_SECONDS:g}s")
@@ -263,6 +328,7 @@ def build_cohorts(  # noqa: C901 - explicit fail-closed dimension assembly
     require_exact_labels("throughput_bps", matrices["throughput_bps"], ("wan", "direction"))
     require_exact_labels("rtt_delta_seconds", matrices["rtt_delta_seconds"], ("wan",))
     require_exact_labels("probe_rtt_seconds", matrices["probe_rtt_seconds"], ("wan",))
+    require_exact_labels("probe_up", matrices["probe_up"], ("wan",))
     require_exact_labels("congestion_state", matrices["congestion_state"], ("wan", "direction"))
     for name in (
         "tin_average_delay_seconds",
@@ -284,6 +350,7 @@ def build_cohorts(  # noqa: C901 - explicit fail-closed dimension assembly
     for wan in WANS:
         rtt = matrices["rtt_delta_seconds"][(wan,)]
         probe_rtt = matrices["probe_rtt_seconds"][(wan,)]
+        probe_up = matrices["probe_up"][(wan,)]
         for direction in DIRECTIONS:
             key = (wan, direction)
             throughput = matrices["throughput_bps"][key]
@@ -292,6 +359,10 @@ def build_cohorts(  # noqa: C901 - explicit fail-closed dimension assembly
             last_reset_totals: dict[str, float] = {}
             for timestamp in timestamps:
                 candidate_points += 1
+                if probe_up.get(timestamp) != 1.0:
+                    reason = "probe_missing" if timestamp not in probe_up else "probe_down"
+                    missing_by_dimension[reason] += 1
+                    continue
                 if timestamp not in throughput:
                     missing_by_dimension["throughput_bps"] += 1
                     continue

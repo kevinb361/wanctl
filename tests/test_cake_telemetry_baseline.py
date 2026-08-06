@@ -189,7 +189,7 @@ def test_coverage_gate_accepts_complete_up_fresh_series() -> None:
     ("metric", "value", "message"),
     [
         ("stats_up", 0.0, "contains unavailable samples"),
-        ("probe_up", 0.0, "contains unavailable samples"),
+        ("probe_up", 0.5, "contains non-binary samples"),
         ("stats_age_seconds", 121.0, "exceeds 120s"),
     ],
 )
@@ -203,6 +203,106 @@ def test_coverage_gate_rejects_unhealthy_samples(metric: str, value: float, mess
 
     with pytest.raises(namespace["BaselineError"], match=message):
         namespace["validate_coverage"](matrices, start, end, step_seconds=7 * 24 * 60 * 60)
+
+
+def _fourteen_day_coverage(
+    namespace: dict[str, Any],
+) -> tuple[datetime, datetime, list[int], dict[str, Any]]:
+    start = datetime(2026, 1, 1, tzinfo=UTC)
+    end = start + timedelta(days=14)
+    timestamps = namespace["evaluation_timestamps"](start, end)
+    return start, end, timestamps, _coverage_matrices(namespace, timestamps)
+
+
+def test_probe_availability_accepts_bounded_isolated_down_windows() -> None:
+    namespace = _load()
+    start, end, timestamps, matrices = _fourteen_day_coverage(namespace)
+    down_timestamps = timestamps[::200][:20]
+    for timestamp in down_timestamps:
+        matrices["probe_up"][("spectrum",)][timestamp] = 0.0
+
+    coverage = namespace["validate_coverage"](matrices, start, end)
+
+    probe = coverage["series"]["probe_up:spectrum"]
+    assert probe["availability_ratio"] == pytest.approx(4012 / 4032)
+    assert probe["down_windows"] == 20
+    assert probe["reported_down_windows"] == 20
+    assert probe["missing_windows"] == 0
+    assert probe["longest_down_run_windows"] == 1
+    assert len(probe["down_runs"]) == 20
+
+
+def test_probe_availability_rejects_excessive_down_windows() -> None:
+    namespace = _load()
+    start, end, timestamps, matrices = _fourteen_day_coverage(namespace)
+    for timestamp in timestamps[::190][:21]:
+        matrices["probe_up"][("spectrum",)][timestamp] = 0.0
+
+    with pytest.raises(namespace["BaselineError"], match="availability .* below 99.5%"):
+        namespace["validate_coverage"](matrices, start, end)
+
+
+def test_probe_availability_rejects_sustained_outage_below_ratio_limit() -> None:
+    namespace = _load()
+    start, end, timestamps, matrices = _fourteen_day_coverage(namespace)
+    for timestamp in timestamps[100:103]:
+        matrices["probe_up"][("att",)][timestamp] = 0.0
+
+    with pytest.raises(namespace["BaselineError"], match="3 consecutive down windows"):
+        namespace["validate_coverage"](matrices, start, end)
+
+
+def test_probe_availability_counts_missing_sample_inside_outage_run() -> None:
+    namespace = _load()
+    start, end, timestamps, matrices = _fourteen_day_coverage(namespace)
+    for index in (100, 101, 103, 104):
+        matrices["probe_up"][("att",)][timestamps[index]] = 0.0
+    del matrices["probe_up"][("att",)][timestamps[102]]
+
+    with pytest.raises(namespace["BaselineError"], match="5 consecutive down windows"):
+        namespace["validate_coverage"](matrices, start, end)
+
+
+def test_probe_availability_uses_expected_grid_for_missing_sample_denominator() -> None:
+    namespace = _load()
+    start, end, timestamps, matrices = _fourteen_day_coverage(namespace)
+    for timestamp in timestamps[::190][:17]:
+        matrices["probe_up"][("spectrum",)][timestamp] = 0.0
+    for index in (1000, 1200, 1400, 1600):
+        del matrices["probe_up"][("spectrum",)][timestamps[index]]
+
+    with pytest.raises(namespace["BaselineError"], match="availability .* below 99.5%"):
+        namespace["validate_coverage"](matrices, start, end)
+
+
+def test_probe_outage_disclosure_distinguishes_missing_and_reported_down_windows() -> None:
+    namespace = _load()
+    start, end, timestamps, matrices = _fourteen_day_coverage(namespace)
+    matrices["probe_up"][("att",)][timestamps[100]] = 0.0
+    del matrices["probe_up"][("att",)][timestamps[200]]
+
+    coverage = namespace["validate_coverage"](matrices, start, end)
+
+    probe = coverage["series"]["probe_up:att"]
+    assert probe["down_windows"] == 2
+    assert probe["reported_down_windows"] == 1
+    assert probe["missing_windows"] == 1
+    assert probe["down_runs"] == [
+        {
+            "start": "2026-01-01T08:25:00Z",
+            "end": "2026-01-01T08:25:00Z",
+            "windows": 1,
+            "reported_down_windows": 1,
+            "missing_windows": 0,
+        },
+        {
+            "start": "2026-01-01T16:45:00Z",
+            "end": "2026-01-01T16:45:00Z",
+            "windows": 1,
+            "reported_down_windows": 0,
+            "missing_windows": 1,
+        },
+    ]
 
 
 def test_cohort_output_is_deterministic_and_declares_missing_data() -> None:
@@ -243,6 +343,28 @@ def test_cohort_gate_rejects_missing_fixed_tin_series() -> None:
     del matrices["tin_backlog_bytes"][("att", "download", "voice")]
 
     with pytest.raises(namespace["BaselineError"], match="label mismatch"):
+        namespace["build_cohorts"](matrices, timestamps)
+
+
+def test_probe_down_timestamp_is_disclosed_and_excluded_from_both_direction_cohorts() -> None:
+    namespace = _load()
+    matrices, timestamps = _complete_matrices(namespace)
+    matrices["probe_up"][("att",)][timestamps[0]] = 0.0
+
+    _cohorts, disclosure = namespace["build_cohorts"](matrices, timestamps)
+
+    assert disclosure["missing_by_dimension"]["probe_down"] == 2
+    assert disclosure["candidate_points"] == 432
+    assert disclosure["accepted_points"] == 430
+    assert disclosure["discarded_incomplete_points"] == 2
+
+
+def test_cohort_gate_rejects_missing_probe_label() -> None:
+    namespace = _load()
+    matrices, timestamps = _complete_matrices(namespace)
+    del matrices["probe_up"][("att",)]
+
+    with pytest.raises(namespace["BaselineError"], match="probe_up label mismatch"):
         namespace["build_cohorts"](matrices, timestamps)
 
 
