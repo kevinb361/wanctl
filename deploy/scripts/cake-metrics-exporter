@@ -22,7 +22,7 @@ STATE_DIR = Path(os.environ.get("CAKE_EXPORTER_STATE_DIR", "/var/lib/wanctl"))
 BIND = os.environ.get("CAKE_EXPORTER_BIND", "127.0.0.1")
 PORT = int(os.environ.get("CAKE_EXPORTER_PORT", "9102"))
 
-CONGESTION = {"GREEN": 0, "SOFT_RED": 1, "RED": 2}
+CONGESTION = {"GREEN": 0, "YELLOW": 1, "SOFT_RED": 1, "RED": 2}
 
 
 def _esc(v: str) -> str:
@@ -97,7 +97,7 @@ def render() -> str:  # noqa: C901 - direct translation of the stable exporter c
                     CONGESTION.get(st, -1),
                     {"wan": wan, "direction": direction},
                     "gauge",
-                    "Congestion state 0=GREEN 1=SOFT_RED 2=RED -1=unknown",
+                    "Congestion state 0=GREEN 1=YELLOW/SOFT_RED 2=RED -1=unknown",
                 )
 
         ewma = data.get("ewma", {})

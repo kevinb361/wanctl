@@ -42,7 +42,7 @@ def _state(wan: str) -> dict[str, Any]:
             "soft_red_streak": 0,
             "red_streak": 0,
         },
-        "congestion": {"dl_state": "GREEN", "ul_state": "SOFT_RED"},
+        "congestion": {"dl_state": "GREEN", "ul_state": "YELLOW"},
         "ewma": {"baseline_rtt": 20.0, "load_rtt": 23.5},
     }
 
@@ -111,7 +111,27 @@ def test_exporter_preserves_existing_ten_metric_contract(
     assert 'cake_shaped_rate_bps{wan="spectrum",direction="download"} 450000000' in first
     assert 'cake_shaped_rate_bps{wan="att",direction="upload"} 19000000' in first
     assert 'cake_congestion_state{wan="att",direction="upload"} 1' in first
+    assert (
+        "# HELP cake_congestion_state Congestion state 0=GREEN 1=YELLOW/SOFT_RED 2=RED -1=unknown"
+        in first
+    )
     assert 'cake_rtt_delta_ms{wan="spectrum"} 3.5' in first
+
+
+@pytest.mark.parametrize(
+    ("state", "expected"),
+    [("GREEN", 0), ("YELLOW", 1), ("SOFT_RED", 1), ("RED", 2), ("UNKNOWN", -1)],
+)
+def test_congestion_state_matches_real_and_legacy_vocabulary(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, state: str, expected: int
+) -> None:
+    snapshot = _state("spectrum")
+    snapshot["congestion"]["dl_state"] = state
+    (tmp_path / "spectrum_state.json").write_text(json.dumps(snapshot), encoding="utf-8")
+
+    exposition = _load_exporter(monkeypatch, tmp_path)["render"]()
+
+    assert f'cake_congestion_state{{wan="spectrum",direction="download"}} {expected}' in exposition
 
 
 def test_rich_exposition_has_fixed_labels_types_units_and_cardinality(
