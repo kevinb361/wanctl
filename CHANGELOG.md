@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **TUNE-001 foundation:** Added a deterministic, non-actuating semantic model over frozen accepted CAKE baseline JSON, with exact fourteen-day/query/cohort contracts, explicit throughput utility and loaded RTT tail, evaluation-sampled congestion occupancy, stable per-tin dimensions, provenance and OBS-006 non-inheritance, byte-stable replay, and fail-closed arithmetic/support validation. This is repository implementation only; TUNE-001 remains open until an eligible independently validated live frozen replay.
 - **REM-011:** Made both legacy concurrent RTT helpers honor aggregate caller deadlines by cancelling pending work and using non-waiting teardown for internally bounded running pings. This intentionally supersedes the historical Phase 239 protected-body freeze for `RTTMeasurement.ping_hosts_with_results`; focused elapsed-time and lifecycle regressions are the new contract.
 - **REM-010:** Made adaptive response tuning direction-aware through durable native DL/UL state metrics, corrected Hampel sigma feedback direction, and preserved exact bounded 0.01/0.1 parameter steps through the applier.
 - **REM-009:** Hardened first-class IRTT mode with binary-aware ICMP fallback, distinct target/scorer isolation, total-loss rejection, current-burst success attribution, backend-aware one-target health, and separate source/target reporting.

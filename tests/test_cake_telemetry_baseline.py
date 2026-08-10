@@ -62,7 +62,8 @@ def _complete_matrices(namespace: dict[str, Any]) -> tuple[dict[str, Any], list[
     }
     matrices["shaped_rate_bps"] = {}
     matrices["throughput_bps"] = {}
-    matrices["congestion_state"] = {}
+    for name in namespace["CONGESTION_FRACTION_DIMENSIONS"]:
+        matrices[name] = {}
     for wan in namespace["WANS"]:
         for direction in namespace["DIRECTIONS"]:
             matrices["shaped_rate_bps"][(wan, direction)] = {
@@ -72,9 +73,13 @@ def _complete_matrices(namespace: dict[str, Any]) -> tuple[dict[str, Any], list[
                 timestamp: 100_000_000.0 * timestamp_utilization[timestamp]
                 for timestamp in timestamps
             }
-            matrices["congestion_state"][(wan, direction)] = {
-                timestamp: float(index % 3) for index, timestamp in enumerate(timestamps)
-            }
+            for name, fraction in (
+                ("congestion_green_fraction", 0.5),
+                ("congestion_yellow_or_soft_red_fraction", 0.3),
+                ("congestion_red_fraction", 0.2),
+                ("congestion_unknown_fraction", 0.0),
+            ):
+                matrices[name][(wan, direction)] = {timestamp: fraction for timestamp in timestamps}
     for name in (
         "tin_average_delay_seconds",
         "tin_peak_delay_seconds",
@@ -326,6 +331,9 @@ def test_cohort_output_is_deterministic_and_declares_missing_data() -> None:
         "utc_18_to_24",
     }
     assert all(cohort["sample_count"] == 12 for cohort in cohorts)
+    assert all(
+        cohort["dimensions"]["congestion_green_fraction"]["mean"] == 0.5 for cohort in cohorts
+    )
     assert disclosure["candidate_points"] == 432
     assert disclosure["accepted_points"] == 432
     assert disclosure["discarded_incomplete_points"] == 0
@@ -335,6 +343,33 @@ def test_cohort_output_is_deterministic_and_declares_missing_data() -> None:
     assert disclosure["published_cohort_count"] == 36
     assert disclosure["insufficient_cohorts"] == []
     assert disclosure["missing_cohorts"] == []
+
+
+def test_cohort_gate_rejects_unknown_congestion_state_before_cohort_publication() -> None:
+    namespace = _load()
+    matrices, timestamps = _complete_matrices(namespace)
+    matrices["congestion_unknown_fraction"][("att", "download")][timestamps[0]] = 0.1
+
+    with pytest.raises(namespace["BaselineError"], match="unknown congestion state"):
+        namespace["build_cohorts"](matrices, timestamps)
+
+
+def test_cohort_gate_rejects_out_of_bounds_congestion_fraction() -> None:
+    namespace = _load()
+    matrices, timestamps = _complete_matrices(namespace)
+    matrices["congestion_green_fraction"][("att", "download")][timestamps[0]] = 1.7
+
+    with pytest.raises(namespace["BaselineError"], match="out of bounds"):
+        namespace["build_cohorts"](matrices, timestamps)
+
+
+def test_cohort_gate_rejects_congestion_fractions_that_do_not_sum_to_one() -> None:
+    namespace = _load()
+    matrices, timestamps = _complete_matrices(namespace)
+    matrices["congestion_red_fraction"][("att", "download")][timestamps[0]] = 0.1
+
+    with pytest.raises(namespace["BaselineError"], match="do not sum to one"):
+        namespace["build_cohorts"](matrices, timestamps)
 
 
 def test_cohort_gate_rejects_missing_fixed_tin_series() -> None:

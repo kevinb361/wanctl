@@ -27,6 +27,12 @@ MAX_UTILIZATION_RATIO = 1.5
 WANS = ("att", "spectrum")
 DIRECTIONS = ("download", "upload")
 TINS = ("bulk", "best_effort", "video", "voice")
+CONGESTION_FRACTION_DIMENSIONS = (
+    "congestion_green_fraction",
+    "congestion_yellow_or_soft_red_fraction",
+    "congestion_red_fraction",
+    "congestion_unknown_fraction",
+)
 
 QUERIES = {
     "stats_up": "min by (wan) (min_over_time(cake_stats_up[5m]))",
@@ -35,7 +41,19 @@ QUERIES = {
     "shaped_rate_bps": "min by (wan, direction) (cake_shaped_rate_bps)",
     "rtt_delta_seconds": "max by (wan) (cake_rtt_delta_ms) / 1000",
     "probe_rtt_seconds": "max by (wan) (cake_probe_rtt_seconds)",
-    "congestion_state": "max by (wan, direction) (cake_congestion_state)",
+    "congestion_green_fraction": (
+        "max by (wan, direction) (avg_over_time((cake_congestion_state == bool 0)[5m:]))"
+    ),
+    "congestion_yellow_or_soft_red_fraction": (
+        "max by (wan, direction) (avg_over_time((cake_congestion_state == bool 1)[5m:]))"
+    ),
+    "congestion_red_fraction": (
+        "max by (wan, direction) (avg_over_time((cake_congestion_state == bool 2)[5m:]))"
+    ),
+    "congestion_unknown_fraction": (
+        "max by (wan, direction) (avg_over_time(((cake_congestion_state < bool 0) + "
+        "(cake_congestion_state > bool 2))[5m:]))"
+    ),
     "throughput_bps": ("sum by (wan, direction) (rate(cake_tin_sent_bytes_total[5m]) * 8)"),
     "tin_average_delay_seconds": ("max by (wan, direction, tin) (cake_tin_average_delay_seconds)"),
     "tin_peak_delay_seconds": ("max by (wan, direction, tin) (cake_tin_peak_delay_seconds)"),
@@ -251,7 +269,7 @@ def validate_dimension_coverage(
         "rtt_delta_seconds": ("wan",),
         "probe_rtt_seconds": ("wan",),
         "shaped_rate_bps": ("wan", "direction"),
-        "congestion_state": ("wan", "direction"),
+        **{name: ("wan", "direction") for name in CONGESTION_FRACTION_DIMENSIONS},
         "throughput_bps": ("wan", "direction"),
         "tin_average_delay_seconds": ("wan", "direction", "tin"),
         "tin_peak_delay_seconds": ("wan", "direction", "tin"),
@@ -320,6 +338,41 @@ def summarize(values: list[float]) -> dict[str, float | int]:
     }
 
 
+def validate_congestion_fractions(
+    matrices: dict[str, dict[tuple[str, ...], dict[int, float]]], timestamps: list[int]
+) -> None:
+    for name in CONGESTION_FRACTION_DIMENSIONS:
+        require_exact_labels(name, matrices[name], ("wan", "direction"))
+    for wan in WANS:
+        for direction in DIRECTIONS:
+            key = (wan, direction)
+            for timestamp in timestamps:
+                observed = {
+                    name: matrices[name][key][timestamp]
+                    for name in CONGESTION_FRACTION_DIMENSIONS
+                    if timestamp in matrices[name][key]
+                }
+                for name, value in observed.items():
+                    if value < 0 or value > 1:
+                        raise BaselineError(f"congestion fraction out of bounds: {name}={value}")
+                unknown = observed.get("congestion_unknown_fraction")
+                if unknown is not None and unknown > 0:
+                    raise BaselineError(
+                        f"unknown congestion state observed for {wan}:{direction} at {timestamp}"
+                    )
+                if len(observed) == len(CONGESTION_FRACTION_DIMENSIONS):
+                    known_sum = sum(
+                        observed[name]
+                        for name in CONGESTION_FRACTION_DIMENSIONS
+                        if name != "congestion_unknown_fraction"
+                    )
+                    if not math.isclose(known_sum, 1.0, abs_tol=1e-6):
+                        raise BaselineError(
+                            f"congestion fractions do not sum to one for "
+                            f"{wan}:{direction} at {timestamp}"
+                        )
+
+
 def build_cohorts(  # noqa: C901 - explicit fail-closed dimension assembly
     matrices: dict[str, dict[tuple[str, ...], dict[int, float]]],
     timestamps: list[int],
@@ -329,7 +382,7 @@ def build_cohorts(  # noqa: C901 - explicit fail-closed dimension assembly
     require_exact_labels("rtt_delta_seconds", matrices["rtt_delta_seconds"], ("wan",))
     require_exact_labels("probe_rtt_seconds", matrices["probe_rtt_seconds"], ("wan",))
     require_exact_labels("probe_up", matrices["probe_up"], ("wan",))
-    require_exact_labels("congestion_state", matrices["congestion_state"], ("wan", "direction"))
+    validate_congestion_fractions(matrices, timestamps)
     for name in (
         "tin_average_delay_seconds",
         "tin_peak_delay_seconds",
@@ -355,7 +408,6 @@ def build_cohorts(  # noqa: C901 - explicit fail-closed dimension assembly
             key = (wan, direction)
             throughput = matrices["throughput_bps"][key]
             shaped = matrices["shaped_rate_bps"][key]
-            congestion = matrices["congestion_state"][key]
             last_reset_totals: dict[str, float] = {}
             for timestamp in timestamps:
                 candidate_points += 1
@@ -374,7 +426,7 @@ def build_cohorts(  # noqa: C901 - explicit fail-closed dimension assembly
                 required_wan_direction = {
                     "rtt_delta_seconds": rtt,
                     "probe_rtt_seconds": probe_rtt,
-                    "congestion_state": congestion,
+                    **{name: matrices[name][key] for name in CONGESTION_FRACTION_DIMENSIONS},
                 }
                 if any(timestamp not in points for points in required_wan_direction.values()):
                     for name, points in required_wan_direction.items():
@@ -499,7 +551,7 @@ def collect_matrices(
     matrices = {}
     for name, expression in QUERIES.items():
         labels: tuple[str, ...] = ("wan",)
-        if name in {"shaped_rate_bps", "throughput_bps", "congestion_state"}:
+        if name in {"shaped_rate_bps", "throughput_bps", *CONGESTION_FRACTION_DIMENSIONS}:
             labels = ("wan", "direction")
         elif name.startswith("tin_"):
             labels = ("wan", "direction", "tin")
