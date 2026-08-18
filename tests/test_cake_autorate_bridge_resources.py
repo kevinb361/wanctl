@@ -370,7 +370,10 @@ def test_bridge_reopens_persistent_connection_after_database_replacement(
     namespace["write_metrics"](_state())
     for suffix in ("", "-wal", "-shm"):
         Path(f"{namespace['METRICS_DB']}{suffix}").unlink(missing_ok=True)
-    namespace["write_metrics"](_state())
+    # Use a different state so fire-on-change doesn't skip the second write.
+    changed_state = _state()
+    changed_state["ewma"] = {"baseline_rtt": 20.0, "load_rtt": 23.0}
+    namespace["write_metrics"](changed_state)
 
     assert len(opened) == 2
     assert opened[0].closed is True

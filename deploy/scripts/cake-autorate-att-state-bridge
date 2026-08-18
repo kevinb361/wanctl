@@ -530,7 +530,11 @@ def metrics_connection() -> sqlite3.Connection:
 atexit.register(close_metrics_connection)
 
 
+_LAST_METRICS_VALUES: tuple[float, float, float, float, float, float] | None = None
+
+
 def write_metrics(state: dict) -> None:
+    global _LAST_METRICS_VALUES
     if not METRICS_ENABLED:
         return
     timestamp = int(time.time())
@@ -548,6 +552,12 @@ def write_metrics(state: dict) -> None:
         if congestion.get("dl_state") == "GREEN" and congestion.get("ul_state") == "GREEN"
         else 1.0
     )
+    values = (dl_rate, ul_rate, load, baseline, max(0.0, load - baseline), state_value)
+    # Fire-on-change: skip SQLite write if all 6 values are unchanged.
+    # This reduces raw row volume from ~86,400/day to only actual changes.
+    if _LAST_METRICS_VALUES is not None and values == _LAST_METRICS_VALUES:
+        return
+    _LAST_METRICS_VALUES = values
     rows = [
         (timestamp, WAN_NAME, "wanctl_rate_download_mbps", dl_rate, None, "raw"),
         (timestamp, WAN_NAME, "wanctl_rate_upload_mbps", ul_rate, None, "raw"),
