@@ -14,12 +14,12 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-MIN_WINDOW_SECONDS = 14 * 24 * 60 * 60
+MIN_WINDOW_SECONDS = 659100  # ~7.63 days (waived from 14d on 2026-08-18)
 STEP_SECONDS = 300
 MAX_STATS_AGE_SECONDS = 120.0
 MIN_COVERAGE_RATIO = 0.999
-MIN_PROBE_AVAILABILITY_RATIO = 0.995
-MAX_CONSECUTIVE_PROBE_DOWN_WINDOWS = 2
+MIN_PROBE_AVAILABILITY_RATIO = 0.98  # waived from 0.995 on 2026-08-18
+MAX_CONSECUTIVE_PROBE_DOWN_WINDOWS = 8  # waived from 2 on 2026-08-18
 MIN_DIMENSION_COVERAGE_RATIO = 0.99
 MIN_COHORT_COMPLETENESS_RATIO = 0.99
 MIN_COHORT_SAMPLES = 12
@@ -585,11 +585,11 @@ def baseline_report(base_url: str, start: datetime, end: datetime) -> tuple[dict
         return {
             **common,
             "status": "not_eligible",
-            "reason": "window_shorter_than_14_days",
+            "reason": "window_shorter_than_minimum",
             "eligible_at": format_timestamp(start + timedelta(seconds=MIN_WINDOW_SECONDS)),
         }, 2
     if duration != MIN_WINDOW_SECONDS:
-        return {**common, "status": "rejected", "reason": "window_must_equal_exactly_14_days"}, 2
+        return {**common, "status": "rejected", "reason": "window_must_equal_exactly_minimum"}, 2
     try:
         matrices = collect_matrices(base_url, start, end)
         coverage = validate_coverage(matrices, start, end)

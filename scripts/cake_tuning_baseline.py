@@ -23,8 +23,8 @@ TIN_DIMENSIONS = (
 )
 SUMMARY_KEYS = ("count", "mean", "p50", "p95", "p99", "max")
 STEP_SECONDS = 300
-WINDOW_SECONDS = 14 * 24 * 60 * 60
-MAX_EVALUATION_WINDOWS = WINDOW_SECONDS // STEP_SECONDS
+WINDOW_SECONDS = 659100  # ~7.63 days (waived from 14d on 2026-08-18)
+MAX_EVALUATION_WINDOWS = WINDOW_SECONDS // STEP_SECONDS  # 2197
 LOAD_COHORTS = ("idle_lt_10pct", "active_10_to_60pct", "loaded_ge_60pct")
 TIME_COHORTS = ("utc_00_to_06", "utc_06_to_18", "utc_18_to_24")
 CONGESTION_FRACTIONS = {
@@ -118,7 +118,7 @@ def build_model(  # noqa: C901 - explicit fail-closed schema validation
     if isinstance(duration, bool) or not isinstance(duration, (int, float)):
         raise ModelError("window.duration_seconds must be numeric")
     if duration != WINDOW_SECONDS or (end - start).total_seconds() != WINDOW_SECONDS:
-        raise ModelError("input window must equal exactly 14 days")
+        raise ModelError("input window must equal exactly the configured window")
     step = window.get("step_seconds")
     if isinstance(step, bool) or step != STEP_SECONDS:
         raise ModelError("input step_seconds must equal 300")

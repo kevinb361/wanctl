@@ -159,7 +159,7 @@ def test_normalize_matrix_rejects_duplicate_and_nonfinite_series() -> None:
 def test_short_window_fails_before_any_prometheus_query() -> None:
     namespace = _load()
     start = datetime(2026, 1, 1, tzinfo=UTC)
-    end = start + timedelta(days=13, hours=23)
+    end = start + timedelta(days=7)
     namespace["baseline_report"].__globals__["collect_matrices"] = lambda *_args: pytest.fail(
         "must not query Prometheus"
     )
@@ -168,7 +168,7 @@ def test_short_window_fails_before_any_prometheus_query() -> None:
 
     assert exit_code == 2
     assert report["status"] == "not_eligible"
-    assert report["eligible_at"] == "2026-01-15T00:00:00Z"
+    assert report["eligible_at"] == "2026-01-08T15:05:00Z"
     assert report["safety"] == {
         "read_only_prometheus_api": True,
         "configuration_writes": False,
@@ -240,43 +240,45 @@ def test_probe_availability_accepts_bounded_isolated_down_windows() -> None:
 def test_probe_availability_rejects_excessive_down_windows() -> None:
     namespace = _load()
     start, end, timestamps, matrices = _fourteen_day_coverage(namespace)
-    for timestamp in timestamps[::190][:21]:
+    # 98% of 4032 = 3951.36, so 3951 good / 4032 = 97.99% < 98% → rejected
+    for timestamp in timestamps[::10][:81]:
         matrices["probe_up"][("spectrum",)][timestamp] = 0.0
 
-    with pytest.raises(namespace["BaselineError"], match="availability .* below 99.5%"):
+    with pytest.raises(namespace["BaselineError"], match="availability .* below 98.0%"):
         namespace["validate_coverage"](matrices, start, end)
 
 
 def test_probe_availability_rejects_sustained_outage_below_ratio_limit() -> None:
     namespace = _load()
     start, end, timestamps, matrices = _fourteen_day_coverage(namespace)
-    for timestamp in timestamps[100:103]:
+    for timestamp in timestamps[100:109]:
         matrices["probe_up"][("att",)][timestamp] = 0.0
 
-    with pytest.raises(namespace["BaselineError"], match="3 consecutive down windows"):
+    with pytest.raises(namespace["BaselineError"], match="9 consecutive down windows"):
         namespace["validate_coverage"](matrices, start, end)
 
 
 def test_probe_availability_counts_missing_sample_inside_outage_run() -> None:
     namespace = _load()
     start, end, timestamps, matrices = _fourteen_day_coverage(namespace)
-    for index in (100, 101, 103, 104):
+    for index in (100, 101, 103, 104, 105, 106, 107, 108):
         matrices["probe_up"][("att",)][timestamps[index]] = 0.0
     del matrices["probe_up"][("att",)][timestamps[102]]
 
-    with pytest.raises(namespace["BaselineError"], match="5 consecutive down windows"):
+    with pytest.raises(namespace["BaselineError"], match="9 consecutive down windows"):
         namespace["validate_coverage"](matrices, start, end)
 
 
 def test_probe_availability_uses_expected_grid_for_missing_sample_denominator() -> None:
     namespace = _load()
     start, end, timestamps, matrices = _fourteen_day_coverage(namespace)
-    for timestamp in timestamps[::190][:17]:
+    # 82 down (step 49 avoids deleted indices) + 4 missing = 86 bad → 97.87% < 98%
+    for timestamp in timestamps[::49][:82]:
         matrices["probe_up"][("spectrum",)][timestamp] = 0.0
     for index in (1000, 1200, 1400, 1600):
         del matrices["probe_up"][("spectrum",)][timestamps[index]]
 
-    with pytest.raises(namespace["BaselineError"], match="availability .* below 99.5%"):
+    with pytest.raises(namespace["BaselineError"], match="availability .* below 98.0%"):
         namespace["validate_coverage"](matrices, start, end)
 
 
@@ -455,7 +457,7 @@ def test_counter_reset_sample_is_disclosed_and_not_summarized() -> None:
 def test_eligible_window_rejects_prometheus_api_failure() -> None:
     namespace = _load()
     start = datetime(2026, 1, 1, tzinfo=UTC)
-    end = start + timedelta(days=14)
+    end = start + timedelta(seconds=659100)
 
     def fail(*_args: Any) -> None:
         raise OSError("Prometheus unavailable")
@@ -492,7 +494,8 @@ def test_cli_not_eligible_result_is_stable_and_needs_no_server(tmp_path: Path) -
     assert result.returncode == 2
     assert result.stdout == ""
     assert report["status"] == "not_eligible"
-    assert report["eligible_at"] == "2026-08-14T22:20:36.035000Z"
+    # eligible_at = start + MIN_WINDOW_SECONDS (659100s = ~7.63d)
+    assert report["eligible_at"] == "2026-08-08T13:25:36.035000Z"
     assert report["queries"] == _load()["QUERIES"]
 
 

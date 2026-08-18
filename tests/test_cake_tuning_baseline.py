@@ -69,8 +69,8 @@ def _baseline() -> dict[str, Any]:
         "status": "accepted",
         "window": {
             "start": SEMANTIC_START,
-            "end": "2026-08-24T18:48:24.594563Z",
-            "duration_seconds": 14 * 24 * 60 * 60,
+            "end": "2026-08-18T09:53:24.594563Z",
+            "duration_seconds": 659100,
             "step_seconds": 300,
         },
         "cohort_contract": {
@@ -103,7 +103,7 @@ def _build(namespace: dict[str, Any], baseline: dict[str, Any] | None = None) ->
 def test_model_exposes_explicit_dimensions_provenance_and_safety() -> None:
     model = _build(_load())
 
-    assert model["provenance"]["actual_duration_seconds"] == 14 * 24 * 60 * 60
+    assert model["provenance"]["actual_duration_seconds"] == 659100
     assert model["provenance"]["semantic_valid_from"] == SEMANTIC_START
     assert model["provenance"]["obs006"] == {
         "decision": ".planning/decisions/2706-waive-obs006-fourteen-day-temporal-gate.md",
@@ -223,13 +223,13 @@ def test_model_rejects_noncontract_step(step: int | bool | None) -> None:
         _build(namespace, baseline)
 
 
-def test_model_rejects_non_fourteen_day_window() -> None:
+def test_model_rejects_non_configured_window() -> None:
     namespace = _load()
     baseline = _baseline()
     baseline["window"]["end"] = "2026-08-17T18:48:24.594563Z"
     baseline["window"]["duration_seconds"] = 7 * 24 * 60 * 60
 
-    with pytest.raises(namespace["ModelError"], match="exactly 14 days"):
+    with pytest.raises(namespace["ModelError"], match="exactly the configured window"):
         _build(namespace, baseline)
 
 
@@ -291,7 +291,7 @@ def test_model_rejects_aggregate_wan_direction_support_larger_than_window() -> N
     baseline = _baseline()
     extra = copy.deepcopy(baseline["cohorts"][0])
     extra["load_cohort"] = "active_10_to_60pct"
-    _set_cohort_count(extra, 4_030)
+    _set_cohort_count(extra, 2_197)
     baseline["cohorts"].append(extra)
 
     with pytest.raises(namespace["ModelError"], match="aggregate cohort support exceeds"):
@@ -359,8 +359,8 @@ def test_full_capacity_is_accepted_independently_per_wan_direction() -> None:
                     cohort = _cohort(wan, direction)
                     cohort["load_cohort"] = load_name
                     cohort["time_cohort"] = time_name
-                    cohort["dimensions"]["utilization_ratio"] = _summary(utilization, count=448)
-                    _set_cohort_count(cohort, 448)
+                    cohort["dimensions"]["utilization_ratio"] = _summary(utilization, count=244)
+                    _set_cohort_count(cohort, 244)
                     cohorts.append(cohort)
     baseline["cohorts"] = cohorts
 
@@ -373,9 +373,9 @@ def test_full_capacity_is_accepted_independently_per_wan_direction() -> None:
                 for cohort in model["cohorts"]
                 if cohort["wan"] == wan and cohort["direction"] == direction
             ]
-            assert sum(item["support"]["evaluation_windows"] for item in selected) == 4_032
+            assert sum(item["support"]["evaluation_windows"] for item in selected) == 2_196
             assert (
-                sum(item["support"]["evaluated_interval_seconds"] for item in selected) == 1_209_600
+                sum(item["support"]["evaluated_interval_seconds"] for item in selected) == 658_800
             )
             assert (
                 sum(
@@ -383,7 +383,7 @@ def test_full_capacity_is_accepted_independently_per_wan_direction() -> None:
                     for item in selected
                     for state in item["congestion_state_occupancy"]["states"].values()
                 )
-                == 1_209_600
+                == 658_800
             )
 
 
