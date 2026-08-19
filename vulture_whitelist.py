@@ -198,3 +198,30 @@ detect_netwatch_route_conflicts  # noqa
 _.enqueue_alert
 DEFAULT_MAINTENANCE_LOCK_TIMEOUT  # noqa
 _._encode_state
+
+# --- TUNE-003/004: tuning framework APIs (test-exercised, not yet wired to prod) ---
+# canary_evidence.py
+shaped_rate_bps  # noqa  -- CanaryEvidence dataclass field
+triggered_at  # noqa  -- CanaryEvidence dataclass field
+steps_executed  # noqa  -- CanaryEvidence dataclass field
+verified_at  # noqa  -- CanaryEvidence dataclass field
+approved_at  # noqa  -- CanaryEvidence dataclass field
+packet_sha256  # noqa  -- CanaryEvidence dataclass field
+approval_token  # noqa  -- CanaryEvidence dataclass field
+_.observation_count
+_.observation_duration_seconds
+_.to_json
+compute_verdict
+advance_phase
+add_observation
+generate_approval_token
+# experiment_packet.py
+ExperimentPacket.to_json
+ExperimentPacket.from_json
+# recommendation.py
+generated_at  # noqa  -- Recommendation dataclass field
+Recommendation.to_json
+RecommendationError
+check_telemetry_health
+score_and_recommend
+verify_read_only
