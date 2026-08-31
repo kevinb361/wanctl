@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -229,7 +229,7 @@ def make_no_change_recommendation(
         dimensions=[],
         telemetry_health=telemetry_health,
         rationale=rationale,
-        generated_at=datetime.now(tz=__import__("datetime").UTC).isoformat(),
+        generated_at=datetime.now(tz=UTC).isoformat(),
         baseline_sha256=baseline_sha256,
     )
 
@@ -319,7 +319,7 @@ def score_and_recommend(
         dimensions=dimensions,
         telemetry_health=telemetry_health,
         rationale=rationale,
-        generated_at=datetime.now(tz=__import__("datetime").UTC).isoformat(),
+        generated_at=datetime.now(tz=UTC).isoformat(),
         baseline_sha256=baseline_sha256,
     )
 
@@ -327,6 +327,66 @@ def score_and_recommend(
 # ---------------------------------------------------------------------------
 # Read-only proof
 # ---------------------------------------------------------------------------
+
+
+# Top-level module names that would give this module a process, filesystem-write,
+# or network surface. Entries MUST be importable top-level names: the original
+# list held "os.system"/"os.popen", which are attributes rather than modules and
+# so could never match an import node, leaving bare `os` entirely undetected.
+FORBIDDEN_MODULES = frozenset(
+    {
+        "subprocess",
+        "os",
+        "shutil",
+        "sqlite3",
+        "socket",
+        "urllib",
+        "http",
+        "requests",
+        "httpx",
+        "paramiko",
+        "librouteros",
+        "ftplib",
+        "telnetlib",
+        "smtplib",
+        "multiprocessing",
+    }
+)
+
+# Dynamic-import escape hatches. Without these, `__import__("subprocess").run(...)`
+# reaches a control surface without ever creating an Import node to match.
+FORBIDDEN_IMPORT_CALLS = frozenset({"__import__", "import_module"})
+
+
+def _scan_import_surface(tree: Any) -> list[str]:
+    """Collect static and dynamic import violations from a parsed module.
+
+    Split out of verify_read_only so each surface can be tested directly and the
+    checker stays under the project complexity gate.
+    """
+    import ast
+
+    found: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.split(".")[0] in FORBIDDEN_MODULES:
+                    found.append(f"forbidden import: {alias.name}")
+        elif isinstance(node, ast.ImportFrom):
+            if node.module and node.module.split(".")[0] in FORBIDDEN_MODULES:
+                found.append(f"forbidden import from: {node.module}")
+        elif isinstance(node, ast.Call):
+            func = node.func
+            name = (
+                func.id
+                if isinstance(func, ast.Name)
+                else func.attr
+                if isinstance(func, ast.Attribute)
+                else None
+            )
+            if name in FORBIDDEN_IMPORT_CALLS:
+                found.append(f"dynamic import call: {name}()")
+    return found
 
 
 def verify_read_only(source_path: str) -> list[str]:
@@ -342,21 +402,7 @@ def verify_read_only(source_path: str) -> list[str]:
     tree = ast.parse(source)
 
     # Check for imports that could enable mutations
-    forbidden_imports = {
-        "subprocess",
-        "os.system",
-        "os.popen",
-        "shutil",
-        "sqlite3",
-    }
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                if alias.name in forbidden_imports:
-                    violations.append(f"forbidden import: {alias.name}")
-        elif isinstance(node, ast.ImportFrom):
-            if node.module and node.module.split(".")[0] in forbidden_imports:
-                violations.append(f"forbidden import from: {node.module}")
+    violations.extend(_scan_import_surface(tree))
 
     # Check for string patterns that indicate control commands
     control_patterns = [
@@ -384,7 +430,7 @@ def verify_read_only(source_path: str) -> list[str]:
     for pattern in control_patterns:
         for i, line in enumerate(lines, 1):
             # Skip lines inside the pattern list definition itself
-            if pattern_list_start and pattern_list_end:
+            if pattern_list_start is not None and pattern_list_end is not None:
                 if pattern_list_start <= i - 1 <= pattern_list_end:
                     continue
             stripped = line.strip()

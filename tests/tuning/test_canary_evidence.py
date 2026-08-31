@@ -8,10 +8,12 @@ post-state; failed attempts remain failures and approvals are non-replayable.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 import pytest
 
 from wanctl.tuning.canary_evidence import (
+    CONGESTION_ORDER,
     ApprovalRecord,
     BaselineSnapshot,
     CanaryEvidence,
@@ -103,14 +105,14 @@ class TestPhaseTransitions:
         assert advanced.phase == CanaryPhase.OBSERVING
 
     def test_observing_to_verdict_keep(self) -> None:
-        e = _evidence(CanaryPhase.OBSERVING)
+        e = add_observation(_evidence(CanaryPhase.OBSERVING), _observation())
         advanced = advance_phase(e, CanaryPhase.VERDICT_KEEP)
         assert advanced.phase == CanaryPhase.VERDICT_KEEP
         assert advanced.verdict == Verdict.KEEP
         assert advanced.is_finalized
 
     def test_observing_to_verdict_revert(self) -> None:
-        e = _evidence(CanaryPhase.OBSERVING)
+        e = add_observation(_evidence(CanaryPhase.OBSERVING), _observation())
         advanced = advance_phase(e, CanaryPhase.VERDICT_REVERT)
         assert advanced.phase == CanaryPhase.VERDICT_REVERT
         assert advanced.verdict == Verdict.REVERT
@@ -147,6 +149,8 @@ class TestPhaseTransitions:
         ):
             e = advance_phase(e, phase)
             assert e.experiment_id == "exp-001"
+            if e.phase is CanaryPhase.OBSERVING:
+                e = add_observation(e, _observation())
 
 
 # ---------------------------------------------------------------------------
@@ -172,7 +176,7 @@ class TestObservations:
             add_observation(e, _observation())
 
     def test_cannot_add_observation_to_finalized(self) -> None:
-        e = _evidence(CanaryPhase.OBSERVING)
+        e = add_observation(_evidence(CanaryPhase.OBSERVING), _observation())
         e = advance_phase(e, CanaryPhase.VERDICT_KEEP)
         with pytest.raises(VerdictError, match="must be observing"):
             add_observation(e, _observation())
@@ -298,9 +302,7 @@ class TestVerdictAbort:
 
     def test_abort_without_rollback_record(self) -> None:
         e = _evidence(CanaryPhase.OBSERVING)
-        e = add_observation(
-            e, _observation(abort_triggered=True, abort_reason="unknown")
-        )
+        e = add_observation(e, _observation(abort_triggered=True, abort_reason="unknown"))
         result = compute_verdict(e)
         assert result["verdict"] == Verdict.ABORT
         assert "no rollback record" in result["rationale"]
@@ -419,10 +421,163 @@ class TestEvidenceIntegrity:
         assert e.has_abort is True
 
     def test_is_finalized_after_verdict(self) -> None:
-        e = _evidence(CanaryPhase.OBSERVING)
+        e = add_observation(_evidence(CanaryPhase.OBSERVING), _observation())
         e = advance_phase(e, CanaryPhase.VERDICT_KEEP)
         assert e.is_finalized
 
     def test_is_not_finalized_before_verdict(self) -> None:
         e = _evidence(CanaryPhase.OBSERVING)
         assert e.is_finalized is False
+
+
+class TestCongestionOrderingRegression:
+    """AUD-v1.67-002: SOFT_RED must rank as worse than GREEN.
+
+    The original table was {"GREEN": 0, "YELLOW": 1, "RED": 2} with a
+    ``.get(state, -1)`` fallback, so SOFT_RED -- and any unrecognized state --
+    sorted below GREEN and a real congestion regression was certified KEEP.
+    """
+
+    @pytest.mark.parametrize(
+        ("observed_state", "expected_verdict"),
+        [
+            ("GREEN", Verdict.KEEP),
+            ("YELLOW", Verdict.REVERT),
+            ("SOFT_RED", Verdict.REVERT),
+            ("RED", Verdict.REVERT),
+        ],
+    )
+    def test_worsening_from_green_reverts(self, observed_state, expected_verdict):
+        evidence = replace(
+            _evidence(CanaryPhase.OBSERVING),
+            observations=[_observation(congestion_state=observed_state)],
+        )
+        assert compute_verdict(evidence)["verdict"] is expected_verdict
+
+    def test_soft_red_is_ranked_between_yellow_and_red(self):
+        assert (
+            CONGESTION_ORDER["GREEN"]
+            < CONGESTION_ORDER["YELLOW"]
+            < CONGESTION_ORDER["SOFT_RED"]
+            < CONGESTION_ORDER["RED"]
+        )
+
+    def test_green_to_soft_red_rationale_names_the_regression(self):
+        evidence = replace(
+            _evidence(CanaryPhase.OBSERVING),
+            observations=[_observation(congestion_state="SOFT_RED")],
+        )
+        rationale = compute_verdict(evidence)["rationale"]
+        assert "congestion worsened from GREEN to SOFT_RED" in rationale
+        assert "unchanged" not in rationale
+
+    def test_unrecognized_observation_state_fails_closed(self):
+        evidence = replace(
+            _evidence(CanaryPhase.OBSERVING),
+            observations=[_observation(congestion_state="PURPLE")],
+        )
+        with pytest.raises(VerdictError, match="unrecognized observation"):
+            compute_verdict(evidence)
+
+    def test_unrecognized_baseline_state_fails_closed(self):
+        evidence = replace(
+            _evidence(CanaryPhase.OBSERVING),
+            baseline=replace(_baseline(), congestion_state="MAUVE"),
+            observations=[_observation(congestion_state="GREEN")],
+        )
+        with pytest.raises(VerdictError, match="unrecognized baseline"):
+            compute_verdict(evidence)
+
+    def test_improvement_is_kept_without_claiming_unchanged(self):
+        evidence = replace(
+            _evidence(CanaryPhase.OBSERVING),
+            baseline=replace(_baseline(), congestion_state="YELLOW"),
+            observations=[_observation(congestion_state="GREEN")],
+        )
+        result = compute_verdict(evidence)
+        assert result["verdict"] is Verdict.KEEP
+        assert "YELLOW -> GREEN" in result["rationale"]
+
+
+class TestAbortCannotBeOverriddenRegression:
+    """AUD-v1.67-003: advance_phase must not assert a verdict of its own.
+
+    ``OBSERVING -> VERDICT_KEEP`` previously had no predicate and stamped
+    "all gates passed" without consulting compute_verdict, so an aborted
+    record could be finalized as KEEP.
+    """
+
+    def _aborted(self) -> CanaryEvidence:
+        return replace(
+            _evidence(CanaryPhase.OBSERVING),
+            observations=[
+                _observation(
+                    health_status="degraded",
+                    rtt_ms=900.0,
+                    abort_triggered=True,
+                    abort_reason="rtt ceiling breached",
+                )
+            ],
+        )
+
+    def test_aborted_record_cannot_reach_verdict_keep(self):
+        evidence = self._aborted()
+        assert compute_verdict(evidence)["verdict"] is not Verdict.KEEP
+        with pytest.raises(VerdictError, match="cannot finalize as verdict_keep"):
+            advance_phase(evidence, CanaryPhase.VERDICT_KEEP)
+
+    def test_congestion_regression_cannot_reach_verdict_keep(self):
+        evidence = replace(
+            _evidence(CanaryPhase.OBSERVING),
+            observations=[_observation(congestion_state="SOFT_RED")],
+        )
+        with pytest.raises(VerdictError, match="objective verdict is revert"):
+            advance_phase(evidence, CanaryPhase.VERDICT_KEEP)
+
+    def test_keep_rationale_comes_from_the_objective_engine(self):
+        evidence = replace(
+            _evidence(CanaryPhase.OBSERVING),
+            observations=[_observation()],
+        )
+        finalized = advance_phase(evidence, CanaryPhase.VERDICT_KEEP)
+        assert finalized.verdict is Verdict.KEEP
+        assert finalized.verdict_rationale == compute_verdict(evidence)["rationale"]
+        assert "all gates passed" not in finalized.verdict_rationale
+
+    def test_operator_revert_against_keep_is_labelled_as_such(self):
+        evidence = replace(
+            _evidence(CanaryPhase.OBSERVING),
+            observations=[_observation()],
+        )
+        finalized = advance_phase(evidence, CanaryPhase.VERDICT_REVERT)
+        assert finalized.verdict is Verdict.REVERT
+        assert "operator-initiated revert" in finalized.verdict_rationale
+
+    def test_revert_on_real_regression_carries_the_engine_rationale(self):
+        evidence = replace(
+            _evidence(CanaryPhase.OBSERVING),
+            observations=[_observation(congestion_state="RED")],
+        )
+        finalized = advance_phase(evidence, CanaryPhase.VERDICT_REVERT)
+        assert finalized.verdict is Verdict.REVERT
+        assert "congestion worsened from GREEN to RED" in finalized.verdict_rationale
+        assert "operator-initiated" not in finalized.verdict_rationale
+
+
+class TestUnobservedCanaryCannotBeCertified:
+    """A canary that observed nothing cannot be finalized as KEEP.
+
+    The five phase-mechanics tests above previously reached VERDICT_KEEP from a
+    zero-observation record, which only worked because advance_phase asserted its
+    own verdict. Deriving from compute_verdict closes that path.
+    """
+
+    def test_verdict_keep_requires_observations(self):
+        evidence = _evidence(CanaryPhase.OBSERVING)
+        with pytest.raises(VerdictError, match="no observations"):
+            advance_phase(evidence, CanaryPhase.VERDICT_KEEP)
+
+    def test_abort_phase_still_reachable_without_observations(self):
+        evidence = _evidence(CanaryPhase.OBSERVING)
+        aborted = advance_phase(evidence, CanaryPhase.ABORTED)
+        assert aborted.verdict is Verdict.ABORT

@@ -123,13 +123,9 @@ class CanaryEvidence:
         if not self.experiment_id.strip():
             raise ValueError("experiment_id must not be empty")
         if not self.created_at:
-            object.__setattr__(
-                self, "created_at", datetime.now(tz=UTC).isoformat()
-            )
+            object.__setattr__(self, "created_at", datetime.now(tz=UTC).isoformat())
         if not self.updated_at:
-            object.__setattr__(
-                self, "updated_at", datetime.now(tz=UTC).isoformat()
-            )
+            object.__setattr__(self, "updated_at", datetime.now(tz=UTC).isoformat())
 
     # ---- derived ----
 
@@ -197,6 +193,33 @@ class VerdictError(ValueError):
     """The verdict cannot be determined."""
 
 
+# Canonical four-state congestion vocabulary, ordered least-to-most congested.
+# Must match the project-wide ordinal encoding (see history.py state mapping and
+# config_validation_utils.py 4-state bounds): GREEN=0, YELLOW=1, SOFT_RED=2, RED=3.
+# SOFT_RED is a congested state -- health_check.py treats it as unhealthy alongside RED.
+CONGESTION_ORDER: dict[str, int] = {
+    "GREEN": 0,
+    "YELLOW": 1,
+    "SOFT_RED": 2,
+    "RED": 3,
+}
+
+
+def _congestion_rank(state: str, role: str) -> int:
+    """Rank a congestion state, failing closed on an unrecognized value.
+
+    A silent default would let an unknown state compare as better than GREEN and
+    convert a real regression into a KEEP verdict, so this raises instead.
+    """
+    try:
+        return CONGESTION_ORDER[state]
+    except KeyError:
+        raise VerdictError(
+            f"unrecognized {role} congestion state {state!r}; "
+            f"expected one of {sorted(CONGESTION_ORDER)}"
+        ) from None
+
+
 def compute_verdict(evidence: CanaryEvidence) -> dict[str, Any]:
     """Compute an objective keep-or-revert verdict from evidence.
 
@@ -242,8 +265,7 @@ def compute_verdict(evidence: CanaryEvidence) -> dict[str, Any]:
         return {
             "verdict": Verdict.ABORT,
             "rationale": (
-                f"abort threshold fired: {'; '.join(abort_reasons)}; "
-                "no rollback record found"
+                f"abort threshold fired: {'; '.join(abort_reasons)}; no rollback record found"
             ),
             "abort_reasons": abort_reasons,
             "rollback_verified": False,
@@ -254,18 +276,14 @@ def compute_verdict(evidence: CanaryEvidence) -> dict[str, Any]:
 
     # Rule 2: health degraded
     if last.health_status != baseline.health_status:
-        reasons.append(
-            f"health changed from {baseline.health_status} to {last.health_status}"
-        )
+        reasons.append(f"health changed from {baseline.health_status} to {last.health_status}")
 
     # Rule 3: congestion worsened
-    congestion_order = {"GREEN": 0, "YELLOW": 1, "RED": 2}
-    base_congestion = congestion_order.get(baseline.congestion_state, -1)
-    last_congestion = congestion_order.get(last.congestion_state, -1)
+    base_congestion = _congestion_rank(baseline.congestion_state, "baseline")
+    last_congestion = _congestion_rank(last.congestion_state, "observation")
     if last_congestion > base_congestion:
         reasons.append(
-            f"congestion worsened from {baseline.congestion_state} "
-            f"to {last.congestion_state}"
+            f"congestion worsened from {baseline.congestion_state} to {last.congestion_state}"
         )
 
     # Rule 4: RTT increased > 50%
@@ -289,8 +307,9 @@ def compute_verdict(evidence: CanaryEvidence) -> dict[str, Any]:
     return {
         "verdict": Verdict.KEEP,
         "rationale": (
-            f"health stable ({last.health_status}), congestion unchanged "
-            f"({last.congestion_state}), RTT within bounds "
+            f"health stable ({last.health_status}), congestion "
+            f"{baseline.congestion_state} -> {last.congestion_state} "
+            f"(not worse), RTT within bounds "
             f"({last.rtt_ms:.1f}ms vs baseline {baseline.rtt_ms:.1f}ms)"
         ),
         "abort_reasons": [],
@@ -303,9 +322,7 @@ def compute_verdict(evidence: CanaryEvidence) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def advance_phase(
-    evidence: CanaryEvidence, new_phase: CanaryPhase
-) -> CanaryEvidence:
+def advance_phase(evidence: CanaryEvidence, new_phase: CanaryPhase) -> CanaryEvidence:
     """Create a new evidence record advanced to the next phase.
 
     Validates phase transitions and returns an updated immutable record.
@@ -343,11 +360,31 @@ def advance_phase(
     verdict_rationale = evidence.verdict_rationale
 
     if new_phase == CanaryPhase.VERDICT_KEEP:
+        # Derive the terminal verdict from the objective engine rather than
+        # asserting one. Without this, a record carrying a fired abort could be
+        # finalized as KEEP with a rationale claiming all gates passed, leaving
+        # two verdict authorities in disagreement and the stored artifact wrong.
+        computed = compute_verdict(evidence)
+        if computed["verdict"] is not Verdict.KEEP:
+            raise VerdictError(
+                f"cannot finalize as {CanaryPhase.VERDICT_KEEP.value}: "
+                f"objective verdict is {computed['verdict'].value} "
+                f"({computed['rationale']})"
+            )
         verdict = Verdict.KEEP
-        verdict_rationale = "canary completed successfully, all gates passed"
+        verdict_rationale = computed["rationale"]
     elif new_phase == CanaryPhase.VERDICT_REVERT:
+        # Reverting is the safe direction, so an operator-initiated revert is
+        # allowed even when the engine would have kept -- but the recorded
+        # rationale must say which of the two it was.
+        computed = compute_verdict(evidence)
         verdict = Verdict.REVERT
-        verdict_rationale = "canary reverted due to gate failure"
+        if computed["verdict"] is Verdict.KEEP:
+            verdict_rationale = (
+                f"operator-initiated revert; objective verdict was keep ({computed['rationale']})"
+            )
+        else:
+            verdict_rationale = computed["rationale"]
     elif new_phase == CanaryPhase.ABORTED:
         verdict = Verdict.ABORT
         verdict_rationale = "canary aborted, rollback initiated"
@@ -366,9 +403,7 @@ def advance_phase(
     )
 
 
-def add_observation(
-    evidence: CanaryEvidence, sample: ObservationSample
-) -> CanaryEvidence:
+def add_observation(evidence: CanaryEvidence, sample: ObservationSample) -> CanaryEvidence:
     """Add an observation sample to an ongoing canary.
 
     Returns a new evidence record with the appended observation.
