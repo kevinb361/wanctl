@@ -14,6 +14,7 @@ import pytest
 
 from wanctl.tuning.canary_evidence import (
     CONGESTION_ORDER,
+    VERDICT_SEVERITY,
     ApprovalRecord,
     BaselineSnapshot,
     CanaryEvidence,
@@ -581,3 +582,103 @@ class TestUnobservedCanaryCannotBeCertified:
         evidence = _evidence(CanaryPhase.OBSERVING)
         aborted = advance_phase(evidence, CanaryPhase.ABORTED)
         assert aborted.verdict is Verdict.ABORT
+
+
+def _failed_rollback() -> RollbackRecord:
+    return RollbackRecord(
+        triggered_at="2026-08-18T11:05:00+00:00",
+        reason="abort threshold fired",
+        steps_executed=["restore target_bloat_ms"],
+        verification_passed=False,
+        verification_error="rollback did not take",
+    )
+
+
+class TestVerdictMayNotUnderReport:
+    """AUD-v1.67-012 / -013: a stored verdict may never be weaker than the engine's.
+
+    More severe than the engine is legal -- an operator may revert what the engine
+    would keep. Less severe is not: that is how a failed rollback gets recorded as
+    "handled". advance_phase guarded only the transition; construction and
+    from_dict accepted the contradiction outright.
+    """
+
+    def _aborted_with_failed_rollback(self) -> CanaryEvidence:
+        return replace(
+            _evidence(CanaryPhase.OBSERVING),
+            observations=[_observation(abort_triggered=True, abort_reason="rtt ceiling breached")],
+            rollback=_failed_rollback(),
+        )
+
+    def test_severity_ladder_is_ordered(self):
+        assert (
+            VERDICT_SEVERITY[Verdict.KEEP]
+            < VERDICT_SEVERITY[Verdict.REVERT]
+            < VERDICT_SEVERITY[Verdict.ABORT]
+        )
+
+    def test_unverified_rollback_cannot_be_stored_as_plain_revert(self):
+        evidence = self._aborted_with_failed_rollback()
+        assert compute_verdict(evidence)["verdict"] is Verdict.ABORT
+        with pytest.raises(VerdictError, match="use aborted instead"):
+            advance_phase(evidence, CanaryPhase.VERDICT_REVERT)
+
+    def test_tampered_persisted_record_is_rejected_on_load(self):
+        finalized = advance_phase(self._aborted_with_failed_rollback(), CanaryPhase.ABORTED)
+        tampered = finalized.to_dict()
+        tampered["phase"] = "verdict_keep"
+        tampered["verdict"] = "keep"
+        tampered["verdict_rationale"] = "canary completed successfully, all gates passed"
+        with pytest.raises(VerdictError, match="under-reports"):
+            CanaryEvidence.from_dict(tampered)
+
+    def test_direct_construction_of_the_contradiction_is_rejected(self):
+        with pytest.raises(VerdictError, match="under-reports"):
+            replace(
+                self._aborted_with_failed_rollback(),
+                phase=CanaryPhase.VERDICT_KEEP,
+                verdict=Verdict.KEEP,
+            )
+
+    @pytest.mark.parametrize(
+        ("stored", "rejected"),
+        [(Verdict.KEEP, True), (Verdict.REVERT, True), (Verdict.ABORT, False)],
+    )
+    def test_only_equal_or_more_severe_verdicts_survive(self, stored, rejected):
+        evidence = self._aborted_with_failed_rollback()
+        if rejected:
+            with pytest.raises(VerdictError, match="under-reports"):
+                replace(evidence, phase=CanaryPhase.ABORTED, verdict=stored)
+        else:
+            assert replace(evidence, phase=CanaryPhase.ABORTED, verdict=stored).verdict is stored
+
+    def test_legitimate_record_round_trips(self):
+        """The guard must not reject honest records."""
+        finalized = advance_phase(self._aborted_with_failed_rollback(), CanaryPhase.ABORTED)
+        assert CanaryEvidence.from_dict(finalized.to_dict()).verdict is Verdict.ABORT
+
+    def test_operator_revert_against_keep_engine_still_allowed(self):
+        """More severe than the engine stays legal."""
+        evidence = replace(_evidence(CanaryPhase.OBSERVING), observations=[_observation()])
+        finalized = advance_phase(evidence, CanaryPhase.VERDICT_REVERT)
+        assert finalized.verdict is Verdict.REVERT
+        assert CanaryEvidence.from_dict(finalized.to_dict()).verdict is Verdict.REVERT
+
+
+class TestAbortedRationaleIsEngineDerived:
+    """AUD-v1.67-006's code half: ABORTED stamped a literal without consulting the engine."""
+
+    def test_aborted_rationale_comes_from_the_engine(self):
+        evidence = replace(
+            _evidence(CanaryPhase.OBSERVING),
+            observations=[_observation(abort_triggered=True, abort_reason="rtt ceiling")],
+            rollback=_failed_rollback(),
+        )
+        finalized = advance_phase(evidence, CanaryPhase.ABORTED)
+        assert "rtt ceiling" in finalized.verdict_rationale
+        assert "rollback initiated" not in finalized.verdict_rationale
+
+    def test_aborted_without_observations_keeps_an_honest_literal(self):
+        finalized = advance_phase(_evidence(CanaryPhase.OBSERVING), CanaryPhase.ABORTED)
+        assert finalized.verdict is Verdict.ABORT
+        assert "before any observation" in finalized.verdict_rationale

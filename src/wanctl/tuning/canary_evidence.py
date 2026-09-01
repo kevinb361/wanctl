@@ -45,6 +45,23 @@ class Verdict(str, Enum):
     ABORT = "abort"
 
 
+# Verdict severity, least to most serious. A stored verdict may be MORE severe than
+# the objective engine's (an operator may revert something the engine would keep --
+# that is the safe direction) but never LESS: under-reporting is how a failed
+# rollback gets recorded as "handled". Every boundary that can persist a verdict
+# enforces this, not just the transition that happened to be reported.
+VERDICT_SEVERITY: dict[Verdict, int] = {
+    Verdict.KEEP: 0,
+    Verdict.REVERT: 1,
+    Verdict.ABORT: 2,
+}
+
+
+def _verdict_under_reports(stored: Verdict, computed: Verdict) -> bool:
+    """True when the stored verdict is less serious than the engine's."""
+    return VERDICT_SEVERITY[stored] < VERDICT_SEVERITY[computed]
+
+
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
@@ -126,6 +143,24 @@ class CanaryEvidence:
             object.__setattr__(self, "created_at", datetime.now(tz=UTC).isoformat())
         if not self.updated_at:
             object.__setattr__(self, "updated_at", datetime.now(tz=UTC).isoformat())
+        self._reject_under_reported_verdict()
+
+    def _reject_under_reported_verdict(self) -> None:
+        """Refuse a persisted or constructed verdict weaker than the engine's.
+
+        advance_phase guards the transition; this guards the load and direct
+        construction paths, so a record produced by an older or buggy writer --
+        or hand-edited -- cannot re-enter the system carrying a verdict the
+        objective engine contradicts, with sha256() then attesting to it.
+        """
+        if self.verdict is None or not self.observations:
+            return
+        computed = compute_verdict(self)["verdict"]
+        if _verdict_under_reports(self.verdict, computed):
+            raise VerdictError(
+                f"stored verdict {self.verdict.value} under-reports the objective "
+                f"verdict {computed.value}; refusing to accept the record"
+            )
 
     # ---- derived ----
 
@@ -378,6 +413,14 @@ def advance_phase(evidence: CanaryEvidence, new_phase: CanaryPhase) -> CanaryEvi
         # allowed even when the engine would have kept -- but the recorded
         # rationale must say which of the two it was.
         computed = compute_verdict(evidence)
+        if computed["verdict"] is Verdict.ABORT:
+            # ABORT specifically encodes "rollback failed or unverified". Recording
+            # that as a plain revert would tell consumers it was handled.
+            raise VerdictError(
+                f"cannot finalize as {CanaryPhase.VERDICT_REVERT.value}: objective "
+                f"verdict is abort ({computed['rationale']}); "
+                f"use {CanaryPhase.ABORTED.value} instead"
+            )
         verdict = Verdict.REVERT
         if computed["verdict"] is Verdict.KEEP:
             verdict_rationale = (
@@ -387,7 +430,10 @@ def advance_phase(evidence: CanaryEvidence, new_phase: CanaryPhase) -> CanaryEvi
             verdict_rationale = computed["rationale"]
     elif new_phase == CanaryPhase.ABORTED:
         verdict = Verdict.ABORT
-        verdict_rationale = "canary aborted, rollback initiated"
+        if evidence.observations:
+            verdict_rationale = compute_verdict(evidence)["rationale"]
+        else:
+            verdict_rationale = "canary aborted before any observation was recorded"
 
     return CanaryEvidence(
         experiment_id=evidence.experiment_id,
