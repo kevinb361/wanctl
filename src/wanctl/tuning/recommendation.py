@@ -350,12 +350,46 @@ FORBIDDEN_MODULES = frozenset(
         "telnetlib",
         "smtplib",
         "multiprocessing",
+        # Indirection routes to everything above. `importlib` and `builtins` are how
+        # a dynamic import reaches a control surface without naming it; `ctypes` and
+        # `asyncio` reach one directly (asyncio.create_subprocess_shell).
+        "importlib",
+        "builtins",
+        "ctypes",
+        "asyncio",
     }
 )
 
 # Dynamic-import escape hatches. Without these, `__import__("subprocess").run(...)`
 # reaches a control surface without ever creating an Import node to match.
 FORBIDDEN_IMPORT_CALLS = frozenset({"__import__", "import_module"})
+
+# Dynamic execution. These defeat every static check by construction -- a module
+# name assembled at runtime never appears in the source -- so their presence in a
+# recommendation module is itself the violation.
+FORBIDDEN_DYNAMIC_CALLS = frozenset({"exec", "eval", "compile", "getattr"})
+
+# Filesystem write surface. `pathlib` stays importable because reading is this
+# module's legitimate use, but its write half does not: a future `write_text` in a
+# recommendation-output module is the most plausible accidental regression against
+# TUNE-003's "never writes configuration" clause, and it names no forbidden module.
+FORBIDDEN_WRITE_CALLS = frozenset(
+    {
+        "write_text",
+        "write_bytes",
+        "writelines",
+        "write",
+        "unlink",
+        "mkdir",
+        "rmdir",
+        "rename",
+        "touch",
+        "chmod",
+    }
+)
+
+# Modes that make open() a write.
+_WRITE_MODES = ("w", "a", "x", "+")
 
 
 def _scan_import_surface(tree: Any) -> list[str]:
@@ -386,7 +420,30 @@ def _scan_import_surface(tree: Any) -> list[str]:
             )
             if name in FORBIDDEN_IMPORT_CALLS:
                 found.append(f"dynamic import call: {name}()")
+            elif name in FORBIDDEN_DYNAMIC_CALLS:
+                found.append(f"dynamic execution call: {name}()")
+            elif name in FORBIDDEN_WRITE_CALLS:
+                found.append(f"filesystem write call: {name}()")
+            elif name == "open" and _opens_for_writing(node):
+                found.append("filesystem write call: open() in a write mode")
     return found
+
+
+def _opens_for_writing(node: Any) -> bool:
+    """True when an open() call names a write, append, or update mode.
+
+    Uses an explicit isinstance check rather than getattr: getattr is itself a
+    forbidden dynamic call, and the strengthened checker correctly flagged this
+    function the first time it used one.
+    """
+    import ast
+
+    mode_args = list(node.args[1:2]) + [kw.value for kw in node.keywords if kw.arg == "mode"]
+    for arg in mode_args:
+        if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+            if any(m in arg.value for m in _WRITE_MODES):
+                return True
+    return False
 
 
 def verify_read_only(source_path: str) -> list[str]:
@@ -414,6 +471,9 @@ def verify_read_only(source_path: str) -> list[str]:
         "/etc/wanctl",
         "yaml.dump",
         "write(",
+        "write_text(",
+        "write_bytes(",
+        "writelines(",
         ".save(",
     ]
     # Find the line range of the control_patterns list itself to exclude it

@@ -403,8 +403,14 @@ class TestReadOnlyProof:
         """
         source = RECOMMENDATION_MODULE.read_text()
         before_checker = source.split("def _scan_import_surface")[0]
-        for surface in ("open(", "write_text(", "write_bytes("):
-            assert surface not in before_checker, f"write surface {surface!r} present"
+        # Comments are not surface. The checker's own control_patterns scan skips
+        # them for the same reason; without this, a comment mentioning open() reads
+        # as a write path.
+        code_only = "\n".join(
+            line for line in before_checker.splitlines() if not line.strip().startswith("#")
+        )
+        for surface in ("open(", "write_text(", "write_bytes(", "writelines("):
+            assert surface not in code_only, f"write surface {surface!r} present"
 
     def test_module_has_no_subprocess_surface(self) -> None:
         violations = verify_read_only(str(RECOMMENDATION_MODULE))
@@ -502,3 +508,104 @@ class TestReadOnlyProofDiscriminates:
         """Guards the original defect class: attribute paths can never match."""
         for name in FORBIDDEN_MODULES:
             assert "." not in name, f"{name!r} is not a top-level module name"
+
+
+class TestReadOnlyProofClosesKnownBypasses:
+    """AUD-v1.67-011: the nine bypass forms the second re-audit executed.
+
+    Every one of these previously returned an empty violation list. They are kept
+    verbatim so a future weakening of the checker fails here rather than being
+    rediscovered by the next audit.
+    """
+
+    @staticmethod
+    def _write(tmp_path, body: str) -> str:
+        f = tmp_path / "candidate.py"
+        f.write_text(body)
+        return str(f)
+
+    @pytest.mark.parametrize(
+        ("label", "body", "expected"),
+        [
+            (
+                "aliased-import-module",
+                'from importlib import import_module as _load\n\n\ndef f(c):\n    _load("subprocess").run(c)\n',
+                "importlib",
+            ),
+            (
+                "getattr-importlib",
+                'import importlib\n\n\ndef f(c):\n    getattr(importlib, "import_module")("subprocess").run(c)\n',
+                "importlib",
+            ),
+            (
+                "getattr-builtins-split-name",
+                'import builtins\n\n\ndef f(c):\n    getattr(builtins, "__imp" + "ort__")("os").system(c)\n',
+                "builtins",
+            ),
+            ("exec", 'def f(c):\n    exec("import subprocess; subprocess.run(c)")\n', "exec"),
+            ("eval", "def f(c):\n    eval('__imp' + 'ort__(\"os\").system(c)')\n", "eval"),
+            (
+                "pathlib-write-text",
+                'import pathlib\n\n\ndef f(cfg):\n    pathlib.Path("/etc/wanctl/x.yaml").write_text(cfg)\n',
+                "write_text",
+            ),
+            (
+                "pathlib-open-writelines",
+                'import pathlib\n\n\ndef f(x):\n    pathlib.Path("/tmp/a").open("w").writelines(x)\n',
+                "writelines",
+            ),
+            ("ctypes", "import ctypes\n", "ctypes"),
+            (
+                "asyncio-subprocess",
+                "import asyncio\n\n\nasync def f(c):\n    await asyncio.create_subprocess_shell(c)\n",
+                "asyncio",
+            ),
+        ],
+    )
+    def test_known_bypass_is_detected(self, tmp_path, label, body, expected):
+        violations = verify_read_only(self._write(tmp_path, body))
+        assert violations, f"{label} still returns no violations"
+        assert any(expected in v for v in violations), (label, violations)
+
+    def test_open_in_write_mode_is_detected(self, tmp_path):
+        path = self._write(tmp_path, 'def f(x):\n    open("/etc/wanctl/x.yaml", "w").write(x)\n')
+        assert any("write" in v for v in verify_read_only(path))
+
+    @pytest.mark.parametrize("mode", ["w", "a", "x", "r+"])
+    def test_every_write_mode_counts(self, tmp_path, mode):
+        path = self._write(tmp_path, f'def f():\n    open("/tmp/a", "{mode}")\n')
+        assert any("open()" in v for v in verify_read_only(path))
+
+    def test_reading_stays_legal(self, tmp_path):
+        """pathlib is not banned outright -- reading is this module's own use."""
+        path = self._write(
+            tmp_path, "import pathlib\n\n\ndef f(p):\n    return pathlib.Path(p).read_text()\n"
+        )
+        assert verify_read_only(path) == []
+
+    def test_open_for_reading_stays_legal(self, tmp_path):
+        path = self._write(tmp_path, 'def f(p):\n    return open(p, "r").read()\n')
+        assert not any("open()" in v for v in verify_read_only(path))
+
+    def test_checker_self_verifies_without_an_exemption(self):
+        """The checker must pass its own check with no special-casing.
+
+        It uses pathlib for read_text() only. If a future edit reaches for getattr
+        or a write method here, this fails rather than being silently exempted.
+        """
+        assert verify_read_only(str(RECOMMENDATION_MODULE)) == []
+
+    @pytest.mark.parametrize("method", ["unlink", "mkdir", "rmdir", "rename", "touch", "chmod"])
+    def test_ast_only_write_methods_are_detected(self, tmp_path, method):
+        """Write methods with no `control_patterns` entry.
+
+        The string scan independently catches write_text/write_bytes/writelines, so
+        a probe using those cannot prove the AST check does anything -- deleting it
+        leaves them passing. These methods are caught by the AST check alone.
+        """
+        path = self._write(
+            tmp_path,
+            f'import pathlib\n\n\ndef f():\n    pathlib.Path("/etc/wanctl/x.yaml").{method}()\n',
+        )
+        violations = verify_read_only(path)
+        assert any(f"filesystem write call: {method}()" in v for v in violations), violations
