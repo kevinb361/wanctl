@@ -53,11 +53,17 @@ asserts these properties are in the executable `systemd-run` argument block.
 
 ## 4. Host prechecks
 
+> **Rerun blocked (2026-10-20):** Phase 243 originally ran against `104.200.21.31`,
+> which is no longer the current Dallas netperf target. `scripts/phase243-bench-preflight.sh`
+> and `scripts/phase243-bench-run.sh` still hardcode that superseded address. Do not
+> rerun this benchmark until both scripts target `<current Dallas netperf target>`
+> (address kept outside this public repo) and agree with each other.
+
 On the approved Spectrum and ATT WAN hosts, confirm:
 
 - `fping --version` works.
-- netperf reachability to Dallas Linode `104.200.21.31` works.
-- `ip route get 104.200.21.31 from <source_ip>` egresses the expected WAN route key.
+- netperf reachability to `<current Dallas netperf target>` works.
+- `ip route get <current Dallas netperf target> from <source_ip>` egresses the expected WAN route key.
 - Runtime copies of the bench configs were generated from
   `configs/bench/gen-bench-configs.sh` and not hand-edited into live shaper configs.
 
@@ -77,7 +83,7 @@ execution path.
 
 Do not allocate a TTY. The benchmark exists to catch journal-pipe buffering and
 cycle-gap behavior. The under-load arm uses the established flent RRUL over netperf
-path to `104.200.21.31`; do not substitute synthetic CPU load or another traffic
+path to `<current Dallas netperf target>` (see the section 4 rerun block); do not substitute synthetic CPU load or another traffic
 tool during this gate.
 
 The launcher starts `scripts/phase243-hygiene-sampler.sh` at 1Hz and records
