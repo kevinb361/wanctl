@@ -328,7 +328,7 @@ prom_range_minmax() {
   jq -er --argjson s "$2" --argjson e "$3" --argjson st "$4" '
     if length != 1 then error("expected one series") else .[0].values end
     | map([(.[0] | tonumber), (.[1] | tonumber? // null)]) as $v
-    | (($e - $s) / $st | floor) + 1 as $want
+    | ((($e - $s) / $st | floor) + 1) as $want
     | if ($v | length) != $want then error("expected \($want) points, got \($v | length)")
       elif ([range(0; $want)] | any($v[.][0] != $s + . * $st)) then error("points not on the requested grid")
       elif ($v | any(.[1] == null or (.[1] | isnan) or .[1] < 0 or .[1] > 1e300)) then

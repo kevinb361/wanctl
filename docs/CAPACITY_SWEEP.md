@@ -64,6 +64,13 @@ be listed in `CAPACITY_SWEEP_UNSUITABLE_HOSTS` so it is refused.
 The host needs bash, iperf3, fping, jq, GNU awk (`awk` must support `asort`; mawk does not), coreutils, util-linux
 (`flock`, `setsid`), procps (`pgrep`) and a read-only Prometheus query command (`prom-ro` or `CAPACITY_SWEEP_PROM_CMD`).
 
+jq 1.7 and 1.8 parse `as` bindings next to arithmetic differently (jq 1.8.0 NEWS, "Fix precedence of binding
+syntax", #3053): `X + 1 as $n | ...` binds `$n` to `X + 1` under 1.8 but to `1` under earlier releases. The script
+keeps the left side of every jq binding a single term, such as a parenthesized expression, so both read it alike;
+`tests/test_shell_jq_bindings.py` checks the source form. The script has only been run under jq 1.8.1. A CI failure
+with the earlier form ("expected 1 points, got 9") is attributed to an older runner jq by inference: the runner's jq
+version was not recorded, and no pre-1.8 jq was available to reproduce it.
+
 ```bash
 install -D -m 0755 scripts/capacity-sweep.sh ~/.local/bin/wanctl-capacity-sweep
 install -D -m 0600 deploy/capacity-sweep/env.example ~/.config/wanctl-sweep/env   # then edit real values
