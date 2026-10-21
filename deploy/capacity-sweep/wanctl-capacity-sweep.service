@@ -1,0 +1,20 @@
+# systemd --user unit for scripts/capacity-sweep.sh — PROPOSAL, not installed by any deploy script.
+# Measurement tool only; the wanctl controller itself stays service-based (no timers in the control path).
+# Install/rollback: docs/CAPACITY_SWEEP.md. Site details come from ~/.config/wanctl-sweep/env (mode 0600).
+[Unit]
+Description=wanctl download capacity sweep (paced iperf3 + fping)
+Documentation=file:%h/.local/share/doc/wanctl/CAPACITY_SWEEP.md
+After=network-online.target
+
+[Service]
+Type=oneshot
+# 6 steps x (20 s + 3 s omit) = 138 s of load; typical run ~5 min. The script enforces its own whole-run deadline
+# (510 s, then TERM with owned teardown, KILL 30 s later), so it ends within 540 s; TimeoutStartSec is only a backstop.
+ExecStart=%h/.local/bin/wanctl-capacity-sweep --wall-sec 510 auto "400 500 600 650 700 750"
+# 75 = skipped before any load (lock held, link not idle, other load tools running); not a failure.
+SuccessExitStatus=75
+TimeoutStartSec=570
+TimeoutStopSec=30
+KillMode=control-group
+MemoryMax=256M
+NoNewPrivileges=yes
