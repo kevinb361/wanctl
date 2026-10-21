@@ -26,7 +26,7 @@ The date says the pointer was checked, not that any host matches the repo. Inspe
 | --- | --- |
 | Prior Spectrum measurements and tuning rationale? | `docs/CABLE_TUNING.md` (2026-04-28 Silicom findings, linux-cake results) |
 | Spectrum controller unit and config? | `deploy/systemd/cake-autorate-spectrum{,-state-bridge}.service`; `configs/cake-autorate/config.spectrum.sh` |
-| Does live Spectrum config match the repo? | Not assumed: trials drift it (2026-10-20 record: live `max_dl_shaper_rate_kbps` 780000 vs repo 900000). Check read-only: `ssh cake-shaper 'grep -n max_dl_shaper_rate_kbps /etc/cake-autorate/config.spectrum.sh'` |
+| Does live Spectrum config match the repo? | Not assumed: trials drift it (2026-10-20 record: live `max_dl_shaper_rate_kbps` lowered 900000 to 780000; repo reconciled to 780000). Check read-only: `ssh cake-shaper 'grep -n max_dl_shaper_rate_kbps /etc/cake-autorate/config.spectrum.sh'` |
 | Which netperf endpoint for load tests? | `<current Dallas netperf target>`: the Linode Dallas host running forking netserver; its address is deliberately not in this public repo. Vultr Dallas is provider-limited, not a capacity endpoint. `104.200.21.31` in older docs/scripts is the superseded Phase 243 target. |
 | How to deploy? | `docs/DEPLOYMENT.md` |
 | How to roll back? | `docs/UPGRADING.md#rollback` |
