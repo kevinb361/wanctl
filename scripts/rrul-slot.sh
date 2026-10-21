@@ -473,7 +473,9 @@ shopt -s nullglob
 files=("$RUN"/"$TEST"-*."$RUN_ID".flent.gz)
 shopt -u nullglob
 (( ${#files[@]} == 1 )) || finish invalid 1 "flent-data-files-${#files[@]}"
-if ! stats=$(flent_stats "${files[0]}" 2>>"$RUN/parse.err"); then
+# An empty result is a parse failure too. An empty data file gives jq no input, and whether jq -e then exits non-zero
+# is not relied on.
+if ! stats=$(flent_stats "${files[0]}" 2>>"$RUN/parse.err") || [[ -z $stats ]]; then
   why=$(tail -n 1 "$RUN/parse.err" | tr -c 'A-Za-z0-9._ -' '_' | head -c 120)
   finish invalid 1 "flent-parse:${why:-no-result}"
 fi

@@ -529,32 +529,51 @@ class TestRunDaemonLoop:
     def test_sleep_timing_respects_interval(
         self, mock_daemon, mock_config, mock_logger, shutdown_event
     ):
-        """Test that sleep time accounts for cycle elapsed time."""
+        """Test that sleep time accounts for cycle elapsed time.
+
+        Runs on a fake monotonic clock: each cycle costs 30ms and the interruptible
+        wait advances the clock by exactly its timeout, so the result does not depend
+        on how promptly a loaded host wakes the thread.
+        """
         from wanctl.steering.daemon import run_daemon_loop
 
         mock_config.measurement_interval = 0.1  # 100ms
+        cycle_cost = 0.03
 
-        call_count = [0]
+        clock = [1000.0]
         cycle_times = []
+        waits = []
 
         def run_cycle_with_timing():
-            call_count[0] += 1
-            cycle_times.append(time.monotonic())
-            if call_count[0] >= 3:
+            cycle_times.append(clock[0])
+            clock[0] += cycle_cost
+            if len(cycle_times) >= 3:
                 shutdown_event.set()
             return True
 
+        def fake_wait(timeout=None):
+            waits.append(timeout)
+            clock[0] += timeout
+            return shutdown_event.is_set()
+
         mock_daemon.run_cycle.side_effect = run_cycle_with_timing
 
-        with patch("wanctl.steering.daemon.is_systemd_available", return_value=False):
-            with patch("wanctl.steering.daemon.notify_watchdog"):
-                run_daemon_loop(mock_daemon, mock_config, mock_logger, shutdown_event)
+        with (
+            patch("wanctl.steering.daemon.is_systemd_available", return_value=False),
+            patch("wanctl.steering.daemon.notify_watchdog"),
+            patch("wanctl.steering.daemon.time") as mock_time,
+            patch.object(shutdown_event, "wait", side_effect=fake_wait),
+        ):
+            mock_time.monotonic = lambda: clock[0]
+            run_daemon_loop(mock_daemon, mock_config, mock_logger, shutdown_event)
 
-        # Check that cycles are approximately 100ms apart
-        if len(cycle_times) >= 2:
-            interval = cycle_times[1] - cycle_times[0]
-            # Allow some tolerance for timing variations
-            assert 0.08 <= interval <= 0.15
+        # Each sleep is only the remainder of the interval after the cycle's own time...
+        assert waits == pytest.approx([0.07, 0.07])
+        # ...so consecutive cycles start exactly one interval apart.
+        gaps = [
+            later - earlier for earlier, later in zip(cycle_times, cycle_times[1:], strict=False)
+        ]
+        assert gaps == pytest.approx([0.1, 0.1])
 
     def test_sleep_handles_slow_cycle(self, mock_daemon, mock_config, mock_logger, shutdown_event):
         """Test that sleep handles cycles longer than interval."""

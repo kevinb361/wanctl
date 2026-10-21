@@ -117,6 +117,8 @@ The endpoint must run a forking `netserver` and an `irtt` server, and answer ICM
 flent (with netperf, irtt and fping), jq, gzip, GNU awk, coreutils, util-linux (`flock`, `setsid`), procps (`pgrep`) and a
 read-only Prometheus query command. jq 1.8 changed `as`-binding precedence; the script's jq is written so it parses the
 same under 1.7 and 1.8 (`tests/test_shell_jq_bindings.py` checks the source form), but it has only been run under 1.8.1.
+An empty flent data file is recorded as `invalid` with reason `flent-parse:no-result` whatever exit status the installed
+jq gives `-e` on empty input; the script checks for an empty parse result itself rather than relying on jq for it.
 
 ## Install and use (measurement host, user account)
 
