@@ -1,7 +1,9 @@
 """Synthetic tests for scripts/capacity-sweep.sh.
 
-The script runs against fake iperf3, fping and prom-ro executables placed first on PATH, so no network traffic is
-generated. Timing knobs are shortened through the CAPACITY_SWEEP_*_SEC environment variables.
+The script runs against fake iperf3, fping, prom-ro and ssh executables, so no network traffic is generated. PATH holds
+only the fakes and links to the real local tools in HOST_TOOLS, resolved from the runner's own PATH: the tests do not
+depend on where a runner keeps jq or awk, and a real network tool can never be reached. Timing knobs are shortened
+through the CAPACITY_SWEEP_*_SEC environment variables.
 
 The tests in this module must not run concurrently with each other: the script's competing-load check sees the
 fake iperf3 clients of other tests. The project's pytest config (--dist=loadfile) keeps a module on one worker.
@@ -12,6 +14,7 @@ from __future__ import annotations
 import fcntl
 import os
 import re
+import shutil
 import signal
 import subprocess
 import time
@@ -107,8 +110,64 @@ echo 780000
 """
 
 
+# Every external command the script and the fakes run. iperf3, fping, prom-ro and ssh are deliberately absent.
+HOST_TOOLS = (
+    "awk",
+    "bash",
+    "cat",
+    "chmod",
+    "date",
+    "dirname",
+    "flock",
+    "grep",
+    "head",
+    "id",
+    "jq",
+    "mkdir",
+    "mktemp",
+    "mv",
+    "pgrep",
+    "rm",
+    "sed",
+    "setsid",
+    "sleep",
+    "stat",
+    "tail",
+    "tee",
+    "timeout",
+    "tr",
+)
+
+
+@pytest.fixture(scope="module")
+def host_tools(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    tools = tmp_path_factory.mktemp("host-tools")
+    missing = []
+    for name in HOST_TOOLS:
+        real = shutil.which(name)
+        if real is None:
+            missing.append(name)
+        else:
+            (tools / name).symlink_to(real)
+    if missing:
+        pytest.fail(f"capacity-sweep tests need these tools on PATH: {' '.join(missing)}")
+    # fping_stats and breach_check use asort, a GNU awk extension
+    probe = subprocess.run(
+        [str(tools / "awk"), 'BEGIN { split("2 1", a); asort(a); print a[1] }'],
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=False,
+    )
+    if probe.stdout.strip() != "1":
+        pytest.fail(
+            f"capacity-sweep needs GNU awk; {shutil.which('awk')} failed: {probe.stderr.strip()}"
+        )
+    return tools
+
+
 @pytest.fixture
-def env(tmp_path: Path) -> dict[str, str]:
+def env(tmp_path: Path, host_tools: Path) -> dict[str, str]:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     for name, body in (
@@ -123,7 +182,7 @@ def env(tmp_path: Path) -> dict[str, str]:
     fake_dir = tmp_path / "fake"
     fake_dir.mkdir()
     return {
-        "PATH": f"{fake_bin}:/usr/bin:/bin",
+        "PATH": f"{fake_bin}:{host_tools}",
         "HOME": str(tmp_path / "home"),
         "TMPDIR": str(tmp_path),
         "LANG": "C",
@@ -183,9 +242,28 @@ def _result(tmp_path: Path) -> str:
     return (run / "result").read_text()
 
 
+def _diag(tmp_path: Path, proc: subprocess.CompletedProcess) -> str:
+    """stderr plus the run's tool error files (prom.err, *.iperf.err), so a failure names the command that failed"""
+    parts = [proc.stderr]
+    for err in sorted(tmp_path.rglob("*.err")):
+        text = err.read_text(errors="replace").strip()
+        if text:
+            parts.append(f"--- {err.relative_to(tmp_path)}\n{text[-2000:]}")
+    return "\n".join(parts)
+
+
 def _csv_rows(tmp_path: Path) -> list[str]:
     path = tmp_path / "data" / "sweeps.csv"
     return path.read_text().splitlines() if path.exists() else []
+
+
+def test_path_reaches_only_the_fakes_and_listed_tools(env: dict[str, str]) -> None:
+    fake_bin, tools = env["PATH"].split(":")
+    for name in ("iperf3", "fping", "prom-ro", "ssh"):
+        assert shutil.which(name, path=env["PATH"]) == str(Path(fake_bin) / name)
+    for name in ("curl", "wget", "nc", "irtt", "flent", "netperf"):
+        assert shutil.which(name, path=env["PATH"]) is None
+    assert sorted(p.name for p in Path(tools).iterdir()) == sorted(HOST_TOOLS)
 
 
 PROM_LINE = re.compile(
@@ -198,7 +276,7 @@ def test_complete_sweep_appends_rows_and_textfile(tmp_path: Path, env: dict[str,
     prom.parent.mkdir()
     # 6 s steps: the 5 s Prometheus grid then has two points per step, so min and max differ
     proc = _run(tmp_path, env, "--textfile", str(prom), step="6")
-    assert proc.returncode == 0, proc.stderr
+    assert proc.returncode == 0, _diag(tmp_path, proc)
     assert "status=complete" in _result(tmp_path)
 
     rows = _csv_rows(tmp_path)
@@ -230,7 +308,7 @@ def test_unwritable_textfile_fails_an_otherwise_good_run(
 ) -> None:
     missing = tmp_path / "no-such-dir" / "wanctl_capacity_sweep.prom"
     proc = _run(tmp_path, env, "--textfile", str(missing), rates="400")
-    assert proc.returncode == 1, proc.stderr
+    assert proc.returncode == 1, _diag(tmp_path, proc)
     result = _result(tmp_path)
     assert "status=complete" in result and "textfile-write-failed" in result
     assert len(_csv_rows(tmp_path)) == 2
@@ -255,7 +333,7 @@ def test_invalid_inputs_are_rejected_before_any_load(
     proc = _run(
         tmp_path, {**env, "CAPACITY_SWEEP_UNSUITABLE_HOSTS": "192.0.2.98 192.0.2.99"}, *extra, **kw
     )
-    assert proc.returncode == 2, proc.stderr
+    assert proc.returncode == 2, _diag(tmp_path, proc)
     assert not _pids(env, "iperf3") and not (Path(env["FAKE_DIR"]) / "prom.calls").exists()
 
 
@@ -282,7 +360,7 @@ def test_config_file_supplies_endpoint_and_data_dir(tmp_path: Path, env: dict[st
         timeout=25,
         check=False,
     )
-    assert proc.returncode == 0, proc.stderr
+    assert proc.returncode == 0, _diag(tmp_path, proc)
     assert "host=192.0.2.20" in proc.stderr
     assert (data / "sweeps.csv").exists()
 
@@ -298,14 +376,14 @@ def test_config_file_supplies_endpoint_and_data_dir(tmp_path: Path, env: dict[st
 )
 def test_bad_config_is_rejected(tmp_path: Path, env: dict[str, str], text: str, mode: int) -> None:
     proc = _run(tmp_path, {**env, **_write_config(tmp_path, text, mode)})
-    assert proc.returncode == 2, proc.stderr
+    assert proc.returncode == 2, _diag(tmp_path, proc)
     assert not (Path(env["FAKE_DIR"]) / "prom.calls").exists()
 
 
 def test_environment_overrides_config(tmp_path: Path, env: dict[str, str]) -> None:
     cfg = _write_config(tmp_path, "CAPACITY_SWEEP_HOST=192.0.2.20\n", 0o600)
     proc = _run(tmp_path, {**env, **cfg}, rates="400")
-    assert proc.returncode == 0, proc.stderr
+    assert proc.returncode == 0, _diag(tmp_path, proc)
     assert "host=192.0.2.10" in proc.stderr
 
 
@@ -325,7 +403,7 @@ def test_idle_gate_blocks_load(
     tmp_path: Path, env: dict[str, str], mode: str, rc: int, status: str
 ) -> None:
     proc = _run(tmp_path, {**env, "FAKE_PROM_MODE": mode})
-    assert proc.returncode == rc, proc.stderr
+    assert proc.returncode == rc, _diag(tmp_path, proc)
     assert f"status={status}" in _result(tmp_path)
     assert not _pids(env, "iperf3") and _csv_rows(tmp_path) == []
 
@@ -350,7 +428,7 @@ def test_competing_client_load_skips_without_touching_it(
     try:
         time.sleep(0.3)
         proc = _run(tmp_path, env)
-        assert proc.returncode == 75, proc.stderr
+        assert proc.returncode == 75, _diag(tmp_path, proc)
         assert "competing-load" in _result(tmp_path)
         assert other.poll() is None
     finally:
@@ -373,7 +451,7 @@ def test_step_failures_are_invalid_without_rows(
     tmp_path: Path, env: dict[str, str], env_extra: dict[str, str], reason: str
 ) -> None:
     proc = _run(tmp_path, {**env, **env_extra})
-    assert proc.returncode == 1, proc.stderr
+    assert proc.returncode == 1, _diag(tmp_path, proc)
     result = _result(tmp_path)
     assert "status=invalid" in result and reason in result
     assert _csv_rows(tmp_path) == []
@@ -382,7 +460,7 @@ def test_step_failures_are_invalid_without_rows(
 
 def test_knee_stops_after_valid_step(tmp_path: Path, env: dict[str, str]) -> None:
     proc = _run(tmp_path, {**env, "FAKE_FPING_MODE": "slow"})
-    assert proc.returncode == 0, proc.stderr
+    assert proc.returncode == 0, _diag(tmp_path, proc)
     assert "status=knee" in _result(tmp_path)
     assert len(_csv_rows(tmp_path)) == 2
     assert len(_pids(env, "iperf3")) == 1
@@ -390,13 +468,13 @@ def test_knee_stops_after_valid_step(tmp_path: Path, env: dict[str, str]) -> Non
 
 def test_floor_is_a_safety_stop(tmp_path: Path, env: dict[str, str]) -> None:
     proc = _run(tmp_path, {**env, "FAKE_PROM_MODE": "floor"})
-    assert proc.returncode == 3, proc.stderr
+    assert proc.returncode == 3, _diag(tmp_path, proc)
     assert "status=floor-stop" in _result(tmp_path)
 
 
 def test_sustained_breach_kills_owned_load(tmp_path: Path, env: dict[str, str]) -> None:
     proc = _run(tmp_path, {**env, "FAKE_FPING_MODE": "loss", "FAKE_IPERF_MODE": "hang"}, step="8")
-    assert proc.returncode == 3, proc.stderr
+    assert proc.returncode == 3, _diag(tmp_path, proc)
     assert "status=breach-stop" in _result(tmp_path)
     assert _csv_rows(tmp_path) == []
     assert not any(_alive(p) for p in _pids(env, "iperf3") + _pids(env, "fping"))
@@ -407,7 +485,7 @@ def test_stalled_or_unparsable_fping_stops_owned_load(
     tmp_path: Path, env: dict[str, str], mode: str
 ) -> None:
     proc = _run(tmp_path, {**env, "FAKE_FPING_MODE": mode, "FAKE_IPERF_MODE": "hang"}, step="20")
-    assert proc.returncode == 1, proc.stderr
+    assert proc.returncode == 1, _diag(tmp_path, proc)
     assert "telemetry-stale:fping-400" in _result(tmp_path)
     assert _csv_rows(tmp_path) == []
     assert not any(_alive(p) for p in _pids(env, "iperf3") + _pids(env, "fping"))
@@ -443,13 +521,13 @@ def test_configured_prometheus_command_is_used(tmp_path: Path, env: dict[str, st
     fake_bin = Path(env["PATH"].split(":")[0])
     (fake_bin / "prom-ro").rename(fake_bin / "site-prom")
     proc = _run(tmp_path, {**env, "CAPACITY_SWEEP_PROM_CMD": "site-prom"}, rates="400")
-    assert proc.returncode == 0, proc.stderr
+    assert proc.returncode == 0, _diag(tmp_path, proc)
     assert (Path(env["FAKE_DIR"]) / "prom.calls").read_text().count("\n") >= 6
 
 
 def test_shaper_max_is_read_into_the_csv(tmp_path: Path, env: dict[str, str]) -> None:
     proc = _run(tmp_path, env, "--shaper-ssh", "shaper-alias", rates="400")
-    assert proc.returncode == 0, proc.stderr
+    assert proc.returncode == 0, _diag(tmp_path, proc)
     assert _csv_rows(tmp_path)[1].split(",")[14] == "780000"
 
 
@@ -463,7 +541,7 @@ def test_deadline_during_run_tears_down_owned_children(tmp_path: Path, env: dict
         "--wall-sec",
         "10",
     )
-    assert proc.returncode == 124, proc.stderr
+    assert proc.returncode == 124, _diag(tmp_path, proc)
     assert time.monotonic() - started < 20
     assert "status=deadline" in _result(tmp_path)
     assert _pids(env, "ssh") and not any(_alive(p) for p in _pids(env, "ssh"))
@@ -472,7 +550,7 @@ def test_deadline_during_run_tears_down_owned_children(tmp_path: Path, env: dict
 
 def test_deadline_refuses_a_step_that_cannot_finish(tmp_path: Path, env: dict[str, str]) -> None:
     proc = _run(tmp_path, env, "--wall-sec", "60")
-    assert proc.returncode == 1, proc.stderr
+    assert proc.returncode == 1, _diag(tmp_path, proc)
     assert "deadline-before-step:400" in _result(tmp_path)
     assert not _pids(env, "iperf3")
 

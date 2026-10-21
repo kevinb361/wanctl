@@ -61,6 +61,9 @@ be listed in `CAPACITY_SWEEP_UNSUITABLE_HOSTS` so it is refused.
 
 ## Install and use (measurement host, user account)
 
+The host needs bash, iperf3, fping, jq, GNU awk (`awk` must support `asort`; mawk does not), coreutils, util-linux
+(`flock`, `setsid`), procps (`pgrep`) and a read-only Prometheus query command (`prom-ro` or `CAPACITY_SWEEP_PROM_CMD`).
+
 ```bash
 install -D -m 0755 scripts/capacity-sweep.sh ~/.local/bin/wanctl-capacity-sweep
 install -D -m 0600 deploy/capacity-sweep/env.example ~/.config/wanctl-sweep/env   # then edit real values
