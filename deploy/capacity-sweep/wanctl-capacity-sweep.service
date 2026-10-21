@@ -1,3 +1,4 @@
+# SUPERSEDED for scheduled use: see deploy/rrul-slot/ and docs/RRUL_SLOT.md. Attended sweeps run the script directly.
 # systemd --user unit for scripts/capacity-sweep.sh — PROPOSAL, not installed by any deploy script.
 # Measurement tool only; the wanctl controller itself stays service-based (no timers in the control path).
 # Install/rollback: docs/CAPACITY_SWEEP.md. Site details come from ~/.config/wanctl-sweep/env (mode 0600).

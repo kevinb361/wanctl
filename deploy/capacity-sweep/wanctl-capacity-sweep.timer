@@ -1,3 +1,5 @@
+# SUPERSEDED: do not install. Periodic measurement is proposed as wanctl-rrul-slot.timer (deploy/rrul-slot/,
+# docs/RRUL_SLOT.md); the unpaced iperf3 sweep is not a valid knee instrument. Kept for reference only.
 # systemd --user timer for wanctl-capacity-sweep.service — PROPOSAL, do not enable until the schedule is confirmed.
 # Starts at :05:30 so the whole run (deadline 510 s + 30 s kill grace, ends by :14:30) sits between the endpoint's
 # sysstat sa1 runs at :05 and :15. Times avoid 03:00-03:59 and 21:00-22:59 Central (endpoint e2scrub at 03:10 /

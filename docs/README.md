@@ -25,7 +25,9 @@ validation reports live in [`docs/archive/`](archive/).
 
 - [`CALIBRATION.md`](CALIBRATION.md): shaped-rate discovery workflow.
 - [`CABLE_TUNING.md`](CABLE_TUNING.md): DOCSIS tuning rationale and validation data.
-- [`CAPACITY_SWEEP.md`](CAPACITY_SWEEP.md): time-of-day download capacity sweep tool, schedule proposal and limits.
+- [`CAPACITY_SWEEP.md`](CAPACITY_SWEEP.md): attended download capacity sweep tool (iperf3) and its limits.
+- [`RRUL_SLOT.md`](RRUL_SLOT.md): periodic one-run flent RRUL measurement, CSV schema, schedule and transfer proposal,
+  per-hour ceiling design note.
 - [`SILICOM-BYPASS.md`](SILICOM-BYPASS.md): Silicom bypass NIC LED meanings and recovery notes.
 - [`TESTING.md`](TESTING.md): local test, lint, type-check, and integration-test commands.
 - [`UPGRADING.md`](UPGRADING.md): upgrade and rollback notes.

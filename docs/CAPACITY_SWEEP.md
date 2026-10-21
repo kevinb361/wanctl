@@ -29,6 +29,7 @@ time-of-day observation, not the line's fixed capacity. Treat these as confounde
 | Inputs | Label, endpoint, 1-12 strictly ascending integer rates (10-2000 Mbit), step 2-60 s; planned load (steps x (step + 3 s)) at most 360 s | 2 |
 | Run lock | One sweep at a time per data dir (`flock`); a second run exits at once | 75 |
 | Competing load | Any local `iperf3 -c`, `flent`, `netperf` or `irtt client` before the run or a step: skip/stop (detection only, never killed) | 75 / 1 |
+| Failed competing-load check | `pgrep` missing or exiting with anything but 0 (found) / 1 (none): run invalid, no load started | 1 |
 | Idle gate | Spectrum CAKE throughput (1 min rate) at every 15 s point of the last 2 minutes must stay below 20 Mbit down **and** 3 Mbit up | 75 |
 | Missing telemetry | A Prometheus range that misses any point of its window, has unordered points, or has a non-finite/negative value; a shaper exporter sample older than 30 s; `fping` exiting, stale (newest sample > 3 s old), unparsable, or not covering the step: stop at once, run invalid | 1 |
 | Sustained breach | During load, 3 consecutive checks at most 2 s apart of the last 10 pings, each over the limit (loss >= 30% or median > idle + 250 ms): kill the step's load at once | 3 |
@@ -87,7 +88,11 @@ Raw data stays outside the repository, under the data dir (default `~/.local/sha
 **Rollback:** remove `~/.local/bin/wanctl-capacity-sweep`, `~/.config/wanctl-sweep/env` and the doc copy. The data dir is
 kept unless its owner deletes it. Nothing outside the user's home is touched.
 
-## Scheduled runs (proposal, not enabled)
+## Scheduled runs (superseded proposal)
+
+**Superseded.** Unpaced multi-stream iperf3 builds a queue upstream of CAKE whatever the cap, so a sweep cannot locate a
+knee. Periodic time-of-day measurement is now proposed as one flent RRUL run per slot: see [RRUL_SLOT.md](RRUL_SLOT.md).
+Do not install the units below; this section is kept as the record of the earlier proposal.
 
 `deploy/capacity-sweep/wanctl-capacity-sweep.{service,timer}` are systemd `--user` units. They are a proposal. Do not
 install, enable or start the timer until the schedule has been confirmed.

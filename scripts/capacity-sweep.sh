@@ -36,7 +36,8 @@
 #
 # Exit status:
 #   0  sweep completed, or stopped at the knee (valid rows written)
-#   1  invalid or incomplete: tool, parser, telemetry, path or deadline failure, or a signal
+#   1  invalid or incomplete: tool, parser, telemetry, path or deadline failure, a failed competing-load check
+#      (pgrep missing or erroring), or a signal
 #   2  usage / input validation error
 #   3  safety stop: sustained latency/loss breach during a step, or shaped download at its floor
 #   124 whole-run deadline reached during the run (owned load torn down)
@@ -350,8 +351,31 @@ idle_gate() {
   done
 }
 
+# competing_load: exit 0 with the matching process lines when other load tools run, 1 when none run, 2 when the check
+# itself failed (pgrep missing or erroring) with "pgrep-rc-N" on stdout. A failed check must never read as "none".
+# "[c]lient" keeps the pattern from matching its own text in another process's command line, such as a concurrent check.
 competing_load() {
-  pgrep -a -f -- '(^|/)(flent|netperf) |iperf3 (.* )?-c |irtt client' 2>/dev/null
+  local out rc
+  out=$(pgrep -a -f -- '(^|/)(flent|netperf) |iperf3 (.* )?-c |irtt [c]lient' 2>>"$RUN/pgrep.err"); rc=$?
+  case $rc in
+    0) printf '%s\n' "$out"; return 0 ;;
+    1) return 1 ;;
+    *) echo "pgrep-rc-$rc"; return 2 ;;
+  esac
+}
+
+# no_competing_load STATUS RC REASON: continue only when the check ran and found nothing; otherwise end the run as
+# STATUS/RC/REASON when load tools run, or as invalid when the check itself failed.
+no_competing_load() {
+  local found rc
+  found=$(competing_load); rc=$?
+  case $rc in
+    1) return 0 ;;
+    0) log "competing load tools running: $(tr '\n' ';' <<< "$found")"
+       finish "$1" "$2" "$3" ;;
+    *) log "competing-load check failed: $found; see $RUN/pgrep.err"
+       finish invalid 1 "competing-load-check-failed:$found" ;;
+  esac
 }
 
 # fping_stats FILE FROM TO: "median p95 p99 loss_pct" over samples in [FROM, TO]. Fails on any unparsable line in the
@@ -493,10 +517,7 @@ run_step() { # rate
 
 log "start label=$LABEL host=$HOST pace=$PACE rates='${RATES[*]}' step=${STEP}s omit=${OMIT}s idle=${IDLE_MS}ms load=${LOAD_SEC}s deadline=+${WALL}s run=$RUN"
 
-if found=$(competing_load); then
-  log "competing load tools running: $(tr '\n' ';' <<< "$found")"
-  finish skipped 75 "competing-load"
-fi
+no_competing_load skipped 75 "competing-load"
 idle_gate
 
 MAXCFG=""
@@ -515,10 +536,7 @@ for rate in "${RATES[@]}"; do
   if (( $(date -u +%s) + STEP_WALL > DEADLINE )); then
     finish incomplete 1 "deadline-before-step:$rate"
   fi
-  if found=$(competing_load); then
-    log "competing load tools running: $(tr '\n' ';' <<< "$found")"
-    finish incomplete 1 "competing-load-before-step:$rate"
-  fi
+  no_competing_load incomplete 1 "competing-load-before-step:$rate"
   run_step "$((10#$rate))"
 done
 finish complete 0 "all-steps"

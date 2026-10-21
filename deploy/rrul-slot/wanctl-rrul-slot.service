@@ -1,0 +1,20 @@
+# systemd --user unit for scripts/rrul-slot.sh — PROPOSAL, not installed by any deploy script.
+# Measurement tool only; the wanctl controller itself stays service-based (no timers in the control path).
+# Install/rollback: docs/RRUL_SLOT.md. Site details come from ~/.config/wanctl-rrul/env (mode 0600).
+[Unit]
+Description=wanctl time-of-day measurement (one 60 s flent RRUL)
+Documentation=file:%h/.local/share/doc/wanctl/RRUL_SLOT.md
+After=network-online.target
+
+[Service]
+Type=oneshot
+# One 60 s rrul (70 s with flent's ping lead/trail); typical run under 2 min. The script enforces its own whole-run
+# deadline (300 s, then TERM with owned teardown, KILL 30 s later), so it ends within 330 s; TimeoutStartSec is a backstop.
+ExecStart=%h/.local/bin/wanctl-rrul-slot --wall-sec 300 auto
+# 75 = skipped before any load (lock held, link not idle, other load tools running); not a failure.
+SuccessExitStatus=75
+TimeoutStartSec=360
+TimeoutStopSec=30
+KillMode=control-group
+MemoryMax=256M
+NoNewPrivileges=yes

@@ -1,0 +1,16 @@
+# systemd --user timer for wanctl-rrul-slot.service — PROPOSAL, do not enable until the schedule is confirmed.
+# Starts at :05:30 so the whole run (deadline 300 s + 30 s kill grace, ends by :11:00) sits between the endpoint's
+# sysstat sa1 runs at :05 and :15. Times avoid 03:00-03:59 and 21:00-22:59 Central (endpoint e2scrub at 03:10 /
+# 03:30 Sunday in either Central or UTC) and the household evening peak. See docs/RRUL_SLOT.md.
+[Unit]
+Description=Scheduled wanctl RRUL time-of-day measurement (proposal)
+
+[Timer]
+OnCalendar=*-*-* 06,10,14,17:05:30 America/Chicago
+AccuracySec=1s
+RandomizedDelaySec=0
+# A missed run is skipped, not caught up: a late start could straddle sa1 or land at a busy time.
+Persistent=false
+
+[Install]
+WantedBy=timers.target
