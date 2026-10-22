@@ -38,7 +38,10 @@ cd /path/to/wanctl
 
 The deploy script:
 
-- copies `src/wanctl/` into `/opt/wanctl`
+- mirrors `src/wanctl/` into `/opt/wanctl` with `rsync --delete`, except that the
+  top-level `/opt/wanctl/scripts/` (helpers deploy.sh installs separately) and any
+  `/opt/wanctl/dashboard/` are left in place; a copy of the retired dashboard from an
+  older deploy is therefore not removed and must be deleted by hand if unwanted
 - installs the WAN config into `/etc/wanctl/<wan_name>.yaml` when found
 - deploys helper scripts, docs, QoS assets, and systemd units
 - optionally deploys `steering.service` and `/etc/wanctl/steering.yaml`

@@ -229,8 +229,11 @@ deploy_code() {
         echo "[deploy] predeploy gate PASS"
     fi
 
+    # Root-anchored excludes keep scripts/ (helpers installed below, outside src/wanctl/) and
+    # any legacy dashboard/ copy out of --delete; same-named dirs deeper in src still sync.
     local rsync_opts="-av --delete"
     rsync_opts+=" --exclude=__pycache__ --exclude=*.pyc"
+    rsync_opts+=" --exclude=/dashboard/ --exclude=/scripts/"
     rsync_opts+=" --rsync-path='sudo rsync'"
     rsync_opts+=" --chmod=F644,D755 --chown=root:root"
 
