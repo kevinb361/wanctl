@@ -35,10 +35,15 @@ SWEEP_UNIT = REPO_ROOT / "deploy/capacity-sweep/wanctl-capacity-sweep.service"
 HEADER = (
     "schema,label,status,reason,start_utc,local_date,local_time,local_tz,dow,dl_mbit,ul_mbit,icmp_median_ms,"
     "icmp_p99_ms,icmp_loss_pct,icmp_sent,icmp_lost,shaped_dl_min_mbit,shaped_dl_max_mbit,shaped_ul_min_mbit,"
-    "shaped_ul_max_mbit,max_dl_config_kbps,run"
+    "shaped_ul_max_mbit,max_dl_config_kbps,run,mode,tested_cap,sweep_id,sweep_order,restore,household_dl_mbit,"
+    "pre_dl_mbit,rtt_delta_avg_ms,rtt_delta_max_ms,pre_rtt_delta_avg_ms,pre_rtt_delta_max_ms,nongreen_frac,"
+    "pre_nongreen_frac,dl_drops,pre_dl_drops,peak_delay_ms,pre_peak_delay_ms"
 )
 COLUMNS = HEADER.split(",")
-MEASURED = COLUMNS[9:21]
+CONTEXT = COLUMNS[27:]
+# every column that holds a measurement: empty unless all checks of the row passed
+MEASURED = COLUMNS[9:20] + CONTEXT
+CSV_NAME = "rrul-v2.csv"
 
 # Every external command the scripts and the fakes run. flent, fping, prom-ro, ssh, iperf3 and pgrep are absent.
 HOST_TOOLS = (
@@ -129,6 +134,17 @@ case $1:$2 in
     series 101.5 780 "$3" "$4" "$5" ;;
   range:*cake_shaped_rate_bps*direction=\"upload\"*) series 8.04 36 "$3" "$4" "$5" ;;
   q:*timestamp*) [ "$mode" = stale-exporter ] && scalar 120 || scalar 3 ;;
+  # context queries; "noctx" answers them with no series
+  q:*/300/1e6*|q:*cake_rtt_delta_ms*|q:*cake_congestion_state*|q:*dropped_packets*|q:*peak_delay*)
+    [ "$mode" = noctx ] && { echo '[]'; exit 0; }
+    case $2 in
+      */300/1e6*) scalar 1.25 ;;
+      max_over_time*rtt*) scalar 31.5 ;;
+      *rtt*) scalar 2.5 ;;
+      *congestion*) scalar 0.25 ;;
+      *dropped*) scalar 12 ;;
+      *) scalar 4.2 ;;
+    esac ;;
   q:*spectrum*) scalar "${FAKE_SPEC_BYTES:-5800000000}" ;;
   q:*att*) scalar "${FAKE_ATT_BYTES:-1000}" ;;
   *) echo "unexpected prom-ro call: $*" >&2; exit 2 ;;
@@ -326,7 +342,7 @@ def _result(tmp_path: Path) -> str:
 
 
 def _rows(tmp_path: Path) -> list[dict[str, str]]:
-    path = tmp_path / "data" / "rrul.csv"
+    path = tmp_path / "data" / CSV_NAME
     if not path.exists():
         return []
     lines = path.read_text().splitlines()
@@ -350,7 +366,9 @@ def test_complete_run_appends_one_validated_row(tmp_path: Path, env: dict[str, s
     assert "status=complete" in _result(tmp_path)
 
     (row,) = _rows(tmp_path)
-    assert row["schema"] == "rrul-v1" and row["label"] == "slot" and row["status"] == "complete"
+    assert row["schema"] == "rrul-v2" and row["label"] == "slot" and row["status"] == "complete"
+    assert row["mode"] == "single" and row["tested_cap"] == "adaptive"
+    assert row["sweep_id"] == row["sweep_order"] == row["restore"] == ""
     assert row["dl_mbit"] == "763.2" and row["ul_mbit"] == "27.1"
     # replies in the window are 25.0-25.4 ms; nearest-rank median and p99
     assert row["icmp_median_ms"] == "25.2" and row["icmp_p99_ms"] == "25.4"
@@ -360,6 +378,25 @@ def test_complete_run_appends_one_validated_row(tmp_path: Path, env: dict[str, s
     assert row["max_dl_config_kbps"] == ""
     assert row["local_tz"] in ("CDT", "CST") and len(row["dow"]) == 3
     assert row["run"].startswith("slot-") and (tmp_path / "data" / "runs" / row["run"]).is_dir()
+    # context: household = Spectrum CAKE download bytes beyond flent's over the window + 15 s (74-75 s: the window's
+    # edges are rounded inwards to whole seconds)
+    flent_bytes = sum(int(r * 1e6 * 60 / 8) for r in (26.5, 23.3, 27.2, 686.2))
+    assert row["household_dl_mbit"] in {
+        f"{(5800000000 - flent_bytes) * 8 / w / 1e6:.1f}" for w in (74, 75)
+    }
+    assert [row[c] for c in CONTEXT[1:]] == [
+        "1.25",
+        "2.5",
+        "31.5",
+        "2.5",
+        "31.5",
+        "0.25",
+        "0.25",
+        "12",
+        "12",
+        "4.2",
+        "4.2",
+    ]
 
     args = (Path(env["FAKE_DIR"]) / "flent.args").read_text().split()
     assert args[:5] == ["rrul", "-H", "192.0.2.10", "-l", "60"]
@@ -368,7 +405,7 @@ def test_complete_run_appends_one_validated_row(tmp_path: Path, env: dict[str, s
     # a second run appends under the same single header
     assert _run(tmp_path, env).returncode == 0
     assert len(_rows(tmp_path)) == 2
-    assert (tmp_path / "data" / "rrul.csv").read_text().count(HEADER) == 1
+    assert (tmp_path / "data" / CSV_NAME).read_text().count(HEADER) == 1
 
 
 def test_p99_is_nearest_rank_and_keeps_a_sparse_slow_tail(
@@ -410,8 +447,15 @@ def test_existing_files_are_preserved(tmp_path: Path, env: dict[str, str]) -> No
     assert _run(tmp_path, env).returncode == 0
     assert sweeps.read_bytes() == before
 
+    # rrul-v1 rows stay in rrul.csv, which is never written
+    v1 = data / "rrul.csv"
+    v1.write_text("schema,label\nrrul-v1,auto\n", encoding="utf-8")
+    v1_before = v1.read_bytes()
+    assert _run(tmp_path, env).returncode == 0
+    assert v1.read_bytes() == v1_before
+
     # a CSV with another schema is never appended to; the row stays in the run directory
-    other = data / "rrul.csv"
+    other = data / CSV_NAME
     other.write_text("some,other,header\n1,2,3\n", encoding="utf-8")
     kept = other.read_bytes()
     proc = _run(tmp_path, env)

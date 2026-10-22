@@ -1,9 +1,20 @@
 # Time-of-Day RRUL Measurement
 
-`scripts/rrul-slot.sh` runs one 60 s flent `rrul` test against the measurement endpoint and appends one row to
-`rrul.csv`. Run on a schedule, the rows map what the link actually delivered, and at what latency, by time of day. That
-record is the input for a future per-hour download ceiling (see the design note below). The script is a measurement tool.
-It does not change the controller, the shaper or the endpoint. Nothing in it adjusts a ceiling.
+`scripts/rrul-slot.sh` runs 60 s flent `rrul` tests against the measurement endpoint and appends one row per test to
+`rrul-v2.csv`. Run on a schedule, the rows map what the link actually delivered, and at what latency, by time of day.
+It has two modes:
+
+- **single** (day slots): one run with the controller live and nothing held. This is the original behavior.
+- **sweep** (evening slots): one run per download cap, the 780 Mbit control plus the configured caps (default 620 and
+  480) in random order, each with the cap held on the shaper by `wanctl-sweep-cap`. See [Sweep mode](#sweep-mode).
+
+`--mode auto`, the default, picks sweep when the run starts within 10 minutes after one of `RRUL_SLOT_SWEEP_SLOTS`
+(Central time, default `19:35 21:05 22:35`) and single otherwise.
+
+`scripts/rrul_shadow_analyzer.py` turns the rows into a daily **shadow** recommendation, a per-hour table with reasons
+(see [Shadow analyzer](#shadow-analyzer-phase-2)). Neither script applies anything to the live ceiling. A sweep holds a
+cap only for its own runs and restores the controller afterwards. Applying a table to the ceiling would be a separate,
+reviewed change (phase 3).
 
 ## Why RRUL, and what one row means
 
@@ -21,6 +32,78 @@ A row is one observation **with the controller live and nothing capped or held**
 - One run in one slot is one sample. Household traffic, endpoint load and path changes confound it. Treat a single
   afternoon/evening difference as descriptive, not as the cause of anything.
 
+## Sweep mode
+
+Evening rows at the fixed 780 ceiling delivered less than 780 Mbit, so that ceiling was not what limited them, while
+loaded p99 reached 150-230 ms. The hypothesis is that a ceiling below what the line delivers in the evening keeps the
+queue in CAKE instead of upstream. A sweep tests it directly: the same slot, minutes apart, with the download held at
+the control and at lower caps.
+
+**Shaper helper.** `wanctl-sweep-cap` runs on the shaper (installed separately as root at
+`/usr/local/sbin/wanctl-sweep-cap`; it is not part of this change). The protocol used here is that of its reviewed r2:
+
+| Call | What it does | Exit |
+|---|---|---|
+| `hold <mbit>` (400-900) | Freezes `cake-autorate-spectrum` and sets the Spectrum CAKE download bandwidth. The **first** hold arms a transient timer that runs `restore` 600 s later (the dead-man); later holds keep that deadline | 0; 2 usage, 3 refused (no freezer support, unit inactive), 4 lock busy, 5 dead-man not armed, 6 freeze failed (it attempted a restore and discards that attempt's result, so whether the controller recovered is unknown), 7 rate check failed (still frozen) |
+| `restore` | Thaws and restarts the controller and its state bridge (about 1 s of Silicom bypass), verifies it is active, unfrozen and inline, then cancels the timer. Waits for the lock without limit; up to three attempts | 0 (also "nothing held"); 8 failed, marker kept |
+| `status` | Read-only `unit=.. freezer=.. rate=.. hold_since=.. dead_man_pending=yes/no` | 0 |
+
+**Sequence of one sweep.**
+
+1. Start checks as in single mode (lock, competing load, idle gate, the optional `max_dl_shaper_rate_kbps` read), and
+   a wall check: the 600 s dead-man window, the restore (up to 480 s) and two status reads must fit before the run's
+   deadline, so the deadline can never fall inside a hold.
+2. `status` must show a clean shaper: unit active, controller running, no hold marker, **no pending dead-man timer**.
+   An earlier hold's timer would keep its own, earlier deadline, which this run cannot see, so anything else stops the
+   sweep before any hold (`shaper-not-ready`).
+3. For each cap, in the random order: if this held run could, at its worst (about 295 s: hold 120 s, two status reads,
+   flent 110 s), end later than 30 s before the dead-man deadline counted from just before the first hold, the
+   remaining caps are not run (`dead-man-budget`). Otherwise `hold <cap>`, then `status` must show the cap
+   (`rate=<cap>Mbit`, frozen, dead-man pending), then the load with the usual breach watch, then `status` again: the cap
+   must still be held, or the row did not measure it (`hold-lost`). Runs are 10 s apart.
+4. One `restore` after the last run, then `status` must show the controller active, unfrozen, with no marker and no
+   pending timer.
+5. Prometheus is read after the restore for every measured row (validity checks and context, below), so the hold
+   lasts only as long as the loads.
+
+**Any failure restores at once.** A failed or unverified hold, a breach, a flent or parse failure, a lost hold,
+competing load before a later cap, TERM/INT/HUP, or the deadline: owned processes are torn down, `restore` runs, rows
+already measured are still validated (not after a signal or the deadline), the failing row records the reason, and caps
+not run are written as `skipped` with `sweep-stopped:<reason>`. A signal that arrives while the restore runs is recorded
+and handled after it; the restore is never interrupted.
+
+**A restore that fails is a failure, never a recovery.** `restore` exiting non-zero (`failed:rc=N`), or a `status`
+afterwards that is unreadable or still shows a hold (`unverified:...`), ends the run with exit 6 and
+`status=restore-failed`, puts that state in every row's `restore` column, and logs `RESTORE NOT CONFIRMED`. The shaper
+may then still hold a cap. Its dead-man timer, if it was armed, only **starts** another `restore` attempt about 600 s
+after the first hold; that attempt waits for the helper's lock without limit and can itself fail (exit 8, marker kept).
+Neither elapsed time nor any helper exit status other than a clean `status` means the controller recovered. Check by
+hand with `wanctl-sweep-cap status` right away.
+
+**Backstops outside the script.** If the script itself is killed (KILL, OOM, power loss), the dead-man timer starts a
+restore attempt about 600 s after the first hold; its outcome is not observed by anything here.
+
+**Why the run's deadline cannot fall inside a hold.** The deadline is fixed when the run starts (default 1500 s for a
+sweep). Before the clean-shaper check, the sweep requires `now + 2 x 20 s + 10 s + 600 s + 480 s + 15 s` to fit before
+it: 50 s for the work done before the first hold (one status read, 25 s with its kill grace, and the competing-load
+check, with margin), the dead-man window, and the restore with its status check (450 + 5 + 20 + 5 s). Every held run starts only if its worst case
+(295 s) ends 30 s before the dead-man attempt, so the last held run ends within 600 s of the first hold, and the restore
+then ends within 480 s more. The deadline TERM can therefore only arrive while Prometheus is being read after the
+restore; those rows are then recorded as `deadline` with `telemetry-not-read`. If a TERM ever did arrive during the
+restore, the restore is not interrupted (signals are recorded and handled afterwards), but the watchdog sends KILL
+30 s later; the restore's ssh runs in its own session and survives that, while its outcome would go unrecorded. Under
+systemd, `TimeoutStartSec=1560` stops the whole unit only after the script's own deadline and grace.
+
+**What a held row means.** `tested_cap` is the CAKE download bandwidth during that run. While frozen, the controller
+does not adapt in either direction (upload keeps its last rate). `shaped_*`, `rtt_delta_*` and `nongreen_frac` come from
+the controller's own state and may only repeat its last values during a hold; CAKE tin counters (`dl_drops`,
+`peak_delay_ms`, household traffic) come from the qdisc and stay live. The `pre_*` window of the second and third runs
+includes the previous held run.
+
+**Shaper access.** The alias in `RRUL_SLOT_SHAPER_SSH` must be able to run `wanctl-sweep-cap` as root: either it logs in
+as root, or set `RRUL_SLOT_SWEEP_CAP_CMD="sudo -n /usr/local/sbin/wanctl-sweep-cap"` with a NOPASSWD rule limited to
+that command. Which one the site uses is not recorded here; confirm it with one attended `status` call before enabling.
+
 ## Safety and validity rules
 
 The rules are carried over from `capacity-sweep.sh` where they still apply to a single RRUL run:
@@ -37,8 +120,13 @@ The rules are carried over from `capacity-sweep.sh` where they still apply to a 
 | flent result | flent non-zero exit, not exactly one data file for this run, or a data file that fails validation (below) | 1 |
 | Missing telemetry | A Prometheus range missing any point of its window, unordered points, a non-finite/negative value, or a shaper exporter sample older than 30 s | 1 |
 | Path check | The Spectrum CAKE download byte increase over the run must be at least 80% of the flent download bytes, and the ATT increase at most 20% of them | 1 |
-| Deadline | The script re-runs itself under `timeout`: at `--wall-sec` it gets TERM, tears down owned processes and ends as `deadline`; KILL follows 30 s later. The load is only started if its worst case (with defaults about 250 s) still fits | 124 / 1 |
-| Signals | TERM/INT/HUP: owned process groups get TERM, then KILL, then the run ends as `aborted` | 143/130/129 |
+| Deadline | A watchdog in its own session sends the script TERM at `--wall-sec`: it tears down owned processes (and restores a held cap) and ends as `deadline`; KILL follows 30 s later. The watchdog checks the process start time, so it never signals a reused pid. The script is not run under `timeout(1)`, so signals sent to it reach its own traps (uutils' `timeout` KILLs its child on INT/HUP). The load is only started if its worst case (with defaults about 250 s) still fits | 124 / 1 |
+| Signals | TERM/INT/HUP: owned process groups get TERM, then KILL, then the run ends as `aborted` (a sweep restores first) | 143/130/129 |
+| Sweep: shaper not clean | `status` unreadable, or not active/unfrozen/unheld/no pending dead-man timer: nothing is held | 1 |
+| Sweep: hold | `hold` non-zero or timed out (120 s), or `status` not showing the cap frozen with the dead-man pending: restore | 1 |
+| Sweep: hold lost | `status` after a load not showing the same cap still held: that row is invalid, restore | 1 |
+| Sweep: dead-man budget | The next held run could outlast the dead-man window minus 30 s: remaining caps not run, restore | 1 |
+| Sweep: restore | `restore` non-zero/timed out (450 s), or `status` afterwards unreadable or not clean | 6 |
 
 Rules from the iperf3 sweep that do **not** carry over:
 
@@ -78,11 +166,19 @@ Taken from flent 2.2.0 data files of the attended 2026-10-20 sessions, not assum
 - **Validation.** Test name `rrul`, title equal to this run's id, host equal to the endpoint, `LENGTH` 60 and
   `FAILED_RUNNERS` 0.
 
-## `rrul.csv` schema (`rrul-v1`)
+## `rrul-v2.csv` schema (`rrul-v2`)
 
-One row per run that took the lock, whatever its outcome. Measurement columns are **empty unless every check of the run
-passed**; empty means unavailable, never zero. Use only `status=complete` rows for analysis, and count the other rows
-as coverage gaps.
+One row per run (a sweep writes one per cap) for every invocation that took the lock, whatever its outcome. Measurement
+columns are **empty unless every check of the row passed**; empty means unavailable, never zero. Use only
+`status=complete` rows for analysis, and count the other rows as coverage gaps.
+
+**Migration from `rrul-v1`.** v2 keeps the 22 v1 columns, in the same order and with the same meaning, and appends 17.
+v2 rows go to a new file, `rrul-v2.csv`; this version never writes `rrul.csv`, so the v1 history stays exactly as it was
+recorded (nothing is rewritten or converted). A v1 row reads as a v2 row with `mode=single`, `tested_cap=adaptive` and
+empty context; the shadow analyzer reads both files that way. If `rrul-v2.csv` exists with another header, nothing is
+appended to it (rows stay in `runs/<run>/row`, exit 1).
+
+The v1 columns:
 
 | Column | Meaning |
 |---|---|
@@ -97,21 +193,42 @@ as coverage gaps.
 | `shaped_dl_min_mbit`, `shaped_dl_max_mbit` | controller's shaped download rate over the window, Mbit/s (Prometheus, 5 s grid) |
 | `shaped_ul_min_mbit`, `shaped_ul_max_mbit` | the same for upload |
 | `max_dl_config_kbps` | the shaper's configured download ceiling at run time when `--shaper-ssh` is set, else empty |
-| `run` | run directory name under `runs/` |
+| `run` | run directory name under `runs/` (a sweep: one directory, one subdirectory `c<N>` per cap) |
 
-A run skipped because the lock was held writes no row; its record is the unit's journal. If an existing `rrul.csv` does
-not start with this header, nothing is appended to it; the row stays in `runs/<run>/row` and the run exits 1.
+Appended in v2:
+
+| Column | Meaning |
+|---|---|
+| `mode` | `single` or `sweep` |
+| `tested_cap` | `adaptive` (single: controller live) or the held download cap in Mbit (sweep) |
+| `sweep_id`, `sweep_order` | sweep: the run id shared by its rows, and this row's position `N/M` in the random order |
+| `restore` | sweep: `ok`, `failed:rc=N`, `unverified:<state>`, or `none` when nothing was held |
+| `household_dl_mbit` | Spectrum CAKE download bytes over the load window + 15 s that flent did not carry, as Mbit/s (clamped at 0) |
+| `pre_dl_mbit` | Spectrum CAKE download rate over the 5 min before the load (all traffic) |
+| `rtt_delta_avg_ms`, `rtt_delta_max_ms` | controller RTT delta over the load window; `pre_*`: the 5 min before |
+| `nongreen_frac` | fraction of 15 s samples with download congestion state above GREEN; `pre_*` likewise |
+| `dl_drops` | CAKE download drops over the load window; `pre_*` likewise |
+| `peak_delay_ms` | highest CAKE download tin peak delay over the load window; `pre_*` likewise |
+
+The context columns after `household_dl_mbit` are descriptive. A context query that fails leaves its column empty and
+adds `;context-missing:<names>` to the reason, but does not invalidate the row; context queries have a 5 s limit each
+and are skipped when the run's deadline is near. `household_dl_mbit` is computed from the path-check query, so a
+complete row always has it.
+
+A run skipped because the lock was held writes no row; its record is the unit's journal.
 
 The file is append-only: the script never rewrites or deletes rows. The data dir (default `~/.local/share/wanctl-rrul`)
 is separate from the iperf3 sweep's, so an existing `sweeps.csv` is never touched; even in a shared directory the script
-only writes `rrul.csv`, `runs/` and `.lock`.
+only writes `rrul-v2.csv`, `runs/` and `.lock`, and the analyzer only `shadow/`.
 
 ## Configuration
 
 Site details are not stored in this repository. In order of precedence: command-line options, `RRUL_SLOT_*`
 environment variables, then `~/.config/wanctl-rrul/env` (override with `RRUL_SLOT_CONFIG`). The file holds
 `RRUL_SLOT_KEY=VALUE` lines, is parsed rather than sourced, and must not be readable by group or others.
-`deploy/rrul-slot/env.example` lists the keys with placeholders.
+`deploy/rrul-slot/env.example` lists the keys with placeholders, including the sweep keys `RRUL_SLOT_SWEEP_SLOTS`,
+`RRUL_SLOT_SWEEP_CAPS` (1-3 caps, 450-900 Mbit), `RRUL_SLOT_SWEEP_CONTROL` (default 780) and
+`RRUL_SLOT_SWEEP_CAP_CMD`.
 
 The endpoint must run a forking `netserver` and an `irtt` server, and answer ICMP. The measurement host needs bash,
 flent (with netperf, irtt and fping), jq, gzip, GNU awk, coreutils, util-linux (`flock`, `setsid`), procps (`pgrep`) and a
@@ -126,13 +243,21 @@ jq gives `-e` on empty input; the script checks for an empty parse result itself
 install -D -m 0755 scripts/rrul-slot.sh ~/.local/bin/wanctl-rrul-slot
 install -D -m 0600 deploy/rrul-slot/env.example ~/.config/wanctl-rrul/env   # then edit real values
 install -D -m 0644 docs/RRUL_SLOT.md ~/.local/share/doc/wanctl/RRUL_SLOT.md
+install -D -m 0755 scripts/rrul_shadow_analyzer.py ~/.local/bin/wanctl-rrul-analyze
 
 # one attended run
-wanctl-rrul-slot --idle-ms 22 manual
-echo "exit=$?"; tail -n 2 ~/.local/share/wanctl-rrul/rrul.csv
+wanctl-rrul-slot --idle-ms 22 --mode single manual
+echo "exit=$?"; tail -n 2 ~/.local/share/wanctl-rrul/rrul-v2.csv
+
+# one attended sweep (holds caps on the shaper; check its state first and afterwards)
+ssh <shaper-alias> /usr/local/sbin/wanctl-sweep-cap status
+wanctl-rrul-slot --mode sweep manual-sweep
+echo "exit=$?"; tail -n 4 ~/.local/share/wanctl-rrul/rrul-v2.csv
+ssh <shaper-alias> /usr/local/sbin/wanctl-sweep-cap status
 ```
 
-**Rollback:** remove `~/.local/bin/wanctl-rrul-slot`, `~/.config/wanctl-rrul/env` and the doc copy. The data dir is kept
+**Rollback:** remove `~/.local/bin/wanctl-rrul-slot`, `~/.local/bin/wanctl-rrul-analyze`, `~/.config/wanctl-rrul/env`
+and the doc copy. To go back to single runs only, without removing anything, set `RRUL_SLOT_SWEEP_SLOTS=""`. The data dir is kept
 unless its owner deletes it. Nothing outside the user's home is touched.
 
 ## Scheduled runs (proposal, not enabled)
@@ -141,8 +266,15 @@ unless its owner deletes it. Nothing outside the user's home is touched.
 earlier `wanctl-capacity-sweep` timer proposal, which should not be installed. Do not install, enable or start the timer
 until the schedule and the transfer budget below have been confirmed.
 
-- **Timing.** About 2 s lead, 70 s of flent (60 s of load), 20 s wait for the Prometheus scrape and a few seconds of
-  queries: under 2 minutes typical. `--wall-sec 300` with a 30 s kill grace means a run always ends within 330 s.
+- **Timing.** Single: about 2 s lead, 70 s of flent (60 s of load), 20 s wait for the Prometheus scrape and a few
+  seconds of queries, under 2 minutes typical; the default 300 s deadline with a 30 s kill grace means a run always ends
+  within 330 s. Sweep: three held runs of about 75 s, 10 s apart, one restore (about 15 s including the controller
+  restart), then the queries: about 6 minutes typical; the default 1500 s deadline means it ends within 1530 s. The
+  service passes no `--wall-sec`, so each mode gets its own default, and `TimeoutStartSec=1560` sits above both.
+- **Evening slots.** 19:35:30, 21:05:30 and 22:35:30 Central are sweeps (`RRUL_SLOT_SWEEP_SLOTS` must list the same
+  times). They cross the endpoint's sa1 runs, and 21:05 and 22:35 fall inside the 21:00-22:59 window kept free for the
+  endpoint's Sunday e2scrub when that host runs UTC. This was accepted for the evening evidence; check those rows on
+  Sundays.
 - **Start minute and hours** (Central): 06, 10, 14 and 17 at :05:30, ending by :11:00, between the endpoint's sysstat
   runs at :05 and :15, and outside its 03:00-03:59 and 21:00-22:59 maintenance windows. An evening slot (for example
   19:35:30 or 20:05:30) would add the most useful data, since evening is where congestion was seen, but only with the
@@ -181,6 +313,11 @@ Rollback: `systemctl --user disable --now wanctl-rrul-slot.timer`, remove both u
 Endpoint egress is dominated by the download flows: `dl_mbit x 60 s / 8`. Upload (endpoint ingress) is a few percent of
 that, and pings are negligible.
 
+**Sweeps: about 3 runs per sweep slot.** Each evening slot transfers three runs' worth instead of one (at most 780 + 620
++ 480 Mbit for 60 s: 14.1 GB, 14.8 GB with 5% overhead). With the four day slots (up to 6.1 GB each) and three sweep
+slots that is 13 runs and at most about 69 GB a day, about 2.1 TB in a 30.4-day month, roughly 2.5 times the
+four-slot single-run schedule below. The quota comparison below applies with that figure.
+
 | Assumption | Per run | 4 runs/day, 30.4-day month |
 |---|---|---|
 | Observed range of rrul download sums (about 600-780 Mbit/s) | 4.5-5.9 GB | 0.55-0.71 TB |
@@ -199,7 +336,40 @@ stays a proposal until that comparison is made.
 Raw data per run is about 0.3 MB (flent data file plus fping log), under 0.5 GB/year at 4 runs/day. Keep `rrul.csv`
 indefinitely; prune raw `runs/` by hand after any analysis that needs them. The script never deletes data.
 
+## Shadow analyzer (phase 2)
+
+`scripts/rrul_shadow_analyzer.py` reads `rrul.csv` (v1) and `rrul-v2.csv` and writes
+`<data dir>/shadow/shadow-YYYY-MM-DD.{json,md}`: one line per hour of day (Central) with the recommended cap, its basis
+and the reasons. **It is a shadow output only**: nothing reads it, and it changes no setting. With `--prom-cmd`
+(default `RRUL_SLOT_PROM_CMD` or `prom-ro`) it adds passive evidence per hour from the controller's 15 s metrics over
+the last `--passive-days` (default 28): household traffic, RTT delta average and maximum, minimum shaped rate,
+non-green fraction and CAKE peak delay, as p50/p95 of 5-minute aggregates. A failing or missing query command is
+reported as `unavailable` and the table is still written; `--no-passive` skips it.
+
+Rule per hour, over sweep rows of the last `--window-days` (default 14):
+
+- **Usable rows** are complete, from a sweep whose restore was `ok`, with `household_dl_mbit` known and at most
+  `--max-household-mbit` (default 20). Every other row is counted by cause (`high-household`, `no-household-context`,
+  `restore-not-ok`, `status-<status>`) and named in the reasons.
+- **Paired comparison.** A cap is compared only with the control of the **same sweep**. Over the `--last-n` (default 5)
+  most recent sweeps where both are usable, the cap wins a sweep when its p99 is at least `--win-frac` (default 30%)
+  lower than the control's.
+- **A cap qualifies** with at least `--min-wins` (default 2) wins, a median p99 over those sweeps at most
+  `--p99-target-ms` (default 100), no breach-stop at that cap in the window, and a value within `--cap-min`..`--cap-max`
+  (default 450-780) and below the control.
+- **Recommendation:** the highest qualifying cap; otherwise the control (780), with the reasons. Hours without sweep
+  evidence stay at the control. Adaptive (single) runs are summarized per hour for context but never decide.
+
+Install as above (`~/.local/bin/wanctl-rrul-analyze`); an attended run is `wanctl-rrul-analyze --date YYYY-MM-DD`.
+`deploy/rrul-slot/wanctl-rrul-analyze.{service,timer}` are proposed `--user` units that would run it nightly at 23:40
+Central, after the last sweep. They are not installed or enabled by anything in this repository; enabling them is an
+operator decision, and the rollback is `systemctl --user disable --now wanctl-rrul-analyze.timer` plus removing the two
+unit files. The recommendation files are kept; delete `shadow/` by hand if wanted.
+
 ## Design note: deriving a per-hour download ceiling (not implemented)
+
+The shadow analyzer above implements a first, descriptive version of this from sweeps. The note still describes the
+cautions for turning any such table into live configuration.
 
 The aim is a table hour -> `max_dl` ceiling that the controller could one day use, so the shaper stays the bottleneck
 when the line is worse, without starving it when the line is better. This section only describes how such a table could

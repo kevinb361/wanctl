@@ -1,0 +1,12 @@
+# systemd --user timer for wanctl-rrul-analyze.service — PROPOSAL, do not enable until the operator decides.
+# 23:40 Central: after the last evening sweep (22:35:30 start, ends by 23:01 at its 1530 s worst case).
+[Unit]
+Description=Nightly wanctl shadow cap recommendation (proposal)
+
+[Timer]
+OnCalendar=*-*-* 23:40:00 America/Chicago
+AccuracySec=1min
+Persistent=false
+
+[Install]
+WantedBy=timers.target

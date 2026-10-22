@@ -1,0 +1,17 @@
+# systemd --user unit for scripts/rrul_shadow_analyzer.py — PROPOSAL, not installed by any deploy script.
+# Writes the day's SHADOW cap recommendation (shadow-YYYY-MM-DD.{json,md}) under the rrul-slot data dir. Read-only
+# towards the network apart from read-only Prometheus range queries; it changes no controller, shaper or ceiling.
+# Install/rollback: docs/RRUL_SLOT.md.
+[Unit]
+Description=wanctl shadow cap recommendation from the day's RRUL sweeps (no live change)
+Documentation=file:%h/.local/share/doc/wanctl/RRUL_SLOT.md
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/.local/bin/wanctl-rrul-analyze
+# prom-ro (the default RRUL_SLOT_PROM_CMD) usually lives in ~/.local/bin, which the user manager's PATH lacks.
+Environment=PATH=%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# 6 passive queries x 2 chunks, each bounded at 60 s, plus the CSV analysis.
+TimeoutStartSec=900
+MemoryMax=512M
+NoNewPrivileges=yes
