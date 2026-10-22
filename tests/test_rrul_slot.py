@@ -17,6 +17,7 @@ import fcntl
 import json
 import os
 import re
+import shlex
 import shutil
 import signal
 import subprocess
@@ -28,6 +29,8 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = REPO_ROOT / "scripts/rrul-slot.sh"
 SWEEP_SCRIPT = REPO_ROOT / "scripts/capacity-sweep.sh"
+UNIT = REPO_ROOT / "deploy/rrul-slot/wanctl-rrul-slot.service"
+SWEEP_UNIT = REPO_ROOT / "deploy/capacity-sweep/wanctl-capacity-sweep.service"
 
 HEADER = (
     "schema,label,status,reason,start_utc,local_date,local_time,local_tz,dow,dl_mbit,ul_mbit,icmp_median_ms,"
@@ -672,3 +675,80 @@ def test_config_file_supplies_endpoint(tmp_path: Path, env: dict[str, str]) -> N
 
     config.chmod(0o644)
     assert _run(tmp_path, {**base, "RRUL_SLOT_CONFIG": str(config)}).returncode == 2
+
+
+def test_unresolvable_prom_cmd_fails_naming_the_variable(
+    tmp_path: Path, env: dict[str, str]
+) -> None:
+    proc = _run(tmp_path, {**env, "RRUL_SLOT_PROM_CMD": "no-such-prom"})
+    assert proc.returncode == 2, proc.stderr
+    assert "RRUL_SLOT_PROM_CMD 'no-such-prom' is not an executable command" in proc.stderr
+    assert not _pids(env, "flent") and not (tmp_path / "data").exists()
+
+
+# The systemd --user units shipped in deploy/. These checks read the unit files; no unit is loaded or started.
+
+
+def _service_settings(unit: Path) -> dict[str, list[str]]:
+    """Values of each [Service] key in file order (a later assignment wins)."""
+    settings: dict[str, list[str]] = {}
+    section = ""
+    for raw in unit.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith(("#", ";")):
+            continue
+        if line.startswith("["):
+            section = line
+        elif section == "[Service]":
+            key, _, value = line.partition("=")
+            settings.setdefault(key.strip(), []).append(value.strip())
+    return settings
+
+
+def _unit_path(unit: Path) -> list[str]:
+    assignments = [
+        word.removeprefix("PATH=")
+        for value in _service_settings(unit).get("Environment", [])
+        for word in shlex.split(value)
+        if word.startswith("PATH=")
+    ]
+    assert assignments, f"{unit.name} sets no Environment=PATH="
+    return assignments[-1].split(":")
+
+
+def test_unit_memory_max_leaves_room_for_a_full_flent_run() -> None:
+    # flent was OOM-killed starting its runners under MemoryMax=256M; a full run peaks near 370M.
+    values = _service_settings(UNIT).get("MemoryMax", [])
+    if not values or values[-1] == "infinity":
+        return
+    match = re.fullmatch(r"(\d+)([KMGT]?)", values[-1])
+    assert match, f"MemoryMax={values[-1]} is not a byte size"
+    scale = {"": 1, "K": 2**10, "M": 2**20, "G": 2**30, "T": 2**40}[match[2]]
+    assert int(match[1]) * scale >= 2**30, f"MemoryMax={values[-1]} is below 1G"
+
+
+@pytest.mark.parametrize("unit", [UNIT, SWEEP_UNIT], ids=["rrul-slot", "capacity-sweep"])
+def test_unit_keeps_fping_file_capability_effective(unit: Path) -> None:
+    # fping gets CAP_NET_RAW from its file capability; with NoNewPrivileges=yes execve ignores it.
+    values = _service_settings(unit).get("NoNewPrivileges", [])
+    assert not values or values[-1].lower() not in {"yes", "true", "on", "1"}
+
+
+@pytest.mark.parametrize("unit", [UNIT, SWEEP_UNIT], ids=["rrul-slot", "capacity-sweep"])
+def test_unit_path_resolves_user_installed_prom_cmd(tmp_path: Path, unit: Path) -> None:
+    # The user manager's PATH has no ~/.local/bin, where the default prom-ro is installed.
+    home = tmp_path / "home"
+    (home / ".local/bin").mkdir(parents=True)
+    _install(home / ".local/bin", "prom-ro", "#!/bin/sh\n")
+    dirs = _unit_path(unit)
+    assert {"/usr/bin", "/bin"} <= set(dirs), dirs
+    path = ":".join(d.replace("%h", str(home)) for d in dirs)
+    found = subprocess.run(
+        ["/bin/bash", "-c", "command -v prom-ro"],
+        env={"PATH": path},
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=False,
+    )
+    assert found.stdout.strip() == str(home / ".local/bin/prom-ro"), found

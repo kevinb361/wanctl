@@ -152,6 +152,16 @@ until the schedule and the transfer budget below have been confirmed.
   (exit 1 or 3) leaves the unit failed and visible in `systemctl --user --failed`.
 - **Lingering.** User timers run without a login session only with lingering enabled
   (`loginctl show-user $USER -p Linger`).
+- **Command lookup.** The user manager's default `PATH` does not include `~/.local/bin`, so the service sets
+  `Environment=PATH=%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`. A bare
+  `RRUL_SLOT_PROM_CMD` (default `prom-ro`) or `RRUL_SLOT_FLENT_CMD` is resolved in that `PATH`; give an absolute path
+  for a command installed anywhere else. If the command cannot be found, the script exits 2 before any load with
+  `RRUL_SLOT_PROM_CMD '<value>' is not an executable command` (or the `FLENT_CMD` equivalent).
+- **Memory.** `MemoryMax=1G`: flent was OOM-killed while starting its runners under 256M, and a full run peaks near
+  370M.
+- **fping capability.** `NoNewPrivileges=no`: fping normally gets `CAP_NET_RAW` from a file capability, and
+  `NoNewPrivileges=yes` makes execve ignore file capabilities, so both the breach-watch fping and flent's ICMP runner
+  would fail.
 
 Install and activate, once confirmed:
 

@@ -11,10 +11,16 @@ Type=oneshot
 # One 60 s rrul (70 s with flent's ping lead/trail); typical run under 2 min. The script enforces its own whole-run
 # deadline (300 s, then TERM with owned teardown, KILL 30 s later), so it ends within 330 s; TimeoutStartSec is a backstop.
 ExecStart=%h/.local/bin/wanctl-rrul-slot --wall-sec 300 auto
+# The user manager's PATH does not include ~/.local/bin, where the default RRUL_SLOT_PROM_CMD (prom-ro) and a
+# pip/pipx-installed flent usually live. Commands named without a slash are looked up in this PATH.
+Environment=PATH=%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # 75 = skipped before any load (lock held, link not idle, other load tools running); not a failure.
 SuccessExitStatus=75
 TimeoutStartSec=360
 TimeoutStopSec=30
 KillMode=control-group
-MemoryMax=256M
-NoNewPrivileges=yes
+# flent was OOM-killed starting its runners under 256M; a full run peaks near 370M.
+MemoryMax=1G
+# Not "yes": fping gets CAP_NET_RAW from a file capability, and NoNewPrivileges makes execve ignore file capabilities,
+# so the breach-watch fping and flent's ICMP runner would fail.
+NoNewPrivileges=no

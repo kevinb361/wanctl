@@ -12,10 +12,14 @@ Type=oneshot
 # 6 steps x (20 s + 3 s omit) = 138 s of load; typical run ~5 min. The script enforces its own whole-run deadline
 # (510 s, then TERM with owned teardown, KILL 30 s later), so it ends within 540 s; TimeoutStartSec is only a backstop.
 ExecStart=%h/.local/bin/wanctl-capacity-sweep --wall-sec 510 auto "400 500 600 650 700 750"
+# The user manager's PATH does not include ~/.local/bin, where the default CAPACITY_SWEEP_PROM_CMD (prom-ro) usually
+# lives. Commands named without a slash are looked up in this PATH.
+Environment=PATH=%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # 75 = skipped before any load (lock held, link not idle, other load tools running); not a failure.
 SuccessExitStatus=75
 TimeoutStartSec=570
 TimeoutStopSec=30
 KillMode=control-group
 MemoryMax=256M
-NoNewPrivileges=yes
+# Not "yes": fping gets CAP_NET_RAW from a file capability, and NoNewPrivileges makes execve ignore file capabilities.
+NoNewPrivileges=no
