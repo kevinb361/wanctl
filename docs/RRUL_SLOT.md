@@ -13,8 +13,8 @@ It has two modes:
 
 `scripts/rrul_shadow_analyzer.py` turns the rows into a daily **shadow** recommendation, a per-hour table with reasons
 (see [Shadow analyzer](#shadow-analyzer-phase-2)). Neither script applies anything to the live ceiling. A sweep holds a
-cap only for its own runs and restores the controller afterwards. Applying a table to the ceiling would be a separate,
-reviewed change (phase 3).
+cap only for its own runs and restores the controller afterwards. Applying a table to the ceiling is phase 3,
+[`CEILING_APPLY.md`](CEILING_APPLY.md), which ships disabled.
 
 ## Why RRUL, and what one row means
 
@@ -353,6 +353,13 @@ and the reasons. **It is a shadow output only**: nothing reads it, and it change
 the last `--passive-days` (default 28): household traffic, RTT delta average and maximum, minimum shaped rate,
 non-green fraction and CAKE peak delay, as p50/p95 of 5-minute aggregates. A failing or missing query command is
 reported as `unavailable` and the table is still written; `--no-passive` skips it.
+
+Every run, failed ones included, also writes `<data dir>/shadow/analyzer-status.json` (schema
+`rrul-shadow-status-v1`): `ok`, `finished`, the `table_date` and `table_sha256` of the table it wrote (null on
+failure), `error`, `passive_status`, and `breach_stops_24h`, every `breach-stop` row (any mode) that started in the
+24 h before it finished. The disabled phase 3 applier ([`CEILING_APPLY.md`](CEILING_APPLY.md)) would use a table only
+when this record vouches for it. Usage errors exit before anything is written, and a run killed outright leaves the
+previous record, so its age is part of the check.
 
 Rule per hour, over sweep rows of the last `--window-days` (default 14):
 

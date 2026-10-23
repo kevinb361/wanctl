@@ -1,0 +1,17 @@
+# System unit for scripts/wanctl_ceiling_apply.py — PROPOSAL, not installed by any deploy script.
+# Runs as root on the shaper: it may rewrite max_dl_shaper_rate_kbps in the cake-autorate config and restart the
+# controller. Does nothing unless /etc/wanctl/ceiling-apply.env sets CEILING_APPLY_ENABLED=1.
+# Install/enable/rollback and prerequisites: docs/CEILING_APPLY.md.
+[Unit]
+Description=wanctl ceiling apply: shadow per-hour table to the Spectrum download ceiling (disabled by default)
+Documentation=file:/usr/local/share/doc/wanctl/CEILING_APPLY.md
+After=cake-autorate-spectrum.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/sbin/wanctl-ceiling-apply tick
+# 75 = deferred (busy or a sweep holds the shaper); retried at the next timer run.
+SuccessExitStatus=75
+# Sweep lock wait 30 s + restart 60 s + verify 20 s, twice at most (a failed change and its recovery), plus margin.
+TimeoutStartSec=300
+MemoryMax=128M

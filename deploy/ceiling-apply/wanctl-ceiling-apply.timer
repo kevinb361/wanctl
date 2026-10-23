@@ -1,0 +1,14 @@
+# System timer for wanctl-ceiling-apply.service — PROPOSAL, do not enable until docs/CEILING_APPLY.md prerequisites
+# are met. :00:30 is the hour-boundary run (the only one allowed to lower); :30:30 only catches up moves to 780.
+# Central offsets are whole hours, so the minutes are the same in UTC and local time.
+[Unit]
+Description=wanctl ceiling apply, every half hour (proposal)
+
+[Timer]
+OnCalendar=*-*-* *:00:30
+OnCalendar=*-*-* *:30:30
+AccuracySec=1s
+Persistent=false
+
+[Install]
+WantedBy=timers.target

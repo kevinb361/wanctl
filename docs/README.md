@@ -28,6 +28,8 @@ validation reports live in [`docs/archive/`](archive/).
 - [`CAPACITY_SWEEP.md`](CAPACITY_SWEEP.md): attended download capacity sweep tool (iperf3) and its limits.
 - [`RRUL_SLOT.md`](RRUL_SLOT.md): periodic flent RRUL measurement (single runs and evening cap sweeps), CSV schema,
   schedule and transfer proposal, shadow per-hour cap analyzer.
+- [`CEILING_APPLY.md`](CEILING_APPLY.md): phase 3, applying the shadow table to the Spectrum download ceiling (shipped
+  disabled), its safety rules, enable prerequisites and rollback.
 - [`SILICOM-BYPASS.md`](SILICOM-BYPASS.md): Silicom bypass NIC LED meanings and recovery notes.
 - [`TESTING.md`](TESTING.md): local test, lint, type-check, and integration-test commands.
 - [`UPGRADING.md`](UPGRADING.md): upgrade and rollback notes.

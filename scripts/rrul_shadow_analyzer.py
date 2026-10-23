@@ -6,6 +6,10 @@ SHADOW ONLY. The output is a dated recommendation file (JSON + Markdown). Nothin
 script changes no controller, shaper or ceiling setting. Applying a table to the live ceiling is a separate, reviewed
 step (phase 3) with its own approval.
 
+Every run also writes analyzer-status.json next to the tables, on failure too: whether the run succeeded, the date and
+sha256 of the table it wrote, the passive status, and the breach-stop rows of the 24 h before it finished. The phase 3
+applier (scripts/wanctl_ceiling_apply.py) uses a table only when this record vouches for it.
+
 Inputs (read-only):
 - rrul.csv (schema rrul-v1, single runs at the configured ceiling) and rrul-v2.csv (rrul-v2: single runs and sweeps)
   in the rrul-slot data dir.
@@ -33,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import shutil
@@ -105,6 +110,10 @@ PASSIVE_QUERIES = {
 PASSIVE_STEP = 300
 PASSIVE_CHUNK = 14 * 86400
 PROM_TIMEOUT = 60
+# Health record written after every run, success or failure; the phase 3 applier trusts a table only through it.
+STATUS_FILE = "analyzer-status.json"
+STATUS_SCHEMA = "rrul-shadow-status-v1"
+BREACH_SPAN = 86400
 
 
 class InputError(Exception):
@@ -486,8 +495,62 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     return a
 
 
+def breach_stops(rows: list[Row], end: int, span: int = BREACH_SPAN) -> list[dict]:
+    """Every breach-stop row (any mode) that started within SPAN seconds before END."""
+    return [
+        {"start_utc": r.start, "mode": r.mode, "tested_cap": r.cap}
+        for r in rows
+        if r.status == "breach-stop" and end - span <= r.start <= end
+    ]
+
+
+def write_status(out: Path, status: dict) -> None:
+    """Write analyzer-status.json: the health record a consumer checks before trusting a table."""
+    status = {
+        "schema": STATUS_SCHEMA,
+        "finished": datetime.now(CT).isoformat(timespec="seconds"),
+        **status,
+    }
+    out.mkdir(parents=True, exist_ok=True)  # a run can fail before anything else created it
+    _write_atomic(out / STATUS_FILE, json.dumps(status, indent=2) + "\n")
+
+
 def main(argv: list[str] | None = None) -> int:
+    """Run the analysis and always leave analyzer-status.json behind, on failure too.
+
+    Usage errors exit before anything is written. A run killed outright (SIGKILL, power loss) also writes nothing; a
+    consumer can only see that through the status file's age.
+    """
     a = parse_args(argv)
+    out = a.out_dir or a.data_dir / "shadow"
+    try:
+        rc, status = _run(a, out)
+    except BaseException as exc:
+        try:
+            write_status(out, _failed(f"{type(exc).__name__}: {exc}"))
+        except OSError:
+            pass
+        raise
+    try:
+        write_status(out, status)
+    except OSError as exc:
+        print(f"rrul-shadow-analyzer: cannot write {out / STATUS_FILE}: {exc}", file=sys.stderr)
+        return 1
+    return rc
+
+
+def _failed(error: str) -> dict:
+    return {
+        "ok": False,
+        "table_date": None,
+        "table_sha256": None,
+        "error": error,
+        "passive_status": None,
+        "breach_stops_24h": [],
+    }
+
+
+def _run(a: argparse.Namespace, out: Path) -> tuple[int, dict]:
     s = Settings(
         window_days=a.window_days,
         last_n=a.last_n,
@@ -505,7 +568,7 @@ def main(argv: list[str] | None = None) -> int:
         rows = read_rows(a.data_dir / "rrul.csv") + read_rows(a.data_dir / "rrul-v2.csv")
     except (InputError, OSError) as exc:
         print(f"rrul-shadow-analyzer: {exc}", file=sys.stderr)
-        return 1
+        return 1, _failed(str(exc))
 
     passive: dict[int, dict] = {}
     if a.no_passive:
@@ -535,9 +598,9 @@ def main(argv: list[str] | None = None) -> int:
         "passive_status": passive_status,
         "hours": [r.__dict__ for r in results],
     }
-    out = a.out_dir or a.data_dir / "shadow"
     out.mkdir(parents=True, exist_ok=True)
-    _write_atomic(out / f"shadow-{day.isoformat()}.json", json.dumps(report, indent=2) + "\n")
+    table = json.dumps(report, indent=2) + "\n"
+    _write_atomic(out / f"shadow-{day.isoformat()}.json", table)
     _write_atomic(out / f"shadow-{day.isoformat()}.md", render_markdown(report))
     changed = [
         f"{r.hour:02d}:{r.recommended_mbit}" for r in results if r.recommended_mbit != s.control
@@ -546,7 +609,14 @@ def main(argv: list[str] | None = None) -> int:
         f"shadow recommendation {day}: {', '.join(changed) or f'all hours at control {s.control}'} "
         f"-> {out}/shadow-{day.isoformat()}.md"
     )
-    return 0
+    return 0, {
+        "ok": True,
+        "table_date": day.isoformat(),
+        "table_sha256": hashlib.sha256(table.encode("utf-8")).hexdigest(),
+        "error": None,
+        "passive_status": passive_status,
+        "breach_stops_24h": breach_stops(rows, int(datetime.now(CT).timestamp())),
+    }
 
 
 if __name__ == "__main__":

@@ -283,7 +283,7 @@ def test_v1_rows_are_read_as_adaptive_and_never_written(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("bad", ["some,other,header\n1,2,3\n", V2_HEADER + "\nrrul-v2,short\n"])
-def test_unreadable_input_fails_without_output(
+def test_unreadable_input_fails_without_a_table_but_with_a_failed_status(
     tmp_path: Path, bad: str, capsys: pytest.CaptureFixture
 ) -> None:
     data = tmp_path / "data"
@@ -291,7 +291,55 @@ def test_unreadable_input_fails_without_output(
     (data / "rrul-v2.csv").write_text(bad, encoding="utf-8")
     assert ana.main(["--data-dir", str(data), "--no-passive"]) == 1
     assert "rrul-shadow-analyzer:" in capsys.readouterr().err
-    assert not (data / "shadow").exists()
+    assert sorted(p.name for p in (data / "shadow").iterdir()) == [ana.STATUS_FILE]
+    status = json.loads((data / "shadow" / ana.STATUS_FILE).read_text())
+    assert status["ok"] is False and status["table_sha256"] is None and status["error"]
+
+
+def _status(tmp_path: Path) -> dict:
+    return json.loads((tmp_path / "data" / "shadow" / ana.STATUS_FILE).read_text())
+
+
+def test_status_vouches_for_the_table_it_wrote(tmp_path: Path) -> None:
+    _write(tmp_path / "data", _sweep(DAY, {"780": 160.0, "620": 60.0}))
+    _report(tmp_path)
+    status = _status(tmp_path)
+    table = (tmp_path / "data" / "shadow" / f"shadow-{DAY.isoformat()}.json").read_bytes()
+    assert status["schema"] == "rrul-shadow-status-v1" and status["ok"] is True
+    assert status["table_date"] == DAY.isoformat()
+    assert status["table_sha256"] == hashlib.sha256(table).hexdigest()
+    assert status["passive_status"] == "not requested" and status["error"] is None
+    assert datetime.fromisoformat(status["finished"]).tzinfo is not None
+
+
+def test_status_on_an_unexpected_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write(tmp_path / "data", _sweep(DAY, {"780": 160.0}))
+
+    def boom(*a: object) -> None:
+        raise RuntimeError("analysis broke")
+
+    monkeypatch.setattr(ana, "analyze", boom)
+    with pytest.raises(RuntimeError):
+        ana.main(["--data-dir", str(tmp_path / "data"), "--no-passive"])
+    status = _status(tmp_path)
+    assert status["ok"] is False and "analysis broke" in status["error"]
+
+
+def test_breach_stops_of_the_last_24h_are_listed() -> None:
+    def row(start: int, status: str = "breach-stop", mode: str = "sweep") -> object:
+        return ana.Row(status, start, DAY, 21, mode, "480", "s", "1/3", "ok", None, None, None)
+
+    end = 1_000_000
+    rows = [
+        row(end - 100),
+        row(end - 90_000),
+        row(end - 50, "complete"),
+        row(end - 10, mode="single"),
+    ]
+    assert ana.breach_stops(rows, end) == [
+        {"start_utc": end - 100, "mode": "sweep", "tested_cap": "480"},
+        {"start_utc": end - 10, "mode": "single", "tested_cap": "480"},
+    ]
 
 
 @pytest.mark.parametrize(
