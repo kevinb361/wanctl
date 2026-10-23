@@ -216,17 +216,38 @@ def test_complete_sweep_holds_each_cap_once_and_restores_once(
     ]
 
 
+def _seed_order(tmp_path: Path, environ: dict[str, str], seed: str) -> tuple[str, ...]:
+    """The cap order a seed gives, without a held run: the order is drawn before the clean-shaper check, and an
+    unreadable status stops the sweep there with every cap already written to its row."""
+    d = tmp_path / f"order{seed}"
+    proc = _sweep(d, {**environ, "RRUL_SLOT_SWEEP_SEED": seed, "FAKE_STATUS_MODE": "garbage"})
+    assert proc.returncode == 1, proc.stderr
+    return tuple(r["tested_cap"] for r in _rows(d))
+
+
+# One full sweep per test: three in one body ran close to the 30 s per-test timeout and exceeded it on a loaded runner.
+@pytest.mark.parametrize("seed", ["1", "2", "3"])
+def test_seeded_sweep_always_includes_the_control(
+    tmp_path: Path, senv: dict[str, str], seed: str
+) -> None:
+    d = tmp_path / "full"
+    assert _sweep(d, {**senv, "RRUL_SLOT_SWEEP_SEED": seed}).returncode == 0
+    caps = tuple(r["tested_cap"] for r in _rows(d))
+    assert "780" in caps and sorted(caps) == ["480", "620", "780"]
+    # the full sweep runs in the order the cheap probe below reports for the same seed
+    assert caps == _seed_order(tmp_path, senv, seed)
+
+
 def test_order_is_random_and_always_includes_the_control(
     tmp_path: Path, senv: dict[str, str]
 ) -> None:
     seen = set()
     for seed in ("1", "2", "3"):
-        d = tmp_path / f"r{seed}"
-        assert _sweep(d, {**senv, "RRUL_SLOT_SWEEP_SEED": seed}).returncode == 0
-        caps = tuple(r["tested_cap"] for r in _rows(d))
+        caps = _seed_order(tmp_path, senv, seed)
         assert "780" in caps and sorted(caps) == ["480", "620", "780"]
         seen.add(caps)
     assert len(seen) > 1, seen
+    assert _calls(senv) == ["status"] * 3 and not _pids(senv, "flent")
 
 
 @pytest.mark.parametrize(
