@@ -38,6 +38,8 @@ def _row(
     status: str = "complete",
     restore: str = "ok",
     household: str = "2.0",
+    pre_dl: str = "0.4",
+    order: str = "1/3",
     sweep: str = "",
     mode: str = "sweep",
     offset: int = 0,
@@ -64,16 +66,17 @@ def _row(
         "mode": mode,
         "tested_cap": cap if mode == "sweep" else "adaptive",
         "sweep_id": sweep if mode == "sweep" else "",
-        "sweep_order": "1/3" if mode == "sweep" else "",
+        "sweep_order": order if mode == "sweep" else "",
         "restore": restore if mode == "sweep" else "",
         "household_dl_mbit": household if measured else "",
+        "pre_dl_mbit": pre_dl if measured else "",
     }
     return ",".join(values.get(c, "") for c in ana.V2_COLUMNS)
 
 
 def _sweep(day: date, p99s: dict[str, float], hhmm: str = "21:05", **kw) -> list[str]:
     return [
-        _row(day=day, hhmm=hhmm, cap=c, p99=p, offset=i * 90, **kw)
+        _row(day=day, hhmm=hhmm, cap=c, p99=p, offset=i * 90, order=f"{i + 1}/{len(p99s)}", **kw)
         for i, (c, p) in enumerate(p99s.items())
     ]
 
@@ -149,8 +152,8 @@ def test_small_improvement_is_not_a_win(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     ("kw", "excluded"),
     [
-        ({"household": "45.0"}, "high-household"),
-        ({"household": ""}, "no-household-context"),
+        ({"pre_dl": "45.0"}, "high-household"),
+        ({"pre_dl": ""}, "no-household-context"),
         ({"restore": "failed:rc=8"}, "restore-not-ok"),
         ({"restore": "unverified:status-unreadable"}, "restore-not-ok"),
     ],
@@ -164,6 +167,53 @@ def test_unusable_rows_are_excluded_and_named(tmp_path: Path, kw: dict, excluded
     assert h["recommended_mbit"] == 780
     assert h["excluded"] == {excluded: 6}
     assert any(excluded in r for r in h["reasons"])
+
+
+def test_household_is_the_first_runs_pre_window_not_the_in_window_estimate(tmp_path: Path) -> None:
+    # Shaped like the 2026-10-22 evening sweeps: a quiet pre-window (0.4 Mbit), an in-window household estimate inflated
+    # by the test's own load (62-168 Mbit), and later runs whose pre window holds the previous held run.
+    rows = []
+    for d, inflated in enumerate(("62.0", "115.0", "168.0")):
+        day = DAY - timedelta(days=d)
+        run = {"day": day, "household": inflated}
+        rows += [
+            _row(**run, cap="780", p99=160.0, pre_dl="0.4", order="1/3"),
+            _row(**run, cap="620", p99=60.0, pre_dl="131.0", order="2/3", offset=90),
+            _row(**run, cap="480", p99=50.0, pre_dl="127.5", order="3/3", offset=180),
+        ]
+    _write(tmp_path / "data", rows)
+    h = _hour(_report(tmp_path), 21)
+    assert h["excluded"] == {}
+    assert h["recommended_mbit"] == 620 and h["caps"]["620"]["wins"] == 3
+
+    # a busy pre-window still excludes the whole sweep, and the bound stays configurable
+    h = _hour(_report(tmp_path, "--max-household-mbit", "0.3"), 21)
+    assert h["recommended_mbit"] == 780 and h["excluded"] == {"high-household": 9}
+
+
+def test_sweep_without_its_first_run_has_no_household_context(tmp_path: Path) -> None:
+    rows = []
+    for d in range(3):
+        rows += _sweep(DAY - timedelta(days=d), {"780": 160.0, "620": 60.0, "480": 50.0})[1:]
+    _write(tmp_path / "data", rows)
+    h = _hour(_report(tmp_path), 21)
+    assert h["recommended_mbit"] == 780 and h["excluded"] == {"no-household-context": 6}
+
+
+def test_first_run_context_applies_across_an_hour_boundary(tmp_path: Path) -> None:
+    rows = []
+    for d in range(3):
+        day = DAY - timedelta(days=d)
+        sweep = f"eve-{day.isoformat()}-2158"
+        run = {"day": day, "sweep": sweep}
+        rows += [
+            _row(**run, hhmm="21:58", cap="480", p99=50.0, order="1/3"),
+            _row(**run, hhmm="22:00", cap="780", p99=160.0, pre_dl="130.0", order="2/3"),
+            _row(**run, hhmm="22:02", cap="620", p99=60.0, pre_dl="128.0", order="3/3"),
+        ]
+    _write(tmp_path / "data", rows)
+    h = _hour(_report(tmp_path), 22)
+    assert h["excluded"] == {} and h["recommended_mbit"] == 620
 
 
 def test_breach_stop_at_a_cap_disqualifies_it(tmp_path: Path) -> None:

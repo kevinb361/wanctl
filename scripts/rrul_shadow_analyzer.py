@@ -13,9 +13,14 @@ Inputs (read-only):
   (`CMD range EXPR START END STEP` printing the API's .data.result JSON), summarized per hour of day.
 
 Rule, per hour of day (Central), over sweep rows from the last --window-days days:
-- A row is usable when it is complete, its sweep's restore is ok, and its household download traffic (bytes on the
-  Spectrum CAKE download not carried by flent) is known and at most --max-household-mbit. Other rows are counted and
-  named, never used.
+- A row is usable when it is complete, its sweep's restore is ok, and its sweep's pre-window household rate is known
+  and at most --max-household-mbit. Other rows are counted and named, never used.
+- The pre-window household rate of a sweep is pre_dl_mbit of its first run (sweep_order 1/N): all Spectrum CAKE
+  download traffic in the 5 min before the sweep's own load. It can still include an earlier test that ended inside
+  those 5 min (the idle gate looks at less than that), which only makes it higher. Later runs' pre windows contain the
+  previous held run, so their pre_dl_mbit is not household context. A household change during the sweep is not seen.
+  household_dl_mbit (in-window CAKE bytes minus flent's goodput) is not used: under load it also holds retransmissions
+  and protocol overhead of the test itself, so it overstates household traffic.
 - Each cap is compared with the control (780) of the SAME sweep. Over the --last-n most recent sweeps where both are
   usable, the cap "wins" a sweep when its loaded ICMP p99 is at least --win-frac lower than the control's.
 - A cap qualifies when it has at least --min-wins wins, the median of its p99 over those sweeps is at most
@@ -115,10 +120,11 @@ class Row:
     mode: str
     cap: str  # "adaptive" or Mbit
     sweep: str
+    order: str  # sweep: "N/M", position in the run order
     restore: str
     p99: float | None
     dl: float | None
-    household: float | None
+    pre_dl: float | None
 
 
 @dataclass
@@ -187,16 +193,22 @@ def read_rows(path: Path) -> list[Row]:
                     mode=r.get("mode") or "single",
                     cap=r.get("tested_cap") or "adaptive",
                     sweep=r.get("sweep_id", ""),
+                    order=r.get("sweep_order", ""),
                     restore=r.get("restore", ""),
                     p99=_num(r["icmp_p99_ms"]),
                     dl=_num(r["dl_mbit"]),
-                    household=_num(r.get("household_dl_mbit", "")),
+                    pre_dl=_num(r.get("pre_dl_mbit", "")),
                 )
             )
     return rows
 
 
-def exclusion(row: Row, s: Settings) -> str | None:
+def sweep_household(rows: list[Row]) -> dict[str, float | None]:
+    """Pre-window household rate per sweep id: pre_dl_mbit of the sweep's first run, None when unknown."""
+    return {r.sweep: r.pre_dl for r in rows if r.mode == "sweep" and r.order.startswith("1/")}
+
+
+def exclusion(row: Row, s: Settings, household: dict[str, float | None]) -> str | None:
     """Why a sweep row cannot be used as cap evidence, or None."""
     if row.status != "complete":
         return f"status-{row.status}"
@@ -204,9 +216,10 @@ def exclusion(row: Row, s: Settings) -> str | None:
         return "restore-not-ok"
     if row.p99 is None:
         return "no-p99"
-    if row.household is None:
+    hh = household.get(row.sweep)
+    if hh is None:
         return "no-household-context"
-    if row.household > s.max_household_mbit:
+    if hh > s.max_household_mbit:
         return "high-household"
     return None
 
@@ -215,7 +228,9 @@ def _median(xs: list[float]) -> float | None:
     return round(statistics.median(xs), 1) if xs else None
 
 
-def analyze_hour(hour: int, rows: list[Row], s: Settings) -> HourResult:
+def analyze_hour(
+    hour: int, rows: list[Row], s: Settings, household: dict[str, float | None]
+) -> HourResult:
     res = HourResult(hour=hour, recommended_mbit=s.control, basis="control")
     adaptive = [
         r for r in rows if r.mode == "single" and r.status == "complete" and r.p99 is not None
@@ -234,7 +249,7 @@ def analyze_hour(hour: int, rows: list[Row], s: Settings) -> HourResult:
     usable: dict[str, dict[str, Row]] = {}
     breaches: dict[str, int] = {}
     for r in sweep_rows:
-        why = exclusion(r, s)
+        why = exclusion(r, s, household)
         if r.status == "breach-stop":
             breaches[r.cap] = breaches.get(r.cap, 0) + 1
         if why:
@@ -352,9 +367,11 @@ def passive_evidence(prom_cmd: str, end: int, days: int) -> tuple[dict[int, dict
 def analyze(rows: list[Row], s: Settings, day: date, passive: dict[int, dict]) -> list[HourResult]:
     first = day - timedelta(days=s.window_days - 1)
     window = [r for r in rows if first <= r.local_date <= day]
+    # from all rows: a sweep's first run may fall in an earlier hour or day than its other runs
+    household = sweep_household(rows)
     results = []
     for hour in range(24):
-        res = analyze_hour(hour, [r for r in window if r.hour == hour], s)
+        res = analyze_hour(hour, [r for r in window if r.hour == hour], s, household)
         res.passive = passive.get(hour, {})
         results.append(res)
     return results
@@ -371,7 +388,7 @@ def render_markdown(report: dict) -> str:
         f"Window: {report['window']['first']} .. {report['window']['last']}; rows read: {report['rows_read']}. "
         f"Rule: highest cap in {s['cap_min']}-{s['cap_max']} Mbit with >= {s['min_wins']} of the last {s['last_n']} "
         f"paired sweeps at least {s['win_frac']:.0%} below the {s['control']} control's p99, median p99 <= "
-        f"{s['p99_target_ms']:g} ms, no breach-stop, household <= {s['max_household_mbit']:g} Mbit. "
+        f"{s['p99_target_ms']:g} ms, no breach-stop, pre-sweep household <= {s['max_household_mbit']:g} Mbit. "
         f"Passive evidence: {report['passive_status']}.",
         "",
         "| Hour | Recommended | Basis | Caps (wins/paired, median p99 ms) | Adaptive runs (median p99) | Passive "
@@ -440,7 +457,12 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     p.add_argument("--cap-min", type=int, default=d.cap_min)
     p.add_argument("--cap-max", type=int, default=d.cap_max)
     p.add_argument("--control", type=int, default=d.control)
-    p.add_argument("--max-household-mbit", type=float, default=d.max_household_mbit)
+    p.add_argument(
+        "--max-household-mbit",
+        type=float,
+        default=d.max_household_mbit,
+        help="highest pre-sweep household rate (first run's pre_dl_mbit) of a usable sweep",
+    )
     p.add_argument("--prom-cmd", default=os.environ.get("RRUL_SLOT_PROM_CMD", "prom-ro"))
     p.add_argument("--passive-days", type=int, default=28)
     p.add_argument("--no-passive", action="store_true", help="skip the Prometheus passive evidence")

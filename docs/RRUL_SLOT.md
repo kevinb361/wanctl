@@ -203,8 +203,8 @@ Appended in v2:
 | `tested_cap` | `adaptive` (single: controller live) or the held download cap in Mbit (sweep) |
 | `sweep_id`, `sweep_order` | sweep: the run id shared by its rows, and this row's position `N/M` in the random order |
 | `restore` | sweep: `ok`, `failed:rc=N`, `unverified:<state>`, or `none` when nothing was held |
-| `household_dl_mbit` | Spectrum CAKE download bytes over the load window + 15 s that flent did not carry, as Mbit/s (clamped at 0) |
-| `pre_dl_mbit` | Spectrum CAKE download rate over the 5 min before the load (all traffic) |
+| `household_dl_mbit` | Spectrum CAKE download bytes over the load window + 15 s minus flent's download goodput, as Mbit/s (clamped at 0); an upper bound, see below |
+| `pre_dl_mbit` | Spectrum CAKE download rate over the 5 min before the load (all traffic); in a sweep, the first run's is the pre-sweep household rate |
 | `rtt_delta_avg_ms`, `rtt_delta_max_ms` | controller RTT delta over the load window; `pre_*`: the 5 min before |
 | `nongreen_frac` | fraction of 15 s samples with download congestion state above GREEN; `pre_*` likewise |
 | `dl_drops` | CAKE download drops over the load window; `pre_*` likewise |
@@ -214,6 +214,14 @@ The context columns after `household_dl_mbit` are descriptive. A context query t
 adds `;context-missing:<names>` to the reason, but does not invalidate the row; context queries have a 5 s limit each
 and are skipped when the run's deadline is near. `household_dl_mbit` is computed from the path-check query, so a
 complete row always has it.
+
+`household_dl_mbit` does not cleanly exclude the test. CAKE counts every byte it sends, including the test's own
+retransmissions and protocol overhead, while flent reports goodput, so under load the difference holds part of the
+test as well as household traffic and can read tens to over a hundred Mbit/s with a quiet household. Use it as an
+upper bound only. `pre_dl_mbit` is measured before the run's own load. In a sweep only the first run's
+(`sweep_order` `1/M`) describes the household: the 5 min before each later run include the previous held run. Even the
+first run's can include an earlier test that ended within those 5 min, since the idle gate checks a shorter span; that
+can only raise it.
 
 A run skipped because the lock was held writes no row; its record is the unit's journal.
 
@@ -348,9 +356,13 @@ reported as `unavailable` and the table is still written; `--no-passive` skips i
 
 Rule per hour, over sweep rows of the last `--window-days` (default 14):
 
-- **Usable rows** are complete, from a sweep whose restore was `ok`, with `household_dl_mbit` known and at most
-  `--max-household-mbit` (default 20). Every other row is counted by cause (`high-household`, `no-household-context`,
-  `restore-not-ok`, `status-<status>`) and named in the reasons.
+- **Usable rows** are complete, from a sweep whose restore was `ok` and whose pre-sweep household rate is known and at
+  most `--max-household-mbit` (default 20). The pre-sweep household rate is `pre_dl_mbit` of the sweep's first run
+  (`sweep_order` `1/M`), and applies to every row of that sweep; a sweep whose first run is missing or has no
+  `pre_dl_mbit` has no household context. A household change during the sweep is not detected.
+  `household_dl_mbit` is not used (see the v2 columns above). Every other row
+  is counted by cause (`high-household`, `no-household-context`, `restore-not-ok`, `status-<status>`, `no-p99`) and
+  named in the reasons.
 - **Paired comparison.** A cap is compared only with the control of the **same sweep**. Over the `--last-n` (default 5)
   most recent sweeps where both are usable, the cap wins a sweep when its p99 is at least `--win-frac` (default 30%)
   lower than the control's.
