@@ -341,14 +341,22 @@ class TestBuildResult:
 class TestServerConnectivity:
     """Verify check_server_connectivity probes server via netperf and measures baseline RTT."""
 
+    @patch("icmplib.ping")
     @patch("wanctl.benchmark.parse_ping_output")
     @patch("wanctl.benchmark.subprocess.run")
-    def test_reachable_server(self, mock_run: MagicMock, mock_parse_ping: MagicMock) -> None:
+    def test_reachable_server(
+        self,
+        mock_run: MagicMock,
+        mock_parse_ping: MagicMock,
+        mock_icmp_ping: MagicMock,
+    ) -> None:
         """Server reachable: netperf succeeds, ping measures baseline RTT."""
         from wanctl.benchmark import check_server_connectivity
 
         # netperf probe succeeds
         mock_run.return_value = MagicMock(returncode=0)
+        # icmplib yields no baseline, so the subprocess ping fallback is used
+        mock_icmp_ping.return_value = MagicMock(is_alive=False, min_rtt=0.0)
         # ping returns RTT values
         mock_parse_ping.return_value = [23.0, 25.0, 22.0, 24.0, 26.0]
 
@@ -394,13 +402,20 @@ class TestServerConnectivity:
         assert reachable is False
         assert baseline == 0.0
 
+    @patch("icmplib.ping")
     @patch("wanctl.benchmark.parse_ping_output")
     @patch("wanctl.benchmark.subprocess.run")
-    def test_ping_returns_empty(self, mock_run: MagicMock, mock_parse_ping: MagicMock) -> None:
+    def test_ping_returns_empty(
+        self,
+        mock_run: MagicMock,
+        mock_parse_ping: MagicMock,
+        mock_icmp_ping: MagicMock,
+    ) -> None:
         """Reachable but ping fails: baseline RTT is 0.0."""
         from wanctl.benchmark import check_server_connectivity
 
         mock_run.return_value = MagicMock(returncode=0)
+        mock_icmp_ping.return_value = MagicMock(is_alive=False, min_rtt=0.0)
         mock_parse_ping.return_value = []
 
         reachable, baseline = check_server_connectivity("netperf.bufferbloat.net")
@@ -433,13 +448,20 @@ class TestServerConnectivity:
         assert mock_run.call_args_list[0].args[0][0] == "netperf"
         assert mock_run.call_args_list[1].args[0][0] == "ping"
 
+    @patch("icmplib.ping")
     @patch("wanctl.benchmark.parse_ping_output")
     @patch("wanctl.benchmark.subprocess.run")
-    def test_custom_timeout(self, mock_run: MagicMock, mock_parse_ping: MagicMock) -> None:
+    def test_custom_timeout(
+        self,
+        mock_run: MagicMock,
+        mock_parse_ping: MagicMock,
+        mock_icmp_ping: MagicMock,
+    ) -> None:
         """Custom timeout passed to subprocess.run."""
         from wanctl.benchmark import check_server_connectivity
 
         mock_run.return_value = MagicMock(returncode=0)
+        mock_icmp_ping.return_value = MagicMock(is_alive=False, min_rtt=0.0)
         mock_parse_ping.return_value = [10.0]
 
         check_server_connectivity("server", timeout=5)

@@ -14,6 +14,7 @@ not found", never a real ssh/scp/rsync, and the target is a reserved .invalid na
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -29,6 +30,9 @@ RSYNC_STOP_RC = 77
 NETWORK_COMMANDS = ("ssh", "scp", "rsync")
 # Real utilities deploy.sh runs before deploy_code's rsync (and on --dry-run), besides builtins.
 REAL_UTILITIES = ("dirname",)
+# Fixed whole-second mtimes for the synthetic trees: deployed copy one hour older.
+DEPLOYED_MTIME = 1_767_225_600
+SOURCE_MTIME = DEPLOYED_MTIME + 3600
 
 
 def _write_executable(path: Path, body: str) -> None:
@@ -122,6 +126,16 @@ def _synthetic_trees(tmp_path: Path) -> tuple[Path, Path]:
     _write(dest / "pkg" / "scripts" / "stale.py", "nested stale\n")
     _write(dest / "dashboard" / "app.py", "runtime dashboard\n")
     _write(dest / "scripts" / "wanctl-history", "runtime helper\n")
+
+    # rsync's quick check skips files whose size and whole-second mtime match, and
+    # "new\n"/"old\n" are the same size. Pin the deployed copy older than the source,
+    # as after a real earlier deploy, so the replay does not depend on write timing.
+    for path in src.rglob("*"):
+        if path.is_file():
+            os.utime(path, (SOURCE_MTIME, SOURCE_MTIME))
+    for path in dest.rglob("*"):
+        if path.is_file():
+            os.utime(path, (DEPLOYED_MTIME, DEPLOYED_MTIME))
     return src, dest
 
 

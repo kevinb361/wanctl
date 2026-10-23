@@ -31,8 +31,10 @@ jobs:
         # tools. Those scripts need pyyaml (only non-stdlib module used) and the
         # `ip` command (iproute2, for `ip route get` preflight probes). Deploy
         # hosts have both; the bare act container does not. The capacity-sweep
-        # tests run the real script, which needs jq and GNU awk (asort).
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-yaml iproute2 jq gawk
+        # tests run the real script, which needs jq and GNU awk (asort). The
+        # deploy_code runtime-preservation test replays rsync locally and skips
+        # without it.
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-yaml iproute2 jq gawk rsync
 
       - name: Create non-root CI user
         # The test suite is written for a non-root environment: it asserts

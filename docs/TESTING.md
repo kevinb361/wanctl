@@ -24,6 +24,16 @@ If you manage the virtualenv manually, create `.venv` and install the dev depend
 
 Plain `pytest` and Makefile pytest targets therefore run the unit suite in parallel and exclude tests marked `integration` unless you explicitly override `addopts`. Use `-o addopts=''` for commands that must disable these defaults.
 
+## No Live Network in Unit Tests
+
+Unit tests must not send real traffic. Some RTT code, such as `check_server_connectivity` in `wanctl.benchmark`, tries `icmplib.ping` before a subprocess `ping` fallback, so a test that mocks only `subprocess.run` can still ping a real host wherever unprivileged ICMP is allowed; mock `icmplib.ping` as well. There is no suite-wide socket guard (many tests use loopback servers or run subprocesses), so to prove a local run is offline, run it in an empty network namespace:
+
+```bash
+unshare -rn .venv/bin/pytest tests/test_foo.py -o addopts='' -q
+```
+
+Some tests need host tools and skip when they are missing: the `deploy_code` rsync replay test needs `rsync`, and the `requirements.txt` lock check needs `uv`. CI provides both, so they run there.
+
 ## Fast Test Commands
 
 Use the targets in [`Makefile`](../Makefile):

@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).parents[1]
 INSTALLER = ROOT / "scripts" / "install-python-runtime.sh"
@@ -158,9 +161,13 @@ def test_host_installer_delegates_to_frozen_runtime_helper() -> None:
 
 
 def test_requirements_export_matches_frozen_lock() -> None:
+    # CI installs uv before the gate, so this only skips on hosts without it.
+    uv = shutil.which("uv")
+    if uv is None:
+        pytest.skip("uv not installed; cannot check requirements.txt against uv.lock")
     result = subprocess.run(
         [
-            "uv",
+            uv,
             "export",
             "--frozen",
             "--no-dev",
