@@ -24,9 +24,8 @@ measurement tools.
   it was judged materially better. wanctl was kept only as a state bridge and metrics layer.
 - **2026-10:** No live system used wanctl's controller any more, and the planned v1.67 release was cancelled. The
   planning record's baseline for the seven days ending 2026-10-25, over all samples, is p50 0.2 ms, p95 9.1 ms and
-  p99 20 ms, with 91 % of samples at or under 5 ms and a worst evening hour p95 of 28-35 ms. The record does not name
-  the exact metric. Its context ("p99 latency rise about 20 ms") points to added latency, not absolute RTT. It was not
-  re-measured for this README.
+  p99 20 ms, with 91 % of samples at or under 5 ms and a worst evening hour p95 of 28-35 ms. Those figures are
+  cake-autorate's added latency (RTT rise over its baseline, `cake_rtt_delta_ms`), not absolute RTT.
 
 ## Where things went
 
