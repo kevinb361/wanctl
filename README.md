@@ -29,7 +29,7 @@ measurement tools.
 
 ## Where things went
 
-- The pieces still in use are in **cake-autorate-tools** (`<cake-autorate-tools-url>`): the cake-autorate state
+- The pieces still in use are in **cake-autorate-tools** (<https://github.com/kevinb361/cake-autorate-tools>): the cake-autorate state
   bridge, the metrics exporter, the Silicom bypass watchdog and the RRUL and capacity measurement tools.
 - What was learned about CAKE on RouterOS is written up in that repository's `docs/cake-on-mikrotik.md`.
 
