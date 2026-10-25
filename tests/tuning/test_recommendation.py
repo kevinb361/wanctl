@@ -609,3 +609,144 @@ class TestReadOnlyProofClosesKnownBypasses:
         )
         violations = verify_read_only(path)
         assert any(f"filesystem write call: {method}()" in v for v in violations), violations
+
+
+# The audit's full AUD-v1.67-011 inventory (23 forms) plus the two misses the
+# independent re-verification added. Fixtures are parsed, never imported or run;
+# free names such as ``c`` and ``p`` are deliberate.
+AUD011_INVENTORY = {
+    "alias-importlib": 'from importlib import import_module as _load\n_load("subprocess").run(c)\n',
+    "getattr-importlib": 'import importlib\ngetattr(importlib,"import_module")("subprocess").run(c)\n',
+    "getattr-builtins": 'import builtins\ngetattr(builtins,"__imp"+"ort__")("os").system(c)\n',
+    "exec": "exec(c)\n",
+    "eval": "eval(c)\n",
+    "path-write-text": "import pathlib\npathlib.Path(p).write_text(c)\n",
+    "path-open-writelines": 'import pathlib\npathlib.Path(p).open("w").writelines(c)\n',
+    "ctypes": "import ctypes\n",
+    "asyncio": "import asyncio\nasyncio.create_subprocess_shell(c)\n",
+    "posix": "import posix\nposix.system(c)\n",
+    "_posixsubprocess": "import _posixsubprocess\n",
+    "open-json": 'import json\nwith open(p,"w") as fh:\n    json.dump(c,fh)\n',
+    "open-print": 'with open(p,"w") as fh:\n    print(c,file=fh)\n',
+    "io-writelines": 'import io\nio.open(p,"w").writelines(c)\n',
+    "tempfile-open-json": (
+        'import tempfile, json\nfd,p=tempfile.mkstemp()\nwith open(p,"w") as fh:\n'
+        "    json.dump(c,fh)\n"
+    ),
+    "path-unlink": "import pathlib\npathlib.Path(p).unlink()\n",
+    "path-rename": "import pathlib\npathlib.Path(p).rename(q)\n",
+    "path-mkdir": "import pathlib\npathlib.Path(p).mkdir()\n",
+    "path-touch": "import pathlib\npathlib.Path(p).touch()\n",
+    "path-chmod": "import pathlib\npathlib.Path(p).chmod(0o600)\n",
+    "runpy": "import runpy\nrunpy.run_path(p)\n",
+    "webbrowser": "import webbrowser\nwebbrowser.open(url)\n",
+    "sys-modules": 'import sys\nsys.modules["subprocess"].run(c)\n',
+    # Added by the independent re-verification, beyond the audit's 23.
+    "tempfile-mkstemp": "import tempfile\ntempfile.mkstemp()\n",
+    "bound-path-open-json": (
+        'import pathlib, json\nwith pathlib.Path(p).open("w") as fh:\n    json.dump(c,fh)\n'
+    ),
+}
+
+
+class TestReadOnlyProofClosesAuditInventory:
+    """AUD-v1.67-011: every form the audit enumerated, not only the nine fixed first.
+
+    The earlier fix closed the nine forms the prior pass executed. Seven still
+    returned an empty list: five from the audit's widened inventory and two found
+    by the independent re-verification. One of those was a defect in the checker
+    itself -- it read the mode of every ``open`` call from the second positional
+    argument, which is right for ``open(file, mode)`` but wrong for a bound
+    ``Path(p).open(mode)``.
+    """
+
+    @staticmethod
+    def _write(tmp_path, body: str) -> str:
+        f = tmp_path / "candidate.py"
+        f.write_text(body)
+        return str(f)
+
+    def test_inventory_has_every_form(self):
+        assert len(AUD011_INVENTORY) == 25
+
+    @pytest.mark.parametrize("label", sorted(AUD011_INVENTORY))
+    def test_every_inventory_form_is_detected(self, tmp_path, label):
+        violations = verify_read_only(self._write(tmp_path, AUD011_INVENTORY[label]))
+        assert violations, f"{label} still returns no violations"
+
+    @pytest.mark.parametrize(
+        ("label", "expected"),
+        [
+            ("posix", "forbidden import: posix"),
+            ("_posixsubprocess", "forbidden import: _posixsubprocess"),
+            ("runpy", "forbidden import: runpy"),
+            ("webbrowser", "forbidden import: webbrowser"),
+            ("sys-modules", "module registry access: sys.modules"),
+            ("tempfile-mkstemp", "forbidden import: tempfile"),
+            ("bound-path-open-json", "open() in a write mode"),
+        ],
+    )
+    def test_previously_missed_form_is_caught_by_the_intended_rule(self, tmp_path, label, expected):
+        violations = verify_read_only(self._write(tmp_path, AUD011_INVENTORY[label]))
+        assert any(expected in v for v in violations), (label, violations)
+
+    @pytest.mark.parametrize(
+        ("body", "expected"),
+        [
+            ("from posix import system\n", "forbidden import from: posix"),
+            ("from runpy import run_path\n", "forbidden import from: runpy"),
+            ("from webbrowser import open as browse\n", "forbidden import from: webbrowser"),
+            ("from tempfile import mkstemp\n", "forbidden import from: tempfile"),
+            ("from sys import modules\n", "module registry access: sys.modules"),
+            (
+                'import sys as _s\n_s.modules["subprocess"].run(c)\n',
+                "module registry access: sys.modules",
+            ),
+            (
+                'import sys\nsys.modules.get("subprocess").run(c)\n',
+                "module registry access: sys.modules",
+            ),
+        ],
+    )
+    def test_import_and_alias_variants_are_caught(self, tmp_path, body, expected):
+        violations = verify_read_only(self._write(tmp_path, body))
+        assert any(expected in v for v in violations), (body, violations)
+
+    @pytest.mark.parametrize("mode", ["w", "a", "x", "r+", "wb"])
+    def test_bound_open_takes_its_mode_first(self, tmp_path, mode):
+        body = f'import pathlib\n\n\ndef f(p):\n    return pathlib.Path(p).open("{mode}")\n'
+        assert any("open()" in v for v in verify_read_only(self._write(tmp_path, body)))
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            'from pathlib import Path\n\n\ndef f(p):\n    return Path(p).open("w")\n',
+            'import pathlib\n\n\ndef f(x):\n    p = pathlib.Path(x)\n    return p.open("a")\n',
+            'import pathlib\n\n\ndef f(p):\n    return pathlib.Path(p).open(mode="w")\n',
+            'def f(p):\n    return open(p, mode="w")\n',
+            'import io as fileio\n\n\ndef f(p):\n    return fileio.open(p, "a")\n',
+        ],
+    )
+    def test_write_open_shapes_are_detected(self, tmp_path, body):
+        assert any("open()" in v for v in verify_read_only(self._write(tmp_path, body)))
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            # Bound open with no mode, or a read mode.
+            "import pathlib\n\n\ndef f(p):\n    return pathlib.Path(p).open().read()\n",
+            'import pathlib\n\n\ndef f(p):\n    return pathlib.Path(p).open("r").read()\n',
+            'import pathlib\n\n\ndef f(p):\n    return pathlib.Path(p).open("rb").read()\n',
+            # A file name containing mode letters is not a mode. These discriminate
+            # a fix that reads the mode by call shape from one that scans every
+            # argument: the builtin and module forms take the file first.
+            'def f():\n    return open("/srv/data.yaml").read()\n',
+            'import io\n\n\ndef f():\n    return io.open("/srv/data.yaml").read()\n',
+            'import io as fileio\n\n\ndef f():\n    return fileio.open("/srv/data.yaml", "r").read()\n',
+            # sys itself is not a write or control surface; its module registry is.
+            "import sys\n\n\ndef f():\n    return sys.version_info >= (3, 11)\n",
+            "def f(pkg):\n    return pkg.modules\n",
+        ],
+    )
+    def test_clean_controls_stay_clean(self, tmp_path, body):
+        assert verify_read_only(self._write(tmp_path, body)) == []

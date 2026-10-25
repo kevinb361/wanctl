@@ -357,6 +357,14 @@ FORBIDDEN_MODULES = frozenset(
         "builtins",
         "ctypes",
         "asyncio",
+        # AUD-v1.67-011's wider inventory. `posix` and `_posixsubprocess` are the
+        # process primitives under `os` and `subprocess`; `runpy` executes other
+        # code; `webbrowser` launches a process; `tempfile` creates files.
+        "posix",
+        "_posixsubprocess",
+        "runpy",
+        "webbrowser",
+        "tempfile",
     }
 )
 
@@ -400,6 +408,7 @@ def _scan_import_surface(tree: Any) -> list[str]:
     """
     import ast
 
+    modules = _imported_module_names(tree)
     found: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -409,28 +418,76 @@ def _scan_import_surface(tree: Any) -> list[str]:
         elif isinstance(node, ast.ImportFrom):
             if node.module and node.module.split(".")[0] in FORBIDDEN_MODULES:
                 found.append(f"forbidden import from: {node.module}")
+            elif node.module == "sys" and any(a.name == "modules" for a in node.names):
+                found.append(_REGISTRY_VIOLATION)
+        elif isinstance(node, ast.Attribute):
+            # sys.modules hands back an already-imported module by name, which is
+            # an import that creates no Import node and names no forbidden module.
+            if (
+                node.attr == "modules"
+                and isinstance(node.value, ast.Name)
+                and modules.get(node.value.id) == "sys"
+            ):
+                found.append(_REGISTRY_VIOLATION)
         elif isinstance(node, ast.Call):
-            func = node.func
-            name = (
-                func.id
-                if isinstance(func, ast.Name)
-                else func.attr
-                if isinstance(func, ast.Attribute)
-                else None
-            )
-            if name in FORBIDDEN_IMPORT_CALLS:
-                found.append(f"dynamic import call: {name}()")
-            elif name in FORBIDDEN_DYNAMIC_CALLS:
-                found.append(f"dynamic execution call: {name}()")
-            elif name in FORBIDDEN_WRITE_CALLS:
-                found.append(f"filesystem write call: {name}()")
-            elif name == "open" and _opens_for_writing(node):
-                found.append("filesystem write call: open() in a write mode")
+            violation = _call_violation(node, modules)
+            if violation:
+                found.append(violation)
     return found
 
 
-def _opens_for_writing(node: Any) -> bool:
+_REGISTRY_VIOLATION = "module registry access: sys.modules"
+
+
+def _call_violation(node: Any, modules: dict[str, str]) -> str | None:
+    """Return the violation a call node represents, if any."""
+    import ast
+
+    func = node.func
+    name = (
+        func.id
+        if isinstance(func, ast.Name)
+        else func.attr
+        if isinstance(func, ast.Attribute)
+        else None
+    )
+    if name in FORBIDDEN_IMPORT_CALLS:
+        return f"dynamic import call: {name}()"
+    if name in FORBIDDEN_DYNAMIC_CALLS:
+        return f"dynamic execution call: {name}()"
+    if name in FORBIDDEN_WRITE_CALLS:
+        return f"filesystem write call: {name}()"
+    if name == "open" and _opens_for_writing(node, modules):
+        return "filesystem write call: open() in a write mode"
+    return None
+
+
+def _imported_module_names(tree: Any) -> dict[str, str]:
+    """Map each name an ``import`` statement binds to the top-level module it names.
+
+    Syntactic only: it does not follow rebinding or scopes. It exists so a call
+    through a module (``io.open``, ``sys.modules``) can be told apart from a call
+    on some other object, including when the module was imported under an alias.
+    """
+    import ast
+
+    bound: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                top = alias.name.split(".")[0]
+                bound[alias.asname or top] = top
+    return bound
+
+
+def _opens_for_writing(node: Any, modules: dict[str, str]) -> bool:
     """True when an open() call names a write, append, or update mode.
+
+    Where the mode sits depends on the call's shape. Called by name (the builtin)
+    or through a module (``io.open``, ``codecs.open``), open takes the file first
+    and the mode second. Called as a bound method -- ``Path(p).open`` -- the file
+    is already bound, so the mode is the first argument. Reading the second
+    argument for every shape missed bound opens entirely.
 
     Uses an explicit isinstance check rather than getattr: getattr is itself a
     forbidden dynamic call, and the strengthened checker correctly flagged this
@@ -438,7 +495,14 @@ def _opens_for_writing(node: Any) -> bool:
     """
     import ast
 
-    mode_args = list(node.args[1:2]) + [kw.value for kw in node.keywords if kw.arg == "mode"]
+    func = node.func
+    bound_method = isinstance(func, ast.Attribute) and not (
+        isinstance(func.value, ast.Name) and func.value.id in modules
+    )
+    position = 0 if bound_method else 1
+    mode_args = list(node.args[position : position + 1]) + [
+        kw.value for kw in node.keywords if kw.arg == "mode"
+    ]
     for arg in mode_args:
         if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
             if any(m in arg.value for m in _WRITE_MODES):
